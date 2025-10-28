@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-build:
+    uses: ./.github/workflows/frontend-build.yml
+    with:
+      node_version: '22.x'
+
+  apphost-build:
+    uses: ./.github/workflows/apphost-build.yml
+
+  integration-test:
+    needs:
+      - frontend-build
+      - apphost-build
+    uses: ./.github/workflows/integration.yml
+    with:
+      node_version:  '22.x'
+
+  lint-and-validate:
+    uses: ./.github/workflows/lint-validate.yml
+    with:
+      node_version:  '22.x'
+
+  security-scan:
+    uses: ./.github/workflows/security-scan.yml
+    with:
+      node_version:  '22.x'

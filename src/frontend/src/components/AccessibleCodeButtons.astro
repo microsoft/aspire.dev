@@ -1,0 +1,104 @@
+---
+/**
+ * Component to ensure code block copy buttons have accessible labels.
+ * This addresses WCAG 4.1.2 requirement for buttons to have discernible text.
+ * 
+ * The expressive-code library generates copy buttons dynamically, and this script
+ * ensures they have proper aria-label attributes for screen readers.
+ * 
+ * Additionally, this component supports hiding copy buttons via:
+ * - disable-copy in code fence meta: ```bash disable-copy
+ * - data-disable-copy attribute on parent elements: <div data-disable-copy>
+ */
+---
+
+<script>
+	/**
+	 * Add accessible labels to code copy buttons and handle copy button visibility
+	 * This runs after the page loads and whenever the DOM changes
+	 */
+	function addAccessibleLabels() {
+		// Find all figures with copy buttons (includes both .expressive-code and direct figures)
+		const figures = document.querySelectorAll('figure.frame');
+		
+		figures.forEach((figure) => {
+			const copyButton = figure.querySelector('.copy button');
+			const copyContainer = figure.querySelector('.copy');
+			
+			if (!copyButton || !copyContainer) return;
+			
+			// Check if copy should be disabled via:
+			// 1. data-disable-copy attribute on the figure itself
+			// 2. disable-copy attribute on the figure itself
+			// 3. data-disable-copy on any parent element (div, etc.)
+			const hasDisableCopy = 
+				figure.hasAttribute('data-disable-copy') || 
+				figure.hasAttribute('disable-copy') ||
+				figure.closest('[data-disable-copy]') !== null ||
+				figure.closest('[disable-copy]') !== null;
+			
+			if (hasDisableCopy) {
+				// Remove the entire copy container
+				copyContainer.remove();
+				return;
+			}
+			
+			// Only add aria-label if it doesn't already exist
+			if (!copyButton.hasAttribute('aria-label')) {
+				// Get the code content from data attribute or tooltip
+				const codeText = copyButton.getAttribute('data-code') || '';
+				const tooltip = copyButton.getAttribute('title') || copyButton.getAttribute('data-copied');
+				
+				// Set appropriate aria-label based on state
+				if (tooltip === 'Copied!' || copyButton.getAttribute('data-copied') === 'Copied!') {
+					copyButton.setAttribute('aria-label', `Copied ${codeText} to clipboard`);
+				} else {
+					copyButton.setAttribute('aria-label', `Copy ${codeText ? codeText + ' ' : ''}code to clipboard`);
+				}
+			}
+			
+			// Ensure title attribute is not empty
+			if (copyButton.hasAttribute('title') && copyButton.getAttribute('title') === '') {
+				copyButton.setAttribute('title', 'Copy to clipboard');
+			}
+		});
+	}
+	
+	// Run on initial page load
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', addAccessibleLabels);
+	} else {
+		addAccessibleLabels();
+	}
+	
+	// Re-run when navigating with View Transitions
+	document.addEventListener('astro:page-load', addAccessibleLabels);
+	
+	// Watch for dynamically added code blocks
+	const observer = new MutationObserver((mutations) => {
+		let hasCodeBlocks = false;
+		mutations.forEach((mutation) => {
+			mutation.addedNodes.forEach((node) => {
+				if (node.nodeType === 1) {
+					const element = node as Element;
+					if (element.classList?.contains('expressive-code') || 
+						element.classList?.contains('frame') ||
+						element.querySelector?.('.expressive-code') ||
+						element.querySelector?.('figure.frame')) {
+						hasCodeBlocks = true;
+					}
+				}
+			});
+		});
+		
+		if (hasCodeBlocks) {
+			addAccessibleLabels();
+		}
+	});
+	
+	// Start observing the document body for changes
+	observer.observe(document.body, {
+		childList: true,
+		subtree: true
+	});
+</script>

@@ -1,0 +1,91 @@
+---
+const { summary } = Astro.props;
+---
+
+<details
+    class="expand"
+    dir={Astro.locals.t.dir()}
+>
+    <summary>{summary}</summary>
+    <div class="content">
+        <slot />
+    </div>
+</details>
+
+<style>
+    .expand {
+        background-color: var(--sl-color-gray-6);
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        border-inline-start-width: 0.25rem;
+        box-shadow: var(--sl-shadow-sm);
+        overflow: hidden;
+    }
+
+    .expand summary {
+        padding: 1rem;
+        cursor: pointer;
+        display: block;
+        margin-inline-start: -0.5rem;
+        padding-inline-start: 0.5rem;
+    }
+
+    .expand summary:not(:where(.not-content *))::marker,
+    .expand summary:not(:where(.not-content *))::-webkit-details-marker {
+        display: none;
+    }
+
+    .expand summary:not(:where(.not-content *))::before {
+        --sl-details-marker-size: 1.25rem;
+
+        background-color: currentColor;
+        content: "";
+        display: inline-block;
+        padding-left: 1.5rem;
+        height: var(--sl-details-marker-size);
+        width: var(--sl-details-marker-size);
+        margin-inline: calc((var(--sl-details-marker-size) / 4) * -1) 0.25rem;
+        margin-left: 0.5rem;
+        vertical-align: middle;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14.8 11.3 10.6 7a1 1 0 1 0-1.4 1.5l3.5 3.5-3.5 3.5a1 1 0 0 0 0 1.4 1 1 0 0 0 .7.3 1 1 0 0 0 .7-.3l4.2-4.2a1 1 0 0 0 0-1.4Z'/%3E%3C/svg%3E%0A");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14.8 11.3 10.6 7a1 1 0 1 0-1.4 1.5l3.5 3.5-3.5 3.5a1 1 0 0 0 0 1.4 1 1 0 0 0 .7.3 1 1 0 0 0 .7-.3l4.2-4.2a1 1 0 0 0 0-1.4Z'/%3E%3C/svg%3E%0A");
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    .expand summary:hover::after {
+        color: var(--sl-color-text-accent);
+    }
+
+    .expand:hover {
+        border-left-color: var(--sl-color-text-accent);
+        color: var(--sl-color-text-accent);
+    }
+
+    .expand details {
+        border-inline-start: 2px solid var(--sl-details-border-color);
+        padding-inline-start: 1rem;
+    }
+
+    .expand .content {
+        padding: 1rem;
+        padding-top: 0rem;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .expand summary:not(:where(.not-content *))::before {
+            transition: transform 0.2s ease-in-out;
+        }
+    }
+    .expand[open] > summary:not(:where(.not-content *))::before {
+        transform: rotateZ(90deg);
+    }
+    [dir="rtl"] .expand summary:not(:where(.not-content *))::before,
+    .expand [dir="rtl"] summary:not(:where(.not-content *))::before {
+        transform: rotateZ(180deg);
+    }
+    /* <summary> with only a paragraph automatically added when using MDX */
+    .expand summary:not(:where(.not-content *)) p:only-child {
+        display: inline;
+    }
+</style>

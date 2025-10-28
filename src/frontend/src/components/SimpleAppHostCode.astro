@@ -1,0 +1,45 @@
+---
+import { Code } from "@astrojs/starlight/components";
+import type { MarkerDefinition } from "@astrojs/starlight/expressive-code";
+
+export type MarkerValueType = MarkerDefinition | MarkerDefinition[] | undefined;
+export type CollapseValueType = string | string[] | undefined;
+
+interface CodeProps {
+  mark?: MarkerValueType;
+  collapse?: CollapseValueType;
+}
+
+const { mark, collapse } = Astro.props as CodeProps;
+
+const cs = `
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+                      .AddDatabase("appdata")
+                      .WithDataVolume();
+
+// Add API service and reference the database
+var api = builder.AddProject<Projects.Api>("api")
+                 .WithReference(postgres)
+                 .WaitFor(postgres);
+
+// Add frontend service and reference the API
+builder.AddViteApp("frontend", "../frontend")
+       .WithNpmPackageInstallation()
+       .WithHttpEndpoint(env: "PORT")
+       .WithReference(api);
+
+builder.Build().Run();
+`;
+---
+
+<Code
+  code={cs}
+  lang="cs"
+  title="C# — AppHost.cs"
+  mark={mark}
+  collapse={collapse}
+  collapseStyle={"collapsible-auto"}
+/>

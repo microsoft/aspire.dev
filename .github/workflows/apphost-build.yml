@@ -1,0 +1,43 @@
+name: AppHost Build
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: AppHost Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        global-json-file: global.json
+
+    - name: Restore
+      run: cd src/apphost/Aspire.Dev.AppHost && dotnet restore
+
+    - name: Build
+      run: cd src/apphost/Aspire.Dev.AppHost && dotnet build --no-restore --configuration Release
+
+    - name: Verify output
+      run: |
+        APPHOST_DLL=$(ls -1 src/apphost/Aspire.Dev.AppHost/bin/Release/*/Aspire.Dev.AppHost.dll 2>/dev/null | head -n 1)
+        if [ -z "$APPHOST_DLL" ]; then
+          echo "AppHost build failed - output assembly not found"
+          ls -R src/apphost/Aspire.Dev.AppHost/bin/Release || true
+          exit 1
+        fi
+        echo "Found $APPHOST_DLL"
+
+    - name: Upload artifact
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: apphost-release
+        path: src/apphost/Aspire.Dev.AppHost/bin/Release/*/
+        if-no-files-found: warn
+        retention-days: 7

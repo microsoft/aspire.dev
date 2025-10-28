@@ -1,0 +1,82 @@
+name: Update Integration Data
+
+on:
+  schedule:
+    # Run weekly on Sundays at 6 AM UTC
+    - cron: '0 6 * * 0'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NODE_VERSION: '22.x'
+
+jobs:
+  update-integration-data:
+    name: Update Integration Data
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'src/frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: |
+        cd src/frontend
+        npm ci
+        
+    - name: Update integration data
+      run: |
+        cd src/frontend
+        npm run update:all
+        
+    - name: Check for changes
+      id: verify-changed-files
+      run: |
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "## Changes detected:" >> $GITHUB_STEP_SUMMARY
+          git status --porcelain >> $GITHUB_STEP_SUMMARY
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "No changes detected in integration data" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Create Pull Request
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update integration data and GitHub stats'
+        title: 'chore: Update integration data and GitHub stats'
+        body: |
+          ## 🔄 Automated Integration Data Update
+          
+          This PR contains automated updates to:
+          - **Integration data** from NuGet API
+          - **GitHub repository statistics**
+          
+          ### 📊 What's Updated
+          - `src/frontend/src/data/aspire-integrations.json` - Latest package information
+          - GitHub statistics and repository data
+          
+          ### ✅ Review Checklist
+          - [ ] Verify integration data looks reasonable
+          - [ ] Check for any suspicious changes or anomalies
+          - [ ] Ensure package counts and versions are updated appropriately
+          
+          ### 🤖 Automation
+          This PR was created automatically by the weekly integration data update workflow.
+          Review the changes and merge when ready.
+        branch: update/integration-data-${{ github.run_number }}
+        delete-branch: true
+        draft: false

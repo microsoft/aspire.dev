@@ -1,0 +1,30 @@
+---
+// Include a Markdown/MDX file from the docs collection inline.
+// Usage in MDX: <Include relativePath="reference/cli/includes/project-search-logic.description.md" />
+
+interface Props {
+    /** Path relative to /src/content/docs (may start with or without a leading slash). */
+    relativePath: string;
+}
+
+const { relativePath } = Astro.props as Props;
+
+// Eagerly import all .md and .mdx under the docs collection so we can render by path.
+const mdModules = {
+    ...import.meta.glob('/src/content/docs/**/*.md', { eager: true }) as Record<string, unknown>,
+    ...import.meta.glob('/src/content/docs/**/*.mdx', { eager: true }) as Record<string, unknown>,
+};
+
+// Normalize the provided path to match the glob keys (absolute from project root).
+const normalized = `/src/content/docs/${relativePath.replace(/^\/+/, '')}`;
+const mod = mdModules[normalized] as any;
+
+if (!mod) {
+    throw new Error(`Include.astro: File not found: ${normalized}`);
+}
+
+// MD/MDX modules may export either `Content` or a default component.
+const ResolvedContent = (mod?.Content ?? mod?.default) as any;
+---
+
+{ResolvedContent ? <ResolvedContent /> : null}

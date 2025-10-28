@@ -1,0 +1,114 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+import type { HTMLAttributes } from 'astro/types';
+
+type CustomIconComponent = any; // Accept imported SVG components
+
+interface Props extends Omit<HTMLAttributes<'a'>, 'title'> {
+	title: string;
+	description?: string;
+	/** Icon can be a Starlight icon name or a custom SVG component */
+	icon?: StarlightIcon | CustomIconComponent | undefined;
+	/** Where to place the arrow icon relative to the content. Default: 'end' */
+	placement?: 'start' | 'end';
+}
+
+const { title, description, icon = undefined, placement = 'end', ...attributes } = Astro.props as Props;
+const isStringIcon = typeof icon === 'string';
+const CustomIcon = !isStringIcon ? (icon as CustomIconComponent) : null;
+---
+
+<div class={`sl-link-card ${placement === 'start' ? 'start' : ''}`}>
+	{placement === 'start' && <Icon name="left-arrow" class="icon rtl:flip" />}
+	<span class="sl-flex stack">
+		<a {...attributes}>
+			<span class="title">
+				{icon && (CustomIcon ? <CustomIcon class="icon" height="32" width="32" /> : <Icon name={icon as StarlightIcon} class="icon" />)}
+				{title}
+			</span>
+		</a>
+		{description && <span class="description" set:html={description} />}
+	</span>
+	{placement !== 'start' && <Icon name="right-arrow" class="icon rtl:flip" />}
+    
+</div>
+
+<style>
+	@layer starlight.components {
+		.sl-link-card {
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 0.5rem;
+			border: 1px solid var(--sl-color-gray-5);
+			border-radius: 0.5rem;
+			padding: 1rem;
+			box-shadow: var(--sl-shadow-sm);
+			position: relative;
+		}
+
+		.sl-link-card .icon {
+			align-self: center;
+		}
+
+		/* When arrow is placed at the start, flip the column sizes */
+		.sl-link-card.start {
+			grid-template-columns: auto 1fr;
+		}
+
+		.sl-link-card:hover {
+			cursor: pointer;
+		}
+
+        .title {
+            display: flex;
+        }
+
+        .title .icon {
+            margin-right: 0.5rem;
+            color: var(--sl-color-gray-3);
+        }
+
+		a {
+			text-decoration: none;
+			line-height: var(--sl-line-height-headings);
+		}
+
+		/* a11y fix for https://github.com/withastro/starlight/issues/487 */
+		a::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+		}
+
+		.stack {
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+
+		.title {
+			color: var(--sl-color-white);
+			font-weight: 600;
+			font-size: var(--sl-text-lg);
+		}
+
+		.description {
+			color: var(--sl-color-gray-3);
+			line-height: 1.5;
+		}
+
+		.icon {
+			color: var(--sl-color-gray-3);
+		}
+
+		/* Hover state */
+		.sl-link-card:hover {
+			background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+			border-color: var(--sl-color-gray-2);
+		}
+
+		.sl-link-card:hover .icon {
+			color: var(--sl-color-white);
+		}
+	}
+</style>

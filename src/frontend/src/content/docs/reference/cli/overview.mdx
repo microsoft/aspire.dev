@@ -1,0 +1,113 @@
+---
+title: Aspire CLI overview
+prev: false
+---
+
+import { LinkButton } from "@astrojs/starlight/components";
+import LearnMore from "@components/LearnMore.astro";
+
+The Aspire CLI (`aspire` command) is a .NET global tool that provides command-line functionality to create, manage, run, and publish Aspire projects. Use the Aspire CLI to streamline development workflows for distributed applications.
+
+The Aspire CLI is an interactive-first experience.
+
+<LinkButton href="../install" variant="secondary" icon="download" iconPlacement="start">
+  Install the Aspire CLI
+</LinkButton>
+
+## Use templates
+
+The `aspire new` command is an interactive-first CLI experience, and is used to create one or more Aspire projects. As part of creating a project, Azure CLI ensures that the latest Aspire project templates are installed.
+
+Use the `aspire new` command to create an Aspire project from a list of templates. Once a template is selected, the name of the project is set, and the output folder is chosen, `aspire` downloads the latest templates and generates one or more projects.
+
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+
+The following is an example of running the `aspire new` command to create a new Aspire project — select the play button to view terminal playback:
+
+<AsciinemaPlayer src="/casts/aspire-new.cast" poster="npt:0:03" />
+
+While command line parameters can be used to automate the creation of an Aspire project, the Aspire CLI is an interactive-first experience.
+
+## Start the Aspire AppHost
+
+<LearnMore>
+  [Command reference: `aspire run`](../commands/aspire-run/)
+</LearnMore>
+
+The `aspire run` command runs the AppHost project in development mode, which configures the Aspire environment, builds and starts resources defined by the AppHost, launches the web dashboard, and prints a list of endpoints.
+
+When `aspire run` starts, it searches the current directory for an AppHost project. If a project isn't found, the sub directories are searched until one is found. If no AppHost project is found, Aspire stops. Once a project is found, Aspire CLI takes the following steps:
+
+import { Steps } from '@astrojs/starlight/components';
+
+<Steps>
+1. Installs or verifies that Aspire's local hosting certificates are installed and trusted.
+1. Builds the AppHost project and its resources.
+1. Starts the AppHost and its resources.
+1. Starts the dashboard.
+</Steps>
+
+The following snippet is an example of the output displayed by the `aspire run` command:
+
+```bash title="Aspire CLI"
+Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
+
+    Logs:  /home/vscode/.aspire/cli/logs/apphost-5932-2025-08-25-18-37-31.log
+
+        Press CTRL+C to stop the apphost and exit.
+```
+
+## Add integrations
+
+<LearnMore>
+  [Command reference: `aspire add`](../commands/aspire-add/)
+</LearnMore>
+
+The `aspire add` command is an easy way to add official integration packages to your AppHost project. Use this as an alternative to a NuGet search through your IDE. You can run `aspire add <name|id>` if you know the name or NuGet ID of the integration package. If you omit a name or ID, the tool provides a list of packages to choose from. If you provide a partial name or ID, the tool filters the list of packages with items that match the provided value.
+
+## Publish Aspire solutions (preview)
+
+<LearnMore>
+  [Command reference: `aspire publish`](../commands/aspire-publish/)
+</LearnMore>
+
+The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire invokes registered `PublishingCallbackAnnotation` resource annotations, in the order they're declared. These annotations serialize a resource so that it can be consumed by deployment tools.
+
+Some integrations automatically register a `PublishingCallbackAnnotation` for you, for example:
+
+- `AzureEnvironmentResource` generates Bicep assets.
+- `DockerComposeEnvironmentResource` generates docker-compose yaml.
+- `KubernetesEnvironmentResource` generates Kubernetes Helm charts.
+
+## Deploy Aspire solutions (preview)
+
+<LearnMore>
+  [Command reference: `aspire deploy`](../commands/aspire-deploy/)
+</LearnMore>
+
+The `aspire deploy` command is similar to `aspire publish`. After Aspire has invoked the publishing annotations to serialize resources to disk, it invokes `DeployingCallbackAnnotation` resource annotations, in the order they're declared.
+
+As of Aspire 9.4, Aspire doesn't include any default deployment annotations for its resources, you must use the `DeployingCallbackAnnotation` to build your own.
+
+> [!TIP]
+> Consider this a good way to deploy your Aspire solution to a staging or testing environment.
+
+## Manage Aspire configuration
+
+The `aspire config` command lets you manage Aspire CLI configuration settings. Use it to `list`, `get`, `set`, or `delete` configuration values that control CLI behavior. This command is also used to toggle features on or off.
+
+<LearnMore>
+  To learn more, see [Command reference: `aspire config`](/reference/cli/commands/aspire-config/) and the [Aspire CLI configuration](/reference/cli/configuration/).
+</LearnMore>
+
+## Run commands in resource context (preview)
+
+<LearnMore>
+  [Command reference: `aspire exec`](../commands/aspire-exec/)
+</LearnMore>
+
+The `aspire exec` command runs a command in the context of a specific Aspire resource, inheriting that resource's configuration, including environment variables, connection strings, and working directory. This is particularly useful for scenarios like running Entity Framework migrations where you need to run commands with the same configuration as your application. For example, you can run `aspire exec --resource api -- dotnet ef migrations add Init` to run Entity Framework commands with the proper database connection strings automatically configured.
+
+:::note[Feature Flag]{icon='seti:config'}
+The `aspire exec` command is behind a feature flag and **disabled by default** in this release. It must be explicitly enabled for use with `aspire config set features.execCommandEnabled true`.
+:::

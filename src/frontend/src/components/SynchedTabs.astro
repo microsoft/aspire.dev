@@ -1,0 +1,223 @@
+---
+const { id: groupId } = Astro.props;
+---
+
+<style>
+  .synced-tabs .starlight-tabs {
+    margin: 0;
+  }
+  
+  .synced-tabs .starlight-tabs [role="tablist"] {
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  
+  .synced-tabs .starlight-tabs [role="tab"] {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: var(--sl-color-gray-6);
+    user-select: none;
+  }
+  
+  .synced-tabs .starlight-tabs [role="tab"][aria-selected="true"] {
+    border-color: var(--sl-color-gray-5) var(--sl-color-gray-5) transparent;
+    background: var(--sl-color-bg);
+    font-weight: bold;
+  }
+</style>
+
+<div class="synced-tabs" data-group-id={groupId}>
+  <slot />
+</div>
+
+<script>
+  (() => {
+    // Flag to prevent infinite loops during synchronization
+    let isSynchronizing = false;
+
+    // Function to get URL parameters
+    function getUrlParams() {
+      return new URLSearchParams(window.location.search);
+    }
+
+    // Function to update URL parameter
+    function updateUrlParam(groupId: string, tabLabel: string) {
+      const url = new URL(window.location.href);
+      url.searchParams.set(groupId, tabLabel.toLowerCase());
+      
+      // Update URL without triggering a page reload
+      window.history.replaceState({}, '', url);
+    }
+
+    // Function to get tab selection from URL
+    function getTabFromUrl(groupId: string) {
+      const params = getUrlParams();
+      return params.get(groupId);
+    }
+
+    // Function to manually activate a tab without triggering events
+    function setTabStateDirectly(container: Element, tabLabel: string) {
+      const starlightTabs = container.querySelector('starlight-tabs');
+      if (!starlightTabs) return false;
+
+      const tabButtons = starlightTabs.querySelectorAll('[role="tab"]');
+      const tabPanels = starlightTabs.querySelectorAll('[role="tabpanel"]');
+      
+      let targetIndex = -1;
+      
+      // Find the target tab index
+      tabButtons.forEach((button, index) => {
+        const buttonLabel = button.textContent?.trim();
+        if (buttonLabel?.toLowerCase() === tabLabel.toLowerCase()) {
+          targetIndex = index;
+        }
+      });
+      
+      if (targetIndex === -1) return false;
+      
+      // Update tab states manually
+      tabButtons.forEach((button, index) => {
+        const isActive = index === targetIndex;
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        button.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
+      
+      // Update panel states manually
+      tabPanels.forEach((panel, index) => {
+        (panel as HTMLElement).hidden = index !== targetIndex;
+      });
+      
+      return true;
+    }
+
+    // Function to activate a tab by clicking it (for user interactions)
+    function activateTabByClick(container: Element, tabLabel: string) {
+      const starlightTabs = container.querySelector('starlight-tabs');
+      if (!starlightTabs) return false;
+
+      const tabButtons = starlightTabs.querySelectorAll('[role="tab"]');
+      
+      for (const button of tabButtons) {
+        const buttonLabel = button.textContent?.trim();
+        if (buttonLabel?.toLowerCase() === tabLabel.toLowerCase()) {
+          const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          button.dispatchEvent(clickEvent);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Function to initialize synced tabs
+    function initializeSynchedTabs() {
+      // Find all synced-tabs containers
+      document.querySelectorAll('.synced-tabs[data-group-id]').forEach(container => {
+        const groupId = container.getAttribute('data-group-id');
+        if (!groupId) return;
+
+        // Find the Starlight tabs component within this container
+        const starlightTabs = container.querySelector('starlight-tabs');
+        if (!starlightTabs) return;
+
+        // Check if already initialized
+        if (starlightTabs.hasAttribute('data-synced-initialized')) return;
+        starlightTabs.setAttribute('data-synced-initialized', 'true');
+
+        // Get all tab buttons (they are <a> elements with role="tab")
+        const tabButtons = starlightTabs.querySelectorAll('[role="tab"]');
+
+        if (tabButtons.length === 0) return;
+
+        // Add click listeners to synchronize tabs
+        tabButtons.forEach((button) => {
+          button.addEventListener('click', (e) => {
+            // If we're already synchronizing, don't create a loop
+            if (isSynchronizing) return;
+
+            const tabLabel = button.textContent?.trim();
+            if (!tabLabel) return;
+
+            // Set the synchronizing flag
+            isSynchronizing = true;
+
+            // Update URL parameter immediately
+            updateUrlParam(groupId, tabLabel);
+
+            // Small delay to let Starlight handle the click first
+            setTimeout(() => {
+              // Synchronize all tab groups with the same groupId
+              document.querySelectorAll(`.synced-tabs[data-group-id="${groupId}"]`).forEach(syncContainer => {
+                if (syncContainer === container) return; // Skip the clicked container
+
+                // Use click-based activation for sync to maintain event flow
+                activateTabByClick(syncContainer, tabLabel);
+              });
+
+              // Reset the synchronizing flag after a short delay
+              setTimeout(() => {
+                isSynchronizing = false;
+              }, 50);
+            }, 10);
+          });
+        });
+      });
+
+      // Apply URL-based selections AFTER all tabs are initialized
+      // This runs separately to avoid interfering with event listeners
+      setTimeout(() => {
+        document.querySelectorAll('.synced-tabs[data-group-id]').forEach(container => {
+          const groupId = container.getAttribute('data-group-id');
+          if (!groupId) return;
+
+          const urlTabSelection = getTabFromUrl(groupId);
+          if (urlTabSelection) {
+            // Use direct state setting for URL-based activation to avoid event conflicts
+            setTabStateDirectly(container, urlTabSelection);
+          }
+        });
+      }, 100);
+    }
+
+    // Initialize immediately if DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeSynchedTabs);
+    } else {
+      initializeSynchedTabs();
+    }
+
+    // Also use MutationObserver to catch dynamically added content
+    const observer = new MutationObserver((mutations) => {
+      let shouldReinitialize = false;
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              if (element.querySelector && (element.tagName === 'STARLIGHT-TABS' || element.querySelector('starlight-tabs'))) {
+                shouldReinitialize = true;
+              }
+            }
+          });
+        }
+      });
+      if (shouldReinitialize) {
+        setTimeout(initializeSynchedTabs, 100);
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // Cleanup observer when page unloads
+    window.addEventListener('beforeunload', () => {
+      observer.disconnect();
+    });
+  })();
+</script>

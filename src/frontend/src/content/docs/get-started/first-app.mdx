@@ -1,0 +1,125 @@
+---
+title: Create your first app
+description: Learn about essential tooling concepts for Aspire.
+lastUpdated: true
+tableOfContents: false
+prev: false
+next: false # change this to the next desired page.
+---
+
+import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
+import LearnMore from '@components/LearnMore.astro';
+import CodespacesButton from '@components/CodespacesButton.astro';
+
+Aspire provides templates and tooling to quickly create and configure cloud-native apps in Visual Studio, VS Code, or the CLI. Prefer not to install anything locally? Start your first app in a Dev Container:
+
+<CodespacesButton owner="dotnet" repo="aspire-devcontainer" />
+
+Alternatively, assuming you have the [prerequisites](../prerequisites/) and [Aspire CLI](../install/) installed, you can create a new Aspire solution.
+
+<Steps>
+
+1. Create a new Aspire solution:
+
+    ```bash title="Create a new aspire solution" data-disable-copy
+    aspire new aspire-starter -n AspireApp -o AspireApp
+    ```
+
+    <Aside type='tip' title='CLI options'>
+      The `aspire-starter` template provides several projects, including an API service, web frontend, and app host.
+      
+      - `-n`: specifies the name of the solution.
+      - `-o`: specifies the output directory.
+    </Aside>
+
+    If prompted for additional selections, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. 
+    Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
+
+    <LearnMore>
+         For further CLI reference, see [`aspire new`](/reference/cli/commands/aspire-new/) command information.
+    </LearnMore>
+
+1. Verify the solution was created successfully. The Aspire CLI creates a new folder named _AspireApp_ in the current directory. This folder contains the solution file and several projects, including:
+
+    <FileTree>
+    - AspireApp.sln
+    - AspireApp.ApiService
+        - Properties/
+        - appsettings.Development.json
+        - appsettings.json
+        - AspireApp.ApiService.csproj
+        - Program.cs
+    - **AspireApp.AppHost** this is your local **dev-time** orchestrator
+        - Properties/
+        - appsettings.Development.json
+        - appsettings.json
+        - AspireApp.AppHost.csproj
+        - AppHost.cs
+    - AspireApp.ServiceDefaults
+        - Extensions.cs
+        - AspireApp.ServiceDefaults.csproj
+    - AspireApp.Web
+        - Properties/
+        - wwwroot/
+        - appsettings.Development.json
+        - appsettings.json
+        - AspireApp.Web.csproj
+        - Program.cs
+        - WeatherApiClient.cs
+    </FileTree>
+
+    This solution structure is based on the Aspire templates. If they're not installed already, the CLI will install them for you.
+
+1. Change to the _output_ directory:
+
+    ```bash title="Change directories—stepping into the output directory"
+    cd ./AspireApp
+    ```
+
+1. Run the Aspire AppHost project:
+
+    ```bash title="Run dev-time orchestration"
+    aspire run
+    ```
+
+    When you run this command, the Aspire CLI automatically finds the AppHost project, builds your solution, and launches dev-time orchestration. Once the dashboard is ready, its URL (with a login token) appears in your console. You'll also see a live, real-time view of your running resources and their current states.
+
+    ```bash title="Example output of aspire run"
+    Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
+
+    Logs:  /home/vscode/.aspire/cli/logs/apphost-5932-2025-08-25-18-37-31.log
+
+        Press CTRL+C to stop the apphost and exit.
+    ```
+
+    <LearnMore>
+         For further CLI reference, see [`aspire run`](/reference/cli/commands/aspire-run/) command information.
+    </LearnMore>
+
+1. Explore the running distributed application. From the dashboard, open the `HTTPS` endpoint from each resource.
+
+    ![Aspire dashboard Resources page displaying two running resources: apiservice and webfrontend. Both are marked as Running with green check icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions. apiservice uses AspireApp.ApiService.csproj and has URLs https://localhost:7393 and webfrontend uses AspireApp.Web.csproj with URL https://localhost:7214. The interface has a dark theme with navigation options for Resources, Console, Structured, Traces, and Metrics on the left.](../../../assets/get-started/aspire-dashboard.png)
+
+1. Stop the AppHost and close the dashboard by pressing <Kbd windows="Ctrl+C" mac="⌘+C" />.
+
+    **🥳 Congratulations! You've created your first Aspire app.**
+
+</Steps>
+
+## Next steps
+
+Next, deepen your understanding of Aspire by learning how the AppHost defines your application's architecture, and how deployment and app topology are defined once and reused across environments.
+
+<CardGrid>
+  <LinkCard
+    title="The AppHost"
+    description="Discover how to define your application's architecture using Aspire's code-first AppHost approach."
+    href="/get-started/app-host/"
+  />
+  <LinkCard
+    title="Deployment & App Topology"
+    description="Learn how your development setup translates to production deployments across different platforms."
+    href="/get-started/deployment/"
+  />
+</CardGrid>

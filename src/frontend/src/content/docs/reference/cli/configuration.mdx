@@ -1,0 +1,113 @@
+---
+title: Configuration settings
+description: Learn about the Aspire CLI configuration settings, including feature flags and AppHost project settings.
+---
+
+The Aspire CLI uses a configuration file to control its behavior. You can configure feature flags to enable or disable CLI features, and specify which AppHost project the CLI should use by default for an Aspire solution.
+
+The settings file is stored in a `.aspire` folder and is named `settings.json`. Settings files can be stored locally or globally.
+
+The following snippet is an example `.aspire/settings.json` file:
+
+```json title=".aspire/settings.json"
+{
+  "appHostPath": "../AspireShop/AspireShop.AppHost/AspireShop.AppHost.csproj",
+  "features": {
+    "deployCommandEnabled": "true"
+  }
+}
+```
+
+> [!NOTE]
+> For all available configuration settings in JSON format, see [Example settings file](#example-settings-file).
+
+## Config file locations
+
+A global Aspire CLI settings file is stored at `$HOME/.aspire/settings.json`, and is used as the default settings for the CLI. A local settings file overwrites the settings from the global file. Local settings files are stored at `./.aspire/settings.json`.
+
+import { Code, Steps, Tabs, TabItem } from "@astrojs/starlight/components"
+import SynchedTabs from "@components/SynchedTabs.astro";
+
+<SynchedTabs>
+  <Tabs>
+  <TabItem label="Bash" icon="seti:shell">
+    You can inspect (and test existence of) the local and global settings files:
+
+    ```bash title="Check local and global settings files"
+    # Check local and global settings files
+    for f in ./.aspire/settings.json "$HOME/.aspire/settings.json"; do
+      [ -f "$f" ] && echo "$f (found)" || echo "$f (not found)"
+    done
+
+    # Optional: open global file
+    nano "$HOME/.aspire/settings.json"
+    ```
+  </TabItem>
+  <TabItem label="PowerShell" icon="seti:powershell">
+    Simple PowerShell to show file paths and whether they exist:
+
+    ```powershell title="Check local and global settings files"
+    $local  = "$PWD\.aspire\settings.json"
+    $global = "$HOME\.aspire\settings.json"
+    "Local :  $local  Exists: $(Test-Path $local)"
+    "Global:  $global Exists: $(Test-Path $global)"
+
+    # Optional: open global file in VS Code
+    if (Test-Path $global) { code $global }
+    ```
+  </TabItem>
+    </Tabs>
+</SynchedTabs>
+
+## Generating a config file
+
+The CLI automatically generates a local settings file when you run a command that requires interaction with the AppHost, or if you set a config option. For example, `aspire run` searches for an AppHost project, and when found, generates the `./.aspire/settings.json` file with the `appHostPath` setting set to the project it found.
+
+> [!IMPORTANT]
+> `appHostPath` can be set globally, but the CLI ignores it and only reads it in the local settings file.
+
+## Settings
+
+The Aspire CLI supports two categories of configuration settings:
+
+- **Feature flags**\
+These settings enable or disable specific CLI features. All feature flag setting names start with `feature.`
+
+- **CLI behavior**\
+These settings control how the CLI operates. Currently, the only CLI behavior setting is `appHostPath`, which specifies the location of the AppHost project.
+
+The following table lists the settings that can be set in the config file:
+
+import Include from "@components/Include.astro";
+
+<Include relativePath="reference/cli/includes/config-settings-table.md" />
+
+### Example settings file
+
+The following is an example with all supported settings:
+
+```json title=".aspire/settings.json"
+{
+  "appHostPath": "../AspireShop/AspireShop.AppHost/AspireShop.AppHost.csproj",
+  "features": {
+    "execCommandEnabled": "true",
+    "deployCommandEnabled": "true",
+    "minimumSdkCheckEnabled": "true",
+    "orphanDetectionWithTimestampEnabled": "true",
+    "packageSearchDiskCachingEnabled": "true",
+    "showDeprecatedPackages": "true",
+    "singleFileAppHostEnabled": "true",
+    "stagingChannelEnabled": "true",
+    "updateNotificationsEnabled": "true"
+  }
+```
+
+## CLI commands
+
+| Command | Status | Function |
+|--|--|--|
+| [`aspire config`](/reference/cli/commands/aspire-config-list/) | Stable | Command driver for managing Aspire configuration. |
+| [`aspire config list`](/reference/cli/commands/aspire-config-list/) | Stable | List all configuration values. |
+| [`aspire config get <key>`](/reference/cli/commands/aspire-config-get/) | Stable | Get a configuration value. |
+| [`aspire config set <key> <value>`](/reference/cli/commands/aspire-config-set/) | Stable | Set a configuration value. |
+| [`aspire config delete <key>`](/reference/cli/commands/aspire-config-delete/) | Stable | Delete a configuration value. |

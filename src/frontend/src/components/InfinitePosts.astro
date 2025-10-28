@@ -1,0 +1,123 @@
+---
+import { BlueskyPost } from "astro-embed";
+import postJson from "@data/aspire-posts.json";
+
+import type { Post } from "@astro-community/astro-embed-bluesky";
+
+const PAGE_SIZE = 20;
+
+const posts = JSON.parse(JSON.stringify(postJson)) as Post[];
+const initial: Post[] = posts.slice(0, PAGE_SIZE);
+const remainder: Post[] = posts.slice(PAGE_SIZE);
+---
+
+<style>
+    /* small fade-in for newly appended posts */
+    .post {
+        opacity: 1;
+        transform: translateY(0);
+        transition:
+            opacity 360ms ease,
+            transform 360ms ease;
+    }
+    .post.new {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    /* ensure template content does not show (templates are inert by default) */
+    template {
+        display: none;
+    }
+</style>
+
+<div
+    id="posts-grid"
+    class="grid gap-4"
+    style="grid-template-columns: repeat(auto-fill, minmax(40rem, 1fr));"
+>
+    <!-- only render the first PAGE_SIZE posts into the live DOM -->
+    {
+        initial.map((post, i) => (
+            <div class="post" data-index={i}>
+                <BlueskyPost post={post} />
+            </div>
+        ))
+    }
+</div>
+
+<!-- render the remaining posts inside templates (inert) -->
+{
+    remainder.map((post, idx) => (
+        <template data-index={PAGE_SIZE + idx}>
+            <div class="post" data-index={PAGE_SIZE + idx}>
+                <BlueskyPost post={post} />
+            </div>
+        </template>
+    ))
+}
+
+<!-- sentinel for IntersectionObserver -->
+<div id="loader" style="height: 1px;" aria-hidden="true"></div>
+
+<script>
+    (function () {
+        const PAGE_SIZE = 20;
+        let page = 1;
+        const grid = document.getElementById("posts-grid");
+        const loader = document.getElementById("loader");
+
+        // IntersectionObserver: prefetch before hitting bottom
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore();
+                }
+            },
+            { rootMargin: "400px" },
+        );
+
+        observer.observe(loader!);
+
+        function loadMore() {
+            const start = page * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+
+            let appended = 0;
+            for (let i = start; i < end; i++) {
+                const tmpl = document.querySelector(
+                    `template[data-index="${i}"]`,
+                );
+                // ensure we have a real <template> element
+                if (!(tmpl instanceof HTMLTemplateElement)) continue;
+
+                // clone the template content and append
+                const fragment = tmpl.content.cloneNode(true) as DocumentFragment;
+                // mark new nodes so we can animate them
+                const nodes = Array.from(fragment.querySelectorAll(".post"));
+                nodes.forEach((n) => n.classList.add("new"));
+
+                grid?.appendChild(fragment);
+
+                // trigger animation: allow a tick then remove the 'new' class
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        nodes.forEach((n) => n.classList.remove("new"));
+                    });
+                });
+
+                appended++;
+            }
+
+            page++;
+
+            // if we didn't append anything on this pass, we've exhausted templates -> stop observing
+            if (appended === 0 && loader) {
+                observer.unobserve(loader);
+                // optionally remove the loader from DOM
+                if (loader && loader.parentNode)
+                    loader.parentNode.removeChild(loader);
+            }
+        }
+    })();
+</script>

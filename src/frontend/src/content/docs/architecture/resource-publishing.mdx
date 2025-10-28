@@ -1,0 +1,73 @@
+---
+title: Resource Publishing
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Aspire provides a flexible mechanism for publishing resource manifests, enabling seamless integration with various deployment environments. Resources are serialized into JSON format, which can be consumed by deployment tools.
+
+Custom resources that publish JSON manifest entries must:
+
+<Steps>
+1. **Register a callback** using `ManifestPublishingCallbackAnnotation` in the constructor.  
+1. **Implement the callback** to write JSON via `ManifestPublishingContext.Writer`.  
+1. **Use value objects** (`IManifestExpressionProvider`) for structured fields.
+</Steps>
+
+Resources can opt-out of being included in the publishing manifest entirely by calling the `ExcludeFromManifest()` extension method on the `IResourceBuilder<T>`. Resources marked this way will be omitted when generating publishing assets like Docker Compose files or Kubernetes manifests.
+
+### Registering the Callback
+
+Consider the following example of a custom Azure Bicep resource that publishes its parameters to a manifest:
+
+```csharp title="C# — AzureBicepResource.cs"
+public class AzureBicepResource : Resource, IAzureResource
+{
+    public AzureBicepResource(string name, ...) : base(name)
+    {
+        Annotations.Add(new ManifestPublishingCallbackAnnotation(WriteToManifest));
+    }
+}
+```
+
+### Writing to the Manifest
+
+As an example, the `WriteToManifest` method serializes the resource's parameters into a JSON object. This method is invoked during the manifest publishing phase:
+
+```csharp
+public virtual void WriteToManifest(ManifestPublishingContext context)
+{
+    context.Writer.WriteString("type", "azure.bicep.v0");
+    context.Writer.WriteString("path", context.GetManifestRelativePath(path));
+
+    context.Writer.WriteStartObject("params");
+    foreach (var kv in Parameters)
+    {
+        context.Writer.WritePropertyName(kv.Key);
+        var v = kv.Value is IManifestExpressionProvider p ? p.ValueExpression : kv.Value?.ToString();
+        context.Writer.WriteString(kv.Key, v ?? "");
+        context.TryAddDependentResources(kv.Value);
+    }
+    context.Writer.WriteEndObject();
+}
+```
+
+### Summary Table
+
+The following table summarizes the key steps and conventions for publishing resources:
+
+| Step | API / Call | Purpose |
+|--|--|--|
+| Register callback | `Annotations.Add(new ManifestPublishingCallbackAnnotation(WriteToManifest))` | Hook custom JSON writer |
+| Implement `WriteToManifest` | Use `context.Writer` to emit JSON properties | Define resource manifest representation |
+| Structured fields | `IManifestExpressionProvider.ValueExpression` | Ensure publish-time placeholders are preserved |
+
+## Key Conventions
+
+| Convention | Rationale |
+|--|--|
+| Data-only resource classes | Separates data model from behavior |
+| `*BuilderExtensions` classes | Groups all API methods per integration |
+| Public annotations | Allow dynamic runtime addition/removal |
+| `[ResourceName]` attribute | Enforces valid resource naming at compile time |
+| Preserve parameter/value objects | Ensures deferred evaluation of secrets/outputs |

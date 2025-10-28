@@ -1,0 +1,84 @@
+---
+import DefaultFooter from "@astrojs/starlight/components/Footer.astro";
+import FooterLinks from "@components/FooterLinks.astro";
+import MicrosoftFooter from "@components/MicrosoftFooter.astro";
+import AspireMap from "@components/AspireMap.astro";
+import Expand from "@components/Expand.astro";
+
+import { isHomepage } from "@utils/helpers";
+---
+
+{
+    isHomepage(Astro) ? (
+        <DefaultFooter><slot /></DefaultFooter>
+        <FooterLinks />
+        <Expand summary={Astro.locals.t('footer.madeWithLove' as any)}>
+            <AspireMap />
+        </Expand>
+        <MicrosoftFooter />
+    ) : (
+        <DefaultFooter><slot /></DefaultFooter>
+        <FooterLinks />
+        <MicrosoftFooter />
+    )
+}
+
+<script is:inline>
+    (() => {
+        const base = window.location.hostname.replace(/^www\./, "");
+        const treatSubdomainsAsInternal = true; // flip to false to treat subdomains as external
+
+        const sameSite = (host) => {
+            const h = host.replace(/^www\./, "");
+            if (treatSubdomainsAsInternal) {
+                return h === base || h.endsWith("." + base);
+            }
+            return h === base;
+        };
+
+        const applyExternalLinkAttrs = () => {
+            document.querySelectorAll("a[href]").forEach((a) => {
+                try {
+                    const url = new URL(
+                        a.getAttribute("href"),
+                        window.location.origin,
+                    );
+                    // Only handle http/https
+                    if (!/^https?:$/.test(url.protocol)) return;
+
+                    if (!sameSite(url.hostname)) {
+                        a.setAttribute("target", "_blank");
+                        a.setAttribute("rel", "noopener noreferrer");
+                        a.classList.add("external-link");
+
+                        // (Optional a11y) announce new tab without clobbering existing label
+                        const label = a.getAttribute("aria-label");
+                        const translatedLabel = Astro.locals.t("footer.opensInNewTab");
+                        const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                        const translatedLabelPattern = new RegExp(`\\(${escapeRegex(translatedLabel)}\\)`, "i");
+
+                        if (!label || !translatedLabelPattern.test(label)) {
+                            a.setAttribute(
+                                "aria-label",
+                                (label ? label + " " : "") +
+                                    `(${translatedLabel})`,
+                            );
+                        }
+                    }
+                } catch {
+                    /* ignore invalid/relative oddities */
+                }
+            });
+        };
+
+        if (document.readyState === "loading") {
+            document.addEventListener(
+                "DOMContentLoaded",
+                applyExternalLinkAttrs,
+                { once: true },
+            );
+        } else {
+            applyExternalLinkAttrs();
+        }
+    })();
+</script>

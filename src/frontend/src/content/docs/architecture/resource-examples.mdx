@@ -1,0 +1,343 @@
+---
+title: Examples
+description: Explore complete, runnable examples demonstrating key concepts in Aspire.
+next: false
+---
+
+Aspire provides a flexible resource model that allows you to define and configure resources in a structured way. This guide explores common patterns for adding and configuring resources, including examples of custom resources and how to implement them.
+
+### Example: Derived Container Resource (Redis)
+
+This example shows how to create a custom resource (`RedisResource`) that derives from `ContainerResource` and implements `IResourceWithConnectionString`. It demonstrates:
+- Defining a data-only resource class.
+- Implementing `IResourceWithConnectionString` with deferred evaluation using `ReferenceExpression`.
+- Creating an `AddRedis` extension method that handles parameter validation, password management, event subscription, health checks, and container configuration using fluent APIs.
+
+```csharp title="C# — RedisResourceExtensions.cs"
+public static class RedisResourceExtensions
+{
+    // This extension method provides a convenient way to add a Redis resource to the Aspire application model.
+    public static IResourceBuilder<RedisResource> AddRedis(
+        this IDistributedApplicationBuilder builder, // Extends the main application builder interface.
+        [ResourceName] string name,                   // The unique name for this Redis resource.
+        int? port = null,                             // Optional host port mapping.
+        IResourceBuilder<ParameterResource>? password = null) // Optional parameter resource for the password.
+    {
+        // 1. Validate inputs before any side effects
+        // Ensure the builder and name are not null to prevent downstream errors.
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(name);
+
+        // 2. Preserve or generate the password ParameterResource (deferred evaluation)
+        // If a password parameter is provided, use it. Otherwise, create a default one.
+        // ParameterResource allows the actual password value to be resolved later (e.g., from secrets).
+        var passwordParameter = password?.Resource
+            ?? ParameterResourceBuilderExtensions.CreateDefaultPasswordParameter(
+                builder, $"{name}-password", special: false); // Creates a default password parameter if none is supplied.
+
+        // 3. Instantiate the data-only RedisResource with its password parameter
+        // Create the RedisResource instance, passing the name and the (potentially deferred) password parameter.
+        var redis = new RedisResource(name, passwordParameter);
+
+        // Variable to hold the resolved connection string at runtime.
+        string? connectionString = null;
+
+        // 4. Subscribe to ConnectionStringAvailableEvent to capture the connection string at runtime
+        // This event hook allows capturing the connection string *after* it has been resolved
+        // by the Aspire runtime, including potentially allocated ports and resolved parameter values.
+        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(redis, async (@event, ct) =>
+        {
+            // Resolve the connection string using the resource's method.
+            connectionString = await redis.GetConnectionStringAsync(ct).ConfigureAwait(false);
+            // Ensure the connection string was actually resolved.
+            if (connectionString == null)
+            {
+                throw new DistributedApplicationException(
+                    $"Connection string for '{redis.Name}' was unexpectedly null.");
+            }
+        });
+
+        // 5. Register a health check that uses the connection string once it becomes available
+        // Define a unique key for the health check.
+        var healthCheckKey = $"{name}_check";
+        // Add a Redis-specific health check to the application's health check services.
+        // The lambda `_ => connectionString ?? ...` ensures the health check uses the
+        // connection string *after* it has been resolved by the event handler above.
+        builder.Services
+            .AddHealthChecks()
+            .AddRedis(_ => connectionString
+                                ?? throw new InvalidOperationException("Connection string is unavailable"), // Throw if accessed too early.
+                        name: healthCheckKey); // Name the health check for identification.
+
+        // 6. Add & configure container using the fluent builder pattern
+        // Add the RedisResource instance to the application model.
+        return builder.AddResource(redis)
+                    // 6.a Expose the Redis TCP endpoint
+                    // Map the host port (if provided) to the container's default Redis port (6379).
+                    // Name the endpoint "tcp" for reference.
+                    .WithEndpoint(
+                        port: port,                             // Optional host port.
+                        targetPort: 6379,                       // Default Redis port inside the container.
+                        name: RedisResource.PrimaryEndpointName) // Use the constant defined in RedisResource.
+                    // 6.b Specify container image and tag
+                    // Define the Docker image to use for the Redis container.
+                    .WithImage(RedisContainerImageTags.Image, RedisContainerImageTags.Tag)
+                    // 6.c Configure container registry if needed
+                    // Specify a container registry if the image is not on Docker Hub.
+                    .WithImageRegistry(RedisContainerImageTags.Registry)
+                    // 6.d Wire the health check into the resource
+                    // Associate the previously defined health check with this resource.
+                    // Aspire uses this for dashboard status and orchestration.
+                    .WithHealthCheck(healthCheckKey)
+                    // 6.e Define the container's entrypoint
+                    // Override the default container entrypoint if necessary. Here, it's set to use shell.
+                    .WithEntrypoint("/bin/sh")
+                    // 6.f Pass the password ParameterResource into an environment variable
+                    // Set environment variables for the container. This uses a callback to access
+                    // the resource instance (`redis`) and its properties.
+                    .WithEnvironment(context =>
+                    {
+                        // If a password parameter exists, expose it as the REDIS_PASSWORD environment variable.
+                        // The actual value resolution happens later via the ParameterResource.
+                        if (redis.PasswordParameter is { } pwd)
+                        {
+                            context.EnvironmentVariables["REDIS_PASSWORD"] = pwd;
+                        }
+                    })
+                    // 6.g Build the container arguments lazily, preserving annotations
+                    // Define the command-line arguments for the container. This also uses a callback
+                    // to allow dynamic argument construction based on resource state or annotations.
+                    .WithArgs(context =>
+                    {
+                        // Start with the basic command to run the Redis server.
+                        var cmd = new List<string> { "redis-server" };
+
+                        // If a password parameter is set, add the necessary Redis CLI arguments.
+                        // Note: It uses the environment variable name set earlier ($REDIS_PASSWORD).
+                        if (redis.PasswordParameter is not null)
+                        {
+                            cmd.Add("--requirepass");
+                            cmd.Add("$REDIS_PASSWORD"); // Reference the environment variable.
+                        }
+
+                        // Check if a PersistenceAnnotation has been added to the resource.
+                        // Annotations allow adding optional configuration or behavior.
+                        if (redis.TryGetLastAnnotation<PersistenceAnnotation>(out var pa))
+                        {
+                            // If persistence is configured, add the corresponding Redis CLI arguments.
+                            var interval = (pa.Interval ?? TimeSpan.FromSeconds(60))
+                                .TotalSeconds
+                                .ToString(CultureInfo.InvariantCulture);
+                            cmd.Add("--save");
+                            cmd.Add(interval); // Save interval in seconds.
+                            cmd.Add(pa.KeysChangedThreshold.ToString(CultureInfo.InvariantCulture)); // Number of key changes threshold.
+                        }
+
+                        // Finalize the arguments for the shell entrypoint.
+                        context.Args.Add("-c"); // Argument for /bin/sh to execute a command string.
+                        context.Args.Add(string.Join(' ', cmd)); // Join all parts into a single command string.
+                        return Task.CompletedTask; // Return a completed task as the callback is synchronous.
+                    });
+    }
+}
+```
+
+```csharp title="C# — RedisResource.cs"
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+namespace Aspire.Hosting.ApplicationModel;
+
+// Data-only Redis resource derived from ContainerResource.
+// It implements IResourceWithConnectionString to provide connection details.
+public class RedisResource(string name)
+    // Inherits common container properties and behaviors from ContainerResource.
+    : ContainerResource(name),
+    // Implements this interface to indicate it can provide a connection string.
+    IResourceWithConnectionString
+{
+    // Constant for the primary endpoint name, used for consistency.
+    internal const string PrimaryEndpointName = "tcp";
+
+    // Backing field for the lazy-initialized primary endpoint reference.
+    private EndpointReference? _primaryEndpoint;
+
+    // Public property to get the EndpointReference for the primary "tcp" endpoint.
+    // EndpointReference allows deferred access to endpoint details (host, port, URL).
+    // It's lazy-initialized on first access.
+    public EndpointReference PrimaryEndpoint
+        => _primaryEndpoint ??= new(this, PrimaryEndpointName);
+
+    // Property to hold the ParameterResource representing the Redis password.
+    // ParameterResource allows the password value to be resolved later (e.g., from secrets).
+    public ParameterResource? PasswordParameter { get; private set; }
+
+    // Constructor that accepts a password ParameterResource.
+    public RedisResource(string name, ParameterResource password)
+        : this(name) // Call the base constructor.
+    {
+        PasswordParameter = password; // Store the provided password parameter.
+    }
+
+    // Helper method to build the ReferenceExpression for the connection string.
+    // ReferenceExpression captures the structure of the connection string, including
+    // references to endpoints and parameters, allowing deferred resolution.
+    private ReferenceExpression BuildConnectionString()
+    {
+        // Use a builder to construct the expression piece by piece.
+        var builder = new ReferenceExpressionBuilder();
+        // Append the host and port part, referencing the PrimaryEndpoint properties.
+        // .Property() ensures deferred resolution suitable for both run and publish modes.
+        builder.Append($"{PrimaryEndpoint.Property(EndpointProperty.HostAndPort)}");
+        // If a password parameter exists, append it to the connection string format.
+        if (PasswordParameter is not null)
+        {
+            // Append the password parameter directly; ReferenceExpression handles its deferred resolution.
+            builder.Append($",password={PasswordParameter}");
+        }
+        // Build and return the final ReferenceExpression.
+        return builder.Build();
+    }
+
+    // Implementation of IResourceWithConnectionString.ConnectionStringExpression.
+    // Provides the connection string as a ReferenceExpression, suitable for publish mode
+    // where concrete values aren't available yet.
+    public ReferenceExpression ConnectionStringExpression =>
+        BuildConnectionString();
+}
+```
+
+### Example: Custom Resource - Talking Clock
+
+This example demonstrates creating a completely custom resource (`TalkingClockResource`) that doesn't derive from built-in types. It shows:
+
+- Defining a simple resource class.
+- Implementing a custom lifecycle hook (`TalkingClockLifecycleHook`) to manage the resource's behavior (starting, logging, state updates).
+- Using `ResourceLoggerService` for per-resource logging.
+- Using `ResourceNotificationService` to publish state updates.
+- Creating an `AddTalkingClock` extension method to register the resource and its lifecycle hook.
+
+```csharp title="C# — TalkingClockResource.cs"
+// Define the custom resource type. It inherits from the base Aspire 'Resource' class.
+// This class is primarily a data container; Aspire behavior is added via lifecycle hooks and extension methods.
+public sealed class TalkingClockResource(string name) : Resource(name);
+```
+
+```csharp title="C# — TalkingClockLifecycleHook.cs"
+// Define an Aspire lifecycle hook that implements the behavior for the TalkingClockResource.
+// Lifecycle hooks allow plugging into the application's startup and shutdown sequences.
+public sealed class TalkingClockLifecycleHook(
+    // Aspire service for publishing resource state updates (e.g., Running, Starting).
+    ResourceNotificationService notification,
+    // Aspire service for publishing and subscribing to application-wide events.
+    IDistributedApplicationEventing eventing,
+    // Aspire service for getting a logger scoped to a specific resource.
+    ResourceLoggerService loggerSvc,
+    // General service provider for dependency injection if needed.
+    IServiceProvider services) : IDistributedApplicationLifecycleHook // Implement the Aspire hook interface.
+{
+    // This method is called by Aspire after all resources have been initially added to the application model.
+    public Task AfterResourcesCreatedAsync(
+        DistributedApplicationModel model, // The Aspire application model containing all resources.
+        CancellationToken token)           // Cancellation token for graceful shutdown.
+    {
+        // Find all instances of TalkingClockResource in the Aspire application model.
+        foreach (var clock in model.Resources.OfType<TalkingClockResource>())
+        {
+            // Get an Aspire logger specifically for this clock instance. Logs will be associated with this resource in the dashboard.
+            var log = loggerSvc.GetLogger(clock);
+
+            // Start a background task to manage the clock's lifecycle and behavior.
+            _ = Task.Run(async () =>
+            {
+                // Publish an Aspire event indicating that this resource is about to start.
+                // Other components could subscribe to this event for pre-start actions.
+                await eventing.PublishAsync(
+                    new BeforeResourceStartedEvent(clock, services), token);
+
+                // Log an informational message associated with the resource.
+                log.LogInformation("Starting Talking Clock...");
+
+                // Publish an initial state update to the Aspire notification service.
+                // This sets the resource's state to 'Running' and records the start time.
+                // The Aspire dashboard and other orchestrators observe these state updates.
+                await notification.PublishUpdateAsync(clock, s => s with
+                {
+                    StartTimeStamp = DateTime.UtcNow,
+                    State          = KnownResourceStates.Running // Use an Aspire well-known state.
+                });
+
+                // Enter the main loop that runs as long as cancellation is not requested.
+                while (!token.IsCancellationRequested)
+                {
+                    // Log the current time, associated with the resource.
+                    log.LogInformation("The time is {time}", DateTime.UtcNow);
+
+                    // Publish a custom state update "Tick" using Aspire's ResourceStateSnapshot.
+                    // This demonstrates using custom state strings and styles in the Aspire dashboard.
+                    await notification.PublishUpdateAsync(clock,
+                        s => s with { State = new ResourceStateSnapshot("Tick", KnownResourceStateStyles.Info) });
+
+                    await Task.Delay(1000, token);
+
+                    // Publish another custom state update "Tock" using Aspire's ResourceStateSnapshot.
+                    await notification.PublishUpdateAsync(clock,
+                        s => s with { State = new ResourceStateSnapshot("Tock", KnownResourceStateStyles.Success) });
+
+                    await Task.Delay(1000, token);
+                }
+            }, token);
+        }
+
+        // Indicate that this hook's work (starting the background tasks) is complete for now.
+        return Task.CompletedTask;
+    }
+    // Other Aspire lifecycle hook methods (e.g., BeforeStartAsync, AfterEndpointsAllocatedAsync) could be implemented here if needed.
+}
+```
+
+```csharp title="C# — TalkingClockExtensions.cs"
+
+// Define Aspire extension methods for adding the TalkingClockResource to the application builder.
+// This provides a fluent API for users to add the custom resource.
+public static class TalkingClockExtensions
+{
+    // The main Aspire extension method to add a TalkingClockResource.
+    public static IResourceBuilder<TalkingClockResource> AddTalkingClock(
+        this IDistributedApplicationBuilder builder, // Extends the Aspire application builder.
+        string name)                                  // The name for this resource instance.
+    {
+        // Register the TalkingClockLifecycleHook with the DI container using Aspire's helper method.
+        // The Aspire hosting infrastructure will automatically discover and run registered lifecycle hooks.
+        builder.Services.TryAddLifecycleHook<TalkingClockLifecycleHook>();
+
+        // Create a new instance of the TalkingClockResource.
+        var clockResource = new TalkingClockResource(name);
+
+        // Add the resource instance to the Aspire application builder and configure it using fluent APIs.
+        return builder.AddResource(clockResource)
+            // Use Aspire's ExcludeFromManifest to prevent this resource from being included in deployment manifests.
+            .ExcludeFromManifest()
+            // Use Aspire's WithInitialState to set an initial state snapshot for the resource.
+            // This provides initial metadata visible in the Aspire dashboard.
+            .WithInitialState(new CustomResourceSnapshot // Aspire type for custom resource state.
+            {
+                ResourceType      = "TalkingClock", // A string identifying the type of resource for Aspire.
+                CreationTimeStamp = DateTime.UtcNow,
+                State             = KnownResourceStates.NotStarted, // Use an Aspire well-known state.
+                // Add custom properties displayed in the Aspire dashboard's resource details.
+                Properties =
+                [
+                    // Use Aspire's known property key for source information.
+                    new(CustomResourceKnownProperties.Source, "Talking Clock")
+                ],
+                // Add URLs associated with the resource, displayed as links in the Aspire dashboard.
+                Urls =
+                [
+                    // Define a URL using Aspire's UrlSnapshot type.
+                    new("Speaking Clock", "https://www.speaking-clock.com/", isInternal: false)
+                ]
+            });
+    }
+}
+```

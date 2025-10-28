@@ -1,0 +1,56 @@
+name: Integration Check
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: npm
+        cache-dependency-path: src/frontend/package-lock.json
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        global-json-file: global.json
+
+    - name: Install frontend deps
+      run: cd src/frontend && npm ci
+
+    - name: Build frontend
+      env:
+        MODE: production
+      run: cd src/frontend && npm run build:production
+
+    - name: Build AppHost
+      run: cd src/apphost/Aspire.Dev.AppHost && dotnet build --configuration Release
+
+    - name: Validate frontend index
+      run: |
+        if [ ! -f "src/frontend/dist/index.html" ]; then
+          echo "Frontend build incomplete - index.html not found"
+          exit 1
+        fi
+
+    - name: Upload integration artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-artifacts
+        path: |
+          src/frontend/dist
+          src/apphost/Aspire.Dev.AppHost/bin/Release/*/
+        if-no-files-found: warn
+        retention-days: 7

@@ -1,0 +1,53 @@
+---
+export interface Props {
+  light: ImageMetadata;
+  dark: ImageMetadata;
+  alt: string;
+  label?: string;
+}
+
+const { light, dark, alt, label } = Astro.props as Props;
+
+import { Zoom } from "starlight-image-zoom/components";
+---
+
+<Zoom label={label ?? alt}>
+  <img
+    class="theme-image"
+    src={light.src}
+    alt={alt}
+    data-light={light.src}
+    data-dark={dark.src}
+    decoding="async"
+    loading="lazy"
+  />
+</Zoom>
+
+<script>
+  const html = document.documentElement;
+
+  function updateThemeImages() {
+    const theme = html.getAttribute("data-theme") ?? "light";
+    document.querySelectorAll(".theme-image").forEach((img) => {
+      if (img instanceof HTMLImageElement) {
+        const targetSrc = (theme === "dark" ? img.dataset.dark : img.dataset.light) || "";
+        if (targetSrc && img.src !== targetSrc) {
+          img.src = targetSrc;
+        }
+      }
+    });
+  }
+
+  // Initial set
+  updateThemeImages();
+
+  // Watch for theme toggle changes
+  const observer = new MutationObserver(updateThemeImages);
+  observer.observe(html, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
+
+<style>
+  .theme-image {
+    margin-top: 1rem;
+  }
+</style>

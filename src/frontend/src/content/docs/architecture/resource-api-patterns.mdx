@@ -1,0 +1,200 @@
+---
+title: Resource API Patterns
+description: Discover common API resource patterns in Aspire, including how to add and configure resources, use annotations, and implement custom value objects.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Aspire's resource model allows you to define and configure resources in a structured way, enabling seamless integration and management of your application's components. This guide provides details the common patterns for adding and configuring resources in Aspire.
+
+## API Patterns
+
+Aspire separates **resource data models** from **behavior** using **fluent extension methods**.  
+- **Resource classes** define only constructors and properties.  
+- **Extension methods** implement resource creation, configuration, and runtime wiring.  
+
+This guide describes each pattern and shows a **verbatim Redis example** at the end. It also covers how to publish manifests via custom resources.
+
+## Adding Resources with `AddX(...)`
+
+An `AddX(...)` method executes:
+
+<Steps>
+1. **Validate inputs** (`builder`, `name`, required arguments).  
+1. **Instantiate** the data-only resource (`new TResource(...)`).  
+1. **Register** it with `builder.AddResource(resource)`.  
+1. **Optional wiring** of endpoints, health checks, container settings, environment variables, command-line arguments, and event subscriptions.
+</Steps>
+
+### Signature Pattern
+
+```csharp
+public static IResourceBuilder<TResource> AddX(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name,
+    /* optional parameters */)
+{
+    // 1. Validate inputs
+    // 2. Instantiate resource
+    // 3. builder.AddResource(resource)
+    // 4. Optional wiring:
+    //    .WithEndpoint(...)
+    //    .WithHealthCheck(...)
+    //    .WithImage(...)
+    //    .WithEnvironment(...)
+    //    .WithArgs(...)
+    //    Eventing.Subscribe<...>(...)
+}
+```
+
+### Optional Wiring Examples
+
+**Endpoints**:
+
+```csharp
+.WithEndpoint(port: hostPort, targetPort: containerPort, name: endpointName)
+```
+
+**Health checks**:
+
+```csharp
+.WithHealthCheck(healthCheckKey)
+```
+
+**Container images / registries**:
+
+```csharp
+.WithImage(imageName, imageTag)
+.WithImageRegistry(registryUrl)
+```
+
+**Entrypoint and args**:
+
+```csharp
+.WithEntrypoint("/bin/sh")
+.WithArgs(context => { /* build args */ return Task.CompletedTask; })
+```
+
+**Environment variables**:
+
+```csharp
+.WithEnvironment(context => new("ENV_VAR", valueProvider))
+```
+
+**Event subscriptions**:
+
+```csharp
+builder.Eventing.Subscribe<EventType>(resource, handler);
+```
+
+### Summary Table
+
+| Step | Call/Method | Purpose |
+|--|--|--|
+| Validate | `ArgumentNullException.ThrowIfNull(...)` | Ensure non-null builder, name, and args |
+| Instantiate | `new TResource(name, …)` | Create data-only instance |
+| Register | `builder.AddResource(resource)` | Add resource to the application model |
+| Optional wiring | `.WithEndpoint(…)`, `.WithHealthCheck(…)`, `.WithImage(…)`, `.WithEnvironment(…)`, `.WithArgs(…)`, `Eventing.Subscribe(…)` | Configure container details, wiring, and runtime hooks |
+
+## Configuring Resources with `WithX(...)`
+
+`WithX(...)` methods **attach annotations** to resource builders.
+
+### Signature Pattern
+
+```csharp
+public static IResourceBuilder<TResource> WithX(
+    this IResourceBuilder<TResource> builder,
+    FooOptions options) =>
+    builder.WithAnnotation(new FooAnnotation(options));
+```
+
+- **Target**: `IResourceBuilder<TResource>`.
+- **Action**: `WithAnnotation(...)`.
+- **Returns**: `IResourceBuilder<TResource>`.
+
+### Summary Table
+
+| Method | Target | Action |
+|--|--|--|
+| `WithX(...)` | `IResourceBuilder<TResource>` | Attaches `XAnnotation` using the `WithAnnotation` API. |
+| Returns | `IResourceBuilder<TResource>` | Enables fluent chaining . |
+
+## Annotations
+
+Annotations are **public** metadata types implementing `IResourceAnnotation`. They can be added or removed dynamically at runtime via hooks or events. Consumers can query annotations using `TryGetLastAnnotation<T>()` when necessary.
+
+### Definition and Attachment
+
+```csharp
+public sealed record PersistenceAnnotation(
+    TimeSpan? Interval,
+    int KeysChangedThreshold) : IResourceAnnotation;
+
+builder.WithAnnotation(new PersistenceAnnotation(
+    TimeSpan.FromSeconds(60),
+    100));
+```
+
+### Summary Table
+
+| Concept | Pattern | Notes |
+|--|--|--|
+| Annotation Type | `public record XAnnotation(...) : IResourceAnnotation` | Public to support dynamic runtime use. |
+| Attach | `builder.WithAnnotation(new XAnnotation(...))` | Adds metadata to resource builder. |
+| Query | `resource.TryGetLastAnnotation<XAnnotation>(out var a)` | Consumers inspect annotations as needed. |
+
+## Custom Value Objects
+
+Custom value objects defer evaluation and allow the framework to discover dependencies between resources.
+
+### Core Interfaces
+
+| Interface | Member | Mode | Purpose |
+|--|--|--|--|
+| `IValueProvider` | `ValueTask<string?> GetValueAsync(CancellationToken)` | Run | Resolve live values at runtime |
+| `IManifestExpressionProvider` | `string ValueExpression { get; }` | Publish | Emit structured expressions in manifests |
+| `IValueWithReferences` _(opt.)_ | `IEnumerable<object> References { get; }` | Both (if needed) | Declare dependencies on other resources |
+
+- **Implement** `IValueProvider` and `IManifestExpressionProvider` on all structured value types.  
+- **Implement** `IValueWithReferences` only when your type holds resource references.
+
+### Attaching to Resources
+
+```csharp
+builder.WithEnvironment(context =>
+    new("REDIS_CONNECTION_STRING", redis.GetConnectionStringAsync));
+```
+
+```csharp title="Example: BicepOutputReference"
+public sealed partial class BicepOutputReference : 
+    IManifestExpressionProvider, 
+    IValueProvider, 
+    IValueWithReferences
+{
+    public string ValueExpression { get; }
+    public ValueTask<string?> GetValueAsync(CancellationToken cancellationToken = default);
+    IEnumerable<object> IValueWithReferences.References { get; }
+}
+```
+
+```csharp
+public static IResourceBuilder<T> WithEnvironment<T>(
+    this IResourceBuilder<T> builder,
+    string name,
+    BicepOutputReference bicepOutputReference)
+    where T : IResourceWithEnvironment
+{
+    return builder.WithAnnotation(
+      new EnvironmentVariableAnnotation(name, bicepOutputReference));
+}
+```
+
+### Summary Table
+
+| Concept | Pattern | Purpose |
+|--|--|--|
+| `IValueProvider` | `GetValueAsync(...)` | Deferred runtime resolution |
+| `IManifestExpressionProvider` | `ValueExpression` | Structured publish-time expression |
+| `IValueWithReferences` _(opt.)_ | `References` | Declare resource dependencies |
+| `WithEnvironment(...)` | `new("NAME", valueProvider)` | Attach structured values unflattened |

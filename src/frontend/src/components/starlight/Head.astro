@@ -1,0 +1,45 @@
+---
+import { Tooltips } from "astro-tooltips";
+import DefaultHead from "@astrojs/starlight/components/Head.astro";
+import AccessibleCodeButtons from "../AccessibleCodeButtons.astro";
+
+const repoUrl = (
+  import.meta.env.PUBLIC_REPO_URL ||
+  import.meta.env.REPO_URL ||
+  "https://github.com/microsoft/aspire.dev"
+).replace(/\/$/, "");
+const commit =
+  import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMIT_ID || "";
+
+const route = Astro.locals?.starlightRoute;
+const entryId = route?.entry?.id;
+const path = route?.entry?.filePath;
+
+function computeRepoPath() {
+  if (path) {
+    return `src/frontend/${path}`; // final path inside repository
+  }
+
+  return `unknown-${entryId}`;
+}
+
+function computeSourceUrl() {
+  if (!repoUrl || !commit) return "";
+  const path = computeRepoPath();
+  return path ? `${repoUrl}/blob/${commit}/${path}` : "";
+}
+---
+
+<meta name="git-commit-id" content={commit} />
+<meta name="git-source-url" content={computeSourceUrl()} />
+
+<DefaultHead {...Astro.props} />
+
+<Tooltips
+  interactive={false}
+  allowHTML={true}
+  delay={[0, 0]}
+  animation="scale"
+/>
+
+<AccessibleCodeButtons />

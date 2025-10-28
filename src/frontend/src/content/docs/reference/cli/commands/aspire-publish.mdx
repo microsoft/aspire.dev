@@ -1,0 +1,86 @@
+---
+title: aspire publish command
+description: Learn about the aspire publish command and its usage. This command invokes resource publishers declared by the apphost to serialize resources to disk.
+sidebar:
+  badge: Preview
+---
+
+import Include from '@components/Include.astro';
+import LearnMore from '@components/LearnMore.astro';
+
+**This article applies to:** ✔️ Aspire CLI 9.4.0 and later versions.
+
+> [!NOTE]
+> This command is disabled by default. To use it, turn on the feature toggle by running:
+>
+> ```bash title="Aspire CLI"
+> aspire config set features.publishCommandEnabled true
+> ```
+>
+> <LearnMore>For more information, see [aspire config command](../aspire-config/).</LearnMore>
+
+## Name
+
+`aspire publish` - Generates deployment artifacts for an Aspire AppHost project.
+
+<Include relativePath="reference/cli/includes/mode-preview.md" />
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire publish [options] [[--] <additional arguments>...]
+```
+
+## Description
+
+The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire invokes registered `PublishingCallbackAnnotation` annotations for resources, in the order they're declared. These annotations serialize a resource so that it can be consumed by deployment tools.
+
+<Include relativePath="reference/cli/includes/project-search-logic-description.md" />
+
+The command performs the following steps to run an Aspire AppHost:
+
+- Creates or modifies the `.aspire/settings.json` config file in the current directory, and sets the `appHostPath` config value to the path of the AppHost project file.
+- Installs or verifies that Aspire's local hosting certificates are installed and trusted.
+- Builds the AppHost project and its resources.
+- Starts the AppHost and its resources.
+- Invokes all `PublishingCallbackAnnotation` annotations for resources.
+
+## Options
+
+The following options are available:
+
+- **`--`**
+
+  Delimits arguments to `aspire publish` from arguments for the AppHost. All arguments after this delimiter are passed to the AppHost.
+
+- <Include relativePath="reference/cli/includes/option-project.md" />
+
+- **`-o, --output-path`**
+
+  The output path for the generated artifacts. Defaults the current directory.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-debug.md" />
+
+- <Include relativePath="reference/cli/includes/option-wait.md" />
+
+## Examples
+
+- Search the current directory structure for AppHost projects to build and publish:
+
+  ```bash title="Aspire CLI"
+  aspire publish
+  ```
+
+- Publish a specific AppHost project:
+
+  ```bash title="Aspire CLI"
+  aspire publish --project './projects/apphost/orchestration.AppHost.csproj'
+  ```
+
+- Publish a specific AppHost project with arguments:
+
+  ```bash title="Aspire CLI"
+  aspire publish --project './projects/apphost/orchestration.AppHost.csproj' -- -fast
+  ```

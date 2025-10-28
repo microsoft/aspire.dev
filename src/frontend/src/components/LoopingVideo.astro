@@ -1,0 +1,329 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import PauseIcon from "@assets/icons/pause.svg";
+import PlayIcon from "@assets/icons/play.svg";
+
+interface Source {
+    src: string;
+    type: "video/mp4" | "video/webm";
+    title?: string;
+    theme?: "light" | "dark"; // Optional theme property
+}
+
+interface Props extends Omit<HTMLAttributes<"video">, "title"> {
+    sources: Source[];
+    title?: string;
+}
+
+const { sources, title, ...rest } = Astro.props as Props;
+const sourcesJson = JSON.stringify(sources);
+// A per-component unique id so multiple LoopingVideo instances can coexist safely
+const uid =
+    globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+---
+
+<div class="looping-video-wrapper" data-looping-video-id={uid}>
+    <video
+        class="looping-video"
+        autoplay
+        loop
+        muted
+        playsinline
+        title={title}
+        data-sources={sourcesJson}
+        data-looping-video-id={uid}
+        {...rest}
+    >
+        {
+            sources
+                .filter((s) => !s.theme)
+                .map(({ src, type, title }) => (
+                    <source src={src} type={type} title={title} />
+                ))
+        }
+    </video>
+    <button
+        type="button"
+        class="looping-video-toggle"
+        aria-label="Pause video"
+        data-state="playing"
+        data-looping-video-id={uid}
+    >
+        <span class="icon icon-pause" aria-hidden="true"
+            ><PauseIcon width="80" height="80" /></span
+        >
+        <span class="icon icon-play" aria-hidden="true"
+            ><PlayIcon width="80" height="80" /></span
+        >
+        <span class="sr-only">Pause video</span>
+    </button>
+</div>
+
+<script>
+    // @ts-nocheck -- Client-side DOM manipulation with runtime casts; suppress to avoid implicit any noise.
+    function getCurrentTheme() {
+        const html = document.documentElement;
+        return html.getAttribute("data-theme") || "light";
+    }
+
+    function getThemeSources(sources, theme) {
+        const themed = sources.filter((s) => s.theme === theme);
+        if (themed.length > 0) return themed;
+        return sources.filter((s) => !s.theme);
+    }
+
+    function updateVideoSource(video) {
+        if (!(video instanceof HTMLVideoElement)) return;
+        const sourcesAttr = video.getAttribute("data-sources");
+        if (!sourcesAttr) return;
+        let sources;
+        try {
+            sources = JSON.parse(sourcesAttr);
+        } catch {
+            return;
+        }
+
+        const currentTime = video.currentTime;
+        const duration = video.duration;
+        const playbackPercentage = duration > 0 ? currentTime / duration : 0;
+        const wasPlaying = !video.paused;
+
+        const theme = getCurrentTheme();
+        const themeSources = getThemeSources(sources, theme);
+        while (video.firstChild) video.removeChild(video.firstChild);
+        themeSources.forEach(({ src, type, title }) => {
+            const source = document.createElement("source");
+            source.src = src;
+            source.type = type;
+            if (title) source.title = title;
+            video.appendChild(source);
+        });
+
+        const restorePlayback = () => {
+            if (video.duration > 0) {
+                video.currentTime = video.duration * playbackPercentage;
+                if (wasPlaying) {
+                    video.play().catch(() => {});
+                }
+            }
+            video.removeEventListener("loadedmetadata", restorePlayback);
+        };
+        video.addEventListener("loadedmetadata", restorePlayback);
+        video.load();
+    }
+
+    function updateAllLoopingVideos() {
+        document
+            .querySelectorAll("video.looping-video")
+            .forEach((el) => updateVideoSource(el));
+    }
+
+    function initButtons() {
+        const prefersNoHover =
+            window.matchMedia && window.matchMedia("(hover: none)").matches;
+        document
+            .querySelectorAll(".looping-video-wrapper")
+            .forEach((wrapper) => {
+                const video = wrapper.querySelector("video.looping-video");
+                const btn = wrapper.querySelector(".looping-video-toggle");
+                if (
+                    !(video instanceof HTMLVideoElement) ||
+                    !(btn instanceof HTMLButtonElement)
+                )
+                    return;
+                const srOnly = btn.querySelector(".sr-only");
+
+                function syncButton() {
+                    const playing = !video.paused && !video.ended;
+                    btn.dataset.state = playing ? "playing" : "paused";
+                    btn.setAttribute(
+                        "aria-label",
+                        playing ? "Pause video" : "Play video",
+                    );
+                    if (srOnly)
+                        srOnly.textContent = playing
+                            ? "Pause video"
+                            : "Play video";
+                }
+
+                let hideTimer = null;
+                function showButtonTransient() {
+                    // Show (or keep) button visible briefly after interaction on all devices
+                    btn.classList.add("force-visible");
+                    if (hideTimer) clearTimeout(hideTimer);
+                    hideTimer = setTimeout(() => {
+                        btn.classList.remove("force-visible");
+                        // Blur to prevent lingering focus style for mouse users
+                        if (!prefersNoHover && document.activeElement === btn) {
+                            btn.blur();
+                        }
+                    }, 1500);
+                }
+
+                function togglePlayback() {
+                    if (video.paused) {
+                        video.play().catch(() => {});
+                    } else {
+                        video.pause();
+                    }
+                    syncButton();
+                    showButtonTransient();
+                }
+
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    togglePlayback();
+                });
+
+                if (prefersNoHover) {
+                    // Tap anywhere on video to toggle on mobile-like devices
+                    video.addEventListener("click", togglePlayback);
+                }
+
+                video.addEventListener("play", syncButton);
+                video.addEventListener("pause", syncButton);
+                syncButton();
+            });
+    }
+
+    function initLoopingVideos() {
+        try {
+            updateAllLoopingVideos();
+            initButtons();
+
+            const observer = new MutationObserver((mutations) => {
+                for (const mutation of mutations) {
+                    if (
+                        mutation.type === "attributes" &&
+                        mutation.attributeName === "data-theme" &&
+                        mutation.target === document.documentElement
+                    ) {
+                        updateAllLoopingVideos();
+                    }
+                }
+            });
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ["data-theme"],
+            });
+        } catch (error) {
+            console.error("Failed to initialize looping videos:", error);
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initLoopingVideos);
+    } else {
+        initLoopingVideos();
+    }
+</script>
+
+<style>
+    .looping-video-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    video.looping-video {
+        border-radius: 0.5rem;
+        border: 1px solid var(--sl-color-gray-5);
+        box-shadow: var(--sl-shadow-lg);
+        height: auto;
+        max-width: 100%;
+        display: block;
+    }
+
+    .looping-video-toggle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--sl-color-gray-4);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        padding: 0;
+        color: var(---aspire-color-primary, #6d4aff);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    html[data-theme="dark"] .looping-video-toggle {
+        background: var(--aspire-color-secondary);
+        background: color-mix(
+            in srgb,
+            var(--aspire-color-secondary) 20%,
+            transparent
+        );
+        color: var(--aspire-color-secondary);
+        border: 1px solid var(--sl-color-gray-3);
+    }
+
+    .looping-video-toggle:focus-visible {
+        outline: 2px solid var(--aspire-color-primary, #6d4aff);
+        outline-offset: 4px;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* Show button on hover for devices that support hover */
+    @media (hover: hover) {
+        .looping-video-wrapper:hover .looping-video-toggle {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+
+    /* Mobile / touch: smaller, only when force-visible (after interaction) */
+    @media (hover: none) {
+        .looping-video-toggle {
+            width: 3rem; /* slightly larger but still compact on mobile */
+            height: 3rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--sl-color-gray-5);
+            border-radius: 0.5rem;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        .looping-video-toggle .icon svg {
+            width: 28px;
+            height: 28px;
+        }
+    }
+
+    .looping-video-toggle.force-visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .looping-video-toggle .icon {
+        line-height: 0;
+        display: inline-block;
+    }
+
+    .looping-video-toggle .icon-play {
+        display: none;
+    }
+    .looping-video-toggle[data-state="paused"] .icon-pause {
+        display: none;
+    }
+    .looping-video-toggle[data-state="paused"] .icon-play {
+        display: inline-block;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+</style>

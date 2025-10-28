@@ -1,0 +1,92 @@
+---
+import { Icon } from "@astrojs/starlight/components";
+import type { StarlightIcon } from "@astrojs/starlight/types";
+
+interface Props {
+    icon?: StarlightIcon;
+    title: string;
+    link?: string;
+}
+
+const { icon, title, link } = Astro.props as Props;
+---
+
+<article class="simple-card">
+    <div class="content">
+        <h3 class="title">
+            {
+                icon ? (
+                    <div class="icon-box" aria-hidden="true">
+                        <Icon name={icon} />
+                    </div>
+                ) : (
+                    <div class="icon-box" aria-hidden="true">
+                        <slot name="icon" />
+                    </div>
+                )
+            }
+            {link ? <a href={link}>{title}</a> : title}
+        </h3>
+        <div class="body">
+            <slot />
+        </div>
+    </div>
+</article>
+
+<style>
+    .simple-card {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 0.5rem;
+        align-items: start;
+    }
+
+    .icon-box {
+        color: var(--aspire-color-primary);
+        display: grid;
+        place-items: center;
+        justify-self: start;
+    }
+
+    .icon-box :global(svg) {
+        --sl-icon-size: 2rem !important;
+    }
+
+    .content {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .title {
+        margin: 0;
+        font-size: 1.125rem;
+        line-height: 1.4;
+        font-weight: 700;
+        color: var(--aspire-color-black);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .title a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .title a:hover {
+        text-decoration: underline;
+    }
+
+    .body {
+        color: color-mix(in srgb, var(--aspire-color-black) 80%, transparent);
+        line-height: 1.6;
+    }
+
+    :global([data-theme="dark"]) .title {
+        color: var(--aspire-color-white);
+    }
+
+    :global([data-theme="dark"]) .body {
+        color: color-mix(in srgb, var(--aspire-color-white) 80%, transparent);
+    }
+</style>

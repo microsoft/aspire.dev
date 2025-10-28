@@ -1,0 +1,95 @@
+---
+const { src, poster = 'npt:0:4', rows = 15 } = Astro.props;
+---
+
+<div class="asciinema-player-container not-content" data-src={src} data-poster={poster} data-rows={rows}>
+</div>
+
+<style>
+    .asciinema-player-container {
+        border: 1px solid var(--sl-color-gray-4);
+        overflow: hidden;
+        border-radius: .5rem;
+        box-shadow: var(--sl-shadow-md);
+    }
+</style>
+
+<script>
+    import "asciinema-player/dist/bundle/asciinema-player.css";
+
+    async function initAsciinemaPlayer() {
+        try {
+            const { create } = await import("asciinema-player");
+
+            const containers = document.querySelectorAll(
+                ".asciinema-player-container",
+            );
+
+            function createPlayers() {
+                containers.forEach((container) => {
+                    const src = container.getAttribute("data-src");
+                    const poster = container.getAttribute("data-poster");
+                    const rows = container.getAttribute("data-rows");
+
+                    if (src && container instanceof HTMLElement) {
+                        // Clear existing player if any
+                        container.innerHTML = '';
+                        
+                        // Get the current theme from the html data-theme attribute
+                        const htmlElement = document.documentElement;
+                        const currentTheme = htmlElement.getAttribute('data-theme');
+                        const theme = currentTheme === 'light' ? 'nord' : 'dracula';
+
+                        create(src, container, {
+                            autoplay: false,
+                            fit: "none",
+                            idleTimeLimit: 1.5,
+                            loop: true,
+                            poster: poster || undefined,
+                            preload: true,
+                            rows: rows ? parseInt(rows, 10) : 15,
+                            speed: 1.5,
+                            terminalFontFamily: 'var(--__sl-font-mono)',
+                            terminalFontSize: 'var(--ec-codeFontSize)',
+                            theme: theme,
+                        });
+
+                        // Fix accessibility issues in the rendered player
+                        setTimeout(() => {
+                            const timer = container.querySelector('.ap-timer');
+                            if (timer && !timer.hasAttribute('aria-label')) {
+                                timer.setAttribute('aria-label', 'Playback timer');
+                            }
+                        }, 100);
+                    }
+                });
+            }
+
+            createPlayers();
+
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' && 
+                        mutation.attributeName === 'data-theme' && 
+                        mutation.target === document.documentElement) {
+                        createPlayers();
+                    }
+                });
+            });
+
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-theme']
+            });
+
+        } catch (error) {
+            console.error("Failed to load asciinema player:", error);
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initAsciinemaPlayer);
+    } else {
+        initAsciinemaPlayer();
+    }
+</script>

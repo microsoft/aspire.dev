@@ -1,0 +1,140 @@
+---
+import DefaultHeader from "@astrojs/starlight/components/Header.astro";
+
+import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
+import SocialIcons from "@components/starlight/SocialIcons.astro";
+import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
+import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
+
+import { isHomepage } from "@utils/helpers";
+---
+
+{
+    isHomepage(Astro) ? (
+        <div class="header">
+            <div class="title-wrapper sl-flex">
+                <SiteTitle />
+                <div class="sl-hidden">
+                    <time id="local-datetime" class="sl-text-xs" />
+                    <script>
+                        (function () {
+                            const el = document.getElementById('local-datetime');
+                            if (!el) return;
+                            const now = new Date();
+                            el.dateTime = now.toISOString();
+                            el.textContent = now.toLocaleString(undefined, {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+                        })();
+                    </script>
+                </div>
+            </div>
+            <div class="sl-flex print:hidden" />
+            <div class="sl-hidden md:sl-flex print:hidden right-group">
+                <div class="sl-flex social-icons">
+                    <SocialIcons />
+                </div>
+                <ThemeSelect />
+                <LanguageSelect />
+            </div>
+        </div>
+    ) : (
+        <DefaultHeader>
+            <slot />
+        </DefaultHeader>
+    )
+}
+
+<style>
+    :root:not([data-has-hero]) {
+        a.site-title .sr-only {
+            position: initial;
+            width: auto;
+            height: auto;
+            margin: initial;
+            padding: initial;
+            clip: initial;
+        }
+    }
+
+    @layer starlight.core {
+        .header {
+            display: flex;
+            gap: var(--sl-nav-gap);
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+            /* max-width: var(--sl-content-width);
+            margin: auto; */
+        }
+
+        .title-wrapper {
+            /* Prevent long titles overflowing and covering the search and menu buttons on narrow viewports. */
+            overflow: clip;
+            /* Avoid clipping focus ring around link inside title wrapper. */
+            padding: 0.25rem;
+            margin: -0.25rem;
+            min-width: 0;
+        }
+
+        .right-group,
+        .social-icons {
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .social-icons::after {
+            content: "";
+            height: 2rem;
+            border-inline-end: 1px solid var(--sl-color-gray-5);
+        }
+
+        @media (min-width: 50rem) {
+            :global(:root[data-has-sidebar]) {
+                --__sidebar-pad: calc(2 * var(--sl-nav-pad-x));
+            }
+            :global(:root:not([data-has-toc])) {
+                --__toc-width: 0rem;
+            }
+            .header {
+                --__sidebar-width: max(
+                    0rem,
+                    var(--sl-content-inline-start, 0rem) - var(--sl-nav-pad-x)
+                );
+                --__main-column-fr: calc(
+                    (
+                            100% + var(--__sidebar-pad, 0rem) -
+                                var(--__toc-width, var(--sl-sidebar-width)) -
+                                (2 * var(--__toc-width, var(--sl-nav-pad-x))) -
+                                var(--sl-content-inline-start, 0rem) -
+                                var(--sl-content-width)
+                        ) / 2
+                );
+                display: grid;
+                grid-template-columns:
+        /* 1 (site title): runs up until the main content column’s left edge or the width of the title, whichever is the largest  */
+                    minmax(
+                        calc(
+                            var(--__sidebar-width) +
+                                max(
+                                    0rem,
+                                    var(--__main-column-fr) - var(--sl-nav-gap)
+                                )
+                        ),
+                        auto
+                    )
+                    /* 2 (search box): all free space that is available. */
+                    1fr
+                    /* 3 (right items): use the space that these need. */
+                    auto;
+                align-content: center;
+            }
+        }
+    }
+</style>

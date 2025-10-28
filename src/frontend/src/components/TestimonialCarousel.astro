@@ -1,0 +1,407 @@
+---
+import { Icon } from "@astrojs/starlight/components";
+import testimonialsData from "@data/testimonials.json";
+import { processAvatars } from "@utils/imageImporter";
+import { shuffle } from "@utils/helpers";
+
+export interface Testimonial {
+    name: string;
+    text: string;
+    avatar: string | { src: string; alt?: string };
+    company?: string | null;
+    role?: string | null;
+    link?: string | null;
+}
+
+export type Testimonials = Testimonial[];
+const testimonials: Testimonials = shuffle(
+    processAvatars(testimonialsData as Testimonials),
+);
+
+// Helper function to get initials from name
+function getInitials(name: string): string {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Deterministic unique color generator based on index (no repeats up to large N)
+// Uses golden-angle hue stepping to evenly distribute distinct hues.
+// Ensures backgrounds are dark enough for AAA contrast with white text; for high-luminance hues (yellow range)
+// we clamp lightness lower. This lets us safely return white as the foreground for all generated colors.
+function getColorForIndex(index: number): { bg: string; fg: string } {
+    const GOLDEN_ANGLE = 137.508; // degrees
+    const hue = (index * GOLDEN_ANGLE) % 360; // distributed hue
+    // Base saturation / lightness
+    const saturation = 55; // balanced vibrancy
+    // Adjust lightness to guarantee contrast; yellows need to be darker
+    let lightness = 28; // default dark-ish
+    if (hue > 40 && hue < 85) {
+        lightness = 22; // yellow / yellow-green zone -> darken more
+    } else if (hue >= 85 && hue < 140) {
+        lightness = 24; // greens slightly darkened
+    }
+    const bg = `hsl(${hue.toFixed(0)} ${saturation}% ${lightness}%)`;
+    return { bg, fg: "#ffffff" };
+}
+---
+
+<div class="testimonial-carousel not-content">
+    <div class="carousel-track" data-track>
+        {
+            testimonials.map((t, i) => {
+                const endsWithParen = (name: string) => /\)\s*$/.test(name);
+                const extraInfo = [t.role, t.company]
+                    .filter(Boolean)
+                    .join(", ");
+                const displayName =
+                    !endsWithParen(t.name) && extraInfo
+                        ? `${t.name} (${extraInfo})`
+                        : t.name;
+                const initials = getInitials(t.name);
+                const colors = getColorForIndex(i);
+                const avatarSrc =
+                    typeof t.avatar === "object" ? t.avatar.src : t.avatar;
+
+                return (
+                    <div class="card">
+                        <div class="avatar-container">
+                            <div
+                                class="avatar-initials"
+                                style={`background-color: ${colors.bg}; color: ${colors.fg};`}
+                            >
+                                {initials}
+                            </div>
+                            <img
+                                class="avatar-image"
+                                src={avatarSrc}
+                                alt={t.name}
+                                loading="lazy"
+                                title={displayName}
+                                data-tooltip-placement="top"
+                            />
+                        </div>
+                        <div class="text">{t.text}</div>
+                        <div class="name">
+                            {t.link ? (
+                                <a
+                                    href={t.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    {displayName}
+                                </a>
+                            ) : (
+                                displayName
+                            )}
+                        </div>
+                    </div>
+                );
+            })
+        }
+    </div>
+    <div class="controls">
+        <button
+            type="button"
+            class="control-btn prev-btn"
+            aria-label="Previous"
+            disabled
+        >
+            <Icon name="left-arrow" size="1.5rem" />
+        </button>
+        <button type="button" class="control-btn next-btn" aria-label="Next">
+            <Icon name="right-arrow" />
+        </button>
+    </div>
+</div>
+
+<script is:inline>
+    document.addEventListener("DOMContentLoaded", () => {
+        const root = document.querySelector(".testimonial-carousel");
+        if (!root) return;
+        const track = root.querySelector("[data-track]");
+        const prevBtn = root.querySelector(".prev-btn");
+        const nextBtn = root.querySelector(".next-btn");
+        if (!track || !prevBtn || !nextBtn) return;
+
+        const cards = Array.from(track.querySelectorAll(".card"));
+        // Ensure we truly have button elements
+        if (
+            !(prevBtn instanceof HTMLButtonElement) ||
+            !(nextBtn instanceof HTMLButtonElement)
+        )
+            return;
+        if (!cards.length) return;
+
+        let cardWidth = 0; // single card outer width
+        let gapPx = 0; // gap between cards
+        let visible = 1; // how many whole cards currently fit
+        let index = 0; // left-most fully visible card index (logical)
+        let measuring = false; // guard against re-entrant measure
+
+        function computeVisible() {
+            const trackWidth = track.clientWidth;
+            const step = cardWidth + gapPx;
+            if (!step) return 1;
+            // number of full cards that can fit.
+            return Math.max(
+                1,
+                Math.min(3, Math.floor((trackWidth + gapPx) / step)),
+            );
+        }
+
+        function measure(force = false) {
+            if (measuring && !force) return;
+            measuring = true;
+            const styles = getComputedStyle(track);
+            const gapValue = (styles.gap || styles.columnGap || "0").split(
+                " ",
+            )[0];
+            const parsedGap = parseFloat(gapValue);
+            gapPx = Number.isFinite(parsedGap) ? parsedGap : 0;
+            cardWidth = cards[0].getBoundingClientRect().width;
+            visible = window.innerWidth < 768 ? 1 : computeVisible();
+            clampIndex();
+            updateButtons();
+            measuring = false;
+        }
+
+        function clampIndex() {
+            const maxStart = Math.max(0, cards.length - visible);
+            if (index > maxStart) index = maxStart;
+            if (index < 0) index = 0;
+        }
+
+        function updateButtons() {
+            prevBtn.disabled = index === 0;
+            nextBtn.disabled = index >= cards.length - visible;
+        }
+
+        function stepDistance() {
+            return cardWidth + gapPx;
+        }
+
+        function advance(delta) {
+            if (!cardWidth) measure(true);
+            const maxStart = Math.max(0, cards.length - visible);
+            index = Math.max(0, Math.min(index + delta, maxStart));
+            const distance = stepDistance();
+            if (!distance) return;
+            // Scroll by delta * distance for smoother accumulation vs absolute.
+            track.scrollBy({ left: delta * distance, behavior: "smooth" });
+            // Post-scroll sync after animation frame.
+            requestAnimationFrame(syncIndexFromScroll);
+            updateButtons();
+        }
+
+        function syncIndexFromScroll() {
+            const distance = stepDistance();
+            if (!distance) return;
+            const approx = track.scrollLeft / distance;
+            const newIdx = Math.round(approx);
+            if (newIdx !== index) {
+                index = newIdx;
+                updateButtons();
+            }
+        }
+
+        prevBtn.addEventListener("click", () => advance(-1));
+        nextBtn.addEventListener("click", () => advance(1));
+
+        let raf = 0;
+        track.addEventListener("scroll", () => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(syncIndexFromScroll);
+        });
+
+        window.addEventListener("resize", () => {
+            const prevVisible = visible;
+            measure(true);
+            if (visible !== prevVisible) syncIndexFromScroll();
+        });
+
+        // Initial measurement
+        requestAnimationFrame(() => measure(true));
+    });
+</script>
+
+<style>
+    /* Layout */
+    .testimonial-carousel {
+        --carousel-primary: var(--aspire-color-primary);
+        --carousel-card-bg: var(--sl-color-bg, var(--sl-color-bg-sidebar));
+        --carousel-text: var(--sl-color-text);
+        --card-width: 21.25rem;
+        --card-gap: 1.5rem;
+        max-width: 75rem;
+        margin: 2rem auto 2.5rem;
+        padding: 0 0 0.5rem;
+    }
+
+    .carousel-track {
+        display: flex;
+        gap: var(--card-gap);
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding: 0 0 0.25rem;
+        scrollbar-width: none;
+    }
+    .carousel-track::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Card */
+    .card {
+        flex: 0 0 var(--card-width);
+        scroll-snap-align: start;
+        background: var(--carousel-card-bg);
+        border: 1px solid var(--sl-color-gray-5, #d9d9d9);
+        border-radius: 0.5rem;
+        padding: 1.5rem 1.5rem 1.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        min-height: 15.625rem;
+        position: relative;
+        transition:
+            transform 0.25s ease,
+            box-shadow 0.25s ease;
+        box-shadow: var(--sl-shadow-sm);
+    }
+
+    .card:focus-visible {
+        outline: 0.1875rem solid var(--carousel-primary);
+        outline-offset: 0.125rem;
+    }
+
+    .avatar-container {
+        position: relative;
+        width: 5.25rem;
+        height: 5.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .avatar-initials {
+        width: 5.25rem;
+        height: 5.25rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 600;
+        border: 3px solid var(--carousel-primary);
+        transition: opacity 0.3s ease;
+    }
+
+    .avatar-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5.25rem;
+        height: 5.25rem;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid var(--carousel-primary);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .card:hover .avatar-initials {
+        opacity: 0;
+    }
+
+    .card:hover .avatar-image {
+        opacity: 1;
+    }
+
+    .avatar {
+        width: 5.25rem;
+        height: 5.25rem;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 1rem;
+        border: 3px solid var(--carousel-primary);
+    }
+    .text {
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        color: var(--carousel-text);
+    }
+    .text::before {
+        content: '"';
+        font-size: 1.75rem;
+        font-weight: bold;
+        font-style: normal;
+        color: var(--carousel-primary);
+        line-height: 1;
+        pointer-events: none;
+        padding-right: 0.5rem;
+        z-index: 1;
+    }
+    .name {
+        font-weight: 500;
+        font-size: 1rem;
+        color: var(--aspire-color-secondary);
+    }
+    .name a {
+        color: inherit;
+        text-decoration: none;
+    }
+    .name a:hover {
+        text-decoration: underline;
+    }
+
+    /* Controls */
+    .controls {
+        display: flex;
+        gap: 0.65rem;
+        margin-top: 1rem;
+    }
+    .control-btn {
+        background: var(--carousel-primary);
+        color: #fff;
+        border: none;
+        border-radius: 0.5rem;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition:
+            background 0.25s ease,
+            transform 0.25s ease;
+    }
+    .control-btn:hover:not([disabled]) {
+        transform: scale(1.06);
+    }
+    .control-btn[disabled] {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    /* Mobile: single card */
+    @media (max-width: 768px) {
+        .testimonial-carousel {
+            --card-width: 100%;
+        }
+        .card {
+            min-height: 230px;
+        }
+    }
+
+    html[data-theme="light"] {
+        .name {
+            color: var(--aspire-color-primary);
+        }
+    }
+
+    html[data-theme="dark"] {
+        .testimonial-carousel {
+            --carousel-card-bg: var(--sl-color-black, #1a1a1a);
+        }
+    }
+</style>
