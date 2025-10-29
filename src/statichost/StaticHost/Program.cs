@@ -10,6 +10,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseHttpsRedirection();
 app.UseDefaultFiles();
 
 app.UseStatusCodePages(async context =>
@@ -36,8 +37,6 @@ app.UseStatusCodePages(async context =>
 
 var provider = new FileExtensionContentTypeProvider();
 provider.Mappings[".cast"] = "application/x-asciinema+json";
-
-app.UseHttpsRedirection();
 
 app.UseStaticFiles(new StaticFileOptions
 {
