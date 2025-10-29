@@ -3,40 +3,61 @@ title: Aspire CLI overview
 prev: false
 ---
 
-import { LinkButton } from "@astrojs/starlight/components";
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
 import LearnMore from "@components/LearnMore.astro";
 
-The Aspire CLI (`aspire` command) is a .NET global tool that provides command-line functionality to create, manage, run, and publish Aspire projects. Use the Aspire CLI to streamline development workflows for distributed applications.
+The Aspire CLI (`aspire` command) is a cross-platform tool that provides command-line functionality to create, manage, run, and publish polyglot Aspire projects. Use the Aspire CLI to streamline development workflows and coordinate services for distributed applications.
 
 The Aspire CLI is an interactive-first experience.
 
-<LinkButton href="../install" variant="secondary" icon="download" iconPlacement="start">
-  Install the Aspire CLI
-</LinkButton>
+<CardGrid>
+  <LinkCard
+    href="../install"
+    title="Install the Aspire CLI"
+    icon="download"
+    description="Get started by installing the Aspire CLI on your machine." />
+  <LinkCard
+    href="../install-script" 
+    title="Review install script reference"
+    icon="settings"
+    description="Explore the details of the install script with reference." />
+</CardGrid>
 
 ## Use templates
 
-The `aspire new` command is an interactive-first CLI experience, and is used to create one or more Aspire projects. As part of creating a project, Azure CLI ensures that the latest Aspire project templates are installed.
+The `aspire new` command is an interactive-first CLI experience, and is used to create one or more Aspire projects. As part of creating a project, Aspire CLI ensures that the latest Aspire project templates are installed into the `dotnet` system.
 
 Use the `aspire new` command to create an Aspire project from a list of templates. Once a template is selected, the name of the project is set, and the output folder is chosen, `aspire` downloads the latest templates and generates one or more projects.
 
+<LearnMore>
+  [Command reference: `aspire new`](../commands/aspire-new/)
+</LearnMore>
+
+### Example usage
+
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 
-The following is an example of running the `aspire new` command to create a new Aspire project — select the play button to view terminal playback:
+The following example shows running the `aspire new` command to create a new Aspire project — select the play button to view terminal playback:
 
 <AsciinemaPlayer src="/casts/aspire-new.cast" poster="npt:0:03" />
 
-While command line parameters can be used to automate the creation of an Aspire project, the Aspire CLI is an interactive-first experience.
+While command-line parameters can be used to automate the creation of an Aspire project, the Aspire CLI is an interactive-first experience.
+
+## Initialize existing solutions
+
+The `aspire init` command adds Aspire support to an existing .NET solution or creates a single-file AppHost. This is useful when you want to add Aspire orchestration capabilities to an existing application without creating an entirely new solution structure.
+
+The command analyzes your existing solution and adds the necessary Aspire AppHost project or creates a minimal single-file AppHost, making it easy to adopt Aspire incrementally.
+
+<LearnMore>
+  [Command reference: `aspire init`](../commands/aspire-init/)
+</LearnMore>
 
 ## Start the Aspire AppHost
 
-<LearnMore>
-  [Command reference: `aspire run`](../commands/aspire-run/)
-</LearnMore>
-
 The `aspire run` command runs the AppHost project in development mode, which configures the Aspire environment, builds and starts resources defined by the AppHost, launches the web dashboard, and prints a list of endpoints.
 
-When `aspire run` starts, it searches the current directory for an AppHost project. If a project isn't found, the sub directories are searched until one is found. If no AppHost project is found, Aspire stops. Once a project is found, Aspire CLI takes the following steps:
+When `aspire run` starts, it searches the current directory for an AppHost project. If a project isn't found, the subdirectories are searched until one is found. If no AppHost project is found, Aspire stops. Once a project is found, Aspire CLI takes the following steps:
 
 import { Steps } from '@astrojs/starlight/components';
 
@@ -57,33 +78,44 @@ Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
         Press CTRL+C to stop the apphost and exit.
 ```
 
+<LearnMore>
+  [Command reference: `aspire run`](../commands/aspire-run/)
+</LearnMore>
+
 ## Add integrations
+
+The `aspire add` command is an easy way to add official integration packages to your AppHost project. Use this as an alternative to a NuGet search through your IDE. You can run `aspire add <name|id>` if you know the name or NuGet ID of the integration package. If you omit a name or ID, the tool provides a list of packages to choose from. If you provide a partial name or ID, the tool filters the list of packages with items that match the provided value.
 
 <LearnMore>
   [Command reference: `aspire add`](../commands/aspire-add/)
 </LearnMore>
 
-The `aspire add` command is an easy way to add official integration packages to your AppHost project. Use this as an alternative to a NuGet search through your IDE. You can run `aspire add <name|id>` if you know the name or NuGet ID of the integration package. If you omit a name or ID, the tool provides a list of packages to choose from. If you provide a partial name or ID, the tool filters the list of packages with items that match the provided value.
+## Update Aspire packages
 
-## Publish Aspire solutions (preview)
+The `aspire update` command helps you keep your Aspire projects current by automatically detecting and updating outdated packages and templates. It finds outdated Aspire NuGet packages while respecting channel configurations and intelligently handles complex dependency graphs.
+
+The command validates package compatibility before applying changes and provides detailed output showing which packages were updated.
 
 <LearnMore>
-  [Command reference: `aspire publish`](../commands/aspire-publish/)
+  [Command reference: `aspire update`](../commands/aspire-update/)
 </LearnMore>
+
+
+## Publish Aspire applications
 
 The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire invokes registered `PublishingCallbackAnnotation` resource annotations, in the order they're declared. These annotations serialize a resource so that it can be consumed by deployment tools.
 
 Some integrations automatically register a `PublishingCallbackAnnotation` for you, for example:
 
-- `AzureEnvironmentResource` generates Bicep assets.
-- `DockerComposeEnvironmentResource` generates docker-compose yaml.
-- `KubernetesEnvironmentResource` generates Kubernetes Helm charts.
-
-## Deploy Aspire solutions (preview)
+- `AzureEnvironmentResource` generates Bicep assets
+- `DockerComposeEnvironmentResource` generates docker-compose YAML
+- `KubernetesEnvironmentResource` generates Kubernetes Helm charts
 
 <LearnMore>
-  [Command reference: `aspire deploy`](../commands/aspire-deploy/)
+  [Command reference: `aspire publish`](../commands/aspire-publish/)
 </LearnMore>
+
+## Deploy Aspire solutions
 
 The `aspire deploy` command is similar to `aspire publish`. After Aspire has invoked the publishing annotations to serialize resources to disk, it invokes `DeployingCallbackAnnotation` resource annotations, in the order they're declared.
 
@@ -92,22 +124,42 @@ As of Aspire 9.4, Aspire doesn't include any default deployment annotations for 
 > [!TIP]
 > Consider this a good way to deploy your Aspire solution to a staging or testing environment.
 
-## Manage Aspire configuration
-
-The `aspire config` command lets you manage Aspire CLI configuration settings. Use it to `list`, `get`, `set`, or `delete` configuration values that control CLI behavior. This command is also used to toggle features on or off.
-
 <LearnMore>
-  To learn more, see [Command reference: `aspire config`](/reference/cli/commands/aspire-config/) and the [Aspire CLI configuration](/reference/cli/configuration/).
+  [Command reference: `aspire deploy`](../commands/aspire-deploy/)
 </LearnMore>
 
-## Run commands in resource context (preview)
+## Execute pipeline steps
+
+The `aspire do` command executes a specific pipeline step and its dependencies in your Aspire AppHost. This provides fine-grained control over the orchestration pipeline, allowing you to run individual steps of the deployment or build process without executing the entire pipeline.
+
+Use this command to test individual pipeline stages during development or to execute only the dependencies needed for a particular step.
+
+<LearnMore>
+  [Command reference: `aspire do`](../commands/aspire-do/)
+</LearnMore>
+
+## Run commands in resource context
+
+The `aspire exec` command runs a command in the context of a specific Aspire resource, inheriting that resource's configuration, including environment variables, connection strings, and working directory. This is particularly useful for scenarios like running Entity Framework migrations where you need to run commands with the same configuration as your application. For example, you can run `aspire exec --resource api -- dotnet ef migrations add Init` to run Entity Framework commands with the proper database connection strings automatically configured.
 
 <LearnMore>
   [Command reference: `aspire exec`](../commands/aspire-exec/)
 </LearnMore>
 
-The `aspire exec` command runs a command in the context of a specific Aspire resource, inheriting that resource's configuration, including environment variables, connection strings, and working directory. This is particularly useful for scenarios like running Entity Framework migrations where you need to run commands with the same configuration as your application. For example, you can run `aspire exec --resource api -- dotnet ef migrations add Init` to run Entity Framework commands with the proper database connection strings automatically configured.
+## Manage CLI configuration
 
-:::note[Feature Flag]{icon='seti:config'}
-The `aspire exec` command is behind a feature flag and **disabled by default** in this release. It must be explicitly enabled for use with `aspire config set features.execCommandEnabled true`.
-:::
+The `aspire config` command lets you manage Aspire CLI configuration settings. Use it to `list`, `get`, `set`, or `delete` configuration values that control CLI behavior. This command is also used to toggle features on or off.
+
+<LearnMore>
+  [Command reference: `aspire config`](../commands/aspire-config/)
+</LearnMore>
+
+## Manage CLI cache
+
+The `aspire cache` command manages the disk cache used by the Aspire CLI. The CLI caches data such as downloaded templates, NuGet package information, and other temporary files to improve performance and reduce network requests.
+
+Use `aspire cache clear` to remove all cached data. This is useful when troubleshooting CLI issues, freeing up disk space, or ensuring fresh data after updating the CLI.
+
+<LearnMore>
+  [Command reference: `aspire cache`](../commands/aspire-cache/)
+</LearnMore>

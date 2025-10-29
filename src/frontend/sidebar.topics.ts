@@ -645,7 +645,13 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'aspire', slug: 'reference/cli/commands/aspire' },
           { label: 'aspire add', slug: 'reference/cli/commands/aspire-add' },
           {
-            label: 'aspire config', items: [
+            label: 'aspire cache', collapsed: true, items: [
+              { label: 'aspire cache', slug: 'reference/cli/commands/aspire-cache' },
+              { label: 'aspire cache clear', slug: 'reference/cli/commands/aspire-cache-clear' },
+            ]
+          },
+          {
+            label: 'aspire config', collapsed: true, items: [
               { label: 'aspire config', slug: 'reference/cli/commands/aspire-config' },
               { label: 'aspire config list', slug: 'reference/cli/commands/aspire-config-list' },
               { label: 'aspire config get', slug: 'reference/cli/commands/aspire-config-get' },
@@ -654,7 +660,9 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ]
           },
           { label: 'aspire deploy', slug: 'reference/cli/commands/aspire-deploy' },
+          { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
           { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
+          { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
           { label: 'aspire new', slug: 'reference/cli/commands/aspire-new' },
           { label: 'aspire publish', slug: 'reference/cli/commands/aspire-publish' },
           { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
