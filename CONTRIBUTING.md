@@ -7,7 +7,7 @@ Thank you for your interest in contributing to the Aspire documentation website!
 Before you begin, ensure you have the following installed:
 
 - **[.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)** - Required for the Aspire AppHost
-- **[Aspire CLI](https://aspire.dev/get-started/installation/)** - For running Aspire
+- **[Aspire CLI](https://aspire.dev/get-started/install-cli/)** - For running Aspire
 - **[Node.js](https://nodejs.org/en/download)** (LTS version recommended) - For frontend development
 - **[Git](https://git-scm.com/downloads)** - For version control
 
