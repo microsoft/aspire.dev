@@ -70,11 +70,13 @@ app.MapGet("/healthz", () => Results.Ok());
 
 app.MapGet("/install.ps1", async context =>
 {
+    await Task.CompletedTask;
     context.Response.Redirect("https://aka.ms/aspire/get/install.ps1");
 });
 
 app.MapGet("/install.sh", async context =>
 {
+    await Task.CompletedTask;
     context.Response.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
