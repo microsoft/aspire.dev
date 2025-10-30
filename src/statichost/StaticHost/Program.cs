@@ -4,6 +4,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 await using var app = builder.Build();
 
+// Only enable HSTS in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
 app.UseDefaultFiles();
 
 app.UseStatusCodePages(async context =>
@@ -38,7 +45,7 @@ app.UseStaticFiles(new StaticFileOptions
     {
         var headers = ctx.Context.Response.Headers;
         var name = ctx.File.Name.ToLowerInvariant();
-        
+
         // Astro hashes CSS/JS files, but HTML files should not be cached
         // They'll always reference the hashed assets
         if (name.EndsWith(".html") || name.EndsWith(".htm"))
@@ -48,9 +55,9 @@ app.UseStaticFiles(new StaticFileOptions
             headers.Expires = "0";
         }
         else if (name.EndsWith(".css") || name.EndsWith(".js")
-            || name.EndsWith(".jpg") || name.EndsWith(".jpeg") 
+            || name.EndsWith(".jpg") || name.EndsWith(".jpeg")
             || name.EndsWith(".png") || name.EndsWith(".gif")
-            || name.EndsWith(".svg") || name.EndsWith(".webp") 
+            || name.EndsWith(".svg") || name.EndsWith(".webp")
             || name.EndsWith(".woff") || name.EndsWith(".woff2")
             || name.EndsWith(".ttf") || name.EndsWith(".eot"))
         {
@@ -63,11 +70,13 @@ app.MapGet("/healthz", () => Results.Ok());
 
 app.MapGet("/install.ps1", async context =>
 {
+    await Task.CompletedTask;
     context.Response.Redirect("https://aka.ms/aspire/get/install.ps1");
 });
 
 app.MapGet("/install.sh", async context =>
 {
+    await Task.CompletedTask;
     context.Response.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
