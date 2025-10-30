@@ -109,25 +109,26 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             slug: 'get-started/prerequisites'
           },
           {
-            label: 'Installation',
+            label: 'Install CLI',
             translations: {
-              da: 'Installation',
-              de: 'Installation',
-              en: 'Installation',
-              es: 'Instalación',
-              fr: 'Installation',
-              hi: 'स्थापना',
-              id: 'Instalasi',
-              it: 'Installazione',
-              ja: 'インストール',
-              ko: '설치',
-              'pt-BR': 'Instalação',
-              'pt-PT': 'Instalação',
-              ru: 'Установка',
-              tr: 'Kurulum',
-              uk: 'Встановлення',
-              'zh-CN': '安装',
-            }, slug: 'get-started/installation'
+              da: 'Installer CLI',
+              de: 'CLI installieren',
+              en: 'Install CLI',
+              es: 'Instalar CLI',
+              fr: 'Installer CLI',
+              hi: 'CLI इंस्टॉल करें',
+              id: 'Instal CLI',
+              it: 'Installa CLI',
+              ja: 'CLI をインストール',
+              ko: 'CLI 설치',
+              'pt-BR': 'Instalar CLI',
+              'pt-PT': 'Instalar CLI',
+              ru: 'Установить CLI',
+              tr: 'CLI Kur',
+              uk: 'Встановити CLI',
+              'zh-CN': '安装 CLI',
+            }, 
+            slug: 'get-started/install-cli'
           },
           {
             label: 'First app',
@@ -624,13 +625,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'reference/cli/overview'
       },
       {
-        label: 'Install', translations: {
-          da: 'Installation', de: 'Installation', en: 'Install', es: 'Instalar', fr: 'Installer', hi: 'इंस्टॉल', id: 'Instalasi', it: 'Installazione', ja: 'インストール', ko: '설치', pt: 'Instalar', 'pt-BR': 'Instalar', 'pt-PT': 'Instalar', ru: 'Установка', tr: 'Kurulum', uk: 'Встановлення', 'zh-CN': '安装'
-        }, slug: 'reference/cli/install'
-      },
-      {
-        label: 'Install Script', translations: {
-          da: 'Installationsscript', de: 'Installationsskript', en: 'Install Script', es: 'Script de instalación', fr: 'Script d\'installation', hi: 'इंस्टॉलेशन स्क्रिप्ट', id: 'Skrip Instalasi', it: 'Script di installazione', ja: 'インストールスクリプト', ko: '설치 스크립트', pt: 'Script de instalação', 'pt-BR': 'Script de instalação', 'pt-PT': 'Script de instalação', ru: 'Скрипт установки', tr: 'Kurulum Betiği', uk: 'Скрипт установки', 'zh-CN': '安装脚本'
+        label: 'Install script', translations: {
+          da: 'Installationsscript', de: 'Installationsskript', en: 'Install script', es: 'Script de instalación', fr: 'Script d\'installation', hi: 'इंस्टॉलेशन स्क्रिप्ट', id: 'Skrip Instalasi', it: 'Script di installazione', ja: 'インストールスクリプト', ko: '설치 스크립트', pt: 'Script de instalação', 'pt-BR': 'Script de instalação', 'pt-PT': 'Script de instalação', ru: 'Скрипт установки', tr: 'Kurulum Betiği', uk: 'Скрипт установки', 'zh-CN': '安装脚本'
         }, slug: 'reference/cli/install-script'
       },
       {
