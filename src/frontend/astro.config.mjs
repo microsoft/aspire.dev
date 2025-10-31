@@ -240,10 +240,5 @@ export default defineConfig({
 			extendMarkdownConfig: true,
 			remarkPlugins: [remarkDirective, pivotDirective],
 		})
-	],
-	vite: {
-		optimizeDeps: {
-			include: ['leaflet'],
-		}
-	},
+	]
 });
