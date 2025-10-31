@@ -6,6 +6,7 @@ builder.Services.AddHsts(options =>
 {
     options.Preload = true;
     options.IncludeSubDomains = true;
+    options.MaxAge = TimeSpan.FromDays(180);
 });
 
 await using var app = builder.Build();
