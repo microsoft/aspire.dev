@@ -24,23 +24,23 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
     icon: 'open-book',
     items: [
       {
-        label: 'Welcome', translations: {
-          da: 'Velkommen',
-          de: 'Willkommen',
-          en: 'Welcome',
-          es: 'Bienvenida',
-          fr: 'Bienvenue',
-          hi: 'स्वागत',
-          id: 'Selamat datang',
-          it: 'Benvenuto',
-          ja: 'ようこそ',
-          ko: '환영합니다',
-          'pt-BR': 'Bem-vindo',
-          'pt-PT': 'Bem-vindo',
-          ru: 'Добро пожаловать',
-          tr: 'Hoş geldiniz',
-          uk: 'Ласкаво просимо',
-          'zh-CN': '欢迎',
+        label: 'Welcome to Aspire', translations: {
+          da: 'Velkommen til Aspire',
+          de: 'Willkommen bei Aspire',
+          en: 'Welcome to Aspire',
+          es: 'Bienvenido a Aspire',
+          fr: 'Bienvenue à Aspire',
+          hi: 'Aspire में आपका स्वागत है',
+          id: 'Selamat datang di Aspire',
+          it: 'Benvenuto in Aspire',
+          ja: 'Aspire へようこそ',
+          ko: 'Aspire에 오신 것을 환영합니다',
+          'pt-BR': 'Bem-vindo ao Aspire',
+          'pt-PT': 'Bem-vindo ao Aspire',
+          ru: 'Добро пожаловать в Aspire',
+          tr: 'Aspire\'a Hoş Geldiniz',
+          uk: 'Ласкаво просимо до Aspire',
+          'zh-CN': '欢迎使用 Aspire',
         }, slug: 'get-started/welcome'
       },
       {
@@ -67,10 +67,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }
       },
       {
-        label: 'Get Started', translations: {
+        label: 'Get started', translations: {
           da: 'Kom godt i gang',
-          de: 'Erste Schritte',
-          en: 'Get Started',
+          de: 'Erste schritte',
+          en: 'Get started',
           es: 'Empezar',
           fr: 'Commencer',
           hi: 'शुरू करें',
@@ -131,24 +131,24 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             slug: 'get-started/install-cli'
           },
           {
-            label: 'First app',
+            label: 'Build your first app',
             translations: {
-              da: 'Første app',
-              de: 'Erste App',
-              en: 'First app',
-              es: 'Primera app',
-              fr: 'Première app',
-              hi: 'पहला ऐप',
-              id: 'Aplikasi Pertama',
-              it: 'Prima app',
-              ja: '最初のアプリ',
-              ko: '첫 번째 앱',
-              'pt-BR': 'Primeiro app',
-              'pt-PT': 'Primeiro app',
-              ru: 'Первое приложение',
-              tr: 'İlk uygulama',
-              uk: 'Перше застосування',
-              'zh-CN': '第一个应用',
+              da: 'Byg din første app',
+              de: 'Erstellen Sie Ihre erste App',
+              en: 'Build your first app',
+              es: 'Construye tu primera app',
+              fr: 'Construisez votre première application',
+              hi: 'अपना पहला ऐप बनाएं',
+              id: 'Bangun aplikasi pertama Anda',
+              it: 'Crea la tua prima app',
+              ja: '最初のアプリを作成',
+              ko: '첫 번째 앱 만들기',
+              'pt-BR': 'Construa seu primeiro app',
+              'pt-PT': 'Construa a sua primeira app',
+              ru: 'Создайте свое первое приложение',
+              tr: 'İlk uygulamanızı oluşturun',
+              uk: 'Створіть свій перший додаток',
+              'zh-CN': '构建您的第一个应用',
             },
             slug: 'get-started/first-app',
             badge: {
@@ -201,18 +201,18 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               de: 'Was ist Aspire?',
               en: 'What is Aspire?',
               es: '¿Qué es Aspire?',
-              fr: 'Qu\'est-ce qu’Aspire ?',
+              fr: 'Qu’est-ce qu’Aspire ?',
               hi: 'Aspire क्या है?',
               id: 'Apa itu Aspire?',
-              it: 'Che cos\'è Aspire?',
-              ja: 'Aspire とは?',
+              it: 'Che cos’è Aspire?',
+              ja: 'Aspire とは何ですか?',
               ko: 'Aspire란 무엇인가요?',
               'pt-BR': 'O que é Aspire?',
               'pt-PT': 'O que é Aspire?',
               ru: 'Что такое Aspire?',
               tr: 'Aspire nedir?',
               uk: 'Що таке Aspire?',
-              'zh-CN': '什么是 Aspire？',
+              'zh-CN': 'Aspire 是什么？',
             }, slug: 'get-started/what-is-aspire'
           },
           {
@@ -236,10 +236,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             }, slug: 'get-started/app-host'
           },
           {
-            label: 'Understanding Resources', translations: {
+            label: 'Understanding resources', translations: {
               da: 'Forstå ressourcer',
               de: 'Ressourcen verstehen',
-              en: 'Understanding Resources',
+              en: 'Understanding resources',
               es: 'Comprender los recursos',
               fr: 'Comprendre les ressources',
               hi: 'संसाधनों को समझना',
@@ -256,14 +256,14 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             }, slug: 'get-started/resources'
           },
           {
-            label: 'Deployment and App Topology', translations: {
+            label: 'Deployment and app topology', translations: {
               da: 'Udrulning og apptopologi',
-              de: 'Bereitstellung und App-Topologie',
-              en: 'Deployment and App Topology',
+              de: 'Bereitstellung und app-topologie',
+              en: 'Deployment and app topology',
               es: 'Despliegue y topología de la aplicación',
               fr: 'Déploiement et topologie de l’application',
               hi: 'परिनियोजन और ऐप टोपोलॉजी',
-              id: 'Penyebaran dan Topologi Aplikasi',
+              id: 'Penyebaran dan topologi aplikasi',
               it: 'Distribuzione e topologia dell’applicazione',
               ja: 'デプロイとアプリのトポロジ',
               ko: '배포 및 앱 토폴로지',
@@ -322,10 +322,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             slug: 'architecture/overview'
           },
           {
-            label: 'Resource Model', translations: {
+            label: 'Resource model', translations: {
               da: 'Ressourcemodel',
               de: 'Ressourcenmodell',
-              en: 'Resource Model',
+              en: 'Resource model',
               es: 'Modelo de recurso',
               fr: 'Modèle de ressource',
               hi: 'संसाधन मॉडल',
@@ -342,11 +342,11 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             }, slug: 'architecture/resource-model'
           },
           {
-            label: 'Resource Hierarchies',
+            label: 'Resource hierarchies',
             translations: {
               da: 'Ressourcehierarkier',
               de: 'Ressourcenhierarchien',
-              en: 'Resource Hierarchies',
+              en: 'Resource hierarchies',
               es: 'Jerarquías de recursos',
               fr: 'Hiérarchies de ressources',
               hi: 'संसाधन पदानुक्रम',
@@ -363,11 +363,11 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             }, slug: 'architecture/resource-hierarchies'
           },
           {
-            label: 'Resource API Patterns',
+            label: 'Resource API patterns',
             translations: {
               da: 'Ressource-API-mønstre',
               de: 'Ressource-API-Muster',
-              en: 'Resource API Patterns',
+              en: 'Resource API patterns',
               es: 'Patrones de API de recursos',
               fr: 'Modèles d\'API de ressources',
               hi: 'संसाधन एपीआई पैटर्न',
@@ -384,11 +384,11 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             }, slug: 'architecture/resource-api-patterns'
           },
           {
-            label: 'Resource Publishing',
+            label: 'Resource publishing',
             translations: {
               da: 'Ressourcepublicering',
               de: 'Ressourcenveröffentlichung',
-              en: 'Resource Publishing',
+              en: 'Resource publishing',
               es: 'Publicación de recursos',
               fr: 'Publication de ressources',
               hi: 'संसाधन प्रकाशन',
@@ -406,10 +406,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             slug: 'architecture/resource-publishing'
           },
           {
-            label: 'Resource Examples', translations: {
+            label: 'Resource examples', translations: {
               da: 'Ressourceeksempler',
               de: 'Ressourcenbeispiele',
-              en: 'Resource Examples',
+              en: 'Resource examples',
               es: 'Ejemplos de recursos',
               fr: 'Exemples de ressources',
               hi: 'संसाधन उदाहरण',
@@ -494,24 +494,24 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '探索',
         }, items: [
           {
-            label: 'Gallery', translations: {
-              da: 'Galleri',
-              de: 'Galerie',
-              en: 'Gallery',
-              es: 'Galería',
-              fr: 'Galerie',
-              hi: 'गैलरी',
-              id: 'Galeri',
-              it: 'Galleria',
-              ja: 'ギャラリー',
-              ko: '갤러리',
-              pt: 'Galeria',
-              'pt-BR': 'Galeria',
-              'pt-PT': 'Galeria',
-              ru: 'Галерея',
-              tr: 'Galeri',
-              uk: 'Галерея',
-              'zh-CN': '画廊',
+            label: 'Integration gallery', translations: {
+              da: 'Integrationsgalleri',
+              de: 'Integrationsgalerie',
+              en: 'Integration gallery',
+              es: 'Galería de integraciones',
+              fr: 'Galerie d’intégrations',
+              hi: 'इंटीग्रेशन गैलरी',
+              id: 'Galeri integrasi',
+              it: 'Galleria delle integrazioni',
+              ja: 'インテグレーションギャラリー',
+              ko: '통합 갤러리',
+              pt: 'Galeria de integrações',
+              'pt-BR': 'Galeria de integrações',
+              'pt-PT': 'Galeria de integrações',
+              ru: 'Галерея интеграций',
+              tr: 'Entegrasyon galerisi',
+              uk: 'Галерея інтеграцій',
+              'zh-CN': '集成图库',
             }, slug: 'integrations/gallery'
           },
           {
@@ -682,29 +682,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
   // },
   {
     label: {
-      en: 'Samples',
-      es: 'Ejemplos',
-      fr: 'Exemples',
-      de: 'Beispiele',
-      it: 'Esempi',
-      pt: 'Exemplos',
-      ru: 'Примеры',
-      'zh-CN': '示例',
-      da: 'Eksempler',
-      hi: 'उदाहरण',
-      id: 'Contoh',
-      ja: 'サンプル',
-      ko: '샘플',
-      'pt-BR': 'Exemplos',
-      'pt-PT': 'Exemplos',
-      tr: 'Örnekler',
-      uk: 'Приклади',
-    },
-    link: 'https://github.com/dotnet/aspire-samples',
-    icon: 'vscode',
-  },
-  {
-    label: {
       en: 'Community',
       es: 'Comunidad',
       fr: 'Communauté',
@@ -777,5 +754,28 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'community/videos'
       },
     ]
-  }
+  },
+  {
+    label: {
+      en: 'Samples',
+      es: 'Ejemplos',
+      fr: 'Exemples',
+      de: 'Beispiele',
+      it: 'Esempi',
+      pt: 'Exemplos',
+      ru: 'Примеры',
+      'zh-CN': '示例',
+      da: 'Eksempler',
+      hi: 'उदाहरण',
+      id: 'Contoh',
+      ja: 'サンプル',
+      ko: '샘플',
+      'pt-BR': 'Exemplos',
+      'pt-PT': 'Exemplos',
+      tr: 'Örnekler',
+      uk: 'Приклади',
+    },
+    link: 'https://aka.ms/aspiresamples',
+    icon: 'vscode',
+  },
 ];
