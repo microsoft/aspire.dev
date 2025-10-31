@@ -10,6 +10,18 @@ next: false
 import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components'
 import LearnMore from '@components/LearnMore.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" }
+    ]}
+/>
 
 In this quickstart, you'll create and run your first Aspire application using the Aspire CLI. This guide walks you through generating a new Aspire solution from a template, running the application locally with Aspire's dev-time orchestration, and exploring the Aspire dashboard.
 
@@ -21,9 +33,27 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
 1. Create a new Aspire solution from a template:
 
-    ```bash title="Create a new aspire solution" data-disable-copy
+    <Pivot id="csharp">
+
+    ```bash title="Create a new aspire solution"
     aspire new aspire-starter -n AspireApp -o AspireApp
     ```
+
+    </Pivot>
+    <Pivot id="python">
+
+    ```bash title="Create a new aspire solution"
+    aspire new aspire-py-starter -n AspireApp -o AspireApp
+    ```
+
+    </Pivot>
+    <Pivot id="javascript">
+
+    ```bash title="Create a new aspire solution"
+    aspire new aspire-js-starter -n AspireApp -o AspireApp
+    ```
+
+    </Pivot>
 
     <Aside type='tip' title='CLI options'>
       The `aspire-starter` template provides several projects, including an API service, web frontend, and app host.
@@ -41,6 +71,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
 1. Verify the solution was created successfully. The Aspire CLI creates a new folder named _AspireApp_ in the current directory. This folder contains the solution file and several projects, including:
 
+    <Pivot id="csharp">
     <FileTree>
     - AspireApp.sln
     - AspireApp.ApiService
@@ -49,7 +80,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
         - appsettings.json
         - AspireApp.ApiService.csproj
         - Program.cs
-    - **AspireApp.AppHost** this is your local **dev-time** orchestrator
+    - **AspireApp.AppHost** dev-time orchestrator
         - Properties/
         - appsettings.Development.json
         - appsettings.json
@@ -67,11 +98,49 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
         - Program.cs
         - WeatherApiClient.cs
     </FileTree>
+    </Pivot>
+    <Pivot id="python">
+    <FileTree>
+    - AspireApp/
+        - app/
+            - .python-version
+            - app.py
+            - pyproject.toml
+            - telemetry.py
+        - frontend/
+            - public/
+                - Aspire.png
+                - github.svg
+            - src/
+                - App.css
+                - App.tsx
+                - index.css
+                - main.tsx
+                - vite-env.d.ts
+            - .gitignore
+            - eslint.config.js
+            - index.html
+            - package-lock.json
+            - package.json
+            - tsconfig.app.json
+            - tsconfig.json
+            - tsconfig.node.json
+            - vite.config.ts
+        - **apphost.cs** dev-time orchestrator
+        - apphost.run.json
+        - NuGet.config
+    </FileTree>
+    </Pivot>
 
     This solution structure is based on the Aspire templates. If they're not installed already, the CLI will install them for you.
 </Steps>
 
 ## Run the app
+
+import csharpDashboardLight from '@assets/get-started/csharp-aspire-dashboard-light.png';
+import csharpDashboardDark from '@assets/get-started/csharp-aspire-dashboard-dark.png';
+import pythonDashboardLight from '@assets/get-started/python-aspire-dashboard-light.png';
+import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dark.png';
 
 <Steps>
 
@@ -87,15 +156,44 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     aspire run
     ```
 
-    When you run this command, the Aspire CLI automatically finds the AppHost project, builds your solution, and launches dev-time orchestration. Once the dashboard is ready, its URL (with a login token) appears in your console. You'll also see a live, real-time view of your running resources and their current states.
+    When you run this command, the Aspire CLI automatically finds the AppHost, builds your solution, and launches dev-time orchestration. Once the dashboard is ready, its URL (with a login token) appears in your console. You'll also see a live, real-time view of your running resources and their current states.
+
+    <Pivot id="csharp">
 
     ```bash title="Example output of aspire run"
-    Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
+    🔍  Finding apphosts...
+    AspireApp.AppHost\AspireApp.AppHost.csproj
 
-    Logs:  /home/vscode/.aspire/cli/logs/apphost-5932-2025-08-25-18-37-31.log
+    🗄  Created settings file at '.aspire/settings.json'.
 
-        Press CTRL+C to stop the apphost and exit.
+         AppHost:  AspireApp.AppHost\AspireApp.AppHost.csproj
+
+       Dashboard:  https://localhost:17068/login?t=ea559845d54cea66b837dc0ff33c3bd3
+
+            Logs:  C:\Users\dapine.NORTHAMERICA\.aspire\cli\logs\apphost-13024-2025-10-31-19-40-58.log
+
+                   Press CTRL+C to stop the apphost and exit.
     ```
+
+    </Pivot>
+
+    <Pivot id="python">
+    ```bash title="Example output of aspire run"
+
+    🔍  Finding apphosts...
+    apphost.cs
+
+    🗄  Created settings file at '.aspire/settings.json'.
+
+         AppHost:  apphost.cs
+
+       Dashboard:  https://localhost:17213/login?t=2b4a2ebc362b7fef9b5ccf73e702647b
+
+            Logs:  C:\Users\dapine.NORTHAMERICA\.aspire\cli\logs\apphost-27732-2025-10-31-19-21-27.log
+
+                   Press CTRL+C to stop the apphost and exit.
+    ```
+    </Pivot>
 
     <LearnMore>
          For further CLI reference, see [`aspire run`](/reference/cli/commands/aspire-run/) command information.
@@ -103,9 +201,26 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
 1. Explore the running distributed application. From the dashboard, open the `HTTPS` endpoint from each resource.
 
-    ![Aspire dashboard Resources page displaying two running resources: apiservice and webfrontend. Both are marked as Running with green check icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions. apiservice uses AspireApp.ApiService.csproj and has URLs https://localhost:7393 and webfrontend uses AspireApp.Web.csproj with URL https://localhost:7214. The interface has a dark theme with navigation options for Resources, Console, Structured, Traces, and Metrics on the left.](../../../assets/get-started/aspire-dashboard.png)
+    <Pivot id="csharp">
+        <ThemeImage 
+            light={csharpDashboardLight}
+            dark={csharpDashboardDark}
+            label='Aspire dashboard Resources page'
+            alt={`Aspire dashboard Resources page displaying two running resources: apiservice and webfrontend. Both are marked as Running with green check icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
+    </Pivot>
+    <Pivot id="python">
+        <ThemeImage 
+            light={pythonDashboardLight}
+            dark={pythonDashboardDark}
+            label='Aspire dashboard Resources page'
+            alt={`Aspire dashboard Resources page displaying two running and two finished resources: apiservice and webfrontend. Two resources are marked as Running with green check icons while the two dependent resources show as Finished with gray stop icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
+    </Pivot>
 
-1. Stop the AppHost and close the dashboard by pressing <Kbd windows="Ctrl+C" mac="⌘+C" />.
+1. Stop the AppHost and close the dashboard by pressing <Kbd windows="Ctrl+C" mac="⌘+C" /> in your terminal.
+
+    ```bash title="Stop dev-time orchestration"
+    🛑  Stopping Aspire.
+    ```
 
     **🥳 Congratulations! You've created your first Aspire app.**
 

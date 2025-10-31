@@ -2,6 +2,12 @@ using Microsoft.AspNetCore.StaticFiles;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHsts(options =>
+{
+    options.Preload = true;
+    options.IncludeSubDomains = true;
+});
+
 await using var app = builder.Build();
 
 // Only enable HSTS in production

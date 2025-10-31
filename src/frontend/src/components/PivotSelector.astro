@@ -1,0 +1,155 @@
+---
+interface Option {
+    id: string;
+    title: string;
+}
+
+type Props = {
+    options: Option[];
+    key: string;
+    title?: string;
+};
+
+const { options, key, title } = Astro.props;
+---
+
+<div class="pivot-container">
+    {title && <div class="pivot-title">{title}</div>}
+    <div class="pivot-selector" id="pivot-selector">
+        {
+            options.map((o) => (
+                <button type="button" data-pivot-option={o.id}>
+                    {o.title}
+                </button>
+            ))
+        }
+    </div>
+</div>
+
+<style>
+    .pivot-container {
+        background: var(--sl-color-bg-nav);
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .pivot-title {
+        color: var(--sl-color-white);
+        font-size: var(--sl-text-lg);
+        margin-bottom: 0.75rem;
+    }
+
+    .pivot-selector {
+        display: inline-flex;
+        background: var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        padding: 0.25rem;
+        gap: 0.25rem;
+        color: var(--sl-color-text);
+    }
+
+    .pivot-selector button {
+        padding: 0.5rem 1rem;
+        border: none;
+        background: transparent;
+        color: var(--sl-color-white);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        margin-top: 0;
+    }
+
+    .pivot-selector button:hover {
+        background: var(--sl-color-gray-6);
+        color: var(--sl-color-white);
+    }
+
+    .pivot-selector button.active {
+        background: var(--aspire-color-secondary);
+        border: 1px solid var(--sl-color-gray-5);
+        color: var(--sl-color-black);
+    }
+
+    .pivot-selector button:focus-visible {
+        outline: 2px solid var(--sl-color-accent);
+        outline-offset: 2px;
+    }
+
+    :root[data-theme="light"] {
+        .pivot-selector button.active {
+            background: var(--aspire-color-primary);
+        }
+    }
+</style>
+
+<script is:inline define:vars={{ key }}>
+    function initPivotSelector() {
+        const qsKey = key;
+        const selector = document.getElementById("pivot-selector");
+
+        if (!selector) {
+            console.error("Pivot selector not found!");
+            return;
+        }
+
+        // Read from query string -> storage -> first
+        const qs = new URLSearchParams(window.location.search);
+        let current =
+            qs.get(qsKey) ||
+            localStorage.getItem(qsKey) ||
+            selector.querySelector("[data-pivot-option]")?.dataset.pivotOption;
+
+        function apply(id) {
+            if (!id) return;
+            current = id;
+
+            // persist pref
+            localStorage.setItem(qsKey, id);
+
+            // sync URL
+            const url = new URL(window.location);
+            url.searchParams.set(qsKey, id);
+            window.history.replaceState({}, "", url);
+
+            // style buttons
+            [...selector.querySelectorAll("button")].forEach((btn) =>
+                btn.classList.toggle("active", btn.dataset.pivotOption === id),
+            );
+
+            // show/hide pivot blocks
+            const blocks = document.querySelectorAll("[data-pivot-block]");
+            console.log(
+                "Found pivot blocks:",
+                blocks.length,
+                "Looking for id:",
+                id,
+            );
+            blocks.forEach((el) => {
+                const blockId = el.dataset.pivotBlock;
+                const shouldShow = blockId === id;
+                console.log("Block:", blockId, "Show:", shouldShow);
+                el.style.display = shouldShow ? "" : "none";
+            });
+        }
+
+        selector.addEventListener("click", (e) => {
+            if (e.target.dataset.pivotOption) {
+                console.log("Clicked option:", e.target.dataset.pivotOption);
+                apply(e.target.dataset.pivotOption);
+            }
+        });
+
+        console.log("Initial current:", current);
+        apply(current);
+    }
+
+    // Run when DOM is ready
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initPivotSelector);
+    } else {
+        initPivotSelector();
+    }
+</script>

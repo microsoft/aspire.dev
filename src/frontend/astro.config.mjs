@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import { sidebarTopics } from './sidebar.topics';
+import { pivotDirective } from './src/directives/pivot-directive.mjs'
 import catppuccin from "@catppuccin/starlight";
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
@@ -13,6 +14,9 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
+
+import mdx from "@astrojs/mdx";
+import remarkDirective from "remark-directive";
 
 // Localization: https://lunaria.dev/
 export const locales = {
@@ -232,5 +236,14 @@ export default defineConfig({
 				})
 			],
 		}),
-	]
+		mdx({
+			extendMarkdownConfig: true,
+			remarkPlugins: [remarkDirective, pivotDirective],
+		})
+	],
+	vite: {
+		optimizeDeps: {
+			include: ['leaflet'],
+		}
+	},
 });
