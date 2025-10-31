@@ -682,29 +682,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
   // },
   {
     label: {
-      en: 'Samples',
-      es: 'Ejemplos',
-      fr: 'Exemples',
-      de: 'Beispiele',
-      it: 'Esempi',
-      pt: 'Exemplos',
-      ru: 'Примеры',
-      'zh-CN': '示例',
-      da: 'Eksempler',
-      hi: 'उदाहरण',
-      id: 'Contoh',
-      ja: 'サンプル',
-      ko: '샘플',
-      'pt-BR': 'Exemplos',
-      'pt-PT': 'Exemplos',
-      tr: 'Örnekler',
-      uk: 'Приклади',
-    },
-    link: 'https://github.com/dotnet/aspire-samples',
-    icon: 'vscode',
-  },
-  {
-    label: {
       en: 'Community',
       es: 'Comunidad',
       fr: 'Communauté',
@@ -777,5 +754,28 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'community/videos'
       },
     ]
-  }
+  },
+  {
+    label: {
+      en: 'Samples',
+      es: 'Ejemplos',
+      fr: 'Exemples',
+      de: 'Beispiele',
+      it: 'Esempi',
+      pt: 'Exemplos',
+      ru: 'Примеры',
+      'zh-CN': '示例',
+      da: 'Eksempler',
+      hi: 'उदाहरण',
+      id: 'Contoh',
+      ja: 'サンプル',
+      ko: '샘플',
+      'pt-BR': 'Exemplos',
+      'pt-PT': 'Exemplos',
+      tr: 'Örnekler',
+      uk: 'Приклади',
+    },
+    link: 'https://aka.ms/aspiresamples',
+    icon: 'vscode',
+  },
 ];
