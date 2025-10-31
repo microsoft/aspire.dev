@@ -218,10 +218,5 @@ export default defineConfig({
 				})
 			],
 		}),
-	],
-	vite: {
-		optimizeDeps: {
-			include: ['leaflet'],
-		}
-	},
+	]
 });
