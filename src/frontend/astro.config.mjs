@@ -73,9 +73,6 @@ export default defineConfig({
 			},
 			favicon: 'favicon.svg',
 			head: [
-				// Canonical URL for proper indexing and favicon association
-				{ tag: 'link', attrs: { rel: 'canonical', href: 'https://aspire.dev' } },
-				
 				// SEO meta tags for discoverability (including legacy ".NET Aspire" branding)
 				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire (formerly .NET Aspire) is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
 				{ tag: 'meta', attrs: { name: 'keywords', content: 'Aspire, .NET Aspire, dotnet aspire, distributed applications, cloud-native, microservices, orchestration, .NET, observability, service discovery, integrations' } },
