@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import { sidebarTopics } from './sidebar.topics';
 import { pivotDirective } from './src/directives/pivot-directive.mjs'
+import { redirects } from './redirects.mjs';
 import catppuccin from "@catppuccin/starlight";
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
@@ -43,10 +44,7 @@ export default defineConfig({
 	prefetch: true,
 	site: 'https://aspire.dev',
 	trailingSlash: 'always',
-	redirects: {
-		'/install.sh': 'https://aka.ms/aspire/get/install.sh',
-		'/install.ps1': 'https://aka.ms/aspire/get/install.ps1',
-	},
+	redirects: redirects,
 	integrations: [
 		mermaid({
 			theme: 'forest',

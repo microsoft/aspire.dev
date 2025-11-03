@@ -1,0 +1,35 @@
+---
+import type { StarlightIcon } from "@astrojs/starlight/types";
+
+export interface Props {
+    title: string;
+    description: string;
+    link: string;
+    linkText?: string;
+    icon?: StarlightIcon;
+}
+
+let { title, description, link, icon, linkText } = Astro.props as Props;
+
+try {
+    const url = new URL(link);
+    if (url.hostname === "learn.microsoft.com") {
+        if (!url.searchParams.has("WT.mc_id")) {
+            url.searchParams.set("WT.mc_id", "aspire.dev");
+        }
+        link = url.toString();
+    }
+} catch {
+    // Invalid URL; leave link unchanged.
+}
+
+import { Card } from "@astrojs/starlight/components";
+---
+
+<Card title={title} class:list="placeholder-card" icon={icon || "puzzle"}>
+    <p>{description}</p>
+
+    <a class="learn-more" href={link} target="_blank" rel="noopener noreferrer">
+        {linkText || "Learn more"}
+    </a>
+</Card>

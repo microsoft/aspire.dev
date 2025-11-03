@@ -45,7 +45,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
       },
       {
         label: "What's new", collapsed: true, items: [
-          { label: 'Aspire 9.5', slug: 'whats-new/aspire-9-5' }
+          { label: 'Aspire 13', slug: 'whats-new/aspire-13' }
         ],
         translations: {
           da: 'Hvad er nyt',
@@ -127,7 +127,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               tr: 'CLI Kur',
               uk: 'Встановити CLI',
               'zh-CN': '安装 CLI',
-            }, 
+            },
             slug: 'get-started/install-cli'
           },
           {
@@ -538,11 +538,60 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         ]
       },
       {
-        label: 'Database',
+        label: "Artificial Intelligence (AI)",
+        collapsed: true,
+        translations: { },
+        items: [
+          { label: "GitHub Models", slug: "integrations/ai/github-models" },
+          { label: "Ollama", slug: "integrations/ai/ollama" },
+          { label: "OpenAI", slug: "integrations/ai/openai" },
+        ]
+      },
+      {
+        label: 'Cloud providers',
+        collapsed: true,
+        translations: {
+          da: 'Cloud-udbydere',
+          de: 'Cloud-Anbieter',
+          en: 'Cloud providers',
+          es: 'Proveedores de la nube',
+          fr: 'Fournisseurs de cloud',
+          hi: 'क्लाउड प्रदाता',
+          id: 'Penyedia Cloud',
+          it: 'Provider Cloud',
+          ja: 'クラウドプロバイダー',
+          ko: '클라우드 제공업체',
+          pt: 'Provedores de Nuvem',
+          'pt-BR': 'Provedores de Nuvem',
+          'pt-PT': 'Provedores de Nuvem',
+          ru: 'Облачные провайдеры',
+          tr: 'Bulut Sağlayıcıları',
+          uk: 'Хмарні провайдери',
+          'zh-CN': '云提供商',
+        }, items: [
+          { label: 'AWS', link: 'https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/aspire-integrations.html' },
+          { label: 'Azure', slug: 'integrations/cloud/azure/overview' },
+        ]
+      },
+      {
+        label: "Caching & state",
+        collapsed: true,
+        translations: { },
+        items: [
+          { label: "Redis", slug: "integrations/caching/redis" },
+          { label: "Redis Distributed Cache", slug: "integrations/caching/redis-distributed" },
+          { label: "Redis Output Cache", slug: "integrations/caching/redis-output" },
+          { label: "Valkey", slug: "integrations/caching/valkey" },
+          { label: "Garnet", slug: "integrations/caching/garnet" }
+        ]
+      },
+      {
+        label: 'Data & databases',
+        collapsed: true,
         translations: {
           da: 'Database',
           de: 'Datenbank',
-          en: 'Database',
+          en: 'Data & databases',
           es: 'Base de datos',
           fr: 'Base de données',
           hi: 'डेटाबेस',
@@ -558,15 +607,59 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           uk: 'База даних',
           'zh-CN': '数据库',
         }, items: [
-          { label: 'PostgreSQL', slug: 'integrations/postgres' },
+          { label: "Elasticsearch", slug: "integrations/databases/elasticsearch" },
+          { label: "EventStore", slug: "integrations/databases/eventstore" },
+          { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
+          { label: "Milvus", slug: "integrations/databases/milvus" },
+          { label: "MongoDB", slug: "integrations/databases/mongodb" },
+          { label: "MySQL", slug: "integrations/databases/mysql" },
+          { label: "Oracle", slug: "integrations/databases/oracle" },
+          { label: "PostgreSQL", slug: "integrations/databases/postgres" },
+          { label: "Qdrant", slug: "integrations/databases/qdrant" },
+          { label: "RavenDB", slug: "integrations/databases/ravendb" },
+          { label: "SQLite", slug: "integrations/databases/sqlite" },
+          { label: "SQL Server", slug: "integrations/databases/sql-server" }
         ]
       },
       {
-        label: 'Messaging',
+        label: 'Frameworks & runtimes',
+        collapsed: true,
+        translations: {
+          da: 'Frameworks og runtime-miljøer',
+          de: 'Frameworks & Laufzeiten',
+          en: 'Frameworks & runtimes',
+          es: 'Frameworks y entornos de ejecución',
+          fr: 'Frameworks et environnements d\'exécution',
+          hi: 'फ्रेमवर्क और रनटाइम',
+          id: 'Kerangka & Runtime',
+          it: 'Framework e runtime',
+          ja: 'フレームワークとランタイム',
+          ko: '프레임워크 및 런타임',
+          pt: 'Frameworks e Runtimes',
+          'pt-BR': 'Frameworks e Runtimes',
+          'pt-PT': 'Frameworks e Runtimes',
+          ru: 'Фреймворки и среды выполнения',
+          tr: 'Çerçeveler ve Çalışma Zamanları',
+          uk: 'Фреймворки та середовища виконання',
+          'zh-CN': '框架和运行时',
+        },
+        items: [
+          { label: 'Bun apps', slug: 'integrations/frameworks/bun-apps' },
+          { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
+          { label: 'Deno apps', slug: 'integrations/frameworks/deno-apps' },
+          { label: 'Go apps', slug: 'integrations/frameworks/go-apps' },
+          { label: 'Java', slug: 'integrations/frameworks/java' },
+          { label: 'Python', slug: 'integrations/frameworks/python' },
+          { label: 'Rust', slug: 'integrations/frameworks/rust' },
+        ]
+      },
+      {
+        label: 'Messaging & eventing',
+        collapsed: true,
         translations: {
           da: 'Meddelelser',
           de: 'Messaging',
-          en: 'Messaging',
+          en: 'Messaging & eventing',
           es: 'Mensajería',
           fr: 'Messagerie',
           hi: 'मैसेजिंग',
@@ -583,7 +676,42 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '消息传递',
         },
         items: [
-          { label: 'RabbitMQ', slug: 'integrations/rabbitmq' },
+          { label: 'Apache Kafka', slug: 'integrations/messaging/apache-kafka' },
+          { label: 'RabbitMQ', slug: 'integrations/messaging/rabbitmq' },
+          { label: 'NATS', slug: 'integrations/messaging/nats' },
+        ]
+      },
+      {
+        label: "Security & identity",
+        collapsed: true,
+        translations: { },
+        items: [
+          { label: "Keycloak", slug: "integrations/security/keycloak" }
+        ]
+      },
+      {
+        label: "Observability & logging",
+        collapsed: true,
+        translations: { },
+        items: [
+          { label: 'Seq', slug: 'integrations/observability/seq' },
+        ]
+      },
+      {
+        label: "Reverse proxies & APIs",
+        collapsed: true,
+        translations: { },
+        items: [
+          { label: 'YARP (Yet Another Reverse Proxy)', slug: 'integrations/reverse-proxies/yarp' },
+        ]
+      },
+      {
+        label: "Dev tools & extensions",
+        collapsed: true,
+        translations: { },
+        items: [
+          { label: "Data API Builder", slug: "integrations/devtools/dab" },
+          { label: "SQL Database Projects", slug: "integrations/devtools/sql-projects" },
         ]
       }
     ],
