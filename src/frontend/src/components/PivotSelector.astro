@@ -106,15 +106,35 @@ const { options, key, title } = Astro.props;
             return;
         }
 
-        // Read from query string -> storage -> first
+        // Get all valid (non-disabled) options
+        const validButtons = [
+            ...selector.querySelectorAll("button:not(:disabled)"),
+        ];
+        const validOptions = validButtons.map((btn) => btn.dataset.pivotOption);
+
+        // Read from query string -> storage -> first valid option
         const qs = new URLSearchParams(window.location.search);
+        const qsValue = qs.get(qsKey);
+        const storageValue = localStorage.getItem(qsKey);
+        const firstValid = validButtons[0]?.dataset.pivotOption;
+
+        // Validate and use the first valid value
         let current =
-            qs.get(qsKey) ||
-            localStorage.getItem(qsKey) ||
-            selector.querySelector("[data-pivot-option]")?.dataset.pivotOption;
+            qsValue && validOptions.includes(qsValue)
+                ? qsValue
+                : storageValue && validOptions.includes(storageValue)
+                  ? storageValue
+                  : firstValid;
 
         function apply(id) {
             if (!id) return;
+
+            // Only apply if it's a valid, non-disabled option
+            if (!validOptions.includes(id)) {
+                console.warn(`Invalid pivot option: ${id}`);
+                return;
+            }
+
             current = id;
 
             // persist pref
