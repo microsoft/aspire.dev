@@ -7,7 +7,7 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 
 Aspire's resource model allows you to define and configure resources in a structured way, enabling seamless integration and management of your application's components. This guide provides details the common patterns for adding and configuring resources in Aspire.
 
-## API Patterns
+## API patterns
 
 Aspire separates **resource data models** from **behavior** using **fluent extension methods**.  
 - **Resource classes** define only constructors and properties.  
@@ -15,7 +15,7 @@ Aspire separates **resource data models** from **behavior** using **fluent exten
 
 This guide describes each pattern and shows a **verbatim Redis example** at the end. It also covers how to publish manifests via custom resources.
 
-## Adding Resources with `AddX(...)`
+## Adding resources with `AddX(...)`
 
 An `AddX(...)` method executes:
 
@@ -26,7 +26,7 @@ An `AddX(...)` method executes:
 1. **Optional wiring** of endpoints, health checks, container settings, environment variables, command-line arguments, and event subscriptions.
 </Steps>
 
-### Signature Pattern
+### Signature pattern
 
 ```csharp
 public static IResourceBuilder<TResource> AddX(
@@ -47,7 +47,7 @@ public static IResourceBuilder<TResource> AddX(
 }
 ```
 
-### Optional Wiring Examples
+### Optional wiring examples
 
 **Endpoints**:
 
@@ -87,7 +87,7 @@ public static IResourceBuilder<TResource> AddX(
 builder.Eventing.Subscribe<EventType>(resource, handler);
 ```
 
-### Summary Table
+### Summary table
 
 | Step | Call/Method | Purpose |
 |--|--|--|
@@ -96,11 +96,11 @@ builder.Eventing.Subscribe<EventType>(resource, handler);
 | Register | `builder.AddResource(resource)` | Add resource to the application model |
 | Optional wiring | `.WithEndpoint(…)`, `.WithHealthCheck(…)`, `.WithImage(…)`, `.WithEnvironment(…)`, `.WithArgs(…)`, `Eventing.Subscribe(…)` | Configure container details, wiring, and runtime hooks |
 
-## Configuring Resources with `WithX(...)`
+## Configuring resources with `WithX(...)`
 
 `WithX(...)` methods **attach annotations** to resource builders.
 
-### Signature Pattern
+### Signature pattern
 
 ```csharp
 public static IResourceBuilder<TResource> WithX(
@@ -113,7 +113,7 @@ public static IResourceBuilder<TResource> WithX(
 - **Action**: `WithAnnotation(...)`.
 - **Returns**: `IResourceBuilder<TResource>`.
 
-### Summary Table
+### Summary table
 
 | Method | Target | Action |
 |--|--|--|
@@ -124,7 +124,7 @@ public static IResourceBuilder<TResource> WithX(
 
 Annotations are **public** metadata types implementing `IResourceAnnotation`. They can be added or removed dynamically at runtime via hooks or events. Consumers can query annotations using `TryGetLastAnnotation<T>()` when necessary.
 
-### Definition and Attachment
+### Definition and attachment
 
 ```csharp
 public sealed record PersistenceAnnotation(
@@ -136,7 +136,7 @@ builder.WithAnnotation(new PersistenceAnnotation(
     100));
 ```
 
-### Summary Table
+### Summary table
 
 | Concept | Pattern | Notes |
 |--|--|--|
@@ -144,11 +144,11 @@ builder.WithAnnotation(new PersistenceAnnotation(
 | Attach | `builder.WithAnnotation(new XAnnotation(...))` | Adds metadata to resource builder. |
 | Query | `resource.TryGetLastAnnotation<XAnnotation>(out var a)` | Consumers inspect annotations as needed. |
 
-## Custom Value Objects
+## Custom value objects
 
 Custom value objects defer evaluation and allow the framework to discover dependencies between resources.
 
-### Core Interfaces
+### Core interfaces
 
 | Interface | Member | Mode | Purpose |
 |--|--|--|--|
@@ -159,7 +159,7 @@ Custom value objects defer evaluation and allow the framework to discover depend
 - **Implement** `IValueProvider` and `IManifestExpressionProvider` on all structured value types.  
 - **Implement** `IValueWithReferences` only when your type holds resource references.
 
-### Attaching to Resources
+### Attaching to resources
 
 ```csharp
 builder.WithEnvironment(context =>
@@ -190,7 +190,7 @@ public static IResourceBuilder<T> WithEnvironment<T>(
 }
 ```
 
-### Summary Table
+### Summary table
 
 | Concept | Pattern | Purpose |
 |--|--|--|
