@@ -73,6 +73,9 @@ export default defineConfig({
 			},
 			favicon: 'favicon.svg',
 			head: [
+				// Canonical URL for proper indexing and favicon association
+				{ tag: 'link', attrs: { rel: 'canonical', href: 'https://aspire.dev' } },
+				
 				// SEO meta tags for discoverability (including legacy ".NET Aspire" branding)
 				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire (formerly .NET Aspire) is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
 				{ tag: 'meta', attrs: { name: 'keywords', content: 'Aspire, .NET Aspire, dotnet aspire, distributed applications, cloud-native, microservices, orchestration, .NET, observability, service discovery, integrations' } },
@@ -93,9 +96,9 @@ export default defineConfig({
 				{ tag: 'meta', attrs: { name: 'twitter:description', content: 'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability.' } },
 				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://aspire.dev/og-image.png' } },
 				
-				// Favicons and icons
-				{ tag: 'link', attrs: { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' } },
+				// Favicons and icons (ordered: SVG → PNG → ICO → Apple Touch Icon)
 				{ tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' } },
+				{ tag: 'link', attrs: { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' } },
 				{ tag: 'link', attrs: { rel: 'shortcut icon', href: '/favicon.ico' } },
 				{ tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' } },
 				{ tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'Aspire' } },
