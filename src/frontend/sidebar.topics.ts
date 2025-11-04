@@ -698,8 +698,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '独立模式',
         }, items: [
           { label: 'Overview', slug: 'dashboard/standalone' },
-          { label: 'Node.js apps', slug: 'dashboard/standalone-for-nodejs', badge: { text: 'Tutorial', variant: 'success' } },
           { label: 'Python apps', slug: 'dashboard/standalone-for-python', badge: { text: 'Tutorial', variant: 'success' } },
+          { label: 'Node.js apps', slug: 'dashboard/standalone-for-nodejs', badge: { text: 'Tutorial', variant: 'success' } },
         ]
       },
       {

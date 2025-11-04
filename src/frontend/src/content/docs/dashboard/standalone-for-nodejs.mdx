@@ -14,7 +14,7 @@ The [Aspire dashboard](/dashboard/overview/) provides a great user experience fo
 
 To complete this tutorial, you need the following:
 
-- [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/).
+- [Container runtime](/get-started/prerequisites/#install-an-oci-compliant-container-runtime).
   - You can use an alternative container runtime, but the commands in this article are for Docker.
 - [Node.js 18 or higher](https://nodejs.org/en/download/package-manager) locally installed.
 - A sample application.
@@ -28,7 +28,7 @@ To create a new Express.js application:
 <Steps>
 1. Create a new directory for your application:
 
-    ```console
+    ```bash
     mkdir aspire-nodejs-sample
     cd aspire-nodejs-sample
     ```
@@ -47,6 +47,58 @@ To create a new Express.js application:
 
 1. Create a basic Express.js application by creating an *app.js* file with Express server code.
 
+    ```javascript title="JavaScript — app.js"
+    const express = require('express');
+    const app = express();
+    const port = process.env.PORT || 3000;
+
+    app.get('/', (req, res) => {
+        console.log('Received request for home page');
+        res.json({
+            message: 'Hello from Node.js!',
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    app.get('/api/weather', (req, res) => {
+        const weather = [
+            { city: 'Seattle', temperature: 72, condition: 'Cloudy' },
+            { city: 'Portland', temperature: 68, condition: 'Rainy' },
+            { city: 'San Francisco', temperature: 65, condition: 'Foggy' },
+            { city: 'Los Angeles', temperature: 78, condition: 'Sunny' }
+        ];
+
+        console.log('Received request for weather data');
+        res.json(weather);
+    });
+
+    app.listen(port, () => {
+        console.log(`Server running at http://localhost:${port}`);
+    });
+    ```
+
+1. Replace the entire *package.json* with the following content:
+
+    ```json title="JSON — package.json"
+    {
+    "name": "aspire-nodejs-sample",
+    "version": "1.0.0",
+    "description": "Sample Node.js application for Aspire dashboard tutorial",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app.js"
+    },
+    "dependencies": {
+        "express": "^4.18.0",
+        "@opentelemetry/api": "^1.8.0",
+        "@opentelemetry/sdk-node": "^0.203.0",
+        "@opentelemetry/exporter-trace-otlp-grpc": "^0.203.0",
+        "@opentelemetry/exporter-metrics-otlp-grpc": "^0.203.0",
+        "@opentelemetry/auto-instrumentations-node": "^0.44.0"
+    }
+    }
+    ```
+
 1. Test the application by running:
 
     ```bash
@@ -63,7 +115,79 @@ To use the Aspire dashboard with your Node.js app, you need to install the OpenT
 <Steps>
 1. Create a new file called *tracing.js* to configure OpenTelemetry.
 
+    ```javascript title="JavaScript — tracing.js"
+    const { NodeSDK } = require('@opentelemetry/sdk-node');
+    const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
+    const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-grpc');
+    const { PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
+
+    // Configure the OTLP endpoint - this should match your dashboard configuration
+    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317';
+
+    const sdk = new NodeSDK({
+    traceExporter: new OTLPTraceExporter({
+        url: otlpEndpoint,
+    }),
+    metricReader: new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter({
+        url: otlpEndpoint,
+        }),
+        exportIntervalMillis: 5000,
+    }),
+    instrumentations: [getNodeAutoInstrumentations({
+        '@opentelemetry/instrumentation-fs': {
+        enabled: false,
+        },
+    })],
+    });
+
+    sdk.start();
+
+    console.log('OpenTelemetry started successfully');
+
+    process.on('SIGTERM', () => {
+    sdk.shutdown()
+        .then(() => console.log('Tracing terminated'))
+        .catch((error) => console.log('Error terminating tracing', error))
+        .finally(() => process.exit(0));
+    });
+    ```
+
 1. Update your *app.js* to import the tracing configuration at the very beginning.
+
+   ```javascript title="JavaScript — app.js"
+    // This must be imported first!
+    require('./tracing');
+
+    const express = require('express');
+    const app = express();
+    const port = process.env.PORT || 3000;
+
+    app.get('/', (req, res) => {
+        console.log('Received request for home page');
+        res.json({
+            message: 'Hello from Node.js!',
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    app.get('/api/weather', (req, res) => {
+        const weather = [
+            { city: 'Seattle', temperature: 72, condition: 'Cloudy' },
+            { city: 'Portland', temperature: 68, condition: 'Rainy' },
+            { city: 'San Francisco', temperature: 65, condition: 'Foggy' },
+            { city: 'Los Angeles', temperature: 78, condition: 'Sunny' }
+        ];
+
+        console.log('Received request for weather data');
+        res.json(weather);
+    });
+
+    app.listen(port, () => {
+        console.log(`Server running at http://localhost:${port}`);
+    });
+    ```
 
 1. Restart your application:
 
@@ -104,7 +228,7 @@ After starting both the dashboard and your Node.js application, you can view tel
 <Steps>
 1. Make some requests to your Node.js application:
 
-    ```console
+    ```bash
     curl http://localhost:3000/
     curl http://localhost:3000/api/weather
     ```
@@ -122,7 +246,77 @@ The **Metrics** page displays various metrics collected from your Node.js applic
 
 ## Adding custom telemetry
 
-You can enhance your application with custom spans, logs, and metrics by updating your application code.
+You can enhance your application with custom spans, logs, and metrics by updating your application code. Update the *app.js* file to include custom telemetry:
+
+```javascript title="JavaScript — app.js"
+// This must be imported first!
+require('./tracing');
+
+const express = require('express');
+const { trace, metrics } = require('@opentelemetry/api');
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Get a tracer
+const tracer = trace.getTracer('nodejs-app');
+
+// Get a meter for custom metrics
+const meter = metrics.getMeter('nodejs-app');
+const requestCounter = meter.createCounter('http_requests_total', {
+  description: 'Total number of HTTP requests',
+});
+
+app.get('/', (req, res) => {
+    const span = tracer.startSpan('handle-home-request');
+    
+    try {
+        console.log('Received request for home page');
+        requestCounter.add(1, { route: '/', method: 'GET' });
+        
+        span.setAttributes({
+            'http.route': '/',
+            'user.agent': req.get('User-Agent') || 'unknown'
+        });
+        
+        res.json({
+            message: 'Hello from Node.js!',
+            timestamp: new Date().toISOString()
+        });
+    } finally {
+        span.end();
+    }
+});
+
+app.get('/api/weather', (req, res) => {
+    const span = tracer.startSpan('handle-weather-request');
+    
+    try {
+        const weather = [
+            { city: 'Seattle', temperature: 72, condition: 'Cloudy' },
+            { city: 'Portland', temperature: 68, condition: 'Rainy' },
+            { city: 'San Francisco', temperature: 65, condition: 'Foggy' },
+            { city: 'Los Angeles', temperature: 78, condition: 'Sunny' }
+        ];
+        
+        console.log('Received request for weather data');
+        requestCounter.add(1, { route: '/api/weather', method: 'GET' });
+        
+        span.setAttributes({
+            'http.route': '/api/weather',
+            'weather.cities_count': weather.length
+        });
+        
+        res.json(weather);
+    } finally {
+        span.end();
+    }
+});
+
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
+```
 
 ## Next steps
 

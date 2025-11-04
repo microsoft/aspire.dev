@@ -3,9 +3,14 @@ title: Use the Aspire dashboard with Python apps
 description: How to use the Aspire Dashboard in a Python application.
 ---
 
+import { Image } from 'astro:assets';
 import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
-import { Steps } from '@astrojs/starlight/components';
+import { TabItem, Tabs, Steps } from '@astrojs/starlight/components';
+
+import runFlaskAppLocalhost from '@assets/dashboard/standalone/run-flask-app-localhost.png';
+import runFastapiAppLocalhost from '@assets/dashboard/standalone/run-fastapi-app-localhost.png';
+import aspireDashboardPythonLogs from '@assets/dashboard/standalone/aspire-dashboard-python-logs.png';
 
 <PivotSelector
     title="Select your Python framework"
@@ -25,7 +30,7 @@ The [Aspire dashboard](/dashboard/overview/) provides a great user experience fo
 
 To complete this tutorial, you need the following:
 
-- [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/).
+- [Container runtime](/get-started/prerequisites/#install-an-oci-compliant-container-runtime).
   - You can use an alternative container runtime, but the commands in this article are for Docker.
 - [Python 3.9 or higher](https://www.python.org/downloads/) locally installed.
 - A sample application.
@@ -36,20 +41,110 @@ This tutorial can be completed using either Flask or FastAPI. A sample applicati
 
 <Pivot id="flask">
 
-```bash
+```bash title="Clone the Flask sample application"
 git clone https://github.com/Azure-Samples/msdocs-python-flask-webapp-quickstart
 ```
 
 </Pivot>
 <Pivot id="fastapi">
 
-```bash
+```bash title="Clone the FastAPI sample application"
 git clone https://github.com/Azure-Samples/msdocs-python-fastapi-webapp-quickstart.git
 ```
 
 </Pivot>
 
 To run the application locally, follow the framework-specific instructions for Flask or FastAPI.
+
+To run the application locally:
+
+<Pivot id="flask">
+<Steps>
+1. Go to the application folder:
+
+    ```bash title="Change directory to the Flask app"
+    cd msdocs-python-flask-webapp-quickstart
+    ```
+
+1. Create a virtual environment for the app:
+
+    <Tabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+    ```bash
+    python -m venv venv
+    source venv/bin/activate
+    ```
+    </TabItem>
+    <TabItem label="PowerShell" icon="seti:powershell">
+    ```powershell
+    python -m venv venv
+    .\venv\Scripts\Activate.ps1
+    ```
+    </TabItem>
+    </Tabs>
+
+1. Install the dependencies:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+1. Run the app:
+
+    ```bash
+    flask run
+    ```
+
+1. Browse to the sample application at `http://localhost:5000` in a web browser.
+
+    <Image src={runFlaskAppLocalhost} alt="Screenshot of the Flask app running locally in a browser" />
+
+</Steps>
+</Pivot>
+
+<Pivot id="fastapi">
+<Steps>
+1. Go to the application folder:
+
+    ```bash title="Change directory to the FastAPI app"
+    cd msdocs-python-fastapi-webapp-quickstart
+    ```
+
+1. Create a virtual environment for the app:
+
+    <Tabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+    ```bash
+    python -m venv venv
+    source venv/bin/activate
+    ```
+    </TabItem>
+    <TabItem label="PowerShell" icon="seti:powershell">
+    ```powershell
+    python -m venv venv
+    .\venv\Scripts\Activate.ps1
+    ```
+    </TabItem>
+    </Tabs>
+
+1. Install the dependencies:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+1. Run the app:
+
+    ```bash
+    uvicorn main:app --reload
+    ```
+
+1. Browse to the sample application at `http://localhost:8000` in a web browser.
+
+    <Image src={runFastapiAppLocalhost} alt="Screenshot of the FastAPI app running locally in a browser." />
+
+</Steps>
+</Pivot>
 
 ## Adding OpenTelemetry
 
@@ -64,12 +159,69 @@ To use the Aspire dashboard with your Python app, you need to install the OpenTe
 
 1. Add a new file to your application called `otlp_tracing.py` and add OpenTelemetry configuration code.
 
-1. Update your application to include the imports and call the OpenTelemetry configuration function.
+   ```python
+    import logging
+    from opentelemetry import metrics, trace
 
+    from opentelemetry._logs import set_logger_provider
+    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
+        OTLPLogExporter,
+    )
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+    def configure_oltp_grpc_tracing(
+        endpoint: str = None
+    ) -> trace.Tracer:
+        # Configure Tracing
+        traceProvider = TracerProvider()
+        processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+        traceProvider.add_span_processor(processor)
+        trace.set_tracer_provider(traceProvider)
+
+        # Configure Metrics
+        reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=endpoint))
+        meterProvider = MeterProvider(metric_readers=[reader])
+        metrics.set_meter_provider(meterProvider)
+
+        # Configure Logging
+        logger_provider = LoggerProvider()
+        set_logger_provider(logger_provider)
+
+        exporter = OTLPLogExporter(endpoint=endpoint)
+        logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
+        handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+        handler.setFormatter(logging.Formatter("Python: %(message)s"))
+
+        # Attach OTLP handler to root logger
+        logging.getLogger().addHandler(handler)
+
+        tracer = trace.get_tracer(__name__)
+        return tracer
+    ```
+
+1. Update your application (`app.py` for Flask, `main.py` for FastAPI) to include the imports and call the `configure_oltp_grpc_tracing` function:
+
+    ```python
+    import logging
+    from otlp_tracing import configure_otel_otlp
+
+    logging.basicConfig(level=logging.INFO)
+    tracer = configure_oltp_grpc_tracing()
+    logger = logging.getLogger(__name__)
+    ```
+
+1. Replace the `print` calls with `logger.info` calls in your application.
 1. Restart your application.
 </Steps>
 
-### Framework Specific Instrumentation
+### Framework specific instrumentation
 
 This instrumentation has only focused on adding OpenTelemetry to our code. For more detailed instrumentation, you can use the OpenTelemetry Instrumentation packages for the specific frameworks that you are using.
 
@@ -83,6 +235,14 @@ This instrumentation has only focused on adding OpenTelemetry to our code. For m
     ```
 
 1. Add the Flask instrumentation to your application code.
+
+    ```python
+    from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+    # add this line after configure_otel_otlp() call
+    FlaskInstrumentor().instrument()
+    ```
+
 </Steps>
 
 </Pivot>
@@ -96,6 +256,13 @@ This instrumentation has only focused on adding OpenTelemetry to our code. For m
     ```
 
 1. Add the FastAPI instrumentation to your application code.
+
+    ```python
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    # add this line after configure_otel_otlp() call
+    FastAPIInstrumentor.instrument_app(app)
+    ```
 </Steps>
 
 </Pivot>
@@ -114,6 +281,8 @@ In the Docker logs, the endpoint and key for the dashboard are displayed. Copy t
 ## View structured logs
 
 Navigate around the Python application, and you'll see structured logs in the Aspire dashboard. The structured logs page displays logs from your application, and you can filter and search the logs.
+
+<Image src={aspireDashboardPythonLogs} alt="Screenshot of the Aspire dashboard showing the Python application logs" />
 
 ## Next steps
 
