@@ -44,9 +44,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'get-started/welcome'
       },
       {
-        label: "What's new", collapsed: true, items: [
-          { label: 'Aspire 13', slug: 'whats-new/aspire-13' }
-        ],
+        label: "What's new", collapsed: true, autogenerate: { directory: 'whats-new' },
         translations: {
           da: 'Hvad er nyt',
           de: 'Was gibt es Neues',
