@@ -3,7 +3,8 @@ import fetch from 'node-fetch';
 
 const REPOS = [
     'dotnet/aspire',
-    'dotnet/aspire-samples'
+    'dotnet/aspire-samples',
+    'CommunityToolkit/Aspire'
 ];
 const OUTPUT_PATH = './src/data/github-stats.json';
 
