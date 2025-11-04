@@ -672,6 +672,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, items: [
           { label: "Elasticsearch", slug: "integrations/databases/elasticsearch" },
           { label: "EventStore", slug: "integrations/databases/eventstore" },
+          { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },
           { label: "MongoDB", slug: "integrations/databases/mongodb" },
@@ -680,8 +681,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "PostgreSQL", slug: "integrations/databases/postgres" },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
+          { label: "SQL Server", slug: "integrations/databases/sql-server" },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
-          { label: "SQL Server", slug: "integrations/databases/sql-server" }
         ]
       },
       {
@@ -712,6 +713,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'Deno apps', slug: 'integrations/frameworks/deno-apps' },
           { label: 'Go apps', slug: 'integrations/frameworks/go-apps' },
           { label: 'Java', slug: 'integrations/frameworks/java' },
+          { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           { label: 'Python', slug: 'integrations/frameworks/python' },
           { label: 'Rust', slug: 'integrations/frameworks/rust' },
         ]

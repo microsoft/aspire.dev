@@ -10,6 +10,7 @@ const API_QUERIES = [
 const EXCLUDED_PACKAGES = [
   'Aspire.Hosting',
   'Aspire.Hosting.Azure',
+  'Aspire.Hosting.IncrementalMigration'
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 
