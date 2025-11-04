@@ -3,7 +3,8 @@ title: Enable browser telemetry
 description: Learn how to enable browser telemetry in the Aspire dashboard.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 The Aspire dashboard can be configured to receive telemetry sent from browser apps. This feature is useful for monitoring client-side performance and user interactions. Browser telemetry requires additional dashboard configuration and that the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) is added to the browser apps.
 
@@ -31,11 +32,61 @@ Configuration of the HTTP OTLP endpoint depends on whether the dashboard is star
 
 If the dashboard and your app are started by the AppHost, the dashboard OTLP endpoints are configured in the AppHost's _launchSettings.json_ file.
 
+Consider the following example _launchSettings.json_ file:
+
+```json title="JSON — launchSettings.json" {12,25}
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:15887;http://localhost:15888",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "https://localhost:16175",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:17037",
+        "ASPIRE_SHOW_DASHBOARD_RESOURCES": "true"
+      }
+    },
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:15888",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "http://localhost:16175",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:17037",
+        "ASPIRE_SHOW_DASHBOARD_RESOURCES": "true",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
+      }
+    },
+    "generate-manifest": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "dotnetRunMessages": true,
+      "commandLineArgs": "--publisher manifest --output-path aspire-manifest.json",
+      "applicationUrl": "http://localhost:15888",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
+The preceding launch settings JSON file configures all profiles to include the `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL` environment variable.
+
 #### Configure OTLP HTTP with standalone dashboard
 
 If the dashboard is used standalone, without the rest of Aspire, the OTLP HTTP endpoint is enabled by default on port `18890`. However, the port must be mapped when the dashboard container is started:
 
-<Tabs>
+<Tabs syncKey="terminal">
 <TabItem label="Bash" icon="seti:shell">
 
 ```bash
@@ -44,7 +95,7 @@ docker run --rm -it -d \
     -p 4317:18889 \
     -p 4318:18890 \
     --name aspire-dashboard \
-    mcr.microsoft.com/dotnet/aspire-dashboard:9.5
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
 
 </TabItem>
@@ -56,7 +107,7 @@ docker run --rm -it -d `
     -p 4317:18889 `
     -p 4318:18890 `
     --name aspire-dashboard `
-    mcr.microsoft.com/dotnet/aspire-dashboard:9.5
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
 
 </TabItem>
@@ -72,9 +123,42 @@ If the dashboard and your app are started by the AppHost, no CORS configuration 
 
 If the dashboard is used standlone then CORS must be configured manually. The domain used to view the browser app must be configured as an allowed origin by specifing the `DASHBOARD__OTLP__CORS__ALLOWEDORIGINS` environment variable when the dashboard container is started.
 
+<Tabs syncKey="terminal">
+<TabItem label="Bash" icon="seti:shell">
+
+```bash
+docker run --rm -it -d \
+    -p 18888:18888 \
+    -p 4317:18889 \
+    -p 4318:18890 \
+    -e DASHBOARD__OTLP__CORS__ALLOWEDORIGINS=https://localhost:8080 \
+    --name aspire-dashboard \
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</TabItem>
+<TabItem label="PowerShell" icon="seti:powershell">
+
+```powershell
+docker run --rm -it -d `
+    -p 18888:18888 `
+    -p 4317:18889 `
+    -p 4318:18890 `
+    -e DASHBOARD__OTLP__CORS__ALLOWEDORIGINS=https://localhost:8080 `
+    --name aspire-dashboard `
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</TabItem>
+</Tabs>
+
+The preceding command runs the dashboard container and configures `https://localhost:8080` as an allowed origin. That means a browser app that is accessed using `https://localhost:8080` has permission to send the dashboard telemetry.
+
 Multiple origins can be allowed with a comma separated value. Or all origins can be allowed with the `*` wildcard. For example, `DASHBOARD__OTLP__CORS__ALLOWEDORIGINS=*`.
 
+<LearnMore>
 For more information, see [Aspire dashboard configuration: OTLP CORS](configuration#otlp-cors).
+</LearnMore>
 
 ### OTLP endpoint security
 
@@ -101,6 +185,125 @@ When OTLP is added to the SDK, OTLP options must be specified. OTLP options incl
 ### Browser metadata
 
 When a browser app is configured to collect distributed traces, the browser app can set the trace parent a browser's spans using the `meta` element in the HTML. The value of the `name="traceparent"` meta element should correspond to the current trace.
+
+In a .NET app, for example, the trace parent value would likely be assigned from the `Activity.Current` and passing its `Activity.Id` value as the `content`. For example, consider the following Razor code:
+
+```razor
+<head>
+    @if (Activity.Current is { } currentActivity)
+    {
+        <meta name="traceparent" content="@currentActivity.Id" />
+    }
+    <!-- Other elements omitted for brevity... -->
+</head>
+```
+
+The preceding code sets the `traceparent` meta element to the current activity ID.
+
+## Example browser telemetry code
+
+The following JavaScript code demonstrates the initialization of the OpenTelemetry JavaScript SDK and the sending of telemetry data to the dashboard:
+
+```javascript
+import { ConsoleSpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { Resource } from '@opentelemetry/resources';
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import { ZoneContextManager } from '@opentelemetry/context-zone';
+
+export function initializeTelemetry(otlpUrl, headers, resourceAttributes) {
+    const otlpOptions = {
+        url: `${otlpUrl}/v1/traces`,
+        headers: parseDelimitedValues(headers)
+    };
+
+    const attributes = parseDelimitedValues(resourceAttributes);
+    attributes[SemanticResourceAttributes.SERVICE_NAME] = 'browser';
+
+    const provider = new WebTracerProvider({
+        resource: new Resource(attributes),
+    });
+    provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter()));
+    provider.addSpanProcessor(new SimpleSpanProcessor(new OTLPTraceExporter(otlpOptions)));
+
+    provider.register({
+        // Prefer ZoneContextManager: supports asynchronous operations
+        contextManager: new ZoneContextManager(),
+    });
+
+    // Registering instrumentations
+    registerInstrumentations({
+        instrumentations: [new DocumentLoadInstrumentation()],
+    });
+}
+
+function parseDelimitedValues(s) {
+    const headers = s.split(','); // Split by comma
+    const result = {};
+
+    headers.forEach(header => {
+        const [key, value] = header.split('='); // Split by equal sign
+        result[key.trim()] = value.trim(); // Add to the object, trimming spaces
+    });
+
+    return result;
+}
+```
+
+The preceding JavaScript code defines an `initializeTelemetry` function that expects the OTLP endpoint URL, the headers, and the resource attributes. These parameters are provided by the consuming browser app that pulls them from the environment variables set by the app host. Consider the following Razor code:
+
+```razor {32-39}
+@using System.Diagnostics
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - BrowserTelemetry</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" 
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    @if (Activity.Current is { } currentActivity)
+    {
+        <meta name="traceparent" content="@currentActivity.Id" />
+    }
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container">
+                <a class="navbar-brand" asp-area="" asp-page="/Index">BrowserTelemetry</a>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script src="scripts/bundle.js"></script>
+    @if (Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") is { Length: > 0 } endpointUrl)
+    {
+        var headers = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
+        var attributes = Environment.GetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES");
+        <script>
+            BrowserTelemetry.initializeTelemetry('@endpointUrl', '@headers', '@attributes');
+        </script>
+    }
+</body>
+</html>
+```
+
+<Aside type="tip">
+The bundling and minification of the JavaScript code is beyond the scope of this article.
+</Aside>
+
+For the complete working example of how to configure the JavaScript OTEL SDK to send telemetry to the dashboard, see the [browser telemetry sample](https://github.com/dotnet/aspire/tree/main/playground/BrowserTelemetry).
 
 ## See also
 

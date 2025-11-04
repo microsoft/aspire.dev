@@ -633,67 +633,25 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'dashboard/overview'
       },
       {
-        label: 'Explore', translations: {
-          da: 'Udforsk',
-          de: 'Entdecken',
-          en: 'Explore',
-          es: 'Explorar',
-          fr: 'Explorer',
-          hi: 'अन्वेषण',
-          id: 'Jelajahi',
-          it: 'Esplora',
-          ja: '参照',
-          ko: '탐색',
-          pt: 'Explorar',
-          'pt-BR': 'Explorar',
-          'pt-PT': 'Explorar',
-          ru: 'Исследовать',
-          tr: 'Keşfet',
-          uk: 'Дослідити',
-          'zh-CN': '探索',
+        label: 'Explore features', translations: {
+          da: 'Udforsk funktioner',
+          de: 'Funktionen erkunden',
+          en: 'Explore features',
+          es: 'Explorar funciones',
+          fr: 'Explorer les fonctionnalités',
+          hi: 'विशेषताएँ एक्सप्लोर करें',
+          id: 'Jelajahi fitur',
+          it: 'Esplora funzionalità',
+          ja: '機能を探る',
+          ko: '기능 탐색',
+          pt: 'Explorar recursos',
+          'pt-BR': 'Explorar recursos',
+          'pt-PT': 'Explorar recursos',
+          ru: 'Изучение функций',
+          tr: 'Özellikleri keşfet',
+          uk: 'Дослідити функції',
+          'zh-CN': '探索功能',
         }, slug: 'dashboard/explore'
-      },
-      {
-        label: 'Configuration', translations: {
-          da: 'Konfiguration',
-          de: 'Konfiguration',
-          en: 'Configuration',
-          es: 'Configuración',
-          fr: 'Configuration',
-          hi: 'कॉन्फ़िगरेशन',
-          id: 'Konfigurasi',
-          it: 'Configurazione',
-          ja: '構成',
-          ko: '구성',
-          pt: 'Configuração',
-          'pt-BR': 'Configuração',
-          'pt-PT': 'Configuração',
-          ru: 'Конфигурация',
-          tr: 'Yapılandırma',
-          uk: 'Конфігурація',
-          'zh-CN': '配置',
-        }, slug: 'dashboard/configuration'
-      },
-      {
-        label: 'Standalone mode', translations: {
-          da: 'Selvstændig tilstand',
-          de: 'Eigenständiger Modus',
-          en: 'Standalone mode',
-          es: 'Modo independiente',
-          fr: 'Mode autonome',
-          hi: 'स्टैंडअलोन मोड',
-          id: 'Mode mandiri',
-          it: 'Modalità autonoma',
-          ja: 'スタンドアロンモード',
-          ko: '독립 실행 모드',
-          pt: 'Modo autônomo',
-          'pt-BR': 'Modo autônomo',
-          'pt-PT': 'Modo autónomo',
-          ru: 'Автономный режим',
-          tr: 'Bağımsız mod',
-          uk: 'Автономний режим',
-          'zh-CN': '独立模式',
-        }, slug: 'dashboard/standalone'
       },
       {
         label: 'GitHub Copilot', slug: 'dashboard/copilot'
@@ -720,6 +678,52 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'dashboard/mcp-server'
       },
       {
+        label: 'Standalone mode', translations: {
+          da: 'Selvstændig tilstand',
+          de: 'Eigenständiger Modus',
+          en: 'Standalone mode',
+          es: 'Modo independiente',
+          fr: 'Mode autonome',
+          hi: 'स्टैंडअलोन मोड',
+          id: 'Mode mandiri',
+          it: 'Modalità autonoma',
+          ja: 'スタンドアロンモード',
+          ko: '독립 실행 모드',
+          pt: 'Modo autônomo',
+          'pt-BR': 'Modo autônomo',
+          'pt-PT': 'Modo autónomo',
+          ru: 'Автономный режим',
+          tr: 'Bağımsız mod',
+          uk: 'Автономний режим',
+          'zh-CN': '独立模式',
+        }, items: [
+          { label: 'Overview', slug: 'dashboard/standalone' },
+          { label: 'Node.js apps', slug: 'dashboard/standalone-for-nodejs', badge: { text: 'Tutorial', variant: 'success' } },
+          { label: 'Python apps', slug: 'dashboard/standalone-for-python', badge: { text: 'Tutorial', variant: 'success' } },
+        ]
+      },
+      {
+        label: 'Configuration', translations: {
+          da: 'Konfiguration',
+          de: 'Konfiguration',
+          en: 'Configuration',
+          es: 'Configuración',
+          fr: 'Configuration',
+          hi: 'कॉन्फ़िगरेशन',
+          id: 'Konfigurasi',
+          it: 'Configurazione',
+          ja: '構成',
+          ko: '구성',
+          pt: 'Configuração',
+          'pt-BR': 'Configuração',
+          'pt-PT': 'Configuração',
+          ru: 'Конфигурация',
+          tr: 'Yapılandırma',
+          uk: 'Конфігурація',
+          'zh-CN': '配置',
+        }, slug: 'dashboard/configuration'
+      },
+      {
         label: 'Security considerations', translations: {
           da: 'Sikkerhedsovervejelser',
           de: 'Sicherheitsüberlegungen',
@@ -741,36 +745,26 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'dashboard/security-considerations'
       },
       {
-        label: 'Tutorials', collapsed: true, translations: {
-          da: 'Vejledninger',
-          de: 'Tutorials',
-          en: 'Tutorials',
-          es: 'Tutoriales',
-          fr: 'Tutoriels',
-          hi: 'ट्यूटोरियल',
-          id: 'Tutorial',
-          it: 'Tutorial',
-          ja: 'チュートリアル',
-          ko: '튜토리얼',
-          pt: 'Tutoriais',
-          'pt-BR': 'Tutoriais',
-          'pt-PT': 'Tutoriais',
-          ru: 'Учебники',
-          tr: 'Eğitimler',
-          uk: 'Підручники',
-          'zh-CN': '教程',
+        label: 'Enable browser telemetry', translations: {
+          da: 'Aktivér browsertelemetri',
+          de: 'Browser-Telemetrie aktivieren',
+          en: 'Enable browser telemetry',
+          es: 'Habilitar telemetría del navegador',
+          fr: 'Activer la télémétrie du navigateur',
+          hi: 'ब्राउज़र टेलीमेट्री सक्षम करें',
+          id: 'Aktifkan telemetri browser',
+          it: 'Abilita telemetria del browser',
+          ja: 'ブラウザのテレメトリを有効にする',
+          ko: '브라우저 원격 분석 활성화',
+          pt: 'Ativar telemetria do navegador',
+          'pt-BR': 'Ativar telemetria do navegador',
+          'pt-PT': 'Ativar telemetria do navegador',
+          ru: 'Включить телеметрию браузера',
+          tr: 'Tarayıcı telemetrisi etkinleştirme',
+          uk: 'Увімкнути телеметрію браузера',
+          'zh-CN': '启用浏览器遥测',
         },
-        items: [
-          {
-            label: 'Node.js apps', slug: 'dashboard/standalone-for-nodejs'
-          },
-          {
-            label: 'Python apps', slug: 'dashboard/standalone-for-python'
-          },
-          {
-            label: 'Enable browser telemetry', slug: 'dashboard/enable-browser-telemetry'
-          }
-        ]
+        slug: 'dashboard/enable-browser-telemetry'
       },
       {
         label: 'Microsoft telemetry', translations: {
