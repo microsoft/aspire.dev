@@ -127,7 +127,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               tr: 'CLI Kur',
               uk: 'Встановити CLI',
               'zh-CN': '安装 CLI',
-            }, 
+            },
             slug: 'get-started/install-cli'
           },
           {
@@ -588,14 +588,213 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
       }
     ],
   },
-  // {
-  //   label: 'Dashboard',
-  //   link: '/dashboard/overview',
-  //   icon: 'seti:happenings',
-  //   items: [
-  //     { label: 'Explore', autogenerate: { directory: 'dashboard' } },
-  //   ]
-  // },
+  {
+    label: {
+      en: 'Dashboard',
+      es: 'Panel',
+      fr: 'Tableau de bord',
+      de: 'Dashboard',
+      it: 'Dashboard',
+      pt: 'Painel',
+      ru: 'Панель управления',
+      'zh-CN': '仪表板',
+      da: 'Dashboard',
+      hi: 'डैशबोर्ड',
+      id: 'Dasbor',
+      ja: 'ダッシュボード',
+      ko: '대시보드',
+      'pt-BR': 'Painel',
+      'pt-PT': 'Painel',
+      tr: 'Gösterge Paneli',
+      uk: 'Панель керування',
+    },
+    link: '/dashboard/overview',
+    icon: 'seti:happenings',
+    items: [
+      {
+        label: 'Overview', translations: {
+          da: 'Oversigt',
+          de: 'Übersicht',
+          en: 'Overview',
+          es: 'Descripción general',
+          fr: 'Vue d\'ensemble',
+          hi: 'अवलोकन',
+          id: 'Ikhtisar',
+          it: 'Panoramica',
+          ja: '概要',
+          ko: '개요',
+          pt: 'Visão geral',
+          'pt-BR': 'Visão geral',
+          'pt-PT': 'Visão geral',
+          ru: 'Обзор',
+          tr: 'Genel Bakış',
+          uk: 'Огляд',
+          'zh-CN': '概述',
+        }, slug: 'dashboard/overview'
+      },
+      {
+        label: 'Explore', translations: {
+          da: 'Udforsk',
+          de: 'Entdecken',
+          en: 'Explore',
+          es: 'Explorar',
+          fr: 'Explorer',
+          hi: 'अन्वेषण',
+          id: 'Jelajahi',
+          it: 'Esplora',
+          ja: '参照',
+          ko: '탐색',
+          pt: 'Explorar',
+          'pt-BR': 'Explorar',
+          'pt-PT': 'Explorar',
+          ru: 'Исследовать',
+          tr: 'Keşfet',
+          uk: 'Дослідити',
+          'zh-CN': '探索',
+        }, slug: 'dashboard/explore'
+      },
+      {
+        label: 'Configuration', translations: {
+          da: 'Konfiguration',
+          de: 'Konfiguration',
+          en: 'Configuration',
+          es: 'Configuración',
+          fr: 'Configuration',
+          hi: 'कॉन्फ़िगरेशन',
+          id: 'Konfigurasi',
+          it: 'Configurazione',
+          ja: '構成',
+          ko: '구성',
+          pt: 'Configuração',
+          'pt-BR': 'Configuração',
+          'pt-PT': 'Configuração',
+          ru: 'Конфигурация',
+          tr: 'Yapılandırma',
+          uk: 'Конфігурація',
+          'zh-CN': '配置',
+        }, slug: 'dashboard/configuration'
+      },
+      {
+        label: 'Standalone mode', translations: {
+          da: 'Selvstændig tilstand',
+          de: 'Eigenständiger Modus',
+          en: 'Standalone mode',
+          es: 'Modo independiente',
+          fr: 'Mode autonome',
+          hi: 'स्टैंडअलोन मोड',
+          id: 'Mode mandiri',
+          it: 'Modalità autonoma',
+          ja: 'スタンドアロンモード',
+          ko: '독립 실행 모드',
+          pt: 'Modo autônomo',
+          'pt-BR': 'Modo autônomo',
+          'pt-PT': 'Modo autónomo',
+          ru: 'Автономный режим',
+          tr: 'Bağımsız mod',
+          uk: 'Автономний режим',
+          'zh-CN': '独立模式',
+        }, slug: 'dashboard/standalone'
+      },
+      {
+        label: 'GitHub Copilot', slug: 'dashboard/copilot'
+      },
+      {
+        label: 'Aspire MCP server', translations: {
+          da: 'Aspire MCP-server',
+          de: 'Aspire MCP-Server',
+          en: 'Aspire MCP server',
+          es: 'Servidor Aspire MCP',
+          fr: 'Serveur Aspire MCP',
+          hi: 'Aspire MCP सर्वर',
+          id: 'Server Aspire MCP',
+          it: 'Server Aspire MCP',
+          ja: 'Aspire MCPサーバー',
+          ko: 'Aspire MCP 서버',
+          pt: 'Servidor Aspire MCP',
+          'pt-BR': 'Servidor Aspire MCP',
+          'pt-PT': 'Servidor Aspire MCP',
+          ru: 'Сервер Aspire MCP',
+          tr: 'Aspire MCP sunucusu',
+          uk: 'Сервер Aspire MCP',
+          'zh-CN': 'Aspire MCP 服务器',
+        }, slug: 'dashboard/mcp-server'
+      },
+      {
+        label: 'Security considerations', translations: {
+          da: 'Sikkerhedsovervejelser',
+          de: 'Sicherheitsüberlegungen',
+          en: 'Security considerations',
+          es: 'Consideraciones de seguridad',
+          fr: 'Considérations de sécurité',
+          hi: 'सुरक्षा संबंधी विचार',
+          id: 'Pertimbangan keamanan',
+          it: 'Considerazioni sulla sicurezza',
+          ja: 'セキュリティに関する考慮事項',
+          ko: '보안 고려 사항',
+          pt: 'Considerações de segurança',
+          'pt-BR': 'Considerações de segurança',
+          'pt-PT': 'Considerações de segurança',
+          ru: 'Соображения безопасности',
+          tr: 'Güvenlik değerlendirmeleri',
+          uk: 'Міркування щодо безпеки',
+          'zh-CN': '安全注意事项',
+        }, slug: 'dashboard/security-considerations'
+      },
+      {
+        label: 'Tutorials', collapsed: true, translations: {
+          da: 'Vejledninger',
+          de: 'Tutorials',
+          en: 'Tutorials',
+          es: 'Tutoriales',
+          fr: 'Tutoriels',
+          hi: 'ट्यूटोरियल',
+          id: 'Tutorial',
+          it: 'Tutorial',
+          ja: 'チュートリアル',
+          ko: '튜토리얼',
+          pt: 'Tutoriais',
+          'pt-BR': 'Tutoriais',
+          'pt-PT': 'Tutoriais',
+          ru: 'Учебники',
+          tr: 'Eğitimler',
+          uk: 'Підручники',
+          'zh-CN': '教程',
+        },
+        items: [
+          {
+            label: 'Node.js apps', slug: 'dashboard/standalone-for-nodejs'
+          },
+          {
+            label: 'Python apps', slug: 'dashboard/standalone-for-python'
+          },
+          {
+            label: 'Enable browser telemetry', slug: 'dashboard/enable-browser-telemetry'
+          }
+        ]
+      },
+      {
+        label: 'Microsoft telemetry', translations: {
+          da: 'Microsoft telemetri',
+          de: 'Microsoft-Telemetrie',
+          en: 'Microsoft telemetry',
+          es: 'Telemetría de Microsoft',
+          fr: 'Télémétrie Microsoft',
+          hi: 'Microsoft टेलीमेट्री',
+          id: 'Telemetri Microsoft',
+          it: 'Telemetria Microsoft',
+          ja: 'Microsoft テレメトリ',
+          ko: 'Microsoft 원격 분석',
+          pt: 'Telemetria da Microsoft',
+          'pt-BR': 'Telemetria da Microsoft',
+          'pt-PT': 'Telemetria da Microsoft',
+          ru: 'Телеметрия Microsoft',
+          tr: 'Microsoft telemetrisi',
+          uk: 'Телеметрія Microsoft',
+          'zh-CN': 'Microsoft 遥测',
+        }, slug: 'dashboard/microsoft-collected-dashboard-telemetry'
+      }
+    ]
+  },
   {
     label: {
       en: 'CLI Reference',
