@@ -10,7 +10,7 @@ Aspire's AppHost represents a collection of resources, known as the "resource mo
 
 The resource model is a **directed acyclic graph (DAG)**, where resources are nodes and dependencies are edges. This structure allows Aspire to manage complex relationships between resources, ensuring that they can be started, stopped, and monitored in a predictable manner.
 
-## Basic Example
+## Basic example
 
 A quick example that shows the basic usage:
 
@@ -47,7 +47,7 @@ architecture-beta
    - Startup order
 </Steps>
 
-## Resource Basics
+## Resource basics
 
 In Aspire, a **resource** is the fundamental unit for modeling your distributed applications. Resources represent services, infrastructure elements, or supporting components that together compose a distributed system.
 
@@ -74,7 +74,7 @@ Annotations allow attaching additional structured information to a resource with
   For additional information on annotations, see [Resource API Patterns: Annotations](/architecture/resource-api-patterns/#annotations).
 </LearnMore>
 
-### Fluent Extension Methods
+### Fluent extension methods
 
 Resources are typically added using fluent **extension methods** such as `.AddRedis(...)`, `.AddProject(...)`, or `.AddPostgres(...)`. Extension methods encapsulate:
 
@@ -92,7 +92,7 @@ This pattern improves the developer experience by:
   Without extension methods, adding a resource manually would require constructing it directly, setting annotations manually, and remembering to wire relationships by hand.
 </Aside>
 
-### Adding Resources and Wiring Dependencies
+### Adding resources and wiring dependencies
 
 To continue from the previous example, here's how you can add resources and wire them together in the `AppHost`:
 
@@ -114,11 +114,11 @@ The preceding example:
 
 Each resource participates in the application graph passively, with dependencies expressed through references.
 
-### Key Takeaways
+### Key takeaways
 
 Resources **describe** capabilities rather than controlling them directly. **Annotations** provide a rich, extensible metadata system for resources, while **fluent extension methods** guide developers toward correct and complete configurations. **Names** serve as the identity anchors for wiring and dependency resolution throughout the application graph.
 
-## Built-In Resources and Lifecycle
+## Built-in resources and lifecycle
 
 In Aspire, many common infrastructure and application patterns are available as **built-in resource types**. Built-in resources simplify modeling real-world systems by providing ready-made building blocks that automatically integrate with the Aspire runtime, lifecycle management, health tracking, and dashboard visualization.
 
@@ -131,7 +131,7 @@ Built-in resources:
 
 They help developers express distributed applications **consistently** without needing to manually orchestrate startup, shutdown, and dependency wiring.
 
-### Known Resource States
+### Known resource states
 
 All resources in Aspire begin in an `Unknown` state when added to the application graph. This ensures that the **resource graph can be fully constructed** before any execution, dependency resolution, or publishing occurs.
 
@@ -157,7 +157,7 @@ Resource states drive:
 - **Orchestration sequencing** for startup and shutdown.
 - **Health monitoring** at runtime.
 
-### Built-In Types
+### Built-in types
 
 Aspire provides a set of fundamental built-in resource types that serve as the foundation for modeling execution units:
 
@@ -183,7 +183,7 @@ Built-in types:
 
 Custom resources must **opt-in manually** to these behaviors.
 
-### Well-Known Lifecycle Events
+### Well-known lifecycle events
 
 Aspire defines standard events to orchestrate resource lifecycles, in the following order:
 
@@ -205,7 +205,7 @@ Lifecycle events allow:
   Event publishing is **synchronous and blocking** — event handlers can delay further execution.
 </Aside>
 
-### Status Reporting
+### Status reporting
 
 Beyond events, Aspire uses **asynchronous state snapshots** to report resource status continuously.
 
@@ -225,7 +225,7 @@ Snapshots:
 Events represent **moment-in-time actions**. Snapshots represent **ongoing state**.
 </Aside>
 
-### Resource Health
+### Resource health
 
 Aspire integrates with .NET health checks to monitor the status of resources after they have started. The health check mechanism is tied into the resource lifecycle:
 
@@ -241,7 +241,7 @@ This automatic handling ensures that dependent resources (using mechanisms like 
   Developers should **not** manually publish the `ResourceReadyEvent`. Aspire manages the transition to the ready state based on the presence and outcome of health checks. Manually firing this event can interfere with the orchestration logic.
 </Aside>
 
-### Resource Logging
+### Resource logging
 
 Aspire supports logging output on a per-resource basis, which is displayed in the console window and can be surfaced in the dashboard. This log stream is especially useful for monitoring what a resource is doing in real time.
 
@@ -263,7 +263,7 @@ logger.LogInformation("Starting provisioning…");
 A full example demonstrating custom resource logging with the Talking Clock resource can be found in the [Full Examples](/architecture/resource-examples/) section.
 </Aside>
 
-#### Common Resource Logging APIs
+#### Common resource logging APIs
 
 The following APIs are likely to be used when working with resource logging:
 
@@ -274,19 +274,19 @@ The following APIs are likely to be used when working with resource logging:
 
 Resource logs are designed to be human-readable and provide insights into the resource's behavior, state changes, and any issues encountered during execution. Use the `ResourceNotificationService` to publish structured state changes.
 
-## Standard Interfaces
+## Standard interfaces
 
 Aspire defines a set of **optional standard interfaces** that allow resources to declare their capabilities in a structured, discoverable way. Implementing these interfaces enables **dynamic wiring, publishing, service discovery, and orchestration** without hardcoded type knowledge.
 
 These interfaces are the foundation for Aspire's polymorphic behaviors — enabling tools, publishers, and the runtime to treat resources uniformly based on what they can do, rather than what they are.
 
-### Benefits of Standard Interfaces
+### Benefits of standard interfaces
 
 - **Dynamic discovery:** Tooling and runtime systems can automatically adapt based on resource capabilities.
 - **Loose coupling:** Behaviors (like environment wiring, service discovery, or connection sharing) are opt-in.
 - **Extensibility:** New resource types can integrate seamlessly into the Aspire ecosystem by implementing one or more interfaces.
 
-### Common Interfaces
+### Common interfaces
 
 | Interface | Purpose |
 |-----------|---------|
@@ -298,7 +298,7 @@ These interfaces are the foundation for Aspire's polymorphic behaviors — enabl
 | `IResourceWithWaitSupport` | This resource can wait for other resources. |
 | `IResourceWithWithoutLifetime` | This resource does not have a lifecycle. (e.g. connection string, parameter) |
 
-### Examples Per Interface
+### Examples per interface
 
 **`IResourceWithEnvironment`**
 
@@ -349,10 +349,10 @@ builder.WaitFor(otherResource)
 This resource can wait on other resources. A `ParameterResource` is an example of resources that cannot wait.
 
 <Aside type="note">
-These APIs and behaviors are defined in the [📦 Aspire.Hosting](https://github.com/dotnet/blob/main/src/Aspire.Hosting/api/Aspire.Hosting.cs) package.
+These APIs and behaviors are defined in the [📦 Aspire.Hosting](https://www.nuget.org/packages/Aspire.Hosting) package.
 </Aside>
 
-### Importance of Polymorphism
+### Importance of polymorphism
 
 By modeling behaviors through interfaces rather than concrete types, Aspire enables:
 

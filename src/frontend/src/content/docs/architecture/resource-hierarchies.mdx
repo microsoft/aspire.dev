@@ -12,7 +12,7 @@ Parent-child relationships serve two purposes:
 - **Lifecycle Containment**: The child's execution is tied to the parent's — starting, stopping, and failures cascade from parent to child automatically.
 - **Dashboard Visualization**: The child appears **nested beneath** the parent in dashboards and visualizations, improving readability.
 
-### Lifecycle Containment
+### Lifecycle containment
 
 When a resource implements the `IResourceWithParent` interface, it declares **true containment** — meaning its lifecycle is controlled by its parent:
 
@@ -24,7 +24,7 @@ When a resource implements the `IResourceWithParent` interface, it declares **tr
 A logging sidecar container is tied to the lifecycle of a main application container — if the main app stops, the logging sidecar is also terminated.
 </Aside>
 
-### Visual Grouping (Without Lifecycle Impact)
+### Visual grouping (without lifecycle impact)
 
 Aspire also supports **visual-only parent-child relationships** using the `WithParentRelationship()` method during resource construction.
 
@@ -49,7 +49,7 @@ You must **explicitly declare** relationships by either:
 
 This explicitness ensures developers have full control over resource containment and presentation.
 
-### Real-World Scenarios
+### Real-world scenarios
 
 The following scenarios illustrate how Aspire models parent-child relationships:
 
@@ -59,7 +59,7 @@ The following scenarios illustrate how Aspire models parent-child relationships:
 | Database with admin dashboard | Database container | Admin UI container |
 | Microservice with associated health monitor | API container | Health probe container |
 
-## Values and References
+## Values and references
 
 In Aspire, configuration, connectivity details, and dependencies between distributed resources are modeled using **structured values**. These values capture relationships explicitly—not just as simple strings—making the application graph **portable, inspectable, and evolvable**.
 
@@ -90,7 +90,7 @@ architecture-beta
   epr:L <-- R:frontend
 ```
 
-### Special Case: Endpoints
+### Special case: Endpoints
 
 Normally, resource references form an acyclic graph — **no cycles allowed**. However, **endpoint references are treated specially** and **may form cycles** intentionally.
 
@@ -105,7 +105,7 @@ Endpoints are modeled as **external entities**:
   Endpoints are managed separately from strict dependency edges to allow flexible, real-world service wiring.
 </Aside>
 
-### How the DAG Forms
+### How the DAG forms
 
 Resources connect to each other through:
 
@@ -123,7 +123,7 @@ Each reference **adds an edge** to the graph, allowing Aspire to:
   Aspire **never infers references automatically** — all value flows must be explicitly authored by developers.
 </Aside>
 
-### Structured vs Literal Values
+### Structured vs literal values
 
 Aspire distinguishes between **structured values** and **literal values**.
 
@@ -139,7 +139,7 @@ At publish time and run time:
   **Flattening values too early destroys portability, environment substitution, and cross-platform compatibility.** Aspire delays flattening as long as possible to maintain graph fidelity.
 </Aside>
 
-### Value Providers and Deferred Evaluation
+### Value providers and deferred evaluation
 
 Every structured value type in Aspire implements two fundamental interfaces:
 
@@ -159,7 +159,7 @@ Internally, value providers are attached to environment variables, CLI arguments
   Deferred evaluation guarantees that Aspire applications can be **published safely**, **deployed flexibly**, and **run consistently** across environments.
 </Aside>
 
-### Core Value Types (Expanded)
+### Core value types (expanded)
 
 | Type | Represents | Run Mode | Publish Mode |
 |------|------------|----------|--------------|
@@ -253,7 +253,7 @@ The following patterns are common mistakes when using `ReferenceExpression`:
 | Access `Endpoint.Url` during publish.  | Use `Endpoint.Property(...)` in the expression.         |
 | Mix resolved strings and placeholders. | Keep the entire value inside one `ReferenceExpression`. |
 
-## Endpoint Primitives
+## Endpoint primitives
 
 The `EndpointReference` is the fundamental type used to interact with another resource's endpoint. It provides properties such as:
 
@@ -279,7 +279,7 @@ var endpoint = redis.GetEndpoint("tcp");
 builder.Build().Run();
 ```
 
-### What Does "Allocated" Mean?
+### What does "allocated" mean?
 
 An endpoint is **allocated** when Aspire resolves its runtime values (e.g., `Host`, `Port`, `Url`) during **run mode**. Allocation happens as part of the **startup sequence**, ensuring endpoints are ready for use in local development.
 
@@ -452,7 +452,7 @@ Key members:
 
 `EndpointReferenceExpression` implements the same `IManifestExpressionProvider` / `IValueProvider` pair, so it can be embedded in a `ReferenceExpression` or resolved directly with `GetValueAsync()`.
 
-## Context-Based Endpoint Resolution
+## Context-based endpoint resolution
 
 Aspire resolves endpoints differently based on the relationship between the source and target resources. This ensures proper communication across all environments.
 
