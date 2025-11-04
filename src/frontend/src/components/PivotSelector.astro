@@ -1,0 +1,190 @@
+---
+interface Option {
+    id: string;
+    title: string;
+    disabled?: boolean;
+}
+
+type Props = {
+    options: Option[];
+    key: string;
+    title?: string;
+};
+
+const { options, key, title } = Astro.props;
+---
+
+<div class="pivot-container">
+    {title && <div class="pivot-title">{title}</div>}
+    <div class="pivot-selector" id="pivot-selector">
+        {
+            options.map((o) => (
+                <button
+                    type="button"
+                    data-pivot-option={o.id}
+                    disabled={o.disabled ? true : false}
+                >
+                    {o.title}
+                </button>
+            ))
+        }
+    </div>
+</div>
+
+<style>
+    .pivot-container {
+        background: var(--sl-color-bg-nav);
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .pivot-title {
+        color: var(--sl-color-text);
+        font-size: var(--sl-text-lg);
+        margin-bottom: 0.75rem;
+    }
+
+    .pivot-selector {
+        display: inline-flex;
+        background: var(--sl-color-gray-5);
+        border: 1px solid var(--sl-color-gray-4);
+        border-radius: 0.5rem;
+        padding: 0.25rem;
+        gap: 0.25rem;
+        color: var(--sl-color-text);
+    }
+
+    @media (max-width: 768px) {
+        .pivot-selector {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .pivot-selector button {
+            width: 100%;
+            text-align: center;
+        }
+    }
+
+    .pivot-selector button {
+        padding: 0.25rem 1rem;
+        border: none;
+        background: transparent;
+        color: var(--sl-color-text);
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        margin-top: 0;
+    }
+
+    .pivot-selector button:hover {
+        background: var(--sl-color-gray-4);
+        color: var(--sl-color-white);
+    }
+
+    .pivot-selector button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pivot-selector button.active {
+        background: var(--aspire-color-secondary);
+        border: 1px solid var(--sl-color-gray-5);
+        color: var(--sl-color-black);
+    }
+
+    .pivot-selector button:focus-visible {
+        outline: 2px solid var(--sl-color-accent);
+        outline-offset: 2px;
+    }
+
+    :root[data-theme="light"] {
+        .pivot-selector button.active {
+            background: var(--aspire-color-primary);
+        }
+    }
+</style>
+
+<script is:inline define:vars={{ key }}>
+    function initPivotSelector() {
+        const qsKey = key;
+        const selector = document.getElementById("pivot-selector");
+
+        if (!selector) {
+            console.warn("Pivot selector not found!");
+            return;
+        }
+
+        // Get all valid (non-disabled) options
+        const validButtons = [
+            ...selector.querySelectorAll("button:not(:disabled)"),
+        ];
+        const validOptions = validButtons.map((btn) => btn.dataset.pivotOption);
+
+        // Read from query string -> storage -> first valid option
+        const qs = new URLSearchParams(window.location.search);
+        const qsValue = qs.get(qsKey);
+        const storageValue = localStorage.getItem(qsKey);
+        const firstValid = validButtons[0]?.dataset.pivotOption;
+
+        // Validate and use the first valid value
+        let current =
+            qsValue && validOptions.includes(qsValue)
+                ? qsValue
+                : storageValue && validOptions.includes(storageValue)
+                  ? storageValue
+                  : firstValid;
+
+        function apply(id) {
+            if (!id) return;
+
+            // Only apply if it's a valid, non-disabled option
+            if (!validOptions.includes(id)) {
+                console.warn(`Invalid pivot option: ${id}`);
+                return;
+            }
+
+            current = id;
+
+            // persist pref
+            localStorage.setItem(qsKey, id);
+
+            // sync URL
+            const url = new URL(window.location);
+            url.searchParams.set(qsKey, id);
+            window.history.replaceState({}, "", url);
+
+            // style buttons
+            [...selector.querySelectorAll("button")].forEach((btn) =>
+                btn.classList.toggle("active", btn.dataset.pivotOption === id),
+            );
+
+            // show/hide pivot blocks
+            const blocks = document.querySelectorAll("[data-pivot-block]");
+            blocks.forEach((el) => {
+                const blockId = el.dataset.pivotBlock;
+                const shouldShow = blockId === id;
+                el.style.display = shouldShow ? "" : "none";
+            });
+        }
+
+        selector.addEventListener("click", (e) => {
+            if (e.target.dataset.pivotOption) {
+                apply(e.target.dataset.pivotOption);
+            }
+        });
+
+        apply(current);
+    }
+
+    // Run when DOM is ready
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initPivotSelector);
+    } else {
+        initPivotSelector();
+    }
+</script>
