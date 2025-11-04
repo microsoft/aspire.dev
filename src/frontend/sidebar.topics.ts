@@ -622,6 +622,33 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         ]
       },
       {
+        label: "Compute & Hosting",
+        collapsed: true,
+        translations: {
+          da: 'Compute og hosting',
+          de: 'Compute & Hosting',
+          en: 'Compute & Hosting',
+          es: 'Computación y alojamiento',
+          fr: 'Calcul et hébergement',
+          hi: 'कंप्यूट और होस्टिंग',
+          id: 'Komputasi & Hosting',
+          it: 'Calcolo e hosting',
+          ja: 'コンピューティングとホスティング',
+          ko: '컴퓨팅 및 호스팅',
+          pt: 'Computação e Hospedagem',
+          'pt-BR': 'Computação e Hospedagem',
+          'pt-PT': 'Computação e Alojamento',
+          ru: 'Вычисления и хостинг',
+          tr: 'Hesaplama ve Barındırma',
+          uk: 'Обчислення та хостинг',
+          'zh-CN': '计算与托管',
+        },
+        items: [
+          { label: "Docker", slug: "integrations/compute/docker" },
+          { label: "Kubernetes", slug: "integrations/compute/kubernetes" }
+        ]
+      },
+      {
         label: 'Data & databases',
         collapsed: true,
         translations: {
@@ -713,8 +740,9 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         },
         items: [
           { label: 'Apache Kafka', slug: 'integrations/messaging/apache-kafka' },
-          { label: 'RabbitMQ', slug: 'integrations/messaging/rabbitmq' },
+          { label: 'LavinMQ', slug: 'integrations/messaging/lavinmq' },
           { label: 'NATS', slug: 'integrations/messaging/nats' },
+          { label: 'RabbitMQ', slug: 'integrations/messaging/rabbitmq' },
         ]
       },
       {
@@ -819,6 +847,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         },
         items: [
           { label: "Data API Builder", slug: "integrations/devtools/dab" },
+          { label: "Dev Tunnels", slug: "integrations/devtools/dev-tunnels" },
+          { label: "MailPit", slug: "integrations/devtools/mailpit" },
           { label: "SQL Database Projects", slug: "integrations/devtools/sql-projects" },
         ]
       }
