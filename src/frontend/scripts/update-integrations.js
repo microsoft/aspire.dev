@@ -8,8 +8,10 @@ const API_QUERIES = [
   'CommunityToolkit.Aspire',
 ];
 const EXCLUDED_PACKAGES = [
+  'Aspire.Cli',
   'Aspire.Hosting',
   'Aspire.Hosting.Azure',
+  'Aspire.Hosting.IncrementalMigration'
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 

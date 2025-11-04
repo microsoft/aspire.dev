@@ -1,0 +1,56 @@
+---
+import type { StarlightIcon } from "@astrojs/starlight/types";
+
+export interface Props {
+    name: string;
+    link: string;
+    icon?: StarlightIcon;
+}
+
+let { name, link, icon } = Astro.props as Props;
+
+try {
+    const url = new URL(link);
+    if (url.hostname === "learn.microsoft.com") {
+        if (!url.searchParams.has("WT.mc_id")) {
+            url.searchParams.set("WT.mc_id", "aspire.dev");
+        }
+        link = url.toString();
+    }
+} catch {
+    // Invalid URL; leave link unchanged.
+}
+
+import { LinkButton, Card } from "@astrojs/starlight/components";
+---
+
+<Card
+    title={`${name} integration docs coming soon...`}
+    class:list="placeholder-card"
+    icon={icon || "puzzle"}
+>
+    <p>Sorry...you caught us in the middle of a docs migration. 😬</p>
+    <p>
+        We're working to move content off of Microsoft Learn and into
+        aspire.dev—the new home for everything Aspire. We appreciate your
+        patience while we're unpacking. 🙏
+    </p>
+    <p>
+        In the meantime, here's a handy link to the {name} content you're after!
+        We promise we're moving as fast as we can. Check back soon! 🚀
+    </p>
+
+    <LinkButton
+        href={`https://learn.microsoft.com${link}`}
+        icon="external"
+        iconPlacement="end"
+    >
+        {`Microsoft Learn: ${name} docs`}
+    </LinkButton>
+</Card>
+
+<style>
+    .sl-link-button {
+        margin-bottom: 0rem;
+    }
+</style>
