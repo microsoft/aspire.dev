@@ -4,7 +4,7 @@ description: Learn how to define your application's architecture using Aspire's 
 lastUpdated: true
 ---
 
-import { Code, FileTree, Steps } from '@astrojs/starlight/components';
+import { Aside, Code, FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
 
@@ -82,8 +82,9 @@ Now that the `api` service is defined, you can attach the frontend.
 
 Register the frontend project, declare its dependency on the API, and let the AppHost provide the API address automatically.
 
-> [!NOTE]
-> This example uses a Node.js (React) frontend, but Aspire treats frontends as executable services—any language or framework works.
+<Aside type="note">
+This example uses a Node.js (React) frontend, but Aspire treats frontends as executable services—any language or framework works.
+</Aside>
 
 <SimpleAppHostCode mark={{ range: '14-17' }} collapse={['1-11']} />
 
@@ -94,8 +95,9 @@ Key points:
 - `.WithNpmPackageInstallation()` runs `npm install` before start so dependencies are present.
 - `.WithReference(api)` injects the API base address into the frontend configuration.
 
-> [!TIP]
-> `.WithNpmPackageInstallation()` is supplied by the Community Toolkit package: `📦 CommunityToolkit.Aspire.Hosting.NodeJS.Extensions`.
+<Aside type="tip">
+`.WithNpmPackageInstallation()` is supplied by the Community Toolkit package: `📦 CommunityToolkit.Aspire.Hosting.NodeJS.Extensions`.
+</Aside>
 
 In short: define the backend first (DB → API), then point the UI at the API. The AppHost captures the dependency graph, connection flows, and startup order.
 
@@ -127,8 +129,9 @@ architecture-beta
 1. `frontend` depends on that endpoint; Aspire injects the API base URL so no hard-coded addresses are needed.
 </Steps>
 
-> [!NOTE]
-> Aspire replaces ad-hoc run scripts, scattered environment variables, and fragile copy-pasted connection strings with a single, declarative source of truth. By modeling services, resources, and their dependencies in code, it delivers typed configuration (endpoints, credentials, connection strings) directly where needed—reducing setup drift, accelerating onboarding, and letting you evolve the architecture without rewriting glue.
+<Aside type="note">
+Aspire replaces ad-hoc run scripts, scattered environment variables, and fragile copy-pasted connection strings with a single, declarative source of truth. By modeling services, resources, and their dependencies in code, it delivers typed configuration (endpoints, credentials, connection strings) directly where needed—reducing setup drift, accelerating onboarding, and letting you evolve the architecture without rewriting glue.
+</Aside>
 
 ## How the AppHost works
 
@@ -145,19 +148,30 @@ When you run the AppHost, Aspire performs these core responsibilities:
   Dive deeper into Aspire's orchestration and the [Resource Model](/architecture/resource-model/).
 </LearnMore>
 
-## AppHost project structure
+## AppHost structure
 
-The template AppHost project contains the following:
+The template AppHost is structured in the following ways:
 
-<FileTree>
-- **AspireApp.AppHost**
-    - Properties
-      - launchSettings.json
-    - appsettings.Development.json
-    - appsettings.json
-    - AspireApp.AppHost.csproj
-    - AppHost.cs
-</FileTree>
+<Tabs syncKey="apphost-type">
+  <TabItem label="File-based AppHost" icon="seti:c-sharp">
+    <FileTree>
+    - **AspireApp.AppHost**
+        - apphost.cs  dev-time orchestrator
+        - apphost.run.json
+    </FileTree>
+  </TabItem>
+  <TabItem label="Project-based AppHost" icon="seti:html">
+    <FileTree>
+    - **AspireApp.AppHost**
+        - Properties
+          - launchSettings.json
+        - appsettings.Development.json
+        - appsettings.json
+        - AspireApp.AppHost.csproj
+        - AppHost.cs  dev-time orchestrator
+    </FileTree>
+  </TabItem>
+</Tabs>
 
 ## AppHost lifecycle events
 

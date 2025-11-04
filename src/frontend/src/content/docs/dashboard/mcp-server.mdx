@@ -1,0 +1,130 @@
+---
+title: Aspire MCP server
+description: Learn how to use Aspire MCP server to develop your apps.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import mcpDialogImage from '@assets/dashboard/mcp-server/mcp-dialog.png';
+
+The Aspire MCP server is a local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. Aspire MCP integrates Aspire into your development AI eco-system. With Aspire MCP, you can:
+
+- Query resources, including resource states, endpoints, health status and commands.
+- Debug with real-time console logs.
+- Investigate development time telemetry, such as structured logs and distributed tracing across resources.
+- Execute resource commands.
+
+## Get started
+
+To get started, configure your local AI assistant to use Aspire MCP.
+
+<Steps>
+1. Run your Aspire app.
+1. Open the Aspire dashboard and click on the MCP button in the top right corner of the dashboard. This launches a dialog that contains instructions for using Aspire MCP.
+1. Use the specified details in the dialog to configure your local AI assistant.
+</Steps>
+
+Important settings required to use Aspire MCP:
+
+- `url` - Aspire MCP address.
+- `type` - `http` to indicate Aspire MCP is a [streamable-HTTP MCP server](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http).
+- `x-mcp-api-key` - An HTTP header with a key to secure access to the MCP server.
+
+<Image src={mcpDialogImage} alt="A screenshot of the Aspire MCP dialog in the dashboard with the url and API header highlighted." />
+
+There isn't a standard way to configure AI assistants with new MCP servers. Configuration varies depending on your local AI assistant:
+
+- [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
+- [Codex](https://developers.openai.com/codex/mcp/)
+- [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli#add-an-mcp-server)
+- [Cursor](https://cursor.com/docs/context/mcp#installing-mcp-servers)
+- [Visual Studio](/visualstudio/ide/mcp-servers#options-for-adding-an-mcp-server)
+- [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
+
+## Your first prompts
+
+After configuration, try asking your AI assistant:
+
+> "Are all my resources running?"
+
+> "Analyze HTTP requests performance for RESOURCE_NAME."
+
+> "Restart unhealthy resources."
+
+## Tools
+
+The Aspire MCP server provides the following tools:
+
+- `list_resources` - Lists all resources, including their state, health status, source, endpoints, and commands.
+- `list_console_logs` - Lists console logs for a resource.
+- `list_structured_logs` - Lists structured logs, optionally filtered by resource name.
+- `list_traces` - Lists distributed traces. Traces can be filtered using an optional resource name parameter.
+- `list_trace_structured_logs` - Lists structured logs for a trace.
+- `execute_resource_command` - Executes a resource command. This tool accepts parameters for the resource name and command name.
+
+By default all resources, console logs and telemetry is accessible by Aspire MCP. Resources and associated telemetry can be excluded from MCP results by annotating the resource in the app host with `ExcludeFromMcp()`.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiservice = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    .ExcludeFromMcp();
+
+builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(apiService);
+
+builder.Build().Run();
+```
+
+## Troubleshooting
+
+Aspire MCP is designed to work seamlessly with AI assistants, but you may encounter some setup challenges depending on your environment.
+
+### MCP connection secured with self-signed HTTPS certificate not supported by some AI assistants
+
+An MCP connection secured with HTTPS is recommended for security. However, some AI assistants currently don't support calling endpoints secured with a trusted, self-signed certificate. This includes the Aspire MCP, which is secured using [a self-signed certificate](https://learn.microsoft.com/dotnet/core/additional-tools/self-signed-certificates-guide).
+
+Currently the only work around for using Aspire MCP with these AI assistants is to configure an `http` MCP endpoint.
+
+- If you already launch your Aspire app with [the `http` launch profile](https://learn.microsoft.com/dotnet/aspire/fundamentals/launch-profiles) then your app isn't using HTTPS and you don't need to do anything.
+- If you use HTTPS everywhere, you can configure just the MCP endpoint to use `http` by updating *launchSettings.json*.
+  - Set `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL` to an `http` address.
+  - Add `ASPIRE_ALLOW_UNSECURED_TRANSPORT` set to `true`.
+
+```json title="JSON — launchSettings.json" {14-15}
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:15887;http://localhost:15888",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:16037",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "https://localhost:16038",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:17037",
+        "ASPIRE_DASHBOARD_MCP_ENDPOINT_URL": "http://localhost:16036",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
+      }
+    }
+  }
+}
+```
+
+<Aside type="caution">
+This configuration will remove transport security from Aspire MCP communication. It could allow data to be read by a third party.
+</Aside>
+
+## Limitations
+
+Aspire MCP is a powerful tool, but there are a few things to keep in mind when using it.
+
+### Data size
+
+AI models have limits on how much data they can process at once. Aspire MCP may limit the amount of data returned from tools when necessary.
+
+- Large data fields (e.g., long exception stack traces) may be truncated.
+- Requests involving large collections of telemetry may be shortened by omitting older items.
