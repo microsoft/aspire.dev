@@ -72,8 +72,13 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
     If prompted for additional selections, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. 
     Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
+</Steps>
 
-1. Verify the solution was created successfully. The Aspire CLI creates a new folder named _AspireApp_ in the current directory. This folder contains the solution file and several projects, including:
+## Review the template code
+
+<Steps>
+
+1. Examine the created template structure. The Aspire CLI creates a new folder named _AspireApp_ in the current directory. This folder contains the solution file and several projects, including:
 
     <Pivot id="csharp">
     <FileTree>
@@ -137,6 +142,71 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     </Pivot>
 
     This solution structure is based on the Aspire templates. If they're not installed already, the CLI will install them for you.
+
+1. Explore the AppHost code that orchestrates your app.
+
+    The [AppHost](/get-started/app-host) is the heart of your Aspire application—it defines which services run, how they connect, and in what order they start. Let's look at the generated code:
+
+    <Pivot id="csharp">
+    ```csharp title="C# — AppHost.cs project-based orchestrator"
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+        .WithHttpHealthCheck("/health");
+
+    builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+        .WithExternalHttpEndpoints()
+        .WithHttpHealthCheck("/health")
+        .WithReference(apiService)
+        .WaitFor(apiService);
+
+    builder.Build().Run();
+    ```
+
+    _What's happening here?_
+
+    - `AddProject` registers your API and web frontend services
+    - `WithReference` creates a connection between services (the web app can call the API)
+    - `WaitFor` ensures services start in the correct order
+    - `WithHttpHealthCheck` monitors service health
+    
+    </Pivot>
+    <Pivot id="python">
+    ```csharp title="C# — apphost.cs file-based orchestrator"
+    #:sdk Aspire.AppHost.Sdk@13.0.0
+    #:package Aspire.Hosting.JavaScript@13.0.0
+    #:package Aspire.Hosting.Python@13.0.0
+
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var app = builder.AddUvicornApp("app", "./app", "main:app")
+        .WithUvEnvironment()
+        .WithExternalHttpEndpoints()
+        .WithHttpHealthCheck("/health");
+
+    var frontend = builder.AddViteApp("frontend", "./frontend")
+        .WithReference(app)
+        .WaitFor(app);
+
+    app.PublishWithContainerFiles(frontend, "./static");
+
+    builder.Build().Run();
+    ```
+
+    _What's happening here?_
+    
+    - `AddUvicornApp` registers your Python FastAPI backend
+    - `AddViteApp` registers your React frontend
+    - `WithReference` connects the frontend to the API
+    - `WaitFor` ensures the API starts before the frontend
+    - `PublishWithContainerFiles` bundles the frontend for production deployment
+
+    </Pivot>
+
+    <Aside type="note" title="Code-first orchestration">
+    Notice how your entire application topology is defined in code, not YAML or JSON. This makes it easy to understand, modify, and version control your app's architecture.
+    </Aside>
+
 </Steps>
 
 ## Run the app
@@ -224,6 +294,12 @@ import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dar
             label='Aspire dashboard Resources page'
             alt={`Aspire dashboard Resources page displaying two running and two finished resources: apiservice and webfrontend. Two resources are marked as Running with green check icons while the two dependent resources show as Finished with gray stop icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
     </Pivot>
+
+</Steps>
+
+## Stop the app
+
+<Steps>
 
 1. Stop the AppHost and close the dashboard by pressing <Kbd windows="Ctrl+C" mac="⌘+C" /> in your terminal.
 
