@@ -37,8 +37,9 @@ builder.AddProject<Projects.ExampleProject>("exampleproject")
 builder.Build().Run();
 ```
 
-> [!NOTE]
-> The SQL Server container is slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](../../fundamentals/orchestrate-resources.md#container-resource-lifetime).
+<Aside type="note">
+The SQL Server container is slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](../../fundamentals/orchestrate-resources.md#container-resource-lifetime).
+</Aside>
 
 When Aspire adds a container image to the AppHost, as shown in the preceding example with the `mcr.microsoft.com/mssql/server` image, it creates a new SQL Server instance on your local machine. A reference to your SQL Server resource builder (the `sql` variable) is used to add a database. The database is named `database` and then added to the `ExampleProject`.
 
@@ -58,8 +59,9 @@ The name of the parameter is `sql-password`, but really it's just formatting the
 
 The `WithReference` method configures a connection in the `ExampleProject` named `database`.
 
-> [!TIP]
-> If you'd rather connect to an existing SQL Server, call `AddConnectionString` instead. For more information, see [Reference existing resources](../../fundamentals/app-host-overview.md#reference-existing-resources).
+<Aside type="tip">
+If you'd rather connect to an existing SQL Server, call `AddConnectionString` instead. For more information, see [Reference existing resources](../../fundamentals/app-host-overview.md#reference-existing-resources).
+</Aside>
 
 ### Add SQL Server resource with database scripts
 
@@ -147,8 +149,9 @@ builder.Build().Run();
 
 The data volume is used to persist the SQL Server data outside the lifecycle of its container. The data volume is mounted at the `/var/opt/mssql` path in the SQL Server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-sql-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
-> [!WARNING]
-> The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+<Aside type="caution">
+The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+</Aside>
 
 ### Add SQL Server resource with data bind mount
 
@@ -309,8 +312,9 @@ In the _Program.cs_ file of your client-consuming project, call the `AddSqlServe
 builder.AddSqlServerClient(connectionName: "database");
 ```
 
-> [!TIP]
-> The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerClient`. For more information, see [Add SQL Server resource and database resource](../sql-server-integration.md#add-sql-server-resource-and-database-resource).
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerClient`. For more information, see [Add SQL Server resource and database resource](../sql-server-integration.md#add-sql-server-resource-and-database-resource).
+</Aside>
 
 You can then retrieve the `SqlConnection` instance using dependency injection. For example, to retrieve the connection from an example service:
 
@@ -332,8 +336,9 @@ builder.AddKeyedSqlServerClient(name: "mainDb");
 builder.AddKeyedSqlServerClient(name: "loggingDb");
 ```
 
-> [!IMPORTANT]
-> When using keyed services, it's expected that your SQL Server resource configured two named databases, one for the `mainDb` and one for the `loggingDb`.
+<Aside type="caution">
+When using keyed services, it's expected that your SQL Server resource configured two named databases, one for the `mainDb` and one for the `loggingDb`.
+</Aside>
 
 Then you can retrieve the `SqlConnection` instances using dependency injection. For example, to retrieve the connection from an example service:
 
