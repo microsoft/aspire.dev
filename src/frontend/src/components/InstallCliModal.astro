@@ -1,0 +1,291 @@
+---
+import { Code, Icon } from "@astrojs/starlight/components";
+
+interface Props {
+    id?: string;
+}
+
+const { id = "install-cli-modal" } = Astro.props;
+---
+
+<dialog id={id} class="install-cli-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Install Aspire CLI</h2>
+            <button
+                class="modal-close"
+                aria-label="Close modal"
+                data-close-modal
+            >
+                <Icon name="close" />
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <div class="install-option">
+                <div class="option-header">
+                    <Icon
+                        name="apple"
+                    />
+                    <h3>macOS</h3>
+                </div>
+                <div class="code-wrapper">
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash"
+                    />
+                </div>
+            </div>
+            <div class="install-option">
+                <div class="option-header">
+                    <Icon name="linux" />
+                    <h3>Linux</h3>
+                </div>
+                <div class="code-wrapper">
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash"
+                    />
+                </div>
+            </div>
+            <div class="install-option">
+                <div class="option-header">
+                    <Icon name="seti:windows" />
+                    <h3>Windows</h3>
+                </div>
+                <div class="code-wrapper">
+                    <Code
+                        lang="powershell"
+                        code='iex "& { $(irm https://aspire.dev/install.ps1) }"'
+                    />
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <a href="/get-started/install-cli/" class="learn-more-link">
+                More installation options
+                <Icon name="right-arrow" />
+            </a>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    function initializeModal() {
+        const modal = document.getElementById(
+            "install-cli-modal",
+        ) as HTMLDialogElement;
+        if (!modal) return;
+
+        // Open modal and position it
+        const openBtn = document.querySelector("[data-open-install-modal]");
+        if (openBtn) {
+            openBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                
+                // On mobile/smaller screens, navigate to the full page instead
+                if (window.innerWidth < 1600) {
+                    window.location.href = '/get-started/install-cli/';
+                    return;
+                }
+                
+                modal.showModal();
+
+                // Position modal below the button
+                const btnRect = openBtn.getBoundingClientRect();
+                const modalContent = modal.querySelector(
+                    ".modal-content",
+                ) as HTMLElement;
+
+                if (modalContent) {
+                    // Position below button with some spacing
+                    modalContent.style.position = "absolute";
+                    modalContent.style.top = `${btnRect.bottom + 8}px`;
+                    modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
+                }
+            });
+        }
+
+        // Close modal handlers
+        const closeBtn = modal.querySelector("[data-close-modal]");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", () => {
+                modal.close();
+            });
+        }
+
+        // Close on backdrop click (click outside the modal content)
+        modal.addEventListener("click", (e) => {
+            const modalContent = modal.querySelector(".modal-content");
+            if (modalContent && e.target === modal) {
+                modal.close();
+            }
+        });
+
+        // Close on Escape key
+        modal.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                modal.close();
+            }
+        });
+    }
+
+    // Initialize on page load
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeModal);
+    } else {
+        initializeModal();
+    }
+
+    // Re-initialize on navigation with View Transitions
+    document.addEventListener("astro:page-load", initializeModal);
+</script>
+
+<style>
+    .install-cli-modal {
+        border: none;
+        padding: 0;
+        background: transparent;
+        margin: 0;
+        max-width: none;
+        max-height: none;
+        width: auto;
+        height: auto;
+        overflow: visible;
+    }
+
+    .install-cli-modal::backdrop {
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+        display: flex;
+        flex-direction: column;
+        background: var(--sl-color-bg);
+        color: var(--sl-color-text);
+        border-radius: 0.5rem;
+        border: 1px solid var(--sl-color-gray-5);
+        box-shadow: var(--sl-shadow-lg);
+        max-width: 37.5rem;
+        width: 90vw;
+        min-width: 25rem;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--sl-color-gray-5);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--sl-color-text);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sl-color-text);
+        border-radius: 6px;
+        transition:
+            background-color 0.2s,
+            opacity 0.2s;
+    }
+
+    .modal-close:hover {
+        background-color: var(--sl-color-gray-5);
+        opacity: 0.8;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .install-option {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .option-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .shell-icon {
+        color: var(--sl-color-text-accent);
+        width: 20px;
+        height: 20px;
+    }
+
+    .option-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sl-color-text);
+    }
+
+    .code-wrapper {
+        margin: 0;
+    }
+
+    .code-wrapper :global(figure) {
+        margin: 0;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem 1.5rem;
+        border-top: 1px solid var(--sl-color-gray-5);
+    }
+
+    .learn-more-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--sl-color-text-accent);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: opacity 0.2s;
+    }
+
+    .learn-more-link:hover {
+        opacity: 0.8;
+        text-decoration: underline;
+    }
+
+    .learn-more-link svg {
+        transition: transform 0.2s;
+    }
+
+    .learn-more-link:hover svg {
+        transform: translateX(4px);
+    }
+
+    @media (max-width: 640px) {
+        .modal-content {
+            width: 95vw;
+            max-width: none;
+            min-width: unset;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+        }
+    }
+</style>
