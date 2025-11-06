@@ -123,6 +123,38 @@ const blog = defineCollection({
 - Implement structured data (JSON-LD) for rich snippets
 - Optimize page titles and descriptions for search engines
 
+### Inclusive and Accessible Content
+
+#### Writing with Inclusivity
+- **Use inclusive language**: Respect all readers regardless of ability, background, identity, or experience level
+- **People-first language**: Say "person who uses a screen reader" not "blind user"
+- **Avoid assumptions**: Don't use phrases like "as you can see" or "simply click"
+- **No ableist language**: Avoid terms like "blind to," "crippled by," "crazy," "insane," "lame"
+- **Gender-neutral language**: Use "they/them" or rewrite to avoid gendered pronouns
+- **Global perspective**: Avoid idioms, colloquialisms, and culturally-specific references
+
+#### Plain Language Principles
+- **Write short sentences**: Aim for 15-20 words conveying one main idea
+- **Use common words**: Avoid jargon or define technical terms on first use
+- **Active voice**: Prefer "The system processes" over "is processed by"
+- **Break up text**: Keep paragraphs to 3-5 sentences
+- **Descriptive headings**: Make section purposes clear for scanning
+
+#### Accessible Content Structure
+- **Proper heading hierarchy**: Use H1 → H2 → H3 without skipping levels
+- **One H1 per page**: Establish clear document hierarchy
+- **Meaningful link text**: Use "Read the deployment guide" not "Click here"
+- **Alt text for images**: Describe informative images, use `alt=""` for decorative ones
+- **Lists for structure**: Use bulleted/numbered lists to break up dense text
+- **Table headers**: Always include `<th>` elements for column and row headers
+
+#### Global and Cultural Considerations
+- **Universal dates**: Write "January 15, 2025" not "1/15/25"
+- **Time zones**: Specify zones when referencing specific times
+- **Measurements**: Use metric alongside imperial when relevant
+- **Diverse examples**: Use varied names and scenarios reflecting global audiences
+- **Avoid stereotypes**: Represent different contexts and industries in examples
+
 ### Image Optimization
 - Use Astro's `<Image />` component for automatic optimization
 - Implement responsive images with proper srcset generation
