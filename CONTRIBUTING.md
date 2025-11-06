@@ -1,70 +1,66 @@
-# Contributing to Aspire Documentation
+# Contributing to `aspire.dev`
 
-Thank you for your interest in contributing to the Aspire documentation website! This guide will help you get started with local development and contributing to the project.
+Thank you for your interest in contributing to the aspire.dev! This guide will help you get started with local development and contributing to the project.
 
 ## 📋 Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-- **[.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)** - Required for the Aspire AppHost
-- **[Aspire CLI](https://aspire.dev/get-started/install-cli/)** - For running Aspire
-- **[Node.js](https://nodejs.org/en/download)** (LTS version recommended) - For frontend development
+- **[Node.js](https://nodejs.org/en/download)** (LTS version recommended) - For running the development server
+- **[Visual Studio Code](https://code.visualstudio.com/)** - Recommended code editor
 - **[Git](https://git-scm.com/downloads)** - For version control
 
-## 🛠️ Local Development Setup
+## 🛠️ Local development setup
 
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/microsoft/aspire.dev.git
 cd aspire.dev
 ```
 
-### 2. Run the Development Environment
-
-Use Aspire's orchestration to manage the entire development environment:
+### 2. Install dependencies
 
 ```bash
-aspire run
+npm install
+```
+
+### 3. Run the development server
+
+```bash
+npm run dev
 ```
 
 This will:
 
-- Start the Aspire dashboard
-- Automatically install Node.js dependencies
-- Launch the Vite development server for the frontend
+- Start the Vite development server for the frontend
 - Provide hot-reload capabilities
-- Open your browser to the local site
 
-### 3. Access the Application
+### 4. Access the application
 
 - **Website**: <http://localhost:4321> (or the port shown in your terminal)
-- **Aspire Dashboard**: <https://localhost:17154> (when using AppHost)
 
-## 🏗️ Project Structure
+## 🏗️ Project structure
 
 ```text
-└───📂 src
-   ├───📂 apphost
-   │    └───📂 Aspire.Dev.AppHost    # AppHost (Aspire orchestration)
-   └───📂 frontend                   # Astro + Starlight documentation site
-      ├───📂 src
-      │    ├───📂 components         # Reusable Astro components
-      │    ├───📂 content
-      │    │    ├───📂 docs          # Markdown / MDX documentation pages
-      │    │    └───📂 i18n          # Component translation locales
-      │    ├───📂 data               # JSON integration & metadata
-      │    ├───📂 styles             # Global & theme CSS
-      │    └───📂 assets             # Images, videos, media
-      ├───📂 scripts                 # Build & data update scripts
-      └───📂 public                  # Static assets served as-is
+└───📂 frontend                   # Astro + Starlight documentation site
+   ├───📂 src
+   │    ├───📂 components         # Reusable Astro components
+   │    ├───📂 content
+   │    │    ├───📂 docs          # Markdown / MDX documentation pages
+   │    │    └───📂 i18n          # Component translation locales
+   │    ├───📂 data               # JSON integration & metadata
+   │    ├───📂 styles             # Global & theme CSS
+   │    └───📂 assets             # Images, videos, media
+   ├───📂 scripts                 # Build & data update scripts
+   └───📂 public                  # Static assets served as-is
 ```
 
-## 📝 Making Changes
+## 📝 Making changes
 
-### Documentation Content
+### Documentation content
 
-Documentation is written in either Markdown or [MDX](https://mdxjs.com/docs/what-is-mdx/) and located in `src/frontend/src/content/docs/`. The site uses [Starlight](https://starlight.astro.build) for documentation structure.
+Documentation is written in either Markdown or [MDX](https://mdxjs.com/docs/what-is-mdx/) and located in `frontend/src/content/docs/`. The site uses [Starlight](https://starlight.astro.build) for documentation structure.
 
 Key directories:
 
@@ -73,9 +69,11 @@ Key directories:
 - `reference/` - API and technical references
 - `architecture/` - Architectural guidance
 
-### Adding New Pages
+More directories are being added to cover various topics.
 
-1. Create a new `.md` or `.mdx` file in the appropriate directory under `src/frontend/src/content/docs/`
+### Adding new pages
+
+1. Create a new `.md` or `.mdx` file in the appropriate directory under `frontend/src/content/docs/`
 2. Add frontmatter with title and description:
 
 ```yaml
@@ -87,7 +85,7 @@ description: A brief description of the page content
 
 Write your content in [Markdown](https://starlight.astro.build/guides/authoring-content/).
 
-## 🔧 Available Scripts
+## 🔧 Available scripts
 
 All scripts should be run from the root directory:
 
@@ -109,16 +107,16 @@ Currently, this project focuses on content and doesn't include automated tests. 
 3. **Link Validation**: The build process includes link validation to catch broken links
 4. **Visual Review**: Check that your changes look correct across different screen sizes
 
-## 📐 Code Style and Guidelines
+## 📐 Code style and guidelines
 
-### Markdown Guidelines
+### Markdown guidelines
 
 - Use clear, concise language
 - Include code examples where appropriate
 - Add alt text for images
 - Use proper heading hierarchy (H1 isn't needed as it's the page title, H2 for main sections, etc.)
 
-### Git Workflow
+### Git workflow
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature-name`
@@ -127,7 +125,7 @@ Currently, this project focuses on content and doesn't include automated tests. 
 5. Push to your fork
 6. Create a pull request
 
-## 🆘 Getting Help
+## 🆘 Getting help
 
 - **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/microsoft/aspire.dev/issues)
 - **Discussions**: Join conversations in [GitHub Discussions](https://github.com/microsoft/aspire.dev/discussions)
@@ -137,6 +135,6 @@ Currently, this project focuses on content and doesn't include automated tests. 
 
 By contributing to this project, you agree that your contributions will be licensed under the same license as the project. See [LICENSE](LICENSE) for details.
 
-## 🤝 Code of Conduct
+## 🤝 Code of conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
