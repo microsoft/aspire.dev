@@ -255,6 +255,88 @@ const { options, key, title } = Astro.props;
                   ? storageValue
                   : firstValid;
 
+        function findNearestVisibleHeading() {
+            // Find all headings in the main content area
+            const headings = document.querySelectorAll(
+                "main h1, main h2, main h3, main h4, main h5, main h6",
+            );
+
+            if (headings.length === 0) return null;
+
+            const scrollTop =
+                window.pageYOffset || document.documentElement.scrollTop;
+            const viewportTop = scrollTop;
+
+            // Find the nearest heading above or at the current scroll position
+            let nearestHeading = null;
+            let minDistance = Infinity;
+
+            for (const heading of headings) {
+                // Skip headings that are hidden
+                if (heading.offsetParent === null) continue;
+
+                const rect = heading.getBoundingClientRect();
+                const headingTop = scrollTop + rect.top;
+                const distance = viewportTop - headingTop;
+
+                // We want headings that are above the viewport (distance >= 0)
+                // or just slightly below (within reasonable threshold)
+                if (distance >= -100 && distance < minDistance) {
+                    minDistance = distance;
+                    nearestHeading = heading;
+                }
+            }
+
+            if (!nearestHeading) return null;
+
+            const rect = nearestHeading.getBoundingClientRect();
+            return {
+                id: nearestHeading.id,
+                text: nearestHeading.textContent,
+                offset: rect.top, // Distance from top of viewport
+            };
+        }
+
+        function restoreScrollPosition(anchor) {
+            if (!anchor) return;
+
+            // Try to find the heading by ID first, then by text content
+            let targetHeading = null;
+
+            if (anchor.id) {
+                targetHeading = document.getElementById(anchor.id);
+            }
+
+            if (!targetHeading && anchor.text) {
+                const headings = document.querySelectorAll(
+                    "main h1, main h2, main h3, main h4, main h5, main h6",
+                );
+                for (const heading of headings) {
+                    if (
+                        heading.offsetParent !== null &&
+                        heading.textContent === anchor.text
+                    ) {
+                        targetHeading = heading;
+                        break;
+                    }
+                }
+            }
+
+            if (targetHeading) {
+                // Calculate the scroll position to maintain the same offset
+                const rect = targetHeading.getBoundingClientRect();
+                const scrollTop =
+                    window.pageYOffset || document.documentElement.scrollTop;
+                const targetScrollTop = scrollTop + rect.top - anchor.offset;
+
+                // Use smooth scroll for better UX
+                window.scrollTo({
+                    top: targetScrollTop,
+                    behavior: "instant", // Use 'instant' to avoid jarring effect
+                });
+            }
+        }
+
         function apply(id) {
             if (!id) return;
 
@@ -263,6 +345,9 @@ const { options, key, title } = Astro.props;
                 console.warn(`Invalid pivot option: ${id}`);
                 return;
             }
+
+            // Capture scroll position anchor before changing content
+            const scrollAnchor = findNearestVisibleHeading();
 
             current = id;
 
@@ -283,8 +368,16 @@ const { options, key, title } = Astro.props;
             const blocks = document.querySelectorAll("[data-pivot-block]");
             blocks.forEach((el) => {
                 const blockId = el.dataset.pivotBlock;
-                const shouldShow = blockId === id;
+                // Support multiple IDs separated by comma or semicolon
+                const blockIds = blockId.split(/[,;]/).map(id => id.trim());
+                const shouldShow = blockIds.includes(id);
                 el.style.display = shouldShow ? "" : "none";
+            });
+
+            // Restore scroll position after content change
+            // Use requestAnimationFrame to ensure the new content has been rendered
+            requestAnimationFrame(() => {
+                restoreScrollPosition(scrollAnchor);
             });
         }
 
