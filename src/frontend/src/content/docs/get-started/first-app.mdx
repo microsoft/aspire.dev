@@ -78,7 +78,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
 <Steps>
 
-1. Examine the created template structure. The Aspire CLI creates a new folder named _AspireApp_ in the current directory. This folder contains the solution file and several projects, including:
+1. Examine the created template structure. The Aspire CLI creates a new folder with the name you provided in the current directory. This folder contains the solution file and several projects, including:
 
     <Pivot id="csharp">
     <FileTree>
@@ -113,7 +113,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     - aspire-app/
         - app/  FastAPI mock weather data API
             - .python-version
-            - app.py
+            - main.py
             - pyproject.toml
             - telemetry.py
         - frontend/  Vite + React web front end
@@ -165,7 +165,8 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
     _What's happening here?_
 
-    - `AddProject` registers your API and web frontend services
+    - `CreateBuilder` creates the distributed application builder
+    - `AddProject` registers your API service and web frontend
     - `WithReference` creates a connection between services (the web app can call the API)
     - `WaitFor` ensures services start in the correct order
     - `WithHttpHealthCheck` monitors service health
@@ -180,7 +181,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     var builder = DistributedApplication.CreateBuilder(args);
 
     var app = builder.AddUvicornApp("app", "./app", "main:app")
-        .WithUvEnvironment()
+        .WithUv()
         .WithExternalHttpEndpoints()
         .WithHttpHealthCheck("/health");
 
@@ -195,7 +196,8 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
 
     _What's happening here?_
     
-    - `AddUvicornApp` registers your Python FastAPI backend
+    - `AddUvicornApp` adds a Uvicorn-based Python app
+    - `AddUv` adds a Uv environment setup task: `uv sync`
     - `AddViteApp` registers your React frontend
     - `WithReference` connects the frontend to the API
     - `WaitFor` ensures the API starts before the frontend
@@ -204,7 +206,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     </Pivot>
 
     <Aside type="note" title="Code-first orchestration">
-    Notice how your entire application topology is defined in code, not YAML or JSON. This makes it easy to understand, modify, and version control your app's architecture.
+    Your application topology is defined in code, making it easy to understand, modify, and version control. Learn more about the [AppHost](/get-started/app-host/).
     </Aside>
 
 </Steps>
@@ -306,6 +308,10 @@ import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dar
             alt={`Aspire dashboard Resources page displaying two running and two finished resources: apiservice and webfrontend. Two resources are marked as Running with green check icons while the two dependent resources show as Finished with gray stop icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
     </Pivot>
 
+    <LearnMore>
+         To learn more, see [Aspire dashboard overview](/dashboard/overview/).
+    </LearnMore>
+
 </Steps>
 
 ## Stop the app
@@ -327,11 +333,6 @@ import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dar
 Next, deepen your understanding of Aspire by learning how the AppHost defines your application's architecture, and how deployment and app topology are defined once and reused across environments.
 
 <CardGrid>
-  <LinkCard
-    title="Learn more about the AppHost"
-    description="Discover how to define your application's architecture using Aspire's code-first AppHost approach."
-    href="/get-started/app-host/"
-  />
   <LinkCard
     title="Explore deployment and app topology"
     description="Learn how your development setup translates to production deployments across different platforms."
