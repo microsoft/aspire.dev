@@ -1,5 +1,5 @@
 ---
-import { Code, Icon } from "@astrojs/starlight/components";
+import { Code, Icon, Aside } from "@astrojs/starlight/components";
 
 interface Props {
     id?: string;
@@ -9,7 +9,7 @@ const { id = "install-cli-modal" } = Astro.props;
 ---
 
 <dialog id={id} class="install-cli-modal">
-    <div class="modal-content">
+    <div class="modal-content not-content">
         <div class="modal-header">
             <h2>Install Aspire CLI</h2>
             <button
@@ -24,21 +24,36 @@ const { id = "install-cli-modal" } = Astro.props;
         <div class="modal-body">
             <div class="install-option">
                 <div class="option-header">
-                    <Icon
-                        name="apple"
-                    />
+                    <Icon name="apple" />
                     <h3>macOS</h3>
                 </div>
-                <div class="code-wrapper" data-version="stable">
+                <div class="code-wrapper" data-version="release">
                     <Code
                         lang="bash"
                         code="curl -sSL https://aspire.dev/install.sh | bash"
+                        frame="none"
                     />
                 </div>
-                <div class="code-wrapper" data-version="dev" style="display: none;">
+                <div
+                    class="code-wrapper"
+                    data-version="staging"
+                    style="display: none;"
+                >
                     <Code
                         lang="bash"
-                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -Quality Dev"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q staging"
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="dev"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q dev"
+                        frame="none"
                     />
                 </div>
             </div>
@@ -47,46 +62,113 @@ const { id = "install-cli-modal" } = Astro.props;
                     <Icon name="linux" />
                     <h3>Linux</h3>
                 </div>
-                <div class="code-wrapper" data-version="stable">
+                <div class="code-wrapper" data-version="release">
                     <Code
                         lang="bash"
                         code="curl -sSL https://aspire.dev/install.sh | bash"
+                        frame="none"
                     />
                 </div>
-                <div class="code-wrapper" data-version="dev" style="display: none;">
+                <div
+                    class="code-wrapper"
+                    data-version="staging"
+                    style="display: none;"
+                >
                     <Code
                         lang="bash"
-                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -Quality Dev"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q staging"
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="dev"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q dev"
+                        frame="none"
                     />
                 </div>
             </div>
             <div class="install-option">
                 <div class="option-header">
-                    <Icon name="seti:windows" />
+                    <Icon name="seti:windows" size="1rem !important" />
                     <h3>Windows</h3>
                 </div>
-                <div class="code-wrapper" data-version="stable">
+                <div class="code-wrapper" data-version="release">
                     <Code
                         lang="powershell"
                         code='iex "& { $(irm https://aspire.dev/install.ps1) }"'
+                        frame="none"
                     />
                 </div>
-                <div class="code-wrapper" data-version="dev" style="display: none;">
+                <div
+                    class="code-wrapper"
+                    data-version="staging"
+                    style="display: none;"
+                >
                     <Code
                         lang="powershell"
-                        code='iex "& { $(irm https://aspire.dev/install.ps1) } -Quality Dev"'
+                        code='iex "& { $(irm https://aspire.dev/install.ps1) } -Quality staging"'
+                        frame="none"
                     />
                 </div>
+                <div
+                    class="code-wrapper"
+                    data-version="dev"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="powershell"
+                        code='iex "& { $(irm https://aspire.dev/install.ps1) } -Quality dev"'
+                        frame="none"
+                    />
+                </div>
+            </div>
+
+            <div
+                class="quality-aside"
+                data-quality="staging"
+                style="display: none;"
+            >
+                <Aside type="note">
+                    Prerelease builds - not recommended for production.
+                </Aside>
+            </div>
+
+            <div
+                class="quality-aside"
+                data-quality="dev"
+                style="display: none;"
+            >
+                <Aside type="caution">
+                    Development builds - not fully tested.
+                </Aside>
             </div>
         </div>
 
         <div class="modal-footer">
             <div class="version-selector">
-                <label for="version-select">Version:</label>
+                <label for="version-select">Quality:</label>
                 <div class="select-wrapper">
                     <select id="version-select" class="version-dropdown">
-                        <option value="stable">Stable</option>
-                        <option value="dev">Dev</option>
+                        <option
+                            value="release"
+                            title="Latest stable release - intended for production use"
+                            >Release</option
+                        >
+                        <option
+                            value="staging"
+                            title="Prerelease builds from the current release branch - not recommended for production"
+                            >Staging</option
+                        >
+                        <option
+                            value="dev"
+                            title="Latest builds from main branch - frequently built and not fully tested"
+                            >Dev</option
+                        >
                     </select>
                     <Icon name="down-caret" class="select-icon" />
                 </div>
@@ -100,20 +182,44 @@ const { id = "install-cli-modal" } = Astro.props;
 </dialog>
 
 <script>
-    function updateVersionDisplay(version: "stable" | "dev") {
+    const QUALITY_STORAGE_KEY = "aspire-install-quality";
+
+    function updateVersionDisplay(quality: "release" | "staging" | "dev") {
         const modal = document.getElementById("install-cli-modal");
         if (!modal) return;
 
-        // Toggle visibility of code blocks based on version
-        const codeWrappers = modal.querySelectorAll(".code-wrapper");
-        codeWrappers.forEach((wrapper) => {
-            const wrapperVersion = wrapper.getAttribute("data-version");
-            if (wrapperVersion === version) {
-                (wrapper as HTMLElement).style.display = "block";
-            } else {
-                (wrapper as HTMLElement).style.display = "none";
+        // Toggle visibility of code blocks and quality notes
+        modal
+            .querySelectorAll<HTMLElement>(".code-wrapper, .quality-aside")
+            .forEach((element) => {
+                const version =
+                    element.getAttribute("data-version") ||
+                    element.getAttribute("data-quality");
+                element.style.display = version === quality ? "block" : "none";
+            });
+
+        // Save to localStorage
+        try {
+            localStorage.setItem(QUALITY_STORAGE_KEY, quality);
+        } catch {
+            // Ignore localStorage errors (private browsing, etc.)
+        }
+    }
+
+    function getStoredQuality(): "release" | "staging" | "dev" {
+        try {
+            const stored = localStorage.getItem(QUALITY_STORAGE_KEY);
+            if (
+                stored === "release" ||
+                stored === "staging" ||
+                stored === "dev"
+            ) {
+                return stored;
             }
-        });
+        } catch {
+            // Ignore localStorage errors
+        }
+        return "release";
     }
 
     function initializeModal() {
@@ -122,48 +228,44 @@ const { id = "install-cli-modal" } = Astro.props;
         ) as HTMLDialogElement;
         if (!modal) return;
 
-        // Version selector handler
-        const versionSelect = modal.querySelector("#version-select") as HTMLSelectElement;
+        const versionSelect = modal.querySelector(
+            "#version-select",
+        ) as HTMLSelectElement;
         const selectIcon = modal.querySelector(".select-icon") as HTMLElement;
-        
+        const openBtn = document.querySelector("[data-open-install-modal]");
+        const closeBtn = modal.querySelector("[data-close-modal]");
+
+        // Quality selector change handler
         if (versionSelect) {
             versionSelect.addEventListener("change", (e) => {
-                const version = (e.target as HTMLSelectElement).value as "stable" | "dev";
-                updateVersionDisplay(version);
+                const quality = (e.target as HTMLSelectElement).value as
+                    | "release"
+                    | "staging"
+                    | "dev";
+                updateVersionDisplay(quality);
+                selectIcon?.classList.remove("rotated");
             });
 
-            // Rotate icon when dropdown is opened/closed
-            versionSelect.addEventListener("mousedown", () => {
-                if (selectIcon) {
-                    selectIcon.classList.add("rotated");
-                }
-            });
-
-            versionSelect.addEventListener("blur", () => {
-                if (selectIcon) {
-                    selectIcon.classList.remove("rotated");
-                }
-            });
-
-            versionSelect.addEventListener("change", () => {
-                if (selectIcon) {
-                    selectIcon.classList.remove("rotated");
-                }
-            });
+            // Dropdown visual feedback
+            versionSelect.addEventListener("mousedown", () =>
+                selectIcon?.classList.add("rotated"),
+            );
+            versionSelect.addEventListener("blur", () =>
+                selectIcon?.classList.remove("rotated"),
+            );
         }
 
         // Open modal and position it
-        const openBtn = document.querySelector("[data-open-install-modal]");
         if (openBtn) {
             openBtn.addEventListener("click", (e) => {
                 e.preventDefault();
-                
+
                 // On mobile/smaller screens, navigate to the full page instead
                 if (window.innerWidth < 1600) {
-                    window.location.href = '/get-started/install-cli/';
+                    window.location.href = "/get-started/install-cli/";
                     return;
                 }
-                
+
                 modal.showModal();
 
                 // Position modal below the button
@@ -173,41 +275,36 @@ const { id = "install-cli-modal" } = Astro.props;
                 ) as HTMLElement;
 
                 if (modalContent) {
-                    // Position below button with some spacing
                     modalContent.style.position = "absolute";
                     modalContent.style.top = `${btnRect.bottom + 8}px`;
                     modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
                 }
 
-                // Reset to stable version when opening
+                // Load stored quality or default to release
                 if (versionSelect) {
-                    versionSelect.value = "stable";
-                    updateVersionDisplay("stable");
+                    const storedQuality = getStoredQuality();
+                    versionSelect.value = storedQuality;
+                    updateVersionDisplay(storedQuality);
                 }
             });
         }
 
         // Close modal handlers
-        const closeBtn = modal.querySelector("[data-close-modal]");
-        if (closeBtn) {
-            closeBtn.addEventListener("click", () => {
-                modal.close();
-            });
-        }
+        closeBtn?.addEventListener("click", () => modal.close());
 
-        // Close on backdrop click (click outside the modal content)
+        // Close on backdrop click
         modal.addEventListener("click", (e) => {
-            const modalContent = modal.querySelector(".modal-content");
-            if (modalContent && e.target === modal) {
-                modal.close();
-            }
+            if (e.target === modal) modal.close();
         });
 
         // Close on Escape key
         modal.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") {
-                modal.close();
-            }
+            if (e.key === "Escape") modal.close();
+        });
+
+        // Close modal if window is resized below 1600px width
+        window.addEventListener("resize", () => {
+            if (window.innerWidth < 1600 && modal.open) modal.close();
         });
     }
 
@@ -276,7 +373,7 @@ const { id = "install-cli-modal" } = Astro.props;
         align-items: center;
         justify-content: center;
         color: var(--sl-color-text);
-        border-radius: 6px;
+        border-radius: 0.375rem;
         transition:
             background-color 0.2s,
             opacity 0.2s;
@@ -306,25 +403,19 @@ const { id = "install-cli-modal" } = Astro.props;
         gap: 0.5rem;
     }
 
-    .shell-icon {
-        color: var(--sl-color-text-accent);
-        width: 20px;
-        height: 20px;
-    }
-
     .option-header h3 {
         margin: 0;
         font-size: 1rem;
         font-weight: 600;
-        color: var(--sl-color-text);
     }
 
-    .code-wrapper {
-        margin: 0;
-    }
-
+    .code-wrapper,
     .code-wrapper :global(figure) {
         margin: 0;
+    }
+
+    .quality-aside {
+        margin-top: 1rem;
     }
 
     .modal-footer {
@@ -363,10 +454,8 @@ const { id = "install-cli-modal" } = Astro.props;
         color: var(--sl-color-text);
         font-size: 0.875rem;
         cursor: pointer;
-        transition: border-color 0.2s, background-color 0.2s;
+        transition: border-color 0.2s;
         appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
     }
 
     .select-icon {
