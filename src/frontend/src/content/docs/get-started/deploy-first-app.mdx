@@ -1,0 +1,401 @@
+---
+title: Deploy your first Aspire app
+description: Learn how to deploy your first Aspire application to the cloud.
+next: false
+---
+
+import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
+import Expand from '@components/Expand.astro';
+import LearnMore from '@components/LearnMore.astro';
+import InstallPackage from '@components/InstallPackage.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript (coming soon)", disabled: true },
+    ]}
+/>
+
+In this tutorial, you take the app you created in the [Build your first Aspire app](/get-started/first-app) quickstart and deploy it. This can be broken down into three main steps:
+
+<Steps>
+1. [Add deployment package](#add-deployment-package) — Add the hosting package for your target.
+1. [Update your AppHost](#update-your-apphost) — Configure the environment API.
+1. [Deploy your app](#deploy-your-app) — Deploy using the Aspire CLI.
+</Steps>
+
+## Add deployment package
+
+In the root directory of your Aspire solution that you created in the previous quickstart, add the appropriate hosting deployment package by running the following command in your terminal:
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="azure" label="Azure">
+
+        ```bash title="Aspire CLI — Add Azure App Containers"
+        aspire add azure-appcontainers
+        ```
+
+        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) version you want to use.
+
+    </TabItem>
+    <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+
+        ```bash title="Aspire CLI — Add Docker Compose"
+        aspire add docker
+        ```
+
+        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) version you want to use.
+
+    </TabItem>
+
+    <LearnMore>
+    Learn more about the `aspire add` command in the [reference docs](/reference/cli/commands/aspire-add/).
+    </LearnMore>
+</Tabs>
+
+## Update your AppHost
+
+In the AppHost, be sure to add the appropriate environment API.
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="azure" label="Azure">
+
+        <Pivot id="csharp">
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3}
+            var builder = DistributedApplication.CreateBuilder(args);
+
+            builder.AddAzureAppContainerEnvironment("env");
+
+            var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+                .WithHttpHealthCheck("/health");
+
+            builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+                .WithExternalHttpEndpoints()
+                .WithHttpHealthCheck("/health")
+                .WithReference(apiService)
+                .WaitFor(apiService);
+
+            builder.Build().Run();
+            ```
+        </Pivot>
+        <Pivot id="python">
+        ```csharp title="C# — apphost.cs file-based orchestrator" {4,8}
+        #:sdk Aspire.AppHost.Sdk@13.0.0
+        #:package Aspire.Hosting.JavaScript@13.0.0
+        #:package Aspire.Hosting.Python@13.0.0
+        #:package Aspire.Hosting.Azure.AppContainers@13.0.0
+
+        var builder = DistributedApplication.CreateBuilder(args);
+
+        builder.AddAzureAppContainerEnvironment("env");
+
+        var app = builder.AddUvicornApp("app", "./app", "main:app")
+            .WithUv()
+            .WithExternalHttpEndpoints()
+            .WithHttpHealthCheck("/health");
+
+        var frontend = builder.AddViteApp("frontend", "./frontend")
+            .WithReference(app)
+            .WaitFor(app);
+
+        app.PublishWithContainerFiles(frontend, "./static");
+
+        builder.Build().Run();
+        ```
+        </Pivot>
+
+    </TabItem>
+    <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+
+            <Pivot id="csharp">
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3}
+            var builder = DistributedApplication.CreateBuilder(args);
+
+            builder.AddDockerComposeEnvironment("env");
+
+            var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+                .WithHttpHealthCheck("/health");
+
+            builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+                .WithExternalHttpEndpoints()
+                .WithHttpHealthCheck("/health")
+                .WithReference(apiService)
+                .WaitFor(apiService);
+
+            builder.Build().Run();
+            ```
+        </Pivot>
+        <Pivot id="python">
+        ```csharp title="C# — apphost.cs file-based orchestrator" {4,8}
+        #:sdk Aspire.AppHost.Sdk@13.0.0
+        #:package Aspire.Hosting.JavaScript@13.0.0
+        #:package Aspire.Hosting.Python@13.0.0
+        #:package Aspire.Hosting.Docker@13.0.0
+
+        var builder = DistributedApplication.CreateBuilder(args);
+
+        builder.AddDockerComposeEnvironment("env");
+
+        var app = builder.AddUvicornApp("app", "./app", "main:app")
+            .WithUv()
+            .WithExternalHttpEndpoints()
+            .WithHttpHealthCheck("/health");
+
+        var frontend = builder.AddViteApp("frontend", "./frontend")
+            .WithReference(app)
+            .WaitFor(app);
+
+        app.PublishWithContainerFiles(frontend, "./static");
+
+        builder.Build().Run();
+        ```
+        </Pivot>
+
+    </TabItem>
+
+    <LearnMore>
+    For a deep-dive into the foundational concepts, see [Deployment and app topology](/get-started/deployment/).
+    </LearnMore>
+</Tabs>
+
+## Deploy your app
+
+Now that you've added the deployment package and updated your AppHost, you can deploy your Aspire app.
+
+```bash title="Aspire CLI — Deploy your app"
+aspire deploy
+```
+
+<Aside type="tip" title="Common pitfall..." icon="seti:todo">
+If you call `aspire deploy` and you see output similar to the following, be sure that you've actually [updated your AppHost](#update-your-apphost) to include the appropriate environment API for your target.
+
+```bash title="Aspire CLI - Empty deployment output"
+14:17:26 (pipeline execution) → Starting pipeline execution...
+14:17:26 (deploy) → Starting deploy...
+14:17:26 (deploy) ✓ deploy completed successfully
+14:17:26 (pipeline execution) ✓ Completed successfully
+------------------------------------------------------------
+✓ 2/2 steps succeeded • Total time: 0.0s
+
+Steps Summary:
+   0.0 s  ✓ pipeline execution
+   0.0 s  ✓ deploy
+
+✓ PIPELINE SUCCEEDED
+------------------------------------------------------------
+```
+</Aside>
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="azure" label="Azure">
+
+    <Pivot id="csharp">
+    ```bash
+
+    ```
+    </Pivot>
+    <Pivot id="python">
+    ```bash
+    ```
+    </Pivot>
+
+    </TabItem>
+    <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+
+    Deploying to Docker Compose builds the container images and starts the services locally using Docker Compose. Consider the following example output:
+
+    <Pivot id="csharp">
+    
+    ```bash title="Aspire CLI - Deploy ASP.NET Core/Blazor app with Docker Compose"
+    14:28:15 (pipeline execution) → Starting pipeline execution...
+    14:28:15 (build-prereq) → Starting build-prereq...
+    14:28:15 (publish-env) → Starting publish-env...
+    14:28:15 (deploy-prereq) → Starting deploy-prereq...
+    14:28:15 (build-prereq) ✓ build-prereq completed successfully
+    14:28:15 (deploy-prereq) i [INF] Initializing deployment for environment 'Production'
+    14:28:15 (publish-env) i [INF] Generating Compose output
+    14:28:15 (deploy-prereq) i [INF] Setting default deploy tag 'aspire-deploy-20251107202815' for compute resource(s).
+    14:28:15 (deploy-prereq) ✓ deploy-prereq completed successfully
+    14:28:15 (build-webfrontend) → Starting build-webfrontend...
+    14:28:15 (build-apiservice) → Starting build-apiservice...
+    14:28:15 (publish-env) → Writing the Docker Compose file to the output path.
+    14:28:15 (build-webfrontend) i [INF] Building container image for resource webfrontend
+    14:28:15 (build-apiservice) i [INF] Building container image for resource apiservice
+    14:28:15 (build-webfrontend) i [INF] Building image: webfrontend
+    14:28:15 (publish-env) ✓ Docker Compose file written successfully to .\AspireApp\AspireApp.AppHost\aspire-output\docker-compose.yaml. (0.0s)
+    14:28:15 (publish-env) ✓ publish-env completed successfully
+    14:28:15 (publish) → Starting publish...
+    14:28:15 (publish) ✓ publish completed successfully
+    14:28:28 (build-webfrontend) i [INF] Building image for webfrontend completed
+    14:28:28 (build-apiservice) i [INF] Building image: apiservice
+    14:28:28 (build-webfrontend) ✓ build-webfrontend completed successfully
+    14:28:32 (build-apiservice) i [INF] Building image for apiservice completed
+    14:28:32 (build-apiservice) ✓ build-apiservice completed successfully
+    14:28:32 (build) → Starting build...
+    14:28:32 (build) ✓ build completed successfully
+    14:28:32 (prepare-env) → Starting prepare-env...
+    14:28:32 (prepare-env) ✓ prepare-env completed successfully
+    14:28:32 (docker-compose-up-env) → Starting docker-compose-up-env...
+    14:28:32 (docker-compose-up-env) → Running docker compose up for env
+    14:28:35 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (2.3s)
+    14:28:35 (docker-compose-up-env) ✓ docker-compose-up-env completed successfully
+    14:28:35 (deploy) → Starting deploy...
+    14:28:35 (deploy) ✓ deploy completed successfully
+    14:28:35 (pipeline execution) ✓ Completed successfully
+    ------------------------------------------------------------
+    ✓ 11/11 steps succeeded • Total time: 20.0s
+
+    Steps Summary:
+    19.9 s  ✓ pipeline execution
+    17.6 s  ✓ build-apiservice
+    12.9 s  ✓ build-webfrontend
+    2.3 s  ✓ docker-compose-up-env
+    0.0 s  ✓ publish-env
+    0.0 s  ✓ deploy-prereq
+    0.0 s  ✓ build-prereq
+    0.0 s  ✓ build
+    0.0 s  ✓ prepare-env
+    0.0 s  ✓ deploy
+    0.0 s  ✓ publish
+
+    ✓ PIPELINE SUCCEEDED
+    ------------------------------------------------------------
+    ```
+
+    </Pivot>
+    <Pivot id="python">
+
+    ```bash title="Aspire CLI - Deploy Python/React app with Docker Compose"
+    13:23:29 (pipeline execution) → Starting pipeline execution...
+    13:23:29 (publish-env) → Starting publish-env...
+    13:23:29 (build-prereq) → Starting build-prereq...
+    13:23:29 (deploy-prereq) → Starting deploy-prereq...
+    13:23:29 (build-prereq) ✓ build-prereq completed successfully
+    13:23:29 (deploy-prereq) i [INF] Initializing deployment for environment 'Production'
+    13:23:29 (publish-env) i [INF] Generating Compose output
+    13:23:29 (deploy-prereq) i [INF] Setting default deploy tag 'aspire-deploy-20251107192329' for compute resource(s).
+    13:23:29 (deploy-prereq) ✓ deploy-prereq completed successfully
+    13:23:29 (build-frontend) → Starting build-frontend...
+    13:23:29 (build-frontend) i [INF] Building container image for resource frontend
+    13:23:29 (build-frontend) i [INF] Building image: frontend
+    13:23:29 (publish-env) → Writing the Docker Compose file to the output path.
+    13:23:29 (publish-env) ✓ Docker Compose file written successfully to ./aspire-app/aspire-output/docker-compose.yaml. (0.0s)
+    13:23:29 (publish-env) ✓ publish-env completed successfully
+    13:23:29 (publish) → Starting publish...
+    13:23:29 (publish) ✓ publish completed successfully
+    13:23:51 (build-frontend) i [INF] docker buildx for frontend:5ee04da8ac438e73afdb5ab3a7b551d3be1a5feb succeeded.
+    13:23:51 (build-frontend) i [INF] Building image for frontend completed
+    13:23:51 (build-frontend) ✓ build-frontend completed successfully
+    13:23:51 (build-app) → Starting build-app...
+    13:23:51 (build-app) i [INF] Building container image for resource app
+    13:23:51 (build-app) i [INF] Building image: app
+    13:24:07 (build-app) i [INF] docker buildx for app:5d592d0c1d2f417b0c14c4c4a9efb4f0760be8e4 succeeded.
+    13:24:07 (build-app) i [INF] Building image for app completed
+    13:24:07 (build-app) ✓ build-app completed successfully
+    13:24:07 (build) → Starting build...
+    13:24:07 (build) ✓ build completed successfully
+    13:24:07 (prepare-env) → Starting prepare-env...
+    13:24:07 (prepare-env) ✓ prepare-env completed successfully
+    13:24:07 (docker-compose-up-env) → Starting docker-compose-up-env...
+    13:24:07 (docker-compose-up-env) → Running docker compose up for env
+    13:24:13 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (5.6s)
+    13:24:13 (docker-compose-up-env) ✓ docker-compose-up-env completed successfully
+    13:24:13 (deploy) → Starting deploy...
+    13:24:13 (deploy) ✓ deploy completed successfully
+    13:24:13 (pipeline execution) ✓ Completed successfully
+    ------------------------------------------------------------
+    ✓ 11/11 steps succeeded • Total time: 44.1s
+
+    Steps Summary:
+    44.0 s  ✓ pipeline execution
+    22.2 s  ✓ build-frontend
+    16.3 s  ✓ build-app
+    5.6 s  ✓ docker-compose-up-env
+    0.0 s  ✓ publish-env
+    0.0 s  ✓ deploy-prereq
+    0.0 s  ✓ build-prereq
+    0.0 s  ✓ deploy
+    0.0 s  ✓ build
+    0.0 s  ✓ prepare-env
+    0.0 s  ✓ publish
+
+    ✓ PIPELINE SUCCEEDED
+    ------------------------------------------------------------
+    ```
+
+    </Pivot>
+
+    </TabItem>
+</Tabs>
+
+<LearnMore>
+Additional information about this command can be found in the [`aspire deploy`](/reference/cli/commands/aspire-deploy/) reference docs.
+</LearnMore>
+
+## Verify your deployment
+
+import csharpStarterPng from "@assets/get-started/csharp-starter.png";
+import pythonStarterDarkPng from "@assets/get-started/python-starter-dark.png";
+import pythonStarterLightPng from "@assets/get-started/python-starter-light.png";
+
+After deployment, verify that your application is running as expected.
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="azure" label="Azure">
+
+        <Pivot id="csharp">
+
+        </Pivot>
+        <Pivot id="python">
+
+        </Pivot>
+
+    </TabItem>
+    <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+
+        When deploying to Docker Compose, you can verify that your application is running by navigating to `http://localhost:{PORT}` in your web browser, where `{PORT}` is the port number you configured for your web frontend service in your Aspire application.
+
+        ```bash
+        docker ps
+        ```
+
+        <Pivot id="csharp">
+
+        After running the above command, look for an image with a name starting with `webfrontend:latest` and a `COMMAND` value similar to `dotnet /app/AspireApp.W...`. This indicates that your ASP.NET Core/Blazor application is running successfully.
+        
+        Find the port number in the `PORTS` column—it will look similar to `0.0.0.0:55445->80/tcp`. Open your web browser and navigate to `http://localhost:55445` (replace `55445` with your actual port number) to see your deployed application.
+
+        <ThemeImage
+            light={csharpStarterPng}
+            dark={csharpStarterPng}
+            alt="Deployed ASP.NET Core/Blazor application running in Docker Compose"
+        />
+
+        </Pivot>
+        <Pivot id="python">
+        
+        After running the above command, look for an image with a name starting with `app:` followed by a SHA hash (for example, `app:1b50e6124ca45c2d2539808a72664d40cfeed109`) and a `COMMAND` value of `uvicorn main:app...`. This indicates that your Python/React application is running successfully. 
+        
+        Find the port number in the `PORTS` column—it will look similar to `0.0.0.0:53588->80/tcp`. Open your web browser and navigate to `http://localhost:53588` (replace `53588` with your actual port number) to see your deployed application.
+
+        <ThemeImage
+            light={pythonStarterLightPng}
+            dark={pythonStarterDarkPng}
+            alt="Deployed Python/React application running in Docker Compose"
+        />
+
+        </Pivot>
+
+    </TabItem>
+
+    <LearnMore>
+    For a deep-dive into the foundational concepts, see [Deployment and app topology](/get-started/deployment/).
+    </LearnMore>
+</Tabs>
