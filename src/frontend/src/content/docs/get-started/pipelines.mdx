@@ -72,6 +72,8 @@ The pipeline deployment system enables several key capabilities:
 
 ## Core concepts
 
+The pipeline system is built around several fundamental concepts that work together to provide flexible, efficient deployment orchestration.
+
 ### Pipeline steps
 
 A pipeline step represents a discrete unit of work in the application pipeline. Each step encapsulates a specific aspect of the deployment process, making the overall operation more manageable and debuggable.
@@ -133,8 +135,8 @@ Dependencies in Aspire pipelines are explicit and purpose-driven, unlike traditi
 
 Steps declare their relationships using:
 
-- **DependsOn**: This step must run after another step completes successfully
-- **RequiredBy**: Another step must run after this step (inverse dependency declaration)
+- `PipelineStep.DependsOn`: This step must run after another step completes successfully
+- `PipelineStep.RequiredBy`: Another step must run after this step (inverse dependency declaration)
 
 **Example dependency relationships:**
 
@@ -218,10 +220,13 @@ graph LR
 ```
 
 Each step handles a specific aspect of static site deployment:
+
+<Steps>
 1. **Building site artifacts**: Compile, optimize, and prepare static files
 2. **Configuring storage permissions**: Set up appropriate access controls  
 3. **Uploading files**: Transfer built artifacts to cloud storage
 4. **Configuring CDN**: Set up content distribution and routing
+</Steps>
 
 This approach keeps deployment logic close to the resource definition while allowing the pipeline system to optimize execution order and handle dependencies automatically.
 
@@ -260,6 +265,8 @@ builder.Services.Configure<DistributedApplicationPipelineOptions>(options =>
 This pattern enables applications to extend the deployment process with custom logic while benefiting from the pipeline's dependency management and execution coordination.
 
 ## Execution control
+
+The pipeline system provides sophisticated mechanisms for controlling how and when deployment steps are executed, giving you precise control over the deployment process.
 
 ### Running specific steps
 
@@ -325,9 +332,11 @@ A typical web application deployment demonstrates the effectiveness of pipeline 
 
 The pipeline system provides robust failure handling during parallel execution:
 
+<Steps>
 1. **Immediate failure detection**: Failed steps are identified and reported quickly without waiting for unrelated operations to complete
 2. **Smart dependency cascade prevention**: When a step fails, only its dependent steps are cancelled, allowing unrelated operations to continue
 3. **Partial success preservation**: Successfully completed steps maintain their state and don't need to be repeated during retry operations
 4. **Error isolation**: Failures in one part of the pipeline are contained and don't affect independent operations
+</Steps>
 
 The system maintains comprehensive logging and state information to support efficient debugging and recovery, ensuring that developers can quickly identify and resolve issues while preserving all successful work.
