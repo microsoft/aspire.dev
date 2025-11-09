@@ -23,12 +23,14 @@ import ThemeImage from '@components/ThemeImage.astro';
     ]}
 />
 
-In this tutorial, you take the app you created in the [Build your first Aspire app](/get-started/first-app) quickstart and deploy it. This can be broken down into three main steps:
+In this tutorial, you take the app you created in the [Build your first Aspire app](/get-started/first-app) quickstart and deploy it. This can be broken down into several key steps:
 
 <Steps>
 1. [Add deployment package](#add-deployment-package) — Add the hosting package for your target.
 1. [Update your AppHost](#update-your-apphost) — Configure the environment API.
 1. [Deploy your app](#deploy-your-app) — Deploy using the Aspire CLI.
+1. [Verify your deployment](#verify-your-deployment) — Ensure your app is running as expected.
+1. [Clean up resources](#clean-up-resources) — Remove any deployed resources to avoid incurring costs.
 </Steps>
 
 ## Add deployment package
@@ -364,12 +366,19 @@ After deployment, verify that your application is running as expected.
 
         ```bash
         docker ps
-        ```
+        ```        
 
         <Pivot id="csharp">
 
         After running the above command, look for an image with a name starting with `webfrontend:latest` and a `COMMAND` value similar to `dotnet /app/AspireApp.W...`. This indicates that your ASP.NET Core/Blazor application is running successfully.
         
+
+        ```docker title="Docker CLI - List running containers" "0.0.0.0:55445->80/tcp"
+        CONTAINER ID  IMAGE               COMMAND                CREATED         STATUS        PORTS                  NAMES
+        d4f1e8c3b6a1  webfrontend:latest  "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds  0.0.0.0:55445->80/tcp  aspire_app_webfrontend_1
+        a1b2c3d4e5f6  apiservice:latest   "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds                         aspire_app_apiservice_1
+        ```
+
         Find the port number in the `PORTS` column—it will look similar to `0.0.0.0:55445->80/tcp`. Open your web browser and navigate to `http://localhost:55445` (replace `55445` with your actual port number) to see your deployed application.
 
         <ThemeImage
@@ -378,11 +387,18 @@ After deployment, verify that your application is running as expected.
             alt="Deployed ASP.NET Core/Blazor application running in Docker Compose"
         />
 
+        The front end displays the weather forecast data in the ASP.NET Core Blazor application.
+
         </Pivot>
         <Pivot id="python">
         
-        After running the above command, look for an image with a name starting with `app:` followed by a SHA hash (for example, `app:1b50e6124ca45c2d2539808a72664d40cfeed109`) and a `COMMAND` value of `uvicorn main:app...`. This indicates that your Python/React application is running successfully. 
+        After running the above command, look for an image with a name starting with `app:` followed by a SHA hash (for example, `app:1b50e6124ca45c2d2539808a72664d40cfeed109`) and a `COMMAND` value of `uvicorn main:app...`. This indicates that your Python/React application is running successfully.
         
+        ```docker title="Docker CLI - List running containers" "0.0.0.0:53588->80/tcp"
+        CONTAINER ID  IMAGE          COMMAND              CREATED         STATUS         PORTS                  NAMES
+        e7b8c9d0f1a2  app:1b50e6...  "uvicorn main:app…"  15 seconds ago  Up 12 seconds  0.0.0.0:53588->80/tcp  aspire_app_frontend_1
+        ```
+
         Find the port number in the `PORTS` column—it will look similar to `0.0.0.0:53588->80/tcp`. Open your web browser and navigate to `http://localhost:53588` (replace `53588` with your actual port number) to see your deployed application.
 
         <ThemeImage
@@ -391,6 +407,8 @@ After deployment, verify that your application is running as expected.
             alt="Deployed Python/React application running in Docker Compose"
         />
 
+        The front end displays the weather forecast data in a stunning React template.
+
         </Pivot>
 
     </TabItem>
@@ -398,4 +416,9 @@ After deployment, verify that your application is running as expected.
     <LearnMore>
     For a deep-dive into the foundational concepts, see [Deployment and app topology](/get-started/deployment/).
     </LearnMore>
+
 </Tabs>
+
+## Clean up resources
+
+If you have deployed your application to a cloud provider such as Azure, it's important to clean up any resources you created during the deployment process to avoid incurring unnecessary costs. Likewise, if you have deployed your application locally using Docker Compose, you should stop and remove the running containers.
