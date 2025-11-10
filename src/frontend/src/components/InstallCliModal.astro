@@ -1,0 +1,563 @@
+---
+import { Code, Icon, Aside } from "@astrojs/starlight/components";
+
+interface Props {
+    id?: string;
+}
+
+const { id = "install-cli-modal" } = Astro.props;
+---
+
+<dialog id={id} class="install-cli-modal">
+    <div class="modal-content not-content">
+        <div class="modal-header">
+            <h2>Install Aspire CLI</h2>
+            <button
+                class="modal-close"
+                aria-label="Close modal"
+                data-close-modal
+            >
+                <Icon name="close" />
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <div class="install-option">
+                <div class="option-header">
+                    <Icon name="apple" />
+                    <h3>macOS</h3>
+                </div>
+                <div class="code-wrapper" data-version="release">
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash"
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="staging"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q staging"
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="dev"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q dev"
+                        frame="none"
+                    />
+                </div>
+            </div>
+            <div class="install-option">
+                <div class="option-header">
+                    <Icon name="linux" />
+                    <h3>Linux</h3>
+                </div>
+                <div class="code-wrapper" data-version="release">
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash"
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="staging"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q staging"
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="dev"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="bash"
+                        code="curl -sSL https://aspire.dev/install.sh | bash -s -- -q dev"
+                        frame="none"
+                    />
+                </div>
+            </div>
+            <div class="install-option">
+                <div class="option-header">
+                    <Icon name="seti:windows" size="1rem !important" />
+                    <h3>Windows</h3>
+                </div>
+                <div class="code-wrapper" data-version="release">
+                    <Code
+                        lang="powershell"
+                        code='iex "& { $(irm https://aspire.dev/install.ps1) }"'
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="staging"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="powershell"
+                        code='iex "& { $(irm https://aspire.dev/install.ps1) } -Quality staging"'
+                        frame="none"
+                    />
+                </div>
+                <div
+                    class="code-wrapper"
+                    data-version="dev"
+                    style="display: none;"
+                >
+                    <Code
+                        lang="powershell"
+                        code='iex "& { $(irm https://aspire.dev/install.ps1) } -Quality dev"'
+                        frame="none"
+                    />
+                </div>
+            </div>
+
+            <div
+                class="quality-aside"
+                data-quality="staging"
+                style="display: none;"
+            >
+                <Aside type="note">
+                    Prerelease builds. Not for production.
+                </Aside>
+            </div>
+
+            <div
+                class="quality-aside"
+                data-quality="dev"
+                style="display: none;"
+            >
+                <Aside type="caution"> Latest builds. May be unstable. </Aside>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <a href="/get-started/install-cli/" class="learn-more-link">
+                More installation options
+                <Icon name="right-arrow" />
+            </a>
+            <div class="version-selector">
+                <label for="version-select">Channel:</label>
+                <div class="select-wrapper">
+                    <select id="version-select" class="version-dropdown">
+                        <option
+                            value="release"
+                            title="Latest stable release - intended for production use"
+                            >Stable</option
+                        >
+                        <option
+                            value="staging"
+                            title="Prerelease builds from the current release branch - not recommended for production"
+                            >Staging</option
+                        >
+                        <option
+                            value="dev"
+                            title="Latest builds from main branch - frequently built and not fully tested"
+                            >Dev</option
+                        >
+                    </select>
+                    <Icon name="down-caret" class="select-icon" />
+                </div>
+                <a
+                    href="/reference/cli/install-script/#options"
+                    class="info-icon"
+                    target="_blank"
+                >
+                    <Icon
+                        name="information"
+                        color="var(--sl-color-text-accent)"
+                    />
+                </a>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    const QUALITY_STORAGE_KEY = "aspire-install-channel";
+
+    function updateVersionDisplay(quality: "release" | "staging" | "dev") {
+        const modal = document.getElementById("install-cli-modal");
+        if (!modal) return;
+
+        // Toggle visibility of code blocks and quality notes
+        modal
+            .querySelectorAll<HTMLElement>(".code-wrapper, .quality-aside")
+            .forEach((element) => {
+                const version =
+                    element.getAttribute("data-version") ||
+                    element.getAttribute("data-quality");
+                element.style.display = version === quality ? "block" : "none";
+            });
+
+        // Save to localStorage
+        try {
+            localStorage.setItem(QUALITY_STORAGE_KEY, quality);
+        } catch {
+            // Ignore localStorage errors (private browsing, etc.)
+        }
+    }
+
+    function getStoredQuality(): "release" | "staging" | "dev" {
+        try {
+            const stored = localStorage.getItem(QUALITY_STORAGE_KEY);
+            if (
+                stored === "release" ||
+                stored === "staging" ||
+                stored === "dev"
+            ) {
+                return stored;
+            }
+        } catch {
+            // Ignore localStorage errors
+        }
+        return "release";
+    }
+
+    function initializeModal() {
+        const modal = document.getElementById(
+            "install-cli-modal",
+        ) as HTMLDialogElement;
+        if (!modal) return;
+
+        const versionSelect = modal.querySelector(
+            "#version-select",
+        ) as HTMLSelectElement;
+        const selectIcon = modal.querySelector(".select-icon") as HTMLElement;
+        const openBtn = document.querySelector("[data-open-install-modal]");
+        const closeBtn = modal.querySelector("[data-close-modal]");
+
+        // Quality selector change handler
+        if (versionSelect) {
+            versionSelect.addEventListener("change", (e) => {
+                const quality = (e.target as HTMLSelectElement).value as
+                    | "release"
+                    | "staging"
+                    | "dev";
+                updateVersionDisplay(quality);
+                selectIcon?.classList.remove("rotated");
+            });
+
+            // Dropdown visual feedback
+            versionSelect.addEventListener("mousedown", () =>
+                selectIcon?.classList.add("rotated"),
+            );
+            versionSelect.addEventListener("blur", () =>
+                selectIcon?.classList.remove("rotated"),
+            );
+        }
+
+        // Open modal and position it
+        if (openBtn) {
+            openBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+
+                // On mobile/smaller screens, navigate to the full page instead
+                if (window.innerWidth < 1600) {
+                    window.location.href = "/get-started/install-cli/";
+                    return;
+                }
+
+                modal.showModal();
+
+                // Position modal below the button
+                const btnRect = openBtn.getBoundingClientRect();
+                const modalContent = modal.querySelector(
+                    ".modal-content",
+                ) as HTMLElement;
+
+                if (modalContent) {
+                    modalContent.style.position = "absolute";
+                    modalContent.style.top = `${btnRect.bottom + 8}px`;
+                    modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
+                }
+
+                // Load stored quality or default to release
+                if (versionSelect) {
+                    const storedQuality = getStoredQuality();
+                    versionSelect.value = storedQuality;
+                    updateVersionDisplay(storedQuality);
+                }
+            });
+        }
+
+        // Close modal handlers
+        closeBtn?.addEventListener("click", () => modal.close());
+
+        // Close on backdrop click
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) modal.close();
+        });
+
+        // Close on Escape key
+        modal.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") modal.close();
+        });
+
+        // Close modal if window is resized below 1600px width
+        window.addEventListener("resize", () => {
+            if (window.innerWidth < 1600 && modal.open) modal.close();
+        });
+    }
+
+    // Initialize on page load
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initializeModal);
+    } else {
+        initializeModal();
+    }
+
+    // Re-initialize on navigation with View Transitions
+    document.addEventListener("astro:page-load", initializeModal);
+</script>
+
+<style>
+    .install-cli-modal {
+        border: none;
+        padding: 0;
+        background: transparent;
+        margin: 0;
+        max-width: none;
+        max-height: none;
+        width: auto;
+        height: auto;
+        overflow: visible;
+    }
+
+    .install-cli-modal::backdrop {
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+        display: flex;
+        flex-direction: column;
+        background: var(--sl-color-bg);
+        color: var(--sl-color-text);
+        border-radius: 0.5rem;
+        border: 1px solid var(--sl-color-gray-5);
+        box-shadow: var(--sl-shadow-lg);
+        max-width: 90vw;
+        min-width: 25rem;
+
+        .expressive-code .copy button:not([data-disable-copy]) {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        figure.frame {
+            box-shadow: none;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--sl-color-gray-5);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--sl-color-text);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sl-color-text);
+        border-radius: 0.375rem;
+        transition:
+            background-color 0.2s,
+            opacity 0.2s;
+    }
+
+    .modal-close:hover {
+        background-color: var(--sl-color-gray-5);
+        opacity: 0.8;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .install-option {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .option-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .option-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .code-wrapper,
+    .code-wrapper :global(figure) {
+        margin: 0;
+    }
+
+    .quality-aside {
+        margin-top: 1rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem 1.5rem;
+        border-top: 1px solid var(--sl-color-gray-5);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .version-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        position: relative;
+    }
+
+    .version-selector label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--sl-color-text);
+    }
+
+    .select-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .version-dropdown {
+        padding: 0.375rem 2rem 0.375rem 0.75rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.375rem;
+        background-color: var(--sl-color-bg);
+        color: var(--sl-color-text);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        appearance: none;
+    }
+
+    .select-icon {
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: var(--sl-color-text);
+        width: 1rem;
+        height: 1rem;
+        transition: transform 0.2s ease;
+    }
+
+    .select-icon.rotated {
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+    .version-dropdown:hover {
+        border-color: var(--sl-color-text-accent);
+    }
+
+    .version-dropdown:focus {
+        outline: 2px solid var(--sl-color-text-accent);
+        outline-offset: 2px;
+        border-color: var(--sl-color-text-accent);
+    }
+
+    .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--sl-color-text);
+        opacity: 0.7;
+        transition: opacity 0.2s;
+        text-decoration: none;
+        padding: 0.25rem;
+    }
+
+    .info-icon:hover {
+        opacity: 1;
+    }
+
+    .learn-more-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--sl-color-text-accent);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: opacity 0.2s;
+    }
+
+    .learn-more-link:hover {
+        opacity: 0.8;
+        text-decoration: underline;
+    }
+
+    .learn-more-link svg {
+        transition: transform 0.2s;
+    }
+
+    .learn-more-link:hover svg {
+        transform: translateX(4px);
+    }
+
+    @media (max-width: 640px) {
+        .modal-content {
+            width: 95vw;
+            max-width: none;
+            min-width: unset;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+        }
+
+        .modal-footer {
+            flex-direction: column-reverse;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .version-selector {
+            align-self: flex-end;
+        }
+    }
+</style>
