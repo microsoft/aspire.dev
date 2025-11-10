@@ -1,7 +1,7 @@
 ---
 title: Pipelines and app topology
 description: Learn how Aspire's unified app topology works across development and production environments.
-tableOfContents: false
+tableOfContents: true
 lastUpdated: true
 ---
 
@@ -35,14 +35,14 @@ This table shows how you can deploy the same resources across different platform
 | API Service | `dotnet run --project ../<API_PROJECT>.csproj` | AWS Lambda | Functions | Custom |
 | PostgreSQL | `docker.io/library/postgres` | Relational Database Service | Database for Postgres | Custom |
 
-<Aside type="note">
-    Aspire's AppHost allows you to define your app's architecture in a way that is platform-agnostic, meaning you can run the same code locally or deploy it to any environment without changes.
+<Aside type="tip">
+Aspire's AppHost allows you to define your app's architecture in a way that is platform-agnostic, meaning you can run the same code locally or deploy it to any environment without changes.
 </Aside>
 
 Aspire uses a pipeline-based deployment system that enables extensible, composable deployment workflows. This system allows you to customize how your applications are deployed while maintaining consistency across different environments.
 
 <Aside type="note">
-  Pipeline-based deployment is an experimental feature in Aspire 13. APIs and functionality may change in future releases.
+Pipeline-based deployment is an experimental feature in Aspire 13. APIs and functionality may change in future releases.
 </Aside>
 
 ## Overview
@@ -109,25 +109,29 @@ This granular approach allows the pipeline to maximize parallelism—databases c
 
 The pipeline system operates through three distinct phases:
 
-#### 1. Registration phase
-Steps are collected from two sources:
-- **Resource annotations**: Steps contributed by resources in your application model (e.g., a database resource contributes its provisioning step)
-- **Pipeline API calls**: Steps added directly through pipeline configuration in your AppHost
+<Steps>
 
-This decentralized approach allows both framework components and user code to participate in the deployment process without requiring changes to a central configuration.
+1. #### Registration phase
+    Steps are collected from two sources:
+    - **Resource annotations**: Steps contributed by resources in your application model (e.g., a database resource contributes its provisioning step)
+    - **Pipeline API calls**: Steps added directly through pipeline configuration in your AppHost
 
-#### 2. Resolution phase  
-The pipeline system analyzes all registered steps to:
-- **Validate dependencies**: Ensure all referenced steps exist and no circular dependencies are present
-- **Calculate execution order**: Determine the optimal sequence that respects all dependency constraints
-- **Identify concurrency opportunities**: Group steps that can run in parallel
+    This decentralized approach allows both framework components and user code to participate in the deployment process without requiring changes to a central configuration.
 
-#### 3. Execution phase
-Steps run according to the resolved plan:
-- **Parallel execution**: Independent steps start simultaneously
-- **Dependency waiting**: Steps wait only for their specific dependencies, not for unrelated operations
-- **Progress reporting**: Real-time status updates for both individual steps and overall pipeline progress
-- **Error isolation**: Failed steps don't block unrelated operations
+1. #### Resolution phase  
+    The pipeline system analyzes all registered steps to:
+    - **Validate dependencies**: Ensure all referenced steps exist and no circular dependencies are present
+    - **Calculate execution order**: Determine the optimal sequence that respects all dependency constraints
+    - **Identify concurrency opportunities**: Group steps that can run in parallel
+
+1. #### Execution phase
+    Steps run according to the resolved plan:
+    - **Parallel execution**: Independent steps start simultaneously
+    - **Dependency waiting**: Steps wait only for their specific dependencies, not for unrelated operations
+    - **Progress reporting**: Real-time status updates for both individual steps and overall pipeline progress
+    - **Error isolation**: Failed steps don't block unrelated operations
+
+</Steps>
 
 ### Dependency management
 
@@ -204,9 +208,11 @@ Resources in your application model can contribute their own pipeline steps thro
 
 **How resource-contributed steps work:**
 
+<Steps>
 1. **Annotation-based registration**: Resources use annotations to declare their pipeline steps
 2. **Automatic discovery**: The pipeline system automatically discovers steps from all resources during the registration phase  
 3. **Dependency integration**: Resource steps can depend on well-known steps or other resource steps
+</Steps>
 
 **Example: Static site resource contributing steps**
 
