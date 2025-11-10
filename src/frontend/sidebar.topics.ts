@@ -676,7 +676,13 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "MongoDB", slug: "integrations/databases/mongodb" },
           { label: "MySQL", slug: "integrations/databases/mysql" },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          { label: "PostgreSQL", slug: "integrations/databases/postgres" },
+          { label: "PostgreSQL",
+            collapsed: true,
+            items: [
+              { label: "PostgreSQL Hosting", slug: "integrations/databases/postgres/postgres-host" },
+              { label: "PostgreSQL Client", slug: "integrations/databases/postgres/postgres-client" }
+            ]
+          },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
           { label: "SQL Server", slug: "integrations/databases/sql-server" },
