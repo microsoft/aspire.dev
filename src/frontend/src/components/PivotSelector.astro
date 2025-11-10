@@ -29,6 +29,51 @@ const { options, key, title } = Astro.props;
             ))
         }
     </div>
+    <button
+        type="button"
+        class="pivot-collapse-btn"
+        id=`pivot-collapse-${key}`
+        aria-label="Collapse selector"
+        title="Collapse selector"
+    >
+        <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path
+                d="M12 10L8 6L4 10"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+        </svg>
+    </button>
+    <button
+        type="button"
+        class="pivot-expand-btn"
+        id=`pivot-expand-${key}`
+        aria-label="Expand selector"
+        title="Show selector"
+        data-tooltip-placement="top"
+    >
+        <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path
+                d="M4 6L8 10L12 6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+        </svg>
+    </button>
 </div>
 
 <style>
@@ -42,7 +87,6 @@ const { options, key, title } = Astro.props;
         --pivot-float-x: -50%;
     }
 
-    /* Floating state */
     .pivot-container.floating {
         position: fixed;
         top: calc(var(--sl-nav-height) + 0.35rem);
@@ -55,30 +99,33 @@ const { options, key, title } = Astro.props;
         width: auto;
         opacity: 1;
         animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-        .pivot-title {
-            display: none;
-        }
     }
 
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateX(var(--pivot-float-x)) translateY(-2rem);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(var(--pivot-float-x)) translateY(0);
-        }
+    .pivot-container.floating .pivot-title {
+        display: none;
     }
 
-    /* Placeholder to prevent layout shift */
-    .pivot-container.floating + .pivot-placeholder {
-        display: block;
+    .pivot-container.collapsed {
+        padding: 0;
+        width: auto;
+        max-width: none;
+        background: transparent;
+        border: none;
+        box-shadow: none;
     }
 
+    .pivot-container.collapsed .pivot-title,
+    .pivot-container.collapsed .pivot-selector {
+        display: none !important;
+    }
+
+    /* Placeholder */
     .pivot-placeholder {
         display: none;
+    }
+
+    .pivot-container.floating + .pivot-placeholder {
+        display: block;
     }
 
     .pivot-title {
@@ -98,9 +145,8 @@ const { options, key, title } = Astro.props;
         color: var(--sl-color-text);
     }
 
-    .floating .pivot-selector {
+    .pivot-container.floating .pivot-selector {
         display: flex;
-        justify-content: space-between;
     }
 
     .pivot-selector button {
@@ -114,78 +160,6 @@ const { options, key, title } = Astro.props;
         white-space: nowrap;
         margin-top: 0;
         min-width: 4rem;
-    }
-
-    @media (max-width: 72rem) {
-        .pivot-container {
-            --pivot-float-x: 0;
-        }
-
-        /* Adjust floating position when mobile TOC is visible */
-        .pivot-container.floating {
-            top: calc(
-                var(--sl-nav-height, 0px) + var(--sl-mobile-toc-height, 0px)
-            );
-            left: var(--sl-sidebar-width);
-            right: 0;
-            max-width: 100%;
-            border-radius: 0;
-            border-left: none;
-            border-right: none;
-            border-top: none;
-            padding: 0.5rem 1rem;
-            margin: 0;
-            transform: translateX(0);
-        }
-
-        .pivot-container.floating .pivot-title {
-            display: none;
-        }
-
-        .pivot-container.floating .pivot-selector {
-            display: inline-flex;
-            flex-direction: row;
-            justify-content: space-between;
-            gap: 0.5rem;
-            padding: 0.125rem;
-        }
-
-        .pivot-container.floating .pivot-selector button {
-            padding: 0.25rem 0.5rem;
-            font-size: var(--sl-text-xs);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-    }
-
-    @media (max-width: 48rem) {
-        .pivot-container.floating {
-            top: calc(
-                var(--sl-nav-height, 0px) + var(--sl-mobile-toc-height, 0px)
-            );
-            left: 0;
-            right: 0;
-            max-width: 100%;
-            border-radius: 0;
-            border-left: none;
-            border-right: none;
-            border-top: none;
-            padding: 0.5rem 1rem;
-            margin: 0;
-            transform: translateX(0);
-        }
-
-        /* Non-floating mobile: stacked layout */
-        .pivot-selector {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .pivot-selector button {
-            text-align: center;
-        }
     }
 
     .pivot-selector button:hover {
@@ -209,13 +183,157 @@ const { options, key, title } = Astro.props;
         outline-offset: 2px;
     }
 
-    :root[data-theme="light"] {
-        .pivot-title {
-            color: var(--sl-color-text);
+    .pivot-collapse-btn,
+    .pivot-expand-btn {
+        display: none;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--sl-color-bg);
+        border: 1px solid var(--sl-color-gray-4);
+        border-radius: 0.375rem;
+        padding: 0.125rem 1rem;
+        cursor: pointer;
+        color: var(--sl-color-text-accent);
+        transition: all 0.2s ease;
+        box-shadow: var(--sl-shadow-sm);
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        font-size: var(--sl-text-xs);
+        white-space: nowrap;
+        margin-top: 0.5rem;
+    }
+
+    .pivot-collapse-btn:hover,
+    .pivot-expand-btn:hover {
+        background: var(--sl-color-gray-5);
+        color: var(--sl-color-white);
+        box-shadow: var(--sl-shadow-md);
+    }
+
+    .pivot-collapse-btn:focus-visible,
+    .pivot-expand-btn:focus-visible {
+        outline: 2px solid var(--sl-color-accent);
+        outline-offset: 2px;
+    }
+
+    /* Show buttons based on state */
+    .pivot-container.floating:not(.collapsed) .pivot-collapse-btn {
+        display: flex;
+    }
+
+    .pivot-container.floating.collapsed .pivot-expand-btn {
+        display: flex;
+    }
+
+    /* Collapsed floating position */
+    .pivot-container.floating.collapsed {
+        top: calc(var(--sl-nav-height) - 1px);
+    }
+
+    .pivot-container.collapsed .pivot-expand-btn {
+        position: static;
+        transform: none;
+        margin: 0 auto;
+        border-top-color: var(--sl-color-bg-nav);
+        border-radius: 0 0 0.375rem 0.375rem;
+        background: var(--sl-color-bg-nav);
+        transition: all 0.2s ease;
+    }
+
+    .pivot-container.collapsed .pivot-expand-btn:hover {
+        padding-top: 0.375rem;
+        padding-bottom: 0.375rem;
+    }
+
+    /* Animation */
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateX(var(--pivot-float-x)) translateY(-2rem);
         }
-        .pivot-selector button.active {
-            background: var(--aspire-color-primary);
+        to {
+            opacity: 1;
+            transform: translateX(var(--pivot-float-x)) translateY(0);
         }
+    }
+
+    /* Media Queries */
+    @media (max-width: 72rem) {
+        .pivot-container {
+            --pivot-float-x: 0;
+        }
+
+        .pivot-container.floating {
+            top: calc(
+                var(--sl-nav-height, 0px) + var(--sl-mobile-toc-height, 0px)
+            );
+            left: var(--sl-sidebar-width);
+            right: 0;
+            max-width: 100%;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            padding: 0.5rem 1rem;
+            margin: 0;
+            transform: translateX(0);
+        }
+
+        .pivot-container.floating .pivot-selector {
+            display: inline-flex;
+            gap: 0.5rem;
+            padding: 0.125rem;
+        }
+
+        .pivot-container.floating .pivot-selector button {
+            padding: 0.25rem 0.5rem;
+            font-size: var(--sl-text-xs);
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pivot-container.floating.collapsed {
+            top: calc(
+                var(--sl-nav-height, 0px) + var(--sl-mobile-toc-height, 0px) -
+                    1px
+            );
+            padding: 0;
+        }
+
+        .pivot-collapse-btn {
+            margin-top: 0rem;
+        }
+    }
+
+    @media (max-width: 48rem) {
+        .pivot-container.floating {
+            left: 0;
+        }
+
+        .pivot-container:not(.collapsed) .pivot-selector {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .pivot-container:not(.collapsed) .pivot-selector button {
+            text-align: center;
+        }
+
+        .pivot-container.collapsed .pivot-expand-btn {
+            border-left: none;
+            border-right: none;
+        }
+    }
+
+    /* Theme overrides */
+    :root[data-theme="light"] .pivot-title {
+        color: var(--sl-color-text);
+    }
+
+    :root[data-theme="light"] .pivot-selector button.active {
+        background: var(--aspire-color-primary);
     }
 </style>
 
@@ -369,7 +487,7 @@ const { options, key, title } = Astro.props;
             blocks.forEach((el) => {
                 const blockId = el.dataset.pivotBlock;
                 // Support multiple IDs separated by comma or semicolon
-                const blockIds = blockId.split(/[,;]/).map(id => id.trim());
+                const blockIds = blockId.split(/[,;]/).map((id) => id.trim());
                 const shouldShow = blockIds.includes(id);
                 el.style.display = shouldShow ? "" : "none";
             });
@@ -479,6 +597,59 @@ const { options, key, title } = Astro.props;
         });
 
         initFloating();
+
+        // Collapse/Expand functionality
+        const collapseBtn = document.getElementById(`pivot-collapse-${key}`);
+        const expandBtn = document.getElementById(`pivot-expand-${key}`);
+        const collapseStorageKey = `${key}-collapsed`;
+
+        // Check if user previously collapsed this pivot
+        const wasCollapsed =
+            localStorage.getItem(collapseStorageKey) === "true";
+        let isCollapsed = false;
+
+        function setCollapsed(collapsed) {
+            isCollapsed = collapsed;
+
+            if (collapsed) {
+                container.classList.add("collapsed");
+                localStorage.setItem(collapseStorageKey, "true");
+            } else {
+                container.classList.remove("collapsed");
+                localStorage.setItem(collapseStorageKey, "false");
+            }
+        }
+
+        // Restore collapsed state if it was floating and previously collapsed
+        if (wasCollapsed && isFloating) {
+            setCollapsed(true);
+        }
+
+        collapseBtn?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setCollapsed(true);
+        });
+
+        expandBtn?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setCollapsed(false);
+        });
+
+        // When floating state changes, restore collapsed preference
+        const originalUpdateFloatingState = updateFloatingState;
+        updateFloatingState = function () {
+            const wasFloatingBefore = isFloating;
+            originalUpdateFloatingState();
+
+            // If we just became floating and user had it collapsed, restore that state
+            if (!wasFloatingBefore && isFloating && wasCollapsed) {
+                setCollapsed(true);
+            }
+            // If we're no longer floating, remove collapsed state
+            if (wasFloatingBefore && !isFloating && isCollapsed) {
+                setCollapsed(false);
+            }
+        };
     }
 
     // Run when DOM is ready
