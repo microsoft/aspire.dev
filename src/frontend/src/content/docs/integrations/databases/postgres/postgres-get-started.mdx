@@ -1,0 +1,59 @@
+---
+title: Get started with the PostgreSQL integrations
+description: Learn how to set up the Aspire PostgreSQL Hosting and Client integrations simply.
+---
+
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+[PostgreSQL](https://www.postgresql.org/) is a powerful, open source object-relational database system with many years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. The Aspire PostgreSQL integration provides a way to connect to existing PostgreSQL databases, or create new instances from the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres).
+
+In this introductory exercise, you'll see how to install and use the Aspire PostgreSQL integrations in a simple configuration. If you already have this knowledge, see [PostgreSQL Hosting integration reference](../postgres-host/) or [PostgreSQL Client integration reference](../postgres-client/) for full reference details.
+
+> AJMTODO: Do we want to start by creating a brand new Aspire solution?
+
+## Set up the hosting integration
+
+Start by installing the Aspire PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage PostgreSQL database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.PostgreSQL" shortName="postgresql" />
+
+Next, in the AppHost project, create instances of PostgreSQL server and database resources, then pass the database to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+                            .WithReference(postgresdb);
+```
+
+## Set up the client integration
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddNpgsqlDataSource` extension method on any `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](#add-postgresql-server-resource).
+</Aside>
+
+After adding `NpgsqlDataSource` to the builder, you can get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource...
+}
+```
+
+> AJMTODO: Instructions on running the project.

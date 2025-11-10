@@ -679,8 +679,9 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "PostgreSQL",
             collapsed: true,
             items: [
-              { label: "PostgreSQL Hosting", slug: "integrations/databases/postgres/postgres-host" },
-              { label: "PostgreSQL Client", slug: "integrations/databases/postgres/postgres-client" }
+              { label: "Get started with PostgreSQL", slug: "integrations/databases/postgres/postgres-get-started" },
+              { label: "PostgreSQL Hosting reference", slug: "integrations/databases/postgres/postgres-host" },
+              { label: "PostgreSQL Client reference", slug: "integrations/databases/postgres/postgres-client" }
             ]
           },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },

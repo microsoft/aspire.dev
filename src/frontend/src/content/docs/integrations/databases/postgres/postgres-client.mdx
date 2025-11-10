@@ -1,5 +1,5 @@
 ---
-title: PostgreSQL Client integration
+title: PostgreSQL Client integration reference
 description: Learn how to use the Aspire PostgreSQL Client integration to query PostgreSQL databases from your Aspire projects.
 ---
 
@@ -7,17 +7,17 @@ import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-[PostgreSQL](https://www.postgresql.org/) is a powerful, open source object-relational database system with many years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. The Aspire PostgreSQL integration provides a way to connect to existing PostgreSQL databases, or create new instances from the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres).
+To get started with the Aspire PostgreSQL integrations, follow the [Get started with PostgreSQL integrations](../postgres-get-started/) guide.
 
-In this article, you'll learn about the Aspire PostgreSQL Client integration, which allows you to connect to and interact with PostgreSQL databases from your Aspire consuming projects.
+In this article includes full details about the Aspire PostgreSQL Client integration, which allows you to connect to and interact with PostgreSQL databases from your Aspire consuming projects.
 
-## Client integration
+## Installation
 
 To get started with the Aspire PostgreSQL client integration, install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) NuGet package in the client-consuming project, that is, the project for the application that uses the PostgreSQL client. The PostgreSQL client integration registers an [NpgsqlDataSource](https://www.npgsql.org/doc/api/Npgsql.NpgsqlDataSource.html) instance that you can use to interact with PostgreSQL.
 
 <InstallDotNetPackage packageName="Aspire.Npgsql" />
 
-### Add Npgsql client
+## Add Npgsql client
 
 In the `Program.cs` file of your client-consuming project, call the `AddNpgsqlDataSource` extension method on any `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via the dependency injection container. The method takes a connection name parameter.
 
@@ -38,7 +38,7 @@ public class ExampleService(NpgsqlDataSource dataSource)
 }
 ```
 
-### Add keyed Npgsql client
+## Add keyed Npgsql client
 
 There might be situations where you want to register multiple `NpgsqlDataSource` instances with different connection names. To register keyed Npgsql clients, call the `AddKeyedNpgsqlDataSource` method:
 
@@ -58,11 +58,11 @@ public class ExampleService(
 }
 ```
 
-### Configuration
+## Configuration
 
 The Aspire PostgreSQL integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
 
-#### Use a connection string
+### Use a connection string
 
 When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling the `AddNpgsqlDataSource` method:
 
@@ -82,7 +82,7 @@ Then the connection string will be retrieved from the `ConnectionStrings` config
 
 For more information, see the [ConnectionString](https://www.npgsql.org/doc/connection-string-parameters.html).
 
-#### Use configuration providers
+### Use configuration providers
 
 The Aspire PostgreSQL integration supports `Microsoft.Extensions.Configuration`. It loads the `NpgsqlSettings` from `appsettings.json` or other configuration files by using the `Aspire:Npgsql` key. Example `appsettings.json` that configures some of the options:
 
@@ -103,7 +103,7 @@ The following example shows an `appsettings.json` file that configures some of t
 
 For the complete PostgreSQL client integration JSON schema, see [Aspire.Npgsql/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v9.1.0/src/Components/Aspire.Npgsql/ConfigurationSchema.json).
 
-#### Use inline delegates
+### Use inline delegates
 
 You can also pass the `Action<NpgsqlSettings> configureSettings` delegate to set up some or all the options inline, for example to disable health checks:
 
@@ -113,18 +113,18 @@ builder.AddNpgsqlDataSource(
      static settings => settings.DisableHealthChecks = true);
 ```
 
-### Client integration health checks
+## Client integration health checks
 
 By default, Aspire _client integrations_ have health checks enabled for all services. Similarly, many Aspire _hosting integrations_ also enable health check endpoints. For more information, see:
 
 - Adds the [`NpgSqlHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which verifies that commands can be successfully executed against the underlying Postgres database.
 - Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
 
-### Observability and telemetry
+## Observability and telemetry
 
 Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
 
-#### Logging
+### Logging
 
 The Aspire PostgreSQL integration uses the following log categories:
 
@@ -135,13 +135,13 @@ The Aspire PostgreSQL integration uses the following log categories:
 - `Npgsql.Replication`
 - `Npgsql.Exception`
 
-#### Tracing
+### Tracing
 
 The Aspire PostgreSQL integration will emit the following tracing activities using OpenTelemetry:
 
 - `Npgsql`
 
-#### Metrics
+### Metrics
 
 The Aspire PostgreSQL integration will emit the following metrics using OpenTelemetry:
 
