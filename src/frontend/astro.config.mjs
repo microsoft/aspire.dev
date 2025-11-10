@@ -72,13 +72,13 @@ export default defineConfig({
 			favicon: 'favicon.svg',
 			head: [
 				// SEO meta tags for discoverability (including legacy ".NET Aspire" branding)
-				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire (formerly .NET Aspire) is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
+				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
 				{ tag: 'meta', attrs: { name: 'keywords', content: 'Aspire, .NET Aspire, dotnet aspire, distributed applications, cloud-native, microservices, orchestration, .NET, observability, service discovery, integrations' } },
 				{ tag: 'meta', attrs: { name: 'alternate-name', content: '.NET Aspire' } },
 				
 				// Open Graph meta tags
 				{ tag: 'meta', attrs: { property: 'og:title', content: 'Aspire—Your Stack, Streamlined' } },
-				{ tag: 'meta', attrs: { property: 'og:description', content: 'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability for distributed applications.' } },
+				{ tag: 'meta', attrs: { property: 'og:description', content: 'Aspire streamlines your development workflow with code-first control, modularity, and observability for distributed applications.' } },
 				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://aspire.dev/og-image.png' } },
 				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
 				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'Aspire' } },
