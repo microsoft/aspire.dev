@@ -254,10 +254,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             }, slug: 'get-started/resources'
           },
           {
-            label: 'Deployment and app topology', translations: {
+            label: 'Pipelines and app topology', translations: {
               da: 'Udrulning og apptopologi',
-              de: 'Bereitstellung und app-topologie',
-              en: 'Deployment and app topology',
+              de: 'Bereitstellung und App-Topologie',
+              en: 'Pipelines and app topology',
               es: 'Despliegue y topología de la aplicación',
               fr: 'Déploiement et topologie de l’application',
               hi: 'परिनियोजन और ऐप टोपोलॉजी',
@@ -271,7 +271,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               tr: 'Dağıtım ve uygulama topolojisi',
               uk: 'Розгортання і топологія застосунку',
               'zh-CN': '部署与应用拓扑',
-            }, slug: 'get-started/deployment'
+            }, slug: 'get-started/pipelines'
           }
         ]
       },
