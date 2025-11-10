@@ -33,6 +33,39 @@ In this tutorial, you take the app you created in the [Build your first Aspire a
 1. [Clean up resources](#clean-up-resources) — Remove any deployed resources to avoid incurring costs.
 </Steps>
 
+The following diagram shows the architecture of the sample app you're deploying:
+
+<Pivot id="csharp">
+```mermaid
+architecture-beta
+group api-docker(logos:docker-icon)[API container]
+group f-docker(logos:docker-icon)[Frontend container]
+
+service api(logos:dotnet)[API Service] in api-docker
+service http(iconoir:server-connection)[http]
+service frontend(logos:react)[React front end] in f-docker
+
+frontend:L --> R:http
+http:L --> R:api
+```
+</Pivot>
+<Pivot id="python">
+```mermaid
+architecture-beta
+group docker(logos:docker-icon)[Python and React container]  
+group uv[Uv environment] in docker
+
+service svr(logos:fastapi)[fastAPI] in uv
+service api(logos:python)[API service] in uv
+service http(iconoir:server-connection)[http] in docker
+service frontend(logos:react)[React front end] in docker
+
+api:L --> R:svr
+http:L --> R:api
+frontend:L --> R:http
+```
+</Pivot>
+
 ## Add deployment package
 
 In the root directory of your Aspire solution that you created in the previous quickstart, add the appropriate hosting deployment package by running the following command in your terminal:
@@ -44,16 +77,18 @@ In the root directory of your Aspire solution that you created in the previous q
         aspire add azure-appcontainers
         ```
 
-        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) version you want to use.
+        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) version you want to add.
 
     </TabItem>
     <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+
+        [Docker Compose](https://docs.docker.com/compose/) is a tool for defining and running multi-container Docker applications. It allows you to use a YAML file to configure your application's services, networks, and volumes, making it easier to manage and deploy complex applications locally or in various environments.
 
         ```bash title="Aspire CLI — Add Docker Compose"
         aspire add docker
         ```
 
-        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) version you want to use.
+        The Aspire CLI is interactive, be sure to select the appropriate search result for the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) version you want to add.
 
     </TabItem>
 
@@ -70,10 +105,11 @@ In the AppHost, be sure to add the appropriate environment API.
     <TabItem id="azure" label="Azure">
 
         <Pivot id="csharp">
-            ```csharp title="C# — AppHost.cs project-based orchestrator" {3}
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
             var builder = DistributedApplication.CreateBuilder(args);
 
-            builder.AddAzureAppContainerEnvironment("env");
+            // Add the following line to configure the Azure App Container environment
+            builder.AddAzureContainerAppEnvironment("env");
 
             var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
                 .WithHttpHealthCheck("/health");
@@ -88,38 +124,42 @@ In the AppHost, be sure to add the appropriate environment API.
             ```
         </Pivot>
         <Pivot id="python">
-        ```csharp title="C# — apphost.cs file-based orchestrator" {4,8}
-        #:sdk Aspire.AppHost.Sdk@13.0.0
-        #:package Aspire.Hosting.JavaScript@13.0.0
-        #:package Aspire.Hosting.Python@13.0.0
-        #:package Aspire.Hosting.Azure.AppContainers@13.0.0
+            ```csharp title="C# — apphost.cs file-based orchestrator" {4,8-9}
+            #:sdk Aspire.AppHost.Sdk@13.0.0
+            #:package Aspire.Hosting.JavaScript@13.0.0
+            #:package Aspire.Hosting.Python@13.0.0
+            #:package Aspire.Hosting.Azure.AppContainers@13.0.0
 
-        var builder = DistributedApplication.CreateBuilder(args);
+            var builder = DistributedApplication.CreateBuilder(args);
 
-        builder.AddAzureAppContainerEnvironment("env");
+            // Add the following line to configure the Azure App Container environment
+            builder.AddAzureContainerAppEnvironment("env");
 
-        var app = builder.AddUvicornApp("app", "./app", "main:app")
-            .WithUv()
-            .WithExternalHttpEndpoints()
-            .WithHttpHealthCheck("/health");
+            var app = builder.AddUvicornApp("app", "./app", "main:app")
+                .WithUv()
+                .WithExternalHttpEndpoints()
+                .WithHttpHealthCheck("/health");
 
-        var frontend = builder.AddViteApp("frontend", "./frontend")
-            .WithReference(app)
-            .WaitFor(app);
+            var frontend = builder.AddViteApp("frontend", "./frontend")
+                .WithReference(app)
+                .WaitFor(app);
 
-        app.PublishWithContainerFiles(frontend, "./static");
+            app.PublishWithContainerFiles(frontend, "./static");
 
-        builder.Build().Run();
-        ```
+            builder.Build().Run();
+            ```
         </Pivot>
+
+        - `AddAzureContainerAppEnvironment` — Configures the Azure App Container environment for deployment.
 
     </TabItem>
     <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
 
-            <Pivot id="csharp">
-            ```csharp title="C# — AppHost.cs project-based orchestrator" {3}
+        <Pivot id="csharp">
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
             var builder = DistributedApplication.CreateBuilder(args);
 
+            // Add the following line to configure the Docker Compose environment
             builder.AddDockerComposeEnvironment("env");
 
             var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
@@ -135,30 +175,33 @@ In the AppHost, be sure to add the appropriate environment API.
             ```
         </Pivot>
         <Pivot id="python">
-        ```csharp title="C# — apphost.cs file-based orchestrator" {4,8}
-        #:sdk Aspire.AppHost.Sdk@13.0.0
-        #:package Aspire.Hosting.JavaScript@13.0.0
-        #:package Aspire.Hosting.Python@13.0.0
-        #:package Aspire.Hosting.Docker@13.0.0
+            ```csharp title="C# — apphost.cs file-based orchestrator" {4,8-9}
+            #:sdk Aspire.AppHost.Sdk@13.0.0
+            #:package Aspire.Hosting.JavaScript@13.0.0
+            #:package Aspire.Hosting.Python@13.0.0
+            #:package Aspire.Hosting.Docker@13.0.0
 
-        var builder = DistributedApplication.CreateBuilder(args);
+            var builder = DistributedApplication.CreateBuilder(args);
 
-        builder.AddDockerComposeEnvironment("env");
+            // Add the following line to configure the Docker Compose environment
+            builder.AddDockerComposeEnvironment("env");
 
-        var app = builder.AddUvicornApp("app", "./app", "main:app")
-            .WithUv()
-            .WithExternalHttpEndpoints()
-            .WithHttpHealthCheck("/health");
+            var app = builder.AddUvicornApp("app", "./app", "main:app")
+                .WithUv()
+                .WithExternalHttpEndpoints()
+                .WithHttpHealthCheck("/health");
 
-        var frontend = builder.AddViteApp("frontend", "./frontend")
-            .WithReference(app)
-            .WaitFor(app);
+            var frontend = builder.AddViteApp("frontend", "./frontend")
+                .WithReference(app)
+                .WaitFor(app);
 
-        app.PublishWithContainerFiles(frontend, "./static");
+            app.PublishWithContainerFiles(frontend, "./static");
 
-        builder.Build().Run();
-        ```
+            builder.Build().Run();
+            ```
         </Pivot>
+
+        - `AddDockerComposeEnvironment` — Configures the Docker Compose environment for deployment.
 
     </TabItem>
 
@@ -180,7 +223,7 @@ aspire deploy
 ```
 
 <Aside type="note" title="Common pitfall..." icon="seti:todo">
-If you call `aspire deploy` and you see output similar to the following, be sure that you've actually [updated your AppHost](#update-your-apphost) to include the appropriate environment API for your target.
+If you call `aspire deploy` and you see output similar to the following, be sure that you've actually [updated your AppHost](#update-your-apphost) to include the appropriate environment API for your target. This output indicates that there are no deploy steps configured for your target environment.
 
 ```bash title="Aspire CLI - Empty deployment output"
 14:17:26 (pipeline execution) → Starting pipeline execution...
@@ -345,13 +388,222 @@ Steps Summary:
 Additional information about this command can be found in the [`aspire deploy`](/reference/cli/commands/aspire-deploy/) reference docs.
 </LearnMore>
 
+### Post deployment output
+
+After a deployment, the Aspire CLI writes to the provided output path (or the default output path if none is provided) a set of files based on your deployment target. This may include files such as Docker Compose files, Kubernetes manifests, or cloud provider-specific configuration files.
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="azure" label="Azure">
+        <FileTree>
+        - ./output
+        </FileTree>
+    </TabItem>
+    <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+
+    <Pivot id="csharp">
+        <FileTree>
+        - aspire-output
+          - .env
+          - .env.Production
+          - docker-compose.yaml
+        </FileTree>
+
+        The `aspire-output` directory contains the generated environment variables and the Docker Compose configuration. The best part is, these files are opaque to you as a developer—you don't need to write them yourself!
+
+        The `.env.Production` file contains the name of the app image:
+
+        ```dotenv title="./aspire-output/.env.Production"
+        # Container image name for apiservice
+        APISERVICE_IMAGE=apiservice:latest
+
+        # Default container port for apiservice
+        APISERVICE_PORT=8080
+
+        # Container image name for webfrontend
+        WEBFRONTEND_IMAGE=webfrontend:latest
+
+        # Default container port for webfrontend
+        WEBFRONTEND_PORT=8080
+        ```
+
+        Finally, the `docker-compose.yaml` file defines the services for both the API and front end:
+
+        ```yaml title="./aspire-output/docker-compose.yaml"
+        services:
+        env-dashboard:
+            image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+            expose:
+            - "18888"
+            - "18889"
+            networks:
+            - "aspire"
+            restart: "always"
+        apiservice:
+            image: "${APISERVICE_IMAGE}"
+            environment:
+            OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+            OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+            OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+            ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+            HTTP_PORTS: "${APISERVICE_PORT}"
+            OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+            OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+            OTEL_SERVICE_NAME: "apiservice"
+            expose:
+            - "${APISERVICE_PORT}"
+            networks:
+            - "aspire"
+        webfrontend:
+            image: "${WEBFRONTEND_IMAGE}"
+            environment:
+            OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+            OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+            OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+            ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+            HTTP_PORTS: "${WEBFRONTEND_PORT}"
+            APISERVICE_HTTP: "http://apiservice:${APISERVICE_PORT}"
+            services__apiservice__http__0: "http://apiservice:${APISERVICE_PORT}"
+            APISERVICE_HTTPS: "https://apiservice:${APISERVICE_PORT}"
+            OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+            OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+            OTEL_SERVICE_NAME: "webfrontend"
+            ports:
+            - "${WEBFRONTEND_PORT}"
+            depends_on:
+            apiservice:
+                condition: "service_started"
+            networks:
+            - "aspire"
+        networks:
+        aspire:
+            driver: "bridge"
+        ```
+
+    </Pivot>
+    <Pivot id="python">
+        <FileTree>
+        - aspire-output
+          - .env
+          - .env.Production
+          - app.Dockerfile
+          - docker-compose.yaml
+        </FileTree>
+
+        The `aspire-output` directory contains the generated environment variables, an `app.Dockerfile`, and the Docker Compose configuration. The best part is, these files are opaque to you as a developer—you don't need to write them yourself!
+
+        The `.env.Production` file contains the name of the app image:
+
+        ```dotenv title="./aspire-output/.env.Production"
+        APP_IMAGE=app:5d592d0c1d2f417b0c14c4c4a9efb4f0760be8e4
+        ```
+
+        The `app.Dockerfile` is generated as a multi-stage Dockerfile to build the Python and also serve the React front end using Uvicorn:
+
+        ```dockerfile title="./aspire-output/app.Dockerfile"
+        ARG FRONTEND_IMAGENAME=frontend:50f0ed07a5b8f57b3213e99d96b2e8ff68a1d5d7
+
+        FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+
+        # Enable bytecode compilation and copy mode for the virtual environment
+        ENV UV_COMPILE_BYTECODE=1
+        ENV UV_LINK_MODE=copy
+
+        WORKDIR /app
+
+        # Copy pyproject.toml to install dependencies
+        COPY pyproject.toml /app/
+
+        # Install dependencies and generate lock file
+        # Uses BuildKit cache mount to speed up repeated builds
+        RUN --mount=type=cache,target=/root/.cache/uv \
+            uv sync --no-install-project --no-dev
+
+        # Copy the rest of the application source and install the project
+        COPY . /app
+        RUN --mount=type=cache,target=/root/.cache/uv \
+            uv sync --no-dev
+
+        FROM ${FRONTEND_IMAGENAME} AS frontend_stage
+
+        FROM python:3.13-slim-bookworm AS app
+
+        COPY --from=frontend_stage /app/dist /app/./static
+
+        # ------------------------------
+        # 🚀 Runtime stage
+        # ------------------------------
+        # Create non-root user for security
+        RUN groupadd --system --gid 999 appuser && useradd --system --gid 999 --uid 999 --create-home appuser
+
+        # Copy the application and virtual environment from builder
+        COPY --from=builder --chown=appuser:appuser /app /app
+
+        # Add virtual environment to PATH and set VIRTUAL_ENV
+        ENV PATH=/app/.venv/bin:${PATH}
+        ENV VIRTUAL_ENV=/app/.venv
+        ENV PYTHONDONTWRITEBYTECODE=1
+        ENV PYTHONUNBUFFERED=1
+
+        # Use the non-root user to run the application
+        USER appuser
+
+        # Set working directory
+        WORKDIR /app
+
+        # Run the application
+        ENTRYPOINT ["uvicorn"]
+        ```
+
+        Finally, the `docker-compose.yaml` file defines the services for both the API and front end:
+
+        ```yaml title="./aspire-output/docker-compose.yaml"
+        services:
+        env-dashboard:
+            image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
+            expose:
+            - "18888"
+            - "18889"
+            networks:
+            - "aspire"
+            restart: "always"
+        app:
+            image: "${APP_IMAGE}"
+            command:
+            - "main:app"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8000"
+            environment:
+            OTEL_TRACES_EXPORTER: "otlp"
+            OTEL_LOGS_EXPORTER: "otlp"
+            OTEL_METRICS_EXPORTER: "otlp"
+            OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+            PORT: "8000"
+            OTEL_EXPORTER_OTLP_ENDPOINT: "http://env-dashboard:18889"
+            OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+            OTEL_SERVICE_NAME: "app"
+            ports:
+            - "8000"
+            networks:
+            - "aspire"
+        networks:
+        aspire:
+            driver: "bridge"
+        ```
+
+    </Pivot>
+
+    </TabItem>
+</Tabs>
+
 ## Verify your deployment
 
 import csharpStarterPng from "@assets/get-started/csharp-starter.png";
 import pythonStarterDarkPng from "@assets/get-started/python-starter-dark.png";
 import pythonStarterLightPng from "@assets/get-started/python-starter-light.png";
 
-After deployment, verify that your application is running as expected.
+To verify that your application is running as expected after deployment, follow the instructions for your chosen deployment target below.
 
 <Tabs syncKey="deploy-target">
     <TabItem id="azure" label="Azure">
@@ -366,9 +618,9 @@ After deployment, verify that your application is running as expected.
     </TabItem>
     <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
 
-        When deploying to Docker Compose, you can verify that your application is running by navigating to `http://localhost:{PORT}` in your web browser, where `{PORT}` is the port number you configured for your web frontend service in your Aspire application.
+        When deploying to Docker Compose, you verify that your application is running by navigating to `http://localhost:{PORT}` in your web browser, where `{PORT}` is the port number you configured for your web frontend service in your Aspire application.
 
-        ```bash
+        ```bash title="Docker CLI - List running containers"
         docker ps
         ```        
 
@@ -377,7 +629,7 @@ After deployment, verify that your application is running as expected.
         After running the above command, look for an image with a name starting with `webfrontend:latest` and a `COMMAND` value similar to `dotnet /app/AspireApp.W...`. This indicates that your ASP.NET Core/Blazor application is running successfully.
         
 
-        ```docker title="Docker CLI - List running containers" "0.0.0.0:55445->80/tcp"
+        ```bash title="Docker CLI - List running containers" "0.0.0.0:55445->80/tcp"
         CONTAINER ID  IMAGE               COMMAND                CREATED         STATUS        PORTS                  NAMES
         d4f1e8c3b6a1  webfrontend:latest  "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds  0.0.0.0:55445->80/tcp  aspire_app_webfrontend_1
         a1b2c3d4e5f6  apiservice:latest   "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds                         aspire_app_apiservice_1
@@ -398,7 +650,7 @@ After deployment, verify that your application is running as expected.
         
         After running the above command, look for an image with a name starting with `app:` followed by a SHA hash (for example, `app:1b50e6124ca45c2d2539808a72664d40cfeed109`) and a `COMMAND` value of `uvicorn main:app...`. This indicates that your Python/React application is running successfully.
         
-        ```docker title="Docker CLI - List running containers" "0.0.0.0:53588->80/tcp"
+        ```bash title="Docker CLI - List running containers" "0.0.0.0:53588->80/tcp"
         CONTAINER ID  IMAGE          COMMAND              CREATED         STATUS         PORTS                  NAMES
         e7b8c9d0f1a2  app:1b50e6...  "uvicorn main:app…"  15 seconds ago  Up 12 seconds  0.0.0.0:53588->80/tcp  aspire_app_frontend_1
         ```
@@ -411,14 +663,14 @@ After deployment, verify that your application is running as expected.
             alt="Deployed Python/React application running in Docker Compose"
         />
 
-        The front end displays the weather forecast data in a stunning React template.
+        The front end displays the weather forecast data in a stunning React template. In this example, both the API service and the React front end are running within the same Docker container.
 
         </Pivot>
 
     </TabItem>
 
     <LearnMore>
-    For a deep-dive into the foundational concepts, see [Deployment and app topology](/get-started/deployment/).
+    For a deep-dive into the related foundational concepts, see [Deployment and app topology](/get-started/deployment/).
     </LearnMore>
 
 </Tabs>
