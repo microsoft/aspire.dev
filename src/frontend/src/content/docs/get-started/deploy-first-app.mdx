@@ -52,6 +52,8 @@ service frontend(logos:react)[React front end] in f-docker
 frontend:L --> R:http
 http:L --> R:api
 ```
+
+The ASP.NET Core Blazor & Minimal API starter template consists of two resources, each deployed as a separate container.
 </Pivot>
 <Pivot id="python">
 ```mermaid
@@ -68,6 +70,8 @@ api:L --> R:svr
 http:L --> R:api
 frontend:L --> R:http
 ```
+
+The React (Vite) & FastAPI starter template consists of two resources that are deployed as a single container. The FastAPI server hosts both the API and the static frontend files.
 </Pivot>
 
 ## Prerequisites
@@ -248,6 +252,8 @@ Now that you've added the deployment package and updated your AppHost, you can d
 aspire deploy
 ```
 
+When you call `aspire deploy`, the Aspire CLI builds the container images for your resources, pushes them to the target environment (if applicable), and deploys the resources according to the configuration in your AppHost.
+
 <Aside type="note" title="Common pitfall..." icon="seti:todo">
 If you call `aspire deploy` and you see output similar to the following, be sure that you've actually [updated your AppHost](#update-your-apphost) to include the appropriate environment API for your target. This output indicates that there are no deploy steps configured for your target environment.
 
@@ -276,6 +282,9 @@ Steps Summary:
 
     <Pivot id="csharp">
     
+    <Expand summary="Example output for deploying ASP.NET Core/Blazor app to Docker Compose"
+            backgroundColor="--sl-color-bg">
+
     ```bash title="Aspire CLI - Deploy ASP.NET Core/Blazor app with Docker Compose"
     14:28:15 (pipeline execution) → Starting pipeline execution...
     14:28:15 (build-prereq) → Starting build-prereq...
@@ -332,8 +341,13 @@ Steps Summary:
     ------------------------------------------------------------
     ```
 
+    </Expand>
+
     </Pivot>
     <Pivot id="python">
+
+    <Expand summary="Example output for deploying Python/React app to Docker Compose"
+            backgroundColor="--sl-color-bg">
 
     ```bash title="Aspire CLI - Deploy Python/React app with Docker Compose"
     13:23:29 (pipeline execution) → Starting pipeline execution...
@@ -393,14 +407,26 @@ Steps Summary:
     ------------------------------------------------------------
     ```
 
+    </Expand>
+
     </Pivot>
 
     </TabItem>
     <TabItem id="azure" label="Azure">
 
+    When deploying to Azure, the `aspire deploy` command is interactive. To avoid prompts (for example, when running in CI/CD), set the following environment variables:
+
+    - `Azure__SubscriptionId`: Target Azure subscription ID.
+    - `Azure__Location`: Azure region (for example, eastus).
+    - `Azure__ResourceGroup`: Resource group name to create or reuse.
+
     Deploying to Azure App Containers builds the container images and deploys the services to Azure App Containers. Consider the following example output:
 
     <Pivot id="csharp">
+
+    <Expand summary="Example output for deploying ASP.NET Core/Blazor app to Azure App Containers"
+            backgroundColor="--sl-color-bg">
+
     ```bash title="Aspire CLI - Deploy ASP.NET Core/Blazor app to Azure App Containers"
     09:19:34 (pipeline execution) → Starting pipeline execution...
     09:19:34 (deploy-prereq) → Starting deploy-prereq...
@@ -502,8 +528,15 @@ Steps Summary:
     ------------------------------------------------------------
 
     ```
+
+    </Expand>
+
     </Pivot>
     <Pivot id="python">
+
+    <Expand summary="Example output for deploying Python/React app to Azure App Containers"
+            backgroundColor="--sl-color-bg">
+
     ```bash title="Aspire CLI - Deploy Python/React app to Azure App Containers"
     09:24:18 (pipeline execution) → Starting pipeline execution...
     09:24:18 (deploy-prereq) → Starting deploy-prereq...
@@ -590,6 +623,9 @@ Steps Summary:
     ✓ PIPELINE SUCCEEDED
     ------------------------------------------------------------
     ```
+
+    </Expand>
+    
     </Pivot>
 
     </TabItem>
@@ -636,7 +672,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
 
         ```yaml title="./aspire-output/docker-compose.yaml"
         services:
-        env-dashboard:
+          env-dashboard:
             image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
             expose:
             - "18888"
@@ -644,7 +680,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
             networks:
             - "aspire"
             restart: "always"
-        apiservice:
+          apiservice:
             image: "${APISERVICE_IMAGE}"
             environment:
             OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
@@ -659,7 +695,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
             - "${APISERVICE_PORT}"
             networks:
             - "aspire"
-        webfrontend:
+          webfrontend:
             image: "${WEBFRONTEND_IMAGE}"
             environment:
             OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
@@ -681,7 +717,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
             networks:
             - "aspire"
         networks:
-        aspire:
+          aspire:
             driver: "bridge"
         ```
 
@@ -764,7 +800,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
 
         ```yaml title="./aspire-output/docker-compose.yaml"
         services:
-        env-dashboard:
+          env-dashboard:
             image: "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest"
             expose:
             - "18888"
@@ -772,7 +808,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
             networks:
             - "aspire"
             restart: "always"
-        app:
+          app:
             image: "${APP_IMAGE}"
             command:
             - "main:app"
@@ -794,7 +830,7 @@ After a deployment, the Aspire CLI writes to the provided output path (or the de
             networks:
             - "aspire"
         networks:
-        aspire:
+          aspire:
             driver: "bridge"
         ```
 
@@ -929,12 +965,29 @@ To verify that your application is running as expected after deployment, follow 
 
     </TabItem>
 
-    <LearnMore>
-    For a deep-dive into the related foundational concepts, see [Deployment and app topology](/get-started/deployment/).
-    </LearnMore>
-
 </Tabs>
 
 ## Clean up resources
 
-If you have deployed your application to a cloud provider such as Azure, it's important to clean up any resources you created during the deployment process to avoid incurring unnecessary costs. Likewise, if you have deployed your application locally using Docker Compose, you should stop and remove the running containers.
+After deploying your application, it's important to clean up resources to avoid incurring unnecessary costs or consuming local system resources.
+
+<Tabs syncKey="deploy-target">
+    <TabItem id="docker-compose" label="Docker Compose" icon="seti:docker">
+        To clean up resources after deploying with Docker Compose, you can stop and remove the running containers using the following command:
+
+        ```bash title="Docker CLI - Stop and remove containers"
+        docker compose --env-file ./aspire-output/.env.Production -f ./aspire-output/docker-compose.yaml down
+        ```
+    </TabItem>
+    <TabItem id="azure" label="Azure">
+        To clean up resources after deploying to Azure, you can use the Azure CLI to delete the resource group that contains your application. This will remove all resources within the resource group.
+
+        ```bash title="Azure CLI - Delete resource group"
+        az group delete --name <RESOURCE_GROUP_NAME> --yes --no-wait
+        ```
+    </TabItem>
+</Tabs>
+
+<LearnMore>
+For a deep-dive into the related foundational concepts, see [Deployment and app topology](/get-started/deployment/).
+</LearnMore>
