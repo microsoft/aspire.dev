@@ -1163,7 +1163,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
     icon: 'heart',
     items: [
       {
-        label: 'Contributors', translations: {
+        label: 'Contributors', 
+        translations: {
           da: 'Bidragydere',
           de: 'Mitwirkende',
           en: 'Contributors',
@@ -1181,7 +1182,53 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           tr: 'Katkıda Bulunanlar',
           uk: 'Учасники',
           'zh-CN': '贡献者'
-        }, slug: 'community/contributors'
+        },
+        items: [
+          { label: 'Contributor overview',
+            translations: {
+              da: 'Oversigt over bidragydere',
+              de: 'Übersicht der Mitwirkenden',
+              en: 'Contributor overview',
+              es: 'Descripción general del colaborador',
+              fr: 'Aperçu des contributeurs',
+              hi: 'योगदानकर्ता अवलोकन',
+              id: 'Ikhtisar kontributor',
+              it: 'Panoramica dei collaboratori',
+              ja: 'コントリビューターの概要',
+              ko: '기여자 개요',
+              pt: 'Visão geral do contribuinte',
+              'pt-BR': 'Visão geral do contribuinte',
+              'pt-PT': 'Visão geral do contribuinte',
+              ru: 'Обзор участников',
+              tr: 'Katkıda Bulunanlar Genel Bakışı',
+              uk: 'Огляд учасників',
+              'zh-CN': '贡献者概述'
+            },
+            slug: 'community/contributors'
+          },
+          { label: 'Contributor guide', 
+            translations: {
+              da: 'Bidragydervejledning',
+              de: 'Mitwirkenden-Leitfaden',
+              en: 'Contributor guide',
+              es: 'Guía del colaborador',
+              fr: 'Guide du contributeur',
+              hi: 'योगदानकर्ता गाइड',
+              id: 'Panduan kontributor',
+              it: 'Guida per i collaboratori',
+              ja: 'コントリビューターガイド',
+              ko: '기여자 가이드',
+              pt: 'Guia do contribuinte',
+              'pt-BR': 'Guia do contribuinte',
+              'pt-PT': 'Guia do contribuinte',
+              ru: 'Руководство для участников',
+              tr: 'Katkıda Bulunanlar Kılavuzu',
+              uk: 'Посібник для учасників',
+              'zh-CN': '贡献者指南'
+            },
+            slug: 'community/contributor-guide'
+          },
+        ]
       },
       {
         label: 'BlueSky',
