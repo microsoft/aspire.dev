@@ -34,7 +34,6 @@ const { options, key, title } = Astro.props;
         class="pivot-collapse-btn"
         id=`pivot-collapse-${key}`
         aria-label="Collapse selector"
-        title="Collapse selector"
     >
         <svg
             width="16"
@@ -56,7 +55,6 @@ const { options, key, title } = Astro.props;
         class="pivot-expand-btn"
         id=`pivot-expand-${key}`
         aria-label="Expand selector"
-        title="Show selector"
         data-tooltip-placement="top"
     >
         <svg
@@ -205,7 +203,13 @@ const { options, key, title } = Astro.props;
         margin-top: 0.5rem;
     }
 
-    .pivot-collapse-btn:hover,
+    .pivot-collapse-btn:hover {
+        background: var(--sl-color-gray-5);
+        color: var(--sl-color-white);
+        box-shadow: var(--sl-shadow-md);
+        transform: translateX(-50%) translateY(-2px);
+    }
+
     .pivot-expand-btn:hover {
         background: var(--sl-color-gray-5);
         color: var(--sl-color-white);
@@ -652,10 +656,41 @@ const { options, key, title } = Astro.props;
         };
     }
 
+    // Add titles on desktop only
+    function updateTitles() {
+        const collapseBtn = document.getElementById(`pivot-collapse-${key}`);
+        const expandBtn = document.getElementById(`pivot-expand-${key}`);
+        
+        const isDesktop = window.matchMedia("(min-width: 72rem)").matches;
+        
+        if (collapseBtn) {
+            if (isDesktop) {
+                collapseBtn.setAttribute("title", "Collapse selector");
+            } else {
+                collapseBtn.removeAttribute("title");
+            }
+        }
+        
+        if (expandBtn) {
+            if (isDesktop) {
+                expandBtn.setAttribute("title", "Show selector");
+            } else {
+                expandBtn.removeAttribute("title");
+            }
+        }
+    }
+
     // Run when DOM is ready
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initPivotSelector);
+        document.addEventListener("DOMContentLoaded", () => {
+            initPivotSelector();
+            updateTitles();
+        });
     } else {
         initPivotSelector();
+        updateTitles();
     }
+
+    // Update titles on resize
+    window.addEventListener("resize", updateTitles);
 </script>
