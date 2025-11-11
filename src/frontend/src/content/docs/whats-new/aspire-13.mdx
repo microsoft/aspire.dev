@@ -10,6 +10,7 @@ tableOfContents:
 ---
 
 import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import { Code, Tabs, Steps, TabItem } from '@astrojs/starlight/components';
 import mcpDialog from '@assets/whats-new/mcp-dialog.png';
@@ -89,13 +90,14 @@ The easiest way to upgrade to Aspire 13.0 is using the `aspire update` command:
 <Aside type="note">
 If you're upgrading from Aspire 8.x, follow [the upgrade guide](https://learn.microsoft.com/dotnet/aspire/get-started/upgrade-to-aspire-9) first to upgrade to 9.x, then upgrade to 13.0.
 </Aside>
+
 ## 🧩 AppHost template updates
 
 Aspire 13.0 introduces a simplified AppHost project template structure. The SDK now encapsulates the `Aspire.Hosting.AppHost` package, resulting in cleaner project files.
 
 **Before (9.x):**
 
-```xml
+```xml {1,3,7,19-20}
 <Project Sdk="Microsoft.NET.Sdk">
 
   <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
@@ -123,7 +125,7 @@ Aspire 13.0 introduces a simplified AppHost project template structure. The SDK 
 
 **After (13.0):**
 
-```xml
+```xml {1,5,17}
 <Project Sdk="Aspire.AppHost.Sdk/13.0.0">
 
   <PropertyGroup>
@@ -557,6 +559,10 @@ This feature makes Aspire's service discovery mechanism accessible to any progra
 
 The new `aspire init` command provides a streamlined, interactive experience for initializing Aspire solutions with comprehensive project setup and configuration.
 
+<LearnMore>
+Find out more about the `aspire init` command in the [aspire init documentation](/reference/cli/commands/aspire-init/).
+</LearnMore>
+
 ```bash title="Bash — Initialize new Aspire solution"
 # Initialize a new Aspire solution - interactive prompts guide you through setup
 aspire init
@@ -598,11 +604,15 @@ Select a template:
 
 **Available starter templates:**
 
-- **Blazor & Minimal API starter**: Full-stack .NET application with Blazor frontend and ASP.NET Core API.
-- **React (Vite) & FastAPI starter**: Polyglot application demonstrating Python and JavaScript integration.
+- [**Blazor & Minimal API starter**](/get-started/first-app/?lang=csharp): Full-stack .NET application with Blazor frontend and ASP.NET Core API.
+- [**React (Vite) & FastAPI starter**](/get-started/first-app/?lang=python): Polyglot application demonstrating Python and JavaScript integration.
 - **Empty AppHost**: Minimal single-file AppHost for custom applications.
 
 The starter template collection is designed to be extensible and will grow over time to showcase different architectural patterns and technology combinations. This approach makes it easier to explore Aspire's capabilities and learn from working examples.
+
+<LearnMore>
+For command reference material, see the [aspire new documentation](/reference/cli/commands/aspire-new/).
+</LearnMore>
 
 ### Aspire update improvements
 
@@ -633,6 +643,10 @@ The `aspire update` command continues to support:
 - Enhanced visual presentation with colorized output.
 - Channel awareness (stable, preview, staging).
 
+<LearnMore>
+For detailed command reference, see [aspire update](/reference/cli/commands/aspire-update/).
+</LearnMore>
+
 ### Visual Studio Code extension
 
 Aspire 13.0 includes a new Aspire VS Code extension which brings Aspire CLI features to VS Code. It provides commands to create and debug projects, add integrations, configure launch settings, and manage deployments directly from the Command Palette.
@@ -651,10 +665,12 @@ Aspire 13.0 includes a new Aspire VS Code extension which brings Aspire CLI feat
 
 **Getting started:**
 
+<Steps>
 1. Install the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=microsoft-aspire.aspire-vscode).
 1. Open the Command Palette (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>).
 1. Type "Aspire" to see all available commands.
 1. Use `Aspire: Configure launch.json` to set up debugging for your AppHost.
+</Steps>
 
 The extension requires the Aspire CLI to be installed and available on your PATH. All commands are grouped under the **Aspire** category in the Command Palette for easy discovery.
 
@@ -735,7 +751,7 @@ Aspire 13.0 introduces `aspire do` - a comprehensive system for coordinating bui
 The `aspire do` system replaces the previous publishing infrastructure with a more flexible, extensible model that allows resource-specific deployment logic to be decentralized and composed into larger workflows.
 
 > [!IMPORTANT]
-> 🧪 **Early Preview**: The pipeline APIs are in early preview and marked as experimental.
+> 🧪 **Early Preview**: The pipeline APIs are in early preview and marked as experimental. See [aspire do command reference](/reference/cli/commands/aspire-do/) for more information.
 
 For basic CLI commands and tooling, see [CLI and tooling](#cli-and-tooling), which covers [aspire init](#aspire-init-command), [aspire update](#aspire-update-improvements), and [non-interactive mode](#non-interactive-mode-for-cicd).
 
@@ -797,7 +813,7 @@ api.PublishWithContainerFiles(frontend, "./static");
 
 The FastAPI app can serve the static files:
 
-```python title="Python — Serving frontend from backend"
+```python title="Python — Serving front end from back end"
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -812,7 +828,7 @@ def get_data():
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 ```
 
-This pattern works with any resource types (.NET, Python, JavaScript) and integrates seamlessly with `aspire do` for dependency tracking, parallel execution, and incremental builds.
+This pattern works with any resource types (C#, Python, JavaScript) and integrates seamlessly with `aspire do` for dependency tracking, parallel execution, and incremental builds.
 
 ### Dockerfile builder API (experimental)
 
@@ -873,7 +889,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
 
-// To easily reach your local API project from the emulator/Simulator/physical device, you can use the Dev Tunnels integration
+// To easily reach your local API project from the 
+// emulator/Simulator/physical device, you can use the Dev Tunnels integration
 var publicDevTunnel = builder.AddDevTunnel("devtunnel-public")
     .WithAnonymousAccess()
     .WithReference(api.GetEndpoint("https"));
@@ -889,12 +906,14 @@ mauiapp.AddWindowsDevice()
 mauiapp.AddMacCatalystDevice()
     .WithReference(weatherApi);
 
-// Add MAUI app for iOS running on the iOS Simulator (starts a random one, or uses the currently started one)
+// Add MAUI app for iOS running on the iOS Simulator (starts 
+// a random one, or uses the currently started one)
 mauiapp.AddiOSSimulator()
     .WithOtlpDevTunnel() // Needed to get the OpenTelemetry data to "localhost"
     .WithReference(weatherApi, publicDevTunnel); // Needs a dev tunnel to reach "localhost"
 
-// Add MAUI app for Android running on the emulator with default emulator (uses running or default emulator, needs to be started)
+// Add MAUI app for Android running on the emulator with 
+// default emulator (uses running or default emulator, needs to be started)
 mauiapp.AddAndroidEmulator()
     .WithOtlpDevTunnel() // Needed to get the OpenTelemetry data to "localhost"
     .WithReference(weatherApi, publicDevTunnel); // Needs a dev tunnel to reach "localhost"
@@ -983,7 +1002,9 @@ Aspire 13.0 adds first-class support for C# file-based applications, enabling yo
 #:sdk Aspire.AppHost.Sdk@13.0.0
 #:package Aspire.Hosting.Redis@13.0.0
 
-#pragma warning disable ASPIRECSHARPAPPS001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+// Type is for evaluation purposes only and is subject to change or
+// removal in future updates. Suppress this diagnostic to proceed.
+#pragma warning disable ASPIRECSHARPAPPS001
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -1168,7 +1189,9 @@ For advanced scenarios, you can specify the network context:
 
 ```csharp
 var worker = builder.AddProject<Projects.Worker>("worker")
-    .WithEnvironment("API_URL", api.GetEndpoint("http", KnownNetworkIdentifiers.DefaultAspireContainerNetwork));
+    .WithEnvironment("API_URL",
+        api.GetEndpoint("http",
+            KnownNetworkIdentifiers.DefaultAspireContainerNetwork));
 ```
 
 **Environment variables injected into `worker`:**
@@ -1256,11 +1279,13 @@ This eliminates repetitive prompts and makes iterative deployments faster. Your 
 
 **Example workflow:**
 
+<Steps>
 1. First time: Select subscription "My Subscription", resource group "my-rg", location "eastus"
 2. Deploy completes, state saved locally
 3. Make code changes
 4. Run `aspire deploy` again - automatically uses "My Subscription", "my-rg", "eastus"
 5. No need to re-enter configuration
+</Steps>
 
 **Storage location:**
 
