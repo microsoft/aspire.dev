@@ -1,8 +1,58 @@
 ---
-const { src, poster = 'npt:0:4', rows = 15 } = Astro.props;
+const { 
+    src, 
+    // Terminal size options
+    cols,
+    rows = 15,
+    // Playback control options
+    autoPlay,
+    preload,
+    loop,
+    startAt,
+    speed,
+    idleTimeLimit,
+    // Appearance options
+    theme,
+    poster = 'npt:0:4',
+    fit,
+    controls,
+    // Audio options
+    audioUrl,
+    // Marker options
+    markers,
+    pauseOnMarkers,
+    // Font options
+    terminalFontSize,
+    terminalFontFamily,
+    terminalLineHeight,
+    // Debug options
+    logger,
+} = Astro.props;
 ---
 
-<div class="asciinema-player-container not-content" data-src={src} data-poster={poster} data-rows={rows}>
+<div 
+    class="asciinema-player-container not-content" 
+    data-src={src}
+    data-cols={cols}
+    data-rows={rows}
+    data-autoplay={autoPlay}
+    data-preload={preload}
+    data-loop={loop}
+    data-startat={startAt}
+    data-speed={speed}
+    data-idletimelimit={idleTimeLimit}
+    data-theme={theme}
+    data-poster={poster}
+    data-fit={fit}
+    data-controls={controls}
+    data-audiourl={audioUrl}
+    data-markers={markers ? JSON.stringify(markers) : undefined}
+    data-pauseonmarkers={pauseOnMarkers}
+    data-terminalfontsize={terminalFontSize}
+    data-terminalfontfamily={terminalFontFamily}
+    data-terminallineheight={terminalLineHeight}
+    data-logger={logger ? 'true' : undefined}
+>
 </div>
 
 <style>
@@ -28,31 +78,125 @@ const { src, poster = 'npt:0:4', rows = 15 } = Astro.props;
             function createPlayers() {
                 containers.forEach((container) => {
                     const src = container.getAttribute("data-src");
-                    const poster = container.getAttribute("data-poster");
-                    const rows = container.getAttribute("data-rows");
 
                     if (src && container instanceof HTMLElement) {
                         // Clear existing player if any
                         container.innerHTML = '';
                         
+                        // Helper function to get attribute value with proper type conversion
+                        const getAttr = (name: string) => container.getAttribute(name);
+                        const getNumAttr = (name: string) => {
+                            const val = getAttr(name);
+                            return val ? parseFloat(val) : undefined;
+                        };
+                        const getBoolAttr = (name: string) => {
+                            const val = getAttr(name);
+                            return val === 'true' ? true : val === 'false' ? false : undefined;
+                        };
+                        
                         // Get the current theme from the html data-theme attribute
                         const htmlElement = document.documentElement;
                         const currentTheme = htmlElement.getAttribute('data-theme');
-                        const theme = currentTheme === 'light' ? 'nord' : 'dracula';
+                        const autoTheme = currentTheme === 'light' ? 'nord' : 'dracula';
+                        
+                        // Build options object, only including defined values
+                        const options: any = {};
+                        
+                        // Terminal size options
+                        const cols = getNumAttr("data-cols");
+                        if (cols !== undefined) options.cols = cols;
+                        
+                        const rows = getNumAttr("data-rows");
+                        if (rows !== undefined) options.rows = rows;
+                        
+                        // Playback control options
+                        const autoPlay = getBoolAttr("data-autoplay");
+                        if (autoPlay !== undefined) options.autoPlay = autoPlay;
+                        
+                        const preload = getBoolAttr("data-preload");
+                        if (preload !== undefined) options.preload = preload;
+                        
+                        const loopAttr = getAttr("data-loop");
+                        if (loopAttr) {
+                            // loop can be boolean or number
+                            const loopNum = parseFloat(loopAttr);
+                            options.loop = isNaN(loopNum) ? (loopAttr === 'true') : loopNum;
+                        }
+                        
+                        const startAt = getAttr("data-startat");
+                        if (startAt) {
+                            // startAt can be number or string (time format)
+                            const startAtNum = parseFloat(startAt);
+                            options.startAt = isNaN(startAtNum) ? startAt : startAtNum;
+                        }
+                        
+                        const speed = getNumAttr("data-speed");
+                        if (speed !== undefined) options.speed = speed;
+                        
+                        const idleTimeLimit = getNumAttr("data-idletimelimit");
+                        if (idleTimeLimit !== undefined) options.idleTimeLimit = idleTimeLimit;
+                        
+                        // Appearance options
+                        const themeAttr = getAttr("data-theme");
+                        options.theme = themeAttr || autoTheme;
+                        
+                        const poster = getAttr("data-poster");
+                        if (poster) options.poster = poster;
+                        
+                        const fit = getAttr("data-fit");
+                        if (fit) options.fit = fit === 'false' || fit === 'none' ? false : fit;
+                        
+                        const controls = getAttr("data-controls");
+                        if (controls) {
+                            options.controls = controls === 'auto' ? 'auto' : 
+                                             controls === 'true' ? true : 
+                                             controls === 'false' ? false : controls;
+                        }
+                        
+                        // Audio options
+                        const audioUrl = getAttr("data-audiourl");
+                        if (audioUrl) options.audioUrl = audioUrl;
+                        
+                        // Marker options
+                        const markersStr = getAttr("data-markers");
+                        if (markersStr) {
+                            try {
+                                options.markers = JSON.parse(markersStr);
+                            } catch (e) {
+                                console.error("Failed to parse markers:", e);
+                            }
+                        }
+                        
+                        const pauseOnMarkers = getBoolAttr("data-pauseonmarkers");
+                        if (pauseOnMarkers !== undefined) options.pauseOnMarkers = pauseOnMarkers;
+                        
+                        // Font options
+                        const terminalFontSize = getAttr("data-terminalfontsize");
+                        if (terminalFontSize) options.terminalFontSize = terminalFontSize;
+                        
+                        const terminalFontFamily = getAttr("data-terminalfontfamily");
+                        if (terminalFontFamily) options.terminalFontFamily = terminalFontFamily;
+                        
+                        const terminalLineHeight = getNumAttr("data-terminallineheight");
+                        if (terminalLineHeight !== undefined) options.terminalLineHeight = terminalLineHeight;
+                        
+                        // Debug options
+                        const loggerEnabled = getBoolAttr("data-logger");
+                        if (loggerEnabled) options.logger = console;
+                        
+                        // Apply defaults for backward compatibility
+                        if (options.autoPlay === undefined) options.autoPlay = false;
+                        if (options.fit === undefined) options.fit = "none";
+                        if (options.idleTimeLimit === undefined) options.idleTimeLimit = 1.5;
+                        if (options.loop === undefined) options.loop = true;
+                        if (options.preload === undefined) options.preload = true;
+                        if (options.rows === undefined) options.rows = 15;
+                        if (options.speed === undefined) options.speed = 1.5;
+                        if (options.terminalFontFamily === undefined) options.terminalFontFamily = 'var(--__sl-font-mono)';
+                        if (options.terminalFontSize === undefined) options.terminalFontSize = 'var(--ec-codeFontSize)';
+                        if (options.poster === undefined) options.poster = 'npt:0:4';
 
-                        create(src, container, {
-                            autoplay: false,
-                            fit: "none",
-                            idleTimeLimit: 1.5,
-                            loop: true,
-                            poster: poster || undefined,
-                            preload: true,
-                            rows: rows ? parseInt(rows, 10) : 15,
-                            speed: 1.5,
-                            terminalFontFamily: 'var(--__sl-font-mono)',
-                            terminalFontSize: 'var(--ec-codeFontSize)',
-                            theme: theme,
-                        });
+                        create(src, container, options);
 
                         // Fix accessibility issues in the rendered player
                         setTimeout(() => {

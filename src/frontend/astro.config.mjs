@@ -1,7 +1,8 @@
-// @ts-check
+﻿// @ts-check
 import { defineConfig } from 'astro/config';
 import { sidebarTopics } from './sidebar.topics';
 import { redirects } from './redirects.mjs';
+import { iconPacks } from './icon-packs.mjs';
 import catppuccin from "@catppuccin/starlight";
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
@@ -45,18 +46,7 @@ export default defineConfig({
 		mermaid({
 			theme: 'forest',
 			autoTheme: true,
-			iconPacks: [
-				{
-					// Search: https://icon-sets.iconify.design/logos/?keyword=svg+logos
-					name: 'logos',
-					loader: () => fetch('https://unpkg.com/@iconify-json/logos@1/icons.json').then(res => res.json())
-				},
-				{
-					// Search: // https://icon-sets.iconify.design/iconoir/?keyword=iconoir
-					name: 'iconoir',
-					loader: () => fetch('https://unpkg.com/@iconify-json/iconoir@1/icons.json').then(res => res.json())
-				}
-			]
+			iconPacks
 		}),
 		starlight({
 			title: 'Aspire',
