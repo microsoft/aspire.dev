@@ -10,9 +10,9 @@ import Pivot from '@components/Pivot.astro';
 
 <PivotSelector
     title="Select your testing framework"
-    key="testing"
+    key="testing-framework"
     options={[
-        { id: "xunit", title: "xUnit" },
+        { id: "xunit", title: "xUnit.net" },
         { id: "mstest", title: "MSTest" },
         { id: "nunit", title: "NUnit" },
     ]}
@@ -20,45 +20,95 @@ import Pivot from '@components/Pivot.astro';
 
 In this article, you learn how to create a test project, write tests, and run them for your Aspire solutions. The tests in this article aren't unit tests, but rather functional or integration tests. Aspire includes several variations of testing project templates that you can use to test your Aspire resource dependencies—and their communications. The testing project templates are available for MSTest, NUnit, and xUnit.net testing frameworks and include a sample test that you can use as a starting point for your tests.
 
-The Aspire test project templates rely on the [Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet package. This package exposes the `DistributedApplicationTestingBuilder` class, which is used to create a test host for your distributed application. The distributed application testing builder launches your AppHost project with instrumentation hooks so that you can access and manipulate the host at various stages of its lifecycle. In particular, `DistributedApplicationTestingBuilder` provides you access to `IDistributedApplicationBuilder` and `DistributedApplication` classes to create and start the [AppHost](/get-started/app-host/).
+## Conceptualizing distributed app testing
+
+Before you start testing your Aspire solutions, you'll need the [📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet package. This powerful package provides the `DistributedApplicationTestingBuilder` class—your gateway to creating a test host for distributed applications.
+
+Think of the `DistributedApplicationTestingBuilder` as a test harness that launches your AppHost project with built-in instrumentation. This gives you precise control to access and manipulate the host throughout its lifecycle. You'll work with familiar Aspire types like `IDistributedApplicationBuilder` and `DistributedApplication` to build and start your [AppHost](/get-started/app-host/), making your tests feel natural and intuitive.
 
 ## Create a test project
 
-The easiest way to create an Aspire test project is to use the testing project template. If you're starting a new Aspire project and want to include test projects, the Visual Studio tooling supports that option. If you're adding a test project to an existing Aspire project, you can use the `dotnet new` command to create a test project:
+To create an Aspire test project, use the testing project template. When starting a new Aspire project, both IDE and CLI tooling prompts you to create a test project for some templates. To add a test project to an existing Aspire solution, use the [`dotnet new`](https://learn.microsoft.com/dotnet/core/tools/dotnet-new) command:
 
 <Pivot id="xunit">
 
 ```bash
-dotnet new aspire-xunit
+dotnet new aspire-xunit -o xUnit.Tests
 ```
 
 </Pivot>
 <Pivot id="mstest">
 
 ```bash
-dotnet new aspire-mstest
+dotnet new aspire-mstest -o MSTest.Tests
 ```
 
 </Pivot>
 <Pivot id="nunit">
 
 ```bash
-dotnet new aspire-nunit
+dotnet new aspire-nunit -o NUnit.Tests
 ```
 
 </Pivot>
 
-<LearnMore>
-For more information about the .NET CLI, see [`dotnet new`](https://learn.microsoft.com/dotnet/core/tools/dotnet-new) command documentation.
-</LearnMore>
-
-## Explore the test project
-
-The following example test project was created as part of the **Aspire Starter Application** template. If you're unfamiliar with it, see [Build your first app](/get-started/first-app/). The Aspire test project takes a project reference dependency on the target AppHost. Consider the template project:
+Change directory to the newly created test project:
 
 <Pivot id="xunit">
 
-```xml title="AspireApp.Tests.csproj"
+```bash
+cd xUnit.Tests
+```
+
+</Pivot>
+<Pivot id="mstest">
+
+```bash
+cd MSTest.Tests
+```
+
+</Pivot>
+<Pivot id="nunit">
+
+```bash
+cd NUnit.Tests
+```
+
+</Pivot>
+
+After adding the test project to your Aspire solution, add a project reference to the target AppHost. For example, if your Aspire solution contains an AppHost project named `AspireApp.AppHost`, add a project reference to it from the test project:
+
+<Pivot id="xunit">
+
+```bash
+dotnet reference add ../AspireApp.AppHost/AspireApp.AppHost.csproj --project xUnit.Tests.csproj
+```
+
+</Pivot>
+<Pivot id="mstest">
+
+```bash
+dotnet reference add ../AspireApp.AppHost/AspireApp.AppHost.csproj --project MSTest.Tests.csproj
+```
+
+</Pivot>
+<Pivot id="nunit">
+
+```bash
+dotnet reference add ../AspireApp.AppHost/AspireApp.AppHost.csproj --project NUnit.Tests.csproj
+```
+
+</Pivot>
+
+Finally, you can uncomment out the `IntegrationTest1.cs` file in the test project to explore the sample test.
+
+## Explore the test project
+
+The following example test project was created as part of the **Blazor & Minimal API starter** template. If you're unfamiliar with it, see [Build your first app—C#](/get-started/first-app/?lang=csharp). The Aspire test project takes a project reference dependency on the target AppHost. Consider the template project:
+
+<Pivot id="xunit">
+
+```xml title="xUnit.Tests.csproj"
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -72,10 +122,9 @@ The following example test project was created as part of the **Aspire Starter A
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" Version="13.0.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -96,7 +145,7 @@ The following example test project was created as part of the **Aspire Starter A
 </Pivot>
 <Pivot id="mstest">
 
-```xml title="AspireApp.Tests.csproj"
+```xml title="MSTest.Tests.csproj"
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -105,17 +154,13 @@ The following example test project was created as part of the **Aspire Starter A
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <EnableMSTestRunner>true</EnableMSTestRunner>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" Version="13.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
-    <PackageReference Include="MSTest" Version="4.0.2" />
+    <PackageReference Include="MSTest" Version="3.10.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -136,7 +181,7 @@ The following example test project was created as part of the **Aspire Starter A
 </Pivot>
 <Pivot id="nunit">
 
-```xml title="AspireApp.Tests.csproj"
+```xml title="NUnit.Tests.csproj"
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -147,14 +192,13 @@ The following example test project was created as part of the **Aspire Starter A
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
-
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Testing" Version="9.5.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
+    <PackageReference Include="Aspire.Hosting.Testing" Version="13.0.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="NUnit" Version="4.4.0" />
-    <PackageReference Include="NUnit.Analyzers" Version="4.11.2" />
-    <PackageReference Include="NUnit3TestAdapter" Version="5.2.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.10.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -174,7 +218,7 @@ The following example test project was created as part of the **Aspire Starter A
 
 </Pivot>
 
-The preceding project file is fairly standard. There's a `PackageReference` to the [Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet package, which includes the required types to write tests for Aspire projects.
+The preceding project file is fairly standard. There's a `PackageReference` to the [📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet package, which includes the required types to write tests for Aspire projects.
 
 The template test project includes an `IntegrationTest1` class with a single test. The test verifies the following scenario:
 
@@ -187,38 +231,45 @@ Consider the following test class:
 <Pivot id="xunit">
 
 ```csharp title="IntegrationTest1.cs"
-namespace AspireApp.Tests;
+using Microsoft.Extensions.Logging;
+
+namespace xUnit.Tests.Tests;
 
 public class IntegrationTest1
 {
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task GetWebResourceRootReturnsOkStatusCode()
     {
         // Arrange
-        var builder = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.AspireApp_AppHost>();
-
-        builder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        var cancellationToken = CancellationToken.None;
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>(cancellationToken);
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            // Override the logging filters from the app's configuration
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
         {
             clientBuilder.AddStandardResilienceHandler();
         });
-
-        // To capture logs from your tests, see the "Capture logs from tests" section
-        // in the documentation or refer to LoggingTest.cs for a complete example
-        await using var app = await builder.BuildAsync();
-
-        await app.StartAsync();
-
+    
+        await using var app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+    
         // Act
-        var httpClient = app.CreateHttpClient("webfrontend");
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var httpClient = app.CreateHttpClient("webfrontend");
         await app.ResourceNotifications.WaitForResourceHealthyAsync(
-            "webfrontend",
-            cts.Token);
-
-        var response = await httpClient.GetAsync("/");
-
+            "webfrontend", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        using var response = await httpClient.GetAsync("/", cancellationToken);
+    
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -229,37 +280,48 @@ public class IntegrationTest1
 <Pivot id="mstest">
 
 ```csharp title="IntegrationTest1.cs"
-namespace AspireApp.Tests;
+using Microsoft.Extensions.Logging;
+
+namespace MSTest.Tests;
 
 [TestClass]
 public class IntegrationTest1
 {
+    public TestContext TestContext { get; set; }
+
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
     [TestMethod]
     public async Task GetWebResourceRootReturnsOkStatusCode()
     {
         // Arrange
-        var builder = await DistributedApplicationTestingBuilder
+        var cancellationToken = TestContext.CancellationTokenSource.Token;
+        var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.AspireApp_AppHost>();
-
-        builder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            // Override the logging filters from the app's configuration
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
         {
             clientBuilder.AddStandardResilienceHandler();
         });
-
-        await using var app = await builder.BuildAsync();
-
-        await app.StartAsync();
-
+    
+        await using var app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+    
         // Act
-        var httpClient = app.CreateHttpClient("webfrontend");
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var httpClient = app.CreateHttpClient("webfrontend");
         await app.ResourceNotifications.WaitForResourceHealthyAsync(
-            "webfrontend",
-            cts.Token);
-
-        var response = await httpClient.GetAsync("/");
-
+            "webfrontend", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        using var response = await httpClient.GetAsync("/", cancellationToken);
+    
         // Assert
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
     }
@@ -270,36 +332,46 @@ public class IntegrationTest1
 <Pivot id="nunit">
 
 ```csharp title="IntegrationTest1.cs"
-namespace AspireApp.Tests;
+using Microsoft.Extensions.Logging;
+
+namespace NUnit.Tests;
 
 public class IntegrationTest1
 {
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
     [Test]
     public async Task GetWebResourceRootReturnsOkStatusCode()
     {
         // Arrange
-        var builder = await DistributedApplicationTestingBuilder
+        using var cts = new CancellationTokenSource(DefaultTimeout);
+        var cancellationToken = cts.Token;
+        var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.AspireApp_AppHost>();
-
-        builder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            // Override the logging filters from the app's configuration
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
         {
             clientBuilder.AddStandardResilienceHandler();
         });
-
-        await using var app = await builder.BuildAsync();
-
-        await app.StartAsync();
-
+    
+        await using var app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+    
         // Act
-        var httpClient = app.CreateHttpClient("webfrontend");
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var httpClient = app.CreateHttpClient("webfrontend");
         await app.ResourceNotifications.WaitForResourceHealthyAsync(
-                "webfrontend",
-                cts.Token);
-
-        var response = await httpClient.GetAsync("/");
-
+            "webfrontend", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+        using var response = await httpClient.GetAsync("/", cancellationToken);
+    
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
@@ -311,13 +383,12 @@ public class IntegrationTest1
 The preceding code:
 
 - Relies on the `DistributedApplicationTestingBuilder.CreateAsync` API to asynchronously create the AppHost.
-- The `builder` is an instance of `IDistributedApplicationTestingBuilder` that represents the AppHost.
-- The `builder` instance has its service collection configured with the standard HTTP resilience handler. For more information, see [Build resilient HTTP apps: Key development patterns](https://learn.microsoft.com/dotnet/core/resilience/http-resilience).
-- The `builder` has its `BuildAsync` method invoked, which returns the `DistributedApplication` instance as the `app`.
-- The `app` has its service provider get the `ResourceNotificationService` instance.
+- The `appHost` is an instance of `IDistributedApplicationTestingBuilder` that represents the AppHost.
+- The `appHost` instance has its service collection configured with logging and the standard HTTP resilience handler. For more information, see [Build resilient HTTP apps: Key development patterns](https://learn.microsoft.com/dotnet/core/resilience/http-resilience).
+- The `appHost` has its `BuildAsync` method invoked, which returns the `DistributedApplication` instance as the `app`.
 - The `app` is started asynchronously.
 - An `HttpClient` is created for the `webfrontend` resource by calling `app.CreateHttpClient`.
-- The `resourceNotificationService` is used to wait for the `webfrontend` resource to be available and running.
+- The `app.ResourceNotifications` is used to wait for the `webfrontend` resource to be healthy.
 - A simple HTTP GET request is made to the root of the `webfrontend` resource.
 - The test asserts that the response status code is `OK`.
 
@@ -330,7 +401,7 @@ To further test resources and their expressed dependencies in your Aspire soluti
 ```csharp title="EnvVarTests.cs"
 using Aspire.Hosting;
 
-namespace AspireApp.Tests;
+namespace Tests;
 
 public class EnvVarTests
 {
@@ -365,7 +436,7 @@ public class EnvVarTests
 ```csharp title="EnvVarTests.cs"
 using Aspire.Hosting;
 
-namespace AspireApp.Tests;
+namespace Tests;
 
 [TestClass]
 public class EnvVarTests
@@ -398,7 +469,7 @@ public class EnvVarTests
 ```csharp title="EnvVarTests.cs"
 using Aspire.Hosting;
 
-namespace AspireApp.Tests;
+namespace Tests;
 
 public class EnvVarTests
 {
@@ -447,7 +518,7 @@ To capture logs from your tests, use the `AddLogging` method on the `builder.Ser
 ```csharp title="LoggingTest.cs"
 using Microsoft.Extensions.Logging;
 
-namespace AspireApp.Tests;
+namespace Tests;
 
 public class LoggingTest
 {
@@ -496,7 +567,7 @@ public class LoggingTest
 ```csharp title="LoggingTest.cs"
 using Microsoft.Extensions.Logging;
 
-namespace AspireApp.Tests;
+namespace Tests;
 
 [TestClass]
 public class LoggingTest
@@ -546,7 +617,7 @@ public class LoggingTest
 ```csharp title="LoggingTest.cs"
 using Microsoft.Extensions.Logging;
 
-namespace AspireApp.Tests;
+namespace Tests;
 
 public class LoggingTest
 {
@@ -618,27 +689,27 @@ xUnit.net doesn't capture log output from tests as test output. Tests must [use 
 
 For xUnit.net, consider using one of these logging packages:
 
-- [MartinCostello.Logging.XUnit](https://www.nuget.org/packages/MartinCostello.Logging.XUnit) - Outputs `ILogger` logs to `ITestOutputHelper` output.
-- [Xunit.DependencyInjection.Logging](https://www.nuget.org/packages/Xunit.DependencyInjection.Logging) - Integrates with xUnit.net's dependency injection.
-- [Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - Writes logs to files.
-- [Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - Outputs logs to console.
+- [📦 MartinCostello.Logging.XUnit](https://www.nuget.org/packages/MartinCostello.Logging.XUnit) - Outputs `ILogger` logs to `ITestOutputHelper` output.
+- [📦 Xunit.DependencyInjection.Logging](https://www.nuget.org/packages/Xunit.DependencyInjection.Logging) - Integrates with xUnit.net's dependency injection.
+- [📦 Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - Writes logs to files.
+- [📦 Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - Outputs logs to console.
 
 </Pivot>
 <Pivot id="mstest">
 
 For MSTest, consider using one of these logging packages:
 
-- [Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - Writes logs to files.
-- [Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - Outputs logs to console.
+- [📦 Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - Writes logs to files.
+- [📦 Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - Outputs logs to console.
 
 </Pivot>
 <Pivot id="nunit">
 
 For NUnit, consider using one of these logging packages:
 
-- [Extensions.Logging.NUnit](https://www.nuget.org/packages/Extensions.Logging.NUnit) - Integrates with NUnit framework.
-- [Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - Writes logs to files.
-- [Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - Outputs logs to console.
+- [📦 Extensions.Logging.NUnit](https://www.nuget.org/packages/Extensions.Logging.NUnit) - Integrates with NUnit framework.
+- [📦 Serilog.Extensions.Logging.File](https://www.nuget.org/packages/Serilog.Extensions.Logging.File) - Writes logs to files.
+- [📦 Microsoft.Extensions.Logging.Console](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Console) - Outputs logs to console.
 
 </Pivot>
 

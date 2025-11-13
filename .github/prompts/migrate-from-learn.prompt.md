@@ -102,6 +102,7 @@ Migrate documentation content from the legacy `E:\GitHub\docs-aspire` repository
 9. Remove xref links or convert to standard links
 10. Restructure content for improved messaging
 11. Adapt to aspire.dev style and tone
+12. When linking to NuGet packages, ensure the link name matches the package name on nuget.org and is prefixed with the 📦 emoji, i.e.; [📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing).
 
 ### Phase 4: Sidebar Integration
 1. Update `src/frontend/sidebar.topics.ts`
@@ -142,6 +143,9 @@ Copy-Item "source" "destination"
 5. **Context switching**: Different conventions, styles, and audiences
 6. **Dependency tracking**: Articles may reference other content
 7. **PowerShell availability**: Environment requires PowerShell 7+ (not PowerShell 5)
+
+> [!NOTE]
+> When you encounter `snippets` assume they are dated, and use a terminal to recreate the project or code sample using the latest versions of Aspire and .NET SDKs which are already installed on your machine. Use a temp directory, and copy the code you need, then delete the temp directory when done.
 
 ## Questions to Address Per Article
 
