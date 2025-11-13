@@ -1,8 +1,6 @@
 ---
 import { Image } from "astro:assets";
 
-import { shuffle } from "@utils/helpers";
-
 import go from "@assets/icons/go.svg";
 import python from "@assets/icons/python.svg";
 import javascript from "@assets/icons/javascript.svg";
@@ -13,16 +11,11 @@ import csharp from "@assets/icons/csharp.svg";
 const languages = [
     { name: "Go", icon: go, search: "golang gofeature" },
     { name: "Python", icon: python, search: "python" },
-    { name: "JavaScript", icon: javascript, search: "node" },
-    { name: "TypeScript", icon: typescript, search: "node" },
+    { name: "JavaScript", icon: javascript, search: "javascript nodejs" },
+    { name: "TypeScript", icon: typescript, search: "javascript nodejs" },
     { name: "Java", icon: java, search: "java" },
     { name: "C#", icon: csharp, search: "" },
 ];
-
-const shuffledLanguages = [
-    shuffle(languages),
-    { name: "And more...", search: "" },
-].flat();
 
 const getSearchParam = (lang: {
     name: string;
@@ -36,34 +29,18 @@ const getSearchParam = (lang: {
 ---
 
 <section class="languages-supported">
-    <div class="languages-grid">
+    <div class="languages-grid" data-languages-grid>
         {
-            shuffledLanguages.map((lang) => (
+            languages.map((lang) => (
                 <a
                     href={`/integrations/gallery/?search=${getSearchParam(lang)}`}
                     class="language-card"
+                    data-lang-name={lang.name}
                     aria-label={`${Astro.locals.t("integrations.explore", { integration: lang.name })}`}
                     title={`${Astro.locals.t("integrations.explore", { integration: lang.name })}`}
                     data-tooltip-placement="top"
                 >
-                    {lang.name === "And more..." ? (
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="64"
-                            height="64"
-                            viewBox="0 0 24 24"
-                            class="icon"
-                        >
-                            <path
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.5"
-                                d="M8 12h4m4 0h-4m0 0V8m0 4v4m0 6c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10"
-                            />
-                        </svg>
-                    ) : "icon" in lang && lang.icon ? (
+                    {"icon" in lang && lang.icon ? (
                         <Image
                             src={lang.icon}
                             alt={lang.name}
@@ -78,7 +55,62 @@ const getSearchParam = (lang: {
                 </a>
             ))
         }
+        <a
+            href="/integrations/gallery/?search="
+            class="language-card"
+            data-lang-name="And more..."
+            aria-label={`${Astro.locals.t("integrations.explore", { integration: "more integrations" })}`}
+            title={`${Astro.locals.t("integrations.explore", { integration: "more integrations" })}`}
+            data-tooltip-placement="top"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="64"
+                height="64"
+                viewBox="0 0 24 24"
+                class="icon"
+            >
+                <path
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.5"
+                    d="M8 12h4m4 0h-4m0 0V8m0 4v4m0 6c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10"
+                ></path>
+            </svg>
+            <span>And more...</span>
+        </a>
     </div>
+
+    <script is:inline>
+        document.addEventListener("DOMContentLoaded", () => {
+            const grid = document.querySelector("[data-languages-grid]");
+            if (!grid) return;
+
+            const cards = Array.from(grid.querySelectorAll(".language-card"));
+            if (cards.length <= 1) return;
+
+            // Keep "And more..." card (last one) separate
+            const moreCard = cards[cards.length - 1];
+            const languageCards = cards.slice(0, -1);
+
+            // Shuffle language cards
+            for (let i = languageCards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const cardI = languageCards[i];
+                const cardJ = languageCards[j];
+                if (cardI && cardJ) {
+                    [languageCards[i], languageCards[j]] = [cardJ, cardI];
+                }
+            }
+
+            // Re-append cards in shuffled order, with "And more..." last
+            languageCards.forEach((card) => grid.appendChild(card));
+            grid.appendChild(moreCard);
+        });
+    </script>
+
     <style>
         .icon-placeholder {
             height: calc(4rem + 0.5rem);

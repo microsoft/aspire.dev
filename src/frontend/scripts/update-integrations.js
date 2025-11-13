@@ -11,7 +11,10 @@ const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
   'Aspire.Hosting',
   'Aspire.Hosting.Azure',
-  'Aspire.Hosting.IncrementalMigration'
+  'Aspire.Hosting.IncrementalMigration',
+  'Aspire.Hosting.NodeJs',
+  'Aspire.MongoDB.Driver.v3',
+  'Aspire.RabbitMQ.Client.v7'
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 
