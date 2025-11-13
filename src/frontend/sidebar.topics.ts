@@ -316,6 +316,26 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: 'Розгортання і топологія застосунку',
               'zh-CN': '部署与应用拓扑',
             }, slug: 'get-started/pipelines'
+          },
+          {
+            label: 'Service discovery', translations: {
+              da: 'Tjenesteopdagelse',
+              de: 'Dienstermittlung',
+              en: 'Service discovery',
+              es: 'Descubrimiento de servicios',
+              fr: 'Découverte de services',
+              hi: 'सेवा खोज',
+              id: 'Penemuan layanan',
+              it: 'Individuazione del servizio',
+              ja: 'サービス検出',
+              ko: '서비스 검색',
+              'pt-BR': 'Descoberta de serviços',
+              'pt-PT': 'Descoberta de serviços',
+              ru: 'Обнаружение служб',
+              tr: 'Hizmet keşfi',
+              uk: 'Виявлення служб',
+              'zh-CN': '服务发现',
+            }, slug: 'fundamentals/service-discovery'
           }
         ]
       },
