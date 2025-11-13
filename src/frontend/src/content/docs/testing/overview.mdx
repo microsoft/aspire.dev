@@ -1,0 +1,74 @@
+---
+title: Testing overview
+description: Learn how to write integration tests for your Aspire applications using the Aspire.Hosting.Testing package.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import testingDiagram from '@assets/testing/testing-diagram.png';
+
+Aspire supports automated testing of your distributed applications through the [Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet package. This package provides the `DistributedApplicationTestingBuilder` class, which creates a test host for your application. The testing builder launches your AppHost project in a background thread and manages its lifecycle, allowing you to control and manipulate the application and its resources.
+
+By default, the testing builder disables the dashboard and randomizes the ports of proxied resources to enable multiple instances of your application to run concurrently. Once your test completes, disposing of the application or testing builder cleans up your app resources.
+
+## Understanding Aspire testing
+
+Aspire's testing capabilities are designed specifically for closed-box integration testing of your entire distributed application. Unlike unit tests or open-box integration tests, which typically run individual components in isolation, Aspire tests launch your complete solution—the AppHost and all its resources—as separate processes, closely simulating real-world scenarios.
+
+The following diagram shows how the Aspire testing project starts the AppHost, which then starts the application and its resources:
+
+<Image src={testingDiagram} alt="Aspire testing diagram showing how a test project starts the AppHost, which orchestrates the Database, API, and Frontend applications. The test project sends an HTTP request to the Frontend application." />
+
+1. The **test project** starts the AppHost.
+1. The **AppHost** process starts.
+1. The **AppHost** runs the `Database`, `API`, and `Frontend` applications.
+1. The **test project** sends an HTTP request to the `Frontend` application.
+
+The test project starts the AppHost, which then orchestrates all dependent app resources—regardless of their type. The test project can send an HTTP request to the `Frontend` app, which depends on an `API` app, and the `API` app depends on a `Database`. A successful request confirms that the `Frontend` app can communicate with the `API` app, and that the `API` app can successfully get data from the `Database`.
+
+<Aside type="caution">
+Aspire testing doesn't enable scenarios for mocking, substituting, or replacing services in dependency injection—as the tests run in a separate process.
+</Aside>
+
+### When to use Aspire testing
+
+Use Aspire testing when you want to:
+
+- Verify end-to-end functionality of your distributed application.
+- Ensure interactions between multiple services and resources (such as databases) behave correctly in realistic conditions.
+- Confirm data persistence and integration with real external dependencies, like a PostgreSQL database.
+
+If your goal is to test a single project in isolation, run components in-memory, or mock external dependencies, consider using `WebApplicationFactory<T>` instead.
+
+<Aside type="note">
+Aspire tests run your application as separate processes, meaning you don't have direct access to internal services or components from your test code. You can influence application behavior through environment variables or configuration settings, but internal state and services remain encapsulated within their respective processes.
+</Aside>
+
+## Configuration options
+
+### Disable port randomization
+
+By default, Aspire uses random ports to allow multiple instances of your application to run concurrently without interference. It uses Aspire's service discovery to ensure applications can locate each other's endpoints. To disable port randomization, pass `"DcpPublisher:RandomizePorts=false"` when constructing your testing builder:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        [
+            "DcpPublisher:RandomizePorts=false"
+        ]);
+```
+
+### Enable the dashboard
+
+The testing builder disables the Aspire dashboard by default. To enable it, set the `DisableDashboard` property to `false` when creating your testing builder:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        args: [],
+        configureBuilder: (appOptions, hostSettings) =>
+        {
+            appOptions.DisableDashboard = false;
+        });
+```
