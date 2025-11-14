@@ -1,10 +1,301 @@
 ---
 title: Azure Web PubSub integration
+description: This article describes the Aspire Azure Web PubSub integration features and capabilities.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import webPubSubIcon from '@assets/icons/azure-webpubsub-icon.png';
 
-<Placeholder 
-    name="Azure Web PubSub"
-    link="/dotnet/aspire/azure/azure-web-pubsub-integration"
+<Image
+  src={webPubSubIcon}
+  alt="Azure Web PubSub logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Azure Web PubSub](https://learn.microsoft.com/azure-web-pubsub) is a fully managed service for real-time messaging. The Aspire Azure Web PubSub integration enables you to connect to Azure Web PubSub instances from your applications.
+
+## Hosting integration
+
+The Aspire Azure Web PubSub hosting integration models the Web PubSub resources as the following types:
+
+- `AzureWebPubSubResource`: Represents an Azure Web PubSub resource, including connection information to the underlying Azure resource.
+- `AzureWebPubSubHubResource`: Represents a Web PubSub hub settings resource, which contains the settings for a hub. For example, you can specify if the hub allows anonymous connections or add event handlers to the hub.
+
+To access these types and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.WebPubSub](https://www.nuget.org/packages/Aspire.Hosting.Azure.WebPubSub) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.WebPubSub" shortName="azure-web-pubsub" />
+
+### Add an Azure Web PubSub resource
+
+To add an Azure Web PubSub resource to your AppHost project, call the `AddAzureWebPubSub` method providing a name:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure Web PubSub resource named `web-pubsub` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+When you call `AddAzureWebPubSub`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Add an Azure Web PubSub hub resource
+
+When you add an Azure Web PubSub resource, you can also add a child hub resource. The hub resource is a logical grouping of connections and event handlers. To add an Azure Web PubSub hub resource to your AppHost project, chain a call to the `AddHub` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var worker = builder.AddProject<Projects.WorkerService>("worker")
+                    .WithExternalHttpEndpoints();
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+var messagesHub = webPubSub.AddHub(name: "messages", hubName: "messageHub");
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure Web PubSub hub resource named `messages` and a hub name of `messageHub`, which enables the addition of event handlers. To add an event handler, call the `AddEventHandler`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var worker = builder.AddProject<Projects.WorkerService>("worker")
+                    .WithExternalHttpEndpoints();
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+var messagesHub = webPubSub.AddHub(name: "messages", hubName: "messageHub");
+
+messagesHub.AddEventHandler(
+    $"{worker.GetEndpoint("https")}/eventhandler/",
+    systemEvents: ["connected"]);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds a worker service project named `worker` with an external HTTP endpoint. The hub named `messages` resource is added to the `web-pubsub` resource, and an event handler is added to the `messagesHub` resource. The event handler URL is set to the worker service's external HTTP endpoint. For more information, see [Azure Web PubSub event handlers](https://learn.microsoft.com/azure-web-pubsub/howto-develop-eventhandler).
+
+### Connect to an existing Azure Web PubSub instance
+
+You might have an existing Azure Web PubSub service that you want to connect to. You can chain a call to annotate that your `AzureWebPubSubResource` is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingPubSubName = builder.AddParameter("existingPubSubName");
+var existingPubSubResourceGroup = builder.AddParameter("existingPubSubResourceGroup");
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub")
+                       .AsExisting(existingPubSubName, existingPubSubResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(webPubSub);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure Web PubSub resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+<Aside type="note">
+Alternatively, instead of representing an Azure Web PubSub resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+
+When you add an Azure Web PubSub resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var webPubSub = builder.AddAzureWebPubSub("web-pubsub");
+
+webPubSub.ConfigureInfrastructure(infra =>
+{
+    var service = infra.GetProvisionableResources()
+                       .OfType<WebPubSubService>()
+                       .Single();
+
+    service.Sku = new BillingInfoSku
+    {
+        Name = "Standard_S1",
+        Capacity = 5
+    };
+    service.Tags["ExampleKey"] = "Example value";
+});
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `WebPubSubService` resource is retrieved.
+  - The `Sku` object has its name and capacity properties set to `Standard_S1` and `5`, respectively.
+  - A tag is added to the Web PubSub resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the Web PubSub resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+
+## Client integration
+
+The Aspire Azure Web PubSub client integration is used to connect to an Azure Web PubSub service using the `WebPubSubServiceClient`. To get started with the Aspire Azure Web PubSub service client integration, install the [📦 Aspire.Azure.Messaging.WebPubSub](https://www.nuget.org/packages/Aspire.Azure.Messaging.WebPubSub) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Azure.Messaging.WebPubSub" />
+
+### Add Web PubSub client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureWebPubSubServiceClient` extension method to register a `WebPubSubServiceClient` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureWebPubSubServiceClient(connectionName: "web-pubsub");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Web PubSub resource in the AppHost project.
+</Aside>
+
+After adding the `WebPubSubServiceClient`, you can retrieve the client instance using dependency injection:
+
+```csharp
+public class ExampleService(WebPubSubServiceClient client)
+{
+    // Use client...
+}
+```
+
+For more information, see:
+
+- [Azure.Messaging.WebPubSub documentation](https://learn.microsoft.com/azure-web-pubsub/howto-create-serviceclient-with-net-and-azure-identity) for examples on using the `WebPubSubServiceClient`.
+- [Dependency injection in .NET](/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+### Add keyed Web PubSub client
+
+There might be situations where you want to register multiple `WebPubSubServiceClient` instances with different connection names. To register keyed Web PubSub clients, call the `AddKeyedAzureWebPubSubServiceClient` method:
+
+```csharp
+builder.AddKeyedAzureWebPubSubServiceClient(name: "messages");
+builder.AddKeyedAzureWebPubSubServiceClient(name: "commands");
+```
+
+<Aside type="caution">
+When using keyed services, it's expected that your Web PubSub resource configured two named hubs, one for the `messages` and one for the `commands`.
+</Aside>
+
+Then you can retrieve the client instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("messages")] WebPubSubServiceClient messagesClient,
+    [KeyedService("commands")] WebPubSubServiceClient commandsClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [Keyed services in .NET](/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire Azure Web PubSub library provides multiple options to configure the Azure Web PubSub connection based on the requirements and conventions of your project. Either an `Endpoint` or a `ConnectionString` must be supplied.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddAzureWebPubSubServiceClient`:
+
+```csharp
+builder.AddAzureWebPubSubServiceClient(
+    "web-pubsub",
+    settings => settings.HubName = "your_hub_name");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
+
+- **Service endpoint (recommended)**: Uses the service endpoint with `DefaultAzureCredential`.
+
+    ```json
+    {
+      "ConnectionStrings": {
+        "web-pubsub": "https://{account_name}.webpubsub.azure.com"
+      }
+    }
+    ```
+
+- **Connection string**: Includes an access key.
+
+    ```json
+    {
+      "ConnectionStrings": {
+        "web-pubsub": "Endpoint=https://{account_name}.webpubsub.azure.com;AccessKey={account_key}"
+      }
+    }
+    ```
+
+#### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Azure:Messaging:WebPubSub` key:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Messaging": {
+        "WebPubSub": {
+          "DisableHealthChecks": true,
+          "HubName": "your_hub_name"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddAzureWebPubSubServiceClient(
+    "web-pubsub",
+    settings => settings.DisableHealthChecks = true);
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations. For more information about integration observability and telemetry, see [Aspire integrations overview](/fundamentals/integrations-overview/).
+
+#### Logging
+
+The Aspire Azure Web PubSub integration uses the following log categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure.Messaging.WebPubSub`
+
+#### Tracing
+
+The Aspire Azure Web PubSub integration will emit the following tracing activities using OpenTelemetry:
+
+- `Azure.Messaging.WebPubSub.*`
+
+#### Metrics
+
+The Aspire Azure Web PubSub integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.

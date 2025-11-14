@@ -43,6 +43,66 @@ Migrate documentation content from the legacy `E:\GitHub\docs-aspire` repository
 - **Links**: `xref:` links → Regular markdown links or remove if no equivalent exists, and do inline code formatting for API references
 - Custom components available: `Aside`, `CardGrid`, `LinkCard`, `Steps`, `TabItem`, `Icon`, `FileTree`, `Kbd`, `LearnMore`, `PivotSelector`, `Pivot`, `ThemeImage`
 
+Learn's zone pivots:
+
+```md
+---
+title: Zone pivot example on Learn
+zone_pivot_groups: unit-testing-framework
+---
+
+:::pivot="xunit"
+Example xUnit content
+:::
+:::pivot="nunit"
+Example NUnit content
+:::
+```
+
+Then you'd have to look up the `docs/zones/zone-pivot-groups.yml` file to see which pivots belong to the `unit-testing-framework` group. For example:
+
+```yml
+- id: unit-testing-framework
+  title: Unit testing framework
+  prompt: Choose a unit testing framework
+  pivots:
+  - id: xunit
+    title: xUnit
+  - id: mstest
+    title: MSTest
+  - id: nunit
+    title: NUnit
+```
+
+For `aspire.dev` our pivots are based on two custom components:
+
+```mdx
+---
+title: Example pivot example on aspire.dev
+---
+
+import Pivot from '@components/Pivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+
+<PivotSelector
+    title="Select your testing framework"
+    key="testing-framework"
+    options={[
+        { id: "xunit", title: "xUnit.net" },
+        { id: "mstest", title: "MSTest" },
+        { id: "nunit", title: "NUnit" },
+    ]}
+/>
+
+
+<Pivot id="xunit">
+Example xUnit content
+</Pivot>
+<Pivot id="nunit">
+Example NUnit content
+</Pivot>
+```
+
 ### Image Handling
 1. **Import statement**: Add `import { Image } from 'astro:assets';` to imports
 2. **Asset import**: `import imageName from '@assets/{section}/{filename}';`

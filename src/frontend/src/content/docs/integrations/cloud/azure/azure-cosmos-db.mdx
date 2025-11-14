@@ -1,10 +1,325 @@
 ---
 title: Azure Cosmos DB integration
+description: Learn how to install and configure the Aspire Azure Cosmos DB integration to connect to existing Cosmos DB instances or create new instances from .NET with the Azure Cosmos DB emulator.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
 
-<Placeholder 
-    name="Azure Cosmos DB"
-    link="/dotnet/aspire/database/azure-cosmos-db-integration"
+  data-zoom-off
 />
+
+[Azure Cosmos DB](https://learn.microsoft.com/cosmos-db) is a globally distributed, multi-model database service. The Aspire Azure Cosmos DB integration enables you to connect to Azure Cosmos DB NoSQL databases from your applications.
+
+If you're looking for the Entity Framework Core integration, see [Aspire Cosmos DB Entity Framework Core integration](/integrations/databases/cosmos-db-extensions/).
+
+## Hosting integration
+
+The Aspire Azure Cosmos DB hosting integration models Cosmos DB resources as the following types:
+
+- `AzureCosmosDBResource`: Represents an Azure Cosmos DB account resource.
+- `AzureCosmosDBDatabaseResource`: Represents a database within a Cosmos DB account.
+
+To access these types and APIs, add the [📦 Aspire.Hosting.Azure.CosmosDB](https://www.nuget.org/packages/Aspire.Hosting.Azure.CosmosDB) NuGet package to your AppHost project.
+
+<InstallPackage packageName="Aspire.Hosting.Azure.CosmosDB" shortName="azure-cosmos-db" />
+
+### Add Azure Cosmos DB resource
+
+In your AppHost project, call `AddAzureCosmosDB` to add and return an Azure Cosmos DB resource builder:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmosdb = builder.AddAzureCosmosDB("cosmos-db");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(cosmosdb);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="caution">
+When you call `AddAzureCosmosDB`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Connect to an existing Azure Cosmos DB account
+
+You might have an existing Azure Cosmos DB account that you want to connect to. Chain a call to annotate that your resource is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingCosmosName = builder.AddParameter("existingCosmosName");
+var existingCosmosResourceGroup = builder.AddParameter("existingCosmosResourceGroup");
+
+var cosmosdb = builder.AddAzureCosmosDB("cosmos-db")
+                      .AsExisting(existingCosmosName, existingCosmosResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(cosmosdb);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure Cosmos DB resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+<Aside type="note">
+Alternatively, instead of representing an Azure Cosmos DB account resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+### Add Azure Cosmos DB database
+
+To add a database to the Cosmos DB account, chain a call to `AddDatabase`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmosdb = builder.AddAzureCosmosDB("cosmos-db");
+var database = cosmosdb.AddDatabase("database");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(database);
+
+// After adding all resources, run the app...
+```
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire generates Bicep that provisions an Azure Cosmos DB account with sensible defaults. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep using the `ConfigureInfrastructure` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmosdb = builder.AddAzureCosmosDB("cosmos-db");
+
+cosmosdb.ConfigureInfrastructure(infra =>
+{
+    var account = infra.GetProvisionableResources()
+                       .OfType<CosmosDBAccount>()
+                       .Single();
+
+    account.ConsistencyPolicy = new ConsistencyPolicy
+    {
+        DefaultConsistencyLevel = DefaultConsistencyLevel.Session
+    };
+    account.Tags["ExampleKey"] = "Example value";
+});
+```
+
+### Hosting integration health checks
+
+The Azure Cosmos DB hosting integration automatically adds a health check for the Cosmos DB resource. The health check verifies that the Cosmos DB is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.CosmosDb](https://www.nuget.org/packages/AspNetCore.HealthChecks.CosmosDb) NuGet package.
+
+## Client integration
+
+To get started with the Aspire Azure Cosmos DB client integration, install the [📦 Aspire.Microsoft.Azure.Cosmos](https://www.nuget.org/packages/Aspire.Microsoft.Azure.Cosmos) NuGet package in the client-consuming project. The Cosmos DB client integration registers a `CosmosClient` instance that you can use to interact with Cosmos DB.
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Azure.Cosmos" />
+
+### Add Cosmos DB client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureCosmosClient` extension method to register a `CosmosClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddAzureCosmosClient(connectionName: "cosmos-db");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Cosmos DB resource in the AppHost project. In other words, when you call `AddAzureCosmosDB` and provide a name of `cosmos-db` that same name should be used when calling `AddAzureCosmosClient`.
+</Aside>
+
+You can then retrieve the `CosmosClient` instance using dependency injection. For example, to retrieve the client from an example service:
+
+```csharp
+public class ExampleService(CosmosClient client)
+{
+    // Use client...
+}
+```
+
+For more information on dependency injection, see [.NET dependency injection](/dotnet/core/extensions/dependency-injection).
+
+### Add keyed Cosmos DB client
+
+There might be situations where you want to register multiple `CosmosClient` instances with different connection names. To register keyed Cosmos DB clients, call the `AddKeyedAzureCosmosClient` method:
+
+```csharp
+builder.AddKeyedAzureCosmosClient(name: "mainDb");
+builder.AddKeyedAzureCosmosClient(name: "loggingDb");
+```
+
+<Aside type="caution">
+When using keyed services, it's expected that your Cosmos DB resource configured two named databases, one for the `mainDb` and one for the `loggingDb`.
+</Aside>
+
+Then you can retrieve the `CosmosClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("mainDb")] CosmosClient mainDbClient,
+    [FromKeyedServices("loggingDb")] CosmosClient loggingDbClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Add Azure Cosmos DB database
+
+In the AppHost, the database resource can be added as a child resource to the parent Cosmos DB account. In your client-consuming project, you can deep-link to the database resource by name, registering a `Database` instance for use with dependency injection:
+
+```csharp
+builder.AddAzureCosmosDatabase(connectionName: "customers");
+```
+
+The `AddAzureCosmosDatabase` API returns a builder that you can use to attach multiple containers under the same database connection. All child containers share the same `CosmosClient` and database connection. This strategy is useful when associating the same `CosmosClientOptions` with multiple containers.
+
+After calling `AddAzureCosmosDatabase`, you can then retrieve the `Database` instance using dependency injection:
+
+```csharp
+app.MapGet("/api/customers", async (Database database) =>
+{
+    // Query data from database...
+});
+```
+
+### Add Azure Cosmos DB container
+
+When you add a Cosmos DB resource in the AppHost project, you can also add container resources. The container resource is a child resource to the parent database. In your client-consuming project, you can deep-link to the container resource by name:
+
+```csharp
+builder.AddAzureCosmosContainer(connectionName: "details");
+```
+
+You can then retrieve the `Container` instance using dependency injection:
+
+```csharp
+app.MapGet("/api/orders/{id:guid}", async (
+    Container container,
+    [FromRoute] Guid id) =>
+{
+    // Query data from container...
+});
+```
+
+### Configuration
+
+The Aspire Azure Cosmos DB integration provides multiple options to configure the connection based on the requirements and conventions of your project.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling the `AddAzureCosmosClient` method:
+
+```csharp
+builder.AddAzureCosmosClient("cosmos-db");
+```
+
+Then the connection string is retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "cosmos-db": "AccountEndpoint=https://{account_name}.documents.azure.com:443/;AccountKey={account_key};"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Aspire Azure Cosmos DB integration supports `Microsoft.Extensions.Configuration`. It loads the `MicrosoftAzureCosmosSettings` from configuration by using the `Aspire:Microsoft:Azure:Cosmos` key. The following snippet is an example of an `appsettings.json` file that configures some of the options:
+
+```json
+{
+  "Aspire": {
+    "Microsoft": {
+      "Azure": {
+        "Cosmos": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete Cosmos DB client integration JSON schema, see [Aspire.Microsoft.Azure.Cosmos/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v9.1.0/src/Components/Aspire.Microsoft.Azure.Cosmos/ConfigurationSchema.json).
+
+#### Use inline delegates
+
+You can pass the `Action<MicrosoftAzureCosmosSettings> configureSettings` delegate to set up some or all the options inline:
+
+```csharp
+builder.AddAzureCosmosClient(
+    "cosmos-db",
+    static settings => settings.DisableTracing = true);
+```
+
+You can also set up the `CosmosClientOptions` using the optional `Action<CosmosClientOptions> configureClientOptions` parameter:
+
+```csharp
+builder.AddAzureCosmosClient(
+    "cosmosConnectionName",
+    configureClientOptions:
+        clientOptions => clientOptions.ApplicationName = "myapp");
+```
+
+### Client integration health checks
+
+The Aspire Cosmos DB client integration currently doesn't implement health checks, though this may change in future releases.
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. For more information about integration observability and telemetry, see [Aspire integrations overview](/fundamentals/integrations-overview/).
+
+#### Logging
+
+The Aspire Azure Cosmos DB integration uses the following log categories:
+
+- `Azure-Cosmos-Operation-Request-Diagnostics`
+
+In addition to getting Azure Cosmos DB request diagnostics for failed requests, you can configure latency thresholds to determine which successful Azure Cosmos DB request diagnostics will be logged. The default values are 100 ms for point operations and 500 ms for non point operations.
+
+```csharp
+builder.AddAzureCosmosClient(
+    "cosmosConnectionName",
+    configureClientOptions:
+        clientOptions => {
+            clientOptions.CosmosClientTelemetryOptions = new()
+            {
+                CosmosThresholdOptions = new()
+                {
+                    PointOperationLatencyThreshold = TimeSpan.FromMilliseconds(50),
+                    NonPointOperationLatencyThreshold = TimeSpan.FromMilliseconds(300)
+                }
+            };
+        });
+```
+
+#### Tracing
+
+The Aspire Azure Cosmos DB integration will emit the following tracing activities using OpenTelemetry:
+
+- `Azure.Cosmos.Operation`
+
+Azure Cosmos DB tracing is currently in preview, so you must set the experimental switch to ensure traces are emitted.
+
+```csharp
+AppContext.SetSwitch("Azure.Experimental.EnableActivitySource", true);
+```
+
+For more information, see [Azure Cosmos DB SDK observability: Trace attributes](https://learn.microsoft.com/cosmos-db/nosql/sdk-observability?tabs=dotnet#trace-attributes).
+
+#### Metrics
+
+The Aspire Azure Cosmos DB integration currently doesn't support metrics by default due to limitations with the Azure SDK.

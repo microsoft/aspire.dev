@@ -1,10 +1,252 @@
 ---
 title: Azure AI Search integration
+description: This article describes the Aspire Azure AI Search integration features and capabilities.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import searchIcon from '@assets/icons/azure-search-icon.png';
 
-<Placeholder 
-    name="Azure AI Search"
-    link="/dotnet/aspire/azure/azure-ai-search-integration"
+<Image
+  src={searchIcon}
+  alt="Azure AI Search logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Azure AI Search](https://learn.microsoft.com/search) is a cloud search service with built-in AI capabilities that enrich all types of information to help identify and explore relevant content at scale. The Aspire Azure AI Search integration enables you to connect to Azure AI Search services from your applications.
+
+## Hosting integration
+
+The Aspire Azure AI Search hosting integration models the search service as the `AzureSearchResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Search](https://www.nuget.org/packages/Aspire.Hosting.Azure.Search) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Search" shortName="azure-search" />
+
+### Add an Azure AI Search resource
+
+To add an Azure AI Search resource to your AppHost project, call the `AddAzureSearch` method providing a name:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var search = builder.AddAzureSearch("search");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(search);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure AI Search resource named `search` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+When you call `AddAzureSearch`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Connect to an existing Azure AI Search instance
+
+You might have an existing Azure AI Search service that you want to connect to. You can chain a call to annotate that your `AzureSearchResource` is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingSearchName = builder.AddParameter("existingSearchName");
+var existingSearchResourceGroup = builder.AddParameter("existingSearchResourceGroup");
+
+var search = builder.AddAzureSearch("search")
+                    .AsExisting(existingSearchName, existingSearchResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(search);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure AI Search resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+<Aside type="note">
+Alternatively, instead of representing an Azure AI Search resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+
+When you add an Azure AI Search resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var search = builder.AddAzureSearch("search");
+
+search.ConfigureInfrastructure(infra =>
+{
+    var searchService = infra.GetProvisionableResources()
+                             .OfType<SearchService>()
+                             .Single();
+
+    searchService.Sku = new SearchServiceSku
+    {
+        Name = SearchServiceSkuName.Standard
+    };
+    searchService.Tags["ExampleKey"] = "Example value";
+});
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `SearchService` resource is retrieved.
+  - The `Sku` object has its name property set to `Standard`.
+  - A tag is added to the Search resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the Search resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+
+## Client integration
+
+The Aspire Azure AI Search client integration is used to connect to an Azure AI Search service using the `SearchIndexClient`. To get started with the Aspire Azure AI Search client integration, install the [📦 Aspire.Azure.Search.Documents](https://www.nuget.org/packages/Aspire.Azure.Search.Documents) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Azure.Search.Documents" />
+
+### Add Azure AI Search client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureSearchClient` extension method to register a `SearchIndexClient` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureSearchClient(connectionName: "search");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Search resource in the AppHost project.
+</Aside>
+
+After adding the `SearchIndexClient`, you can retrieve the client instance using dependency injection:
+
+```csharp
+public class ExampleService(SearchIndexClient client)
+{
+    // Use client...
+}
+```
+
+For more information, see:
+
+- [Azure.Search.Documents documentation](/dotnet/api/azure.search.documents) for examples on using the `SearchIndexClient`.
+- [Dependency injection in .NET](/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+### Add keyed Azure AI Search client
+
+There might be situations where you want to register multiple `SearchIndexClient` instances with different connection names. To register keyed Search clients, call the `AddKeyedAzureSearchClient` method:
+
+```csharp
+builder.AddKeyedAzureSearchClient(name: "primary-search");
+builder.AddKeyedAzureSearchClient(name: "secondary-search");
+```
+
+Then you can retrieve the client instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("primary-search")] SearchIndexClient primaryClient,
+    [KeyedService("secondary-search")] SearchIndexClient secondaryClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [Keyed services in .NET](/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire Azure AI Search library provides multiple options to configure the Azure AI Search connection based on the requirements and conventions of your project. Either an `Endpoint` or a `ConnectionString` must be supplied.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddAzureSearchClient`:
+
+```csharp
+builder.AddAzureSearchClient(connectionName: "search");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
+
+- **Service endpoint (recommended)**: Uses the service endpoint with `DefaultAzureCredential`.
+
+    ```json
+    {
+      "ConnectionStrings": {
+        "search": "https://{account_name}.search.windows.net"
+      }
+    }
+    ```
+
+- **Connection string**: Includes an API key.
+
+    ```json
+    {
+      "ConnectionStrings": {
+        "search": "Endpoint=https://{account_name}.search.windows.net;Key={api_key}"
+      }
+    }
+    ```
+
+#### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Azure:Search:Documents` key:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Search": {
+        "Documents": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddAzureSearchClient(
+    "search",
+    settings => settings.DisableTracing = true);
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations. For more information about integration observability and telemetry, see [Aspire integrations overview](/fundamentals/integrations-overview/).
+
+#### Logging
+
+The Aspire Azure AI Search integration uses the following log categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure.Search.Documents`
+
+#### Tracing
+
+The Aspire Azure AI Search integration will emit the following tracing activities using OpenTelemetry:
+
+- `Azure.Search.Documents.*`
+
+#### Metrics
+
+The Aspire Azure AI Search integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.

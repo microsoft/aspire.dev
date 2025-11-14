@@ -1,10 +1,330 @@
 ---
-title: Azure OpenAI integration (Preview)
+title: Azure OpenAI integration
+description: This article describes the Aspire Azure OpenAI integration features and capabilities.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside, Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import openaiIcon from '@assets/icons/azure-openai-icon.png';
 
-<Placeholder 
-    name="Azure OpenAI"
-    link="/dotnet/aspire/ai/azure-openai-integration"
+<Image
+  src={openaiIcon}
+  alt="Azure OpenAI logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+[Azure OpenAI](https://learn.microsoft.com/ai-services/openai) is a cloud service that provides access to powerful language models like GPT-4, GPT-3.5-Turbo, and Embeddings models. The Aspire Azure OpenAI integration enables you to connect to Azure OpenAI services from your applications.
+
+## Hosting integration
+
+The Aspire Azure OpenAI hosting integration models the Azure OpenAI service as the `AzureOpenAIResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.CognitiveServices" shortName="azure-cognitive-services" />
+
+### Add an Azure OpenAI resource
+
+To add an Azure OpenAI resource to your AppHost project, call the `AddAzureOpenAI` method providing a name:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(openai);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure OpenAI resource named `openai` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+When you call `AddAzureOpenAI`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Add model deployments
+
+Azure OpenAI resources support deploying specific models. You can add model deployments using the `AddDeployment` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+openai.AddDeployment(new(
+    name: "gpt-4",
+    model: "gpt-4",
+    modelVersion: "0613",
+    skuName: "Standard",
+    skuCapacity: 10));
+
+openai.AddDeployment(new(
+    name: "text-embedding-ada-002",
+    model: "text-embedding-ada-002",
+    modelVersion: "2",
+    skuName: "Standard",
+    skuCapacity: 10));
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(openai);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds two model deployments to the Azure OpenAI resource: `gpt-4` and `text-embedding-ada-002`.
+
+### Connect to an existing Azure OpenAI instance
+
+You might have an existing Azure OpenAI service that you want to connect to. You can chain a call to annotate that your `AzureOpenAIResource` is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingOpenAIName = builder.AddParameter("existingOpenAIName");
+var existingOpenAIResourceGroup = builder.AddParameter("existingOpenAIResourceGroup");
+
+var openai = builder.AddAzureOpenAI("openai")
+                    .AsExisting(existingOpenAIName, existingOpenAIResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(openai);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure OpenAI resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+<Aside type="note">
+Alternatively, instead of representing an Azure OpenAI resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+
+When you add an Azure OpenAI resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddAzureOpenAI("openai");
+
+openai.ConfigureInfrastructure(infra =>
+{
+    var account = infra.GetProvisionableResources()
+                       .OfType<CognitiveServicesAccount>()
+                       .Single();
+
+    account.Kind = "OpenAI";
+    account.Sku = new CognitiveServicesSku
+    {
+        Name = "S0"
+    };
+    account.Tags["ExampleKey"] = "Example value";
+});
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `CognitiveServicesAccount` resource is retrieved.
+  - The `Kind` is set to `OpenAI` and the `Sku` is configured.
+  - A tag is added to the OpenAI resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the OpenAI resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+
+## Client integration
+
+The Aspire Azure OpenAI client integration is used to connect to an Azure OpenAI service. To get started with the Aspire Azure OpenAI client integration, install the [📦 Aspire.Azure.AI.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Azure.AI.OpenAI" />
+
+### Add Azure OpenAI client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureOpenAIClient` extension method to register an `AzureOpenAIClient` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureOpenAIClient(connectionName: "openai");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the OpenAI resource in the AppHost project.
+</Aside>
+
+After adding the `AzureOpenAIClient`, you can retrieve the client instance using dependency injection:
+
+```csharp
+public class ExampleService(AzureOpenAIClient client)
+{
+    // Use client...
+}
+```
+
+### Add typed clients
+
+The integration also provides support for registering typed clients like `ChatClient` and `EmbeddingClient`:
+
+```csharp
+builder.AddAzureOpenAIClient(connectionName: "openai")
+       .AddChatClient(deploymentName: "gpt-4")
+       .AddEmbeddingClient(deploymentName: "text-embedding-ada-002");
+```
+
+Then you can inject these clients directly:
+
+```csharp
+public class ExampleService(ChatClient chatClient, EmbeddingClient embeddingClient)
+{
+    // Use clients...
+}
+```
+
+### Using IChatClient abstraction
+
+Aspire integrations support the `IChatClient` abstraction from `Microsoft.Extensions.AI`. This provides a unified interface for working with different AI services:
+
+```csharp
+builder.AddAzureOpenAIClient(connectionName: "openai")
+       .AddChatClient(deploymentName: "gpt-4");
+
+// Register as IChatClient
+builder.Services.AddSingleton<IChatClient>(sp => 
+    sp.GetRequiredService<ChatClient>().AsChatClient());
+```
+
+Then you can use the abstraction:
+
+```csharp
+public class ExampleService(IChatClient chatClient)
+{
+    public async Task<string> GetCompletionAsync(string prompt)
+    {
+        var response = await chatClient.CompleteAsync(prompt);
+        return response.Message.Text;
+    }
+}
+```
+
+For more information on `IChatClient` and `Microsoft.Extensions.AI`, see [Unified AI Building Blocks for .NET](/dotnet/ai/ai-extensions).
+
+### Add keyed Azure OpenAI client
+
+There might be situations where you want to register multiple `AzureOpenAIClient` instances with different connection names. To register keyed OpenAI clients, call the `AddKeyedAzureOpenAIClient` method:
+
+```csharp
+builder.AddKeyedAzureOpenAIClient(name: "gpt4-service");
+builder.AddKeyedAzureOpenAIClient(name: "embeddings-service");
+```
+
+Then you can retrieve the client instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("gpt4-service")] AzureOpenAIClient gpt4Client,
+    [KeyedService("embeddings-service")] AzureOpenAIClient embeddingsClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [Keyed services in .NET](/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire Azure OpenAI library provides multiple options to configure the Azure OpenAI connection based on the requirements and conventions of your project. Either an `Endpoint` or a `ConnectionString` must be supplied.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddAzureOpenAIClient`:
+
+```csharp
+builder.AddAzureOpenAIClient(connectionName: "openai");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
+
+- **Service endpoint (recommended)**: Uses the service endpoint with `DefaultAzureCredential`.
+
+    ```json
+    {
+      "ConnectionStrings": {
+        "openai": "https://{account_name}.openai.azure.com/"
+      }
+    }
+    ```
+
+- **Connection string**: Includes an API key.
+
+    ```json
+    {
+      "ConnectionStrings": {
+        "openai": "Endpoint=https://{account_name}.openai.azure.com/;Key={api_key}"
+      }
+    }
+    ```
+
+#### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Azure:AI:OpenAI` key:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "AI": {
+        "OpenAI": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddAzureOpenAIClient(
+    "openai",
+    settings => settings.DisableTracing = true);
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations. For more information about integration observability and telemetry, see [Aspire integrations overview](/fundamentals/integrations-overview/).
+
+#### Logging
+
+The Aspire Azure OpenAI integration uses the following log categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure.AI.OpenAI`
+
+#### Tracing
+
+The Aspire Azure OpenAI integration will emit the following tracing activities using OpenTelemetry:
+
+- `Azure.AI.OpenAI.*`
+- `gen_ai.system` - Generic AI system tracing
+- `gen_ai.operation.name` - Operation names for AI calls
+
+#### Metrics
+
+The Aspire Azure OpenAI integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.

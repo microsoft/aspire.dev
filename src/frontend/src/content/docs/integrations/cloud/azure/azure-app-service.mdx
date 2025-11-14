@@ -1,10 +1,111 @@
 ---
-title: Azure App Service integration (Preview)
+title: Azure App Service integration
+description: This article describes the Aspire Azure App Service integration features and capabilities.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside, Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import appServiceIcon from '@assets/icons/azure-app-services.svg';
 
-<Placeholder 
-    name="Azure App Service"
-    link="/dotnet/aspire/azure/azure-app-service-integration"
+<Image
+  src={appServiceIcon}
+  alt="Azure App Service logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+[Azure App Service](/azure/app-service) is a fully managed platform for building, deploying, and scaling web apps. The Aspire Azure App Service integration enables you to deploy your projects to Azure App Service as part of your distributed application.
+
+## Hosting integration
+
+The Aspire Azure App Service hosting integration models App Service resources as the `AzureAppServiceResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.AppService](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppService) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AppService" shortName="azure-app-service" />
+
+### Deploy projects to Azure App Service
+
+To configure a project to deploy to Azure App Service, use the `PublishAsAzureAppService` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ApiService>("api")
+                 .PublishAsAzureAppService();
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithReference(api)
+       .PublishAsAzureAppService();
+
+// After adding all resources, run the app...
+```
+
+The preceding code configures both the `api` and `webapp` projects to be deployed to Azure App Service when publishing the application.
+
+### Configure App Service settings
+
+You can configure various App Service settings such as the App Service Plan SKU:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ApiService>("api")
+                 .PublishAsAzureAppService((resource, construct, plan) =>
+                 {
+                     plan.Sku = new AppServicePlanSku
+                     {
+                         Name = "P1v3",
+                         Tier = "PremiumV3"
+                     };
+                 });
+
+// After adding all resources, run the app...
+```
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. The generated Bicep will create:
+
+- Azure App Service Plan
+- Azure App Service Web App
+- Application settings and connection strings
+- Necessary configurations for your application
+
+<Aside type="caution">
+Azure App Service deployment in Aspire is in preview. The deployment experience and generated Bicep may change in future releases.
+</Aside>
+
+### Use with existing App Service Plan
+
+You can configure multiple App Services to share the same App Service Plan:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var plan = builder.AddAzureAppServicePlan("shared-plan");
+
+var api = builder.AddProject<Projects.ApiService>("api")
+                 .PublishAsAzureAppService(plan);
+
+var webapp = builder.AddProject<Projects.WebApp>("webapp")
+                    .PublishAsAzureAppService(plan);
+
+// After adding all resources, run the app...
+```
+
+This approach optimizes costs by running multiple apps on a single App Service Plan.
+
+### Deployment considerations
+
+When deploying to Azure App Service:
+
+- Your application is built and published as a deployment package
+- The package is uploaded to Azure App Service
+- App Service automatically starts your application
+- Environment variables and connection strings are configured based on your AppHost references
+
+For more information about deploying Aspire apps to Azure, see [Deploy a Aspire project to Azure](/deployment/azure/aca-deployment).

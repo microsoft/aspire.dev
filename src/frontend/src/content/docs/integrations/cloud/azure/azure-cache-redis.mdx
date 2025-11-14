@@ -1,10 +1,259 @@
 ---
 title: Azure Cache for Redis integration
+description: This article describes the Aspire Azure Cache for Redis integration features and capabilities.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import cacheRedisIcon from '@assets/icons/azure-cacheredis-icon.png';
 
-<Placeholder 
-    name="Azure Cache for Redis"
-    link="/dotnet/aspire/caching/azure-cache-redis-integration"
+<Image
+  src={cacheRedisIcon}
+  alt="Azure Cache for Redis logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Azure Cache for Redis](https://learn.microsoft.com/azure-cache-redis) provides an in-memory data store based on Redis. The Aspire Azure Cache for Redis integration enables you to connect to Azure Cache for Redis instances from your applications.
+
+## Hosting integration
+
+The Aspire Azure Cache for Redis hosting integration models the Redis cache as the `AzureRedisResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Redis](https://www.nuget.org/packages/Aspire.Hosting.Azure.Redis) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Redis" shortName="azure-redis" />
+
+### Add an Azure Cache for Redis resource
+
+To add an Azure Cache for Redis resource to your AppHost project, call the `AddAzureRedis` method providing a name:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddAzureRedis("redis");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(redis);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure Redis resource named `redis` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+When you call `AddAzureRedis`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Connect to an existing Azure Cache for Redis instance
+
+You might have an existing Azure Cache for Redis service that you want to connect to. You can chain a call to annotate that your `AzureRedisResource` is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingRedisName = builder.AddParameter("existingRedisName");
+var existingRedisResourceGroup = builder.AddParameter("existingRedisResourceGroup");
+
+var redis = builder.AddAzureRedis("redis")
+                   .AsExisting(existingRedisName, existingRedisResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(redis);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure Redis resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+
+When you add an Azure Redis resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddAzureRedis("redis");
+
+redis.ConfigureInfrastructure(infra =>
+{
+    var cache = infra.GetProvisionableResources()
+                     .OfType<RedisCache>()
+                     .Single();
+
+    cache.Sku = new RedisCacheSku
+    {
+        Name = RedisCacheSkuName.Premium,
+        Family = RedisCacheSkuFamily.P,
+        Capacity = 1
+    };
+    cache.Tags["ExampleKey"] = "Example value";
+});
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `RedisCache` resource is retrieved.
+  - The `Sku` object has its name, family, and capacity properties set.
+  - A tag is added to the Redis resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the Redis resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+
+## Client integration
+
+The Aspire Azure Cache for Redis client integration is used to connect to an Azure Redis cache using StackExchange.Redis. To get started with the Aspire Azure Cache for Redis client integration, install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Aspire.StackExchange.Redis) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+
+### Add Redis client
+
+In the `Program.cs` file of your client-consuming project, call the `AddRedisClient` extension method to register an `IConnectionMultiplexer` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddRedisClient(connectionName: "redis");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Redis resource in the AppHost project.
+</Aside>
+
+After adding the `IConnectionMultiplexer`, you can retrieve the connection instance using dependency injection:
+
+```csharp
+public class ExampleService(IConnectionMultiplexer redis)
+{
+    // Use redis...
+}
+```
+
+For more information, see:
+
+- [StackExchange.Redis documentation](https://stackexchange.github.io/StackExchange.Redis/) for examples on using the `IConnectionMultiplexer`.
+- [Dependency injection in .NET](/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+### Add Redis distributed cache
+
+For caching scenarios, you can add a Redis-based distributed cache using the `AddRedisDistributedCache` method:
+
+```csharp
+builder.AddRedisDistributedCache(connectionName: "redis");
+```
+
+This registers an `IDistributedCache` implementation backed by Redis:
+
+```csharp
+public class ExampleService(IDistributedCache cache)
+{
+    // Use cache...
+}
+```
+
+### Add Redis output cache
+
+For output caching scenarios in ASP.NET Core, you can add a Redis-based output cache using the `AddRedisOutputCache` method:
+
+```csharp
+builder.AddRedisOutputCache(connectionName: "redis");
+```
+
+This configures Redis as the output cache store for your web application.
+
+### Add keyed Redis client
+
+There might be situations where you want to register multiple `IConnectionMultiplexer` instances with different connection names. To register keyed Redis clients, call the `AddKeyedRedisClient` method:
+
+```csharp
+builder.AddKeyedRedisClient(name: "primary-cache");
+builder.AddKeyedRedisClient(name: "secondary-cache");
+```
+
+Then you can retrieve the connection instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("primary-cache")] IConnectionMultiplexer primaryRedis,
+    [KeyedService("secondary-cache")] IConnectionMultiplexer secondaryRedis)
+{
+    // Use redis connections...
+}
+```
+
+For more information, see [Keyed services in .NET](/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire Azure Cache for Redis library provides multiple options to configure the Redis connection based on the requirements and conventions of your project. A `ConnectionString` is required.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddRedisClient`:
+
+```csharp
+builder.AddRedisClient(connectionName: "redis");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "redis": "myredis.redis.cache.windows.net:6380,password=your_password,ssl=True"
+  }
+}
+```
+
+#### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:StackExchange:Redis` key:
+
+```json
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "DisableHealthChecks": true,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddRedisClient(
+    "redis",
+    settings => settings.DisableHealthChecks = true);
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations. For more information about integration observability and telemetry, see [Aspire integrations overview](/fundamentals/integrations-overview/).
+
+#### Logging
+
+The Aspire Azure Cache for Redis integration uses standard .NET logging for connection events and errors.
+
+#### Tracing
+
+The Aspire Azure Cache for Redis integration will emit the following tracing activities using OpenTelemetry:
+
+- `StackExchange.Redis.*`
+
+#### Metrics
+
+The Aspire Azure Cache for Redis integration currently doesn't expose custom metrics by default, but uses standard Redis monitoring capabilities.

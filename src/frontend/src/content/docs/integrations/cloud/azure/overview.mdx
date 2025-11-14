@@ -1,10 +1,191 @@
 ---
 title: Azure integrations overview
+description: Learn about Aspire integrations for Azure services and how to use them in your distributed applications.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside, LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-<Placeholder 
-    name="Azure"
-    link="/dotnet/aspire/azure/integrations-overview"
-/>
+Aspire provides a comprehensive set of integrations for Azure services that enable you to build cloud-native distributed applications. These integrations handle configuration, health checks, telemetry, and deployment for various Azure services.
+
+## What are Azure integrations?
+
+Azure integrations in Aspire provide two main capabilities:
+
+1. **Hosting integrations**: Model Azure resources in your AppHost project, enabling local development and streamlined deployment.
+2. **Client integrations**: Configure .NET clients to connect to Azure services with proper defaults for observability and resilience.
+
+## Available integrations
+
+Aspire provides integrations for the following Azure services:
+
+### Storage services
+
+<CardGrid>
+  <LinkCard title="Azure Storage Blobs" href="/integrations/cloud/azure/azure-storage-blobs/" />
+  <LinkCard title="Azure Storage Queues" href="/integrations/cloud/azure/azure-storage-queues/" />
+  <LinkCard title="Azure Storage Tables" href="/integrations/cloud/azure/azure-storage-tables/" />
+</CardGrid>
+
+### Database services
+
+<CardGrid>
+  <LinkCard title="Azure Cosmos DB" href="/integrations/cloud/azure/azure-cosmos-db/" />
+  <LinkCard title="Azure PostgreSQL" href="/integrations/cloud/azure/azure-postgresql/" />
+  <LinkCard title="Azure SQL Database" href="/integrations/cloud/azure/azure-sql-database/" />
+  <LinkCard title="Azure Cache for Redis" href="/integrations/cloud/azure/azure-cache-redis/" />
+</CardGrid>
+
+### Messaging services
+
+<CardGrid>
+  <LinkCard title="Azure Service Bus" href="/integrations/cloud/azure/azure-service-bus/" />
+  <LinkCard title="Azure Event Hubs" href="/integrations/cloud/azure/azure-event-hubs/" />
+  <LinkCard title="Azure Web PubSub" href="/integrations/cloud/azure/azure-web-pubsub/" />
+  <LinkCard title="Azure SignalR" href="/integrations/cloud/azure/azure-signalr/" />
+</CardGrid>
+
+### AI services
+
+<CardGrid>
+  <LinkCard title="Azure OpenAI" href="/integrations/cloud/azure/azure-openai/" />
+  <LinkCard title="Azure AI Search" href="/integrations/cloud/azure/azure-ai-search/" />
+  <LinkCard title="Azure AI Foundry" href="/integrations/cloud/azure/azure-ai-foundry/" />
+  <LinkCard title="Azure AI Inference" href="/integrations/cloud/azure/azure-ai-inference/" />
+</CardGrid>
+
+### Configuration and management
+
+<CardGrid>
+  <LinkCard title="Azure App Configuration" href="/integrations/cloud/azure/azure-app-configuration/" />
+  <LinkCard title="Azure Key Vault" href="/integrations/cloud/azure/azure-key-vault/" />
+</CardGrid>
+
+### Compute services
+
+<CardGrid>
+  <LinkCard title="Azure Functions" href="/integrations/cloud/azure/azure-functions/" />
+  <LinkCard title="Azure App Service" href="/integrations/cloud/azure/azure-app-service/" />
+  <LinkCard title="Azure Container Registry" href="/integrations/cloud/azure/azure-container-registry/" />
+</CardGrid>
+
+## Key features
+
+### Automatic provisioning
+
+Azure integrations can automatically provision resources during local development using **local provisioning**. This feature:
+
+- Creates Azure resources on-demand during `dotnet run`
+- Uses your Azure subscription and credentials
+- Generates infrastructure as code (Bicep)
+- Simplifies development without manual resource creation
+
+For more information, see [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/).
+
+### Use existing resources
+
+You can connect to existing Azure resources instead of creating new ones:
+
+```csharp
+var existingStorageName = builder.AddParameter("existingStorageName");
+var existingResourceGroup = builder.AddParameter("existingResourceGroup");
+
+var storage = builder.AddAzureStorage("storage")
+                     .AsExisting(existingStorageName, existingResourceGroup);
+```
+
+### Managed identity support
+
+Azure integrations support managed identities for secure, password-free authentication:
+
+- Uses `DefaultAzureCredential` by default
+- Supports user-assigned managed identities
+- Automatic role assignments during provisioning
+
+For more information, see [Azure role assignments](/integrations/cloud/azure/role-assignments/) and [User-assigned identity](/integrations/cloud/azure/user-assigned-identity/).
+
+### Infrastructure customization
+
+Customize generated Bicep infrastructure using the `ConfigureInfrastructure` API:
+
+```csharp
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infra =>
+{
+    var account = infra.GetProvisionableResources()
+                       .OfType<StorageAccount>()
+                       .Single();
+    
+    account.Sku = new StorageSku
+    {
+        Name = StorageSkuName.PremiumLRS
+    };
+});
+```
+
+For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/).
+
+### Built-in observability
+
+All Azure integrations include:
+
+- **Logging**: Azure SDK logging integrated with .NET logging
+- **Tracing**: Distributed tracing with OpenTelemetry
+- **Metrics**: Performance metrics (where supported by Azure SDKs)
+- **Health checks**: Automatic health monitoring
+
+## Getting started
+
+To use Azure integrations:
+
+1. Install the appropriate NuGet package (e.g., `Aspire.Hosting.Azure.Storage`)
+2. Add the resource to your AppHost
+3. Reference it from your projects
+4. Use the client integration in your application code
+
+Example:
+
+```csharp
+// In AppHost
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithReference(blobs);
+
+// In WebApp
+builder.AddAzureBlobClient("blobs");
+
+// Use in your code
+public class MyService(BlobServiceClient blobClient)
+{
+    // Work with blobs...
+}
+```
+
+## Configuration
+
+Azure integrations support multiple configuration approaches:
+
+- **Connection strings**: Service endpoints or full connection strings
+- **Configuration providers**: appsettings.json, environment variables, Azure App Configuration
+- **Inline delegates**: Configure settings programmatically
+
+For details, see the individual integration documentation.
+
+## Deployment
+
+When deploying to Azure, Aspire generates:
+
+- **Bicep files**: Infrastructure as code for all Azure resources
+- **Manifest**: Deployment configuration
+- **Connection strings**: Automatically configured between services
+
+For more information, see [Deploy to Azure Container Apps](/deployment/azure/aca-deployment/).
+
+## See also
+
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
+- [Azure role assignments](/integrations/cloud/azure/role-assignments/)
+- [Aspire integrations overview](/fundamentals/integrations-overview/)
