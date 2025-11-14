@@ -848,7 +848,14 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '缓存与状态',
          },
         items: [
-          { label: "Redis", slug: "integrations/caching/redis" },
+          { 
+            label: "Redis", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/caching/redis" },
+              { label: "Community extensions", slug: "integrations/caching/redis-extensions" }
+            ]
+          },
           { label: "Redis Distributed Cache", slug: "integrations/caching/redis-distributed" },
           { label: "Redis Output Cache", slug: "integrations/caching/redis-output" },
           { label: "Valkey", slug: "integrations/caching/valkey" },
@@ -909,13 +916,41 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },
-          { label: "MongoDB", slug: "integrations/databases/mongodb" },
-          { label: "MySQL", slug: "integrations/databases/mysql" },
+          { 
+            label: "MongoDB", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/mongodb" },
+              { label: "Community extensions", slug: "integrations/databases/mongodb-extensions" }
+            ]
+          },
+          { 
+            label: "MySQL", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/mysql" },
+              { label: "Community extensions", slug: "integrations/databases/mysql-extensions" }
+            ]
+          },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          { label: "PostgreSQL", slug: "integrations/databases/postgres" },
+          { 
+            label: "PostgreSQL", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/postgres" },
+              { label: "Community extensions", slug: "integrations/databases/postgresql-extensions" }
+            ]
+          },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
-          { label: "SQL Server", slug: "integrations/databases/sql-server" },
+          { 
+            label: "SQL Server", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/sql-server" },
+              { label: "Community extensions", slug: "integrations/databases/sql-server-extensions" }
+            ]
+          },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
         ]
       },
@@ -948,6 +983,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'Go apps', slug: 'integrations/frameworks/go-apps' },
           { label: 'Java', slug: 'integrations/frameworks/java' },
           { label: '.NET MAUI', slug: 'integrations/frameworks/maui' },
+          { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
           { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           { label: 'Python', slug: 'integrations/frameworks/python' },
           { label: 'Rust', slug: 'integrations/frameworks/rust' },
