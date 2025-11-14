@@ -1,10 +1,177 @@
 ---
-title: EventStore integration
+title: EventStore
+description: Learn how to use the EventStore hosting and client integration to run the EventStore container and access it via the EventStore client.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import eventstoreIcon from '@assets/icons/eventstore-icon.png';
 
-<Placeholder 
-    name="EventStore"
-    link="/dotnet/aspire/community-toolkit/hosting-eventstore"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={eventstoreIcon}
+  alt="EventStore logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[EventStore](https://eventstore.com) is a database designed for Event Sourcing, offering high availability and reliability for storing events. The Aspire EventStore integration enables you to connect to existing EventStore instances or create new instances from .NET using the `docker.io/eventstore/eventstore` container image.
+
+## Hosting integration
+
+To run the EventStore container, install the [📦 CommunityToolkit.Aspire.Hosting.EventStore](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.EventStore) NuGet package in the AppHost project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.EventStore" shortName="eventstore" />
+
+### Add EventStore resource
+
+In the AppHost project, register and consume the EventStore integration using the `AddEventStore` extension method to add the EventStore container to the application builder.
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var eventstore = builder.AddEventStore("eventstore");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(eventstore);
+
+// After adding all resources, run the app...
+```
+
+### Add EventStore resource with data volume
+
+To add a data volume to the EventStore resource, call the `WithDataVolume` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var eventstore = builder.AddEventStore("eventstore")
+                        .WithDataVolume();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(eventstore);
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the EventStore data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/eventstore` path in the EventStore container.
+
+### Add EventStore resource with data bind mount
+
+To add a data bind mount to the EventStore resource, call the `WithDataBindMount` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var eventstore = builder.AddEventStore("eventstore")
+                        .WithDataBindMount(source: @"C:\EventStore\Data");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(eventstore);
+
+// After adding all resources, run the app...
+```
+
+Data bind mounts rely on the host machine's filesystem to persist the EventStore data across container restarts.
+
+## Client integration
+
+To get started with the Aspire EventStore client integration, install the [📦 CommunityToolkit.Aspire.EventStore](https://nuget.org/packages/CommunityToolkit.Aspire.EventStore) NuGet package in the client-consuming project.
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.EventStore" />
+
+### Add EventStore client
+
+In the `Program.cs` file of your client-consuming project, call the `AddEventStoreClient` extension method to register an `EventStoreClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddEventStoreClient(connectionName: "eventstore");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the EventStore resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `EventStoreClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(EventStoreClient client)
+{
+    // Use client...
+}
+```
+
+### Add keyed EventStore client
+
+There might be situations where you want to register multiple `EventStoreClient` instances with different connection names. To register keyed EventStore clients, call the `AddKeyedEventStoreClient` method:
+
+```csharp
+builder.AddKeyedEventStoreClient(name: "accounts");
+builder.AddKeyedEventStoreClient(name: "orders");
+```
+
+Then you can retrieve the `EventStoreClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("accounts")] EventStoreClient accountsClient,
+    [FromKeyedServices("orders")] EventStoreClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+### Configuration
+
+The Aspire EventStore client integration provides multiple options to configure the server connection.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name of the connection string:
+
+```csharp
+builder.AddEventStoreClient("eventstore");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "eventstore": "esdb://localhost:22113?tls=false"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Aspire EventStore Client integration supports configuration. It loads the settings from configuration using the `Aspire:EventStore:Client` key:
+
+```json
+{
+  "Aspire": {
+    "EventStore": {
+      "Client": {
+        "ConnectionString": "esdb://localhost:22113?tls=false",
+        "DisableHealthChecks": true
+      }
+    }
+  }
+}
+```
+
+### Client integration health checks
+
+The Aspire EventStore integration uses the configured client to perform a health check.
+
+## See also
+
+- [EventStore](https://eventstore.com)
+- [EventStore Client](https://github.com/EventStore/EventStore-Client-Dotnet)
+- [Aspire Community Toolkit GitHub repo](https://github.com/CommunityToolkit/Aspire)

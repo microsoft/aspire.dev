@@ -1,10 +1,195 @@
 ---
-title: Meilisearch integration
+title: Meilisearch
+description: Learn how to use the Meilisearch hosting and client integration to run the Meilisearch container and access it via the Meilisearch client.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
 
-<Placeholder 
-    name="Meilisearch"
-    link="/dotnet/aspire/community-toolkit/hosting-meilisearch"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={meilisearchIcon}
+  alt="Meilisearch logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Meilisearch](https://meilisearch.com) is a fast, open-source search engine that makes search and discovery easy. The Aspire Meilisearch integration enables you to connect to existing Meilisearch instances or create new instances from .NET using the `docker.io/getmeili/meilisearch` container image.
+
+## Hosting integration
+
+To run the Meilisearch container, install the [📦 CommunityToolkit.Aspire.Hosting.Meilisearch](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.Meilisearch) NuGet package in the AppHost project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Meilisearch" shortName="meilisearch" />
+
+### Add Meilisearch resource
+
+In the AppHost project, register and consume the Meilisearch integration using the `AddMeilisearch` extension method to add the Meilisearch container to the application builder.
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var meilisearch = builder.AddMeilisearch("meilisearch");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(meilisearch);
+
+// After adding all resources, run the app...
+```
+
+The Meilisearch resource includes a randomly generated master key when one wasn't provided.
+
+### Add Meilisearch resource with data volume
+
+To add a data volume to the Meilisearch resource, call the `WithDataVolume` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var meilisearch = builder.AddMeilisearch("meilisearch")
+                         .WithDataVolume();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(meilisearch);
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the Meilisearch data outside the lifecycle of its container. The data volume is mounted at the `/meili_data` path in the Meilisearch container.
+
+### Add Meilisearch resource with data bind mount
+
+To add a data bind mount to the Meilisearch resource, call the `WithDataBindMount` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var meilisearch = builder.AddMeilisearch("meilisearch")
+                         .WithDataBindMount(source: @"C:\Meilisearch\Data");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(meilisearch);
+
+// After adding all resources, run the app...
+```
+
+Data bind mounts rely on the host machine's filesystem to persist the Meilisearch data across container restarts.
+
+### Add Meilisearch resource with master key parameter
+
+When you want to explicitly provide the master key used by the container image, you can provide these credentials as parameters:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var masterkey = builder.AddParameter("masterkey", secret: true);
+var meilisearch = builder.AddMeilisearch("meilisearch", masterkey);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(meilisearch);
+
+// After adding all resources, run the app...
+```
+
+## Client integration
+
+To get started with the Aspire Meilisearch client integration, install the [📦 CommunityToolkit.Aspire.Meilisearch](https://nuget.org/packages/CommunityToolkit.Aspire.Meilisearch) NuGet package in the client-consuming project.
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Meilisearch" />
+
+### Add Meilisearch client
+
+In the `Program.cs` file of your client-consuming project, call the `AddMeilisearchClient` extension method to register a `MeilisearchClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddMeilisearchClient(connectionName: "meilisearch");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Meilisearch resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `MeilisearchClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(MeilisearchClient client)
+{
+    // Use client...
+}
+```
+
+### Add keyed Meilisearch client
+
+There might be situations where you want to register multiple `MeilisearchClient` instances with different connection names. To register keyed Meilisearch clients, call the `AddKeyedMeilisearchClient` method:
+
+```csharp
+builder.AddKeyedMeilisearchClient(name: "products");
+builder.AddKeyedMeilisearchClient(name: "orders");
+```
+
+Then you can retrieve the `MeilisearchClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("products")] MeilisearchClient productsClient,
+    [FromKeyedServices("orders")] MeilisearchClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+### Configuration
+
+The Aspire Meilisearch client integration provides multiple options to configure the server connection.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name of the connection string:
+
+```csharp
+builder.AddMeilisearchClient("meilisearch");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "meilisearch": "Endpoint=http://localhost:19530/;MasterKey=123456!@#$%"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Aspire Meilisearch Client integration supports configuration. It loads the settings from configuration using the `Aspire:Meilisearch:Client` key:
+
+```json
+{
+  "Aspire": {
+    "Meilisearch": {
+      "Client": {
+        "Endpoint": "http://localhost:19530/",
+        "MasterKey": "123456!@#$%"
+      }
+    }
+  }
+}
+```
+
+### Client integration health checks
+
+The Aspire Meilisearch integration uses the configured client to perform a health check.
+
+## See also
+
+- [Meilisearch](https://meilisearch.com)
+- [Meilisearch Client](https://github.com/meilisearch/meilisearch-dotnet)
+- [Aspire Community Toolkit GitHub repo](https://github.com/CommunityToolkit/Aspire)

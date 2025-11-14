@@ -820,6 +820,9 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, items: [
           { label: 'AWS', link: 'https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/aspire-integrations.html' },
           { label: 'Azure', slug: 'integrations/cloud/azure/overview' },
+          { label: 'Azure Storage Blobs', slug: 'integrations/cloud/azure-storage-blobs' },
+          { label: 'Azure Storage Queues', slug: 'integrations/cloud/azure-storage-queues' },
+          { label: 'Azure Storage Tables', slug: 'integrations/cloud/azure-storage-tables' },
         ]
       },
       {
@@ -1002,6 +1005,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '安全与身份',
         },
         items: [
+          { label: "Azure Key Vault", slug: "integrations/security/azure-key-vault" },
           { label: "Keycloak", slug: "integrations/security/keycloak" }
         ]
       },

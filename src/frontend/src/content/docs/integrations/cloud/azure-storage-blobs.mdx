@@ -1,0 +1,374 @@
+---
+title: Azure Blob Storage
+description: Learn how to use the Azure Blob Storage integration, which includes both hosting and client integrations.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+[Azure Blob Storage](https://azure.microsoft.com/services/storage/blobs/) is a service for storing large amounts of unstructured data. The Azure Blob Storage integration enables you to connect to existing Azure Blob Storage instances or create new instances from .NET applications.
+
+## Hosting integration
+
+The Azure Storage hosting integration models various storage resources including blobs, queues, and tables. To access these types and APIs, add the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package to your AppHost project.
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Storage" shortName="azurestorage" />
+
+### Add Azure Blob Storage resource
+
+In your AppHost project, register the Azure Blob Storage integration by chaining a call to `AddBlobs` on the `IResourceBuilder<IAzureStorageResource>` instance returned by `AddAzureStorage`. The following example demonstrates how to add an Azure Blob Storage resource named `storage` and a blob container named `blobs`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var blobs = builder.AddAzureStorage("storage")
+                   .RunAsEmulator()
+                   .AddBlobs("blobs");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(blobs)
+       .WaitFor(blobs);
+
+// After adding all resources, run the app...
+```
+
+The preceding code:
+
+- Adds an Azure Storage resource named `storage`.
+- Chains a call to `RunAsEmulator` to configure the storage resource to run locally using an emulator. The emulator in this case is [Azurite](/azure/storage/common/storage-use-azurite).
+- Adds a blob container named `blobs` to the storage resource.
+- Adds the `blobs` resource to the `ExampleProject` and waits for it to be ready before starting the project.
+
+<Aside type="caution">
+When you call `AddAzureStorage`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/azure/local-provisioning/#configuration).
+</Aside>
+
+### Provisioning-generated Bicep
+
+If you're new to [Bicep](/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Storage resource, Bicep is generated that provisions an Azure Storage account with sensible defaults including:
+
+- **kind**: `StorageV2`
+- **sku**: `Standard_GRS`
+- **accessTier**: `Hot`
+- **allowSharedKeyAccess**: `false`
+- **minimumTlsVersion**: `TLS1_2`
+- **networkAcls**: `{ defaultAction: 'Allow' }`
+
+The following role assignments are added to the storage account to grant your application access:
+
+| Role | Description |
+|------|-------------|
+| Storage Blob Data Contributor | Read, write, and delete Azure Storage containers and blobs. |
+| Storage Table Data Contributor | Read, write, and delete Azure Storage tables and entities. |
+| Storage Queue Data Contributor | Read, write, and delete Azure Storage queues and queue messages. |
+
+### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API. For example:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage");
+
+storage.ConfigureInfrastructure(infra =>
+{
+    var storageAccount = infra.GetProvisionableResources()
+                              .OfType<StorageAccount>()
+                              .Single();
+
+    storageAccount.AccessTier = StorageAccountAccessTier.Cool;
+    storageAccount.Sku = new StorageSku
+    {
+        Name = StorageSkuName.PremiumZrs
+    };
+    storageAccount.Tags["ExampleKey"] = "Example value";
+});
+```
+
+### Add Azure Storage emulator resource
+
+To add an Azure Storage emulator resource, chain a call to `RunAsEmulator`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage")
+                     .RunAsEmulator();
+
+// After adding all resources, run the app...
+```
+
+When you call `RunAsEmulator`, it configures your storage resources to run locally using [Azurite](/azure/storage/common/storage-use-azurite). The Azurite open-source emulator provides a free local environment for testing your Azure Blob, Queue Storage, and Table Storage apps. Azurite is accessible to Aspire as a container.
+
+#### Configure Azurite container
+
+By default, the Azurite container exposes the following endpoints:
+
+| Endpoint | Container port | Host port |
+|----------|----------------|-----------|
+| `blob`   | 10000          | dynamic   |
+| `queue`  | 10001          | dynamic   |
+| `table`  | 10002          | dynamic   |
+
+To configure the endpoint ports, chain calls on the container resource builder:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator(
+    azurite =>
+    {
+        azurite.WithBlobPort(27000)
+               .WithQueuePort(27001)
+               .WithTablePort(27002);
+    });
+```
+
+##### Configure Azurite with persistent lifetime
+
+To configure the Azurite container with a persistent lifetime:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator(
+    azurite =>
+    {
+        azurite.WithLifetime(ContainerLifetime.Persistent);
+    });
+```
+
+For more information, see [Container resource lifetime](/fundamentals/orchestrate-resources/#container-resource-lifetime).
+
+##### Configure Azurite with data volume
+
+To add a data volume to persist Azurite data:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator(
+    azurite =>
+    {
+        azurite.WithDataVolume();
+    });
+```
+
+The data volume is mounted at the `/data` path in the Azurite container. When a `name` parameter isn't provided, the name is formatted as `.azurite/{resource name}`.
+
+##### Configure Azurite with data bind mount
+
+To add a data bind mount:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator(
+    azurite =>
+    {
+        azurite.WithDataBindMount("../Azurite/Data");
+    });
+```
+
+<Aside type="note">
+Data volumes are preferred over bind mounts for better portability and performance across different platforms.
+</Aside>
+
+### Connect to an existing Azure Storage account
+
+You might have an existing Azure Storage account that you want to connect to. You can chain a call to annotate that your resource is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingStorageName = builder.AddParameter("existingStorageName");
+var existingStorageResourceGroup = builder.AddParameter("existingStorageResourceGroup");
+var storageaccount = builder.AddAzureStorage("storage")
+    .AsExisting(existingStorageName, existingStorageResourceGroup)
+    .AddBlobs("blobs");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(storageaccount);
+```
+
+<Aside type="note">
+Alternatively, instead of representing an Azure Storage account resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+### Hosting integration health checks
+
+The Azure Storage hosting integration automatically adds a health check for the storage resource. It's added only when running as an emulator and verifies the Azurite container is running and that a connection can be established to it.
+
+## Client integration
+
+To get started with the Aspire Azure Blob Storage client integration, install the [📦 Aspire.Azure.Storage.Blobs](https://www.nuget.org/packages/Aspire.Azure.Storage.Blobs) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Storage.Blobs" />
+
+### Add Azure Blob Storage client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureBlobClient` extension method to register a `BlobServiceClient` for dependency injection. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureBlobClient("blobs");
+```
+
+You can then retrieve the `BlobServiceClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(BlobServiceClient client)
+{
+    // Use client...
+}
+```
+
+### Configuration
+
+The Azure Blob Storage integration provides multiple options to configure the `BlobServiceClient`.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name when calling `AddAzureBlobClient`:
+
+```csharp
+builder.AddAzureBlobClient("blobs");
+```
+
+Two connection formats are supported:
+
+##### Service URI
+
+The recommended approach is to use a `ServiceUri`, which works with the `Credential` property. If no credential is configured, the `DefaultAzureCredential` is used:
+
+```json
+{
+  "ConnectionStrings": {
+    "blobs": "https://{account_name}.blob.core.windows.net/"
+  }
+}
+```
+
+##### Connection string
+
+Alternatively, an [Azure Storage connection string](/azure/storage/common/storage-configure-connection-string) can be used:
+
+```json
+{
+  "ConnectionStrings": {
+    "blobs": "AccountName=myaccount;AccountKey=myaccountkey"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Azure Blob Storage integration supports `Microsoft.Extensions.Configuration`. It loads the `AzureStorageBlobsSettings` and `BlobClientOptions` from configuration using the `Aspire:Azure:Storage:Blobs` key. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Storage": {
+        "Blobs": {
+          "DisableHealthChecks": true,
+          "DisableTracing": false,
+          "ClientOptions": {
+            "Diagnostics": {
+              "ApplicationId": "myapp"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use named configuration
+
+The Azure Blob Storage integration supports named configuration for multiple instances:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Storage": {
+        "Blobs": {
+          "blob1": {
+            "DisableHealthChecks": true,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp1"
+              }
+            }
+          },
+          "blob2": {
+            "DisableTracing": true,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp2"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Use the connection names when calling `AddAzureBlobClient`:
+
+```csharp
+builder.AddAzureBlobClient("blob1");
+builder.AddAzureBlobClient("blob2");
+```
+
+#### Use inline delegates
+
+You can also pass the `Action<AzureStorageBlobsSettings>` delegate to set up options inline:
+
+```csharp
+builder.AddAzureBlobClient(
+    "blobs",
+    settings => settings.DisableHealthChecks = true);
+```
+
+You can also configure the `BlobClientOptions`:
+
+```csharp
+builder.AddAzureBlobClient(
+    "blobs",
+    configureClientBuilder: clientBuilder =>
+        clientBuilder.ConfigureOptions(
+            options => options.Diagnostics.ApplicationId = "myapp"));
+```
+
+### Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Azure Blob Storage integration:
+
+- Adds the health check when `DisableHealthChecks` is `false`, which attempts to connect to the Azure Blob Storage.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
+
+### Observability and telemetry
+
+#### Logging
+
+The Azure Blob Storage integration uses the following log categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+#### Tracing
+
+The Azure Blob Storage integration emits the following tracing activities using OpenTelemetry:
+
+- `Azure.Storage.Blobs.BlobContainerClient`
+
+#### Metrics
+
+The Azure Blob Storage integration currently doesn't support metrics by default due to limitations with the Azure SDK.

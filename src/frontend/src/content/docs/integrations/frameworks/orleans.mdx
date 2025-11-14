@@ -1,10 +1,271 @@
 ---
-title: Orleans integration
+title: Orleans
+description: Learn how to use the Orleans hosting integration to configure and orchestrate Orleans from your AppHost project.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import orleansIcon from '@assets/icons/microsoft-orleans.png';
 
-<Placeholder
-    name="Orleans"
-    link="/dotnet/aspire/frameworks/orleans"
+<Image
+  src={orleansIcon}
+  alt="Orleans logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Orleans](https://github.com/dotnet/orleans) has built-in support for Aspire. Orleans provides a straightforward way to build distributed applications that are elastically scalable and fault-tolerant. You can use Aspire to configure and orchestrate Orleans and its dependencies.
+
+Orleans is represented as a resource in Aspire. Unlike other integrations, the Orleans integration doesn't create a container and doesn't require a separate client integration package. Instead you complete the Orleans configuration in the Aspire AppHost project.
+
+<Aside type="note">
+This integration requires Orleans version 8.1.0 or later.
+</Aside>
+
+## Hosting integration
+
+The Orleans hosting integration models an Orleans service as the `OrleansService` type. To access this type and APIs, add the [📦 Aspire.Hosting.Orleans](https://www.nuget.org/packages/Aspire.Hosting.Orleans) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Orleans" shortName="orleans" />
+
+### Add an Orleans resource
+
+In your AppHost project, call `AddOrleans` to add and return an Orleans service resource builder. The name provided to the Orleans resource is for diagnostic purposes. For most applications, a value of `"default"` suffices:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var orleans = builder.AddOrleans("default");
+```
+
+### Use Azure storage for clustering and grain storage
+
+In an Orleans app, the fundamental building block is a **grain**. Grains can have durable states. You must store the durable state for a grain somewhere. In an Aspire application, **Azure Blob Storage** is one possible location.
+
+Orleans hosts register themselves in a database and use that database to find each other and form a cluster. They store which servers are members of which silos in a database table. In an Aspire application, a popular choice to store this table is **Azure Table Storage**.
+
+To configure Orleans with clustering and grain storage in Azure, install the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package in the AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Storage" shortName="azurestorage" />
+
+In your AppHost project, after you call `AddOrleans`, configure the Orleans resource with clustering and grain storage using the `WithClustering` and `WithGrainStorage` methods:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage");
+var clusteringTable = storage.AddTables("clustering");
+var grainStorage = storage.AddBlobs("grainstate");
+
+var orleans = builder.AddOrleans("default")
+                     .WithClustering(clusteringTable)
+                     .WithGrainStorage("Default", grainStorage);
+```
+
+The preceding code tells Orleans that any service referencing it must also reference the `clusteringTable` resource.
+
+### Add an Orleans server project
+
+Now you can add a new project, enrolled in Aspire orchestration, to your solution as an Orleans server. It will take part in the Orleans cluster as a silo with constituent grains. Reference the Orleans resource from your server project using `WithReference(orleans)`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var orleans = builder.AddOrleans("default")
+                     .WithClustering(clusteringTable)
+                     .WithGrainStorage("Default", grainStorage);
+
+var server = builder.AddProject<Projects.OrleansServer>("orleans-server")
+                    .WithReference(orleans);
+```
+
+When you reference the Orleans resource from your service, those resources are also referenced.
+
+### Add an Orleans client project
+
+Orleans clients communicate with grains hosted on Orleans servers. In an Aspire app, for example, you might have a front-end web site that calls grains in an Orleans cluster. Reference the Orleans resource from your Orleans client using `WithReference(orleans.AsClient())`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var orleans = builder.AddOrleans("default")
+                     .WithClustering(clusteringTable)
+                     .WithGrainStorage("Default", grainStorage);
+
+var client = builder.AddProject<Projects.OrleansClient>("orleans-client")
+                    .WithReference(orleans.AsClient());
+```
+
+## Create the Orleans server project
+
+Now that the AppHost project is completed, you can implement the Orleans server project. Let's start by adding the necessary NuGet packages:
+
+```bash
+dotnet add package Aspire.Azure.Data.Tables
+dotnet add package Aspire.Azure.Storage.Blobs
+dotnet add package Microsoft.Orleans.Server
+dotnet add package Microsoft.Orleans.Persistence.AzureStorage
+dotnet add package Microsoft.Orleans.Clustering.AzureStorage
+```
+
+Next, in the `Program.cs` file of your Orleans server project, add the Azure Storage blob and tables clients and then call `UseOrleans`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAzureTableClient("clustering");
+builder.AddAzureBlobClient("grainstate");
+builder.UseOrleans();
+
+var app = builder.Build();
+
+app.Run();
+```
+
+### Example: CounterGrain implementation
+
+The following code is a complete example of an Orleans server project, including a grain named `CounterGrain`:
+
+```csharp
+using Orleans;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAzureTableClient("clustering");
+builder.AddAzureBlobClient("grainstate");
+builder.UseOrleans();
+
+var app = builder.Build();
+
+app.Run();
+
+public interface ICounterGrain : IGrainWithStringKey
+{
+    Task<int> GetCountAsync();
+    Task<int> IncrementAsync();
+}
+
+[GenerateSerializer]
+public class CounterState
+{
+    [Id(0)]
+    public int Count { get; set; }
+}
+
+public class CounterGrain : Grain, ICounterGrain
+{
+    private readonly IPersistentState<CounterState> _state;
+
+    public CounterGrain(
+        [PersistentState("count", "Default")] IPersistentState<CounterState> state)
+    {
+        _state = state;
+    }
+
+    public Task<int> GetCountAsync() => Task.FromResult(_state.State.Count);
+
+    public async Task<int> IncrementAsync()
+    {
+        _state.State.Count++;
+        await _state.WriteStateAsync();
+        return _state.State.Count;
+    }
+}
+```
+
+## Create an Orleans client project
+
+In the Orleans client project, add the same NuGet packages:
+
+```bash
+dotnet add package Aspire.Azure.Data.Tables
+dotnet add package Aspire.Azure.Storage.Blobs
+dotnet add package Microsoft.Orleans.Client
+dotnet add package Microsoft.Orleans.Persistence.AzureStorage
+dotnet add package Microsoft.Orleans.Clustering.AzureStorage
+```
+
+Next, in the `Program.cs` file of your Orleans client project, add the Azure table storage client and then call `UseOrleansClient`:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAzureTableClient("clustering");
+builder.UseOrleansClient();
+
+var app = builder.Build();
+
+app.MapGet("/", async (IGrainFactory grains) =>
+{
+    var grain = grains.GetGrain<ICounterGrain>("counter");
+    var count = await grain.IncrementAsync();
+    return Results.Ok(new { count });
+});
+
+app.Run();
+```
+
+The preceding code calls the `CounterGrain` grain defined in the Orleans server example above.
+
+## Enabling OpenTelemetry
+
+By convention, Aspire solutions include a project for defining default configuration and behavior for your service. This project is called the _service defaults_ project. To configure Orleans for OpenTelemetry in Aspire, apply configuration to your service defaults project.
+
+Modify the `ConfigureOpenTelemetry` method to add the Orleans _meters_ and _tracing_ instruments:
+
+```csharp
+public static IHostApplicationBuilder ConfigureOpenTelemetry(this IHostApplicationBuilder builder)
+{
+    builder.Logging.AddOpenTelemetry(logging =>
+    {
+        logging.IncludeFormattedMessage = true;
+        logging.IncludeScopes = true;
+    });
+
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddAspNetCoreInstrumentation()
+                   .AddHttpClientInstrumentation()
+                   .AddRuntimeInstrumentation()
+                   .AddMeter("Microsoft.Orleans"); // Add Orleans meter
+        })
+        .WithTracing(tracing =>
+        {
+            tracing.AddAspNetCoreInstrumentation()
+                   .AddHttpClientInstrumentation()
+                   .AddSource("Microsoft.Orleans.Runtime")
+                   .AddSource("Microsoft.Orleans.Application"); // Add Orleans sources
+        });
+
+    builder.AddOpenTelemetryExporters();
+
+    return builder;
+}
+```
+
+## Supported providers
+
+The Orleans Aspire integration supports a limited subset of Orleans providers:
+
+**Clustering:**
+- Redis
+- Azure Storage Tables
+
+**Persistence:**
+- Redis
+- Azure Storage Tables
+- Azure Storage Blobs
+
+**Reminders:**
+- Redis
+- Azure Storage Tables
+
+**Grain directory:**
+- Redis
+- Azure Storage Tables
+
+Streaming providers aren't supported as of Orleans version 8.1.0.
