@@ -5,10 +5,21 @@ description: Learn how to enable browser telemetry in the Aspire dashboard.
 
 import LearnMore from '@components/LearnMore.astro';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
-The Aspire dashboard can be configured to receive telemetry sent from browser apps. This feature is useful for monitoring client-side performance and user interactions. Browser telemetry requires additional dashboard configuration and that the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) is added to the browser apps.
+The Aspire dashboard can be configured to receive telemetry sent from browser apps. This feature is useful for monitoring client-side performance and user interactions. Browser telemetry requires additional dashboard configuration and that OpenTelemetry is configured in the browser app.
 
-This article discusses how to enable browser telemetry in the Aspire dashboard.
+This article discusses how to enable browser telemetry in the Aspire dashboard and provides examples for different approaches.
+
+<PivotSelector
+    title="Select your browser telemetry approach"
+    key="browser-telemetry-approach"
+    options={[
+        { id: "razor-javascript", title: "Razor Pages with JavaScript" },
+        { id: "blazor-wasm", title: "Blazor WebAssembly" },
+    ]}
+/>
 
 ## Dashboard configuration
 
@@ -170,6 +181,8 @@ OTLP endpoints are unsecured by default in the standalone dashboard.
 
 ## Browser app configuration
 
+<Pivot id="razor-javascript">
+
 A browser app uses the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) to send telemetry to the dashboard. Successfully sending telemetry to the dashboard requires the SDK to be correctly configured.
 
 ### OTLP exporter
@@ -304,6 +317,83 @@ The bundling and minification of the JavaScript code is beyond the scope of this
 </Aside>
 
 For the complete working example of how to configure the JavaScript OTEL SDK to send telemetry to the dashboard, see the [browser telemetry sample](https://github.com/dotnet/aspire/tree/main/playground/BrowserTelemetry).
+
+</Pivot>
+
+<Pivot id="blazor-wasm">
+
+Blazor WebAssembly apps can send telemetry to the dashboard using the .NET OpenTelemetry packages. This approach allows you to use familiar .NET APIs instead of JavaScript for telemetry configuration.
+
+### Add OpenTelemetry packages
+
+Add the following NuGet packages to your Blazor WebAssembly project:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="OpenTelemetry" Version="1.10.0" />
+  <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+  <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+</ItemGroup>
+```
+
+### Configure OpenTelemetry in a component
+
+Create a component or add the following code to an existing component to configure OpenTelemetry:
+
+```razor
+@using OpenTelemetry
+@using OpenTelemetry.Resources
+@using OpenTelemetry.Trace
+@using System.Diagnostics
+
+<button @onclick="Trace">Trace</button>
+
+@code {
+    private void Trace()
+    {
+        var resourceBuilder = ResourceBuilder.CreateDefault()
+            .AddService("blazor-otel");
+
+        using var otel = Sdk.CreateTracerProviderBuilder()
+            .SetResourceBuilder(resourceBuilder)
+            .AddSource("ui")
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri("https://localhost:21036");
+                options.ExportProcessorType = ExportProcessorType.Simple;
+            })
+            .Build();
+
+        using var source = new ActivitySource("ui");
+        using (var activity = source.StartActivity("trace-click", ActivityKind.Client))
+        {
+            activity?.AddEvent(new ActivityEvent("Trace button click"));
+        }
+    }
+}
+```
+
+The preceding code:
+
+- Creates a resource builder with a service name of `blazor-otel`.
+- Configures the tracer provider to use an OTLP exporter that sends data to the dashboard.
+- Creates an activity source and starts a new activity when the button is clicked.
+- Adds an event to the activity.
+
+<Aside type="note">
+Replace `https://localhost:21036` with the actual URL of your dashboard's HTTP OTLP endpoint. If your app is launched by the AppHost, you can access this value from the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+</Aside>
+
+### Best practices
+
+For production applications, consider the following best practices:
+
+- Initialize the tracer provider once during application startup rather than on each trace operation.
+- Use dependency injection to provide the tracer provider to components.
+- Configure the OTLP endpoint and other settings from configuration or environment variables.
+- Handle authentication headers if OTLP endpoint API key authentication is enabled.
+
+</Pivot>
 
 ## See also
 
