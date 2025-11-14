@@ -356,6 +356,26 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: 'Значення за замовчуванням служби',
               'zh-CN': '服务默认值',
             }, slug: 'fundamentals/service-defaults'
+          },
+          {
+            label: 'Launch profiles', translations: {
+              da: 'Start profiler',
+              de: 'Startprofile',
+              en: 'Launch profiles',
+              es: 'Perfiles de inicio',
+              fr: 'Profils de lancement',
+              hi: 'लॉन्च प्रोफ़ाइल',
+              id: 'Profil peluncuran',
+              it: 'Profili di avvio',
+              ja: '起動プロファイル',
+              ko: '시작 프로필',
+              'pt-BR': 'Perfis de inicialização',
+              'pt-PT': 'Perfis de inicialização',
+              ru: 'Профили запуска',
+              tr: 'Başlatma profilleri',
+              uk: 'Профілі запуску',
+              'zh-CN': '启动配置文件',
+            }, slug: 'fundamentals/launch-profiles'
           }
         ]
       },
