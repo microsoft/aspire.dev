@@ -819,10 +819,46 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '云提供商',
         }, items: [
           { label: 'AWS', link: 'https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/aspire-integrations.html' },
-          { label: 'Azure', slug: 'integrations/cloud/azure/overview' },
-          { label: 'Azure Storage Blobs', slug: 'integrations/cloud/azure-storage-blobs' },
-          { label: 'Azure Storage Queues', slug: 'integrations/cloud/azure-storage-queues' },
-          { label: 'Azure Storage Tables', slug: 'integrations/cloud/azure-storage-tables' },
+          { 
+            label: 'Azure', 
+            collapsed: true,
+            items: [
+              { label: 'Overview', slug: 'integrations/cloud/azure/overview' },
+              { label: 'Azure AI Foundry (Preview)', slug: 'integrations/cloud/azure/azure-ai-foundry' },
+              { label: 'Azure AI Inference (Preview)', slug: 'integrations/cloud/azure/azure-ai-inference' },
+              { label: 'Azure AI Search', slug: 'integrations/cloud/azure/azure-ai-search' },
+              { label: 'Azure App Configuration', slug: 'integrations/cloud/azure/azure-app-configuration' },
+              { label: 'Azure App Service (Preview)', slug: 'integrations/cloud/azure/azure-app-service' },
+              { label: 'Azure Cache for Redis', slug: 'integrations/cloud/azure/azure-cache-redis' },
+              { label: 'Azure Container Registry (Preview)', slug: 'integrations/cloud/azure/azure-container-registry' },
+              { label: 'Azure Cosmos DB', slug: 'integrations/cloud/azure/azure-cosmos-db' },
+              { label: 'Azure Event Hubs', slug: 'integrations/cloud/azure/azure-event-hubs' },
+              { label: 'Azure Functions (Preview)', slug: 'integrations/cloud/azure/azure-functions' },
+              { label: 'Azure Key Vault', slug: 'integrations/cloud/azure/azure-key-vault' },
+              { label: 'Azure OpenAI (Preview)', slug: 'integrations/cloud/azure/azure-openai' },
+              { label: 'Azure PostgreSQL', slug: 'integrations/cloud/azure/azure-postgresql' },
+              { label: 'Azure Service Bus', slug: 'integrations/cloud/azure/azure-service-bus' },
+              { label: 'Azure SignalR Service', slug: 'integrations/cloud/azure/azure-signalr' },
+              { label: 'Azure SQL Database', slug: 'integrations/cloud/azure/azure-sql-database' },
+              { 
+                label: 'Azure Storage', 
+                collapsed: true,
+                items: [
+                  { label: 'Azure Storage Blobs', slug: 'integrations/cloud/azure/azure-storage-blobs' },
+                  { label: 'Azure Storage Queues', slug: 'integrations/cloud/azure/azure-storage-queues' },
+                  { label: 'Azure Storage Tables', slug: 'integrations/cloud/azure/azure-storage-tables' },
+                ]
+              },
+              { label: 'Azure Web PubSub', slug: 'integrations/cloud/azure/azure-web-pubsub' },
+              { label: 'Customize Azure resources', slug: 'integrations/cloud/azure/customize-resources' },
+              { label: 'Local Azure provisioning', slug: 'integrations/cloud/azure/local-provisioning' },
+              { label: 'Configure Azure Container Apps environments', slug: 'integrations/cloud/azure/configure-container-apps' },
+              { label: 'Azure Container App Jobs', slug: 'integrations/cloud/azure/container-app-jobs' },
+              { label: 'User-assigned managed identity', slug: 'integrations/cloud/azure/user-assigned-identity' },
+              { label: 'Manage role assignments', slug: 'integrations/cloud/azure/role-assignments' },
+              { label: 'AI integrations compatibility matrix', slug: 'integrations/cloud/azure/ai-compatibility-matrix' },
+            ]
+          },
         ]
       },
       {
@@ -1041,7 +1077,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '安全与身份',
         },
         items: [
-          { label: "Azure Key Vault", slug: "integrations/security/azure-key-vault" },
           { label: "Keycloak", slug: "integrations/security/keycloak" }
         ]
       },
