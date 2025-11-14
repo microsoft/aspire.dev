@@ -1,10 +1,189 @@
 ---
-title: YARP (Yet Another Reverse Proxy) integration
+title: YARP
+description: Learn how to use the YARP (Yet Another Reverse Proxy) integration for reverse proxy functionality.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import InstallPackage from '@components/InstallPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import yarpIcon from '@assets/icons/yarp-icon.svg';
 
-<Placeholder 
-    name="YARP"
-    link="/dotnet/aspire/proxies/yarp-integration"
+<Image
+  src={yarpIcon}
+  alt="YARP logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[YARP (Yet Another Reverse Proxy)](https://microsoft.github.io/reverse-proxy/) is a toolkit for building fast and customizable reverse proxies using .NET. The Aspire YARP integration enables you to add reverse proxy capabilities to your distributed applications.
+
+## Hosting integration
+
+The YARP hosting integration models a YARP resource as the `YarpResource` type. To access this type and APIs, add the [📦 Aspire.Hosting.Yarp](https://www.nuget.org/packages/Aspire.Hosting.Yarp) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Yarp" shortName="yarp" />
+### Add YARP resource
+
+In your AppHost project, call `AddYarp` on the builder instance to add a YARP resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogService = builder.AddProject<Projects.CatalogService>("catalogservice");
+var basketService = builder.AddProject<Projects.BasketService>("basketservice");
+
+var gateway = builder.AddYarp("gateway")
+                     .WithConfiguration(yarp =>
+                     {
+                         // Configure routes programmatically
+                         yarp.AddRoute(catalogService);
+                         yarp.AddRoute("/api/{**catch-all}", basketService);
+                     });
+```
+
+When Aspire adds a YARP resource to the AppHost, it creates a new containerized YARP instance using the [mcr.microsoft.com/dotnet/nightly/yarp](https://mcr.microsoft.com/product/dotnet/nightly/yarp/about) container image.
+
+<Aside type="caution">
+Starting with Aspire 9.4, the `WithConfigFile` method has been removed. YARP configuration is now done exclusively through code-based configuration using the `WithConfiguration` method. This provides better IntelliSense support, type safety, and works seamlessly with deployment scenarios.
+</Aside>
+
+### Programmatic configuration
+
+The YARP integration provides a fluent API for configuring routes, clusters, and transforms programmatically:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogService = builder.AddProject<Projects.CatalogService>("catalogservice");
+var basketService = builder.AddProject<Projects.BasketService>("basketservice");
+
+var gateway = builder.AddYarp("gateway")
+                     .WithConfiguration(yarp =>
+                     {
+                         // Add catch-all route for frontend service
+                         yarp.AddRoute(catalogService);
+
+                         // Add specific path route with transforms
+                         yarp.AddRoute("/api/{**catch-all}", basketService)
+                             .WithTransformPathRemovePrefix("/api");
+
+                         // Configure route matching
+                         yarp.AddRoute("/catalog/api/{**catch-all}", catalogService)
+                             .WithMatchMethods("GET", "POST")
+                             .WithTransformPathRemovePrefix("/catalog");
+                     });
+```
+
+#### Route configuration
+
+Routes define how incoming requests are matched and forwarded to backend services:
+
+- `AddRoute(resource)` - Creates a catch-all route for the specified resource
+- `AddRoute(path, resource)` - Creates a route with a specific path pattern
+- `AddRoute(path, externalService)` - Creates a route targeting an external service
+
+#### Transforms
+
+Transforms modify requests and responses as they pass through the proxy:
+
+```csharp
+yarp.AddRoute("/api/{**catch-all}", basketService)
+    .WithTransformPathRemovePrefix("/api")
+    .WithTransformPathPrefix("/v1")
+    .WithTransformRequestHeader("X-Forwarded-Host", "gateway.example.com")
+    .WithTransformResponseHeader("X-Powered-By", "YARP");
+```
+
+Common transform methods include:
+
+- **Path transforms**: `WithTransformPathRemovePrefix`, `WithTransformPathPrefix`, `WithTransformPathSet`
+- **Header transforms**: `WithTransformRequestHeader`, `WithTransformResponseHeader`
+- **Query transforms**: `WithTransformQueryParameter`, `WithTransformQueryRemoveParameter`
+- **Custom transforms**: `WithTransform` for custom transformation logic
+
+### Customize host port
+
+To configure the host port that the YARP resource is exposed on, use the `WithHostPort` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var gateway = builder.AddYarp("gateway")
+                     .WithHostPort(8080)
+                     .WithConfiguration(yarp =>
+                     {
+                         // Configure routes...
+                     });
+```
+
+### Service discovery integration
+
+The YARP integration automatically works with .NET service discovery when targeting resources:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogService = builder.AddProject<Projects.CatalogService>("catalogservice");
+
+var gateway = builder.AddYarp("gateway")
+                     .WithConfiguration(yarp =>
+                     {
+                         // Service discovery automatically resolves catalogservice endpoints
+                         yarp.AddRoute("/catalog/{**catch-all}", catalogService);
+                     });
+```
+
+For external services, use `AddExternalService`:
+
+```csharp
+var externalApi = builder.AddExternalService("external-api")
+                         .WithHttpsEndpoint("https://api.example.com");
+
+var gateway = builder.AddYarp("gateway")
+                     .WithConfiguration(yarp =>
+                     {
+                         yarp.AddRoute("/external/{**catch-all}", externalApi);
+                     });
+```
+
+### Static file serving
+
+YARP can serve static files alongside proxied routes. Use the `WithStaticFiles` method to copy files from a local directory:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var staticServer = builder.AddYarp("static")
+                          .WithStaticFiles("../static");
+```
+
+For building frontend applications, you can use a Docker multi-stage build:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddYarp("frontend")
+                      .WithStaticFiles()
+                      .WithDockerfile("../npmapp");
+```
+
+#### Combining static files with routing
+
+You can combine static file serving with dynamic routing:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiService = builder.AddProject<Projects.ApiService>("api");
+
+var gateway = builder.AddYarp("gateway")
+                     .WithStaticFiles("../webapp/dist")
+                     .WithConfiguration(yarp =>
+                     {
+                         // API routes take precedence over static files
+                         yarp.AddRoute("/api/{**catch-all}", apiService);
+                         // Static files are served for all other routes
+                     });
+```

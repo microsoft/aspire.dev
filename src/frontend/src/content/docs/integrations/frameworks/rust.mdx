@@ -2,10 +2,120 @@
 title: Rust integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import { Image } from 'astro:assets';
+import rustIcon from '@assets/icons/rust-icon.png';
 
-<Placeholder 
-    name="Rust"
-    link="/dotnet/aspire/community-toolkit/hosting-rust"
-    icon="seti:rust"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={rustIcon}
+  alt="Rust logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+The Aspire Rust hosting integration enables you to run Rust applications alongside your .NET projects in the Aspire app host.
+
+<Aside type="note">
+
+This integration requires `cargo` to be installed on your system and available in your PATH. For installation instructions, see [Install Rust](https://www.rust-lang.org/tools/install).
+
+</Aside>
+
+## Hosting integration
+
+To get started with the Aspire Rust hosting integration, install the [CommunityToolkit.Aspire.Hosting.Rust](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Rust) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Rust" shortName="rust" />
+
+### Add Rust app
+
+To add a Rust application to your app host, use the `AddRustApp` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustApp = builder.AddRustApp(
+    name: "rust-api",
+    workingDirectory: "../rust-app")
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(rustApp);
+
+// After adding all resources, run the app...
+```
+
+The `AddRustApp` method requires:
+- **name**: The name of the resource in the Aspire dashboard
+- **workingDirectory**: The path to the directory containing your Rust application
+
+### Configure endpoints
+
+Rust applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the PORT environment variable:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustApp = builder.AddRustApp("rust-api", "../rust-app")
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+Your Rust application can read the PORT environment variable to determine which port to listen on:
+
+```rust
+use std::env;
+use actix_web::{web, App, HttpServer, Responder};
+
+async fn greet() -> impl Responder {
+    "Hello from Rust!"
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    
+    println!("Server listening on {}", addr);
+    
+    HttpServer::new(|| {
+        App::new()
+            .route("/", web::get().to(greet))
+    })
+    .bind(addr)?
+    .run()
+    .await
+}
+```
+
+### Custom arguments
+
+You can pass custom arguments to `cargo run` using the `WithArgs` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rustApp = builder.AddRustApp("rust-api", "../rust-app")
+    .WithArgs("--release")
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+### Working directory
+
+The `workingDirectory` parameter specifies where the Rust application is located. The Aspire app host will run `cargo run` in this directory to start your Rust application.
+
+## See also
+
+- [Rust documentation](https://www.rust-lang.org/learn)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

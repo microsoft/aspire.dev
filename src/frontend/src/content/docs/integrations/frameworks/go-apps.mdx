@@ -2,10 +2,101 @@
 title: Go integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import ThemeImage from '@components/ThemeImage.astro';
+import goIcon from '@assets/icons/go-icon.png';
+import goLightIcon from '@assets/icons/go-light-icon.png';
 
-<Placeholder 
-    name="Go"
-    link="/dotnet/aspire/community-toolkit/hosting-golang"
-    icon="seti:go"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={goLightIcon}
+  dark={goIcon}
+  alt="Go logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
 />
+
+The Aspire Go hosting integration enables you to run Go applications alongside your .NET projects in the Aspire app host.
+
+## Hosting integration
+
+To get started with the Aspire Go hosting integration, install the [CommunityToolkit.Aspire.Hosting.Golang](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Golang) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Golang" shortName="golang" />
+
+### Add Go app
+
+To add a Go application to your app host, use the `AddGolangApp` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goApp = builder.AddGolangApp(
+    name: "go-api",
+    workingDirectory: "../go-app")
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goApp);
+
+// After adding all resources, run the app...
+```
+
+The `AddGolangApp` method requires:
+- **name**: The name of the resource in the Aspire dashboard
+- **workingDirectory**: The path to the directory containing your Go application
+
+### Configure endpoints
+
+Go applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the PORT environment variable:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goApp = builder.AddGolangApp("go-api", "../go-app")
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+Your Go application can read the PORT environment variable to determine which port to listen on:
+
+```go
+package main
+
+import (
+    "fmt"
+    "net/http"
+    "os"
+)
+
+func main() {
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, "Hello from Go!")
+    })
+
+    fmt.Printf("Server listening on port %s\n", port)
+    http.ListenAndServe(":"+port, nil)
+}
+```
+
+### Working directory
+
+The `workingDirectory` parameter specifies where the Go application is located. The Aspire app host will run `go run .` in this directory to start your Go application.
+
+## See also
+
+- [Go documentation](https://go.dev/doc/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

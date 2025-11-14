@@ -2,9 +2,165 @@
 title: MailPit integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import ThemeImage from '@components/ThemeImage.astro';
+import mailpitIcon from '@assets/icons/mailpit-icon.svg';
+import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
 
-<Placeholder 
-    name="MailPit"
-    link="/dotnet/aspire/community-toolkit/hosting-mailpit"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={mailpitLightIcon}
+  dark={mailpitIcon}
+  alt="Mailpit logo"
+  width={70}
+  height={70}
+  zoomable={false}
+  classOverride="float-inline-left icon"
 />
+
+[MailPit](https://mailpit.axllent.org/) is an email testing tool for developers. It acts as an SMTP server, captures emails, and provides a web interface to view them. The Aspire MailPit hosting integration enables you to run MailPit alongside your .NET projects for local email testing.
+
+## Hosting integration
+
+To get started with the Aspire MailPit hosting integration, install the [CommunityToolkit.Aspire.Hosting.MailPit](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.MailPit) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MailPit" shortName="mailpit" />
+
+### Add MailPit resource
+
+To add MailPit to your app host, use the `AddMailPit` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mailpit = builder.AddMailPit("mailpit");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mailpit);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds MailPit to the app host, it creates a new MailPit instance with the `docker.io/axllent/mailpit` container image.
+
+### Ports
+
+MailPit exposes two ports:
+- **SMTP port**: 1025 (for sending emails)
+- **Web UI port**: 8025 (for viewing emails in the browser)
+
+Both ports are automatically configured and accessible through the Aspire dashboard.
+
+### Data persistence
+
+To persist emails across container restarts, use the `WithDataVolume` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mailpit = builder.AddMailPit("mailpit")
+                     .WithDataVolume();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mailpit);
+```
+
+The data volume is used to persist the MailPit data outside the lifecycle of the container.
+
+For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mailpit = builder.AddMailPit("mailpit")
+                     .WithDataBindMount(source: @"C:\MailPit\Data");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mailpit);
+```
+
+### Web UI
+
+The MailPit web interface is automatically available when you add a MailPit resource. You can access it through the Aspire dashboard by clicking on the endpoint for the MailPit resource.
+
+## Client integration
+
+MailPit doesn't require a dedicated client integration package. You can use any SMTP library to send emails to MailPit. The connection information is automatically injected into your application when you reference the MailPit resource.
+
+### Using MailKit
+
+Here's an example using the popular [MailKit](https://www.nuget.org/packages/MailKit) library:
+
+```powershell
+dotnet add package MailKit
+```
+
+```csharp
+using MailKit.Net.Smtp;
+using MimeKit;
+
+public class EmailService
+{
+    private readonly string _smtpHost;
+    private readonly int _smtpPort;
+
+    public EmailService(IConfiguration configuration)
+    {
+        _smtpHost = configuration.GetConnectionString("mailpit")?.Split(':')[0] ?? "localhost";
+        _smtpPort = 1025;
+    }
+
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("Sender", "sender@example.com"));
+        message.To.Add(new MailboxAddress("Recipient", to));
+        message.Subject = subject;
+        message.Body = new TextPart("plain") { Text = body };
+
+        using var client = new SmtpClient();
+        await client.ConnectAsync(_smtpHost, _smtpPort, false);
+        await client.SendAsync(message);
+        await client.DisconnectAsync(true);
+    }
+}
+```
+
+### Using System.Net.Mail
+
+You can also use the built-in `System.Net.Mail` APIs:
+
+```csharp
+using System.Net;
+using System.Net.Mail;
+
+public class EmailService
+{
+    private readonly string _smtpHost;
+    private readonly int _smtpPort;
+
+    public EmailService(IConfiguration configuration)
+    {
+        _smtpHost = configuration.GetConnectionString("mailpit")?.Split(':')[0] ?? "localhost";
+        _smtpPort = 1025;
+    }
+
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        using var client = new SmtpClient(_smtpHost, _smtpPort);
+        var message = new MailMessage("sender@example.com", to, subject, body);
+        await client.SendMailAsync(message);
+    }
+}
+```
+
+## See also
+
+- [MailPit documentation](https://mailpit.axllent.org/)
+- [MailPit GitHub repository](https://github.com/axllent/mailpit)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

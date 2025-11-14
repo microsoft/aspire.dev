@@ -1,10 +1,227 @@
 ---
-title: Qdrant integration
+title: Qdrant
+description: Learn how to use the Qdrant vector database integration, which includes both hosting and client integrations.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import qdrantIcon from '@assets/icons/qdrant-icon.png';
 
-<Placeholder 
-    name="Qdrant"
-    link="/dotnet/aspire/database/qdrant-integration"
+<Image
+  src={qdrantIcon}
+  alt="Qdrant logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Qdrant](https://qdrant.tech/) is an open-source vector similarity search engine that efficiently stores, indexes, and searches large-scale vector data. It's commonly used in machine learning, artificial intelligence, and data science applications.
+
+Vector data encodes information as mathematical vectors, which are arrays of numbers or coordinates. Machine learning and AI systems often use vectors to represent unstructured objects like images, text, audio, or video.
+
+## Hosting integration
+
+The Qdrant hosting integration models the server as the `QdrantServerResource` type. To access this type and APIs, add the [📦 Aspire.Hosting.Qdrant](https://www.nuget.org/packages/Aspire.Hosting.Qdrant) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Qdrant" shortName="qdrant" />
+
+### Add Qdrant resource
+
+In your AppHost project, call `AddQdrant` to add and return a Qdrant resource builder:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var qdrant = builder.AddQdrant("qdrant")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(qdrant)
+                       .WaitFor(qdrant);
+```
+
+<Aside type="note">
+The Qdrant container can be slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/fundamentals/orchestrate-resources/#container-resource-lifetime).
+</Aside>
+
+The `WithReference` method configures a connection in the `ExampleProject` named `qdrant`.
+
+<Aside type="tip">
+If you'd rather connect to an existing Qdrant server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/fundamentals/external-parameters/#reference-existing-resources).
+</Aside>
+
+<Aside type="tip">
+The `qdrant/qdrant` container image includes a web UI that you can use to explore your vectors and administer the database. To access this tool, start your Aspire solution and then, in the Aspire dashboard, select the endpoint for the Qdrant resource. In your browser's address bar, append **/dashboard** and press Enter.
+</Aside>
+
+### Handling API keys and parameters
+
+To connect to Qdrant a client must pass the right API key. When Aspire adds a Qdrant resource, it sets the API key to a random string. To use a specific API key, pass it as an `apiKey` parameter:
+
+```csharp
+var apiKey = builder.AddParameter("apiKey", secret: true);
+
+var qdrant = builder.AddQdrant("qdrant", apiKey);
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(qdrant);
+```
+
+For more information, see [External parameters](/fundamentals/external-parameters/).
+
+### Add Qdrant resource with data volume
+
+To add a data volume to the Qdrant resource, call the `WithDataVolume` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var qdrant = builder.AddQdrant("qdrant")
+                    .WithLifetime(ContainerLifetime.Persistent)
+                    .WithDataVolume();
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(qdrant)
+                       .WaitFor(qdrant);
+```
+
+The data volume is used to persist the Qdrant data outside the lifecycle of its container. The data volume is mounted at the `/qdrant/storage` path.
+
+### Add Qdrant resource with data bind mount
+
+To add a data bind mount to the Qdrant resource, call the `WithDataBindMount` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var qdrant = builder.AddQdrant("qdrant")
+                    .WithLifetime(ContainerLifetime.Persistent)
+                    .WithDataBindMount(source: @"C:\Qdrant\Data");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(qdrant)
+                       .WaitFor(qdrant);
+```
+
+<Aside>
+Data bind mounts have limited functionality compared to volumes, and when you use a bind mount, a file or directory on the host machine is mounted into a container.
+</Aside>
+
+### Hosting integration health checks
+
+The Qdrant hosting integration automatically adds a health check for the Qdrant resource. The health check verifies that Qdrant is running and that a connection can be established to it.
+
+## Client integration
+
+To get started with the Aspire Qdrant client integration, install the [📦 Aspire.Qdrant.Client](https://www.nuget.org/packages/Aspire.Qdrant.Client) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Qdrant.Client" />
+
+The Qdrant client integration registers a [QdrantClient](https://github.com/qdrant/qdrant-dotnet/) instance that you can use to interact with Qdrant vector data.
+
+### Add a Qdrant client
+
+In the `Program.cs` file, call the `AddQdrantClient` extension method to register a `QdrantClient`:
+
+```csharp
+builder.AddQdrantClient("qdrant");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Qdrant resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `QdrantClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(QdrantClient client)
+{
+    // Use client...
+}
+```
+
+### Add keyed Qdrant client
+
+There might be situations where you want to register multiple `QdrantClient` instances. To register keyed Qdrant clients, call the `AddKeyedQdrantClient` method:
+
+```csharp
+builder.AddKeyedQdrantClient(name: "mainQdrant");
+builder.AddKeyedQdrantClient(name: "loggingQdrant");
+```
+
+Then retrieve the instances:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("mainQdrant")] QdrantClient mainQdrantClient,
+    [FromKeyedServices("loggingQdrant")] QdrantClient loggingQdrantClient)
+{
+    // Use clients...
+}
+```
+
+### Configuration
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section:
+
+```csharp
+builder.AddQdrantClient("qdrant");
+```
+
+Then Aspire retrieves the connection string:
+
+```json
+{
+  "ConnectionStrings": {
+    "qdrant": "Endpoint=http://localhost:6334;Key=123456!@#$%"
+  }
+}
+```
+
+By default the `QdrantClient` uses the gRPC API endpoint.
+
+#### Use configuration providers
+
+The Qdrant client integration supports `Microsoft.Extensions.Configuration`. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Qdrant": {
+      "Client": {
+        "Endpoint": "http://localhost:6334/",
+        "Key": "123456!@#$%"
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can pass the delegate to set up options inline:
+
+```csharp
+builder.AddQdrantClient(
+    "qdrant",
+    settings => settings.Key = "12345!@#$%");
+```
+
+### Client integration health checks
+
+By default, Aspire integrations enable health checks for all services.
+
+### Observability and telemetry
+
+#### Logging
+
+The Qdrant integration uses the `Qdrant.Client` log category.
+
+#### Tracing and Metrics
+
+The Qdrant integration doesn't currently emit tracing activities or metrics because they are not supported by the `Qdrant.Client` library.

@@ -1,10 +1,149 @@
 ---
-title: Docker integration
+title: Docker
+description: Learn how to use the Aspire Docker hosting integration to deploy your app with Docker Compose.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import InstallPackage from '@components/InstallPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import dockerIcon from '@assets/icons/docker.svg';
 
-<Placeholder 
-    name="Docker"
-    link="/dotnet/aspire/deployment/docker-integration"
+<Image
+  src={dockerIcon}
+  alt="Docker logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+The Aspire Docker hosting integration enables you to deploy your Aspire applications using Docker Compose. This integration models Docker Compose environments as compute resources that can host your application services. When you use this integration, Aspire generates Docker Compose files that define all the services, networks, and volumes needed to run your application in a containerized environment. It supports:
+
+- Generating Docker Compose files from your app model for deployment
+- Orchestrating multiple services, including an Aspire dashboard for telemetry visualization
+- Configuring environment variables and service dependencies
+- Managing container networking and service discovery
+
+## Hosting integration
+
+The Docker hosting integration is available in the [📦 Aspire.Hosting.Docker](https://www.nuget.org/packages/Aspire.Hosting.Docker) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Docker" shortName="docker" />
+
+### Add Docker Compose environment resource
+
+The following example demonstrates how to add a Docker Compose environment to your app model using the `AddDockerComposeEnvironment` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var compose = builder.AddDockerComposeEnvironment("compose");
+
+var cache = builder.AddRedis("cache")
+                   .PublishAsDockerComposeService();
+
+var api = builder.AddProject<Projects.Api>("api")
+                 .WithReference(cache)
+                 .PublishAsDockerComposeService();
+
+var web = builder.AddProject<Projects.Web>("web")
+                 .WithReference(cache)
+                 .WithReference(api)
+                 .PublishAsDockerComposeService();
+
+builder.Build().Run();
+```
+
+The preceding code:
+
+- Creates a Docker Compose environment named `compose`
+- Adds a Redis cache service that will be included in the Docker Compose deployment
+- Adds an API service project that will be containerized and included in the deployment
+- Adds a web application that references both the cache and API service
+- Configures all services to be published as Docker Compose services using `PublishAsDockerComposeService`
+
+<Aside type="tip">
+With the `compose` variable assigned, you can pass that to the `WithComputeEnvironment` API to disambiguate compute resources for solutions that define more than one. Otherwise, the `compose` variable isn't required.
+</Aside>
+
+### Add Docker Compose environment resource with properties
+
+You can configure various properties of the Docker Compose environment using the `WithProperties` method:
+
+```csharp
+builder.AddDockerComposeEnvironment("compose")
+       .WithProperties(env =>
+       {
+           env.DefaultContainerRegistry = "myregistry.azurecr.io";
+           env.DefaultNetworkName = "my-network";
+           env.BuildContainerImages = true;
+       });
+```
+
+### Add Docker Compose environment resource with compose file
+
+You can customize the generated Docker Compose file using the `ConfigureComposeFile` method:
+
+```csharp
+builder.AddDockerComposeEnvironment("compose")
+       .ConfigureComposeFile(composeFile =>
+       {
+           composeFile.Networks.Add("custom-network", new()
+           {
+               Driver = "bridge"
+           });
+       });
+```
+
+### Add Aspire dashboard resource to environment
+
+The Docker hosting integration includes an Aspire dashboard for telemetry visualization. You can configure or disable it using the `WithDashboard` method:
+
+```csharp
+// Enable dashboard with custom configuration
+builder.AddDockerComposeEnvironment("compose")
+       .WithDashboard(dashboard =>
+       {
+           dashboard.WithHostPort(8080)
+                    .WithForwardedHeaders(enabled: true);
+       });
+
+// Disable dashboard
+builder.AddDockerComposeEnvironment("compose")
+       .WithDashboard(enabled: false);
+```
+
+The `WithHostPort` method configures the port used to access the Aspire dashboard from a browser. The `WithForwardedHeaders` method enables forwarded headers processing when the dashboard is accessed through a reverse proxy or load balancer.
+
+### Publishing and deployment
+
+To deploy your application using Docker Compose, use the `aspire publish` command:
+
+```bash
+aspire publish -o docker-compose-artifacts
+```
+
+This command generates Docker Compose files and all necessary artifacts in the specified output directory. The generated files include:
+
+- `docker-compose.yml`: The main Docker Compose file defining all services
+- `docker-compose.override.yml`: Override file for development-specific settings
+- `.env`: Environment variables file
+- Service-specific configuration files and scripts
+
+After publishing, you can deploy your application using Docker Compose:
+
+```bash
+cd docker-compose-artifacts
+docker compose up -d
+```
+
+### Environment variables
+
+The Docker hosting integration captures environment variables from your app model and includes them in a `.env` file. This ensures that all configuration is properly passed to the containerized services.
+
+## See also
+
+- [Deploy Aspire projects to Azure Container Apps using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/)
+- [Building custom deployment pipelines](/fundamentals/custom-deployments/)
+- [Docker Compose to AppHost API reference](/get-started/docker-compose-to-apphost-reference/)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

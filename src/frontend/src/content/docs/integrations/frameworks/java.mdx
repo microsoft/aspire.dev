@@ -2,10 +2,137 @@
 title: Java integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import { Image } from 'astro:assets';
+import javaIcon from '@assets/icons/java-icon.png';
 
-<Placeholder 
-    name="Java"
-    link="/dotnet/aspire/community-toolkit/hosting-java"
-    icon="seti:java"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={javaIcon}
+  alt="Java logo"
+  width={55}
+  height={20}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+The Aspire Java hosting integration enables you to run Java applications, including Spring Boot applications, alongside your .NET projects in the Aspire app host.
+
+<Aside type="note">
+
+This integration requires the OpenTelemetry Java agent for observability support. The agent JAR file must be downloaded to the `./agents` directory relative to your app host project.
+
+Download the agent from: [OpenTelemetry Java Agent releases](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases)
+
+</Aside>
+
+## Hosting integration
+
+To get started with the Aspire Java hosting integration, install the [CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Java" shortName="java" />
+
+### Add Spring Boot app
+
+To add a Spring Boot application to your app host, use the `AddSpringApp` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddSpringApp(
+    name: "spring-api",
+    workingDirectory: "../spring-app",
+    otelAgentPath: "../agents/opentelemetry-javaagent.jar")
+    .WithHttpEndpoint(port: 8080);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(javaApp);
+
+// After adding all resources, run the app...
+```
+
+The `AddSpringApp` method requires:
+- **name**: The name of the resource in the Aspire dashboard
+- **workingDirectory**: The path to the directory containing your Spring Boot application
+- **otelAgentPath**: The path to the OpenTelemetry Java agent JAR file
+
+### Container hosting
+
+For production scenarios, you can host Java applications in containers. Use `JavaAppContainerResourceOptions` to specify container-specific settings:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddSpringApp(
+    name: "spring-api",
+    new JavaAppContainerResourceOptions
+    {
+        OtelAgentPath = "../agents/opentelemetry-javaagent.jar",
+        ContainerImageName = "my-spring-app:latest",
+        ContainerRegistry = "myregistry.azurecr.io"
+    })
+    .WithHttpEndpoint(port: 8080);
+
+// After adding all resources, run the app...
+```
+
+### Executable hosting
+
+For local development, you can run Java applications as executables using `JavaAppExecutableResourceOptions`:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddSpringApp(
+    name: "spring-api",
+    new JavaAppExecutableResourceOptions
+    {
+        ApplicationName = "spring-app",
+        OtelAgentPath = "../agents/opentelemetry-javaagent.jar",
+        WorkingDirectory = "../spring-app"
+    })
+    .WithHttpEndpoint(port: 8080);
+
+// After adding all resources, run the app...
+```
+
+### Certificate trust (Linux/macOS)
+
+On Linux and macOS, you may need to add additional configuration to trust the Aspire development certificates. Add the following to your Spring Boot application's `application.properties`:
+
+```properties
+server.ssl.trust-store=/path/to/aspire/dev/certificate.p12
+server.ssl.trust-store-password=your-password
+```
+
+For more information, see the [Spring Boot SSL documentation](https://docs.spring.io/spring-boot/reference/features/ssl.html).
+
+### Configure endpoints
+
+Spring Boot applications typically use the `server.port` property to configure the port. Use `WithHttpEndpoint` to expose the endpoint:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddSpringApp("spring-api", "../spring-app", "../agents/opentelemetry-javaagent.jar")
+    .WithHttpEndpoint(port: 8080);
+
+// After adding all resources, run the app...
+```
+
+## Observability
+
+The Java integration uses the OpenTelemetry Java agent to provide observability features. The agent automatically instruments your Java application and exports telemetry to the Aspire dashboard.
+
+Make sure to download the OpenTelemetry Java agent and specify its path when calling `AddSpringApp`.
+
+## See also
+
+- [Spring Boot documentation](https://spring.io/projects/spring-boot)
+- [OpenTelemetry Java](https://opentelemetry.io/docs/languages/java/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

@@ -2,10 +2,110 @@
 title: Python integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import { Image } from 'astro:assets';
+import pythonIcon from '@assets/icons/python.svg';
 
-<Placeholder 
-    name="Python"
-    link="/dotnet/aspire/community-toolkit/hosting-python-extensions"
-    icon="seti:python"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={pythonIcon}
+  alt="Python logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+The Aspire Python hosting integration enables you to run Python applications alongside your .NET projects in the Aspire app host. This integration supports both [Uvicorn](https://www.uvicorn.org/) applications and [uv](https://docs.astral.sh/uv/) package manager applications.
+
+## Hosting integration
+
+To get started with the Aspire Python hosting integration, install the [CommunityToolkit.Aspire.Hosting.Python.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Python.Extensions) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Python.Extensions" shortName="python" />
+
+### Add Uvicorn app
+
+To add a Uvicorn application to your app host, use the `AddUvicornApp` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp(
+    name: "python-api",
+    projectDirectory: "../python-app",
+    appName: "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(python);
+
+// After adding all resources, run the app...
+```
+
+The `AddUvicornApp` method requires:
+- **name**: The name of the resource in the Aspire dashboard
+- **projectDirectory**: The path to the directory containing your Python application
+- **appName**: The Python module and ASGI application instance (e.g., `main:app` for an `app` instance in `main.py`)
+
+<Aside type="note">
+
+The Python application requires a virtual environment. Make sure you have created and activated a virtual environment in your Python project directory before running the app host.
+
+</Aside>
+
+### Add uv app
+
+To add an application using the [uv package manager](https://docs.astral.sh/uv/), use the `AddUvApp` extension method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvApp(
+    name: "python-api",
+    projectDirectory: "../python-app",
+    scriptPath: "main.py")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(python);
+
+// After adding all resources, run the app...
+```
+
+The `AddUvApp` method requires:
+- **name**: The name of the resource in the Aspire dashboard
+- **projectDirectory**: The path to the directory containing your Python application
+- **scriptPath**: The path to the Python script to run (relative to the project directory)
+
+### Configure endpoints
+
+Python applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the environment variable:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithHttpEndpoint(port: 8000, env: "UVICORN_PORT");
+
+// After adding all resources, run the app...
+```
+
+Common environment variables for Python web frameworks:
+- **UVICORN_PORT**: For Uvicorn applications
+- **PORT**: Generic port configuration used by many frameworks
+
+### Working directory
+
+By default, the working directory is set to the `projectDirectory` specified when adding the Python app. The integration will look for the Python virtual environment and dependencies in this directory.
+
+## See also
+
+- [Uvicorn documentation](https://www.uvicorn.org/)
+- [uv documentation](https://docs.astral.sh/uv/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)
