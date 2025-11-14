@@ -1,10 +1,111 @@
 ---
-title: Azure Container Registry integration (Preview)
+title: Azure Container Registry integration
+description: This article describes the Aspire Azure Container Registry integration features and capabilities.
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
 
-<Placeholder 
-    name="Azure Container Registry"
-    link="/dotnet/aspire/azure/azure-container-registry-integration"
+<Image
+  src={containerRegistryIcon}
+  alt="Azure Container Registry logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[Azure Container Registry](https://learn.microsoft.com/container-registry) is a managed Docker registry service for storing and managing container images. The Aspire Azure Container Registry integration enables you to push container images to Azure Container Registry as part of your deployment process.
+
+## Hosting integration
+
+The Aspire Azure Container Registry hosting integration models the container registry as the `AzureContainerRegistryResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.ContainerRegistry](https://www.nuget.org/packages/Aspire.Hosting.Azure.ContainerRegistry) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.ContainerRegistry" shortName="azure-container-registry" />
+
+### Add an Azure Container Registry resource
+
+To add an Azure Container Registry resource to your AppHost project, call the `AddAzureContainerRegistry` method providing a name:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddAzureContainerRegistry("registry");
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure Container Registry resource named `registry` to the AppHost project.
+
+<Aside type="caution">
+When you call `AddAzureContainerRegistry`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Use with container projects
+
+When publishing your Aspire app, container projects can be configured to push images to your Azure Container Registry:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddAzureContainerRegistry("registry");
+
+var api = builder.AddProject<Projects.ApiService>("api")
+                 .PublishAsDockerFile()
+                 .WithRegistry(registry);
+
+// After adding all resources, run the app...
+```
+
+During deployment, the container image will be built and pushed to the specified Azure Container Registry, and the deployed service will reference the image from ACR.
+
+### Connect to an existing Azure Container Registry
+
+You might have an existing Azure Container Registry that you want to use. You can chain a call to annotate that your `AzureContainerRegistryResource` is an existing resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingRegistryName = builder.AddParameter("existingRegistryName");
+var existingRegistryResourceGroup = builder.AddParameter("existingRegistryResourceGroup");
+
+var registry = builder.AddAzureContainerRegistry("registry")
+                      .AsExisting(existingRegistryName, existingRegistryResourceGroup);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure Container Registry resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. The generated Bicep will provision the Azure Container Registry with appropriate configurations.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddAzureContainerRegistry("registry");
+
+registry.ConfigureInfrastructure(infra =>
+{
+    var acrResource = infra.GetProvisionableResources()
+                           .OfType<ContainerRegistry>()
+                           .Single();
+
+    acrResource.Sku = new ContainerRegistrySku
+    {
+        Name = ContainerRegistrySkuName.Premium
+    };
+    acrResource.Tags["ExampleKey"] = "Example value";
+});
+```
+
+The preceding code customizes the Azure Container Registry to use the Premium SKU and adds a custom tag.
+
+For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
