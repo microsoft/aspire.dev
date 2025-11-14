@@ -376,6 +376,26 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: 'Профілі запуску',
               'zh-CN': '启动配置文件',
             }, slug: 'fundamentals/launch-profiles'
+          },
+          {
+            label: 'Health checks', translations: {
+              da: 'Sundhedstjek',
+              de: 'Integritätsprüfungen',
+              en: 'Health checks',
+              es: 'Comprobaciones de estado',
+              fr: 'Vérifications de l\'état',
+              hi: 'स्वास्थ्य जांच',
+              id: 'Pemeriksaan kesehatan',
+              it: 'Controlli di integrità',
+              ja: '正常性チェック',
+              ko: '상태 확인',
+              'pt-BR': 'Verificações de integridade',
+              'pt-PT': 'Verificações de integridade',
+              ru: 'Проверки работоспособности',
+              tr: 'Durum denetimleri',
+              uk: 'Перевірки справності',
+              'zh-CN': '运行状况检查',
+            }, slug: 'fundamentals/health-checks'
           }
         ]
       },
