@@ -1,0 +1,370 @@
+---
+title: Service defaults
+description: Learn about the Aspire service defaults project.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+In this article, you learn about the Aspire service defaults project, a set of extension methods that:
+
+- Connect telemetry, health checks, and service discovery to your app.
+- Are customizable and extensible.
+
+Cloud-native applications often require extensive configurations to ensure they work across different environments reliably and securely. Aspire provides many helper methods and tools to streamline the management of configurations for OpenTelemetry, health checks, environment variables, and more.
+
+## Explore the service defaults project
+
+When you either **Enlist in Aspire orchestration** or create a new Aspire project, the _YourAppName.ServiceDefaults.csproj_ project is added to your solution. For example, when building an API, you call the `AddServiceDefaults` method in the _Program.cs_ file of your apps:
+
+```csharp
+builder.AddServiceDefaults();
+```
+
+The `AddServiceDefaults` method handles the following tasks:
+
+- Configures OpenTelemetry metrics and tracing.
+- Adds default health check endpoints.
+- Adds service discovery functionality.
+- Configures `HttpClient` to work with service discovery.
+
+For more information, see [Provided extension methods](#provided-extension-methods) for details on the `AddServiceDefaults` method.
+
+<Aside type="caution">
+The Aspire service defaults project is specifically designed for sharing the _Extensions.cs_ file and its functionality. Don't include other shared functionality or models in this project. Use a conventional shared class library project for those purposes.
+</Aside>
+
+## Project characteristics
+
+The _YourAppName.ServiceDefaults_ project is a .NET 10.0 library that contains the following XML:
+
+```xml title="YourAppName.ServiceDefaults.csproj" {11}
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAspireSharedProject>true</IsAspireSharedProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.5.2" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
+  </ItemGroup>
+
+</Project>
+```
+
+The service defaults project template imposes a `FrameworkReference` dependency on `Microsoft.AspNetCore.App`.
+
+<Aside type="tip">
+If you don't want to take a dependency on `Microsoft.AspNetCore.App`, you can create a custom service defaults project. For more information, see [Custom service defaults](#custom-service-defaults).
+</Aside>
+
+The `IsAspireSharedProject` property is set to `true`, which indicates that this project is a shared project. The Aspire tooling uses this project as a reference for other projects added to an Aspire solution. When you enlist the new project for orchestration, it automatically references the _YourAppName.ServiceDefaults_ project and updates the _Program.cs_ file to call the `AddServiceDefaults` method.
+
+## Provided extension methods
+
+The _YourAppName.ServiceDefaults_ project exposes a single _Extensions.cs_ file that contains several opinionated extension methods:
+
+- `AddServiceDefaults`: Adds service defaults functionality.
+- `ConfigureOpenTelemetry`: Configures OpenTelemetry metrics and tracing.
+- `AddDefaultHealthChecks`: Adds default health check endpoints.
+- `MapDefaultEndpoints`: Maps the health checks endpoint to `/health` and the liveness endpoint to `/alive`.
+
+### Add service defaults functionality
+
+The `AddServiceDefaults` method defines default configurations with the following opinionated functionality:
+
+```csharp title="Extensions.cs"
+public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    builder.ConfigureOpenTelemetry();
+
+    builder.AddDefaultHealthChecks();
+
+    builder.Services.AddServiceDiscovery();
+
+    builder.Services.ConfigureHttpClientDefaults(http =>
+    {
+        // Turn on resilience by default
+        http.AddStandardResilienceHandler();
+
+        // Turn on service discovery by default
+        http.AddServiceDiscovery();
+    });
+
+    // Uncomment the following to restrict the allowed schemes for service discovery.
+    // builder.Services.Configure<ServiceDiscoveryOptions>(options =>
+    // {
+    //     options.AllowedSchemes = ["https"];
+    // });
+
+    return builder;
+}
+```
+
+The preceding code:
+
+- Configures OpenTelemetry metrics and tracing, by calling the `ConfigureOpenTelemetry` method.
+- Adds default health check endpoints, by calling the `AddDefaultHealthChecks` method.
+- Adds [service discovery](/fundamentals/service-discovery/) functionality, by calling the `AddServiceDiscovery` method.
+- Configures `HttpClient` defaults, by calling the `ConfigureHttpClientDefaults` method—which is based on [Build resilient HTTP apps: Key development patterns](https://learn.microsoft.com/dotnet/core/resilience/http-resilience):
+  - Adds the standard HTTP resilience handler, by calling the `AddStandardResilienceHandler` method.
+  - Specifies that the `IHttpClientBuilder` should use service discovery, by calling the `AddServiceDiscovery` method.
+- Returns the `IHostApplicationBuilder` instance to allow for method chaining.
+
+### OpenTelemetry configuration
+
+Telemetry is a critical part of any cloud-native application. Aspire provides a set of opinionated defaults for OpenTelemetry, which are configured with the `ConfigureOpenTelemetry` method:
+
+```csharp title="Extensions.cs"
+public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    builder.Logging.AddOpenTelemetry(logging =>
+    {
+        logging.IncludeFormattedMessage = true;
+        logging.IncludeScopes = true;
+    });
+
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddRuntimeInstrumentation();
+        })
+        .WithTracing(tracing =>
+        {
+            tracing.AddSource(builder.Environment.ApplicationName)
+                .AddAspNetCoreInstrumentation(tracing =>
+                    // Exclude health check requests from tracing
+                    tracing.Filter = context =>
+                        !context.Request.Path.StartsWithSegments(HealthEndpointPath)
+                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
+                )
+                // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
+                //.AddGrpcClientInstrumentation()
+                .AddHttpClientInstrumentation();
+        });
+
+    builder.AddOpenTelemetryExporters();
+
+    return builder;
+}
+```
+
+The `ConfigureOpenTelemetry` method:
+
+- Adds Aspire telemetry logging to include formatted messages and scopes.
+- Adds OpenTelemetry metrics and tracing that include:
+  - Runtime instrumentation metrics.
+  - ASP.NET Core instrumentation metrics.
+  - HttpClient instrumentation metrics.
+  - In a development environment, the `AlwaysOnSampler` is used to view all traces.
+  - Tracing details for ASP.NET Core, gRPC and HTTP instrumentation.
+- Adds OpenTelemetry exporters, by calling `AddOpenTelemetryExporters`.
+
+The `AddOpenTelemetryExporters` method is defined privately as follows:
+
+```csharp title="Extensions.cs"
+private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+
+    if (useOtlpExporter)
+    {
+        builder.Services.AddOpenTelemetry().UseOtlpExporter();
+    }
+
+    // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
+    //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    //{
+    //    builder.Services.AddOpenTelemetry()
+    //       .UseAzureMonitor();
+    //}
+
+    return builder;
+}
+```
+
+The `AddOpenTelemetryExporters` method adds OpenTelemetry exporters based on the following conditions:
+
+- If the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable is set, the OpenTelemetry exporter is added.
+- Optionally consumers of Aspire service defaults can uncomment some code to enable the Prometheus exporter, or the Azure Monitor exporter.
+
+### Health checks configuration
+
+Health checks are used by various tools and systems to assess the readiness of your app. Aspire provides a set of opinionated defaults for health checks, which are configured with the `AddDefaultHealthChecks` method:
+
+```csharp title="Extensions.cs"
+public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    builder.Services.AddHealthChecks()
+        // Add a default liveness check to ensure app is responsive
+        .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+
+    return builder;
+}
+```
+
+The `AddDefaultHealthChecks` method adds a default liveness check to ensure the app is responsive. The call to `AddHealthChecks` registers the `HealthCheckService`.
+
+#### Web app health checks configuration
+
+To expose health checks in a web app, Aspire automatically determines the type of project being referenced within the solution, and adds the appropriate call to `MapDefaultEndpoints`:
+
+```csharp title="Extensions.cs"
+public static WebApplication MapDefaultEndpoints(this WebApplication app)
+{
+    // Adding health checks endpoints to applications in non-development environments has security implications.
+    // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
+    if (app.Environment.IsDevelopment())
+    {
+        // All health checks must pass for app to be considered ready to accept traffic after starting
+        app.MapHealthChecks(HealthEndpointPath);
+
+        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        });
+    }
+
+    return app;
+}
+```
+
+The `MapDefaultEndpoints` method:
+
+- Allows consumers to optionally uncomment some code to enable the Prometheus endpoint.
+- Maps the health checks endpoint to `/health`.
+- Maps the liveness endpoint to `/alive` route where the health check tag contains `live`.
+
+<Aside type="note">
+Starting with Aspire 9.2, the starter template has been updated to include a call to `WithHttpsHealthCheck` for ASP.NET Core projects. To keep the request trace logs cleaner during development, traces for the configured health endpoints (`/health` and `/alive`) are now excluded by default in the **Service Defaults** project template.
+</Aside>
+
+## Custom service defaults
+
+If the default service configuration provided by the project template is not sufficient for your needs, you have the option to create your own service defaults project. This is especially useful when your consuming project, such as a Worker project or WinForms project, cannot or does not want to have a `FrameworkReference` dependency on `Microsoft.AspNetCore.App`.
+
+To do this, create a new .NET 9.0 class library project and add the necessary dependencies to the project file, consider the following example:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+  </ItemGroup>
+</Project>
+```
+
+Then create an extensions class that contains the necessary methods to configure the app defaults:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+
+namespace Microsoft.Extensions.Hosting;
+
+public static class AppDefaultsExtensions
+{
+    public static IHostApplicationBuilder AddAppDefaults(
+        this IHostApplicationBuilder builder)
+    {
+        builder.ConfigureAppOpenTelemetry();
+
+        builder.Services.AddServiceDiscovery();
+
+        builder.Services.ConfigureHttpClientDefaults(http =>
+        {
+            // Turn on resilience by default
+            http.AddStandardResilienceHandler();
+
+            // Turn on service discovery by default
+            http.AddServiceDiscovery();
+        });
+
+        return builder;
+    }
+
+    public static IHostApplicationBuilder ConfigureAppOpenTelemetry(
+        this IHostApplicationBuilder builder)
+    {
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+        });
+
+        builder.Services.AddOpenTelemetry()
+            .WithMetrics(static metrics =>
+            {
+                metrics.AddRuntimeInstrumentation();
+            })
+            .WithTracing(tracing =>
+            {
+                if (builder.Environment.IsDevelopment())
+                {
+                    // We want to view all traces in development
+                    tracing.SetSampler(new AlwaysOnSampler());
+                }
+
+                tracing.AddGrpcClientInstrumentation()
+                       .AddHttpClientInstrumentation();
+            });
+
+        builder.AddOpenTelemetryExporters();
+
+        return builder;
+    }
+
+    private static IHostApplicationBuilder AddOpenTelemetryExporters(
+        this IHostApplicationBuilder builder)
+    {
+        var useOtlpExporter =
+            !string.IsNullOrWhiteSpace(
+                builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+
+        if (useOtlpExporter)
+        {
+            builder.Services.Configure<OpenTelemetryLoggerOptions>(
+                logging => logging.AddOtlpExporter());
+            builder.Services.ConfigureOpenTelemetryMeterProvider(
+                metrics => metrics.AddOtlpExporter());
+            builder.Services.ConfigureOpenTelemetryTracerProvider(
+                tracing => tracing.AddOtlpExporter());
+        }
+
+        return builder;
+    }
+}
+```
+
+This is only an example, and you can customize the `AppDefaultsExtensions` class to meet your specific needs.
+
+## Next steps
+
+This code is derived from the Aspire Starter Application template and is intended as a starting point. You're free to modify this code however you deem necessary to meet your needs. It's important to know that service defaults project and its functionality are automatically applied to all project resources in an Aspire solution.
