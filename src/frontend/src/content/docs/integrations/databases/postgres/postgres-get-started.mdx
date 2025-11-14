@@ -1,0 +1,122 @@
+---
+title: Get started with the PostgreSQL integrations
+description: Learn how to set up the Aspire PostgreSQL Hosting and Client integrations simply.
+---
+
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+
+[PostgreSQL](https://www.postgresql.org/) is a powerful, open source object-relational database system with many years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. The Aspire PostgreSQL integration provides a way to connect to existing PostgreSQL databases, or create new instances from the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres).
+
+In this introductory exercise, you'll see how to install and use the Aspire PostgreSQL integrations in a simple configuration. If you already have this knowledge, see [PostgreSQL Hosting integration reference](../postgres-host/) or [PostgreSQL Client integration reference](../postgres-client/) for full reference details.
+
+## Create a new Aspire solution
+
+First, let's create a new app, using the Aspire CLI:
+
+<Steps>
+
+1. Execute the following command:
+
+   ```bash
+   aspire new aspire-starter -n AspirePostgresApp -o AspirePostgresApp
+   ```
+
+1. If prompted for additional selections, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. 
+1. Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
+1. When the app has been completed, change into its top level directory:
+
+   ```bash
+   cd AspirePostgresApp
+   ```
+</Steps>
+
+## Set up the hosting integration
+
+Now, install the Aspire PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage PostgreSQL database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.PostgreSQL" shortName="postgresql" />
+
+Next, in the AppHost project, create instances of PostgreSQL server and database resources, then pass the database to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+                            .WithReference(postgresdb);
+```
+
+## Set up the client integration
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+Change into the *AspirePostgresApp.ApiService* project directory:
+
+```bash
+cd AspirePostgresApp.ApiService
+```
+
+Then, install the Aspire PostgreSQL Client integration:
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddNpgsqlDataSource` extension method on any `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](#add-postgresql-server-resource).
+</Aside>
+
+After adding `NpgsqlDataSource` to the builder, you can get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource...
+}
+```
+
+## Run the solution
+
+import postgresqlDashboardLight from '@assets/integrations/postgresql/postgresql-dashboard-light.png';
+import postgresqlDashboardDark from '@assets/integrations/postgresql/postgresql-dashboard-dark.png';
+
+You can run the solution with the Aspire CLI:
+
+```bash
+aspire run
+```
+
+Once the dashboard is ready, its URL appears in your terminal. The **Resources** page includes the PostgreSQL instance.
+
+<ThemeImage 
+    light={postgresqlDashboardLight}
+    dark={postgresqlDashboardDark}
+    label='Aspire dashboard Resources page'
+    alt={`Aspire dashboard Resources page displaying PostgreSQL resources. Both are marked as Running with green check icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
+
+## Next steps
+
+Now, that you have an Aspire app with PostgreSQL integrations up and running, you can use the following reference documents to learn how to configure and interact with the PostgreSQL resources:
+
+<CardGrid>
+  <LinkCard
+    title="Learn more about the PostgreSQL Hosting intregration"
+    description="Discover how to configure persistence, pgAdmin resources, and more."
+    href="/integrations/databases/postgres/postgres-host/"
+  />
+  <LinkCard
+    title="Learn more about the PostgreSQL Client integration"
+    description="Discover how to configure the database connection, set up health checks, and more."
+    href="/integrations/databases/postgres/postgres-client/"
+  />
+</CardGrid>
