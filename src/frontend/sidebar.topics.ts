@@ -316,6 +316,86 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: 'Розгортання і топологія застосунку',
               'zh-CN': '部署与应用拓扑',
             }, slug: 'get-started/pipelines'
+          },
+          {
+            label: 'Service discovery', translations: {
+              da: 'Tjenesteopdagelse',
+              de: 'Dienstermittlung',
+              en: 'Service discovery',
+              es: 'Descubrimiento de servicios',
+              fr: 'Découverte de services',
+              hi: 'सेवा खोज',
+              id: 'Penemuan layanan',
+              it: 'Individuazione del servizio',
+              ja: 'サービス検出',
+              ko: '서비스 검색',
+              'pt-BR': 'Descoberta de serviços',
+              'pt-PT': 'Descoberta de serviços',
+              ru: 'Обнаружение служб',
+              tr: 'Hizmet keşfi',
+              uk: 'Виявлення служб',
+              'zh-CN': '服务发现',
+            }, slug: 'fundamentals/service-discovery'
+          },
+          {
+            label: 'Service defaults', translations: {
+              da: 'Tjenestestandarder',
+              de: 'Dienst-Standardeinstellungen',
+              en: 'Service defaults',
+              es: 'Valores predeterminados del servicio',
+              fr: 'Paramètres par défaut du service',
+              hi: 'सेवा डिफ़ॉल्ट',
+              id: 'Default layanan',
+              it: 'Impostazioni predefinite del servizio',
+              ja: 'サービスの既定値',
+              ko: '서비스 기본값',
+              'pt-BR': 'Padrões de serviço',
+              'pt-PT': 'Padrões de serviço',
+              ru: 'Значения по умолчанию для служб',
+              tr: 'Hizmet varsayılanları',
+              uk: 'Значення за замовчуванням служби',
+              'zh-CN': '服务默认值',
+            }, slug: 'fundamentals/service-defaults'
+          },
+          {
+            label: 'Launch profiles', translations: {
+              da: 'Start profiler',
+              de: 'Startprofile',
+              en: 'Launch profiles',
+              es: 'Perfiles de inicio',
+              fr: 'Profils de lancement',
+              hi: 'लॉन्च प्रोफ़ाइल',
+              id: 'Profil peluncuran',
+              it: 'Profili di avvio',
+              ja: '起動プロファイル',
+              ko: '시작 프로필',
+              'pt-BR': 'Perfis de inicialização',
+              'pt-PT': 'Perfis de inicialização',
+              ru: 'Профили запуска',
+              tr: 'Başlatma profilleri',
+              uk: 'Профілі запуску',
+              'zh-CN': '启动配置文件',
+            }, slug: 'fundamentals/launch-profiles'
+          },
+          {
+            label: 'Health checks', translations: {
+              da: 'Sundhedstjek',
+              de: 'Integritätsprüfungen',
+              en: 'Health checks',
+              es: 'Comprobaciones de estado',
+              fr: 'Vérifications de l\'état',
+              hi: 'स्वास्थ्य जांच',
+              id: 'Pemeriksaan kesehatan',
+              it: 'Controlli di integrità',
+              ja: '正常性チェック',
+              ko: '상태 확인',
+              'pt-BR': 'Verificações de integridade',
+              'pt-PT': 'Verificações de integridade',
+              ru: 'Проверки работоспособности',
+              tr: 'Durum denetimleri',
+              uk: 'Перевірки справності',
+              'zh-CN': '运行状况检查',
+            }, slug: 'fundamentals/health-checks'
           }
         ]
       },
@@ -739,7 +819,46 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '云提供商',
         }, items: [
           { label: 'AWS', link: 'https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/aspire-integrations.html' },
-          { label: 'Azure', slug: 'integrations/cloud/azure/overview' },
+          { 
+            label: 'Azure', 
+            collapsed: true,
+            items: [
+              { label: 'Overview', slug: 'integrations/cloud/azure/overview' },
+              { label: 'Customize Azure resources', slug: 'integrations/cloud/azure/customize-resources' },
+              { label: 'Local Azure provisioning', slug: 'integrations/cloud/azure/local-provisioning' },
+              { label: 'Configure Azure Container Apps', slug: 'integrations/cloud/azure/configure-container-apps' },
+              { label: 'Azure AI Foundry', slug: 'integrations/cloud/azure/azure-ai-foundry' },
+              { label: 'Azure AI Inference', slug: 'integrations/cloud/azure/azure-ai-inference' },
+              { label: 'Azure AI Search', slug: 'integrations/cloud/azure/azure-ai-search' },
+              { label: 'Azure App Configuration', slug: 'integrations/cloud/azure/azure-app-configuration' },
+              { label: 'Azure App Service', slug: 'integrations/cloud/azure/azure-app-service' },
+              { label: 'Azure Cache for Redis', slug: 'integrations/cloud/azure/azure-cache-redis' },
+              { label: 'Azure Container Registry', slug: 'integrations/cloud/azure/azure-container-registry' },
+              { label: 'Azure Cosmos DB', slug: 'integrations/cloud/azure/azure-cosmos-db' },
+              { label: 'Azure Event Hubs', slug: 'integrations/cloud/azure/azure-event-hubs' },
+              { label: 'Azure Functions', slug: 'integrations/cloud/azure/azure-functions' },
+              { label: 'Azure Key Vault', slug: 'integrations/cloud/azure/azure-key-vault' },
+              { label: 'Azure OpenAI', slug: 'integrations/cloud/azure/azure-openai' },
+              { label: 'AI integrations compatibility', slug: 'integrations/cloud/azure/ai-compatibility-matrix' },
+              { label: 'Azure PostgreSQL', slug: 'integrations/cloud/azure/azure-postgresql' },
+              { label: 'Azure Service Bus', slug: 'integrations/cloud/azure/azure-service-bus' },
+              { label: 'Azure SignalR Service', slug: 'integrations/cloud/azure/azure-signalr' },
+              { label: 'Azure SQL Database', slug: 'integrations/cloud/azure/azure-sql-database' },
+              { 
+                label: 'Azure Storage', 
+                collapsed: true,
+                items: [
+                  { label: 'Azure Storage Blobs', slug: 'integrations/cloud/azure/azure-storage-blobs' },
+                  { label: 'Azure Storage Queues', slug: 'integrations/cloud/azure/azure-storage-queues' },
+                  { label: 'Azure Storage Tables', slug: 'integrations/cloud/azure/azure-storage-tables' },
+                ]
+              },
+              { label: 'Azure Web PubSub', slug: 'integrations/cloud/azure/azure-web-pubsub' },
+              { label: 'Azure Container App Jobs', slug: 'integrations/cloud/azure/container-app-jobs' },
+              { label: 'User-assigned managed identity', slug: 'integrations/cloud/azure/user-assigned-identity' },
+              { label: 'Manage role assignments', slug: 'integrations/cloud/azure/role-assignments' },
+            ]
+          },
         ]
       },
       {
@@ -765,7 +884,14 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '缓存与状态',
          },
         items: [
-          { label: "Redis", slug: "integrations/caching/redis" },
+          { 
+            label: "Redis", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/caching/redis" },
+              { label: "Community extensions", slug: "integrations/caching/redis-extensions" }
+            ]
+          },
           { label: "Redis Distributed Cache", slug: "integrations/caching/redis-distributed" },
           { label: "Redis Output Cache", slug: "integrations/caching/redis-output" },
           { label: "Valkey", slug: "integrations/caching/valkey" },
@@ -826,13 +952,41 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },
-          { label: "MongoDB", slug: "integrations/databases/mongodb" },
-          { label: "MySQL", slug: "integrations/databases/mysql" },
+          { 
+            label: "MongoDB", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/mongodb" },
+              { label: "Community extensions", slug: "integrations/databases/mongodb-extensions" }
+            ]
+          },
+          { 
+            label: "MySQL", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/mysql" },
+              { label: "Community extensions", slug: "integrations/databases/mysql-extensions" }
+            ]
+          },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          { label: "PostgreSQL", slug: "integrations/databases/postgres" },
+          { 
+            label: "PostgreSQL", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/postgres" },
+              { label: "Community extensions", slug: "integrations/databases/postgresql-extensions" }
+            ]
+          },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
-          { label: "SQL Server", slug: "integrations/databases/sql-server" },
+          { 
+            label: "SQL Server", 
+            collapsed: true,
+            items: [
+              { label: "Integration overview", slug: "integrations/databases/sql-server" },
+              { label: "Community extensions", slug: "integrations/databases/sql-server-extensions" }
+            ]
+          },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
         ]
       },
@@ -864,6 +1018,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'Deno apps', slug: 'integrations/frameworks/deno-apps' },
           { label: 'Go apps', slug: 'integrations/frameworks/go-apps' },
           { label: 'Java', slug: 'integrations/frameworks/java' },
+          { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
           { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
           { label: 'Python', slug: 'integrations/frameworks/python' },
           { label: 'Rust', slug: 'integrations/frameworks/rust' },

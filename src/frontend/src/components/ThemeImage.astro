@@ -4,24 +4,55 @@ export interface Props {
   dark: ImageMetadata;
   alt: string;
   label?: string;
+  height?: number;
+  width?: number;
+  classOverride?: string;
+  zoomable?: boolean;
 }
 
-const { light, dark, alt, label } = Astro.props as Props;
+const {
+  light,
+  dark,
+  alt,
+  label,
+  height,
+  width,
+  classOverride,
+  zoomable = true,
+} = Astro.props as Props;
 
 import { Zoom } from "starlight-image-zoom/components";
 ---
 
-<Zoom label={label ?? alt}>
-  <img
-    class="theme-image"
-    src={light.src}
-    alt={alt}
-    data-light={light.src}
-    data-dark={dark.src}
-    decoding="async"
-    loading="lazy"
-  />
-</Zoom>
+{
+  zoomable ? (
+    <Zoom label={label ?? alt}>
+      <img
+        class:list={[classOverride, "theme-image"]}
+        src={dark.src}
+        alt={alt}
+        data-light={light.src}
+        data-dark={dark.src}
+        {...(height ? { height } : {})}
+        {...(width ? { width } : {})}
+        decoding="async"
+        loading="lazy"
+      />
+    </Zoom>
+  ) : (
+    <img
+      class:list={[classOverride, "theme-image"]}
+      src={dark.src}
+      alt={alt}
+      data-light={light.src}
+      data-dark={dark.src}
+      {...(height ? { height } : {})}
+      {...(width ? { width } : {})}
+      decoding="async"
+      loading="lazy"
+    />
+  )
+}
 
 <script>
   const html = document.documentElement;
@@ -49,6 +80,6 @@ import { Zoom } from "starlight-image-zoom/components";
 
 <style>
   .theme-image {
-    margin-top: 1rem;
+    margin-top: 0rem;
   }
 </style>
