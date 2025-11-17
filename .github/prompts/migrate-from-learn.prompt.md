@@ -112,7 +112,7 @@ Example NUnit content
 
 ### Link Transformations
 - **Remove**: "See also" sections entirely
-- **Internal links**: Convert to site-relative with trailing slash (e.g., `/dashboard/overview/`)
+- **Internal links**: Convert to site-relative with trailing slash (e.g., `/dashboard/overview/`), assume absolute links should be used when site relative links don't exist in aspire.dev, and use a base of `https://learn.microsoft.com/`, i.e.; for links that start with `/azure`, `/dotnet`, and `/aspnet`.
 - **Only link if certain**: Only create internal links to content you're 100% sure exists
 - **External links**: Keep as-is, prefer official documentation sources
 

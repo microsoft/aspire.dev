@@ -819,8 +819,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '云提供商',
         }, items: [
           { label: 'AWS', link: 'https://docs.aws.amazon.com/sdk-for-net/v3/developer-guide/aspire-integrations.html' },
-          { 
-            label: 'Azure', 
+          {
+            label: 'Azure',
             collapsed: true,
             items: [
               { label: 'Overview', slug: 'integrations/cloud/azure/overview' },
@@ -844,8 +844,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               { label: 'Azure Service Bus', slug: 'integrations/cloud/azure/azure-service-bus' },
               { label: 'Azure SignalR Service', slug: 'integrations/cloud/azure/azure-signalr' },
               { label: 'Azure SQL Database', slug: 'integrations/cloud/azure/azure-sql-database' },
-              { 
-                label: 'Azure Storage', 
+              {
+                label: 'Azure Storage',
                 collapsed: true,
                 items: [
                   { label: 'Azure Storage Blobs', slug: 'integrations/cloud/azure/azure-storage-blobs' },
@@ -882,10 +882,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           tr: 'Önbellekleme ve Durum',
           uk: 'Кешування та стан',
           'zh-CN': '缓存与状态',
-         },
+        },
         items: [
-          { 
-            label: "Redis", 
+          {
+            label: "Redis",
             collapsed: true,
             items: [
               { label: "Integration overview", slug: "integrations/caching/redis" },
@@ -952,16 +952,16 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },
-          { 
-            label: "MongoDB", 
+          {
+            label: "MongoDB",
             collapsed: true,
             items: [
               { label: "Integration overview", slug: "integrations/databases/mongodb" },
               { label: "Community extensions", slug: "integrations/databases/mongodb-extensions" }
             ]
           },
-          { 
-            label: "MySQL", 
+          {
+            label: "MySQL",
             collapsed: true,
             items: [
               { label: "Integration overview", slug: "integrations/databases/mysql" },
@@ -969,8 +969,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ]
           },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          { 
-            label: "PostgreSQL", 
+          {
+            label: "PostgreSQL",
             collapsed: true,
             items: [
               { label: "Integration overview", slug: "integrations/databases/postgres" },
@@ -979,8 +979,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
-          { 
-            label: "SQL Server", 
+          {
+            label: "SQL Server",
             collapsed: true,
             items: [
               { label: "Integration overview", slug: "integrations/databases/sql-server" },
@@ -1472,7 +1472,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
     icon: 'heart',
     items: [
       {
-        label: 'Contributors', 
+        label: 'Contributors',
         translations: {
           da: 'Bidragydere',
           de: 'Mitwirkende',
@@ -1493,7 +1493,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '贡献者'
         },
         items: [
-          { label: 'Contributor overview',
+          {
+            label: 'Contributor overview',
             translations: {
               da: 'Oversigt over bidragydere',
               de: 'Übersicht der Mitwirkenden',
@@ -1515,7 +1516,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             },
             slug: 'community/contributors'
           },
-          { label: 'Contributor guide', 
+          {
+            label: 'Contributor guide',
             translations: {
               da: 'Bidragydervejledning',
               de: 'Mitwirkenden-Leitfaden',
@@ -1572,25 +1574,53 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
   },
   {
     label: {
-      en: 'Samples',
-      es: 'Ejemplos',
-      fr: 'Exemples',
-      de: 'Beispiele',
-      it: 'Esempi',
-      pt: 'Exemplos',
-      ru: 'Примеры',
-      'zh-CN': '示例',
-      da: 'Eksempler',
-      hi: 'उदाहरण',
-      id: 'Contoh',
-      ja: 'サンプル',
-      ko: '샘플',
-      'pt-BR': 'Exemplos',
-      'pt-PT': 'Exemplos',
-      tr: 'Örnekler',
-      uk: 'Приклади',
+      en: 'Diagnostics',
+      es: 'Diagnósticos',
+      fr: 'Diagnostics',
+      de: 'Diagnose',
+      it: 'Diagnostica',
+      pt: 'Diagnósticos',
+      ru: 'Диагностика',
+      'zh-CN': '诊断',
+      da: 'Diagnostik',
+      hi: 'निदान',
+      id: 'Diagnostik',
+      ja: '診断',
+      ko: '진단',
+      'pt-BR': 'Diagnósticos',
+      'pt-PT': 'Diagnósticos',
+      tr: 'Tanılama',
+      uk: 'Діагностика',
     },
-    link: 'https://aka.ms/aspiresamples',
-    icon: 'vscode',
+    link: '/diagnostics/overview/',
+    icon: 'warning',
+    items: [
+      { label: 'Overview', link: '/diagnostics/overview' },
+      {
+        label: 'Warnings', items: [
+          { label: 'ASPIRE001', link: '/diagnostics/aspire001' },
+          { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
+          { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
+          { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
+        ]
+      },
+      {
+        label: 'Errors', items: [
+          { label: 'ASPIRE006', link: '/diagnostics/aspire006' },
+          { label: 'ASPIRE007', link: '/diagnostics/aspire007' },
+          { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
+          { label: 'ASPIREACADOMAIN001', link: '/diagnostics/aspireacadomains001' },
+          { label: 'ASPIRECOMPUTE001', link: '/diagnostics/aspirecompute001' },
+          { label: 'ASPIRECOSMOSDB001', link: '/diagnostics/aspirecosmosdb001' },
+          { label: 'ASPIREHOSTINGPYTHON001', link: '/diagnostics/aspirehostingpython001' },
+          { label: 'ASPIREPIPELINES001', link: '/diagnostics/aspirepipelines001' },
+          { label: 'ASPIREPIPELINES002', link: '/diagnostics/aspirepipelines002' },
+          { label: 'ASPIREPIPELINES003', link: '/diagnostics/aspirepipelines003' },
+          { label: 'ASPIREPROXYENDPOINTS001', link: '/diagnostics/aspireproxyendpoints001' },
+          { label: 'ASPIREPUBLISHERS001', link: '/diagnostics/aspirepublishers001' },
+          { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
+        ]        
+      },      
+    ]
   },
 ];
