@@ -63,7 +63,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           uk: 'Інтерактивний швидкий старт',
           'zh-CN': '交互式快速入门',
         },
-        link: '/quickstart',
+        slug: 'quickstart',
         badge: {
           text: 'New',
           variant: 'tip'

@@ -2,9 +2,9 @@
 
 ## Overview
 
-The Interactive Quickstart is a comprehensive, hands-on learning experience for .NET Aspire that guides users through:
+The Interactive Quickstart is a comprehensive, hands-on learning experience for Aspire that guides users through:
 
-1. **Launching a GitHub Codespace** with a pre-configured .NET Aspire project
+1. **Launching a GitHub Codespace** with a pre-configured Aspire project
 2. **Following a CodeTour** that explains Aspire concepts (what, why, how)
 3. **Running the application** with step-by-step terminal commands
 4. **Completing the tutorial** with achievements and next steps
@@ -106,7 +106,7 @@ Reference: <https://github.com/IEvangelist/fullstack-js>
 
 This repo demonstrates:
 
-- .NET Aspire App Host orchestrating services
+- Aspire App Host orchestrating services
 - ASP.NET Core minimal API backend
 - React frontend with TypeScript
 - Service discovery between frontend/backend
@@ -150,9 +150,9 @@ User lands on `/quickstart` and sees:
   - Expected output
   - Helpful notes
 - Commands:
-  1. `dotnet restore`
-  2. `dotnet run --project ./src/Host/Host.csproj`
-  3. Open Aspire Dashboard
+  1. `aspire --version`
+  2. `aspire run`
+  3. Explore Aspire Dashboard (opens automatically)
   4. Test API endpoint
   5. View React app
 - User marks as complete
@@ -240,7 +240,7 @@ const commands: Command[] = [
     id: 'unique-id',
     title: 'Command Title',
     description: 'What this command does',
-    command: 'dotnet run',
+    command: 'aspire run',
     expectedOutput: 'Expected console output...',
     notes: 'Additional helpful information'
   },

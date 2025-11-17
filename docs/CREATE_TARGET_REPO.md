@@ -32,7 +32,7 @@ Create `.devcontainer/devcontainer.json`:
 
 ```json
 {
-  "name": ".NET Aspire Quickstart",
+  "name": "Aspire Quickstart",
   "image": "mcr.microsoft.com/devcontainers/dotnet:1-8.0",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
@@ -78,7 +78,7 @@ Create `.devcontainer/devcontainer.json`:
 
 - **Base Image**: .NET 8.0 SDK
 - **Features**: Node.js LTS for frontend, Docker for containerization
-- **Post-Create**: Installs .NET Aspire workload
+- **Post-Create**: Installs Aspire workload
 - **Extensions**: C#, CodeTour, Docker support
 - **Port Forwarding**: Dashboard (15001), API (7001), Frontend (5173)
 
@@ -92,14 +92,14 @@ Create `.tours/quickstart.tour`:
   "title": "Quick Tour",
   "steps": [
     {
-      "title": "Welcome to .NET Aspire",
-      "description": "This tour will guide you through a full-stack .NET Aspire application. You'll learn how Aspire orchestrates services, handles service discovery, and simplifies cloud-native development.\n\n**What is .NET Aspire?**\n- Cloud-ready stack for building distributed apps\n- Built-in orchestration and service discovery\n- Integrated observability with OpenTelemetry\n- Production-ready defaults\n\nClick **Next** to continue."
+      "title": "Welcome to Aspire",
+      "description": "This tour will guide you through a full-stack Aspire application. You'll learn how Aspire orchestrates services, handles service discovery, and simplifies cloud-native development.\n\n**What is Aspire?**\n- Cloud-ready stack for building distributed apps\n- Built-in orchestration and service discovery\n- Integrated observability with OpenTelemetry\n- Production-ready defaults\n\nClick **Next** to continue."
     },
     {
       "file": "src/Host/Program.cs",
       "line": 3,
       "title": "App Host Overview",
-      "description": "## The App Host\n\nThe App Host is the orchestrator for your .NET Aspire application. It:\n- Defines all projects, containers, and resources\n- Manages service discovery\n- Configures communication between services\n- Provides the Aspire Dashboard\n\n**Why?** Having a single orchestration point makes it easy to manage complex applications."
+      "description": "## The App Host\n\nThe App Host is the orchestrator for your Aspire application. It:\n- Defines all projects, containers, and resources\n- Manages service discovery\n- Configures communication between services\n- Provides the Aspire Dashboard\n\n**Why?** Having a single orchestration point makes it easy to manage complex applications."
     },
     {
       "file": "src/Host/Program.cs",
@@ -127,7 +127,7 @@ Create `.tours/quickstart.tour`:
     },
     {
       "title": "Next Steps",
-      "description": "## 🎉 Tour Complete!\n\nYou've learned:\n- ✅ How App Host orchestrates services\n- ✅ Adding .NET and npm projects\n- ✅ Service discovery and references\n- ✅ Building full-stack apps with Aspire\n\n**Now let's run it!**\n\n1. Open the terminal (Ctrl + `)\n2. Run: `dotnet run --project ./src/Host/Host.csproj`\n3. Copy the dashboard URL with token\n4. Explore the Aspire Dashboard\n5. Test the API and frontend endpoints\n\nClick **Finish Tour** when ready!"
+      "description": "## 🎉 Tour Complete!\n\nYou've learned:\n- ✅ How App Host orchestrates services\n- ✅ Adding .NET and npm projects\n- ✅ Service discovery and references\n- ✅ Building full-stack apps with Aspire\n\n**Now let's run it!**\n\n1. Open the terminal (Ctrl + `)\n2. Run: `aspire run`\n3. Dashboard opens automatically\n4. Explore the Aspire Dashboard\n5. Test the API and frontend endpoints\n\nClick **Finish Tour** when ready!"
     }
   ]
 }
@@ -154,14 +154,14 @@ Click to open in GitHub Codespaces (everything pre-configured):
 ```markdown
 ## What is this?
 
-A full-stack .NET Aspire sample demonstrating:
+A full-stack Aspire sample demonstrating:
 - Service orchestration with App Host
 - ASP.NET Core minimal API backend
 - React frontend with TypeScript
 - Automatic service discovery
 - Built-in observability
 
-## Why .NET Aspire?
+## Why Aspire?
 
 - **Simplified orchestration**: One command runs everything
 - **Service discovery**: Services find each other automatically
@@ -209,14 +209,12 @@ This repository includes a CodeTour that guides you through the code.
 ```markdown
 ## ▶️ Running the Application
 
-### Using Terminal
-# Terminal
-dotnet run --project ./src/Host/Host.csproj
+### Using Aspire CLI
+```bash
+aspire run
 
-# The output shows the Aspire Dashboard URL with token:
-# https://localhost:15001/login?t=YOUR_TOKEN_HERE
-
-# Copy and paste this URL in your browser
+# The Aspire CLI automatically opens the dashboard
+# with authentication in your browser
 
 
 ### Using Debugger
@@ -345,7 +343,7 @@ function App() {
   return (
     <div className="App">
       <h1>Weather Forecast</h1>
-      <p>Powered by .NET Aspire</p>
+      <p>Powered by Aspire</p>
       <p>API URL: {apiUrl}</p>
       
       <div className="forecasts">
@@ -372,7 +370,7 @@ export default App;
 2. Open in Codespaces
 3. Wait for setup to complete
 4. Verify CodeTour appears
-5. Run `dotnet run --project ./src/Host/Host.csproj`
+5. Run `aspire run`
 6. Check all endpoints work
 
 ### Integration with aspire.dev
@@ -426,7 +424,7 @@ export default App;
 
 ## Need Help?
 
-- [.NET Aspire Docs](https://learn.microsoft.com/dotnet/aspire/)
+- [Aspire Docs](https://learn.microsoft.com/dotnet/aspire/)
 - [GitHub Codespaces Docs](https://docs.github.com/codespaces)
 - [CodeTour Extension](https://marketplace.visualstudio.com/items?itemName=vsls-contrib.codetour)
 
