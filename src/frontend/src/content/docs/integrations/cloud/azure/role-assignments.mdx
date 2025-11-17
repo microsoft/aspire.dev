@@ -3,7 +3,7 @@ title: Manage role assignments
 description: Learn how to configure Azure role-based access control (RBAC) for Aspire applications.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 
 Azure role assignments control access to Azure resources using Azure role-based access control (RBAC). When deploying Aspire applications to Azure, proper role assignments ensure your services can access Azure resources securely using managed identities.
 
@@ -11,9 +11,11 @@ Azure role assignments control access to Azure resources using Azure role-based 
 
 Aspire automatically generates role assignments when you:
 
+<Steps>
 1. Add Azure resources to your AppHost
 2. Reference those resources from your projects
 3. Deploy to Azure (e.g., Azure Container Apps)
+</Steps>
 
 The generated infrastructure includes role assignments that grant your application's managed identity the necessary permissions.
 
@@ -53,7 +55,9 @@ During deployment, Aspire automatically assigns the appropriate role (e.g., `Sto
 
 You can customize which roles are assigned using `ConfigureInfrastructure`:
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var storage = builder.AddAzureStorage("storage");
 
 storage.ConfigureInfrastructure(infra =>
@@ -109,7 +113,9 @@ For more information, see [User-assigned identity](/integrations/cloud/azure/use
 
 Aspire follows the principle of least privilege by assigning only the necessary roles. For example:
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
 
@@ -130,18 +136,22 @@ In production deployments, review the generated role assignments in the Bicep fi
 
 After deployment, role assignments may take a few minutes to propagate throughout Azure. If you see authentication errors immediately after deployment:
 
+<Steps>
 1. Wait 2-3 minutes for propagation
 2. Restart your application
 3. Check role assignments in the Azure Portal
+</Steps>
 
 ## Verifying role assignments
 
 To verify role assignments in the Azure Portal:
 
+<Steps>
 1. Navigate to your Azure resource (e.g., Storage Account)
 2. Select **Access Control (IAM)**
 3. Click **Role assignments**
 4. Look for your application's managed identity
+</Steps>
 
 Or use Azure CLI:
 
@@ -157,26 +167,30 @@ az role assignment list \
 
 If you see errors like "AuthorizationPermissionMismatch" or "Forbidden":
 
+<Steps>
 1. **Check role assignments**: Verify the role exists in Azure Portal
 2. **Wait for propagation**: Azure RBAC can take up to 5 minutes
 3. **Verify managed identity**: Ensure your app uses managed identity
 4. **Check resource name**: Verify connection string matches deployed resource
+</Steps>
 
 ### Missing permissions
 
 If your application needs additional permissions:
 
+<Steps>
 1. Identify the required Azure role
 2. Add role assignment via ConfigureInfrastructure or Azure Portal
 3. Restart your application
+</Steps>
 
 ### Development vs. production
 
 Role assignments are for Azure-deployed resources. During local development:
 
-- Use connection strings with access keys
-- Use Azure CLI credentials (`az login`)
-- Use emulators (Azurite, Service Bus Emulator)
+- Use connection strings with access keys.
+- Use Azure CLI credentials (`az login`).
+- Use emulators (Azurite, Service Bus Emulator).
 
 ## Security best practices
 
@@ -199,9 +213,9 @@ builder.Services.Configure<BlobClientOptions>(options =>
 
 Assign roles at the most specific scope:
 
-- **Best**: Specific resource (e.g., one storage account)
-- **Good**: Resource group
-- **Avoid**: Subscription level
+- **Best**: Specific resource (e.g., one storage account).
+- **Good**: Resource group.
+- **Avoid**: Subscription level.
 
 ### Regular audits
 

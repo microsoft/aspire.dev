@@ -12,10 +12,10 @@ User-assigned managed identities provide a way to grant your Aspire applications
 
 A user-assigned managed identity is:
 
-- **A standalone Azure resource**: Created independently of your application
-- **Reusable**: Can be assigned to multiple Azure resources
-- **Managed by Azure**: No credential management required
-- **RBAC-compatible**: Supports role-based access control
+- **A standalone Azure resource**: Created independently of your application.
+- **Reusable**: Can be assigned to multiple Azure resources.
+- **Managed by Azure**: No credential management required.
+- **RBAC-compatible**: Supports role-based access control.
 
 ## Why use user-assigned identities?
 
@@ -31,10 +31,10 @@ A user-assigned managed identity is:
 
 ### Common scenarios
 
-- **Shared access**: Multiple apps accessing the same resources
-- **Pre-provisioning**: Create identities before deploying apps
-- **Centralized management**: Manage permissions separately from apps
-- **Multi-region**: Same identity across regions
+- **Shared access**: Multiple apps accessing the same resources.
+- **Pre-provisioning**: Create identities before deploying apps.
+- **Centralized management**: Manage permissions separately from apps.
+- **Multi-region**: Same identity across regions.
 
 ## Creating a user-assigned identity
 
@@ -64,10 +64,12 @@ builder.AddProject<Projects.ApiService>("api")
 
 The preceding code:
 
+<Steps>
 1. Creates a user-assigned identity named `myidentity`
 2. Adds an Azure Storage resource
 3. Assigns the identity to both `webapp` and `api` projects
 4. Both projects will use the same identity to access storage
+</Steps>
 
 ### Connect to an existing identity
 
@@ -115,13 +117,16 @@ During deployment, the identity receives:
 
 Your application code doesn't change when using user-assigned identities. Azure SDK clients automatically use the assigned identity:
 
-```csharp
+```csharp title="C# — BlobService.cs"
 public class BlobService(BlobServiceClient blobClient)
 {
-    public async Task UploadAsync(string containerName, string blobName, Stream content)
+    public async Task UploadAsync(
+        string containerName, string blobName, Stream content)
     {
         var container = blobClient.GetBlobContainerClient(containerName);
+
         await container.UploadBlobAsync(blobName, content);
+        
         // Authentication handled automatically via managed identity
     }
 }
@@ -133,9 +138,11 @@ public class BlobService(BlobServiceClient blobClient)
 
 When you deploy, Aspire generates Bicep that:
 
+<Steps>
 1. Creates the user-assigned identity (if not existing)
 2. Assigns the identity to your Container Apps
 3. Creates role assignments for accessed resources
+</Steps>
 
 Example generated Bicep:
 
@@ -168,15 +175,13 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 ### Verifying deployment
 
-After deployment, verify the identity in Azure Portal:
+After deployment, verify the identity in Azure portal:
 
 <Steps>
-
-1. Navigate to **Managed Identities** in Azure Portal
-2. Find your user-assigned identity
-3. Click **Azure role assignments**
-4. Verify the roles are correctly assigned
-
+1. Navigate to **Managed Identities** in Azure portal.
+2. Find your user-assigned identity.
+3. Click **Azure role assignments**.
+4. Verify the roles are correctly assigned.
 </Steps>
 
 ## Comparison: System-assigned vs. User-assigned
@@ -188,7 +193,9 @@ After deployment, verify the identity in Azure Portal:
 - Minimal identity management overhead
 - Identity lifecycle matches app lifecycle
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 // System-assigned - simple, automatic
 builder.AddProject<Projects.WebApp>("webapp")
        .WithReference(storage);
@@ -197,12 +204,14 @@ builder.AddProject<Projects.WebApp>("webapp")
 
 ### Use user-assigned when:
 
-- Multiple apps share resources
-- Identity needs to outlive the app
-- Centralized identity management
-- Pre-provisioned identities required
+- Multiple apps share resources.
+- Identity needs to outlive the app.
+- Centralized identity management.
+- Pre-provisioned identities required.
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 // User-assigned - explicit, shared
 var identity = builder.AddAzureUserAssignedIdentity("shared");
 
@@ -219,32 +228,36 @@ builder.AddProject<Projects.ApiService>("api")
 
 Grant only necessary permissions:
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 // ✅ Good - Specific access
 var readIdentity = builder.AddAzureUserAssignedIdentity("reader");
 var writeIdentity = builder.AddAzureUserAssignedIdentity("writer");
 
 builder.AddProject<Projects.ReadApp>("read")
-       .WithReference(storage)
-       .WithIdentity(readIdentity);  // Gets reader role
+    .WithReference(storage)
+    .WithIdentity(readIdentity);  // Gets reader role
 
 builder.AddProject<Projects.WriteApp>("write")
-       .WithReference(storage)
-       .WithIdentity(writeIdentity);  // Gets contributor role
+    .WithReference(storage)
+    .WithIdentity(writeIdentity);  // Gets contributor role
 ```
 
 ### Separate identities by function
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var apiIdentity = builder.AddAzureUserAssignedIdentity("api-identity");
 var workerIdentity = builder.AddAzureUserAssignedIdentity("worker-identity");
 
 // API needs different permissions than worker
 builder.AddProject<Projects.ApiService>("api")
-       .WithIdentity(apiIdentity);
+    .WithIdentity(apiIdentity);
 
 builder.AddProject<Projects.WorkerService>("worker")
-       .WithIdentity(workerIdentity);
+    .WithIdentity(workerIdentity);
 ```
 
 ### Regular audits
@@ -262,31 +275,37 @@ az role assignment list --assignee <identity-principal-id> --output table
 
 If deployment fails with "identity not found":
 
-1. Verify the identity exists in Azure Portal
-2. Check the resource group matches
-3. Ensure proper naming
-4. Verify subscription access
+<Steps>
+1. Verify the identity exists in Azure portal.
+2. Check the resource group matches.
+3. Ensure proper naming.
+4. Verify subscription access.
+</Steps>
 
 ### Permission denied errors
 
 If you see authorization errors:
 
-1. Check role assignments in Azure Portal
+<Steps>
+1. Check role assignments in Azure portal
 2. Wait 5 minutes for RBAC propagation
 3. Verify identity is assigned to the container app
 4. Check the identity has the correct roles
+</Steps>
 
 ### Multiple identities conflict
 
 If using both system-assigned and user-assigned:
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 // Specify which identity to use for specific resources
 var identity = builder.AddAzureUserAssignedIdentity("myidentity");
 
 builder.AddProject<Projects.WebApp>("webapp")
-       .WithIdentity(identity);  // Uses user-assigned
-       // System-assigned is also created but not used
+    .WithIdentity(identity);  // Uses user-assigned
+    // System-assigned is also created but not used
 ```
 
 ## See also

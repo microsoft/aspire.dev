@@ -827,9 +827,15 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               { label: 'Customize Azure resources', slug: 'integrations/cloud/azure/customize-resources' },
               { label: 'Local Azure provisioning', slug: 'integrations/cloud/azure/local-provisioning' },
               { label: 'Configure Azure Container Apps', slug: 'integrations/cloud/azure/configure-container-apps' },
-              { label: 'Azure AI Foundry', slug: 'integrations/cloud/azure/azure-ai-foundry' },
-              { label: 'Azure AI Inference', slug: 'integrations/cloud/azure/azure-ai-inference' },
-              { label: 'Azure AI Search', slug: 'integrations/cloud/azure/azure-ai-search' },
+              {
+                label: 'Azure AI', items: [
+                  { label: 'AI compatibility matrix', slug: 'integrations/cloud/azure/ai-compatibility-matrix' },
+                  { label: 'Azure AI Foundry', slug: 'integrations/cloud/azure/azure-ai-foundry' },
+                  { label: 'Azure AI Inference', slug: 'integrations/cloud/azure/azure-ai-inference' },
+                  { label: 'Azure AI Search', slug: 'integrations/cloud/azure/azure-ai-search' },
+                  { label: 'Azure OpenAI', slug: 'integrations/cloud/azure/azure-openai' },
+                ]
+              },
               { label: 'Azure App Configuration', slug: 'integrations/cloud/azure/azure-app-configuration' },
               { label: 'Azure App Service', slug: 'integrations/cloud/azure/azure-app-service' },
               { label: 'Azure Cache for Redis', slug: 'integrations/cloud/azure/azure-cache-redis' },
@@ -838,8 +844,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               { label: 'Azure Event Hubs', slug: 'integrations/cloud/azure/azure-event-hubs' },
               { label: 'Azure Functions', slug: 'integrations/cloud/azure/azure-functions' },
               { label: 'Azure Key Vault', slug: 'integrations/cloud/azure/azure-key-vault' },
-              { label: 'Azure OpenAI', slug: 'integrations/cloud/azure/azure-openai' },
-              { label: 'AI integrations compatibility', slug: 'integrations/cloud/azure/ai-compatibility-matrix' },
               { label: 'Azure PostgreSQL', slug: 'integrations/cloud/azure/azure-postgresql' },
               { label: 'Azure Service Bus', slug: 'integrations/cloud/azure/azure-service-bus' },
               { label: 'Azure SignalR Service', slug: 'integrations/cloud/azure/azure-signalr' },
@@ -1621,8 +1625,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'ASPIREPUBLISHERS001', link: '/diagnostics/aspirepublishers001' },
           { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
           { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
-        ]        
-      },      
+        ]
+      },
     ]
   },
 ];
