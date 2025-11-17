@@ -253,20 +253,16 @@ Applications can add custom steps directly through the pipeline API for scenario
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Add custom deployment validation
+builder.Pipeline.AddStep("validate-deployment", async context =>
+  // Custom validation logic
+  await ValidateApiHealth(context);
+  await ValidateDatabaseConnection(context);
+}, requiredBy: WellKnownPipelineSteps.Deploy);
+
 // Define resources
 var database = builder.AddPostgres("myapp-db");
 var api = builder.AddProject<Api>("api").WithReference(database);
-
-// Add custom deployment validation
-builder.Services.Configure<DistributedApplicationPipelineOptions>(options =>
-{
-    options.AddStep("validate-deployment", async context =>
-    {
-        // Custom validation logic
-        await ValidateApiHealth(context);
-        await ValidateDatabaseConnection(context);
-    }).DependsOn(WellKnownSteps.Deploy);
-});
 ```
 
 This pattern enables applications to extend the deployment process with custom logic while benefiting from the pipeline's dependency management and execution coordination.
