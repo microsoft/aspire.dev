@@ -1157,6 +1157,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         items: [
           { label: "Data API Builder", slug: "integrations/devtools/dab" },
           { label: "Dev Tunnels", slug: "integrations/devtools/dev-tunnels" },
+          { label: "flagd", slug: "integrations/devtools/flagd" },
           { label: "MailPit", slug: "integrations/devtools/mailpit" },
           { label: "SQL Database Projects", slug: "integrations/devtools/sql-projects" },
         ]
@@ -1619,6 +1620,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'ASPIREPROXYENDPOINTS001', link: '/diagnostics/aspireproxyendpoints001' },
           { label: 'ASPIREPUBLISHERS001', link: '/diagnostics/aspirepublishers001' },
           { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
+          { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
         ]        
       },      
     ]
