@@ -185,9 +185,37 @@ OTLP endpoints are unsecured by default in the standalone dashboard.
 
 A browser app uses the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) to send telemetry to the dashboard. Successfully sending telemetry to the dashboard requires the SDK to be correctly configured.
 
-### OTLP exporter
+</Pivot>
+<Pivot id="blazor-wasm">
+
+Blazor WebAssembly apps can send telemetry to the dashboard using the .NET OpenTelemetry packages. This approach allows you to use familiar .NET APIs instead of JavaScript for telemetry configuration.
+
+</Pivot>
+
+### Install required packages
+
+<Pivot id="razor-javascript">
 
 OTLP exporters must be included in the browser app and configured with the SDK. For example, exporting distributed tracing with OTLP uses the [@opentelemetry/exporter-trace-otlp-proto](https://www.npmjs.com/package/@opentelemetry/exporter-trace-otlp-proto) package.
+
+</Pivot>
+<Pivot id="blazor-wasm">
+
+Add the following NuGet packages to your Blazor WebAssembly project:
+
+```xml title="XML — C# project file"
+<ItemGroup>
+  <PackageReference Include="OpenTelemetry" Version="1.10.0" />
+  <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+  <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+</ItemGroup>
+```
+
+</Pivot>
+
+### Configure OpenTelemetry
+
+<Pivot id="razor-javascript">
 
 When OTLP is added to the SDK, OTLP options must be specified. OTLP options includes:
 
@@ -195,13 +223,66 @@ When OTLP is added to the SDK, OTLP options must be specified. OTLP options incl
 
 - `headers`: The headers sent with requests. If OTLP endpoint API key authentication is enabled the `x-otlp-api-key` header must be sent with OTLP requests. If the browser app is launched by the AppHost then the API key is available from the `OTEL_EXPORTER_OTLP_HEADERS` environment variable.
 
-### Browser metadata
+</Pivot>
+<Pivot id="blazor-wasm">
+
+Create a component or add the following code to an existing component to configure OpenTelemetry:
+
+```razor title="Razor — Components/Trace.razor"
+@using OpenTelemetry
+@using OpenTelemetry.Resources
+@using OpenTelemetry.Trace
+@using System.Diagnostics
+
+<button @onclick="Trace">Trace</button>
+
+@code {
+    private void Trace()
+    {
+        var resourceBuilder = ResourceBuilder.CreateDefault()
+            .AddService("blazor-otel");
+
+        using var otel = Sdk.CreateTracerProviderBuilder()
+            .SetResourceBuilder(resourceBuilder)
+            .AddSource("ui")
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri("https://localhost:21036");
+                options.ExportProcessorType = ExportProcessorType.Simple;
+            })
+            .Build();
+
+        using var source = new ActivitySource("ui");
+        using (var activity = source.StartActivity("trace-click", ActivityKind.Client))
+        {
+            activity?.AddEvent(new ActivityEvent("Trace button click"));
+        }
+    }
+}
+```
+
+The preceding code:
+
+- Creates a resource builder with a service name of `blazor-otel`.
+- Configures the tracer provider to use an OTLP exporter that sends data to the dashboard.
+- Creates an activity source and starts a new activity when the button is clicked.
+- Adds an event to the activity.
+
+<Aside type="note">
+Replace `https://localhost:21036` with the actual URL of your dashboard's HTTP OTLP endpoint. If your app is launched by the AppHost, you can access this value from the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+</Aside>
+
+</Pivot>
+
+### Set trace context
+
+<Pivot id="razor-javascript">
 
 When a browser app is configured to collect distributed traces, the browser app can set the trace parent a browser's spans using the `meta` element in the HTML. The value of the `name="traceparent"` meta element should correspond to the current trace.
 
 In a .NET app, for example, the trace parent value would likely be assigned from the `Activity.Current` and passing its `Activity.Id` value as the `content`. For example, consider the following Razor code:
 
-```razor
+```razor title="Razor — Layout.razor"
 <head>
     @if (Activity.Current is { } currentActivity)
     {
@@ -213,11 +294,25 @@ In a .NET app, for example, the trace parent value would likely be assigned from
 
 The preceding code sets the `traceparent` meta element to the current activity ID.
 
-## Example browser telemetry code
+</Pivot>
+<Pivot id="blazor-wasm">
+
+For production applications, consider the following best practices:
+
+- Initialize the tracer provider once during application startup rather than on each trace operation.
+- Use dependency injection to provide the tracer provider to components.
+- Configure the OTLP endpoint and other settings from configuration or environment variables.
+- Handle authentication headers if OTLP endpoint API key authentication is enabled.
+
+</Pivot>
+
+## Example implementation
+
+<Pivot id="razor-javascript">
 
 The following JavaScript code demonstrates the initialization of the OpenTelemetry JavaScript SDK and the sending of telemetry data to the dashboard:
 
-```javascript
+```javascript title="JavaScript — index.js"
 import { ConsoleSpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
@@ -268,7 +363,7 @@ function parseDelimitedValues(s) {
 
 The preceding JavaScript code defines an `initializeTelemetry` function that expects the OTLP endpoint URL, the headers, and the resource attributes. These parameters are provided by the consuming browser app that pulls them from the environment variables set by the app host. Consider the following Razor code:
 
-```razor {32-39}
+```razor title="Razor —  Layout.razor" {32-39}
 @using System.Diagnostics
 <!DOCTYPE html>
 <html lang="en">
@@ -319,79 +414,58 @@ The bundling and minification of the JavaScript code is beyond the scope of this
 For the complete working example of how to configure the JavaScript OTEL SDK to send telemetry to the dashboard, see the [browser telemetry sample](https://github.com/dotnet/aspire/tree/main/playground/BrowserTelemetry).
 
 </Pivot>
-
 <Pivot id="blazor-wasm">
 
-Blazor WebAssembly apps can send telemetry to the dashboard using the .NET OpenTelemetry packages. This approach allows you to use familiar .NET APIs instead of JavaScript for telemetry configuration.
+The following example demonstrates a complete implementation using Blazor WebAssembly. For a full working sample, refer to the Aspire samples repository.
 
-### Add OpenTelemetry packages
-
-Add the following NuGet packages to your Blazor WebAssembly project:
-
-```xml
-<ItemGroup>
-  <PackageReference Include="OpenTelemetry" Version="1.10.0" />
-  <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
-  <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
-</ItemGroup>
-```
-
-### Configure OpenTelemetry in a component
-
-Create a component or add the following code to an existing component to configure OpenTelemetry:
-
-```razor
+```razor title="Razor — Pages/Telemetry.razor"
+@page "/telemetry"
 @using OpenTelemetry
 @using OpenTelemetry.Resources
 @using OpenTelemetry.Trace
 @using System.Diagnostics
 
-<button @onclick="Trace">Trace</button>
+<h3>Browser Telemetry Example</h3>
+<button @onclick="SendTrace">Send Trace</button>
 
 @code {
-    private void Trace()
+    private TracerProvider? _tracerProvider;
+    private ActivitySource? _activitySource;
+
+    protected override void OnInitialized()
     {
         var resourceBuilder = ResourceBuilder.CreateDefault()
-            .AddService("blazor-otel");
+            .AddService("blazor-browser-telemetry");
 
-        using var otel = Sdk.CreateTracerProviderBuilder()
+        _tracerProvider = Sdk.CreateTracerProviderBuilder()
             .SetResourceBuilder(resourceBuilder)
-            .AddSource("ui")
+            .AddSource("browser-app")
             .AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri("https://localhost:21036");
+                var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") 
+                    ?? "https://localhost:21036";
+                options.Endpoint = new Uri(endpoint);
                 options.ExportProcessorType = ExportProcessorType.Simple;
             })
             .Build();
 
-        using var source = new ActivitySource("ui");
-        using (var activity = source.StartActivity("trace-click", ActivityKind.Client))
-        {
-            activity?.AddEvent(new ActivityEvent("Trace button click"));
-        }
+        _activitySource = new ActivitySource("browser-app");
+    }
+
+    private void SendTrace()
+    {
+        using var activity = _activitySource?.StartActivity("user-action", ActivityKind.Client);
+        activity?.AddEvent(new ActivityEvent("Button clicked"));
+        activity?.SetTag("user.action", "send-trace");
+    }
+
+    public void Dispose()
+    {
+        _activitySource?.Dispose();
+        _tracerProvider?.Dispose();
     }
 }
 ```
-
-The preceding code:
-
-- Creates a resource builder with a service name of `blazor-otel`.
-- Configures the tracer provider to use an OTLP exporter that sends data to the dashboard.
-- Creates an activity source and starts a new activity when the button is clicked.
-- Adds an event to the activity.
-
-<Aside type="note">
-Replace `https://localhost:21036` with the actual URL of your dashboard's HTTP OTLP endpoint. If your app is launched by the AppHost, you can access this value from the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
-</Aside>
-
-### Best practices
-
-For production applications, consider the following best practices:
-
-- Initialize the tracer provider once during application startup rather than on each trace operation.
-- Use dependency injection to provide the tracer provider to components.
-- Configure the OTLP endpoint and other settings from configuration or environment variables.
-- Handle authentication headers if OTLP endpoint API key authentication is enabled.
 
 </Pivot>
 
