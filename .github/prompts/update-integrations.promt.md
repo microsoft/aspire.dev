@@ -13,13 +13,13 @@ Update the integration documentation links by synchronizing package names from t
     ```
 
 2. **Read the updated package data**
-    - Load `src/frontend/src/data/aspire-integrations.json`
-    - Extract all package names from the `title` field
+    - Load `src/frontend/src/data/aspire-integration-names.json`
+    - Extract all package names from the JSON array
 
 3. **Update integration documentation mappings**
     - Load `src/frontend/src/data/integration-docs.json`
-    - For each package in `aspire-integrations.json`:
-      - Check if a matching entry exists in `integration-docs.json` (where `match` equals the package `title`)
+    - For each package name in `src/frontend/src/data/aspire-integration-names.json`:
+      - Check if a matching entry exists in `integration-docs.json` (where `match` equals the package name)
       - If an entry exists, verify the `href` is correct
       - If no entry exists, determine the appropriate documentation URL based on:
          - Package name patterns (e.g., `Aspire.Hosting.X` → `/integrations/*/x/`)
@@ -42,5 +42,17 @@ Save the updated `integration-docs.json` with all current packages properly mapp
 {
   "match": "Aspire.Hosting.Redis",
   "href": "/integrations/caching/redis/"
+},
+{
+  "match": "Aspire.Hosting.Azure.Storage",
+  "href": "/integrations/cloud/azure/azure-storage-blobs/"
+},
+{
+  "match": "Aspire.Hosting.Testing",
+  "href": "/testing/overview/"
 }
 ```
+
+## Verification
+
+Ensure that all site relative links end with a trailing slash and point to valid documentation pages, do not assume a page exists without verification. When there's a package name that has no clear mapping, take note of it and list it for manual review—in these situations, we'll likely need to write a new documentation page.
