@@ -233,43 +233,59 @@ Create a component or add the following code to an existing component to configu
 @using OpenTelemetry.Resources
 @using OpenTelemetry.Trace
 @using System.Diagnostics
+@implements IDisposable
 
 <button @onclick="Trace">Trace</button>
 
 @code {
-    private void Trace()
+    private TracerProvider? _tracerProvider;
+    private ActivitySource? _activitySource;
+
+    protected override void OnInitialized()
     {
         var resourceBuilder = ResourceBuilder.CreateDefault()
             .AddService("blazor-otel");
 
-        using var otel = Sdk.CreateTracerProviderBuilder()
+        _tracerProvider = Sdk.CreateTracerProviderBuilder()
             .SetResourceBuilder(resourceBuilder)
             .AddSource("ui")
             .AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri("https://localhost:21036");
+                var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") 
+                    ?? "https://localhost:4318";
+                options.Endpoint = new Uri(endpoint);
                 options.ExportProcessorType = ExportProcessorType.Simple;
             })
             .Build();
 
-        using var source = new ActivitySource("ui");
-        using (var activity = source.StartActivity("trace-click", ActivityKind.Client))
-        {
-            activity?.AddEvent(new ActivityEvent("Trace button click"));
-        }
+        _activitySource = new ActivitySource("ui");
+    }
+
+    private void Trace()
+    {
+        using var activity = _activitySource?.StartActivity("trace-click", ActivityKind.Client);
+        activity?.AddEvent(new ActivityEvent("Trace button click"));
+    }
+
+    public void Dispose()
+    {
+        _activitySource?.Dispose();
+        _tracerProvider?.Dispose();
     }
 }
 ```
 
 The preceding code:
 
+- Initializes the `TracerProvider` and `ActivitySource` once during component initialization in `OnInitialized()`.
 - Creates a resource builder with a service name of `blazor-otel`.
 - Configures the tracer provider to use an OTLP exporter that sends data to the dashboard.
-- Creates an activity source and starts a new activity when the button is clicked.
-- Adds an event to the activity.
+- Uses the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable if available, otherwise defaults to `https://localhost:4318`.
+- Creates an activity when the button is clicked and adds an event to it.
+- Properly disposes of the tracer provider and activity source when the component is disposed.
 
 <Aside type="note">
-Replace `https://localhost:21036` with the actual URL of your dashboard's HTTP OTLP endpoint. If your app is launched by the AppHost, you can access this value from the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+The endpoint URL uses port `4318`, which is the standard HTTP OTLP port as documented in the dashboard configuration section. If your app is launched by the AppHost, the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable will be set automatically.
 </Aside>
 
 </Pivot>
@@ -443,7 +459,7 @@ The following example demonstrates a complete implementation using Blazor WebAss
             .AddOtlpExporter(options =>
             {
                 var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") 
-                    ?? "https://localhost:21036";
+                    ?? "https://localhost:4318";
                 options.Endpoint = new Uri(endpoint);
                 options.ExportProcessorType = ExportProcessorType.Simple;
             })
