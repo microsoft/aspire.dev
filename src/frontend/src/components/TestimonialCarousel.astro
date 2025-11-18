@@ -2,7 +2,6 @@
 import { Icon } from "@astrojs/starlight/components";
 import testimonialsData from "@data/testimonials.json";
 import { processAvatars } from "@utils/imageImporter";
-import { shuffle } from "@utils/helpers";
 
 export interface Testimonial {
     name: string;
@@ -14,9 +13,7 @@ export interface Testimonial {
 }
 
 export type Testimonials = Testimonial[];
-const testimonials: Testimonials = shuffle(
-    processAvatars(testimonialsData as Testimonials),
-);
+const testimonials: Testimonials = processAvatars(testimonialsData as Testimonials);
 
 // Helper function to get initials from name
 function getInitials(name: string): string {
@@ -125,7 +122,15 @@ function getColorForIndex(index: number): { bg: string; fg: string } {
         const nextBtn = root.querySelector(".next-btn");
         if (!track || !prevBtn || !nextBtn) return;
 
+        // Shuffle cards on client side
         const cards = Array.from(track.querySelectorAll(".card"));
+        for (let i = cards.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [cards[i], cards[j]] = [cards[j], cards[i]];
+        }
+        // Re-append in shuffled order
+        cards.forEach((card) => track.appendChild(card));
+        
         // Ensure we truly have button elements
         if (
             !(prevBtn instanceof HTMLButtonElement) ||
