@@ -19,7 +19,7 @@ Azure integrations in Aspire provide two main capabilities:
 
 ## Add Azure resources
 
-All Aspire Azure hosting integrations expose Azure resources and by convention are added using `AddAzure*` APIs. When you add these resources to your Aspire AppHost, they represent an Azure service. The `AddAzure*` API returns an `IResourceBuilder<T>` where `T` is the type of Azure resource. These `IResourceBuilder<T>` (builder) interfaces provide a fluent API that allows you to configure the underlying Azure resource within the [app model](/fundamentals/app-host-overview/#terminology). There are APIs for adding new Azure resources, marking resources as existing, and configuring how the resources behave in various execution contexts.
+All Aspire Azure hosting integrations expose Azure resources and by convention are added using `AddAzure*` APIs. When you add these resources to your Aspire AppHost, they represent an Azure service. The `AddAzure*` API returns an `IResourceBuilder<T>` where `T` is the type of Azure resource. These `IResourceBuilder<T>` (builder) interfaces provide a fluent API that allows you to configure the underlying Azure resource within the [app model](/get-started/app-host/). There are APIs for adding new Azure resources, marking resources as existing, and configuring how the resources behave in various execution contexts.
 
 ### Typical developer experience
 
@@ -44,7 +44,7 @@ Some Azure services can be emulated to run locally. Currently, Aspire supports t
 To have your Azure resources use the local emulators, chain a call the `RunAsEmulator` method on the Azure resource builder. This method configures the Azure resource to use the local emulator instead of the actual Azure service.
 
 > [!IMPORTANT]
-> Calling any of the available `RunAsEmulator` APIs on an Azure resource builder doesn't effect the [publishing manifest](/deployment/manifest-format/). When you publish your app, [the generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local emulator.
+> Calling any of the available `RunAsEmulator` APIs on an Azure resource builder doesn't effect the [publishing manifest](/architecture/resource-publishing/). When you publish your app, [the generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local emulator.
 
 ### Local containers
 
@@ -59,7 +59,7 @@ Currently, Aspire supports the following Azure services as containers:
 | [Azure SQL Server](/integrations/cloud/azure/azure-sql-database/) | Call `RunAsContainer` on the `IResourceBuilder<AzureSqlServerResource>` to configure it to run locally in a container, based on the `mcr.microsoft.com/mssql/server` image. |
 
 > [!NOTE]
-> Like emulators, calling `RunAsContainer` on an Azure resource builder doesn't effect the [publishing manifest](/deployment/manifest-format/). When you publish your app, the [generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local container.
+> Like emulators, calling `RunAsContainer` on an Azure resource builder doesn't effect the [publishing manifest](/architecture/resource-publishing/). When you publish your app, the [generated Bicep file](/integrations/cloud/azure/customize-resources/) reflects the actual Azure service, not the local container.
 
 ### Understand Azure integration APIs
 
@@ -83,13 +83,13 @@ The same is true for SQL and PostgreSQL services:
 | `AddAzureSqlServer("sql").RunAsContainer()` | Local SQL Server container | Azure SQL Server |
 | `AddSqlServer("sql")` | Local SQL Server container | Azure Container App with SQL Server image |
 
-For more information on the difference between run and publish modes, see [Aspire AppHost: Execution context](/fundamentals/app-host-overview/#execution-context).
+For more information on the difference between run and publish modes, see [Aspire AppHost: Execution context](/get-started/app-host/).
 
 ### APIs for expressing Azure resources in different modes
 
-The distributed application builder, part of the [AppHost](/fundamentals/app-host-overview/), uses the builder pattern to `AddAzure*` resources to the [_app model_](/fundamentals/app-host-overview/#terminology). Developers can configure these resources and define their behavior in different execution contexts. Azure hosting integrations provide APIs to specify how these resources should be "published" and "run."
+The distributed application builder, part of the [AppHost](/get-started/app-host/), uses the builder pattern to `AddAzure*` resources to the [_app model_](/architecture/resource-model/). Developers can configure these resources and define their behavior in different execution contexts. Azure hosting integrations provide APIs to specify how these resources should be "published" and "run."
 
-When the AppHost executes, the [_execution context_](/fundamentals/app-host-overview/#execution-context) is used to determine whether the AppHost is in `Run` or `Publish` mode. The naming conventions for these APIs indicate the intended action for the resource.
+When the AppHost executes, the [_execution context_](/get-started/app-host/) is used to determine whether the AppHost is in `Run` or `Publish` mode. The naming conventions for these APIs indicate the intended action for the resource.
 
 The following table summarizes the naming conventions used to express Azure resources:
 
@@ -105,7 +105,7 @@ The following table summarizes the naming conventions used to express Azure reso
 > [!NOTE]
 > Not all APIs are available on all Azure resources. For example, some Azure resources can be containerized or emulated, while others can't.
 
-For more information on execution modes, see [Execution context](/fundamentals/app-host-overview/#execution-context).
+For more information on execution modes, see [Execution context](/get-started/app-host/).
 
 #### General run mode API use cases
 
@@ -194,7 +194,7 @@ After the AppHost is executed in publish mode, the generated manifest file will 
 }
 ```
 
-For more information on the manifest file, see [Aspire manifest format for deployment tool builders](/deployment/manifest-format/).
+For more information on the manifest file, see [Aspire manifest format for deployment tool builders](/architecture/resource-publishing/).
 
 Additionally, the generated Bicep template includes the `existingResourceName` parameter, which can be used to reference the existing Azure resource. Consider the following generated Bicep template:
 
@@ -265,7 +265,7 @@ The preceding code:
 
 ## Add existing Azure resources with connection strings
 
-Aspire provides the ability to [connect to existing resources](/fundamentals/app-host-overview/#reference-existing-resources), including Azure resources. Expressing connection strings is useful when you have existing Azure resources that you want to use in your Aspire app. The `AddConnectionString` API is used with the AppHost's [execution context](/fundamentals/app-host-overview/#execution-context) to conditionally add a connection string to the app model.
+Aspire provides the ability to [connect to existing resources](/get-started/resources/), including Azure resources. Expressing connection strings is useful when you have existing Azure resources that you want to use in your Aspire app. The `AddConnectionString` API is used with the AppHost's [execution context](/get-started/app-host/) to conditionally add a connection string to the app model.
 
 > [!NOTE]
 > Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In Aspire nomenclature, the term "connection string" is used to represent any kind of connection information.
@@ -293,7 +293,7 @@ The preceding code:
 - Adds a project named `api` to the builder.
 - The `api` project references the `storage` resource regardless of the mode.
 
-The consuming API project uses the connection string information with no knowledge of how the AppHost configured it. In "publish" mode, the code adds a new Azure Storage resource—which would be reflected in the [deployment manifest](/deployment/manifest-format/) accordingly. When in "run" mode the connection string corresponds to a configuration value visible to the AppHost. It's assumed that all role assignments for the target resource are configured. This means, you'd likely configure an environment variable or a user secret to store the connection string. The configuration is resolved from the `ConnectionStrings__storage` (or `ConnectionStrings:storage`) configuration key. These configuration values can be viewed when the app runs. For more information, see [Resource details](/dashboard/explore/#resource-details).
+The consuming API project uses the connection string information with no knowledge of how the AppHost configured it. In "publish" mode, the code adds a new Azure Storage resource—which would be reflected in the [deployment manifest](/architecture/resource-publishing/) accordingly. When in "run" mode the connection string corresponds to a configuration value visible to the AppHost. It's assumed that all role assignments for the target resource are configured. This means, you'd likely configure an environment variable or a user secret to store the connection string. The configuration is resolved from the `ConnectionStrings__storage` (or `ConnectionStrings:storage`) configuration key. These configuration values can be viewed when the app runs. For more information, see [Resource details](/dashboard/explore/#resource-details).
 
 Unlike existing resources modeled with [the first-class `AsExisting` API](#use-existing-azure-resources), existing resource modeled as connection strings can't be enhanced with additional role assignments or infrastructure customizations.
 
@@ -348,4 +348,4 @@ To configure the Azure Container App environment, see [Configure Azure Container
 - [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
 - [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
 - [Azure role assignments](/integrations/cloud/azure/role-assignments/)
-- [Aspire integrations overview](/fundamentals/integrations-overview/)
+- [Aspire integrations overview](/integrations/overview/)
