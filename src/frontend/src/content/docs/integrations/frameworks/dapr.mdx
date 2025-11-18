@@ -2,9 +2,140 @@
 title: Dapr integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
+import ThemeImage from '@components/ThemeImage.astro';
+import daprIcon from '@assets/icons/dapr-icon.png';
+import daprLightIcon from '@assets/icons/dapr-light-icon.png';
 
-<Placeholder 
-    name="Dapr"
-    link="/dotnet/aspire/community-toolkit/dapr"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={daprLightIcon}
+  dark={daprIcon}
+  alt="Dapr logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
 />
+
+[Dapr](https://dapr.io/) (Distributed Application Runtime) is a portable, event-driven runtime that makes it easy for developers to build resilient, microservice stateless and stateful applications. The Aspire Dapr integration enables you to add [Dapr sidecars](https://docs.dapr.io/concepts/dapr-services/sidecar/) to your Aspire projects.
+
+<Aside type="note">
+
+This integration requires the Dapr CLI to be installed on your machine. For installation instructions, see [Install the Dapr CLI](https://docs.dapr.io/getting-started/install-dapr-cli/).
+
+After installing the CLI, you must run `dapr init` to initialize Dapr on your local machine before using this integration.
+
+</Aside>
+
+## Hosting integration
+
+To get started with the Aspire Dapr hosting integration, install the [CommunityToolkit.Aspire.Hosting.Dapr](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Dapr) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Dapr" />
+
+### Add Dapr sidecar
+
+In your app host project, add a Dapr sidecar to a project using the `WithDaprSidecar` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+       .WithDaprSidecar();
+
+// After adding all resources, run the app...
+```
+
+By default, the Dapr sidecar uses the resource name as the Dapr app ID. You can customize the app ID and sidecar options:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+       .WithDaprSidecar(new DaprSidecarOptions
+       {
+           AppId = "my-app-id",
+           DaprGrpcPort = 50001,
+           DaprHttpPort = 3500,
+           MetricsPort = 9090
+       });
+
+// After adding all resources, run the app...
+```
+
+### Dashboard integration
+
+When you add Dapr sidecars to your projects, they appear as separate resources in the Aspire dashboard. Each sidecar is displayed with a unique name based on the project name and includes the configured ports.
+
+## Client integration
+
+To connect to services with Dapr sidecars from your client application, use the [Dapr.AspNetCore](https://www.nuget.org/packages/Dapr.AspNetCore) or [Dapr.Client](https://www.nuget.org/packages/Dapr.Client) NuGet packages:
+
+<InstallDotNetPackage packageName="Dapr.AspNetCore" />
+
+For non-ASP.NET Core applications, use the Dapr.Client package instead:
+
+```powershell
+dotnet add package Dapr.Client
+```
+
+### Use Dapr client
+
+In the _:::no-loc text="Program.cs":::_ file of your client-consuming project, call the `AddDaprClient` extension method to register the Dapr client:
+
+```csharp
+builder.Services.AddDaprClient();
+```
+
+You can then retrieve the `DaprClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(DaprClient daprClient)
+{
+    public async Task CallServiceAsync()
+    {
+        var response = await daprClient.InvokeMethodAsync<Response>(
+            HttpMethod.Get,
+            "exampleproject",
+            "api/data");
+    }
+}
+```
+
+### Service-to-service invocation
+
+Dapr enables service-to-service invocation using the app ID. When you add a Dapr sidecar to a project, you can invoke methods on that service using the app ID:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDaprClient();
+
+var app = builder.Build();
+
+app.MapGet("/call-service", async (DaprClient daprClient) =>
+{
+    var result = await daprClient.InvokeMethodAsync<string>(
+        HttpMethod.Get,
+        "exampleproject",
+        "api/data");
+    
+    return Results.Ok(result);
+});
+
+app.Run();
+```
+
+For more information on Dapr service invocation, see [Dapr service invocation](https://docs.dapr.io/developing-applications/building-blocks/service-invocation/).
+
+## See also
+
+- [Dapr documentation](https://docs.dapr.io/)
+- [Dapr .NET SDK](https://docs.dapr.io/developing-applications/sdks/dotnet/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

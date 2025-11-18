@@ -43,6 +43,66 @@ Migrate documentation content from the legacy `E:\GitHub\docs-aspire` repository
 - **Links**: `xref:` links → Regular markdown links or remove if no equivalent exists, and do inline code formatting for API references
 - Custom components available: `Aside`, `CardGrid`, `LinkCard`, `Steps`, `TabItem`, `Icon`, `FileTree`, `Kbd`, `LearnMore`, `PivotSelector`, `Pivot`, `ThemeImage`
 
+Learn's zone pivots:
+
+```md
+---
+title: Zone pivot example on Learn
+zone_pivot_groups: unit-testing-framework
+---
+
+:::pivot="xunit"
+Example xUnit content
+:::
+:::pivot="nunit"
+Example NUnit content
+:::
+```
+
+Then you'd have to look up the `docs/zones/zone-pivot-groups.yml` file to see which pivots belong to the `unit-testing-framework` group. For example:
+
+```yml
+- id: unit-testing-framework
+  title: Unit testing framework
+  prompt: Choose a unit testing framework
+  pivots:
+  - id: xunit
+    title: xUnit
+  - id: mstest
+    title: MSTest
+  - id: nunit
+    title: NUnit
+```
+
+For `aspire.dev` our pivots are based on two custom components:
+
+```mdx
+---
+title: Example pivot example on aspire.dev
+---
+
+import Pivot from '@components/Pivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+
+<PivotSelector
+    title="Select your testing framework"
+    key="testing-framework"
+    options={[
+        { id: "xunit", title: "xUnit.net" },
+        { id: "mstest", title: "MSTest" },
+        { id: "nunit", title: "NUnit" },
+    ]}
+/>
+
+
+<Pivot id="xunit">
+Example xUnit content
+</Pivot>
+<Pivot id="nunit">
+Example NUnit content
+</Pivot>
+```
+
 ### Image Handling
 1. **Import statement**: Add `import { Image } from 'astro:assets';` to imports
 2. **Asset import**: `import imageName from '@assets/{section}/{filename}';`
@@ -52,7 +112,7 @@ Migrate documentation content from the legacy `E:\GitHub\docs-aspire` repository
 
 ### Link Transformations
 - **Remove**: "See also" sections entirely
-- **Internal links**: Convert to site-relative with trailing slash (e.g., `/dashboard/overview/`)
+- **Internal links**: Convert to site-relative with trailing slash (e.g., `/dashboard/overview/`), assume absolute links should be used when site relative links don't exist in aspire.dev, and use a base of `https://learn.microsoft.com/`, i.e.; for links that start with `/azure`, `/dotnet`, and `/aspnet`.
 - **Only link if certain**: Only create internal links to content you're 100% sure exists
 - **External links**: Keep as-is, prefer official documentation sources
 

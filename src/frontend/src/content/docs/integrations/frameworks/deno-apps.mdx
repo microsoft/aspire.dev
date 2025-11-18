@@ -2,10 +2,139 @@
 title: Deno integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import ThemeImage from '@components/ThemeImage.astro';
+import denoIcon from '@assets/icons/deno-icon.png';
+import denoLightIcon from '@assets/icons/deno-light-icon.png';
 
-<Placeholder 
-    name="Deno"
-    link="/dotnet/aspire/community-toolkit/hosting-deno"
-    icon="deno"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={denoLightIcon}
+  dark={denoIcon}
+  alt="Deno logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
 />
+
+The Aspire Deno hosting integration enables you to run [Deno](https://deno.com/) applications alongside your Aspire projects in the Aspire app host. Deno is a modern JavaScript and TypeScript runtime.
+
+## Hosting integration
+
+To get started with the Aspire Deno hosting integration, install the [CommunityToolkit.Aspire.Hosting.Deno](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Deno) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Deno" />
+
+### Add Deno app
+
+To add a Deno application to your app host, use the `AddDenoApp` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var denoApp = builder.AddDenoApp(
+    name: "deno-api",
+    workingDirectory: "../deno-app",
+    scriptPath: "main.ts",
+    args: ["--allow-net", "--allow-env"])
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(denoApp);
+
+// After adding all resources, run the app...
+```
+
+The `AddDenoApp` method requires:
+- **name**: The name of the resource in the Aspire dashboard
+- **workingDirectory**: The path to the directory containing your Deno application
+- **scriptPath**: The path to the Deno script to run (relative to working directory)
+- **args**: Permission flags required by Deno (e.g., `--allow-net`, `--allow-env`)
+
+<Aside type="note">
+
+Deno requires explicit permissions for various operations. Common permission flags include:
+- `--allow-net`: Network access
+- `--allow-env`: Environment variables
+- `--allow-read`: File system reading
+- `--allow-write`: File system writing
+
+</Aside>
+
+### Add Deno task
+
+To run a task defined in `package.json` or `deno.json`, use the `AddDenoTask` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var denoApp = builder.AddDenoTask(
+    name: "deno-api",
+    workingDirectory: "../deno-app",
+    taskName: "start")
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+This runs `deno task start` in the specified working directory.
+
+### Package installation
+
+To ensure packages are installed before running your Deno application, use the `WithDenoPackageInstallation` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var denoApp = builder.AddDenoApp("deno-api", "../deno-app", "main.ts", ["--allow-net", "--allow-env"])
+    .WithDenoPackageInstallation()
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+
+Package installation requires a `deno.lock` file in your Deno project. If the file doesn't exist, run `deno install` in your Deno project directory to generate it.
+
+</Aside>
+
+### Configure endpoints
+
+Deno applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the PORT environment variable:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var denoApp = builder.AddDenoApp("deno-api", "../deno-app", "main.ts", ["--allow-net", "--allow-env"])
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+Your Deno application can read the PORT environment variable:
+
+```typescript
+const port = Number(Deno.env.get("PORT")) || 8000;
+
+Deno.serve({ port }, () => {
+  return new Response("Hello from Deno!");
+});
+
+console.log(`Server listening on port ${port}`);
+```
+
+### Working directory
+
+The `workingDirectory` parameter specifies where the Deno application is located. The Aspire app host will run Deno commands in this directory.
+
+## See also
+
+- [Deno documentation](https://docs.deno.com/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

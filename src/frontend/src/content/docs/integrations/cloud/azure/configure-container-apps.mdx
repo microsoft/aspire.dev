@@ -1,0 +1,299 @@
+---
+title: Configure Azure Container Apps environments
+description: Learn how to configure Azure Container Apps environment settings for Aspire deployments.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When deploying Aspire applications to Azure Container Apps, you can customize the Container Apps environment to meet your specific requirements. This includes configuring networking, observability, and resource settings.
+
+## Container Apps environment overview
+
+An Azure Container Apps environment provides:
+
+- **Shared networking**: Virtual network integration for all apps
+- **Log Analytics**: Centralized logging and monitoring
+- **Resource grouping**: Logical grouping of related container apps
+- **Configuration**: Environment-level settings
+
+## Default environment configuration
+
+By default, Aspire creates a Container Apps environment with:
+
+- **Name pattern**: `cae-{apphost-name}`
+- **Log Analytics workspace**: Automatically provisioned
+- **Internal networking**: Disabled (public endpoints)
+- **Workload profiles**: Consumption-based
+
+## Customizing the environment
+
+### Configure environment settings
+
+You can customize the Container Apps environment using the manifest or Bicep customization:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add projects that will be deployed to Container Apps
+builder.AddProject<Projects.ApiService>("api");
+builder.AddProject<Projects.WebApp>("webapp");
+```
+
+Then customize the generated Bicep by using `PublishAsAzureContainerApp` with environment configuration:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           // Customize environment here
+           environment.InternalLoadBalancerEnabled = true;
+           environment.ZoneRedundant = true;
+       });
+```
+
+### Virtual network integration
+
+Integrate with an existing virtual network:
+
+```csharp
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           environment.VnetConfiguration = new VnetConfiguration
+           {
+               InfrastructureSubnetId = "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}",
+               Internal = true
+           };
+       });
+```
+
+### Zone redundancy
+
+Enable zone redundancy for high availability:
+
+```csharp
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           environment.ZoneRedundant = true;
+       });
+```
+
+<Aside type="caution">
+Zone redundancy is only available in certain regions and increases costs. Check Azure documentation for supported regions.
+</Aside>
+
+## Workload profiles
+
+Container Apps environments support different workload profiles:
+
+### Consumption-based (default)
+
+- **Pay-per-use**: Charged only for what you consume
+- **Auto-scaling**: Scales to zero
+- **Best for**: Variable workloads
+
+### Dedicated profiles
+
+- **Reserved capacity**: Pre-allocated resources
+- **Better performance**: Predictable performance
+- **Best for**: Production workloads with steady load
+
+Configure workload profiles:
+
+```csharp
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           // Add a dedicated workload profile
+           environment.WorkloadProfiles = new[]
+           {
+               new WorkloadProfile
+               {
+                   Name = "Dedicated-D4",
+                   WorkloadProfileType = "D4",
+                   MinimumCount = 1,
+                   MaximumCount = 3
+               }
+           };
+       });
+```
+
+## Observability configuration
+
+### Log Analytics workspace
+
+By default, Aspire creates a Log Analytics workspace. To use an existing workspace:
+
+```csharp
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           environment.AppLogsConfiguration = new AppLogsConfiguration
+           {
+               Destination = "log-analytics",
+               LogAnalyticsConfiguration = new LogAnalyticsConfiguration
+               {
+                   CustomerId = "{workspace-id}",
+                   SharedKey = "{workspace-key}"
+               }
+           };
+       });
+```
+
+### Dapr configuration
+
+Enable Dapr for your environment:
+
+```csharp
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           environment.DaprConfiguration = new DaprConfiguration
+           {
+               Enabled = true
+           };
+       });
+```
+
+## Common configuration scenarios
+
+### Internal-only environment
+
+Create an environment accessible only within a VNet:
+
+```csharp
+builder.AddProject<Projects.InternalApi>("internal-api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           environment.InternalLoadBalancerEnabled = true;
+           environment.VnetConfiguration = new VnetConfiguration
+           {
+               InfrastructureSubnetId = "{subnet-id}",
+               Internal = true
+           };
+       });
+```
+
+### Multi-region deployment
+
+Deploy to multiple regions with separate environments:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var region = builder.Configuration["Azure:Region"] ?? "eastus";
+
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           environment.Location = region;
+       });
+```
+
+### Development vs. production
+
+Use different configurations based on environment:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var isDevelopment = builder.Environment.IsDevelopment();
+
+builder.AddProject<Projects.ApiService>("api")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           if (!isDevelopment)
+           {
+               environment.ZoneRedundant = true;
+               environment.InternalLoadBalancerEnabled = true;
+           }
+       });
+```
+
+## Resource limits
+
+Configure resource limits for the environment:
+
+| Resource | Consumption | Dedicated (D4) | Dedicated (D8) |
+|----------|-------------|----------------|----------------|
+| **CPU** | 0.25-4 cores | 4 cores | 8 cores |
+| **Memory** | 0.5-8 GB | 8 GB | 16 GB |
+| **Max replicas** | 30 | Varies | Varies |
+
+## Cost optimization
+
+### Use consumption profile for dev/test
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+{
+    // Use default consumption profile (no explicit config needed)
+}
+else
+{
+    // Production: use dedicated profile
+    builder.AddProject<Projects.ApiService>("api")
+           .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+           {
+               environment.WorkloadProfiles = /* dedicated profile */;
+           });
+}
+```
+
+### Scale to zero
+
+Enable scaling to zero for infrequently used services:
+
+```csharp
+builder.AddProject<Projects.BatchProcessor>("batch")
+       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
+       {
+           app.Configuration.Ingress = null;  // No ingress = can scale to zero
+           app.Template.Scale = new Scale
+           {
+               MinReplicas = 0,
+               MaxReplicas = 10
+           };
+       });
+```
+
+## Troubleshooting
+
+### Environment creation failures
+
+If environment creation fails:
+
+1. Check subscription quotas
+2. Verify region supports Container Apps
+3. Check VNet subnet size (if using VNet integration)
+4. Review Azure service health
+
+### Networking issues
+
+If apps can't communicate:
+
+1. Verify all apps are in the same environment
+2. Check internal load balancer configuration
+3. Verify network security groups (if using VNet)
+4. Check Dapr configuration (if using Dapr)
+
+### Performance issues
+
+If experiencing performance problems:
+
+1. Review workload profile selection
+2. Check resource limits and scaling configuration
+3. Consider dedicated workload profiles
+4. Review Log Analytics for bottlenecks
+
+## See also
+
+- [Azure integrations overview](/integrations/cloud/azure/overview/)
+- [Deploy to Azure Container Apps](/deployment/azure/aca-deployment/)
+- [Azure Container Apps documentation](https://learn.microsoft.com/container-apps/)
+- [Container Apps pricing](https://learn.microsoft.com/container-apps/billing)

@@ -1,0 +1,128 @@
+---
+title: Azure AI Foundry integration
+description: This article describes the Aspire Azure AI Foundry integration features and capabilities.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
+
+<Image
+  src={aiFoundryIcon}
+  alt="Azure AI Foundry logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+[Azure AI Foundry](https://learn.microsoft.com/ai-studio) provides a unified platform for developing, testing, and deploying AI applications. The Aspire Azure AI Foundry integration enables you to connect to Azure AI Foundry services from your applications, providing access to various AI capabilities including model deployments, prompt flow, and more.
+
+## Hosting integration
+
+The Aspire Azure AI Foundry hosting integration models the AI Foundry project as the `AzureAIFoundryResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.AIFoundry](https://www.nuget.org/packages/Aspire.Hosting.Azure.AIFoundry) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AIFoundry" />
+
+### Add an Azure AI Foundry resource
+
+To add an Azure AI Foundry resource to your AppHost project, call the `AddAzureAIFoundry` method providing a name:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aiFoundry = builder.AddAzureAIFoundry("ai-foundry");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(aiFoundry);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure AI Foundry resource named `ai-foundry` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+### Connect to an existing Azure AI Foundry project
+
+You might have an existing Azure AI Foundry project that you want to connect to. You can chain a call to annotate that your `AzureAIFoundryResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingProjectName = builder.AddParameter("existingProjectName");
+var existingProjectResourceGroup = builder.AddParameter("existingProjectResourceGroup");
+
+var aiFoundry = builder.AddAzureAIFoundry("ai-foundry")
+                       .AsExisting(existingProjectName, existingProjectResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(aiFoundry);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure AI Foundry resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+## Client integration
+
+The Aspire Azure AI Foundry client integration is used to connect to an Azure AI Foundry project. To get started with the Aspire Azure AI Foundry client integration, install the [📦 Aspire.Azure.AI.Foundry](https://www.nuget.org/packages/Aspire.Azure.AI.Foundry) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Azure.AI.Foundry" />
+
+### Add AI Foundry client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureAIFoundryClient` extension method to register an AI Foundry client for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureAIFoundryClient(connectionName: "ai-foundry");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the AI Foundry resource in the AppHost project.
+</Aside>
+
+### Configuration
+
+The Aspire Azure AI Foundry library provides multiple options to configure the connection based on the requirements and conventions of your project.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddAzureAIFoundryClient`:
+
+```csharp
+builder.AddAzureAIFoundryClient(connectionName: "ai-foundry");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "ai-foundry": "https://{project-name}.{region}.inference.ai.azure.com"
+  }
+}
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations. For more information about integration observability and telemetry, see [Aspire integrations overview](/fundamentals/integrations-overview/).
+
+#### Logging
+
+The Aspire Azure AI Foundry integration uses the following log categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure.AI.Foundry`
+
+#### Tracing
+
+The Aspire Azure AI Foundry integration will emit tracing activities using OpenTelemetry for AI operations.
+
+#### Metrics
+
+The Aspire Azure AI Foundry integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.

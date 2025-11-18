@@ -1,0 +1,133 @@
+---
+title: Launch profiles
+description: Learn how Aspire integrates with .NET launch profiles.
+---
+
+import { Image } from 'astro:assets';
+import { Steps } from '@astrojs/starlight/components';
+
+Aspire makes use of _launch profiles_ defined in both the AppHost and service projects to simplify the process of configuring multiple aspects of the debugging and publishing experience for Aspire-based distributed applications.
+
+## Launch profile basics
+
+When creating a new .NET application from a template developers will often see a `Properties` directory which contains a file named _launchSettings.json_. The launch settings file contains a list of _launch profiles_. Each launch profile is a collection of related options which defines how you would like `dotnet` to start your application.
+
+The code below is an example of launch profiles in a _launchSettings.json_ file for an **ASP.NET Core** application.
+
+```json title="JSON — launchSettings.json"
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5130",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "https://localhost:7106;http://localhost:5130",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
+The _launchSettings.json_ file above defines two _launch profiles_, `http` and `https`. Each has its own set of environment variables, launch URLs and other options. When launching a .NET Core application developers can choose which launch profile to use.
+
+```bash
+dotnet run --launch-profile https
+```
+
+If no launch profile is specified, then the first launch profile is selected by default. It is possible to launch a .NET Core application without a launch profile using the `--no-launch-profile` option. Some fields from the _launchSettings.json_ file are translated to environment variables. For example, the `applicationUrl` field is converted to the `ASPNETCORE_URLS` environment variable which controls which address and port ASP.NET Core binds to.
+
+When a .NET application is launched with a launch profile a special environment variable called `DOTNET_LAUNCH_PROFILE` is populated with the name of the launch profile that was used when launching the process.
+
+## Launch profiles for Aspire AppHost
+
+In Aspire, the AppHost is just a .NET application. As a result it has a `launchSettings.json` file just like any other application. Here is an example of the `launchSettings.json` file generated when creating a new Aspire project from the starter template (`dotnet new aspire-starter`).
+
+```json title="JSON — launchSettings.json"
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:17134;http://localhost:15170",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21030",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22057"
+      }
+    },
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:15170",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19240",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20154"
+      }
+    }
+  }
+}
+```
+
+The Aspire templates have a very similar set of _launch profiles_ to a regular ASP.NET Core application. When the Aspire app project launches, it starts a `DistributedApplication` and hosts a web-server which is used by the Aspire Dashboard to fetch information about resources which are being orchestrated by Aspire.
+
+## AppHost launch profiles and service projects
+
+In Aspire the AppHost is responsible for coordinating the launch of multiple service projects. When you run the AppHost either via the command line or from Visual Studio (or other development environment) a launch profile is selected for the AppHost. In turn, the AppHost will attempt to find a matching launch profile in the service projects it is launching and use those options to control the environment and default networking configuration for the service project.
+
+When the AppHost launches a service project it doesn't simply launch the service project using the `--launch-profile` option. Therefore, there will be no `DOTNET_LAUNCH_PROFILE` environment variable set for service projects. This is because Aspire modifies the `ASPNETCORE_URLS` environment variable (derived from the `applicationUrl` field in the launch profile) to use a different port. By default, Aspire inserts a reverse proxy in front of the ASP.NET Core application to allow for multiple instances of the application using the `WithReplicas` method.
+
+Other settings such as options from the `environmentVariables` field are passed through to the application without modification.
+
+## Control launch profile selection
+
+Ideally, it's possible to align the launch profile names between the AppHost and the service projects to make it easy to switch between configuration options on all projects coordinated by the AppHost at once. However, it may be desirable to control launch profile that a specific project uses. The `AddProject` extension method provides a mechanism to do this.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.InventoryService>(
+    "inventoryservice",
+    launchProfileName: "mylaunchprofile");
+```
+
+The preceding code shows that the `inventoryservice` resource (a .NET project) is launched using the options from the `mylaunchprofile` launch profile. The launch profile precedence logic is as follows:
+
+<Steps>
+1. Use the launch profile specified by `launchProfileName` argument if specified.
+2. Use the launch profile with the same name as the AppHost (determined by reading the `DOTNET_LAUNCH_PROFILE` environment variable).
+3. Use the default (first) launch profile in _launchSettings.json_.
+4. Don't use a launch profile.
+</Steps>
+
+To force a service project to launch without a launch profile the `launchProfileName` argument on the `AddProject` method can be set to null.
+
+## Launch profiles and endpoints
+
+When adding an ASP.NET Core project to the AppHost, Aspire will parse the _launchSettings.json_ file selecting the appropriate launch profile and automatically generate endpoints in the application model based on the URL(s) present in the `applicationUrl` field. To modify the endpoints that are automatically injected the `WithEndpoint` extension method.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.InventoryService>("inventoryservice")
+       .WithEndpoint("https", endpoint => endpoint.IsProxied = false);
+```
+
+The preceding code shows how to disable the reverse proxy that Aspire deploys in front for the .NET Core application and instead allows the .NET Core application to respond directly on requests over HTTP(S).
