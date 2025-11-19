@@ -230,6 +230,7 @@ Create a component or add the following code to an existing component to configu
 
 ```razor title="Razor — Components/Trace.razor"
 @using OpenTelemetry
+@using OpenTelemetry.Exporter
 @using OpenTelemetry.Resources
 @using OpenTelemetry.Trace
 @using System.Diagnostics
@@ -254,7 +255,22 @@ Create a component or add the following code to an existing component to configu
                 var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") 
                     ?? "https://localhost:4318";
                 options.Endpoint = new Uri(endpoint);
+                options.Protocol = OtlpExportProtocol.HttpProtobuf;
                 options.ExportProcessorType = ExportProcessorType.Simple;
+                
+                // Add API key header if available
+                var headers = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
+                if (!string.IsNullOrEmpty(headers))
+                {
+                    foreach (var header in headers.Split(','))
+                    {
+                        var parts = header.Split('=', 2);
+                        if (parts.Length == 2)
+                        {
+                            options.Headers = $"{parts[0].Trim()}={parts[1].Trim()}";
+                        }
+                    }
+                }
             })
             .Build();
 
@@ -279,13 +295,14 @@ The preceding code:
 
 - Initializes the `TracerProvider` and `ActivitySource` once during component initialization in `OnInitialized()`.
 - Creates a resource builder with a service name of `blazor-otel`.
-- Configures the tracer provider to use an OTLP exporter that sends data to the dashboard.
-- Uses the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable if available, otherwise defaults to `https://localhost:4318`.
+- Configures the tracer provider to use an OTLP exporter with `HttpProtobuf` protocol (required for browser compatibility).
+- Reads the endpoint from `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable if available, otherwise defaults to `https://localhost:4318`.
+- Parses and applies authentication headers from `OTEL_EXPORTER_OTLP_HEADERS` if present (e.g., for API key authentication).
 - Creates an activity when the button is clicked and adds an event to it.
 - Properly disposes of the tracer provider and activity source when the component is disposed.
 
-<Aside type="note">
-The endpoint URL uses port `4318`, which is the standard HTTP OTLP port as documented in the dashboard configuration section. If your app is launched by the AppHost, the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable will be set automatically.
+<Aside type="caution">
+**Important**: Blazor WebAssembly apps must use `OtlpExportProtocol.HttpProtobuf` because browsers do not support gRPC. The environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS`) are typically set by the AppHost for interactive auto render modes where the component initializes on the server before running in the browser. For pure client-side Blazor WebAssembly apps, consider storing these values in `appsettings.json` or using `IConfiguration` instead.
 </Aside>
 
 </Pivot>
@@ -437,9 +454,11 @@ The following example demonstrates a complete implementation using Blazor WebAss
 ```razor title="Razor — Pages/Telemetry.razor"
 @page "/telemetry"
 @using OpenTelemetry
+@using OpenTelemetry.Exporter
 @using OpenTelemetry.Resources
 @using OpenTelemetry.Trace
 @using System.Diagnostics
+@implements IDisposable
 
 <h3>Browser Telemetry Example</h3>
 <button @onclick="SendTrace">Send Trace</button>
@@ -461,7 +480,22 @@ The following example demonstrates a complete implementation using Blazor WebAss
                 var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") 
                     ?? "https://localhost:4318";
                 options.Endpoint = new Uri(endpoint);
+                options.Protocol = OtlpExportProtocol.HttpProtobuf;
                 options.ExportProcessorType = ExportProcessorType.Simple;
+                
+                // Add API key header if available
+                var headers = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
+                if (!string.IsNullOrEmpty(headers))
+                {
+                    foreach (var header in headers.Split(','))
+                    {
+                        var parts = header.Split('=', 2);
+                        if (parts.Length == 2)
+                        {
+                            options.Headers = $"{parts[0].Trim()}={parts[1].Trim()}";
+                        }
+                    }
+                }
             })
             .Build();
 
