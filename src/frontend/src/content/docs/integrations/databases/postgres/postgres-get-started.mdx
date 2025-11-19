@@ -11,32 +11,15 @@ import ThemeImage from '@components/ThemeImage.astro';
 
 [PostgreSQL](https://www.postgresql.org/) is a powerful, open source object-relational database system with many years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. The Aspire PostgreSQL integration provides a way to connect to existing PostgreSQL databases, or create new instances from the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres).
 
-In this introductory exercise, you'll see how to install and use the Aspire PostgreSQL integrations in a simple configuration. If you already have this knowledge, see [PostgreSQL Hosting integration reference](../postgres-host/) or [PostgreSQL Client integration reference](../postgres-client/) for full reference details.
+In this introduction, you'll see how to install and use the Aspire PostgreSQL integrations in a simple configuration. If you already have this knowledge, see [PostgreSQL Hosting integration](../postgres-host/) for full reference details.
 
-## Create a new Aspire solution
-
-First, let's create a new app, using the Aspire CLI:
-
-<Steps>
-
-1. Execute the following command:
-
-   ```bash
-   aspire new aspire-starter -n AspirePostgresApp -o AspirePostgresApp
-   ```
-
-1. If prompted for additional selections, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. 
-1. Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
-1. When the app has been completed, change into its top level directory:
-
-   ```bash
-   cd AspirePostgresApp
-   ```
-</Steps>
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
 
 ## Set up the hosting integration
 
-Now, install the Aspire PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage PostgreSQL database instances from your Aspire hosting projects:
+To begin, install the Aspire PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage PostgreSQL database instances from your Aspire hosting projects:
 
 <InstallPackage packageName="Aspire.Hosting.PostgreSQL" shortName="postgresql" />
 
@@ -52,17 +35,44 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
                             .WithReference(postgresdb);
 ```
 
+<Aside type="tip">
+    This is the simplest implementation of PostgreSQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [PostgreSQL Hosting integration](../postgres-host/).
+</Aside>
+
+## Configuration properties of the PostgreSQL resources
+
+When you use the `WithReference` method to pass a PostgreSQL server or database resource from the AppHost project to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
+
+### PostgreSQL server resource
+
+The PostgreSQL server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the PostgreSQL server |
+| `Port` | The port number the PostgreSQL server is listening on |
+| `Username` | The username for authentication |
+| `Password` | The password for authentication |
+| `Uri` | The connection URI in postgresql:// format, with the format `postgresql://{Username}:{Password}@{Host}:{Port}` |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:postgresql://{Host}:{Port}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+### PostgreSQL database resource
+
+The PostgreSQL database resource inherits all properties from its parent `PostgresServerResource` and adds:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Uri` | The connection URI with the database name, with the format `postgresql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:postgresql://{Host}:{Port}/{DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `Database` | The name of the database |
+
 ## Set up the client integration
 
 Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
 
-Change into the *AspirePostgresApp.ApiService* project directory:
-
-```bash
-cd AspirePostgresApp.ApiService
-```
-
-Then, install the Aspire PostgreSQL Client integration:
+In each of these consuming client projects, install the Aspire PostgreSQL client integration:
 
 <InstallDotNetPackage packageName="Aspire.Npgsql" />
 
@@ -85,18 +95,12 @@ public class ExampleService(NpgsqlDataSource dataSource)
 }
 ```
 
-## Run the solution
+## Completed solution
 
 import postgresqlDashboardLight from '@assets/integrations/postgresql/postgresql-dashboard-light.png';
 import postgresqlDashboardDark from '@assets/integrations/postgresql/postgresql-dashboard-dark.png';
 
-You can run the solution with the Aspire CLI:
-
-```bash
-aspire run
-```
-
-Once the dashboard is ready, its URL appears in your terminal. The **Resources** page includes the PostgreSQL instance.
+In an Aspire solution that uses the PostgreSQL integrations, the **Resources** page includes the PostgreSQL instance:
 
 <ThemeImage 
     light={postgresqlDashboardLight}
@@ -113,10 +117,5 @@ Now, that you have an Aspire app with PostgreSQL integrations up and running, yo
     title="Learn more about the PostgreSQL Hosting intregration"
     description="Discover how to configure persistence, pgAdmin resources, and more."
     href="/integrations/databases/postgres/postgres-host/"
-  />
-  <LinkCard
-    title="Learn more about the PostgreSQL Client integration"
-    description="Discover how to configure the database connection, set up health checks, and more."
-    href="/integrations/databases/postgres/postgres-client/"
   />
 </CardGrid>
