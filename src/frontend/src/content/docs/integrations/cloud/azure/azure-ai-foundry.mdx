@@ -77,11 +77,11 @@ To get started with the Aspire Azure AI Foundry client integration, install the 
 In the `Program.cs` file of your client-consuming project, use the `AddAzureChatCompletionsClient` method to register a `ChatCompletionsClient` for dependency injection (DI). The method requires a connection name parameter.
 
 ```csharp
-builder.AddAzureChatCompletionsClient(connectionName: "chat");
+builder.AddAzureChatCompletionsClient(connectionName: "ai-foundry");
 ```
 
 <Aside type="tip">
-The `connectionName` parameter must match the name used when adding the Azure AI Foundry deployment resource in the AppHost project. For more information, see Add an Azure AI Foundry deployment resource.
+The `connectionName` parameter must match the name used when adding the Azure AI Foundry resource in the AppHost project. For more information, see Add an Azure AI Foundry resource.
 </Aside>
 
 After adding the `ChatCompletionsClient`, you can retrieve the client instance using dependency injection:
@@ -114,7 +114,7 @@ For more information on the `IChatClient` and its corresponding library, see [Ar
 For models that are compatible with the OpenAI API, you can also use the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) client integration:
 
 ```csharp
-builder.AddOpenAIClient("chat")
+builder.AddOpenAIClient(connectionName: "chat")
        .AddChatClient();
 ```
 
@@ -122,7 +122,7 @@ This approach works well with models that support the OpenAI API format.
 
 ### Configuration
 
-The Aspire Azure AI Foundry library provides multiple options to configure the Azure AI Foundry connection based on the requirements and conventions of your project. Either an `Endpoint` and `DeploymentId`, or a `ConnectionString` is required to be supplied.
+The Aspire Azure AI Foundry library provides multiple options to configure the Azure AI Foundry connection based on the requirements and conventions of your project. Either an `Endpoint` with `DeploymentId` (using credential-based authentication), or a connection string with an explicit `Key` is required.
 
 #### Use a connection string
 
@@ -202,7 +202,12 @@ The Aspire Azure AI Foundry integration uses the following log categories:
 - `Azure`
 - `Azure.Core`
 - `Azure.Identity`
+- `Azure.AI.Inference`
 
 #### Tracing
 
 The Aspire Azure AI Foundry integration emits tracing activities using OpenTelemetry for operations performed with the `ChatCompletionsClient`.
+
+#### Metrics
+
+The Aspire Azure AI Foundry integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.
