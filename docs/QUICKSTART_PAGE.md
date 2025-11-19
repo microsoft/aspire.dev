@@ -9,7 +9,9 @@ The `/quickstart` page is a streamlined Starlight documentation page that helps 
 ## Features
 
 ### Sample Cards
+
 Each sample is presented as a card showing:
+
 - **Title** - Clear name of the sample
 - **Perfect for** - Target audience
 - **What you'll learn** - Key concepts covered
@@ -19,7 +21,9 @@ Each sample is presented as a card showing:
 - **Expandable details** - Additional information
 
 ### Integrated Documentation
+
 The page uses standard Starlight components:
+
 - `<Card>` and `<CardGrid>` for sample presentation
 - `<Steps>` for usage instructions
 - `<Code>` for terminal commands
@@ -27,6 +31,7 @@ The page uses standard Starlight components:
 - `<LinkButton>` for navigation
 
 ### No Custom State Management
+
 - No localStorage or progress tracking
 - No complex JavaScript interactions
 - Users explore at their own pace
@@ -35,24 +40,28 @@ The page uses standard Starlight components:
 ## Available Samples
 
 ### 1. Full-Stack JavaScript
+
 - **Repo:** `IEvangelist/fullstack-js`
 - **Stack:** ASP.NET Core API + React + TypeScript
 - **Time:** ~10 minutes
 - **Focus:** Understanding Aspire with familiar technologies
 
 ### 2. Aspire Starter (C#)
+
 - Links to existing `/get-started/first-app` tutorial
 - **Stack:** Blazor + Minimal APIs
 - **Time:** ~5 minutes
 - **Focus:** Creating apps with `aspire new`
 
 ### 3. Aspire Starter (Python)
+
 - Links to existing `/get-started/first-app?lang=python` tutorial
 - **Stack:** FastAPI + React
 - **Time:** ~8 minutes
 - **Focus:** Python developers trying Aspire
 
 ### 4. More Samples
+
 - Links to `github.com/dotnet/aspire-samples`
 - Encourages exploring additional scenarios
 
@@ -74,15 +83,18 @@ The page uses standard Starlight components:
 ## Components
 
 ### CodespacesButton.astro
+
 **Location:** `src/frontend/src/components/CodespacesButton.astro`
 
 Simple component that renders the GitHub Codespaces badge:
+
 - Takes `owner` and `repo` props
 - Links to `https://codespaces.new/{owner}/{repo}`
 - Uses localized title text
 - Displays official GitHub badge image
 
 **Usage:**
+
 ```mdx
 <CodespacesButton owner="IEvangelist" repo="fullstack-js" />
 ```
@@ -90,6 +102,7 @@ Simple component that renders the GitHub Codespaces badge:
 ## Navigation
 
 **Sidebar location:** Under "Get started" section
+
 - Positioned after "Install CLI"
 - Before "Build your first app"
 - Label: "Try in browser"
@@ -135,8 +148,9 @@ To add a new Codespaces sample:
    - `.devcontainer/devcontainer.json` with Aspire CLI installed
    - `.tours/` folder with CodeTour files
    - Comprehensive README.md
-   
+
 2. Add a new card to `quickstart.mdx`:
+
    ```mdx
    <Card title="Your Sample" icon="appropriate-icon">
      **Perfect for:** ...
@@ -152,21 +166,25 @@ To add a new Codespaces sample:
 ## Design Principles
 
 ### Lightweight
+
 - No custom components beyond CodespacesButton
 - No JavaScript state management
 - Fast page load and simple maintenance
 
 ### Integrated
+
 - Looks and feels like other documentation pages
 - Uses standard Starlight styling
 - Consistent with site navigation
 
 ### Self-Service
+
 - Users explore independently
 - No forced linear flow
 - Multiple entry points based on interest
 
 ### Informative
+
 - Clear expectations (time, tech stack, outcomes)
 - Comprehensive usage guide
 - Links to next steps
@@ -174,6 +192,7 @@ To add a new Codespaces sample:
 ## Benefits Over Previous Approach
 
 ### Before (Heavy Implementation)
+
 - ❌ Custom standalone page with unique styling
 - ❌ Complex progress tracking system
 - ❌ Multiple custom components (5+)
@@ -182,6 +201,7 @@ To add a new Codespaces sample:
 - ❌ Difficult to maintain
 
 ### After (Streamlined)
+
 - ✅ Standard MDX documentation page
 - ✅ Uses existing Starlight components
 - ✅ Minimal custom code (1 simple component)
@@ -192,10 +212,13 @@ To add a new Codespaces sample:
 ## Maintenance
 
 ### Updating Sample Information
+
 Edit `src/frontend/src/content/docs/quickstart.mdx` directly.
 
 ### Adding Translations
+
 Update the sidebar label in `sidebar.topics.ts`:
+
 ```typescript
 {
   label: 'Try in browser',
@@ -207,6 +230,7 @@ Update the sidebar label in `sidebar.topics.ts`:
 ```
 
 ### Linking New Samples
+
 Just add a new card with a `<CodespacesButton>` component.
 
 ## Future Enhancements
