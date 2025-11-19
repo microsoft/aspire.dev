@@ -63,7 +63,7 @@ export default defineConfig({
 			head: [
 				// SEO meta tags for discoverability (including legacy ".NET Aspire" branding)
 				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
-				{ tag: 'meta', attrs: { name: 'keywords', content: 'Aspire, .NET Aspire, dotnet aspire, distributed applications, cloud-native, microservices, orchestration, .NET, observability, service discovery, integrations' } },
+				{ tag: 'meta', attrs: { name: 'keywords', content: 'Aspire, .NET Aspire, dotnet aspire, distributed applications, cloud-native, microservices, orchestration, .NET, observability, otel, opentelemetry, dashboard, service discovery, integrations, C#, csharp, polyglot, python, go, node.js, javascript, typescript, vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis, docker, containers, kubernetes, compose' } },
 				{ tag: 'meta', attrs: { name: 'alternate-name', content: '.NET Aspire' } },
 				
 				// Open Graph meta tags
