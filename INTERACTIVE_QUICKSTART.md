@@ -1,13 +1,13 @@
-# Interactive Quickstart Feature
+# Try Aspire in Browser - Quickstart Page
 
 ## Overview
 
-The Interactive Quickstart is a comprehensive, hands-on learning experience for Aspire that guides users through:
+The "Try Aspire in your browser" page (`/quickstart`) is a streamlined documentation page that helps users explore Aspire using GitHub Codespaces samples. It provides:
 
-1. **Launching a GitHub Codespace** with a pre-configured Aspire project
-2. **Following a CodeTour** that explains Aspire concepts (what, why, how)
-3. **Running the application** with step-by-step terminal commands
-4. **Completing the tutorial** with achievements and next steps
+1. **Sample cards** showcasing different Aspire scenarios with key details
+2. **Launch buttons** for opening samples directly in GitHub Codespaces
+3. **Usage guide** with steps for working with Codespaces
+4. **Next steps** to continue learning after trying a sample
 
 ## Architecture
 

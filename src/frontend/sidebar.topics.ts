@@ -44,32 +44,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         }, slug: 'get-started/welcome'
       },
       {
-        label: 'Interactive Quickstart',
-        translations: {
-          da: 'Interaktiv hurtigstart',
-          de: 'Interaktiver Schnellstart',
-          en: 'Interactive Quickstart',
-          es: 'Inicio rápido interactivo',
-          fr: 'Démarrage rapide interactif',
-          hi: 'इंटरैक्टिव त्वरित प्रारंभ',
-          id: 'Mulai cepat interaktif',
-          it: 'Avvio rapido interattivo',
-          ja: 'インタラクティブなクイックスタート',
-          ko: '대화형 빠른 시작',
-          'pt-BR': 'Início rápido interativo',
-          'pt-PT': 'Início rápido interativo',
-          ru: 'Интерактивное быстрое начало',
-          tr: 'Etkileşimli Hızlı Başlangıç',
-          uk: 'Інтерактивний швидкий старт',
-          'zh-CN': '交互式快速入门',
-        },
-        slug: 'quickstart',
-        badge: {
-          text: 'New',
-          variant: 'tip'
-        }
-      },
-      {
         label: "What's new", collapsed: true, autogenerate: { directory: 'whats-new' },
         translations: {
           da: 'Hvad er nyt',
@@ -153,6 +127,28 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               'zh-CN': '安装 CLI',
             },
             slug: 'get-started/install-cli'
+          },
+          {
+            label: 'Try in browser',
+            translations: {
+              da: 'Prøv i browser',
+              de: 'Im Browser testen',
+              en: 'Try in browser',
+              es: 'Probar en navegador',
+              fr: 'Essayer dans le navigateur',
+              hi: 'ब्राउज़र में आज़माएं',
+              id: 'Coba di browser',
+              it: 'Prova nel browser',
+              ja: 'ブラウザで試す',
+              ko: '브라우저에서 시도',
+              'pt-BR': 'Experimentar no navegador',
+              'pt-PT': 'Experimentar no navegador',
+              ru: 'Попробовать в браузере',
+              tr: 'Tarayıcıda deneyin',
+              uk: 'Спробувати в браузері',
+              'zh-CN': '在浏览器中尝试',
+            },
+            slug: 'get-started/quickstart'
           },
           {
             label: 'Build your first app',
