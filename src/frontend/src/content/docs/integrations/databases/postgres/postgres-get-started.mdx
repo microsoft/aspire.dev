@@ -7,6 +7,8 @@ import { Kbd } from 'starlight-kbd/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 
 [PostgreSQL](https://www.postgresql.org/) is a powerful, open source object-relational database system with many years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. The Aspire PostgreSQL integration provides a way to connect to existing PostgreSQL databases, or create new instances from the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres).
@@ -72,6 +74,18 @@ The PostgreSQL database resource inherits all properties from its parent `Postgr
 
 Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
 
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript (coming soon)", disabled: true },
+    ]}
+/>
+
+<Pivot id="csharp">
+
 In each of these consuming client projects, install the Aspire PostgreSQL client integration:
 
 <InstallDotNetPackage packageName="Aspire.Npgsql" />
@@ -94,6 +108,23 @@ public class ExampleService(NpgsqlDataSource dataSource)
     // Use dataSource...
 }
 ```
+
+You can use environment variables to obtain the configuration properties that Aspire injected when you called the `WithReference` method in the AppHost project:
+
+```csharp title="C# - Obtain configuration properties"
+string databasename = builder.Configuration.GetValue<string>("POSTGRESDB_DATABASENAME");
+```
+
+</Pivot>
+<Pivot id="python">
+
+You can use environment variables to obtain the configuration properties that Aspire injected when you called the `WithReference` method in the AppHost project:
+
+```python title="Python - Obtain configuration properties"
+databasename = os.environ.get("POSTGRESDB_DATABASENAME")
+```
+
+</Pivot>
 
 ## Completed solution
 
