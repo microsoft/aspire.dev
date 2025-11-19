@@ -1,0 +1,329 @@
+---
+title: Add Aspire to an existing app
+description: Learn how to add Aspire orchestration to your existing .NET application using aspire init.
+---
+
+import { Aside, Steps, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
+import LearnMore from '@components/LearnMore.astro';
+
+This guide shows you how to add .NET Aspire orchestration capabilities to an existing .NET application. Instead of starting from scratch with a new Aspire solution, you'll use the `aspire init` command to incrementally adopt Aspire in your current application.
+
+## Why add Aspire to an existing app?
+
+Adding Aspire to an existing application provides several benefits:
+
+- **Orchestration** — Simplify service startup, health checks, and service discovery
+- **Observability** — Get enhanced telemetry, logging, and distributed tracing through the Aspire dashboard
+- **Development experience** — Improve local development with automatic service coordination
+- **Gradual adoption** — Add Aspire features incrementally without disrupting your existing architecture
+
+<Aside type="tip">
+You can add Aspire to your existing app with minimal changes to your codebase. The process is designed to be non-invasive and reversible.
+</Aside>
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- An existing .NET application (typically a solution with one or more projects)
+- [.NET SDK 10.0 or later](/get-started/prerequisites/)
+- [Aspire CLI installed](/get-started/install-cli/)
+
+## Overview of the process
+
+Adding Aspire to an existing application follows these key steps:
+
+<Steps>
+
+1. **Initialize Aspire support** — Use `aspire init` to add the AppHost project
+2. **Add ServiceDefaults (optional)** — Integrate common observability and resilience patterns
+3. **Add integrations (optional)** — Replace existing client libraries with Aspire integrations
+4. **Run and verify** — Test your application with Aspire orchestration
+
+</Steps>
+
+## Initialize Aspire support
+
+The `aspire init` command is the starting point for adding Aspire to your existing application. This command analyzes your solution and adds an AppHost project that orchestrates your services.
+
+<Steps>
+
+1. Navigate to your solution directory:
+
+   ```bash title="Change to your solution directory"
+   cd /path/to/your-solution
+   ```
+
+2. Run `aspire init` to initialize Aspire support:
+
+   ```bash title="Initialize Aspire"
+   aspire init
+   ```
+
+   The `aspire init` command runs in **interactive mode** by default. It will:
+   
+   - Detect your existing solution structure
+   - Prompt you to choose between a **project-based AppHost** or a **single-file AppHost**
+   - Analyze your projects and suggest which ones to add to the orchestration
+   - Install necessary Aspire packages
+
+   <Aside type="note" title="AppHost options">
+   - **Project-based AppHost**: Creates a new C# project (`.csproj`) with full project structure. Best for complex solutions.
+   - **Single-file AppHost**: Creates a minimal `apphost.cs` file. Best for simpler solutions or getting started quickly.
+   </Aside>
+
+3. Follow the interactive prompts to select:
+   
+   - The type of AppHost (project-based or single-file)
+   - Which projects in your solution should be orchestrated
+   - Dependencies between services
+
+   <LearnMore>
+       For more details on the `aspire init` command and its options, see the [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
+   </LearnMore>
+
+</Steps>
+
+### What does `aspire init` create?
+
+After running `aspire init`, your solution will have new Aspire components:
+
+<Tabs syncKey="apphost-type">
+  <TabItem label="Project-based AppHost">
+  
+  A new AppHost project is added to your solution:
+
+  <FileTree>
+  - YourSolution.sln (updated)
+  - **YourSolution.AppHost/** (new)
+    - Properties/
+    - appsettings.Development.json
+    - appsettings.json
+    - YourSolution.AppHost.csproj
+    - **AppHost.cs** orchestration code
+  - YourExistingProject/
+    - (unchanged)
+  </FileTree>
+
+  The `AppHost.cs` file contains code similar to:
+
+  ```csharp title="AppHost.cs — Example orchestration"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  var api = builder.AddProject<Projects.YourApi>("api")
+      .WithHttpHealthCheck("/health");
+
+  builder.AddProject<Projects.YourWeb>("web")
+      .WithExternalHttpEndpoints()
+      .WithReference(api)
+      .WaitFor(api);
+
+  builder.Build().Run();
+  ```
+
+  </TabItem>
+  <TabItem label="Single-file AppHost">
+
+  A minimal `apphost.cs` file is created in your solution root:
+
+  <FileTree>
+  - YourSolution.sln
+  - **apphost.cs** (new) orchestration code
+  - **apphost.run.json** (new) configuration
+  - YourExistingProject/
+    - (unchanged)
+  </FileTree>
+
+  The `apphost.cs` file contains code similar to:
+
+  ```csharp title="apphost.cs — Example single-file orchestration"
+  #:sdk Aspire.AppHost.Sdk@13.0.0
+
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  var api = builder.AddProject<Projects.YourApi>("api")
+      .WithHttpHealthCheck("/health");
+
+  builder.AddProject<Projects.YourWeb>("web")
+      .WithExternalHttpEndpoints()
+      .WithReference(api)
+      .WaitFor(api);
+
+  builder.Build().Run();
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Add ServiceDefaults (optional)
+
+ServiceDefaults provide a standardized way to add observability, resilience, and health checks to your services. This step is optional but recommended for production applications.
+
+<Steps>
+
+1. During the `aspire init` process, you may be prompted to add ServiceDefaults. If you chose not to add it initially, you can add it later using the Aspire CLI or manually.
+
+2. To add ServiceDefaults to a project manually:
+
+   ```bash title="Add ServiceDefaults package"
+   dotnet add YourProject package Aspire.Hosting.ServiceDefaults
+   ```
+
+3. Update your project's `Program.cs` to use ServiceDefaults:
+
+   ```csharp title="Program.cs — Add ServiceDefaults"
+   var builder = WebApplication.CreateBuilder(args);
+
+   // Add Aspire ServiceDefaults for observability and resilience
+   builder.AddServiceDefaults();
+
+   // ... your existing service configuration ...
+
+   var app = builder.Build();
+
+   // Map Aspire ServiceDefaults endpoints
+   app.MapDefaultEndpoints();
+
+   // ... your existing middleware ...
+
+   app.Run();
+   ```
+
+</Steps>
+
+<LearnMore>
+    For more information on ServiceDefaults, see [Service Defaults](/fundamentals/service-defaults/).
+</LearnMore>
+
+## Replace with Aspire integrations (optional)
+
+Aspire provides integration libraries that simplify working with common services like Redis, PostgreSQL, RabbitMQ, and more. These integrations handle configuration, health checks, and telemetry automatically.
+
+<Steps>
+
+1. Identify which services in your application could benefit from Aspire integrations. Common candidates include:
+   
+   - Databases (PostgreSQL, SQL Server, MongoDB)
+   - Caching (Redis, Valkey)
+   - Messaging (RabbitMQ, Azure Service Bus, Kafka)
+   - Storage (Azure Blob Storage, AWS S3)
+
+2. Use the `aspire add` command to add integration packages to your AppHost:
+
+   ```bash title="Add a Redis integration"
+   aspire add redis
+   ```
+
+   This command adds the necessary NuGet packages and helps you configure the integration.
+
+3. Update your AppHost to reference the integration:
+
+   ```csharp title="AppHost.cs — Add Redis integration"
+   var builder = DistributedApplication.CreateBuilder(args);
+
+   // Add Redis resource
+   var cache = builder.AddRedis("cache");
+
+   var api = builder.AddProject<Projects.YourApi>("api")
+       .WithReference(cache)  // Pass Redis connection to API
+       .WithHttpHealthCheck("/health");
+
+   builder.AddProject<Projects.YourWeb>("web")
+       .WithExternalHttpEndpoints()
+       .WithReference(api)
+       .WaitFor(api);
+
+   builder.Build().Run();
+   ```
+
+4. Update your service projects to use the Aspire client libraries:
+
+   ```bash title="Add Redis client to your project"
+   dotnet add YourApi package Aspire.StackExchange.Redis
+   ```
+
+5. Configure the client in your service:
+
+   ```csharp title="Program.cs — Configure Redis client"
+   var builder = WebApplication.CreateBuilder(args);
+
+   // Add Redis client using Aspire integration
+   builder.AddRedisClient("cache");
+
+   // ... rest of your configuration ...
+   ```
+
+</Steps>
+
+<LearnMore>
+    Browse available integrations in the [Integrations section](/integrations/).
+</LearnMore>
+
+## Run and verify
+
+Now that you've added Aspire to your application, it's time to run it and see the orchestration in action.
+
+<Steps>
+
+1. From your solution directory, run the application using the Aspire CLI:
+
+   ```bash title="Run your application with Aspire"
+   aspire run
+   ```
+
+   The Aspire CLI will:
+   - Find your AppHost (project-based or single-file)
+   - Build your solution
+   - Launch all orchestrated services
+   - Start the Aspire dashboard
+
+2. The dashboard URL will appear in your terminal output:
+
+   ```bash title="Example output" mark={3}
+   🔍  Finding apphosts...
+   YourSolution.AppHost/YourSolution.AppHost.csproj
+
+   Dashboard:  https://localhost:17068/login?t=ea559845d54cea66b837dc0ff33c3bd3
+
+        Logs:  ~/.aspire/cli/logs/apphost-13024-2025-11-19-12-00-00.log
+
+               Press CTRL+C to stop the apphost and exit.
+   ```
+
+3. Open the dashboard in your browser using the provided URL. You'll see:
+   
+   - All your orchestrated resources and their status
+   - Real-time logs from each service
+   - Traces and metrics for observability
+   - Environment variables and configuration
+
+4. Verify that your services are running correctly by:
+   
+   - Checking the **Resources** page for service health
+   - Accessing your application endpoints
+   - Reviewing logs and traces in the dashboard
+
+5. Stop the application by pressing <Kbd windows="Ctrl+C" mac="⌘+C" /> in your terminal.
+
+</Steps>
+
+<Aside type="tip">
+The Aspire dashboard provides valuable insights even if you haven't added ServiceDefaults or integrations yet. You'll see basic information about your services, their startup order, and their endpoints.
+</Aside>
+
+## Next steps
+
+Congratulations! You've successfully added Aspire to your existing application. Here are some recommended next steps:
+
+- **Add more integrations** — Explore [Aspire integrations](/integrations/) to simplify working with databases, caches, and message queues
+- **Configure ServiceDefaults** — Learn about [Service Defaults](/fundamentals/service-defaults/) to add standardized observability
+- **Deploy your app** — Follow the [Deploy your first app](/get-started/deploy-first-app/) tutorial to deploy your Aspire-enabled application
+- **Explore the dashboard** — Learn more about the [Aspire dashboard](/dashboard/overview/) and its features
+
+## Additional resources
+
+- [Aspire CLI overview](/reference/cli/overview/)
+- [`aspire init` command reference](/reference/cli/commands/aspire-init/)
+- [`aspire add` command reference](/reference/cli/commands/aspire-add/)
+- [AppHost overview](/get-started/app-host/)

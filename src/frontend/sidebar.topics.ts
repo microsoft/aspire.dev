@@ -212,6 +212,49 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
                 'zh-CN': '',
               }
             }
+          },
+          {
+            label: 'Add Aspire to an existing app',
+            translations: {
+              da: 'Tilføj Aspire til en eksisterende app',
+              de: 'Aspire zu einer vorhandenen App hinzufügen',
+              en: 'Add Aspire to an existing app',
+              es: 'Agregar Aspire a una app existente',
+              fr: 'Ajouter Aspire à une application existante',
+              hi: 'मौजूदा ऐप में Aspire जोड़ें',
+              id: 'Tambahkan Aspire ke aplikasi yang ada',
+              it: 'Aggiungi Aspire a un\'app esistente',
+              ja: '既存のアプリに Aspire を追加',
+              ko: '기존 앱에 Aspire 추가',
+              'pt-BR': 'Adicionar Aspire a um app existente',
+              'pt-PT': 'Adicionar Aspire a uma app existente',
+              ru: 'Добавить Aspire в существующее приложение',
+              tr: 'Mevcut bir uygulamaya Aspire ekleyin',
+              uk: 'Додати Aspire до існуючого додатка',
+              'zh-CN': '将 Aspire 添加到现有应用',
+            },
+            slug: 'get-started/add-aspire-existing-app',
+            badge: {
+              variant: 'success',
+              text: {
+                da: '',
+                de: '',
+                en: 'Tutorial',
+                es: '',
+                fr: '',
+                hi: '',
+                id: '',
+                it: '',
+                ja: '',
+                ko: '',
+                'pt-BR': '',
+                'pt-PT': '',
+                ru: '',
+                tr: '',
+                uk: '',
+                'zh-CN': '',
+              }
+            }
           }
         ]
       },
