@@ -2,9 +2,124 @@
 title: LavinMQ integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
+import { Image } from 'astro:assets';
+import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
 
-<Placeholder 
-    name="LavinMQ"
-    link="/dotnet/aspire/community-toolkit/hosting-lavinmq"
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={lavinmqIcon}
+  alt="LavinMQ logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[LavinMQ](https://lavinmq.com/) is a high-performance message broker that implements the AMQP 0.9.1 protocol and is wire-compatible with RabbitMQ. The Aspire LavinMQ integration provides a way to connect to existing LavinMQ instances or create new instances from Aspire with the `docker.io/cloudamqp/lavinmq` container image.
+
+## Hosting integration
+
+To get started with the Aspire LavinMQ hosting integration, install the [CommunityToolkit.Aspire.Hosting.LavinMQ](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.LavinMQ) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.LavinMQ" />
+
+### Add LavinMQ resource
+
+In your app host project, register and consume a LavinMQ server integration using the `AddLavinMQ` extension method to add the LavinMQ server resource to the builder:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(lavinmq);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/cloudamqp/lavinmq` image, it creates a new LavinMQ instance. The default username is `guest`, and the password is a randomly generated string.
+
+### Data persistence
+
+To add data volumes for persisting LavinMQ data, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq")
+                     .WithDataVolume();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(lavinmq);
+```
+
+The data volume is used to persist the LavinMQ data outside the lifecycle of the container.
+
+For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var lavinmq = builder.AddLavinMQ("lavinmq")
+                     .WithDataBindMount(source: @"C:\LavinMQ\Data");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(lavinmq);
+```
+
+### Management UI
+
+LavinMQ provides a management UI that you can use to monitor and manage your LavinMQ instance. The management UI is automatically exposed when you add a LavinMQ resource and is accessible through the Aspire dashboard.
+
+## Client integration
+
+LavinMQ is wire-compatible with RabbitMQ and uses the AMQP 0.9.1 protocol. To connect to LavinMQ from your client application, use the [Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.RabbitMQ.Client) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.RabbitMQ.Client" />
+
+### Add RabbitMQ client API
+
+In the _:::no-loc text="Program.cs":::_ file of your client-consuming project, call the `AddRabbitMQClient` extension method to register an `IConnection` for use through dependency injection. The method takes a connection name parameter:
+
+```csharp
+builder.AddRabbitMQClient(connectionName: "lavinmq");
+```
+
+You can then retrieve the `IConnection` instance using dependency injection. For example, to retrieve the connection object from an example service:
+
+```csharp
+public class ExampleService(IConnection connection)
+{
+    // Use connection...
+}
+```
+
+For more information on using the RabbitMQ client with LavinMQ, see the [RabbitMQ integration documentation](rabbitmq.md).
+
+### Configuration
+
+Because LavinMQ is wire-compatible with RabbitMQ, you can use the same configuration options as the RabbitMQ client integration. The Aspire RabbitMQ client integration supports `Microsoft.Extensions.Configuration`. It loads the `RabbitMQClientSettings` from configuration using the `Aspire:RabbitMQ:Client` key.
+
+For more information about configuration options, see the [RabbitMQ integration documentation](rabbitmq.md#configuration).
+
+## Health checks
+
+By default, the Aspire RabbitMQ client integration handles health checks using the [AspNetCore.HealthChecks.RabbitMQ](https://www.nuget.org/packages/AspNetCore.HealthChecks.RabbitMQ) package. Since LavinMQ is wire-compatible with RabbitMQ, the same health checks work for LavinMQ connections.
+
+## Observability and telemetry
+
+The LavinMQ integration uses the RabbitMQ client, which provides observability features. For more information about tracing, metrics, and logging with the RabbitMQ client, see the [RabbitMQ integration documentation](rabbitmq.md#observability-and-telemetry).
+
+## See also
+
+- [LavinMQ documentation](https://lavinmq.com/documentation)
+- [RabbitMQ integration](rabbitmq.md)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

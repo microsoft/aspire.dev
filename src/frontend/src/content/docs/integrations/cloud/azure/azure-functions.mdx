@@ -1,0 +1,74 @@
+---
+title: Azure Functions integration (Preview)
+description: This article describes the Aspire Azure Functions integration features and capabilities.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
+
+<Image
+  src={functionsIcon}
+  alt="Azure Functions logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+[Azure Functions](https://learn.microsoft.com/azure-functions) is a serverless compute service that lets you run event-triggered code without having to explicitly provision or manage infrastructure. The Aspire Azure Functions integration enables you to model Azure Functions projects as part of your distributed application.
+
+## Hosting integration
+
+The Aspire Azure Functions hosting integration models Azure Functions projects as the `AzureFunctionsProjectResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Functions](https://www.nuget.org/packages/Aspire.Hosting.Azure.Functions) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Functions" />
+
+### Add an Azure Functions project
+
+To add an Azure Functions project to your AppHost, call the `AddAzureFunctionsProject` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject<Projects.MyFunctionsProject>("functions");
+
+builder.AddProject<Projects.WebApp>()
+       .WithReference(functions);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure Functions project named `functions` to the AppHost project. The project will be run locally using the Azure Functions Core Tools during development.
+
+### Configure host settings
+
+You can configure various Azure Functions host settings:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject<Projects.MyFunctionsProject>("functions")
+                       .WithHostStorage(builder.AddAzureStorage("storage"));
+
+// After adding all resources, run the app...
+```
+
+The preceding code configures the Functions project to use an Azure Storage emulator for local development.
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs can generate Bicep alongside the manifest file to deploy your Functions project to Azure. The integration will create the necessary Azure resources including:
+
+- Azure Functions app
+- App Service plan
+- Storage account (for Functions runtime)
+
+For more information about deploying to Azure, see [Deploy a Aspire project to Azure Container Apps](/get-started/deploy-first-app/).
+
+<Aside type="caution">
+Azure Functions deployment in Aspire is in preview. The deployment experience and generated Bicep may change in future releases.
+</Aside>

@@ -1,0 +1,44 @@
+---
+title: Compiler Warning ASPIRE004
+description: Learn more about compiler Warning ASPIRE004. Project is referenced by an Aspire Host project, but it is not an executable.
+next: false
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge text="Version introduced: 8.0.0" variant='note' size='large' class:list={'mb-1'} />
+
+> The Project reference isn't to an executable project, so won't be launched. Did you mean to set IsAspireProjectResource="false"?
+
+The project being referenced by the Aspire AppHost isn't an executable, but is being treated like one for the purposes of orchestration.
+
+## To correct this warning
+
+Either change the build type of the project to an executable, or add the `IsAspireProjectResource="false"` setting to the project reference in your Aspire AppHost project file, as demonstrated in the following snippet:
+
+```xml title="C# project file"
+<ItemGroup>
+  <ProjectReference Include="..\OtherProjects\Contracts.csproj" IsAspireProjectResource="false" />
+</ItemGroup>
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRE004.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRE004</NoWarn>
+  </PropertyGroup>
+  ```

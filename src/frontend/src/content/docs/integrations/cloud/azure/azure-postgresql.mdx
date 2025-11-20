@@ -1,0 +1,250 @@
+---
+title: Azure Database for PostgreSQL integration
+description: This article describes the Aspire Azure Database for PostgreSQL integration features and capabilities.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
+
+<Image
+  src={postgresqlIcon}
+  alt="Azure Database for PostgreSQL logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Database for PostgreSQL](https://learn.microsoft.com/postgresql) is a relational database service in the Microsoft cloud based on the PostgreSQL Community Edition database engine. The Aspire Azure Database for PostgreSQL integration enables you to connect to Azure-hosted or local PostgreSQL databases.
+
+## Hosting integration
+
+The Aspire Azure Database for PostgreSQL hosting integration models the PostgreSQL database server as the `AzurePostgresResource` type and PostgreSQL databases as the `AzurePostgresDatabaseResource` type. To access these types and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.Azure.PostgreSQL) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.PostgreSQL" />
+
+### Add an Azure Database for PostgreSQL resource
+
+To add an Azure Database for PostgreSQL resource to your AppHost project, call the `AddAzurePostgres` method providing a name:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgres("postgres");
+var db = postgres.AddDatabase("database");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(db);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure PostgreSQL resource named `postgres` with a database named `database` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+When you call `AddAzurePostgres`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+</Aside>
+
+### Connect to an existing Azure Database for PostgreSQL instance
+
+You might have an existing Azure Database for PostgreSQL service that you want to connect to. You can chain a call to annotate that your `AzurePostgresResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingPostgresName = builder.AddParameter("existingPostgresName");
+var existingPostgresResourceGroup = builder.AddParameter("existingPostgresResourceGroup");
+
+var postgres = builder.AddAzurePostgres("postgres")
+                      .AsExisting(existingPostgresName, existingPostgresResourceGroup);
+
+var db = postgres.AddDatabase("database");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(db);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure PostgreSQL resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+
+### Provisioning-generated Bicep
+
+When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+
+When you add an Azure PostgreSQL resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgres("postgres");
+
+postgres.ConfigureInfrastructure(infra =>
+{
+    var server = infra.GetProvisionableResources()
+                      .OfType<PostgreSqlFlexibleServer>()
+                      .Single();
+
+    server.Sku = new PostgreSqlFlexibleServerSku
+    {
+        Name = "Standard_D4s_v3",
+        Tier = PostgreSqlFlexibleServerSkuTier.GeneralPurpose
+    };
+    server.Tags["ExampleKey"] = "Example value";
+});
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `PostgreSqlFlexibleServer` resource is retrieved.
+  - The `Sku` object has its name and tier properties set.
+  - A tag is added to the PostgreSQL resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the PostgreSQL resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+
+## Client integration
+
+The Aspire Azure Database for PostgreSQL client integration is used to connect to an Azure PostgreSQL database using the Npgsql client. To get started with the Aspire Azure Database for PostgreSQL client integration, install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+### Add PostgreSQL client
+
+In the `Program.cs` file of your client-consuming project, call the `AddNpgsqlDataSource` extension method to register a `NpgsqlDataSource` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddNpgsqlDataSource(connectionName: "database");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the PostgreSQL database resource in the AppHost project.
+</Aside>
+
+After adding the `NpgsqlDataSource`, you can retrieve the data source instance using dependency injection:
+
+```csharp
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource...
+}
+```
+
+For more information, see:
+
+- [Npgsql documentation](https://www.npgsql.org/doc/) for examples on using the `NpgsqlDataSource`.
+- [Dependency injection in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+### Add keyed PostgreSQL client
+
+There might be situations where you want to register multiple `NpgsqlDataSource` instances with different connection names. To register keyed PostgreSQL clients, call the `AddKeyedNpgsqlDataSource` method:
+
+```csharp
+builder.AddKeyedNpgsqlDataSource(name: "primary-db");
+builder.AddKeyedNpgsqlDataSource(name: "secondary-db");
+```
+
+Then you can retrieve the data source instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("primary-db")] NpgsqlDataSource primaryDataSource,
+    [KeyedService("secondary-db")] NpgsqlDataSource secondaryDataSource)
+{
+    // Use data sources...
+}
+```
+
+For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire Azure Database for PostgreSQL library provides multiple options to configure the PostgreSQL connection based on the requirements and conventions of your project. A `ConnectionString` is required.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddNpgsqlDataSource`:
+
+```csharp
+builder.AddNpgsqlDataSource(connectionName: "database");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "database": "Host=myserver;Database=mydb;Username=myuser;Password=mypassword"
+  }
+}
+```
+
+#### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Npgsql` key:
+
+```json
+{
+  "Aspire": {
+    "Npgsql": {
+      "DisableHealthChecks": true,
+      "DisableTracing": false
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddNpgsqlDataSource(
+    "database",
+    settings => settings.DisableHealthChecks = true);
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
+
+#### Logging
+
+The Aspire Azure Database for PostgreSQL integration uses the following log categories:
+
+- `Npgsql.Connection`
+- `Npgsql.Command`
+- `Npgsql.Transaction`
+- `Npgsql.Copy`
+- `Npgsql.Replication`
+- `Npgsql.Exception`
+
+#### Tracing
+
+The Aspire Azure Database for PostgreSQL integration will emit the following tracing activities using OpenTelemetry:
+
+- `Npgsql`
+
+#### Metrics
+
+The Aspire Azure Database for PostgreSQL integration will emit the following metrics using OpenTelemetry:
+
+- `Npgsql`
+  - `db.client.connections.create_time`
+  - `db.client.connections.use_time`
+  - `db.client.connections.wait_time`
+  - `db.client.connections.idle.max`
+  - `db.client.connections.idle.min`
+  - `db.client.connections.max`
+  - `db.client.connections.pending_requests`
+  - `db.client.connections.timeouts`
+  - `db.client.connections.usage`

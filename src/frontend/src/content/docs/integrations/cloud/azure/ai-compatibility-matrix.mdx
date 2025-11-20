@@ -1,0 +1,217 @@
+---
+title: AI integrations compatibility matrix
+description: View the compatibility matrix for Aspire AI integrations including Azure OpenAI, Azure AI Inference, and IChatClient support.
+prev: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This compatibility matrix shows which Aspire AI integrations support the `IChatClient` abstraction from `Microsoft.Extensions.AI` and other key features.
+
+## IChatClient support
+
+The `IChatClient` interface provides a unified abstraction for chat completion APIs across different AI providers.
+
+| Integration | IChatClient Support | Package | Version |
+|-------------|---------------------|---------|----------|
+| **Azure OpenAI** | ✅ Yes | Aspire.Azure.AI.OpenAI | 9.0.0+ |
+| **Azure AI Inference** | ✅ Yes | Aspire.Azure.AI.Inference | 9.0.0+ |
+| **Azure AI Foundry** | ✅ Yes | Aspire.Azure.AI.Foundry | 9.0.0+ |
+| **OpenAI** | ✅ Yes | Aspire.OpenAI | 9.0.0+ |
+| **Ollama** | ✅ Yes | Aspire.Hosting.Ollama | 9.0.0+ |
+
+## Hosting integration support
+
+| Service | Hosting Integration | Local Provisioning | Existing Resource |
+|---------|-------------------|-------------------|------------------|
+| **Azure OpenAI** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Azure AI Inference** | ⚠️ Limited | ❌ No | ✅ Yes |
+| **Azure AI Foundry** | ✅ Yes | ⚠️ Limited | ✅ Yes |
+| **Azure AI Search** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **OpenAI** | ❌ No | N/A | N/A |
+| **Ollama** | ✅ Yes | ✅ Yes (Container) | N/A |
+
+## Client integration features
+
+### Azure OpenAI
+
+| Feature | Support | Notes |
+|---------|---------|-------|
+| Chat completions | ✅ Yes | Via `ChatClient` or `IChatClient` |
+| Embeddings | ✅ Yes | Via `EmbeddingClient` |
+| Images | ✅ Yes | Via Azure SDK |
+| Fine-tuning | ✅ Yes | Via Azure SDK |
+| Streaming | ✅ Yes | Full streaming support |
+| Function calling | ✅ Yes | Tool/function calling |
+| Model deployments | ✅ Yes | Multiple deployment support |
+| Managed identity | ✅ Yes | DefaultAzureCredential |
+
+### Azure AI Inference
+
+| Feature | Support | Notes |
+|---------|---------|-------|
+| Chat completions | ✅ Yes | Via `IChatClient` |
+| Embeddings | ✅ Yes | Model-dependent |
+| Images | ⚠️ Limited | Model-dependent |
+| Streaming | ✅ Yes | Full streaming support |
+| Function calling | ✅ Yes | Model-dependent |
+| Managed identity | ✅ Yes | DefaultAzureCredential |
+
+### Azure AI Foundry
+
+| Feature | Support | Notes |
+|---------|---------|-------|
+| Chat completions | ✅ Yes | Via `IChatClient` |
+| Embeddings | ✅ Yes | Project-dependent |
+| Model catalog | ✅ Yes | Access to model catalog |
+| Streaming | ✅ Yes | Full streaming support |
+| Function calling | ✅ Yes | Model-dependent |
+| Managed identity | ✅ Yes | DefaultAzureCredential |
+
+## Observability support
+
+| Integration | Logging | Tracing | Metrics | Health Checks |
+|-------------|---------|---------|---------|---------------|
+| **Azure OpenAI** | ✅ Yes | ✅ Yes | ❌ No | ⚠️ Limited |
+| **Azure AI Inference** | ✅ Yes | ✅ Yes | ❌ No | ⚠️ Limited |
+| **Azure AI Foundry** | ✅ Yes | ✅ Yes | ❌ No | ⚠️ Limited |
+| **Azure AI Search** | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes |
+| **OpenAI** | ✅ Yes | ✅ Yes | ❌ No | ⚠️ Limited |
+| **Ollama** | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes |
+
+## IChatClient usage examples
+
+### Azure OpenAI
+
+```csharp
+// AppHost
+var openai = builder.AddAzureOpenAI("openai");
+openai.AddDeployment(new("gpt-4", "gpt-4", "0613"));
+
+builder.AddProject<Projects.ChatApp>("chatapp")
+       .WithReference(openai);
+
+// Client
+builder.AddAzureOpenAIClient("openai")
+       .AddChatClient("gpt-4");
+
+// Usage
+public class ChatService(IChatClient chatClient)
+{
+    public async Task<string> ChatAsync(string message)
+    {
+        var response = await chatClient.CompleteAsync(message);
+        return response.Message.Text;
+    }
+}
+```
+
+### Azure AI Inference
+
+```csharp
+// AppHost
+var inference = builder.AddConnectionString("inference");
+
+builder.AddProject<Projects.ChatApp>("chatapp")
+       .WithReference(inference);
+
+// Client
+builder.AddAzureAIInferenceClient("inference", "gpt-4");
+
+// Usage (same as above)
+public class ChatService(IChatClient chatClient) { }
+```
+
+### Ollama (local development)
+
+```csharp
+// AppHost
+var ollama = builder.AddOllama("ollama")
+                    .WithModel("llama3");
+
+builder.AddProject<Projects.ChatApp>("chatapp")
+       .WithReference(ollama);
+
+// Client
+builder.AddOllamaClient("ollama");
+
+// Usage (same IChatClient interface)
+public class ChatService(IChatClient chatClient) { }
+```
+
+## Feature comparison
+
+### When to use each service
+
+| Use Case | Recommended Service | Reason |
+|----------|-------------------|--------|
+| **Production chat apps** | Azure OpenAI | Enterprise features, SLA |
+| **Multi-model inference** | Azure AI Inference | Unified API, flexibility |
+| **Complex AI projects** | Azure AI Foundry | Project management, evaluation |
+| **Semantic search** | Azure AI Search | Optimized for search |
+| **Local development** | Ollama | No cloud costs, offline |
+| **Simple API calls** | OpenAI | Simplest integration |
+
+## Version compatibility
+
+| Aspire Version | Azure SDK Version | OpenAI Version | Notes |
+|----------------|------------------|----------------|-------|
+| **9.0.0** | 1.0.0+ | 2.0.0+ | Initial IChatClient support |
+| **9.1.0** | 1.1.0+ | 2.1.0+ | Enhanced streaming |
+| **10.0.0** | 2.0.0+ | 3.0.0+ | Future release |
+
+<Aside type="note">
+Version numbers are illustrative. Always check NuGet for the latest compatible versions.
+</Aside>
+
+## Limitations
+
+### Azure OpenAI
+
+- Requires Azure subscription
+- Model availability varies by region
+- Quota limits apply
+- Higher costs than some alternatives
+
+### Azure AI Inference
+
+- Limited to supported models
+- Some features require specific models
+- Preview service (subject to change)
+
+### Ollama
+
+- Local compute requirements
+- Limited model selection
+- Not suitable for production (typically)
+- Requires container runtime
+
+## Migration paths
+
+Since all integrations support `IChatClient`, you can easily switch between providers:
+
+```csharp
+// Development: Use Ollama
+if (builder.Environment.IsDevelopment())
+{
+    var ollama = builder.AddOllama("ai").WithModel("llama3");
+    builder.AddProject<Projects.ChatApp>("app").WithReference(ollama);
+}
+else
+{
+    // Production: Use Azure OpenAI
+    var openai = builder.AddAzureOpenAI("ai");
+    builder.AddProject<Projects.ChatApp>("app").WithReference(openai);
+}
+
+// Application code remains the same!
+public class ChatService(IChatClient chatClient) { }
+```
+
+## See also
+
+- [Azure OpenAI integration](/integrations/cloud/azure/azure-openai/)
+- [Azure AI Inference integration](/integrations/cloud/azure/azure-ai-inference/)
+- [Azure AI Foundry integration](/integrations/cloud/azure/azure-ai-foundry/)
+- [Azure AI Search integration](/integrations/cloud/azure/azure-ai-search/)
+- [Microsoft.Extensions.AI documentation](https://learn.microsoft.com/dotnet/ai/ai-extensions)

@@ -7,14 +7,25 @@ import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import sqlIcon from '@assets/icons/sql-icon.png';
 
-[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integration enables you to connect to existing SQL Server instances or create new instances from .NET with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
+<Image
+  src={sqlIcon}
+  alt="SQL Server logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integration enables you to connect to existing SQL Server instances or create new instances from Aspire with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
 
 ## Hosting integration
 
 The SQL Server hosting integration models the server as the `SqlServerServerResource` type and the database as the `SqlServerDatabaseResource` type. To access these types and APIs, add the [📦 Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer) NuGet package in the [AppHost](/get-started/app-host/) project.
 
-<InstallPackage packageName="Aspire.Hosting.SqlServer" shortName="sqlserver" />
+<InstallPackage packageName="Aspire.Hosting.SqlServer" />
 
 ### Add SQL Server resource and database resource
 
@@ -38,7 +49,7 @@ builder.Build().Run();
 ```
 
 <Aside type="note">
-The SQL Server container is slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](../../fundamentals/orchestrate-resources.md#container-resource-lifetime).
+The SQL Server container is slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
 </Aside>
 
 When Aspire adds a container image to the AppHost, as shown in the preceding example with the `mcr.microsoft.com/mssql/server` image, it creates a new SQL Server instance on your local machine. A reference to your SQL Server resource builder (the `sql` variable) is used to add a database. The database is named `database` and then added to the `ExampleProject`.
@@ -201,7 +212,7 @@ builder.AddProject<Projects.AspireApp_ExampleProject>("exampleproject")
 builder.Build().Run();
 ```
 
-For more information on providing parameters, see [External parameters](../../fundamentals/external-parameters.md).
+For more information on providing parameters, see [External parameters](/get-started/resources/).
 
 ### Connect to database resources
 
@@ -259,11 +270,11 @@ The hosting integration relies on the [📦 AspNetCore.HealthChecks.SqlServer](h
 
 ## Using with non-.NET applications
 
-The SQL Server hosting integration can be used with any application technology, not just .NET applications. When you use `WithReference` to reference a SQL Server resource, connection information is automatically injected as environment variables into the referencing application.
+The SQL Server hosting integration can be used with any application technology, not just C# applications. When you use `WithReference` to reference a SQL Server resource, connection information is automatically injected as environment variables into the referencing application.
 
 For applications that don't use the [client integration](#client-integration), you can access the connection information through environment variables. Here's an example of how to configure environment variables for a non-.NET application:
 
-```csharp
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
@@ -325,7 +336,7 @@ public class ExampleService(SqlConnection connection)
 }
 ```
 
-For more information on dependency injection, see [.NET dependency injection](/dotnet/core/extensions/dependency-injection).
+For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
 ### Add keyed SQL Server client
 
@@ -351,7 +362,7 @@ public class ExampleService(
 }
 ```
 
-For more information on keyed services, see [.NET dependency injection: Keyed services](/dotnet/core/extensions/dependency-injection#keyed-services).
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
 
 ### Configuration
 
@@ -375,7 +386,7 @@ Then the connection string is retrieved from the `ConnectionStrings` configurati
 }
 ```
 
-For more information on how to format this connection string, see the [ConnectionString](/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
+For more information on how to format this connection string, see the [ConnectionString](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
 
 #### Use configuration providers
 
@@ -411,7 +422,7 @@ builder.AddSqlServerClient(
 
 ### Client integration health checks
 
-By default, Aspire integrations enable [health checks](../../fundamentals/health-checks.md) for all services. For more information, see [Aspire integrations overview](../../fundamentals/integrations-overview.md).
+By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
 
 The Aspire SQL Server integration:
 

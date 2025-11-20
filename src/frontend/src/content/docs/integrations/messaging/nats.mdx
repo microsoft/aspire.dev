@@ -2,9 +2,202 @@
 title: NATS integration
 ---
 
-import Placeholder from "@components/Placeholder.astro";
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
+import { Image } from 'astro:assets';
+import natsIcon from '@assets/icons/nats-icon.png';
 
-<Placeholder 
-    name="NATS"
-    link="/dotnet/aspire/messaging/nats-integration"
+<Image
+  src={natsIcon}
+  alt="NATS logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
+
+[NATS](https://nats.io) is a simple, secure and high-performance open-source messaging system for cloud-native applications, IoT messaging, and microservices architectures. The Aspire NATS integration provides a way to connect to existing NATS instances or create new instances from Aspire with the `docker.io/library/nats` container image.
+
+## Hosting integration
+
+To get started with the Aspire NATS hosting integration, install the [Aspire.Hosting.Nats](https://www.nuget.org/packages/Aspire.Hosting.Nats) NuGet package in the app host project.
+
+<InstallPackage packageName="Aspire.Hosting.Nats" />
+
+### Add NATS resource
+
+In your app host project, register and consume a NATS server integration using the `AddNats` extension method to add the NATS server resource to the builder:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(nats);
+
+// After adding all resources, run the app...
+```
+
+### Add NATS with JetStream
+
+To add NATS with [JetStream](https://docs.nats.io/nats-concepts/jetstream) enabled, which provides streaming capabilities, use the `WithJetStream` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats")
+                  .WithJetStream();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(nats);
+```
+
+### Data persistence
+
+To add data volumes for persisting NATS data, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats")
+                  .WithJetStream()
+                  .WithDataVolume();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(nats);
+```
+
+The data volume is used to persist the NATS data outside the lifecycle of the container.
+
+For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats")
+                  .WithJetStream()
+                  .WithDataBindMount(source: @"C:\Nats\Data");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(nats);
+```
+
+### Add NATS with authentication
+
+To add NATS with username and password authentication, use the `WithNatsUser` and `WithNatsPassword` parameters:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nats = builder.AddNats("nats", userName: "nats", password: "pass");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(nats);
+```
+
+## Client integration
+
+To get started with the Aspire NATS client integration, install the [Aspire.NATS.Net](https://www.nuget.org/packages/Aspire.NATS.Net) NuGet package in the consuming client project:
+
+<InstallDotNetPackage packageName="Aspire.NATS.Net" />
+
+### Add NATS client API
+
+In the _:::no-loc text="Program.cs":::_ file of your client-consuming project, call the `AddNatsClient` extension method to register an `INatsConnection` for use through dependency injection. The method takes a connection name parameter:
+
+```csharp
+builder.AddNatsClient(connectionName: "nats");
+```
+
+You can then retrieve the `INatsConnection` instance using dependency injection. For example, to retrieve the connection object from an example service:
+
+```csharp
+public class ExampleService(INatsConnection connection)
+{
+    // Use connection...
+}
+```
+
+### Add keyed NATS client API
+
+There might be situations where you want to register multiple `INatsConnection` instances with different connection names. To register keyed NATS clients, call the `AddKeyedNatsClient` method:
+
+```csharp
+builder.AddKeyedNatsClient(name: "products");
+builder.AddKeyedNatsClient(name: "orders");
+```
+
+Then you can retrieve the `INatsConnection` instances using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("products")] INatsConnection productsConnection,
+    [FromKeyedServices("orders")] INatsConnection ordersConnection)
+{
+    // Use connections...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire NATS client integration provides multiple configuration approaches. You can provide configuration using `appsettings.json`, configuration keys, or inline code.
+
+#### Use configuration providers
+
+The Aspire NATS client integration supports `Microsoft.Extensions.Configuration`. It loads the `NatsClientSettings` from configuration using the `Aspire:Nats:Client` key:
+
+```json
+{
+  "Aspire": {
+    "Nats": {
+      "Client": {
+        "ConnectionString": "nats://localhost:4222",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+For the complete NATS client integration JSON schema, see [Aspire.NATS.Net/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v9.0.0/src/Components/Aspire.NATS.Net/ConfigurationSchema.json).
+
+#### Use inline delegates
+
+You can also pass the `Action<NatsClientSettings>` delegate to set up some or all the options inline:
+
+```csharp
+builder.AddNatsClient(
+    "nats",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+## Health checks
+
+By default, the Aspire NATS integration handles health checks using the [AspNetCore.HealthChecks.Nats](https://www.nuget.org/packages/AspNetCore.HealthChecks.Nats) package. This integration registers a health check that verifies the connection to the NATS server.
+
+The NATS client integration registers a health check using the connection name. The health check verifies that the connection is active and can be used to send and receive messages.
+
+## Observability and telemetry
+
+### Tracing
+
+The Aspire NATS integration emits tracing activities using OpenTelemetry. The integration automatically enables tracing for NATS operations.
+
+The following are the tracing activities emitted by NATS components:
+
+- **"NATS"**: Emitted by `NatsConnection`.
+- **"NATS.Net"**: Emitted by the NATS .NET client library.
+
+For more information about tracing activities, see [NATS .NET client library: OpenTelemetry support](https://nats-io.github.io/nats.net.v2/documentation/observability/opentelemetry.html).
+
+## See also
+
+- [NATS documentation](https://docs.nats.io)
+- [NATS .NET client](https://github.com/nats-io/nats.net.v2)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)
