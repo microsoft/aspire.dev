@@ -952,7 +952,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '数据库',
         }, items: [
           { label: "Elasticsearch", slug: "integrations/databases/elasticsearch" },
-          { label: "EventStore", slug: "integrations/databases/eventstore" },
           { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },
