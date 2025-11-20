@@ -15,7 +15,8 @@ const EXCLUDED_PACKAGES = [
   'Aspire.Hosting.NodeJs',
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
-  'CommunityToolkit.Aspire.Hosting.EventStore'
+  'CommunityToolkit.Aspire.Hosting.EventStore',
+  'CommunityToolkit.Aspire.EventStore'
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 const OUTPUT_NAME_PATH = './src/data/aspire-integration-names.json';
