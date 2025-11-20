@@ -20,7 +20,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
       uk: 'Документи',
       'zh-CN': '文档',
     },
-    link: 'get-started/welcome',
+    link: 'docs',
     icon: 'open-book',
     items: [
       {
@@ -41,7 +41,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           tr: 'Aspire\'a Hoş Geldiniz',
           uk: 'Ласкаво просимо до Aspire',
           'zh-CN': '欢迎使用 Aspire',
-        }, slug: 'get-started/welcome'
+        }, slug: 'docs'
       },
       {
         label: "What's new", collapsed: true, autogenerate: { directory: 'whats-new' },
