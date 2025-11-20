@@ -978,7 +978,8 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             items: [
               { label: "Get started", slug: "integrations/databases/postgres/postgres-get-started" },
               { label: "Hosting integration (AppHost)", slug: "integrations/databases/postgres/postgres-host" },
-              { label: "Client integration (Your app)", slug: "integrations/databases/postgres/postgres-client" }
+              { label: "Client integration (Your app)", slug: "integrations/databases/postgres/postgres-client" },
+              { label: "Community extensions", slug: "integrations/databases/postgres/postgresql-extensions" }
             ]
           },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
