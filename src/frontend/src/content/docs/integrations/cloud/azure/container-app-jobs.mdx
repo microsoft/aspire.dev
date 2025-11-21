@@ -4,448 +4,184 @@ description: Learn how to deploy Aspire worker services as Azure Container App J
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import containerApps from '@assets/icons/azure-container-apps-environments.svg';
 
-Azure Container App Jobs enable you to run containerized tasks that execute for a finite duration and then exit. Aspire can deploy worker services as Container App Jobs, perfect for scheduled tasks, batch processing, and event-driven workloads.
+<Image
+  src={containerApps}
+  alt="Azure Container Apps environment logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
 
-## What are Container App Jobs?
+[Azure Container Apps jobs](https://learn.microsoft.com/azure/container-apps/jobs) enable you to run containerized tasks that execute for a finite duration and exit. You can use jobs to perform tasks such as data processing, machine learning, or any scenario where on-demand processing is required. Unlike traditional Azure Container Apps that run continuously, Container App Jobs are designed for batch processing, scheduled tasks, and event-driven workloads.
 
-Container App Jobs are:
+Aspire provides support for Azure Container App Jobs through the `PublishAsAzureContainerAppJob` extension method, allowing you to deploy your .NET projects, containers, and executables as jobs in Azure Container Apps.
 
-- **Finite execution**: Run to completion, then stop
-- **Multiple trigger types**: Manual, scheduled, or event-driven
-- **Scalable**: Can run multiple executions in parallel
-- **Cost-effective**: Pay only when jobs are running
+## Prerequisites
 
-## Job types
+- Azure subscription.
+- Aspire project.
+- Understanding of Azure Container Apps jobs.
 
-### Manual jobs
+## Supported resource types
 
-- Triggered on-demand via API or Azure Portal
-- Used for administrative tasks
-- Can be triggered from CI/CD pipelines
+Aspire allows you to publish the following resource types as Azure Container App Jobs:
 
-### Scheduled jobs
+- `ContainerResource`: Represents a specified container.
+- `ExecutableResource`: Represents a specified executable process.  
+- `ProjectResource`: Represents a specified .NET project.
 
-- Run on a cron schedule
-- Used for periodic maintenance
-- Examples: data cleanup, report generation
+## Publishing as Azure Container App Jobs
 
-### Event-driven jobs
+To publish resources as Azure Container App Jobs, use the following APIs:
 
-- Triggered by events (Azure Storage Queue, Service Bus, etc.)
-- Scale based on queue length
-- Process messages or events
+- `PublishAsAzureContainerAppJob<T>(IResourceBuilder<T>);`
+- `PublishAsAzureContainerAppJob<T>(IResourceBuilder<T>, Action<AzureResourceInfrastructure, ContainerAppJob>);`
+- `PublishAsScheduledAzureContainerAppJob<T>(IResourceBuilder<T>, string, Action<AzureResourceInfrastructure, ContainerAppJob>);`
 
-## Creating jobs in Aspire
+## Basic usage
 
-### Deploy a worker as a job
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Add a worker service
-var worker = builder.AddProject<Projects.BatchProcessor>("batch-processor");
-
-// Deploy as a Container App Job
-worker.PublishAsAzureContainerAppJob(job =>
-{
-    job.TriggerType = ContainerAppJobTriggerType.Schedule;
-    job.CronExpression = "0 2 * * *";  // Run daily at 2 AM
-    job.ReplicaTimeout = 1800;  // 30 minutes
-    job.ReplicaRetryLimit = 3;
-});
-```
-
-### Event-driven job
+The following example demonstrates how to configure a .NET project as an Azure Container App Job with a scheduled trigger:
 
 ```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+var builder = DistributedApplication.CreateBuilder();
 
-var storage = builder.AddAzureStorage("storage");
-var queue = storage.AddQueues("queue");
-
-var processor = builder.AddProject<Projects.QueueProcessor>("queue-processor");
-
-// Deploy as event-driven job
-processor.WithReference(queue)
-         .PublishAsAzureContainerAppJob(job =>
-         {
-             job.TriggerType = ContainerAppJobTriggerType.Event;
-             job.ScaleRules = new[]
-             {
-                 new ScaleRule
-                 {
-                     Name = "queue-length",
-                     Type = "azure-queue",
-                     Metadata = new Dictionary<string, string>
-                     {
-                         ["queueName"] = "myqueue",
-                         ["queueLength"] = "5"
-                     }
-                 }
-             };
-             job.MinExecutions = 0;
-             job.MaxExecutions = 10;
-         });
+builder.AddProject<Projects.DataProcessor>("data-processor")
+    .PublishAsScheduledAzureContainerAppJob("0 0 * * *"); // Every day at midnight
 ```
 
-### Manual job
+This code:
+
+- Creates a new distributed application builder.
+- Adds a project named `data-processor` to the builder.
+- Calls `PublishAsScheduledAzureContainerAppJob` to configure the project as a Container App Job.
+- Sets the trigger type to `Schedule` with a cron expression to run daily at midnight.
+
+## Job trigger types
+
+Azure Container App Jobs support different trigger types:
+
+### Manual trigger
+
+Use manual triggers for on-demand job execution:
 
 ```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var adminTask = builder.AddProject<Projects.AdminTask>("admin-task");
-
-adminTask.PublishAsAzureContainerAppJob(job =>
-{
-    job.TriggerType = ContainerAppJobTriggerType.Manual;
-    job.ReplicaTimeout = 3600;  // 1 hour max
-});
-```
-
-## Job configuration
-
-### Timeout and retries
-
-```csharp
-worker.PublishAsAzureContainerAppJob(job =>
-{
-    job.ReplicaTimeout = 1800;  // 30 minutes timeout
-    job.ReplicaRetryLimit = 3;   // Retry up to 3 times
-    job.ReplicaCompletionCount = 1;  // Success after 1 completion
-});
-```
-
-### Parallelism
-
-Run multiple job executions in parallel:
-
-```csharp
-worker.PublishAsAzureContainerAppJob(job =>
-{
-    job.Parallelism = 5;  // Run up to 5 replicas concurrently
-    job.ReplicaCompletionCount = 10;  // Complete after 10 successful runs
-});
-```
-
-### Scaling
-
-For event-driven jobs:
-
-```csharp
-processor.PublishAsAzureContainerAppJob(job =>
-{
-    job.MinExecutions = 0;  // Scale to zero
-    job.MaxExecutions = 100;  // Scale up to 100
-    job.PollingInterval = 30;  // Check every 30 seconds
-});
-```
-
-## Implementing job logic
-
-Your worker service should:
-
-1. Perform its task
-2. Exit with appropriate status code
-3. Handle cancellation gracefully
-
-### Basic job worker
-
-```csharp
-public class BatchProcessorWorker : BackgroundService
-{
-    private readonly ILogger<BatchProcessorWorker> _logger;
-
-    public BatchProcessorWorker(ILogger<BatchProcessorWorker> logger)
+builder.AddProject<Projects.ManualTask>("manual-task")
+    .PublishAsAzureContainerAppJob((_, job) =>
     {
-        _logger = logger;
-    }
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+    });
+```
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+### Schedule trigger
+
+Use schedule triggers for time-based job execution:
+
+```csharp title="C# — AppHost.cs"
+builder.AddProject<Projects.ScheduledTask>("scheduled-task")
+    .PublishAsAzureContainerAppJob((_, job) =>
     {
-        _logger.LogInformation("Job started");
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Schedule;
+        job.Configuration.ScheduleTriggerConfig.CronExpression = "0 */6 * * *"; // Every 6 hours
+        job.Configuration.ScheduleTriggerConfig.Parallelism = 1;
+        job.Configuration.ScheduleTriggerConfig.ReplicaCompletionCount = 1;
+    });
+```
 
-        try
+### Event trigger
+
+Use event triggers for reactive job execution based on external events:
+
+```csharp title="C# — AppHost.cs"
+builder.AddProject<Projects.EventDrivenTask>("event-task")
+    .PublishAsAzureContainerAppJob((_, job) =>
+    {
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Event;
+        job.Configuration.EventTriggerConfig.Scale.MinExecutions = 1;
+        job.Configuration.EventTriggerConfig.Scale.MaxExecutions = 10;
+        job.Configuration.EventTriggerConfig.Parallelism = 1;
+        job.Configuration.EventTriggerConfig.ReplicaCompletionCount = 1;
+    });
+```
+
+## Advanced configuration
+
+### Setting resource requirements
+
+Configure CPU and memory resources for your job:
+
+```csharp title="C# — AppHost.cs"
+builder.AddProject<Projects.ResourceIntensiveTask>("intensive-task")
+    .PublishAsAzureContainerAppJob((_, job) =>
+    {
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+        job.Template.Containers[0].Value!.Resources.Cpu = 1.0;
+        job.Template.Containers[0].Value!.Resources.Memory = "2Gi";
+    });
+```
+
+### Environment variables
+
+Add environment variables to your job:
+
+```csharp title="C# — AppHost.cs"
+var connectionString = builder.AddParameter("connectionString");
+
+builder.AddProject<Projects.DatabaseTask>("db-task")
+    .PublishAsAzureContainerAppJob((infra, job) =>
+    {
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+        job.Template.Containers[0].Value!.Env.Add(new ContainerAppEnvironmentVariable
         {
-            // Perform your job logic
-            await ProcessBatchAsync(stoppingToken);
+            Name = "ConnectionString",
+            Value = connectionString.AsProvisioningParameter(infra)
+        });
+    });
+```
 
-            _logger.LogInformation("Job completed successfully");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Job failed");
-            throw;  // Non-zero exit code indicates failure
-        }
-    }
+### Timeout and retry policy
 
-    private async Task ProcessBatchAsync(CancellationToken cancellationToken)
+Configure job execution timeout and retry behavior:
+
+```csharp title="C# — AppHost.cs"
+builder.AddProject<Projects.RetryableTask>("retryable-task")
+    .PublishAsAzureContainerAppJob((_, job) =>
     {
-        // Your job logic here
-        await Task.Delay(1000, cancellationToken);
-    }
-}
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+        job.Configuration.ReplicaTimeout = 1800; // 30 minutes
+        job.Configuration.ReplicaRetryLimit = 3;
+    });
 ```
 
-### Queue-processing job
+## Container resources
 
-```csharp
-public class QueueProcessorWorker : BackgroundService
-{
-    private readonly QueueClient _queueClient;
-    private readonly ILogger<QueueProcessorWorker> _logger;
+You can also publish container resources as Azure Container App Jobs:
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+```csharp title="C# — AppHost.cs"
+builder.AddContainer("batch-processor", "myregistry.azurecr.io/batch-processor:latest")
+    .PublishAsAzureContainerAppJob((_, job) =>
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            var messages = await _queueClient.ReceiveMessagesAsync(
-                maxMessages: 32,
-                cancellationToken: stoppingToken);
-
-            if (messages.Value.Length == 0)
-            {
-                // No messages, exit (job will scale to zero)
-                _logger.LogInformation("No messages to process");
-                break;
-            }
-
-            foreach (var message in messages.Value)
-            {
-                await ProcessMessageAsync(message, stoppingToken);
-                await _queueClient.DeleteMessageAsync(
-                    message.MessageId,
-                    message.PopReceipt,
-                    stoppingToken);
-            }
-        }
-    }
-}
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Schedule;
+        job.Configuration.ScheduleTriggerConfig.CronExpression = "0 2 * * 0"; // Weekly on Sunday at 2 AM
+    });
 ```
 
-## Monitoring jobs
+## Executable resources
 
-### Job execution history
+Executable resources can also be published as jobs:
 
-View job executions in Azure Portal:
-
-<Steps>
-
-1. Navigate to your Container App Job
-2. Click **Execution history**
-3. View status, duration, and logs for each execution
-
-</Steps>
-
-### Logs and diagnostics
-
-Access logs through:
-
-- **Azure Portal**: Container App Job → Execution → Logs
-- **Log Analytics**: Query with Kusto (KQL)
-- **Azure CLI**: `az containerapp job execution logs show`
-
-```bash
-az containerapp job execution logs show \
-  --name my-job \
-  --resource-group my-rg \
-  --execution-name my-execution-123
-```
-
-### Alerts
-
-Set up alerts for job failures:
-
-```csharp
-// In Azure Portal or via Bicep
-// Create alert rule for failed executions
-```
-
-## Deployment
-
-### Generated Bicep
-
-Aspire generates Bicep for Container App Jobs:
-
-```bicep
-resource batchJob 'Microsoft.App/jobs@2024-03-01' = {
-  name: 'batch-processor'
-  location: location
-  properties: {
-    environmentId: environment.id
-    configuration: {
-      triggerType: 'Schedule'
-      scheduleTriggerConfig: {
-        cronExpression: '0 2 * * *'
-      }
-      replicaTimeout: 1800
-      replicaRetryLimit: 3
-    }
-    template: {
-      containers: [
-        {
-          name: 'batch-processor'
-          image: 'myregistry.azurecr.io/batch-processor:latest'
-          resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
-          }
-        }
-      ]
-    }
-  }
-}
-```
-
-## Common scenarios
-
-### Daily report generation
-
-```csharp
-var reportGenerator = builder.AddProject<Projects.ReportGenerator>("reports");
-
-reportGenerator.PublishAsAzureContainerAppJob(job =>
-{
-    job.TriggerType = ContainerAppJobTriggerType.Schedule;
-    job.CronExpression = "0 6 * * *";  // 6 AM daily
-    job.ReplicaTimeout = 3600;  // 1 hour
-});
-```
-
-### Data migration
-
-```csharp
-var migration = builder.AddProject<Projects.DataMigration>("migration");
-
-migration.PublishAsAzureContainerAppJob(job =>
-{
-    job.TriggerType = ContainerAppJobTriggerType.Manual;
-    job.ReplicaTimeout = 7200;  // 2 hours
-    job.ReplicaRetryLimit = 0;  // No retries for migrations
-});
-```
-
-### Image processing pipeline
-
-```csharp
-var imageProcessor = builder.AddProject<Projects.ImageProcessor>("image-processor");
-var storageQueue = storage.AddQueues("images");
-
-imageProcessor.WithReference(storageQueue)
-              .PublishAsAzureContainerAppJob(job =>
-              {
-                  job.TriggerType = ContainerAppJobTriggerType.Event;
-                  job.MinExecutions = 0;
-                  job.MaxExecutions = 20;
-                  job.Parallelism = 5;  // Process 5 images at once
-              });
-```
-
-## Comparison: Jobs vs. Container Apps
-
-| Feature | Container Apps | Container App Jobs |
-|---------|---------------|-------------------|
-| **Lifetime** | Long-running | Finite |
-| **Scaling** | Based on load | Based on triggers |
-| **HTTP ingress** | ✅ Yes | ❌ No |
-| **Cost** | Always running | Pay per execution |
-| **Best for** | Web apps, APIs | Batch, scheduled tasks |
-
-## Troubleshooting
-
-### Job not triggering
-
-**Scheduled jobs**:
-- Verify cron expression syntax
-- Check timezone settings (UTC by default)
-- Ensure job is enabled
-
-**Event-driven jobs**:
-- Verify scale rule configuration
-- Check queue/event source has messages
-- Review managed identity permissions
-
-### Job timeout
-
-If jobs time out:
-
-1. Increase `ReplicaTimeout`
-2. Optimize job logic
-3. Split into smaller jobs
-4. Consider using Container Apps instead
-
-### Job failures
-
-Review execution logs:
-
-```bash
-az containerapp job execution list \
-  --name my-job \
-  --resource-group my-rg \
-  --output table
-```
-
-Check for:
-- Application exceptions
-- Resource constraints (CPU/memory)
-- Dependency failures
-- Timeout issues
-
-## Best practices
-
-### Make jobs idempotent
-
-Jobs may run multiple times due to retries:
-
-```csharp
-public async Task ProcessAsync()
-{
-    // Check if already processed
-    if (await IsAlreadyProcessedAsync())
+```csharp title="C# — AppHost.cs"
+builder.AddExecutable("data-script", "python", ".", "process_data.py")
+    .PublishAsAzureContainerAppJob((_, job) =>
     {
-        _logger.LogInformation("Already processed, skipping");
-        return;
-    }
-
-    // Process
-    await DoWorkAsync();
-
-    // Mark as processed
-    await MarkAsProcessedAsync();
-}
+        job.Configuration.TriggerType = ContainerAppJobTriggerType.Manual;
+    });
 ```
 
-### Handle cancellation
+## Experimental feature notice
 
-Respect cancellation tokens:
-
-```csharp
-protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-{
-    while (!stoppingToken.IsCancellationRequested)
-    {
-        await DoWorkAsync(stoppingToken);
-    }
-}
-```
-
-### Set appropriate timeouts
-
-- Too short: Jobs fail unnecessarily
-- Too long: Increased costs for hung jobs
-- Sweet spot: 10-20% buffer over expected duration
-
-### Monitor execution history
-
-Regularly review:
-- Success/failure rates
-- Execution duration trends
-- Resource utilization
-- Cost per execution
-
-## See also
-
-- [Azure integrations overview](/integrations/cloud/azure/overview/)
-- [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
-- [Configure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
-- [Azure Container Apps Jobs documentation](https://learn.microsoft.com/container-apps/jobs)
+> [!IMPORTANT]
+> Azure Container App Jobs support in Aspire is an experimental feature. The APIs are subject to change in future releases. You might encounter the diagnostic `ASPIREAZURE002` when using these features. For more information, see [ASPIREAZURE002](/diagnostics/aspireazure002).

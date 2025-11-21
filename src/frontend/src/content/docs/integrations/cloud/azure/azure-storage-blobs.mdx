@@ -3,11 +3,12 @@ title: Azure Blob Storage
 description: Learn how to use the Azure Blob Storage integration, which includes both hosting and client integrations.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import storageIcon from '@assets/icons/azure-storagecontainer-icon.png';
+import storageExplorerImage from '@assets/integrations/cloud/azure/storage/azure-storage-explorer.png';
 
 <Image
   src={storageIcon}
@@ -22,7 +23,13 @@ import storageIcon from '@assets/icons/azure-storagecontainer-icon.png';
 
 ## Hosting integration
 
-The Azure Storage hosting integration models various storage resources including blobs, queues, and tables. To access these types and APIs, add the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package to your AppHost project.
+The Aspire [Azure Storage](https://learn.microsoft.com/azure/storage/) hosting integration models the various storage resources as the following types:
+
+- `AzureStorageResource`: Represents an Azure Storage resource.
+- `AzureStorageEmulatorResource`: Represents an Azure Storage emulator resource (Azurite).
+- `AzureBlobStorageResource`: Represents an Azure Blob storage resource.
+
+To access these types and APIs for expressing them, add the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package in the [AppHost](/get-started/app-host) project.
 
 <InstallPackage packageName="Aspire.Hosting.Azure.Storage" />
 
@@ -34,12 +41,11 @@ In your AppHost project, register the Azure Blob Storage integration by chaining
 var builder = DistributedApplication.CreateBuilder(args);
 
 var blobs = builder.AddAzureStorage("storage")
-                   .RunAsEmulator()
-                   .AddBlobs("blobs");
+    .AddBlobs("blobs");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(blobs)
-       .WaitFor(blobs);
+    .WithReference(blobs)
+    .WaitFor(blobs);
 
 // After adding all resources, run the app...
 ```
@@ -55,67 +61,36 @@ The preceding code:
 When you call `AddAzureStorage`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
-### Provisioning-generated Bicep
+### Connect to an existing Azure Storage account
 
-If you're new to [Bicep](https://learn.microsoft.com/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Storage resource, Bicep is generated that provisions an Azure Storage account with sensible defaults including:
-
-- **kind**: `StorageV2`
-- **sku**: `Standard_GRS`
-- **accessTier**: `Hot`
-- **allowSharedKeyAccess**: `false`
-- **minimumTlsVersion**: `TLS1_2`
-- **networkAcls**: `{ defaultAction: 'Allow' }`
-
-The following role assignments are added to the storage account to grant your application access:
-
-| Role | Description |
-|------|-------------|
-| Storage Blob Data Contributor | Read, write, and delete Azure Storage containers and blobs. |
-| Storage Table Data Contributor | Read, write, and delete Azure Storage tables and entities. |
-| Storage Queue Data Contributor | Read, write, and delete Azure Storage queues and queue messages. |
-
-### Customize provisioning infrastructure
-
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API. For example:
+You might have an existing Azure Storage account that you want to connect to. You can chain a call to annotate that your `AzureStorageResource` is an existing resource:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage");
+var existingStorageName = builder.AddParameter("existingStorageName");
+var existingStorageResourceGroup = builder.AddParameter("existingStorageResourceGroup");
 
-storage.ConfigureInfrastructure(infra =>
-{
-    var storageAccount = infra.GetProvisionableResources()
-                              .OfType<StorageAccount>()
-                              .Single();
+var storageaccount = builder.AddAzureStorage("storage")
+    .AsExisting(existingStorageName, existingStorageResourceGroup)
+    .AddBlobs("blobs");
 
-    storageAccount.AccessTier = StorageAccountAccessTier.Cool;
-    storageAccount.Sku = new StorageSku
-    {
-        Name = StorageSkuName.PremiumZrs
-    };
-    storageAccount.Tags["ExampleKey"] = "Example value";
-});
-```
-
-### Add Azure Storage emulator resource
-
-To add an Azure Storage emulator resource, chain a call to `RunAsEmulator`:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var storage = builder.AddAzureStorage("storage")
-                     .RunAsEmulator();
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(storageaccount);
 
 // After adding all resources, run the app...
 ```
 
-When you call `RunAsEmulator`, it configures your storage resources to run locally using [Azurite](https://learn.microsoft.com/storage/common/storage-use-azurite). The Azurite open-source emulator provides a free local environment for testing your Azure Blob, Queue Storage, and Table Storage apps. Azurite is accessible to Aspire as a container.
+> [!IMPORTANT]
+> When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` methods to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost to ensure that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 #### Configure Azurite container
 
-By default, the Azurite container exposes the following endpoints:
+There are various configurations available to container resources, for example, you can configure the container's ports, environment variables, it's lifetime, and more.
+
+##### Configure Azurite container ports
+
+By default, the Azurite container when configured by Aspire, exposes the following endpoints:
 
 | Endpoint | Container port | Host port |
 |----------|----------------|-----------|
@@ -123,94 +98,110 @@ By default, the Azurite container exposes the following endpoints:
 | `queue`  | 10001          | dynamic   |
 | `table`  | 10002          | dynamic   |
 
-To configure the endpoint ports, chain calls on the container resource builder:
+The port that they're listening on is dynamic by default. When the container starts, the ports are mapped to a random port on the host machine. To configure the endpoint ports, chain calls on the container resource builder provided by the `RunAsEmulator` method as shown in the following example:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage").RunAsEmulator(
-    azurite =>
-    {
-        azurite.WithBlobPort(27000)
-               .WithQueuePort(27001)
-               .WithTablePort(27002);
-    });
+var storage = builder.AddAzureStorage("storage")
+  .RunAsEmulator(azurite =>
+  {
+      azurite.WithBlobPort(27000)
+             .WithQueuePort(27001)
+             .WithTablePort(27002);
+  });
+
+// After adding all resources, run the app...
 ```
 
-##### Configure Azurite with persistent lifetime
+The preceding code configures the Azurite container's existing `blob`, `queue`, and `table` endpoints to listen on ports `27000`, `27001`, and `27002`, respectively. The Azurite container's ports are mapped to the host ports as shown in the following table:
 
-To configure the Azurite container with a persistent lifetime:
+| Endpoint name | Port mapping (`container:host`) |
+|--------------:|---------------------------------|
+| `blob`        | `10000:27000`                   |
+| `queue`       | `10001:27001`                   |
+| `table`       | `10002:27002`                   |
+
+##### Configure Azurite container with persistent lifetime
+
+To configure the Azurite container with a persistent lifetime, call the `WithLifetime` method on the Azurite container resource and pass `ContainerLifetime.Persistent`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage").RunAsEmulator(
-    azurite =>
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator(azurite =>
     {
         azurite.WithLifetime(ContainerLifetime.Persistent);
     });
+
+// After adding all resources, run the app...
 ```
 
-For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+##### Configure Azurite container with data volume
 
-##### Configure Azurite with data volume
-
-To add a data volume to persist Azurite data:
+To add a data volume to the Azure Storage emulator resource, call the `WithDataVolume` method on the Azure Storage emulator resource:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage").RunAsEmulator(
-    azurite =>
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator(azurite =>
     {
         azurite.WithDataVolume();
     });
+
+// After adding all resources, run the app...
 ```
 
-The data volume is mounted at the `/data` path in the Azurite container. When a `name` parameter isn't provided, the name is formatted as `.azurite/{resource name}`.
+The data volume is used to persist the Azurite data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Azurite container and when a `name` parameter isn't provided, the name is formatted as `.azurite/{resource name}`. For more information on data volumes and details on why they're preferred over [bind mounts](#configure-azurite-container-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
-##### Configure Azurite with data bind mount
+##### Configure Azurite container with data bind mount
 
-To add a data bind mount:
+To add a data bind mount to the Azure Storage emulator resource, call the `WithDataBindMount` method:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage").RunAsEmulator(
-    azurite =>
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator(azurite =>
     {
-        azurite.WithDataBindMount("../Azurite/Data");
+        azurite.WithDataBindMount("../azurite/data");
     });
+
+// After adding all resources, run the app...
 ```
 
-<Aside type="note">
-Data volumes are preferred over bind mounts for better portability and performance across different platforms.
-</Aside>
+> [!IMPORTANT]
+> Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 
-### Connect to an existing Azure Storage account
+Data bind mounts rely on the host machine's filesystem to persist the Azurite data across container restarts. The data bind mount is mounted at the `../azurite/data` path on the host machine relative to the AppHost directory (`IDistributedApplicationBuilder.AppHostDirectory`) in the Azurite container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-You might have an existing Azure Storage account that you want to connect to. You can chain a call to annotate that your resource is an existing resource:
+### Connect to storage resources
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+When the Aspire AppHost runs, the storage resources can be accessed by external tools, such as the [Azure Storage Explorer](https://azure.microsoft.com/features/storage-explorer/). If your storage resource is running locally using Azurite, it will automatically be picked up by the Azure Storage Explorer.
 
-var existingStorageName = builder.AddParameter("existingStorageName");
-var existingStorageResourceGroup = builder.AddParameter("existingStorageResourceGroup");
-var storageaccount = builder.AddAzureStorage("storage")
-    .AsExisting(existingStorageName, existingStorageResourceGroup)
-    .AddBlobs("blobs");
+> [!NOTE]
+> The Azure Storage Explorer discovers Azurite storage resources assuming the default ports are used. If you've [configured the Azurite container to use different ports](#configure-azurite-container-ports), you'll need to configure the Azure Storage Explorer to connect to the correct ports.
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(storageaccount);
-```
+To connect to the storage resource from Azure Storage Explorer, follow these steps:
 
-<Aside type="note">
-Alternatively, instead of representing an Azure Storage account resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
-</Aside>
+<Steps>
+1. Run the Aspire AppHost.
+1. Open the Azure Storage Explorer.
+1. View the **Explorer** pane.
+1. Select the **Refresh all** link to refresh the list of storage accounts.
+1. Expand the **Emulator & Attached** node.
+1. Expand the **Storage Accounts** node.
+1. You should see a storage account with your resource's name as a prefix:
 
-### Hosting integration health checks
+    <Image
+      src={storageExplorerImage}
+      alt="Azure Storage Explorer: Azurite storage resource discovered." />
 
-The Azure Storage hosting integration automatically adds a health check for the storage resource. It's added only when running as an emulator and verifies the Azurite container is running and that a connection can be established to it.
+</Steps>
+
+You're free to explore the storage account and its contents using the Azure Storage Explorer. For more information on using the Azure Storage Explorer, see [Get started with Storage Explorer](https://learn.microsoft.com/azure/storage/storage-explorer/vs-azure-tools-storage-manage-with-storage-explorer).
 
 ## Client integration
 

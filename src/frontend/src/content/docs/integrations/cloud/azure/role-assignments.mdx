@@ -1,257 +1,247 @@
 ---
-title: Manage role assignments
+title: Manage Azure role assignments
 description: Learn how to configure Azure role-based access control (RBAC) for Aspire applications.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-Azure role assignments control access to Azure resources using Azure role-based access control (RBAC). When deploying Aspire applications to Azure, proper role assignments ensure your services can access Azure resources securely using managed identities.
+All Aspire Azure hosting integrations define Azure resources. These resources come with default role assignments. You can replace these default role assignments with built-in role [or custom role assignments](/integrations/cloud/azure/customize-resources/). In this article, you learn how to manage Azure role assignments on Aspire resources.
 
-## How role assignments work in Aspire
+## Default built-in role assignments
 
-Aspire automatically generates role assignments when you:
+When you add an Azure resource to the [AppHost](/get-started/app-host/), it's assigned default roles. If a resource depends on another resource, it inherits the same role assignments as the referenced resource unless explicitly overridden.
 
-<Steps>
-1. Add Azure resources to your AppHost
-2. Reference those resources from your projects
-3. Deploy to Azure (e.g., Azure Container Apps)
-</Steps>
-
-The generated infrastructure includes role assignments that grant your application's managed identity the necessary permissions.
-
-## Automatic role assignment generation
-
-When you reference an Azure resource, Aspire determines the required roles:
+Consider a scenario where an API project resource references an [Azure Search](/integrations/cloud/azure/azure-ai-search/) resource. The API project is given the default role assignments, as shown in the following example:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage");
-var blobs = storage.AddBlobs("blobs");
+var search = builder.AddAzureSearch("search");
 
-// This project needs to access blobs
-builder.AddProject<Projects.WebApp>("webapp")
-       .WithReference(blobs);  // Generates role assignment
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(search);
 ```
 
-During deployment, Aspire automatically assigns the appropriate role (e.g., `Storage Blob Data Contributor`) to the `webapp` service's managed identity.
+In the example code, the `api` project resource depends on the Azure `search` resource, meaning it references the `search` resource. By default, the `search` resource is assigned the following built-in roles:
 
-## Common role assignments by service
+- `Azure.Provisioning.Search.SearchBuiltInRole.SearchIndexDataContributor`
+- `Azure.Provisioning.Search.SearchBuiltInRole.SearchServiceContributor`
 
-| Azure Service | Default Role | Purpose |
-|--------------|--------------|---------|
-| **Storage Blobs** | Storage Blob Data Contributor | Read/write blob data |
-| **Storage Queues** | Storage Queue Data Contributor | Send/receive queue messages |
-| **Storage Tables** | Storage Table Data Contributor | Read/write table data |
-| **Service Bus** | Azure Service Bus Data Owner | Send/receive messages |
-| **Event Hubs** | Azure Event Hubs Data Owner | Send/receive events |
-| **Cosmos DB** | Cosmos DB Built-in Data Contributor | Read/write database data |
-| **Key Vault** | Key Vault Secrets User | Read secrets |
-| **App Configuration** | App Configuration Data Reader | Read configuration |
+These role assignments allow the API project to read and write data to the Azure Search resource, and manage it. However, this behavior might not always be desirable. For instance, you might want to restrict the API project to only read data from the Azure Search resource.
 
-## Customizing role assignments
+## Override default role assignments
 
-### Assign specific roles
-
-You can customize which roles are assigned using `ConfigureInfrastructure`:
+To override the default role assignment, use the [WithRoleAssignments APIs](https://learn.microsoft.com/dotnet/api/?preserve-view=true&view=dotnet-aspire-13.0&term=WithRoleAssignments) and assign built-in roles as shown in the following example:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureStorage("storage");
+var search = builder.AddAzureSearch("search");
 
-storage.ConfigureInfrastructure(infra =>
-{
-    var account = infra.GetProvisionableResources()
-                       .OfType<StorageAccount>()
-                       .Single();
-    
-    // The role assignment will be created with custom roles
-    // This is an advanced scenario
-});
+var api = builder.AddProject<Projects.Api>("api")
+    .WithRoleAssignments(search, SearchBuiltInRole.SearchIndexDataReader)
+    .WithReference(search);
 ```
 
-### Add additional role assignments
+When you use the `WithRoleAssignments` method, it replaces the default role assignments with the specified ones. This method requires two parameters: the resource to which the role assignment applies and the built-in role to assign. In the preceding example, the `search` resource is assigned the `Azure.Provisioning.Search.SearchBuiltInRole.SearchIndexDataReader` role.
 
-You can add role assignments for specific scenarios:
+When you replace the default role assignments with the `SearchIndexDataReader` role, the API project is restricted to only reading data from the Azure Search resource. This ensures the API project can't write data to the Azure Search resource.
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+For more information, see [Azure built-in roles](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles).
 
-var storage = builder.AddAzureStorage("storage");
-var blobs = storage.AddBlobs("blobs");
+## Built-in role assignment reference
 
-var webapp = builder.AddProject<Projects.WebApp>("webapp")
-                    .WithReference(blobs);
+All built-in roles are defined within the `Azure.Provisioning> namespaces and are included in the corresponding [📦 Azure.Provisioning.*](https://www.nuget.org/packages?q=Azure.Provisioning) NuGet packages. Each Aspire Azure hosting integration automatically depends on the appropriate provisioning package. For more information, see [Customized Azure resources](/integrations/cloud/azure/customize-resources/).
 
-// The standard role assignment is automatic
-// Add custom roles if needed via ConfigureInfrastructure
-```
+The following sections list the built-in roles for each Azure provisioning type that can be used as a parameter to the `WithRoleAssignments` API.
 
-## User-assigned managed identities
+### Azure App Configuration
 
-By default, Aspire uses system-assigned managed identities. You can configure user-assigned identities:
+The provisioning resource type is `Azure.Provisioning.AppConfiguration.AppConfigurationStore>, and the built-in roles are defined in the `Azure.Provisioning.AppConfiguration.AppConfigurationBuiltInRole> struct. The built-in roles are:
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+- `Azure.Provisioning.AppConfiguration.AppConfigurationBuiltInRole.AppConfigurationDataOwner`
+- `Azure.Provisioning.AppConfiguration.AppConfigurationBuiltInRole.AppConfigurationDataReader`
 
-// Create a user-assigned identity
-var identity = builder.AddAzureUserAssignedIdentity("myidentity");
+### Azure App Container
 
-var storage = builder.AddAzureStorage("storage");
-var blobs = storage.AddBlobs("blobs");
+The provisioning resource type is `Azure.Provisioning.AppContainers.ContainerApp>, and the built-in roles are defined in the `Azure.Provisioning.AppContainers.AppContainersBuiltInRole> struct. The built-in roles are:
 
-// Use the user-assigned identity
-builder.AddProject<Projects.WebApp>("webapp")
-       .WithReference(blobs)
-       .WithIdentity(identity);
-```
+- `Azure.Provisioning.AppContainers.AppContainersBuiltInRole.Contributor`
+- `Azure.Provisioning.AppContainers.AppContainersBuiltInRole.Owner`
+- `Azure.Provisioning.AppContainers.AppContainersBuiltInRole.Reader`
 
-For more information, see [User-assigned identity](/integrations/cloud/azure/user-assigned-identity/).
+For more information, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/).
 
-## Least privilege principle
+### Azure Application Insights
 
-Aspire follows the principle of least privilege by assigning only the necessary roles. For example:
+The provisioning resource type is `Azure.Provisioning.ApplicationInsights.ApplicationInsightsComponent`, and the built-in roles are defined in the `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole` struct. The built-in roles are:
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.ApplicationInsightsComponentContributor`
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.ApplicationInsightsSnapshotDebugger`
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.MonitoringContributor`
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.MonitoringMetricsPublisher`
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.MonitoringReader`
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.WorkbookContributor`
+- `Azure.Provisioning.ApplicationInsights.ApplicationInsightsBuiltInRole.WorkbookReader`
 
-var storage = builder.AddAzureStorage("storage");
-var blobs = storage.AddBlobs("blobs");
+### Azure AI (formerly Cognitive Services)
 
-// Read-only project - would get reader role in production
-builder.AddProject<Projects.ReadOnlyApp>("readonly")
-       .WithReference(blobs);
+The provisioning resource type is `Azure.Provisioning.CognitiveServices.CognitiveServicesAccount>, and the built-in roles are defined in the `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole> struct. The built-in roles are:
 
-// Read-write project - gets contributor role
-builder.AddProject<Projects.WriteApp>("writeapp")
-       .WithReference(blobs);
-```
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.AzureAIDeveloper`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.AzureAIEnterpriseNetworkConnectionApprover`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.AzureAIInferenceDeploymentOperator`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesContributor`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesCustomVisionContributor`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesCustomVisionDeployment`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesCustomVisionLabeler`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesCustomVisionReader`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesCustomVisionTrainer`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesDataReader`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesFaceRecognizer`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesMetricsAdvisorAdministrator`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesOpenAIContributor`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesOpenAIUser`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesOpenAIUser`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesQnAMakerEditor`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesQnAMakerReader`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesUsagesReader`
+- `Azure.Provisioning.CognitiveServices.CognitiveServicesBuiltInRole.CognitiveServicesUser`
 
-<Aside type="tip">
-In production deployments, review the generated role assignments in the Bicep files to ensure they match your security requirements.
-</Aside>
+For more information, see [Aspire Azure OpenAI integration](/integrations/cloud/azure/azure-openai/).
 
-## Role assignment propagation
+### Azure Cosmos DB
 
-After deployment, role assignments may take a few minutes to propagate throughout Azure. If you see authentication errors immediately after deployment:
+The provisioning resource type is `Azure.Provisioning.CosmosDB.CosmosDBAccount>, and the built-in roles are defined in the `Azure.Provisioning.CosmosDB.CosmosDBBuiltInRole> struct. The built-in roles are:
 
-<Steps>
-1. Wait 2-3 minutes for propagation
-2. Restart your application
-3. Check role assignments in the Azure Portal
-</Steps>
+- `Azure.Provisioning.CosmosDB.CosmosDBBuiltInRole.CosmosDBOperator`
+- `Azure.Provisioning.CosmosDB.CosmosDBBuiltInRole.CosmosBackupOperator`
+- `Azure.Provisioning.CosmosDB.CosmosDBBuiltInRole.CosmosRestoreOperator`
 
-## Verifying role assignments
+For more information, see:
 
-To verify role assignments in the Azure Portal:
+- [Aspire Azure Cosmos DB integration](/integrations/cloud/azure/azure-cosmos-db/).
 
-<Steps>
-1. Navigate to your Azure resource (e.g., Storage Account)
-2. Select **Access Control (IAM)**
-3. Click **Role assignments**
-4. Look for your application's managed identity
-</Steps>
+### Azure Event Hubs
 
-Or use Azure CLI:
+The provisioning resource type is `Azure.Provisioning.EventHubs.EventHubsNamespace>, and the built-in roles are defined in the `Azure.Provisioning.EventHubs.EventHubsBuiltInRole> struct. The built-in roles are:
 
-```bash
-az role assignment list \
-  --scope /subscriptions/{subscription-id}/resourceGroups/{rg-name}/providers/Microsoft.Storage/storageAccounts/{account-name} \
-  --output table
-```
+- `Azure.Provisioning.EventHubs.EventHubsBuiltInRole.AzureEventHubsDataOwner`
+- `Azure.Provisioning.EventHubs.EventHubsBuiltInRole.AzureEventHubsDataReceiver`
+- `Azure.Provisioning.EventHubs.EventHubsBuiltInRole.AzureEventHubsDataSender`
+- `Azure.Provisioning.EventHubs.EventHubsBuiltInRole.SchemaRegistryContributor`
+- `Azure.Provisioning.EventHubs.EventHubsBuiltInRole.SchemaRegistryReader`
 
-## Troubleshooting
+For more information, see [Aspire Azure Event Hubs integration](/integrations/cloud/azure/azure-event-hubs/).
 
-### Authentication failures
+### Azure Key Vault
 
-If you see errors like "AuthorizationPermissionMismatch" or "Forbidden":
+The provisioning resource type is `Azure.Provisioning.KeyVault.KeyVaultService>, and the built-in roles are defined in the `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole> struct. The built-in roles are:
 
-<Steps>
-1. **Check role assignments**: Verify the role exists in Azure Portal
-2. **Wait for propagation**: Azure RBAC can take up to 5 minutes
-3. **Verify managed identity**: Ensure your app uses managed identity
-4. **Check resource name**: Verify connection string matches deployed resource
-</Steps>
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultAdministrator`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultCertificatesOfficer`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultCertificateUser`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultContributor`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultCryptoOfficer`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultCryptoServiceEncryptionUser`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultCryptoServiceReleaseUser`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultCryptoUser`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultDataAccessAdministrator`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultDataAccessAdministrator`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultReader`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultSecretsOfficer`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.KeyVaultSecretsUser`
+- `Azure.Provisioning.KeyVault.KeyVaultBuiltInRole.ManagedHsmContributor`
 
-### Missing permissions
+For more information, see [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/).
 
-If your application needs additional permissions:
+### Azure AI Search
 
-<Steps>
-1. Identify the required Azure role
-2. Add role assignment via ConfigureInfrastructure or Azure Portal
-3. Restart your application
-</Steps>
+The provisioning resource type is `Azure.Provisioning.Search.SearchService>, and the built-in roles are defined in the `Azure.Provisioning.Search.SearchBuiltInRole> struct. The built-in roles are:
 
-### Development vs. production
+- `Azure.Provisioning.Search.SearchBuiltInRole.SearchIndexDataContributor`
+- `Azure.Provisioning.Search.SearchBuiltInRole.SearchIndexDataReader`
+- `Azure.Provisioning.Search.SearchBuiltInRole.SearchServiceContributor`
 
-Role assignments are for Azure-deployed resources. During local development:
+For more information, see [Aspire Azure AI Search integration](/integrations/cloud/azure/azure-ai-search/).
 
-- Use connection strings with access keys.
-- Use Azure CLI credentials (`az login`).
-- Use emulators (Azurite, Service Bus Emulator).
+### Azure Service Bus
 
-## Security best practices
+The provisioning resource type is `Azure.Provisioning.ServiceBus.ServiceBusNamespace>, and the built-in roles are defined in the `Azure.Provisioning.ServiceBus.ServiceBusBuiltInRole> struct. The built-in roles are:
 
-### Use managed identities
+- `Azure.Provisioning.ServiceBus.ServiceBusBuiltInRole.AzureServiceBusDataOwner`
+- `Azure.Provisioning.ServiceBus.ServiceBusBuiltInRole.AzureServiceBusDataReceiver`
+- `Azure.Provisioning.ServiceBus.ServiceBusBuiltInRole.AzureServiceBusDataSender`
 
-Always use managed identities in production rather than connection strings with keys:
+For more information, see [Aspire Azure Service Bus integration](/integrations/cloud/azure/azure-service-bus/).
 
-```csharp
-// ✅ Good - Uses managed identity
-builder.AddAzureBlobClient("blobs");
+### Azure SignalR Service
 
-// ❌ Avoid in production - Exposes keys
-builder.Services.Configure<BlobClientOptions>(options => 
-{
-    options.ConnectionString = "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...";
-});
-```
+The provisioning resource type is `Azure.Provisioning.SignalR.SignalRService>, and the built-in roles are defined in the `Azure.Provisioning.SignalR.SignalRBuiltInRole> struct. The built-in roles are:
 
-### Limit role scope
+- `Azure.Provisioning.SignalR.SignalRBuiltInRole.SignalRAccessKeyReader`
+- `Azure.Provisioning.SignalR.SignalRBuiltInRole.SignalRAppServer`
+- `Azure.Provisioning.SignalR.SignalRBuiltInRole.SignalRContributor`
+- `Azure.Provisioning.SignalR.SignalRBuiltInRole.SignalRRestApiOwner`
+- `Azure.Provisioning.SignalR.SignalRBuiltInRole.SignalRRestApiReader`
+- `Azure.Provisioning.SignalR.SignalRBuiltInRole.SignalRServiceOwner`
 
-Assign roles at the most specific scope:
+For more information, see [Aspire support for Azure SignalR Service](/integrations/cloud/azure/azure-signalr/).
 
-- **Best**: Specific resource (e.g., one storage account).
-- **Good**: Resource group.
-- **Avoid**: Subscription level.
+### Azure SQL
 
-### Regular audits
+The provisioning resource type is `Azure.Provisioning.Sql.SqlServer>, and the built-in roles are defined in the `Azure.Provisioning.Sql.SqlBuiltInRole> struct. The built-in roles are:
 
-Regularly review role assignments:
+- `Azure.Provisioning.Sql.SqlBuiltInRole.AzureConnectedSqlServerOnboarding`
+- `Azure.Provisioning.Sql.SqlBuiltInRole.SqlDBContributor?displayProperty=nameWithType`
+- `Azure.Provisioning.Sql.SqlBuiltInRole.SqlManagedInstanceContributor`
+- `Azure.Provisioning.Sql.SqlBuiltInRole.SqlSecurityManager`
+- `Azure.Provisioning.Sql.SqlBuiltInRole.SqlServerContributor`
 
-```bash
-az role assignment list --resource-group my-rg --output table
-```
+For more information, see [Aspire Azure SQL integration](/integrations/cloud/azure/azure-sql-database/).
 
-### Use custom roles for fine-grained control
+### Azure Storage
 
-For very specific scenarios, create custom roles:
+The provisioning resource type is `Azure.Provisioning.Storage.StorageAccount`, and the built-in roles are defined in the `Azure.Provisioning.Storage.StorageBuiltInRole` struct. The built-in roles are:
 
-```bicep
-resource customRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
-  name: guid(subscription().id, 'custom-role')
-  properties: {
-    roleName: 'Custom Storage Reader'
-    description: 'Read-only access to specific containers'
-    permissions: [
-      {
-        actions: [
-          'Microsoft.Storage/storageAccounts/blobServices/containers/read'
-        ]
-        dataActions: [
-          'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'
-        ]
-      }
-    ]
-  }
-}
-```
+- `Azure.Provisioning.Storage.StorageBuiltInRole.ClassicStorageAccountContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.ClassicStorageAccountKeyOperatorServiceRole`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageAccountBackupContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageAccountContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageAccountKeyOperatorServiceRole`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageBlobDataContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageBlobDataOwner`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageBlobDataReader`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageBlobDelegator`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageFileDataPrivilegedContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageFileDataPrivilegedReader`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageFileDataSmbShareContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageFileDataSmbShareElevatedContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageFileDataSmbShareReader`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageQueueDataContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageQueueDataMessageProcessor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageQueueDataMessageSender`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageQueueDataReader`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageTableDataContributor`
+- `Azure.Provisioning.Storage.StorageBuiltInRole.StorageTableDataReader`
+
+For more information, see:
+
+- [Aspire Azure Blob Storage integration](/integrations/cloud/azure/azure-storage-blobs/)
+- [Aspire Azure Data Tables integration](/integrations/cloud/azure/azure-storage-queues/)
+- [Aspire Azure Queue Storage integration](/integrations/cloud/azure/azure-storage-tables/)
+
+### Azure Web PubSub
+
+The provisioning resource type is `Azure.Provisioning.WebPubSub.WebPubSubService>, and the built-in roles are defined in the `Azure.Provisioning.WebPubSub.WebPubSubBuiltInRole> struct. The built-in roles are:
+
+- `Azure.Provisioning.WebPubSub.WebPubSubBuiltInRole.WebPubSubContributor`
+- `Azure.Provisioning.WebPubSub.WebPubSubBuiltInRole.WebPubSubServiceOwner`
+- `Azure.Provisioning.WebPubSub.WebPubSubBuiltInRole.WebPubSubServiceReader`
+
+For more information, see [Aspire Azure Web PubSub integration](/integrations/cloud/azure/azure-web-pubsub/).
 
 ## See also
 
-- [Azure integrations overview](/integrations/cloud/azure/overview/)
-- [User-assigned identity](/integrations/cloud/azure/user-assigned-identity/)
-- [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
-- [Azure RBAC documentation](https://learn.microsoft.com/role-based-access-control/overview)
+- [Aspire Azure integrations overview](/integrations/cloud/azure/overview/)
+- [Azure role-based access control (RBAC)](https://learn.microsoft.com/azure/role-based-access-control/overview)
