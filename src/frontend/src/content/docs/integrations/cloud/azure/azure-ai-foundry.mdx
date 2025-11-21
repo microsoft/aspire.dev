@@ -35,15 +35,15 @@ To add an Azure AI Foundry resource to your AppHost project, call the `AddAzureA
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var aiFoundry = builder.AddAzureAIFoundry("ai-foundry");
+var foundry = builder.AddAzureAIFoundry("foundry");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(aiFoundry);
+       .WithReference(foundry);
 
 // After adding all resources, run the app...
 ```
 
-The preceding code adds an Azure AI Foundry resource named `ai-foundry` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+The preceding code adds an Azure AI Foundry resource named `foundry` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
 
 > [!IMPORTANT]
 > When you call `AddAzureAIFoundry`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -115,7 +115,7 @@ builder.AddProject<Projects.ExampleProject>()
 
 Aspire supports the usage of Foundry Local for local development. Add the following to your AppHost project:
 
-```csharp
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddAzureAIFoundry("foundry")
@@ -138,8 +138,8 @@ The `RunAsFoundryLocal` method configures the resource to run as an emulator. It
 
 You can assign specific roles to resources that need to access the Azure AI Foundry service. Use the `WithRoleAssignments` method:
 
-```csharp
-var foundry = builder.AddAzureAIFoundry("foundry");
+```csharp title="C# — AppHost.cs"
+var foundry = builder.AddAzureAIFoundry("chat");
 
 builder.AddProject<Projects.Api>("api")
   .WithRoleAssignments(foundry, CognitiveServicesBuiltInRole.CognitiveServicesUser)
@@ -322,7 +322,7 @@ This approach works well with models that support the OpenAI API format.
 
 ### Configuration
 
-The .NET Aspire Azure AI Foundry library provides multiple options to configure the Azure AI Foundry connection based on the requirements and conventions of your project. Either an `Endpoint` and `DeploymentId`, or a `ConnectionString` is required to be supplied.
+The Aspire Azure AI Foundry library provides multiple options to configure the Azure AI Foundry connection based on the requirements and conventions of your project. Either an `Endpoint` and `DeploymentId`, or a `ConnectionString` is required to be supplied.
 
 #### Use a connection string
 
@@ -360,7 +360,7 @@ Alternatively, a custom connection string can be used:
 
 #### Use configuration providers
 
-The .NET Aspire Azure AI Inference library supports `Microsoft.Extensions.Configuration`. It loads the `ChatCompletionsClientSettings` from configuration by using the `Aspire:Azure:AI:Inference` key. Example appsettings.json that configures some of the options:
+The Aspire Azure AI Inference library supports `Microsoft.Extensions.Configuration`. It loads the `ChatCompletionsClientSettings` from configuration by using the `Aspire:Azure:AI:Inference` key. Example appsettings.json that configures some of the options:
 
 ```json
 {
@@ -391,11 +391,11 @@ builder.AddAzureChatCompletionsClient(
     static settings => settings.DisableTracing = true);
 ```
 
-[!INCLUDE [integration-observability-and-telemetry](../includes/integration-observability-and-telemetry.md)]
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. For more information about integration observability and telemetry, see [Aspire integrations overview](/integrations/overview/). Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
 
 #### Logging
 
-The .NET Aspire Azure AI Foundry integration uses the following log categories:
+The Aspire Azure AI Foundry integration uses the following log categories:
 
 - `Azure`
 - `Azure.Core`
@@ -403,4 +403,4 @@ The .NET Aspire Azure AI Foundry integration uses the following log categories:
 
 #### Tracing
 
-The .NET Aspire Azure AI Foundry integration emits tracing activities using OpenTelemetry for operations performed with the `ChatCompletionsClient`.
+The Aspire Azure AI Foundry integration emits tracing activities using OpenTelemetry for operations performed with the `ChatCompletionsClient`.
