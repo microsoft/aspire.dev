@@ -18,7 +18,15 @@ import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.s
   data-zoom-off
 />
 
-[Azure Container Registry](https://learn.microsoft.com/container-registry) is a managed Docker registry service for storing and managing container images. The Aspire Azure Container Registry integration enables you to push container images to Azure Container Registry as part of your deployment process.
+[Azure Container Registry](https://learn.microsoft.com/azure/container-registry) is a managed Docker container registry service that simplifies the storage, management, and deployment of container images. The Aspire integration allows you to provision or reference an existing Azure Container Registry and seamlessly integrate it with your app's compute environments.
+
+## Overview
+
+Aspire apps often build and run container images locally but require secure registries for staging and production environments. The Azure Container Registry integration provides the following capabilities:
+
+- Provision or reference an existing Azure Container Registry.
+- Attach the registry to any compute-environment resource (for example, Azure Container Apps, Docker, Kubernetes) to ensure proper credential flow.
+- Grant fine-grained ACR role assignments to other Azure resources.
 
 ## Supported scenarios
 
@@ -65,6 +73,51 @@ For more information, see [Configure Azure Container Apps environments](/integra
 <Aside type="caution">
 When you call `AddAzureContainerRegistry`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
+
+### Reference an existing container registry
+
+To reference an existing Azure Container Registry, use the `PublishAsExisting` method with the registry name and resource group:
+
+:::code source="snippets/acr/AspireAcr.AppHost/AspireAcr.AppHost/Program.Existing.cs" id="existing":::
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryName = builder.AddParameter("registryName");
+var rgName = builder.AddParameter("rgName");
+
+// Add (or reference) the registry
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .PublishAsExisting(registryName, rgName);
+
+// Wire an environment to that registry
+builder.AddAzureContainerAppEnvironment("env")
+    .WithAzureContainerRegistry(acr);
+
+builder.Build().Run();
+```
+
+The preceding code:
+
+- References an existing Azure Container Registry named `my-acr` in the specified resource group.
+- Attaches the registry to an Azure Container Apps environment named `env`.
+- Uses parameters to allow for dynamic configuration of the registry name and resource group.
+- Optionally grants the `AcrPush` role to a project resource named `api`, allowing it to push images to the registry.
+
+### Key features
+
+**Automatic credential flow**
+
+When you attach an Azure Container Registry to a compute environment, Aspire automatically ensures that the correct credentials are available for secure image pulls.
+
+**Fine-grained role assignments**
+
+You can assign specific roles to Azure resources to control access to the container registry. For example, the `AcrPush` role allows a service to push images to the registry.
+
+```csharp
+builder.AddProject("api", "../Api/Api.csproj")
+       .WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPush);
+```
 
 #### Provisioning-generated Bicep
 
@@ -193,46 +246,3 @@ output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = env.properties.d
 ```
 
 The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly are overwritten, so make changes through the C# provisioning APIs to ensure they're reflected in the generated files.
-
-### Reference an existing container registry
-
-To reference an existing Azure Container Registry, use the `PublishAsExisting` method with the registry name and resource group:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var registryName = builder.AddParameter("registryName");
-var rgName = builder.AddParameter("rgName");
-
-// Add (or reference) the registry
-var acr = builder.AddAzureContainerRegistry("my-acr")
-                  .PublishAsExisting(registryName, rgName);
-
-// Wire an environment to that registry
-builder.AddAzureContainerAppEnvironment("env")
-        .WithAzureContainerRegistry(acr);
-
-builder.Build().Run();
-```
-
-The preceding code:
-
-- References an existing Azure Container Registry named `my-acr` in the specified resource group.
-- Attaches the registry to an Azure Container Apps environment named `env`.
-- Uses parameters to allow for dynamic configuration of the registry name and resource group.
-- Optionally grants the `AcrPush` role to a project resource named `api`, allowing it to push images to the registry.
-
-### Key features
-
-**Automatic credential flow**
-
-When you attach an Azure Container Registry to a compute environment, Aspire automatically ensures that the correct credentials are available for secure image pulls.
-
-**Fine-grained role assignments**
-
-You can assign specific roles to Azure resources to control access to the container registry. For example, the `AcrPush` role allows a service to push images to the registry.
-
-```csharp
-builder.AddProject("api", "../Api/Api.csproj")
-       .WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPush);
-```
