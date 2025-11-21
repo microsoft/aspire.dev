@@ -20,7 +20,7 @@ import openaiIcon from '@assets/icons/azure-openai-icon.png';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-[Azure OpenAI](https://learn.microsoft.com/ai-services/openai) is a cloud service that provides access to powerful language models like GPT-4, GPT-3.5-Turbo, and Embeddings models. The Aspire Azure OpenAI integration enables you to connect to Azure OpenAI services from your applications.
+[Azure OpenAI Service](https://azure.microsoft.com/products/ai-services/openai-service) provides access to OpenAI's powerful language and embedding models with the security and enterprise promise of Azure. The Aspire Azure OpenAI integration enables you to connect to Azure OpenAI services from your applications.
 
 ## Hosting integration
 
@@ -38,7 +38,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var openai = builder.AddAzureOpenAI("openai");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(openai);
+    .WithReference(openai);
 
 // After adding all resources, run the app...
 ```
@@ -49,42 +49,37 @@ The preceding code adds an Azure OpenAI resource named `openai` to the AppHost p
 When you call `AddAzureOpenAI`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
-### Add model deployments
+### Add an Azure OpenAI deployment resource
 
-Azure OpenAI resources support deploying specific models. You can add model deployments using the `AddDeployment` method:
+To add an Azure OpenAI deployment resource, call the <xref:Aspire.Hosting.AzureOpenAIExtensions.AddDeployment(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.ApplicationModel.AzureOpenAIResource},System.String,System.String,System.String)> method:
 
-```csharp title="C# — AppHost.cs"
+```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
 var openai = builder.AddAzureOpenAI("openai");
 
-openai.AddDeployment(new(
-    name: "gpt-4",
-    model: "gpt-4",
-    modelVersion: "0613",
-    skuName: "Standard",
-    skuCapacity: 10));
-
-openai.AddDeployment(new(
-    name: "text-embedding-ada-002",
-    model: "text-embedding-ada-002",
-    modelVersion: "2",
-    skuName: "Standard",
-    skuCapacity: 10));
+openai.AddDeployment(
+    name: "preview",
+    modelName: "gpt-4.5-preview",
+    modelVersion: "2025-02-27");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(openai);
+       .WithReference(openai)
+       .WaitFor(openai);
 
 // After adding all resources, run the app...
 ```
 
-The preceding code adds two model deployments to the Azure OpenAI resource: `gpt-4` and `text-embedding-ada-002`.
+The preceding code:
 
-### Connect to an existing Azure OpenAI instance
+- Adds an Azure OpenAI resource named `openai`.
+- Adds an Azure OpenAI deployment resource named `preview` with a model name of `gpt-4.5-preview`. The model name must correspond to an [available model](/azure/ai-services/openai/concepts/models) in the Azure OpenAI service.
 
-You might have an existing Azure OpenAI service that you want to connect to. You can chain a call to annotate that your `AzureOpenAIResource` is an existing resource:
+### Connect to an existing Azure OpenAI service
 
-```csharp title="C# — AppHost.cs"
+You might have an existing Azure OpenAI service that you want to connect to. You can chain a call to annotate that your <xref:Aspire.Hosting.ApplicationModel.AzureOpenAIResource> is an existing resource:
+
+```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
 var existingOpenAIName = builder.AddParameter("existingOpenAIName");
@@ -99,52 +94,118 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
-For more information on treating Azure OpenAI resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+[!INCLUDE [azure-configuration](../azure/includes/azure-configuration.md)]
 
-<Aside type="note">
-Alternatively, instead of representing an Azure OpenAI resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
-</Aside>
+For more information on treating Azure OpenAI resources as existing resources, see [Use existing Azure resources](../azure/integrations-overview.md#use-existing-azure-resources).
+
+> [!NOTE]
+> Alternatively, instead of representing an Azure OpenAI resource, you can add a connection string to the AppHost. This approach is weakly-typed, and doesn't work with role assignments or infrastructure customizations. For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
 
 ### Provisioning-generated Bicep
 
-When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep provisions an Azure OpenAI resource with standard defaults.
 
-When you add an Azure OpenAI resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+```bicep title="Bicep — openai.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource openai 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+  name: take('openai-${uniqueString(resourceGroup().id)}', 64)
+  location: location
+  kind: 'OpenAI'
+  properties: {
+    customSubDomainName: toLower(take(concat('openai', uniqueString(resourceGroup().id)), 24))
+    publicNetworkAccess: 'Enabled'
+    disableLocalAuth: true
+  }
+  sku: {
+    name: 'S0'
+  }
+  tags: {
+    'aspire-resource-name': 'openai'
+  }
+}
+
+resource preview 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  name: 'preview'
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-4.5-preview'
+      version: '2025-02-27'
+    }
+  }
+  sku: {
+    name: 'Standard'
+    capacity: 8
+  }
+  parent: openai
+}
+
+output connectionString string = 'Endpoint=${openai.properties.endpoint}'
+
+output name string = openai.name
+```
+
+The preceding Bicep is a module that provisions an Azure Cognitive Services resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Bicep — openai-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param openai_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource openai 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
+  name: openai_outputs_name
+}
+
+resource openai_CognitiveServicesOpenAIUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(openai.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+    principalType: principalType
+  }
+  scope: openai
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
 
 #### Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the `ConfigureInfrastructure` API:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var openai = builder.AddAzureOpenAI("openai");
-
-openai.ConfigureInfrastructure(infra =>
-{
-    var account = infra.GetProvisionableResources()
-                       .OfType<CognitiveServicesAccount>()
-                       .Single();
-
-    account.Kind = "OpenAI";
-    account.Sku = new CognitiveServicesSku
+builder.AddAzureOpenAI("openai")
+    .ConfigureInfrastructure(infra =>
     {
-        Name = "S0"
-    };
-    account.Tags["ExampleKey"] = "Example value";
-});
+        var resources = infra.GetProvisionableResources();
+        var account = resources.OfType<CognitiveServicesAccount>().Single();
+
+        account.Sku = new CognitiveServicesSku
+        {
+            Tier = CognitiveServicesSkuTier.Enterprise,
+            Name = "E0"
+        };
+        account.Tags.Add("ExampleKey", "Example value");
+    });
 ```
 
 The preceding code:
 
 - Chains a call to the `ConfigureInfrastructure` API:
-  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure type.
   - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
   - The single `CognitiveServicesAccount` resource is retrieved.
-  - The `Kind` is set to `OpenAI` and the `Sku` is configured.
-  - A tag is added to the OpenAI resource with a key of `ExampleKey` and a value of `Example value`.
-
-There are many more configuration options available to customize the OpenAI resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+  - The `CognitiveServicesAccount` property is assigned to a new instance of `CognitiveServices.CognitiveServicesSku` with an `E0` name and CognitiveServicesSkuTier.Enterprise` tier.
+  - A tag is added to the Cognitive Services resource with a key of `ExampleKey` and a value of `Example value`.
 
 ## Client integration
 
@@ -173,74 +234,142 @@ public class ExampleService(AzureOpenAIClient client)
 }
 ```
 
-### Add typed clients
+### Add Azure OpenAI client with registered `IChatClient`
 
-The integration also provides support for registering typed clients like `ChatClient` and `EmbeddingClient`:
+If you're interested in using the `IChatClient` interface, with the OpenAI client, simply chain either of the following APIs to the `AddAzureOpenAIClient` method:
 
-```csharp
-builder.AddAzureOpenAIClient(connectionName: "openai")
-       .AddChatClient(deploymentName: "gpt-4")
-       .AddEmbeddingClient(deploymentName: "text-embedding-ada-002");
-```
+- `AddChatClient`: Registers a singleton `IChatClient` in the services provided by the `AspireOpenAIClientBuilder`.
+- `AddKeyedChatClient`: Registers a keyed singleton `IChatClient` in the services provided by the `AspireOpenAIClientBuilder`.
 
-Then you can inject these clients directly:
-
-```csharp
-public class ExampleService(ChatClient chatClient, EmbeddingClient embeddingClient)
-{
-    // Use clients...
-}
-```
-
-### Using IChatClient abstraction
-
-Aspire integrations support the `IChatClient` abstraction from `Microsoft.Extensions.AI`. This provides a unified interface for working with different AI services:
+For example, consider the following C# code that adds an `IChatClient` to the DI container:
 
 ```csharp
 builder.AddAzureOpenAIClient(connectionName: "openai")
-       .AddChatClient(deploymentName: "gpt-4");
-
-// Register as IChatClient
-builder.Services.AddSingleton<IChatClient>(sp => 
-    sp.GetRequiredService<ChatClient>().AsChatClient());
+       .AddChatClient("deploymentName");
 ```
 
-Then you can use the abstraction:
+Similarly, you can add a keyed `IChatClient` with the following C# code:
+
+```csharp
+builder.AddAzureOpenAIClient(connectionName: "openai")
+       .AddKeyedChatClient("serviceKey", "deploymentName");
+```
+
+After adding the `IChatClient`, you can retrieve the client instance using dependency injection:
 
 ```csharp
 public class ExampleService(IChatClient chatClient)
 {
-    public async Task<string> GetCompletionAsync(string prompt)
+    public async Task<string> GetResponseAsync(string userMessage)
     {
-        var response = await chatClient.CompleteAsync(prompt);
-        return response.Message.Text;
+        var response = await chatClient.CompleteAsync(userMessage);
+        return response.Message.Text ?? string.Empty;
     }
 }
 ```
 
-For more information on `IChatClient` and `Microsoft.Extensions.AI`, see [Unified AI Building Blocks for .NET](https://learn.microsoft.com/dotnet/ai/ai-extensions).
+For more information on `IChatClient` and `Microsoft.Extensions.AI`, see [Unified AI Building Blocks for .NET](https://learn.microsoft.com/dotnet/core/extensions/artificial-intelligence).
 
-### Add keyed Azure OpenAI client
+### Configure Azure OpenAI client settings
 
-There might be situations where you want to register multiple `AzureOpenAIClient` instances with different connection names. To register keyed OpenAI clients, call the `AddKeyedAzureOpenAIClient` method:
+The Aspire Azure OpenAI library provides a set of settings to configure the Azure OpenAI client. The  `AddAzureOpenAIClient` method exposes an optional `configureSettings` parameter of type `Action<AzureOpenAISettings>?`. To configure settings inline, consider the following example:
 
 ```csharp
-builder.AddKeyedAzureOpenAIClient(name: "gpt4-service");
-builder.AddKeyedAzureOpenAIClient(name: "embeddings-service");
+builder.AddAzureOpenAIClient(
+    connectionName: "openai",
+    configureSettings: settings =>
+    {
+        settings.DisableTracing = true;
+
+        var uriString = builder.Configuration["AZURE_OPENAI_ENDPOINT"]
+            ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT is not set.");
+
+        settings.Endpoint = new Uri(uriString);
+    });
 ```
 
-Then you can retrieve the client instances using dependency injection:
+The preceding code sets the `AzureOpenAISettings.DisableTracing` property to `true`, and sets the `AzureOpenAISettings.Endpoint` property to the Azure OpenAI endpoint.
+
+### Configure Azure OpenAI client builder options
+
+To configure the `AzureOpenAIClientOptions` for the client, you can use the `AddAzureOpenAIClient` method. This method takes an optional `configureClientBuilder` parameter of type `Action<IAzureClientBuilder<OpenAIClient, AzureOpenAIClientOptions>>?`. Consider the following example:
+
+```csharp 
+builder.AddAzureOpenAIClient(
+    connectionName: "openai",
+    configureClientBuilder: clientBuilder =>
+    {
+        clientBuilder.ConfigureOptions(options =>
+        {
+            options.UserAgentApplicationId = "CLIENT_ID";
+        });
+    });
+```
+
+The client builder is an instance of the `IAzureClientBuilder` type, which provides a fluent API to configure the client options. The preceding code sets the `AzureOpenAIClientOptions.UserAgentApplicationId` property to `CLIENT_ID`.
+
+### Add Azure OpenAI client from configuration
+
+Additionally, the package provides the `AddOpenAIClientFromConfiguration` extension method to register an `OpenAIClient` or `AzureOpenAIClient` instance based on the provided connection string. This method follows these rules:
+
+- If the `Endpoint` attribute is empty or missing, an `OpenAIClient` instance is registered using the provided key, for example, `Key={key};`.
+- If the `IsAzure` attribute is `true`, an `AzureOpenAIClient` is registered; otherwise, an `OpenAIClient` is registered, for example, `Endpoint={azure_endpoint};Key={key};IsAzure=true` registers an `AzureOpenAIClient`, while `Endpoint=https://localhost:18889;Key={key}` registers an `OpenAIClient`.
+- If the `Endpoint` attribute contains `".azure."`, an `AzureOpenAIClient` is registered; otherwise, an `OpenAIClient` is registered, for example, `Endpoint=https://{account}.azure.com;Key={key};`.
+
+Consider the following example:
+
+```csharp
+builder.AddOpenAIClientFromConfiguration("openai");
+```
+
+> [!TIP]
+> A valid connection string must contain at least an `Endpoint` or a `Key`.
+
+Consider the following example connection strings and whether they register an `OpenAIClient` or `AzureOpenAIClient`:
+
+| Example connection string | Registered client type |
+|--|--|
+| `Endpoint=https://{account_name}.openai.azure.com/;Key={account_key}` | `AzureOpenAIClient` |
+| `Endpoint=https://{account_name}.openai.azure.com/;Key={account_key};IsAzure=false` | `OpenAIClient` |
+| `Endpoint=https://{account_name}.openai.azure.com/;Key={account_key};IsAzure=true` | `AzureOpenAIClient` |
+| `Endpoint=https://localhost:18889;Key={account_key}` | `OpenAIClient` |
+
+### Add keyed Azure OpenAI clients
+
+There might be situations where you want to register multiple `OpenAIClient` instances with different connection names. To register keyed Azure OpenAI clients, call the `AddKeyedAzureOpenAIClient` method:
+
+```csharp
+builder.AddKeyedAzureOpenAIClient(name: "chat");
+builder.AddKeyedAzureOpenAIClient(name: "code");
+```
+
+> [!IMPORTANT]
+> When using keyed services, ensure that your Azure OpenAI resource configures two named connections, one for `chat` and one for `code`.
+
+Then you can retrieve the client instances using dependency injection. For example, to retrieve the clients from a service:
 
 ```csharp
 public class ExampleService(
-    [KeyedService("gpt4-service")] AzureOpenAIClient gpt4Client,
-    [KeyedService("embeddings-service")] AzureOpenAIClient embeddingsClient)
+    [KeyedService("chat")] OpenAIClient chatClient,
+    [KeyedService("code")] OpenAIClient codeClient)
 {
     // Use clients...
 }
 ```
 
 For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Add keyed Azure OpenAI clients from configuration
+
+The same functionality and rules exist for keyed Azure OpenAI clients as for the nonkeyed clients. You can use the `AddKeyedOpenAIClientFromConfiguration` extension method to register an `OpenAIClient` or `AzureOpenAIClient` instance based on the provided connection string.
+
+Consider the following example:
+
+```csharp
+builder.AddKeyedOpenAIClientFromConfiguration("openai");
+```
+
+This method follows the same rules as detailed in the [Add Azure OpenAI client from configuration](#add-azure-openai-client-from-configuration).
 
 ### Configuration
 
