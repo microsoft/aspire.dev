@@ -51,24 +51,53 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = ctx =>
     {
         var headers = ctx.Context.Response.Headers;
-        var name = ctx.File.Name.ToLowerInvariant();
+
+        // Anything served from the /_astro/ directory can be cached forever
+        // https://starlight.astro.build/environmental-impact/#caching
+        if (IsInAstroDirectory(ctx.File.PhysicalPath))
+        {
+            headers.CacheControl = "public, max-age=604800, immutable";
+            return;
+        }
+
+        if (ctx.File.IsDirectory)
+        {
+            return;
+        }
+
+        var extension = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
 
         // Astro hashes CSS/JS files, but HTML files should not be cached
         // They'll always reference the hashed assets
-        if (name.EndsWith(".html") || name.EndsWith(".htm"))
+        if (extension is ".html" or ".htm")
         {
             headers.CacheControl = "no-cache, no-store, must-revalidate";
             headers.Pragma = "no-cache";
             headers.Expires = "0";
         }
-        else if (name.EndsWith(".css") || name.EndsWith(".js")
-            || name.EndsWith(".jpg") || name.EndsWith(".jpeg")
-            || name.EndsWith(".png") || name.EndsWith(".gif")
-            || name.EndsWith(".svg") || name.EndsWith(".webp")
-            || name.EndsWith(".woff") || name.EndsWith(".woff2")
-            || name.EndsWith(".ttf") || name.EndsWith(".eot"))
+        else if (extension is ".css" or ".js"
+            or ".mp4" or ".webm"
+            or ".json" or ".xml"
+            or ".jpg" or ".jpeg" 
+            or ".png" or ".gif" 
+            or ".svg" or ".webp" 
+            or ".woff" or ".woff2" 
+            or ".ttf" or ".eot")
         {
-            headers.CacheControl = "public, max-age=31536000, immutable";
+            headers.CacheControl = "public, max-age=604800, immutable";
+        }
+
+        static bool IsInAstroDirectory(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
+
+            var directorySegments = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+                .Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+
+            return directorySegments.Any(s => s.Equals("_astro", StringComparison.OrdinalIgnoreCase));
         }
     }
 });
