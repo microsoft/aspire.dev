@@ -12,14 +12,14 @@ Aspire's AppHost is the code-first place where you declare your application's se
 
 ## Defining your architecture
 
-Consider a simple three-tier architecture where the frontend talks to an API, and the API talks to a database:
+Consider a simple three-tier architecture where the front end talks to an API, and the API talks to a database:
 
 ```mermaid
 architecture-beta
 
   service db(logos:postgresql)[PostgreSQL]
-  service api(logos:dotnet)[API Service]
-  service frontend(logos:react)[React Frontend]
+  service api(logos:dotnet)[API service]
+  service frontend(logos:react)[React front end]
 
   api:R --> L:db
   frontend:R --> L:api
@@ -35,7 +35,7 @@ Aspire presents the same, consistent model regardless of the language or framewo
 
 Below we highlight the key parts of a typical AppHost to explain what each step does.
 
-<SimpleAppHostCode collapse={['3-17']} />
+<SimpleAppHostCode collapse={['3-16']} />
 
 In the non-collapsed lines you:
 
@@ -51,7 +51,7 @@ The AppHost is the blueprint for your distributed application—Aspire manages t
 
 With the builder ready, define resources and services. The snippet below shows how to add a PostgreSQL server and a database:
 
-<SimpleAppHostCode mark={{ range: '4-6' }} collapse={['8-19']} />
+<SimpleAppHostCode mark={{ range: '4-6' }} collapse={['8-18']} />
 
 How this works:
 
@@ -68,7 +68,7 @@ How this works:
 
 Next, register the API service and wire it to the PostgreSQL resource:
 
-<SimpleAppHostCode mark={{ range: '9-11' }} collapse={['1-6', '13-19']} />
+<SimpleAppHostCode mark={{ range: '9-11' }} collapse={['1-6', '13-18']} />
 
 What this does:
 
@@ -76,34 +76,29 @@ What this does:
 - `WithReference(postgres)` injects connection details (host, port, credentials, connection string) into the API configuration.
 - `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy, avoiding brittle startup timing issues.
 
-Now that the `api` service is defined, you can attach the frontend.
+Now that the `api` service is defined, you can attach the front end.
 
-#### Adding a frontend resource
+#### Adding a front end resource
 
-Register the frontend project, declare its dependency on the API, and let the AppHost provide the API address automatically.
+Register the front end project, declare its dependency on the API, and let the AppHost provide the API address automatically.
 
 <Aside type="note">
-This example uses a Node.js (React) frontend, but Aspire treats frontends as executable services—any language or framework works.
+This example uses a Node.js (React) front end, but Aspire treats front ends as executable services—any language or framework works.
 </Aside>
 
-<SimpleAppHostCode mark={{ range: '14-17' }} collapse={['1-11']} />
+<SimpleAppHostCode mark={{ range: '14-16' }} collapse={['1-11']} />
 
 Key points:
 
-- `.AddViteApp("frontend", "../frontend")` registers the (Vite-based) frontend project as a service named `frontend`.
+- `.AddViteApp("front end", "../frontend")` registers the (Vite-based) front end project as a service named `front end`.
 - `.WithHttpEndpoint(env: "PORT", targetPort: 3000)` exposes the app on port `3000`; the `PORT` environment variable can override it.
-- `.WithNpmPackageInstallation()` runs `npm install` before start so dependencies are present.
-- `.WithReference(api)` injects the API base address into the frontend configuration.
-
-<Aside type="tip">
-`.WithNpmPackageInstallation()` is supplied by the Community Toolkit package: `📦 CommunityToolkit.Aspire.Hosting.NodeJS.Extensions`.
-</Aside>
+- `.WithReference(api)` injects the API base address into the front end configuration.
 
 In short: define the backend first (DB → API), then point the UI at the API. The AppHost captures the dependency graph, connection flows, and startup order.
 
 #### Configuration and networking
 
-These dependencies and connections are automatically managed by Aspire. The AppHost generates configuration values like connection strings and endpoints, injecting them into services as needed. in the AppHost when you add resources, you name them (e.g., `db`, `api`, `frontend`); Aspire uses these names for DNS resolution, so services can communicate using predictable addresses. Consuming services also rely on these names for configuration injection.
+These dependencies and connections are automatically managed by Aspire. The AppHost generates configuration values like connection strings and endpoints, injecting them into services as needed. in the AppHost when you add resources, you name them (e.g., `db`, `api`, `front end`); Aspire uses these names for DNS resolution, so services can communicate using predictable addresses. Consuming services also rely on these names for configuration injection.
 
 ```mermaid
 architecture-beta
@@ -112,7 +107,7 @@ architecture-beta
   service epr(iconoir:server-connection)[Endpoint Reference]
   service api(logos:dotnet)[api]
   service ctr(iconoir:server-connection)[Connection String Reference]
-  service frontend(logos:react)[frontend]
+  service frontend(logos:react)[front end]
 
   db:L <-- R:ctr
   ctr:L <-- R:api
@@ -126,10 +121,10 @@ architecture-beta
 1. `pg` publishes a `ConnectionStringReference` (host, port, database, user, password)—a strongly typed bundle Aspire understands.
 1. `api` declares a dependency on that reference; Aspire injects the connection string into its config with a unique configuration-flow process that injects settings values, including secrets, parameters, and connection strings for both local runs and deployments.
 1. `api` then publishes an `EndpointReference` (its base URL) after its HTTP endpoint is allocated.
-1. `frontend` depends on that endpoint; Aspire injects the API base URL so no hard-coded addresses are needed.
+1. `front end` depends on that endpoint; Aspire injects the API base URL so no hard-coded addresses are needed.
 </Steps>
 
-<Aside type="note">
+<Aside type="tip">
 Aspire replaces ad-hoc run scripts, scattered environment variables, and fragile copy-pasted connection strings with a single, declarative source of truth. By modeling services, resources, and their dependencies in code, it delivers typed configuration (endpoints, credentials, connection strings) directly where needed—reducing setup drift, accelerating onboarding, and letting you evolve the architecture without rewriting glue.
 </Aside>
 
@@ -145,7 +140,7 @@ When you run the AppHost, Aspire performs these core responsibilities:
 </Steps>
 
 <LearnMore>
-  Dive deeper into Aspire's orchestration and the [Resource Model](/architecture/resource-model/).
+  Dive deeper into Aspire's orchestration and the [Resource model](/architecture/resource-model/).
 </LearnMore>
 
 ## AppHost structure

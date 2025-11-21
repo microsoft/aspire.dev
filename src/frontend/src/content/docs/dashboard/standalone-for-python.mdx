@@ -4,22 +4,12 @@ description: How to use the Aspire Dashboard in a Python application.
 ---
 
 import { Image } from 'astro:assets';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
-import { TabItem, Tabs, Steps } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
+import { FileTree, TabItem, Tabs, Steps } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
 
-import runFlaskAppLocalhost from '@assets/dashboard/standalone/run-flask-app-localhost.png';
-import runFastapiAppLocalhost from '@assets/dashboard/standalone/run-fastapi-app-localhost.png';
 import aspireDashboardPythonLogs from '@assets/dashboard/standalone/aspire-dashboard-python-logs.png';
-
-<PivotSelector
-    title="Select your Python framework"
-    key="python-framework"
-    options={[
-        { id: "flask", title: "Flask" },
-        { id: "fastapi", title: "FastAPI" },
-    ]}
-/>
+import aspireDashboardPythonLogsLight from '@assets/dashboard/standalone/aspire-dashboard-python-logs-light.png';
 
 The [Aspire dashboard](/dashboard/overview/) provides a great user experience for viewing telemetry, and is available as a standalone container image that can be used with any OpenTelemetry-enabled app. In this article, you'll learn how to:
 
@@ -32,244 +22,48 @@ To complete this tutorial, you need the following:
 
 - [Container runtime](/get-started/prerequisites/#install-an-oci-compliant-container-runtime).
   - You can use an alternative container runtime, but the commands in this article are for Docker.
-- [Python 3.9 or higher](https://www.python.org/downloads/) locally installed.
-- A sample application.
+- [Aspire 13.0 or later](/get-started/install-cli/) installed.
+- [Python 3.10 or higher](https://www.python.org/downloads/) with [uv](https://docs.astral.sh/uv/) installed.
 
-## Sample application
+## Create a sample application
 
-This tutorial can be completed using either Flask or FastAPI. A sample application in each framework is provided to help you follow along with this tutorial. Download or clone the sample application to your local workstation.
-
-<Pivot id="flask">
-
-```bash title="Clone the Flask sample application"
-git clone https://github.com/Azure-Samples/msdocs-python-flask-webapp-quickstart
-```
-
-</Pivot>
-<Pivot id="fastapi">
-
-```bash title="Clone the FastAPI sample application"
-git clone https://github.com/Azure-Samples/msdocs-python-fastapi-webapp-quickstart.git
-```
-
-</Pivot>
-
-To run the application locally, follow the framework-specific instructions for Flask or FastAPI.
-
-To run the application locally:
-
-<Pivot id="flask">
-<Steps>
-1. Go to the application folder:
-
-    ```bash title="Change directory to the Flask app"
-    cd msdocs-python-flask-webapp-quickstart
-    ```
-
-1. Create a virtual environment for the app:
-
-    <Tabs syncKey="terminal">
-    <TabItem label="Bash" icon="seti:shell">
-    ```bash
-    python -m venv venv
-    source venv/bin/activate
-    ```
-    </TabItem>
-    <TabItem label="PowerShell" icon="seti:powershell">
-    ```powershell
-    python -m venv venv
-    .\venv\Scripts\Activate.ps1
-    ```
-    </TabItem>
-    </Tabs>
-
-1. Install the dependencies:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-1. Run the app:
-
-    ```bash
-    flask run
-    ```
-
-1. Browse to the sample application at `http://localhost:5000` in a web browser.
-
-    <Image src={runFlaskAppLocalhost} alt="Screenshot of the Flask app running locally in a browser" />
-
-</Steps>
-</Pivot>
-
-<Pivot id="fastapi">
-<Steps>
-1. Go to the application folder:
-
-    ```bash title="Change directory to the FastAPI app"
-    cd msdocs-python-fastapi-webapp-quickstart
-    ```
-
-1. Create a virtual environment for the app:
-
-    <Tabs syncKey="terminal">
-    <TabItem label="Bash" icon="seti:shell">
-    ```bash
-    python -m venv venv
-    source venv/bin/activate
-    ```
-    </TabItem>
-    <TabItem label="PowerShell" icon="seti:powershell">
-    ```powershell
-    python -m venv venv
-    .\venv\Scripts\Activate.ps1
-    ```
-    </TabItem>
-    </Tabs>
-
-1. Install the dependencies:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-1. Run the app:
-
-    ```bash
-    uvicorn main:app --reload
-    ```
-
-1. Browse to the sample application at `http://localhost:8000` in a web browser.
-
-    <Image src={runFastapiAppLocalhost} alt="Screenshot of the FastAPI app running locally in a browser." />
-
-</Steps>
-</Pivot>
-
-## Adding OpenTelemetry
-
-To use the Aspire dashboard with your Python app, you need to install the OpenTelemetry SDK and exporter. The OpenTelemetry SDK provides the API for instrumenting your application, and the exporter sends telemetry data to the Aspire dashboard.
+This tutorial uses the Aspire 13.0 Python starter template which includes a FastAPI backend and React frontend. You'll focus on the FastAPI app to demonstrate dashboard integration with standalone mode.
 
 <Steps>
-1. Install the OpenTelemetry SDK and exporter:
+1. Create a new Aspire solution from the Python starter template:
 
-    ```bash
-    pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp-proto-grpc
+    ```bash title="Create a new Aspire Python solution"
+    aspire new aspire-py-starter -n aspire-dashboard-sample -o aspire-dashboard-sample
     ```
 
-1. Add a new file to your application called `otlp_tracing.py` and add OpenTelemetry configuration code.
+1. Navigate to the application folder:
 
-   ```python
-    import logging
-    from opentelemetry import metrics, trace
-
-    from opentelemetry._logs import set_logger_provider
-    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
-        OTLPLogExporter,
-    )
-    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-    def configure_oltp_grpc_tracing(
-        endpoint: str = None
-    ) -> trace.Tracer:
-        # Configure Tracing
-        traceProvider = TracerProvider()
-        processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-        traceProvider.add_span_processor(processor)
-        trace.set_tracer_provider(traceProvider)
-
-        # Configure Metrics
-        reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=endpoint))
-        meterProvider = MeterProvider(metric_readers=[reader])
-        metrics.set_meter_provider(meterProvider)
-
-        # Configure Logging
-        logger_provider = LoggerProvider()
-        set_logger_provider(logger_provider)
-
-        exporter = OTLPLogExporter(endpoint=endpoint)
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
-        handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
-        handler.setFormatter(logging.Formatter("Python: %(message)s"))
-
-        # Attach OTLP handler to root logger
-        logging.getLogger().addHandler(handler)
-
-        tracer = trace.get_tracer(__name__)
-        return tracer
+    ```bash title="Change directory"
+    cd aspire-dashboard-sample/app
     ```
 
-1. Update your application (`app.py` for Flask, `main.py` for FastAPI) to include the imports and call the `configure_oltp_grpc_tracing` function:
+1. Review the generated FastAPI application structure. The template includes:
 
-    ```python
-    import logging
-    from otlp_tracing import configure_otel_otlp
+    <FileTree>
 
-    logging.basicConfig(level=logging.INFO)
-    tracer = configure_oltp_grpc_tracing()
-    logger = logging.getLogger(__name__)
-    ```
+   - `.dockerignore` Common Docker ignore patterns
+   - `.python-version`  Python version specification
+   - `main.py` FastAPI app with basic endpoints
+   - `pyproject.toml` Python dependencies
+   - `telemetry.py` Basic telemetry configuration
 
-1. Replace the `print` calls with `logger.info` calls in your application.
-1. Restart your application.
-</Steps>
+    </FileTree>
 
-### Framework specific instrumentation
+1. The starter template already has basic dependencies. Install them:
 
-This instrumentation has only focused on adding OpenTelemetry to our code. For more detailed instrumentation, you can use the OpenTelemetry Instrumentation packages for the specific frameworks that you are using.
-
-<Pivot id="flask">
-
-<Steps>
-1. Install the Flask instrumentation package:
-
-    ```bash
-    pip install opentelemetry-instrumentation-flask
-    ```
-
-1. Add the Flask instrumentation to your application code.
-
-    ```python
-    from opentelemetry.instrumentation.flask import FlaskInstrumentor
-
-    # add this line after configure_otel_otlp() call
-    FlaskInstrumentor().instrument()
-    ```
-
-</Steps>
-
-</Pivot>
-<Pivot id="fastapi">
-
-<Steps>
-1. Install the FastAPI instrumentation package:
-
-    ```bash
-    pip install opentelemetry-instrumentation-fastapi
-    ```
-
-1. Add the FastAPI instrumentation to your application code.
-
-    ```python
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-    # add this line after configure_otel_otlp() call
-    FastAPIInstrumentor.instrument_app(app)
+    ```bash title="Install dependencies with uv"
+    uv sync
     ```
 </Steps>
-
-</Pivot>
 
 ## Start the Aspire dashboard
 
-To start the Aspire dashboard in standalone mode, run the following Docker command:
+Before running the Python app, start the Aspire dashboard in standalone mode so it's ready to receive telemetry data:
 
 ```bash
 docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard \
@@ -278,12 +72,169 @@ docker run --rm -it -p 18888:18888 -p 4317:18889 --name aspire-dashboard \
 
 In the Docker logs, the endpoint and key for the dashboard are displayed. Copy the key and navigate to `http://localhost:18888` in a web browser. Enter the key to log in to the dashboard.
 
-## View structured logs
+Leave the dashboard running and open a new terminal for the next steps.
 
-Navigate around the Python application, and you'll see structured logs in the Aspire dashboard. The structured logs page displays logs from your application, and you can filter and search the logs.
+## Enhance OpenTelemetry configuration
 
-<Image src={aspireDashboardPythonLogs} alt="Screenshot of the Aspire dashboard showing the Python application logs" />
+The starter template includes basic telemetry configuration in `telemetry.py`. Let's enhance it to work with the standalone Aspire dashboard.
+
+<Steps>
+1. Install additional OpenTelemetry packages for better instrumentation:
+
+    ```bash title="Install OpenTelemetry packages"
+    uv add opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-httpx
+    ```
+
+1. Update the `telemetry.py` file to configure OpenTelemetry to send data to the dashboard:
+
+    ```python title="Python — app/telemetry.py"
+    import logging
+    import os
+    from opentelemetry import metrics, trace
+    from opentelemetry._logs import set_logger_provider
+    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    def configure_telemetry(app, service_name: str = "app"):
+        """Configure OpenTelemetry for FastAPI application."""
+        
+        # Get OTLP endpoint from environment or use default for standalone dashboard
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        
+        # Create resource with service name
+        resource = Resource.create({"service.name": service_name})
+        
+        # Configure Tracing
+        trace_provider = TracerProvider(resource=resource)
+        trace_provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
+        )
+        trace.set_tracer_provider(trace_provider)
+        
+        # Configure Metrics
+        metric_reader = PeriodicExportingMetricReader(
+            OTLPMetricExporter(endpoint=otlp_endpoint)
+        )
+        meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+        metrics.set_meter_provider(meter_provider)
+        
+        # Configure Logging
+        logger_provider = LoggerProvider(resource=resource)
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(OTLPLogExporter(endpoint=otlp_endpoint))
+        )
+        set_logger_provider(logger_provider)
+        
+        # Add logging handler
+        handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+        logging.getLogger().addHandler(handler)
+        
+        # Instrument FastAPI application
+        FastAPIInstrumentor.instrument_app(app)
+        
+        return trace.get_tracer(__name__)
+    ```
+
+1. Update `main.py` to use the enhanced telemetry configuration. Replace the entire file content with the following code, which includes the telemetry setup and example endpoints:
+
+    ```python title="Python — app/main.py"
+    import logging
+    from fastapi import FastAPI
+    from telemetry import configure_telemetry
+
+    logging.basicConfig(level=logging.INFO)
+
+    app = FastAPI()
+
+    # Configure telemetry for standalone dashboard
+    tracer = configure_telemetry(app, service_name="weather-api")
+    logger = logging.getLogger(__name__)
+
+    # Example endpoints (replace or extend these based on your application needs)
+    @app.get("/")
+    async def root():
+        logger.info("Root endpoint called")
+        return {"message": "Hello from FastAPI with Aspire dashboard!"}
+
+    @app.get("/health")
+    async def health():
+        logger.info("Health check called")
+        return {"status": "healthy"}
+
+    @app.get("/simulate-error")
+    async def simulate_error():
+        logger.warning("This is a simulated warning.")
+        logger.error("This is a simulated error.")
+        return {"message": "Simulated warning and error logs generated"}
+    ```
+    
+    :::tip
+    If you want to keep the template's original endpoints, copy them from the generated `main.py` before replacing the file content, then merge them with the telemetry configuration shown above.
+    :::
+
+1. Run the FastAPI application (note: without `--reload` to avoid telemetry issues):
+
+    <Tabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+    ```bash
+    uv run uvicorn main:app --host 127.0.0.1 --port 8000
+    ```
+    </TabItem>
+    <TabItem label="PowerShell" icon="seti:powershell">
+    ```powershell
+    uv run uvicorn main:app --host 127.0.0.1 --port 8000
+    ```
+    </TabItem>
+    </Tabs>
+
+1. Test the application by browsing to `http://localhost:8000` and `http://localhost:8000/health` to generate telemetry data.
+</Steps>
+
+## View telemetry in the dashboard
+
+With both the dashboard and your Python application running, you can now view telemetry data in real-time:
+
+<Steps>
+1. Navigate to the Aspire dashboard at `http://localhost:18888` (if not already open).
+2. Make requests to your FastAPI application:
+   - Browse to `http://localhost:8000` for the root endpoint
+   - Browse to `http://localhost:8000/health` for the health check
+   - Browse to `http://localhost:8000/simulate-error` to generate warning and error logs
+3. In the dashboard, explore the different sections:
+   - **Structured Logs**: View application logs with filtering and search capabilities
+   - **Traces**: See distributed traces for HTTP requests
+   - **Metrics**: Monitor application performance metrics
+</Steps>
+
+The structured logs page displays logs from your application with rich filtering and search capabilities:
+
+<ThemeImage 
+    dark={aspireDashboardPythonLogs}
+    light={aspireDashboardPythonLogsLight}
+    alt="Screenshot of the Aspire dashboard showing the Python application logs" />
+
+## Stop the Python app and dashboard
+
+When you're done exploring the Aspire dashboard with your Python app, stop both the FastAPI application and the dashboard:
+
+<Steps>
+1. Stop the FastAPI application by pressing <Kbd windows='Ctrl+C' mac='⌘+C' /> in the terminal where it's running.
+2. Stop the Aspire dashboard by pressing <Kbd windows='Ctrl+C' mac='⌘ + C' /> in the terminal where the Docker container is running.
+</Steps>
 
 ## Next steps
 
-You have successfully used the Aspire dashboard with a Python application. To learn more about the Aspire dashboard, see the [Aspire dashboard overview](/dashboard/overview/) and how to orchestrate a Python application with the Aspire AppHost.
+You have successfully used the Aspire dashboard with a Python application. To learn more:
+
+- [Aspire dashboard overview](/dashboard/overview/) - Learn about all dashboard features
+- [Build your first Aspire app](/get-started/first-app/?lang=python) - Create a full-stack Python application with Aspire orchestration
+- [Deploy your first Aspire app](/get-started/deploy-first-app/?lang=python) - Deploy your Python application to Azure

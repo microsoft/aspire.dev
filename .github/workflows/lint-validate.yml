@@ -14,30 +14,32 @@ jobs:
   lint_validate:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-node@v4
-      with:
-        node-version: ${{ inputs.node_version }}
-        cache: npm
-        cache-dependency-path: src/frontend/package-lock.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
 
-    - name: Install deps
-      run: cd src/frontend && npm ci
+      - name: Install deps
+        run: cd src/frontend && npm ci
 
-    - name: Astro type check
-      run: cd src/frontend && npx astro check | tee ../astro-check.txt
+      - name: Astro type check
+        run: cd src/frontend && npx astro check | tee ../astro-check.txt
 
-    - name: Astro config dry run
-      run: cd src/frontend && npx astro build --dry-run | tee ../astro-dry-run.txt || echo "Dry run validation completed"
+      - name: Astro config dry run
+        run: cd src/frontend && npx astro build --dry-run | tee ../astro-dry-run.txt || echo "Dry run validation completed"
 
-    - name: Upload lint/validate artifacts
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: lint-validate-results
-        path: |
-          src/astro-check.txt
-          src/astro-dry-run.txt
-        if-no-files-found: warn
-        retention-days: 7
+      - name: Upload lint/validate artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-validate-results
+          path: |
+            src/astro-check.txt
+            src/astro-dry-run.txt
+          if-no-files-found: warn
+          retention-days: 7

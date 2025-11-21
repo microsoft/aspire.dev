@@ -17,19 +17,18 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Add database resource
 var postgres = builder.AddPostgres("db")
-                      .AddDatabase("appdata")
-                      .WithDataVolume();
+    .AddDatabase("appdata")
+    .WithDataVolume();
 
 // Add API service and reference the database
 var api = builder.AddProject<Projects.Api>("api")
-                 .WithReference(postgres)
-                 .WaitFor(postgres);
+    .WithReference(postgres)
+    .WaitFor(postgres);
 
 // Add frontend service and reference the API
 builder.AddViteApp("frontend", "../frontend")
-       .WithNpmPackageInstallation()
-       .WithHttpEndpoint(env: "PORT")
-       .WithReference(api);
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
 
 builder.Build().Run();
 `;

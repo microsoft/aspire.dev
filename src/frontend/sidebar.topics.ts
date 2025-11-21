@@ -212,6 +212,28 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
                 'zh-CN': '',
               }
             }
+          },
+          {
+            label: "Aspireify an existing app",
+            translations: {
+              "da": "Aspireify en eksisterende app",
+              "de": "Eine bestehende App Aspireify",
+              "en": "Aspireify an existing app",
+              "es": "Aspireify una aplicación existente",
+              "fr": "Aspireify une application existante",
+              "hi": "मौजूदा ऐप को Aspireify करें",
+              "id": "Aspireify aplikasi yang sudah ada",
+              "it": "Aspireify un'app esistente",
+              "ja": "既存のアプリを Aspireify する",
+              "ko": "기존 앱을 Aspireify하기",
+              "pt-BR": "Aspireify um app existente",
+              "pt-PT": "Aspireify uma app existente",
+              "ru": "Aspireify существующее приложение",
+              "tr": "Mevcut bir uygulamayı Aspireify et",
+              "uk": "Aspireify наявний застосунок",
+              "zh-CN": "对现有应用进行 Aspireify"
+            },
+            slug: 'get-started/add-aspire-existing-app'
           }
         ]
       },
@@ -828,7 +850,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               { label: 'Local Azure provisioning', slug: 'integrations/cloud/azure/local-provisioning' },
               { label: 'Configure Azure Container Apps', slug: 'integrations/cloud/azure/configure-container-apps' },
               {
-                label: 'Azure AI', items: [
+                label: 'Azure AI', collapsed: true, items: [
                   { label: 'AI compatibility matrix', slug: 'integrations/cloud/azure/ai-compatibility-matrix' },
                   { label: 'Azure AI Foundry', slug: 'integrations/cloud/azure/azure-ai-foundry' },
                   { label: 'Azure AI Inference', slug: 'integrations/cloud/azure/azure-ai-inference' },
@@ -952,7 +974,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '数据库',
         }, items: [
           { label: "Elasticsearch", slug: "integrations/databases/elasticsearch" },
-          { label: "EventStore", slug: "integrations/databases/eventstore" },
           { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },

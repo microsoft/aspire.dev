@@ -5,9 +5,14 @@ import { Aside, Code, TabItem, Tabs } from "@astrojs/starlight/components";
 interface Props {
     packageName: string;
     shortName?: string;
+    omitPackageReference?: boolean;
 }
 
-const { packageName, shortName = generateFriendlyName(packageName) } = Astro.props;
+const {
+    packageName,
+    shortName = generateFriendlyName(packageName),
+    omitPackageReference,
+} = Astro.props;
 
 const cliCommandTitle = Astro.locals.t("package.cliCommandTitle", {
     packageName,
@@ -46,10 +51,12 @@ const appHostCode = `#:package ${packageName}@*`;
             {Astro.locals.t("package.autoCliSelection")}
         </Aside>
     </TabItem>
-    <TabItem label="AppHost.cs (C# file-based app)">
+    <TabItem label="apphost.cs (C# file-based app)">
         <Code lang="csharp" title={appHostTitle} code={appHostCode} />
     </TabItem>
-    <TabItem label="PackageReference (*.csproj)">
-        <Code lang="xml" title={packageReferenceTitle} code={packageCode} />
-    </TabItem>
+    {!omitPackageReference && (
+        <TabItem label="PackageReference (*.csproj)">
+            <Code lang="xml" title={packageReferenceTitle} code={packageCode} />
+        </TabItem>
+    )}
 </Tabs>
