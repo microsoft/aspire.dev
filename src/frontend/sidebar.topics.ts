@@ -994,12 +994,13 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ]
           },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          {
-            label: "PostgreSQL",
+          { label: "PostgreSQL",
             collapsed: true,
             items: [
-              { label: "Integration overview", slug: "integrations/databases/postgres" },
-              { label: "Community extensions", slug: "integrations/databases/postgresql-extensions" }
+              { label: "Get started", slug: "integrations/databases/postgres/postgres-get-started" },
+              { label: "Hosting integration (AppHost)", slug: "integrations/databases/postgres/postgres-host" },
+              { label: "Client integration (Your app)", slug: "integrations/databases/postgres/postgres-client" },
+              { label: "Community extensions", slug: "integrations/databases/postgres/postgresql-extensions" }
             ]
           },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
