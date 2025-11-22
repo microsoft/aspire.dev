@@ -399,6 +399,26 @@ builder.Build().Run();
   - `WithNpm()` / `WithYarn()` / `WithPnpm()` - Specify package manager
 - `WithRunScript` - Specify which npm script to run during development
 
+:::note[Passing arguments to scripts]
+Unlike the deprecated `AddNpmApp` API in Aspire 9, the new JavaScript hosting methods (`AddJavaScriptApp`, `AddViteApp`, `AddNodeApp`) do not support an `args` parameter. To pass arguments to your scripts, define custom scripts in your `package.json` with the required arguments, then reference those scripts using `WithRunScript()`. For example:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "vite",
+    "dev:no-open": "vite --no-open"
+  }
+}
+```
+
+```csharp title="apphost.cs"
+builder.AddViteApp("frontend", "./frontend")
+    .WithRunScript("dev:no-open");
+```
+
+This approach keeps all script configuration in `package.json`, making your scripts more discoverable and easier to run outside of Aspire.
+:::
+
 </Pivot>
 
 <Aside type="tip">

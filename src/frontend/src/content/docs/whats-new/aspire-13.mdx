@@ -424,6 +424,33 @@ var app = builder.AddJavaScriptApp("app", "./app")
     .WithBuildScript("prod");     // Run "npm run prod" during publish instead of "build"
 ```
 
+#### Passing arguments to scripts
+
+Unlike the deprecated `AddNpmApp` API, `AddJavaScriptApp` does not support an `args` parameter for passing command-line arguments directly to scripts. Instead, define custom scripts in your `package.json` that include the necessary arguments:
+
+```json title="package.json — Define custom scripts with arguments"
+{
+  "scripts": {
+    "dev": "vite",
+    "hasura:console": "hasura console --no-browser --admin-secret mysecret"
+  }
+}
+```
+
+Then reference the custom script in your AppHost:
+
+```csharp title="C# — Use custom script with arguments"
+// Before (Aspire 9.x with AddNpmApp)
+// builder.AddNpmApp("hasura-console", "../Web/ClientApp", 
+//     scriptName: "hasura:console", 
+//     args: ["--no-browser"])
+
+// After (Aspire 13.0 with AddJavaScriptApp)
+builder.AddJavaScriptApp("hasura-console", "../Web/ClientApp", runScriptName: "hasura:console");
+```
+
+This approach keeps all script configuration in `package.json`, making your scripts more discoverable and easier to run outside of Aspire (e.g., `npm run hasura:console`).
+
 #### Vite support
 
 `AddViteApp` is now a specialization of `AddJavaScriptApp` with Vite-specific optimizations:
@@ -1453,6 +1480,10 @@ The following APIs are marked as obsolete in Aspire 13.0 and will be removed in 
 
 **Node.js/JavaScript APIs** (use new JavaScript hosting instead):
 - `AddNpmApp()` - Use `AddJavaScriptApp()` instead for general npm-based apps, or `AddViteApp()` for Vite projects
+
+:::note[Migrating from AddNpmApp]
+The `AddNpmApp` API supported an `args` parameter for passing command-line arguments to scripts. `AddJavaScriptApp` does not have this parameter. Instead, define custom scripts in your `package.json` with the required arguments. See [Passing arguments to scripts](#passing-arguments-to-scripts) for details and examples.
+:::
 
 While the obsoleted APIs still work in 13.0, they will be removed in the next major version. Update your code to use the recommended replacements.
 
