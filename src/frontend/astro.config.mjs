@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import { sidebarTopics } from './sidebar.topics';
 import { redirects } from './redirects.mjs';
 import { iconPacks } from './icon-packs.mjs';
+import react from '@astrojs/react';
 import catppuccin from "@catppuccin/starlight";
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
@@ -43,6 +44,7 @@ export default defineConfig({
 	trailingSlash: 'always',
 	redirects: redirects,
 	integrations: [
+		react(),
 		mermaid({
 			theme: 'forest',
 			autoTheme: true,
@@ -63,23 +65,27 @@ export default defineConfig({
 			head: [
 				// SEO meta tags for discoverability (including legacy ".NET Aspire" branding)
 				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
-				{ tag: 'meta', attrs: { name: 'keywords', content: `
+				{
+					tag: 'meta', attrs: {
+						name: 'keywords', content: `
 					Aspire, .NET Aspire, dotnet aspire,
 					distributed applications, cloud-native, microservices, orchestration,
 					.NET, observability, otel, opentelemetry, dashboard, service discovery, integrations,
 					C#, csharp, polyglot, python, go, node.js, javascript, typescript,
 					vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis,
 					docker, containers, kubernetes, compose
-				`.replace(/\s*\n\s*/g, ' ').trim() } },
+				`.replace(/\s*\n\s*/g, ' ').trim()
+					}
+				},
 				{ tag: 'meta', attrs: { name: 'alternate-name', content: '.NET Aspire' } },
-				
+
 				// Open Graph meta tags
 				{ tag: 'meta', attrs: { property: 'og:title', content: 'Aspire—Your Stack, Streamlined' } },
 				{ tag: 'meta', attrs: { property: 'og:description', content: 'Aspire streamlines your development workflow with code-first control, modularity, and observability for distributed applications.' } },
 				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://aspire.dev/og-image.png' } },
 				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
 				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'Aspire' } },
-				
+
 				// Twitter Card meta tags
 				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
 				{ tag: 'meta', attrs: { property: 'twitter:domain', content: 'aspire.dev' } },
@@ -87,7 +93,7 @@ export default defineConfig({
 				{ tag: 'meta', attrs: { name: 'twitter:title', content: 'Aspire—Your Stack, Streamlined' } },
 				{ tag: 'meta', attrs: { name: 'twitter:description', content: 'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability.' } },
 				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://aspire.dev/og-image.png' } },
-				
+
 				// Favicons and icons (ordered: SVG → PNG → ICO → Apple Touch Icon)
 				{ tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' } },
 				{ tag: 'link', attrs: { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' } },
@@ -158,7 +164,11 @@ export default defineConfig({
 				}),
 				catppuccin(),
 				starlightSidebarTopics(sidebarTopics, {
-					exclude: ['**/includes/**/*']
+					exclude: [
+						'**/includes/**/*',
+						'**/playground.mdx',
+						'/playground'
+					]
 				}),
 				...(process.env.CHECK_LINKS
 					? [starlightLinksValidator({

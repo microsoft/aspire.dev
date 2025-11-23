@@ -16,7 +16,8 @@ export const collections = {
 						'tutorial',
 						'blog',
 						'reference',
-						'sample'
+						'sample',
+						'feature'
 					]).optional(),
 				})
 			}
