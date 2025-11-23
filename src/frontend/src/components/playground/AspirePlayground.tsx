@@ -29,40 +29,40 @@ const AspirePlayground: React.FC = () => {
     const [nodes, setNodes, onNodesChange] = useNodesState<AspireNodeData>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState<Node<AspireNodeData> | null>(null);
-  const [showCode, setShowCode] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState({ appHost: '', nugetPackages: [], deploymentOptions: [] });
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
-  const nodeIdCounter = useRef(0);
-  const [codePanelWidth, setCodePanelWidth] = useState(600);
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeRef = useRef<HTMLDivElement>(null);  useEffect(() => {
-    const code = generateAppHostCode(nodes, edges);
-    setGeneratedCode(code);
-  }, [nodes, edges]);
+    const [showCode, setShowCode] = useState(false);
+    const [generatedCode, setGeneratedCode] = useState({ appHost: '', nugetPackages: [], deploymentOptions: [] });
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+    const nodeIdCounter = useRef(0);
+    const [codePanelWidth, setCodePanelWidth] = useState(600);
+    const [isResizing, setIsResizing] = useState(false);
+    const resizeRef = useRef<HTMLDivElement>(null); useEffect(() => {
+        const code = generateAppHostCode(nodes, edges);
+        setGeneratedCode(code);
+    }, [nodes, edges]);
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizing) {
-        const newWidth = window.innerWidth - e.clientX;
-        setCodePanelWidth(Math.max(400, Math.min(newWidth, window.innerWidth - 600)));
-      }
-    };
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (isResizing) {
+                const newWidth = window.innerWidth - e.clientX;
+                setCodePanelWidth(Math.max(400, Math.min(newWidth, window.innerWidth - 600)));
+            }
+        };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
+        const handleMouseUp = () => {
+            setIsResizing(false);
+        };
 
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
 
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);    const onConnect = useCallback(
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]); const onConnect = useCallback(
         (params: Connection) => {
             // Validate connection: resources connect TO projects, not the other way around
             const sourceNode = nodes.find(n => n.id === params.source);
@@ -245,7 +245,7 @@ const AspirePlayground: React.FC = () => {
 
                 {showCode && (
                     <>
-                        <div 
+                        <div
                             className="resize-handle"
                             onMouseDown={() => setIsResizing(true)}
                             ref={resizeRef}

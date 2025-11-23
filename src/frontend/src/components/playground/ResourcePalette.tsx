@@ -71,8 +71,8 @@ const ResourcePalette: React.FC<ResourcePaletteProps> = ({ onAddResource }) => {
                             // Serialize only the data we need, not the icon object
                             const resourceData = {
                                 ...resource,
-                                icon: typeof resource.icon === 'object' && resource.icon.src 
-                                    ? resource.icon.src 
+                                icon: typeof resource.icon === 'object' && resource.icon.src
+                                    ? resource.icon.src
                                     : resource.icon
                             };
                             e.dataTransfer.setData('application/reactflow', JSON.stringify(resourceData));
