@@ -2,159 +2,159 @@ import React, { useState } from 'react';
 import type { GeneratedCode } from '../../utils/codeGenerator';
 
 interface CodePreviewProps {
-  code: GeneratedCode;
-  onClose: () => void;
+    code: GeneratedCode;
+    onClose: () => void;
 }
 
 const CodePreview: React.FC<CodePreviewProps> = ({ code, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'apphost' | 'packages' | 'deploy'>('apphost');
-  const [copied, setCopied] = useState(false);
+    const [activeTab, setActiveTab] = useState<'apphost' | 'packages' | 'deploy'>('apphost');
+    const [copied, setCopied] = useState(false);
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
+    const copyToClipboard = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
 
-  return (
-    <div className="code-preview">
-      <div className="code-header">
-        <h3>Generated Code</h3>
-        <button onClick={onClose} className="close-btn">✕</button>
-      </div>
-
-      <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'apphost' ? 'active' : ''}`}
-          onClick={() => setActiveTab('apphost')}
-        >
-          📝 AppHost.cs
-        </button>
-        <button
-          className={`tab ${activeTab === 'packages' ? 'active' : ''}`}
-          onClick={() => setActiveTab('packages')}
-        >
-          📦 NuGet Packages
-        </button>
-        <button
-          className={`tab ${activeTab === 'deploy' ? 'active' : ''}`}
-          onClick={() => setActiveTab('deploy')}
-        >
-          🚀 Deploy
-        </button>
-      </div>
-
-      <div className="code-content">
-        {activeTab === 'apphost' && (
-          <div className="code-section">
-            <div className="code-toolbar">
-              <span className="code-label">AppHost/Program.cs</span>
-              <button
-                onClick={() => copyToClipboard(code.appHost)}
-                className="copy-btn"
-              >
-                {copied ? '✓ Copied!' : '📋 Copy'}
-              </button>
+    return (
+        <div className="code-preview">
+            <div className="code-header">
+                <h3>Generated Code</h3>
+                <button onClick={onClose} className="close-btn">✕</button>
             </div>
-            <pre className="code-block">
-              <code>{code.appHost || '// Add resources to generate code'}</code>
-            </pre>
-            <div className="code-info">
-              <p>💡 This code defines your Aspire application's architecture.</p>
-              <ol>
-                <li>Resources are declared with their configuration</li>
-                <li>Dependencies are wired via <code>.WithReference()</code></li>
-                <li>Build and run with <code>aspire run</code></li>
-              </ol>
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'packages' && (
-          <div className="code-section">
-            <div className="code-toolbar">
-              <span className="code-label">Required NuGet Packages</span>
+            <div className="tabs">
+                <button
+                    className={`tab ${activeTab === 'apphost' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('apphost')}
+                >
+                    📝 AppHost.cs
+                </button>
+                <button
+                    className={`tab ${activeTab === 'packages' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('packages')}
+                >
+                    📦 NuGet Packages
+                </button>
+                <button
+                    className={`tab ${activeTab === 'deploy' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('deploy')}
+                >
+                    🚀 Deploy
+                </button>
             </div>
-            {code.nugetPackages.length > 0 ? (
-              <>
-                <div className="package-list">
-                  {code.nugetPackages.map(pkg => (
-                    <div key={pkg} className="package-item">
-                      <span className="package-icon">📦</span>
-                      <code>{pkg}</code>
+
+            <div className="code-content">
+                {activeTab === 'apphost' && (
+                    <div className="code-section">
+                        <div className="code-toolbar">
+                            <span className="code-label">AppHost/Program.cs</span>
+                            <button
+                                onClick={() => copyToClipboard(code.appHost)}
+                                className="copy-btn"
+                            >
+                                {copied ? '✓ Copied!' : '📋 Copy'}
+                            </button>
+                        </div>
+                        <pre className="code-block" data-language="csharp">
+                            <code className="language-csharp">{code.appHost || '// Add resources to generate code'}</code>
+                        </pre>
+                        <div className="code-info">
+                            <p>💡 This code defines your Aspire application's architecture.</p>
+                            <ol>
+                                <li>Resources are declared with their configuration</li>
+                                <li>Dependencies are wired via <code>.WithReference()</code></li>
+                                <li>Build and run with <code>aspire run</code></li>
+                            </ol>
+                        </div>
                     </div>
-                  ))}
-                </div>
-                <div className="code-info">
-                  <p>💡 Install these packages in your AppHost project:</p>
-                  <pre className="code-block">
-                    <code>{code.nugetPackages.map(pkg => `dotnet add package ${pkg}`).join('\n')}</code>
-                  </pre>
-                  <button
-                    onClick={() => copyToClipboard(code.nugetPackages.map(pkg => `dotnet add package ${pkg}`).join('\n'))}
-                    className="copy-btn"
-                  >
-                    {copied ? '✓ Copied!' : '📋 Copy All Commands'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="empty-state">
-                <p>No additional packages required yet.</p>
-                <p>Add resources to see required NuGet packages.</p>
-              </div>
-            )}
-          </div>
-        )}
+                )}
 
-        {activeTab === 'deploy' && (
-          <div className="code-section">
-            <div className="code-toolbar">
-              <span className="code-label">Deployment Options</span>
+                {activeTab === 'packages' && (
+                    <div className="code-section">
+                        <div className="code-toolbar">
+                            <span className="code-label">Required NuGet Packages</span>
+                        </div>
+                        {code.nugetPackages.length > 0 ? (
+                            <>
+                                <div className="package-list">
+                                    {code.nugetPackages.map(pkg => (
+                                        <div key={pkg} className="package-item">
+                                            <span className="package-icon">📦</span>
+                                            <code>{pkg}</code>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="code-info">
+                                    <p>💡 Install these packages in your AppHost project:</p>
+                                    <pre className="code-block" data-language="bash">
+                                        <code className="language-bash">{code.nugetPackages.map(pkg => `dotnet add package ${pkg}`).join('\n')}</code>
+                                    </pre>
+                                    <button
+                                        onClick={() => copyToClipboard(code.nugetPackages.map(pkg => `dotnet add package ${pkg}`).join('\n'))}
+                                        className="copy-btn"
+                                    >
+                                        {copied ? '✓ Copied!' : '📋 Copy All Commands'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="empty-state">
+                                <p>No additional packages required yet.</p>
+                                <p>Add resources to see required NuGet packages.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'deploy' && (
+                    <div className="code-section">
+                        <div className="code-toolbar">
+                            <span className="code-label">Deployment Options</span>
+                        </div>
+                        <div className="deploy-options">
+                            <div className="deploy-card">
+                                <h4>🏃 Run Locally</h4>
+                                <pre className="code-block"><code>aspire run</code></pre>
+                                <p>Launch the Aspire dashboard and run all services locally</p>
+                            </div>
+
+                            <div className="deploy-card">
+                                <h4>🐳 Docker Compose</h4>
+                                <pre className="code-block"><code>aspire deploy --format docker-compose --output-path ./deploy</code></pre>
+                                <p>Generate docker-compose.yml for container orchestration</p>
+                            </div>
+
+                            <div className="deploy-card">
+                                <h4>☸️ Kubernetes</h4>
+                                <pre className="code-block"><code>aspire deploy --format kubernetes --output-path ./deploy</code></pre>
+                                <p>Generate Kubernetes manifests for deployment</p>
+                            </div>
+
+                            <div className="deploy-card">
+                                <h4>☁️ Azure Container Apps</h4>
+                                <pre className="code-block"><code>azd init
+                                    azd up</code></pre>
+                                <p>Deploy to Azure Container Apps with Azure Developer CLI</p>
+                            </div>
+                        </div>
+                        <div className="code-info">
+                            <p>💡 <strong>Pro Tips:</strong></p>
+                            <ul>
+                                <li>Use <code>aspire run</code> for local development with live reload</li>
+                                <li>Use <code>aspire deploy</code> to generate deployment artifacts</li>
+                                <li>Aspire handles service discovery, health checks, and observability automatically</li>
+                            </ul>
+                        </div>
+                    </div>
+                )}
             </div>
-            <div className="deploy-options">
-              <div className="deploy-card">
-                <h4>🏃 Run Locally</h4>
-                <pre className="code-block"><code>aspire run</code></pre>
-                <p>Launch the Aspire dashboard and run all services locally</p>
-              </div>
 
-              <div className="deploy-card">
-                <h4>🐳 Docker Compose</h4>
-                <pre className="code-block"><code>aspire deploy --format docker-compose --output-path ./deploy</code></pre>
-                <p>Generate docker-compose.yml for container orchestration</p>
-              </div>
-
-              <div className="deploy-card">
-                <h4>☸️ Kubernetes</h4>
-                <pre className="code-block"><code>aspire deploy --format kubernetes --output-path ./deploy</code></pre>
-                <p>Generate Kubernetes manifests for deployment</p>
-              </div>
-
-              <div className="deploy-card">
-                <h4>☁️ Azure Container Apps</h4>
-                <pre className="code-block"><code>azd init
-azd up</code></pre>
-                <p>Deploy to Azure Container Apps with Azure Developer CLI</p>
-              </div>
-            </div>
-            <div className="code-info">
-              <p>💡 <strong>Pro Tips:</strong></p>
-              <ul>
-                <li>Use <code>aspire run</code> for local development with live reload</li>
-                <li>Use <code>aspire deploy</code> to generate deployment artifacts</li>
-                <li>Aspire handles service discovery, health checks, and observability automatically</li>
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <style>{`
+            <style>{`
         .code-preview {
           height: 100%;
           display: flex;
@@ -367,8 +367,8 @@ azd up</code></pre>
           margin: 0.5rem 0;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default CodePreview;

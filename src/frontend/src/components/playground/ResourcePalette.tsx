@@ -3,94 +3,109 @@ import { aspireResources, resourceCategories } from '../../data/aspire-resources
 import type { AspireResource } from '../../data/aspire-resources';
 
 interface ResourcePaletteProps {
-  onAddResource: (resource: AspireResource) => void;
+    onAddResource: (resource: AspireResource) => void;
 }
 
 const ResourcePalette: React.FC<ResourcePaletteProps> = ({ onAddResource }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredResources = aspireResources.filter(resource => {
-    const matchesCategory = !selectedCategory || resource.category === selectedCategory;
-    const matchesSearch = resource.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         resource.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+    const filteredResources = aspireResources.filter(resource => {
+        const matchesCategory = !selectedCategory || resource.category === selectedCategory;
+        const matchesSearch = resource.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            resource.description.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
 
-  return (
-    <div className="resource-palette">
-      <div className="back-nav">
-        <a href="/" className="back-link">
-          <span className="back-icon">←</span>
-          <span>Back to aspire.dev</span>
-        </a>
-      </div>
-      
-      <div className="palette-header">
-        <h3>Resource Palette</h3>
-        <p>Drag or click to add resources to your Aspire app</p>
-      </div>
-
-      <div className="search-box">
-        <input
-          type="text"
-          placeholder="Search resources..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
-      </div>
-
-      <div className="category-filter">
-        <button
-          className={`category-btn ${!selectedCategory ? 'active' : ''}`}
-          onClick={() => setSelectedCategory(null)}
-        >
-          All
-        </button>
-        {resourceCategories.map(category => (
-          <button
-            key={category.id}
-            className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(category.id)}
-            title={category.name}
-          >
-            <span>{category.icon}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="resource-list">
-        {filteredResources.map(resource => (
-          <div
-            key={resource.id}
-            className="resource-card"
-            onClick={() => onAddResource(resource)}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('application/reactflow', JSON.stringify(resource));
-              e.dataTransfer.effectAllowed = 'move';
-            }}
-            style={{ borderLeft: `4px solid ${resource.color}` }}
-          >
-            <div className="resource-card-header">
-              <span className="resource-icon">{resource.icon}</span>
-              <div className="resource-info">
-                <div className="resource-name">{resource.displayName}</div>
-                <div className="resource-category">{resource.category}</div>
-              </div>
+    return (
+        <div className="resource-palette">
+            <div className="back-nav">
+                <a href="/" className="back-link">
+                    <span className="back-icon">←</span>
+                    <span>Back to aspire.dev</span>
+                </a>
             </div>
-            <div className="resource-description">{resource.description}</div>
-            <div className="resource-languages">
-              {resource.languages.map(lang => (
-                <span key={lang} className="language-badge">{lang}</span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
 
-      <style>{`
+            <div className="palette-header">
+                <h3>Resource Palette</h3>
+                <p>Drag or click to add resources to your Aspire app</p>
+            </div>
+
+            <div className="search-box">
+                <input
+                    type="text"
+                    placeholder="Search resources..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-input"
+                />
+            </div>
+
+            <div className="category-filter">
+                <button
+                    className={`category-btn ${!selectedCategory ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(null)}
+                >
+                    All
+                </button>
+                {resourceCategories.map(category => (
+                    <button
+                        key={category.id}
+                        className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
+                        onClick={() => setSelectedCategory(category.id)}
+                        title={category.name}
+                    >
+                        <span>{category.icon}</span>
+                    </button>
+                ))}
+            </div>
+
+            <div className="resource-list">
+                {filteredResources.map(resource => (
+                    <div
+                        key={resource.id}
+                        className="resource-card"
+                        onClick={() => onAddResource(resource)}
+                        draggable
+                        onDragStart={(e) => {
+                            // Serialize only the data we need, not the icon object
+                            const resourceData = {
+                                ...resource,
+                                icon: typeof resource.icon === 'object' && resource.icon.src 
+                                    ? resource.icon.src 
+                                    : resource.icon
+                            };
+                            e.dataTransfer.setData('application/reactflow', JSON.stringify(resourceData));
+                            e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        style={{ borderLeft: `4px solid ${resource.color}` }}
+                    >
+                        <div className="resource-card-header">
+                            <div className="resource-icon">
+                                {typeof resource.icon === 'string' && resource.icon.startsWith('/') ? (
+                                    <img src={resource.icon} alt={resource.displayName} />
+                                ) : typeof resource.icon === 'object' && resource.icon.src ? (
+                                    <img src={resource.icon.src} alt={resource.displayName} />
+                                ) : (
+                                    <span>{resource.icon}</span>
+                                )}
+                            </div>
+                            <div className="resource-info">
+                                <div className="resource-name">{resource.displayName}</div>
+                                <div className="resource-category">{resource.category}</div>
+                            </div>
+                        </div>
+                        <div className="resource-description">{resource.description}</div>
+                        <div className="resource-languages">
+                            {resource.languages.map(lang => (
+                                <span key={lang} className="language-badge">{lang}</span>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <style>{`
         .resource-palette {
           background: var(--sl-color-bg-nav);
           border-right: 1px solid var(--sl-color-gray-5);
@@ -229,6 +244,17 @@ const ResourcePalette: React.FC<ResourcePaletteProps> = ({ onAddResource }) => {
         .resource-icon {
           font-size: 2rem;
           line-height: 1;
+          width: 2rem;
+          height: 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .resource-icon img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
         .resource-info {
@@ -270,8 +296,8 @@ const ResourcePalette: React.FC<ResourcePaletteProps> = ({ onAddResource }) => {
           font-weight: 500;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default ResourcePalette;
