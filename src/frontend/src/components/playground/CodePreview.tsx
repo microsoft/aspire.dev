@@ -52,7 +52,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({ code, onClose }) => {
                 {activeTab === 'apphost' && (
                     <div className="code-section">
                         <div className="code-toolbar">
-                            <span className="code-label">AppHost/Program.cs</span>
+                            <span className="code-label">AppHost.cs</span>
                             <button
                                 onClick={() => copyToClipboard(code.appHost)}
                                 className="copy-btn"

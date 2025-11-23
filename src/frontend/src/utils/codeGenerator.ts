@@ -30,114 +30,118 @@ export function generateAppHostCode(nodes: Node<AspireNodeData>[], edges: Edge[]
         // Skip if no instance name
         if (!instanceName) return;
 
+        // Sanitize variable names for C#
+        const sanitizedInstanceName = sanitizeCSharpIdentifier(instanceName);
+        const sanitizedDatabaseName = databaseName ? sanitizeCSharpIdentifier(databaseName) : null;
+
         let code = '';
 
         switch (resourceType) {
             // Projects
             case 'dotnet-project':
-                code = `var ${instanceName} = builder.AddProject<Projects.${capitalize(instanceName)}>("${instanceName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddProject<Projects.${capitalize(sanitizedInstanceName)}>("${instanceName}")`;
                 break;
 
             case 'node-app':
-                code = `var ${instanceName} = builder.AddNodeApp("${instanceName}", "../${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.NodeJs');
+                code = `var ${sanitizedInstanceName} = builder.AddNodeApp("${instanceName}", "../${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.NodeJs@13.0.0');
                 break;
 
             case 'vite-app':
-                code = `var ${instanceName} = builder.AddViteApp("${instanceName}", "../${instanceName}")\n    .WithHttpEndpoint(env: "PORT")`;
-                nugetPackages.add('Aspire.Hosting.NodeJs');
+                code = `var ${sanitizedInstanceName} = builder.AddViteApp("${instanceName}", "../${instanceName}")\n    .WithHttpEndpoint(env: "PORT")`;
+                nugetPackages.add('Aspire.Hosting.NodeJs@13.0.0');
                 break;
 
             case 'python-app':
-                code = `var ${instanceName} = builder.AddPythonApp("${instanceName}", "../${instanceName}", "main.py")`;
-                nugetPackages.add('Aspire.Hosting.Python');
+                code = `var ${sanitizedInstanceName} = builder.AddPythonApp("${instanceName}", "../${instanceName}", "main.py")`;
+                nugetPackages.add('Aspire.Hosting.Python@13.0.0');
                 break;
 
             case 'container':
-                code = `var ${instanceName} = builder.AddContainer("${instanceName}", "myregistry/${instanceName}", "latest")\n    .WithHttpEndpoint(targetPort: 8080)`;
+                code = `var ${sanitizedInstanceName} = builder.AddContainer("${instanceName}", "myregistry/${instanceName}", "latest")\n    .WithHttpEndpoint(targetPort: 8080)`;
                 break;
 
             // Databases
             case 'postgres':
-                code = `var ${instanceName} = builder.AddPostgres("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
-                if (databaseName) {
-                    code += `;\nvar ${databaseName} = ${instanceName}.AddDatabase("${databaseName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddPostgres("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
+                if (sanitizedDatabaseName) {
+                    code += `;\nvar ${sanitizedDatabaseName} = ${sanitizedInstanceName}.AddDatabase("${databaseName}")`;
                 }
-                nugetPackages.add('Aspire.Hosting.PostgreSQL');
+                nugetPackages.add('Aspire.Hosting.PostgreSQL@13.0.0');
                 break;
 
             case 'sqlserver':
-                code = `var ${instanceName} = builder.AddSqlServer("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
-                if (databaseName) {
-                    code += `;\nvar ${databaseName} = ${instanceName}.AddDatabase("${databaseName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddSqlServer("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
+                if (sanitizedDatabaseName) {
+                    code += `;\nvar ${sanitizedDatabaseName} = ${sanitizedInstanceName}.AddDatabase("${databaseName}")`;
                 }
-                nugetPackages.add('Aspire.Hosting.SqlServer');
+                nugetPackages.add('Aspire.Hosting.SqlServer@13.0.0');
                 break;
 
             case 'mongodb':
-                code = `var ${instanceName} = builder.AddMongoDB("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
-                if (databaseName) {
-                    code += `;\nvar ${databaseName} = ${instanceName}.AddDatabase("${databaseName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddMongoDB("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
+                if (sanitizedDatabaseName) {
+                    code += `;\nvar ${sanitizedDatabaseName} = ${sanitizedInstanceName}.AddDatabase("${databaseName}")`;
                 }
-                nugetPackages.add('Aspire.Hosting.MongoDB');
+                nugetPackages.add('Aspire.Hosting.MongoDB@13.0.0');
                 break;
 
             case 'mysql':
-                code = `var ${instanceName} = builder.AddMySql("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
-                if (databaseName) {
-                    code += `;\nvar ${databaseName} = ${instanceName}.AddDatabase("${databaseName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddMySql("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
+                if (sanitizedDatabaseName) {
+                    code += `;\nvar ${sanitizedDatabaseName} = ${sanitizedInstanceName}.AddDatabase("${databaseName}")`;
                 }
-                nugetPackages.add('Aspire.Hosting.MySql');
+                nugetPackages.add('Aspire.Hosting.MySql@13.0.0');
                 break;
 
             case 'oracle':
-                code = `var ${instanceName} = builder.AddOracle("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
-                if (databaseName) {
-                    code += `;\nvar ${databaseName} = ${instanceName}.AddDatabase("${databaseName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddOracle("${instanceName}")\n    .WithLifetime(ContainerLifetime.Persistent)`;
+                if (sanitizedDatabaseName) {
+                    code += `;\nvar ${sanitizedDatabaseName} = ${sanitizedInstanceName}.AddDatabase("${databaseName}")`;
                 }
-                nugetPackages.add('Aspire.Hosting.Oracle');
+                nugetPackages.add('Aspire.Hosting.Oracle@13.0.0');
                 break;
 
             // Cache
             case 'redis':
-                code = `var ${instanceName} = builder.AddRedis("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.Redis');
+                code = `var ${sanitizedInstanceName} = builder.AddRedis("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.Redis@13.0.0');
                 break;
 
             case 'valkey':
-                code = `var ${instanceName} = builder.AddValkey("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.Valkey');
+                code = `var ${sanitizedInstanceName} = builder.AddValkey("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.Valkey@13.0.0');
                 break;
 
             case 'garnet':
-                code = `var ${instanceName} = builder.AddGarnet("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.Garnet');
+                code = `var ${sanitizedInstanceName} = builder.AddGarnet("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.Garnet@13.0.0');
                 break;
 
             // Messaging
             case 'rabbitmq':
-                code = `var ${instanceName} = builder.AddRabbitMQ("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.RabbitMQ');
+                code = `var ${sanitizedInstanceName} = builder.AddRabbitMQ("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.RabbitMQ@13.0.0');
                 break;
 
             case 'kafka':
-                code = `var ${instanceName} = builder.AddKafka("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.Kafka');
+                code = `var ${sanitizedInstanceName} = builder.AddKafka("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.Kafka@13.0.0');
                 break;
 
             case 'nats':
-                code = `var ${instanceName} = builder.AddNats("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.Nats');
+                code = `var ${sanitizedInstanceName} = builder.AddNats("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.Nats@13.0.0');
                 break;
 
             // AI
             case 'openai':
-                code = `var ${instanceName} = builder.AddConnectionString("${instanceName}")`;
+                code = `var ${sanitizedInstanceName} = builder.AddConnectionString("${instanceName}")`;
                 break;
 
             case 'ollama':
-                code = `var ${instanceName} = builder.AddOllama("${instanceName}")`;
-                nugetPackages.add('Aspire.Hosting.Ollama');
+                code = `var ${sanitizedInstanceName} = builder.AddOllama("${instanceName}")`;
+                nugetPackages.add('Aspire.Hosting.Ollama@13.0.0');
                 break;
         }
 
@@ -148,7 +152,8 @@ export function generateAppHostCode(nodes: Node<AspireNodeData>[], edges: Edge[]
             sourceNodes.forEach(sourceNode => {
                 const sourceName = sourceNode!.data.databaseName || sourceNode!.data.instanceName;
                 if (sourceName) {
-                    code += `\n    .WithReference(${sourceName})`;
+                    const sanitizedSourceName = sanitizeCSharpIdentifier(sourceName);
+                    code += `\n    .WithReference(${sanitizedSourceName})`;
                 }
             });
 
@@ -160,7 +165,8 @@ export function generateAppHostCode(nodes: Node<AspireNodeData>[], edges: Edge[]
                 dbDeps.forEach(dbNode => {
                     const dbName = dbNode!.data.databaseName || dbNode!.data.instanceName;
                     if (dbName) {
-                        code += `\n    .WaitFor(${dbName})`;
+                        const sanitizedDbName = sanitizeCSharpIdentifier(dbName);
+                        code += `\n    .WaitFor(${sanitizedDbName})`;
                     }
                 });
             }
@@ -171,7 +177,18 @@ export function generateAppHostCode(nodes: Node<AspireNodeData>[], edges: Edge[]
         }
     });
 
-    const appHost = `var builder = DistributedApplication.CreateBuilder(args);
+    // Build the header with SDK and package directives
+    const packageDirectives = Array.from(nugetPackages)
+        .sort()
+        .map(pkg => `#:package ${pkg}`)
+        .join('\n');
+
+    const header = packageDirectives 
+        ? `#:sdk Aspire.AppHost.Sdk@13.0.0\n${packageDirectives}\n`
+        : `#:sdk Aspire.AppHost.Sdk@13.0.0\n`;
+
+    const appHost = `${header}
+var builder = DistributedApplication.CreateBuilder(args);
 
 ${resourceDeclarations.join('\n\n')}
 
@@ -239,4 +256,21 @@ function topologicalSort(nodes: Node<AspireNodeData>[], edges: Edge[]): Node<Asp
 
 function capitalize(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function sanitizeCSharpIdentifier(name: string): string {
+    // Replace invalid characters with underscores
+    let sanitized = name.replace(/[^a-zA-Z0-9_]/g, '_');
+    
+    // Ensure it doesn't start with a digit
+    if (/^[0-9]/.test(sanitized)) {
+        sanitized = '_' + sanitized;
+    }
+    
+    // If empty or only underscores, provide a default
+    if (!sanitized || /^_+$/.test(sanitized)) {
+        sanitized = 'resource';
+    }
+    
+    return sanitized;
 }

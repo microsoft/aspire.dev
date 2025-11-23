@@ -1,5 +1,5 @@
 // Aspire Resource Definitions for Playground
-import dotnetIcon from '../assets/icons/dotnet.svg';
+import csharpIcon from '../assets/icons/csharp.svg';
 import pythonIcon from '../assets/icons/python.svg';
 import nodejsIcon from '../assets/icons/nodejs-icon.png';
 import reactIcon from '../assets/icons/react-icon.svg';
@@ -40,14 +40,14 @@ export const aspireResources: AspireResource[] = [
     {
         id: 'dotnet-project',
         name: 'dotnet-project',
-        displayName: '.NET Project',
+        displayName: 'C# Project',
         category: 'project',
-        icon: dotnetIcon,
+        icon: csharpIcon,
         color: '#512BD4',
         description: 'ASP.NET Core API, Web App, or Worker Service',
         package: 'Aspire.Hosting',
         hostingMethod: 'AddProject',
-        languages: ['C#', 'F#'],
+        languages: ['C#'],
         exampleCode: 'builder.AddProject<Projects.ApiService>("api")',
     },
     {
@@ -66,7 +66,7 @@ export const aspireResources: AspireResource[] = [
     {
         id: 'vite-app',
         name: 'vite-app',
-        displayName: 'Vite App',
+        displayName: 'React App',
         category: 'project',
         icon: reactIcon,
         color: '#646CFF',

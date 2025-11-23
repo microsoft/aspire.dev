@@ -187,7 +187,7 @@ const AspirePlayground: React.FC = () => {
 
                         <Panel position="top-left" className="playground-panel">
                             <div className="panel-content">
-                                <h2>🎮 Aspire Playground</h2>
+                                <h2>🚀 Aspire Playground</h2>
                                 <p>Build your distributed app visually</p>
                             </div>
                         </Panel>
