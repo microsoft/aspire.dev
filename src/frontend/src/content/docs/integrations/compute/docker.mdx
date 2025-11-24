@@ -118,25 +118,73 @@ The `WithHostPort` method configures the port used to access the Aspire dashboar
 
 ### Publishing and deployment
 
-To deploy your application using Docker Compose, use the `aspire publish` command:
+Aspire provides a progressive deployment workflow for Docker Compose, allowing you to publish, prepare environments, and deploy in separate steps or all at once.
+
+#### Step 1: Publish the Application
+
+To generate Docker Compose files and artifacts without building container images, use the `aspire publish` command:
 
 ```bash
-aspire publish -o docker-compose-artifacts
+aspire publish
 ```
 
-This command generates Docker Compose files and all necessary artifacts in the specified output directory. The generated files include:
+This command:
+
+- Generates a `docker-compose.yaml` from the app host
+- Generates a `.env` file with expected parameters (unfilled)
+- Outputs everything to the specified directory
+
+The generated files include:
 
 - `docker-compose.yml`: The main Docker Compose file defining all services
 - `docker-compose.override.yml`: Override file for development-specific settings
 - `.env`: Environment variables file
 - Service-specific configuration files and scripts
 
-After publishing, you can deploy your application using Docker Compose:
+#### Step 2: Prepare Environment Configurations
+
+To prepare environment-specific configurations and build container images, use the `aspire do prepare-env` command:
 
 ```bash
-cd docker-compose-artifacts
-docker compose up -d
+# For staging environment
+aspire do prepare-env --environment staging
+
+# For production environment
+aspire do prepare-env --environment production
 ```
+
+These commands:
+
+- Generate a `docker-compose.yaml` from the app host
+- Generate environment-specific `.env` files with filled-in values
+- Generate container images
+- Output everything to the `prepare-env-{environment}` directory
+
+#### Step 3: Deploy to Docker Compose
+
+To perform the complete deployment workflow in one step, use the `aspire deploy` command:
+
+```bash
+aspire deploy
+```
+
+This command:
+
+- Generates a `docker-compose.yaml` from the app host
+- Generates environment-specific `.env` files with filled-in values
+- Generates container images
+- Outputs everything to the environment-specific directory
+- Runs `docker compose up` against the generated files
+
+#### Step 4: Clean Up Deployment (Optional)
+
+To clean up a running Docker Compose deployment, use the `aspire do docker-compose-down-env` command:
+
+```bash
+aspire do docker-compose-down-env
+```
+
+This command stops and removes all containers, networks, and volumes created by the Docker Compose deployment.
 
 ### Environment variables
 
