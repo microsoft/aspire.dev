@@ -1,0 +1,254 @@
+---
+title: SurrealDB integration
+description: Learn how to use the SurrealDB hosting and client integration to run the SurrealDB container and access it via the SurrealDB client.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import surrealdbIcon from '@assets/icons/surrealdb-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={surrealdbIcon}
+  alt="SurrealDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[SurrealDB](https://surrealdb.com) is a native, open-source, multi-model database that lets you store and manage data across relational, document, graph, time-series, vector & search, and geospatial models—all in one place. The Aspire SurrealDB integration enables you to connect to existing SurrealDB instances or create new instances from Aspire using the `docker.io/surrealdb/surrealdb` container image.
+
+## Hosting integration
+
+To run the SurrealDB container, install the [📦 CommunityToolkit.Aspire.Hosting.SurrealDb](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.SurrealDb) NuGet package in the AppHost project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.SurrealDb" />
+
+### Add SurrealDB resource
+
+In the AppHost project, register and consume the SurrealDB integration using the `AddSurrealServer` extension method to add the SurrealDB container to the application builder. Chain a call to the returned resource builder to `AddNamespace` and then `AddDatabase`, to add SurrealDB database resource.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddSurrealServer("surreal")
+                .AddNamespace("ns")
+                .AddDatabase("db");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(db)
+       .WaitFor(db);
+
+// After adding all resources, run the app...
+```
+
+The SurrealDB resource includes default credentials with a `username` of `root` and a random `password` generated using the `CreateDefaultPasswordParameter` method.
+
+When the AppHost runs, the password is stored in the AppHost's secret store. It's added to the `Parameters` section, for example:
+
+```json
+{
+  "Parameters:surreal-password": "<THE_GENERATED_PASSWORD>"
+}
+```
+
+The name of the parameter is `surreal-password`, but really it's just formatting the resource name with a `-password` suffix. For more information, see [Safe storage of app secrets in development in ASP.NET Core](https://learn.microsoft.com/aspnet/core/security/app-secrets) and [Add SurrealDB resource with parameters](#add-surrealdb-resource-with-parameters).
+
+### Add Surrealist
+
+To add [Surrealist](https://hub.docker.com/r/surrealdb/surrealist) to the SurrealDB server resource, call the `WithSurrealist` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var surreal = builder.AddSurrealServer("surreal")
+                     .WithSurrealist();
+                     
+var db = surreal
+           .AddNamespace("ns")
+           .AddDatabase("db");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(db)
+       .WaitFor(db);
+```
+
+Surrealist is a user interface for interacting with your SurrealDB database visually. It enables you to seamlessly connect to any SurrealDB instance, allowing you to execute queries, explore your tables, design your schemas, etc..
+
+For more information on providing parameters, see [External parameters](/get-started/resources/).
+
+### Add SurrealDB resource with data bind mount
+
+To add a data bind mount to the SurrealDB resource, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddSurrealServer("surreal")
+                .WithDataBindMount("./data/surreal/data")
+                .AddNamespace("ns")
+                .AddDatabase("db");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(db)
+       .WaitFor(db);
+
+// After adding all resources, run the app...
+```
+
+Data bind mounts rely on the host machine's filesystem to persist the SurrealDB data across container restarts.
+
+### Add SurrealDB resource with parameters
+
+When you want to explicitly provide the password used by the container image, you can provide these credentials as parameters. Consider the following alternative example:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var password = builder.AddParameter("password", secret: true);
+
+var db = builder.AddSurrealServer("surreal", password: password)
+                .AddNamespace("ns")
+                .AddDatabase("db");
+
+builder.AddProject<Projects.AspireApp_ExampleProject>("exampleproject")
+       .WithReference(db)
+       .WaitFor(db);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+### Configure logging
+
+To configure logging for the SurrealDB container resource, call the `WithLogLevel` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var surreal = builder.AddSurrealServer("surreal")
+                     .WithLogLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
+                     
+var db = surreal
+           .AddNamespace("ns")
+           .AddDatabase("db");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(db);
+
+// After adding all resources, run the app...
+```
+
+The `WithLogLevel` method enables logging in the SurrealDB container.
+
+### Health checks
+
+The SurrealDB hosting integration automatically adds a health check for the SurrealDB namespace and database resources. The health check verifies that a SurrealDB component is running and that a connection can be established to it.
+
+The hosting integration uses a custom `SurrealDbHealthCheck` that uses both the `/health` endpoint and a simple raw query to perform health checks.
+
+## Client integration
+
+To get started with the Aspire SurrealDB client integration, install the [📦 CommunityToolkit.Aspire.SurrealDb](https://nuget.org/packages/CommunityToolkit.Aspire.SurrealDb) NuGet package in the client-consuming project.
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.SurrealDb" />
+
+### Add SurrealDB client
+
+In the `Program.cs` file of your client-consuming project, call the `AddSurrealClient` extension method to register a `SurrealDbClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddSurrealClient(connectionName: "db");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the SurrealDB resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `SurrealDbClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(SurrealDbClient client)
+{
+    // Use client...
+}
+```
+
+### Add keyed SurrealDB client
+
+There might be situations where you want to register multiple `SurrealDbClient` instances with different connection names. To register keyed SurrealDB clients, call the `AddKeyedSurrealClient` method:
+
+```csharp
+builder.AddKeyedSurrealClient(name: "products");
+builder.AddKeyedSurrealClient(name: "orders");
+```
+
+Then you can retrieve the `SurrealDbClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("products")] SurrealDbClient productsClient,
+    [FromKeyedServices("orders")] SurrealDbClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+### Configuration
+
+The Aspire SurrealDB client integration provides multiple options to configure the server connection.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name of the connection string:
+
+```csharp
+builder.AddSurrealClient(connectionName: "db");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "db": "Endpoint=ws://localhost:19530/;Namespace=ns;Database=db;Username=root;Password=123456!@#$%"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Aspire Surreal Client integration supports configuration. It loads the settings from configuration using the `Aspire:Surreal:Client` key:
+
+```json
+{
+  "Aspire": {
+    "Surreal": {
+      "Client": {
+        "Endpoint": "ws://localhost:19530/",
+        "Namespace": "ns",
+        "Database": "db",
+        "Username": "root",
+        "Password": "123456!@#$%"
+      }
+    }
+  }
+}
+```
+
+### Client integration health checks
+
+The Aspire SurrealDB integration uses the configured client to perform a health check.
+
+## See also
+
+- [SurrealDB](https://surrealdb.com)
+- [SurrealDB documentation](https://surrealdb.com/docs/surrealdb)
+- [.NET SDK for SurrealDB](https://github.com/surrealdb/surrealdb.net)
+- [Aspire Community Toolkit GitHub repo](https://github.com/CommunityToolkit/Aspire)
