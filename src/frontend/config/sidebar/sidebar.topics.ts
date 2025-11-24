@@ -153,7 +153,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: "Створіть свій перший додаток",
               "zh-CN": "构建您的第一个应用",
             },
-            slug: "get-started/first-app"
+            slug: "get-started/first-app",
           },
           {
             label: "Deploy your first app",
@@ -175,7 +175,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: "Розгорніть свій перший додаток",
               "zh-CN": "部署您的第一个应用",
             },
-            slug: "get-started/deploy-first-app"
+            slug: "get-started/deploy-first-app",
           },
           {
             label: "Aspireify an existing app",
@@ -1153,14 +1153,27 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ],
           },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          { label: "PostgreSQL",
+          {
+            label: "PostgreSQL",
             collapsed: true,
             items: [
-              { label: "Get started", slug: "integrations/databases/postgres/postgres-get-started" },
-              { label: "Hosting integration (AppHost)", slug: "integrations/databases/postgres/postgres-host" },
-              { label: "Client integration (Your app)", slug: "integrations/databases/postgres/postgres-client" },
-              { label: "Community extensions", slug: "integrations/databases/postgres/postgresql-extensions" }
-            ]
+              {
+                label: "Get started",
+                slug: "integrations/databases/postgres/postgres-get-started",
+              },
+              {
+                label: "Hosting integration (AppHost)",
+                slug: "integrations/databases/postgres/postgres-host",
+              },
+              {
+                label: "Client integration (Your app)",
+                slug: "integrations/databases/postgres/postgres-client",
+              },
+              {
+                label: "Community extensions",
+                slug: "integrations/databases/postgres/postgresql-extensions",
+              },
+            ],
           },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
@@ -1179,6 +1192,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ],
           },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
+          { label: "SurrealDB", slug: "integrations/databases/surrealdb" },
         ],
       },
       {
@@ -1485,11 +1499,11 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "Overview", slug: "dashboard/standalone" },
           {
             label: "Python apps",
-            slug: "dashboard/standalone-for-python"
+            slug: "dashboard/standalone-for-python",
           },
           {
             label: "Node.js apps",
-            slug: "dashboard/standalone-for-nodejs"
+            slug: "dashboard/standalone-for-nodejs",
           },
         ],
       },
