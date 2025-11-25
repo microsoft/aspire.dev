@@ -4,296 +4,209 @@ description: Learn how to configure Azure Container Apps environment settings fo
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import containerApps from '@assets/icons/azure-container-apps-environments.svg';
 
-When deploying Aspire applications to Azure Container Apps, you can customize the Container Apps environment to meet your specific requirements. This includes configuring networking, observability, and resource settings.
+<Image
+  src={containerApps}
+  alt="Azure Container Apps environment logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
 
-## Container Apps environment overview
+It's easy to [publish resources as Azure Container Apps (ACA)](/integrations/cloud/azure/overview/#publish-as-azure-container-app) using any of the supported APIs:
 
-An Azure Container Apps environment provides:
+- `PublishAsAzureContainerApp`
+- `PublishAsAzureContainerApp`
+- `PublishAsAzureContainerApp`
 
-- **Shared networking**: Virtual network integration for all apps
-- **Log Analytics**: Centralized logging and monitoring
-- **Resource grouping**: Logical grouping of related container apps
-- **Configuration**: Environment-level settings
+These APIs automatically create a default ACA environment when you publish your app. While this default setup works well for most scenarios, you might need to customize the ACA environment to meet specific requirements. To achieve this, use the `AddAzureContainerAppEnvironment` method.
 
-## Default environment configuration
+The [Aspire AppHost](/get-started/app-host/) simplifies infrastructure provisioning by generating code to create Azure resources for your applications. This approach enables you to model and configure deployment-related aspects directly in C#, reducing the need to rely on tools like Bicep. These aspects include configuring ACA environments, which provide a serverless platform for running containerized applications.
 
-By default, Aspire creates a Container Apps environment with:
+By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources](/integrations/cloud/azure/customize-resources/)), you can configure and customize ACA environments along with related resources, such as container registries and file share volumes. Any available deployment setting can be configured. For more information on the available settings, see [Microsoft.App managedEnvironments](https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments).
 
-- **Name pattern**: `cae-{apphost-name}`
-- **Log Analytics workspace**: Automatically provisioned
-- **Internal networking**: Disabled (public endpoints)
-- **Workload profiles**: Consumption-based
+This article guides you through the process of tailoring ACA environments for your  solutions.
 
-## Customizing the environment
+## Add an ACA environment
 
-### Configure environment settings
-
-You can customize the Container Apps environment using the manifest or Bicep customization:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Add projects that will be deployed to Container Apps
-builder.AddProject<Projects.ApiService>("api");
-builder.AddProject<Projects.WebApp>("webapp");
-```
-
-Then customize the generated Bicep by using `PublishAsAzureContainerApp` with environment configuration:
+The `AzureContainerAppEnvironmentResource` type models an ACA environment resource. When you call the `AddAzureContainerAppEnvironment` method, it creates an instance of this type (wrapped in the `IResourceBuilder<AzureContainerAppEnvironmentResource>`).
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           // Customize environment here
-           environment.InternalLoadBalancerEnabled = true;
-           environment.ZoneRedundant = true;
-       });
+var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
+
+// Omitted for brevity...
+
+builder.Build().Run();
 ```
 
-### Virtual network integration
+By default, the calling this API to add an ACA environment generates the following provisioning Bicep module:
 
-Integrate with an existing virtual network:
+```bicep title="aca-env.module.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
 
-```csharp
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           environment.VnetConfiguration = new VnetConfiguration
-           {
-               InfrastructureSubnetId = "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.Network/virtualNetworks/{vnet}/subnets/{subnet}",
-               Internal = true
-           };
-       });
-```
+param userPrincipalId string
 
-### Zone redundancy
+param tags object = { }
 
-Enable zone redundancy for high availability:
-
-```csharp
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           environment.ZoneRedundant = true;
-       });
-```
-
-<Aside type="caution">
-Zone redundancy is only available in certain regions and increases costs. Check Azure documentation for supported regions.
-</Aside>
-
-## Workload profiles
-
-Container Apps environments support different workload profiles:
-
-### Consumption-based (default)
-
-- **Pay-per-use**: Charged only for what you consume
-- **Auto-scaling**: Scales to zero
-- **Best for**: Variable workloads
-
-### Dedicated profiles
-
-- **Reserved capacity**: Pre-allocated resources
-- **Better performance**: Predictable performance
-- **Best for**: Production workloads with steady load
-
-Configure workload profiles:
-
-```csharp
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           // Add a dedicated workload profile
-           environment.WorkloadProfiles = new[]
-           {
-               new WorkloadProfile
-               {
-                   Name = "Dedicated-D4",
-                   WorkloadProfileType = "D4",
-                   MinimumCount = 1,
-                   MaximumCount = 3
-               }
-           };
-       });
-```
-
-## Observability configuration
-
-### Log Analytics workspace
-
-By default, Aspire creates a Log Analytics workspace. To use an existing workspace:
-
-```csharp
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           environment.AppLogsConfiguration = new AppLogsConfiguration
-           {
-               Destination = "log-analytics",
-               LogAnalyticsConfiguration = new LogAnalyticsConfiguration
-               {
-                   CustomerId = "{workspace-id}",
-                   SharedKey = "{workspace-key}"
-               }
-           };
-       });
-```
-
-### Dapr configuration
-
-Enable Dapr for your environment:
-
-```csharp
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           environment.DaprConfiguration = new DaprConfiguration
-           {
-               Enabled = true
-           };
-       });
-```
-
-## Common configuration scenarios
-
-### Internal-only environment
-
-Create an environment accessible only within a VNet:
-
-```csharp
-builder.AddProject<Projects.InternalApi>("internal-api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           environment.InternalLoadBalancerEnabled = true;
-           environment.VnetConfiguration = new VnetConfiguration
-           {
-               InfrastructureSubnetId = "{subnet-id}",
-               Internal = true
-           };
-       });
-```
-
-### Multi-region deployment
-
-Deploy to multiple regions with separate environments:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var region = builder.Configuration["Azure:Region"] ?? "eastus";
-
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           environment.Location = region;
-       });
-```
-
-### Development vs. production
-
-Use different configurations based on environment:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var isDevelopment = builder.Environment.IsDevelopment();
-
-builder.AddProject<Projects.ApiService>("api")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           if (!isDevelopment)
-           {
-               environment.ZoneRedundant = true;
-               environment.InternalLoadBalancerEnabled = true;
-           }
-       });
-```
-
-## Resource limits
-
-Configure resource limits for the environment:
-
-| Resource | Consumption | Dedicated (D4) | Dedicated (D8) |
-|----------|-------------|----------------|----------------|
-| **CPU** | 0.25-4 cores | 4 cores | 8 cores |
-| **Memory** | 0.5-8 GB | 8 GB | 16 GB |
-| **Max replicas** | 30 | Varies | Varies |
-
-## Cost optimization
-
-### Use consumption profile for dev/test
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-if (builder.Environment.IsDevelopment())
-{
-    // Use default consumption profile (no explicit config needed)
+resource aca_env_mi 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: take('aca_env_mi-${uniqueString(resourceGroup().id)}', 128)
+  location: location
+  tags: tags
 }
-else
-{
-    // Production: use dedicated profile
-    builder.AddProject<Projects.ApiService>("api")
-           .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-           {
-               environment.WorkloadProfiles = /* dedicated profile */;
-           });
+
+resource aca_env_acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: take('acaenvacr${uniqueString(resourceGroup().id)}', 50)
+  location: location
+  sku: {
+    name: 'Basic'
+  }
+  tags: tags
 }
+
+resource aca_env_acr_aca_env_mi_AcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aca_env_acr.id, aca_env_mi.id, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d'))
+  properties: {
+    principalId: aca_env_mi.properties.principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalType: 'ServicePrincipal'
+  }
+  scope: aca_env_acr
+}
+
+resource aca_env_law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: take('acaenvlaw-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+  }
+  tags: tags
+}
+
+resource aca_env 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: take('acaenv${uniqueString(resourceGroup().id)}', 24)
+  location: location
+  properties: {
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: aca_env_law.properties.customerId
+        sharedKey: aca_env_law.listKeys().primarySharedKey
+      }
+    }
+    workloadProfiles: [
+      {
+        name: 'consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
+  }
+  tags: tags
+}
+
+resource aspireDashboard 'Microsoft.App/managedEnvironments/dotNetComponents@2024-10-02-preview' = {
+  name: 'aspire-dashboard'
+  properties: {
+    componentType: 'AspireDashboard'
+  }
+  parent: aca_env
+}
+
+resource aca_env_Contributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aca_env.id, userPrincipalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c'))
+  properties: {
+    principalId: userPrincipalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+  }
+  scope: aca_env
+}
+
+output MANAGED_IDENTITY_NAME string = aca_env_mi.name
+
+output MANAGED_IDENTITY_PRINCIPAL_ID string = aca_env_mi.properties.principalId
+
+output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = aca_env_law.name
+
+output AZURE_LOG_ANALYTICS_WORKSPACE_ID string = aca_env_law.id
+
+output AZURE_CONTAINER_REGISTRY_NAME string = aca_env_acr.name
+
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = aca_env_acr.properties.loginServer
+
+output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = aca_env_mi.id
+
+output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = aca_env.name
+
+output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = aca_env.id
+
+output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = aca_env.properties.defaultDomain
 ```
 
-### Scale to zero
+This module configures:
 
-Enable scaling to zero for infrequently used services:
+- A user-assigned managed identity for the ACA environment.
+- An Azure Container Registry (ACR) for the ACA environment.
+- A Log Analytics workspace for the ACA environment.
+- An Azure Container Apps environment.
+- The [ dashboard](../fundamentals/dashboard/overview.md) for the ACA environment.
+- A role assignment for the user principal ID to the ACA environment.
+- Various outputs for the ACA environment.
+
+Using the `acaEnv` variable, you can chain a call to the `ConfigureInfrastructure` API to customize the ACA environment to your liking. For more information, see [Configure infrastructure](/integrations/cloud/azure/customize-resources/).
+
+## Handle naming conventions
+
+By default, `AddAzureContainerAppEnvironment` uses a different Azure resource naming scheme than the [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/). If you're upgrading an existing deployment that previously used `azd`, you might see duplicate Azure resources. To avoid this issue, call the `WithAzdResourceNaming` method to revert to the naming convention used by `azd`:
 
 ```csharp
-builder.AddProject<Projects.BatchProcessor>("batch")
-       .PublishAsAzureContainerApp((resource, construct, app, environment) =>
-       {
-           app.Configuration.Ingress = null;  // No ingress = can scale to zero
-           app.Template.Scale = new Scale
-           {
-               MinReplicas = 0,
-               MaxReplicas = 10
-           };
-       });
+var builder = DistributionApplicationBuilder.Create(args);
+
+var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithAzdResourceNaming();
+
+// Omitted for brevity...
+
+builder.Build().Run();
 ```
 
-## Troubleshooting
+Calling this API ensures your existing Azure resources remain consistent and prevents duplication.
 
-### Environment creation failures
+## Customize provisioning infrastructure
 
-If environment creation fails:
+All  Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the `ConfigureInfrastructure` API:
 
-1. Check subscription quotas
-2. Verify region supports Container Apps
-3. Check VNet subnet size (if using VNet integration)
-4. Review Azure service health
+```csharp
+var builder = DistributionApplicationBuilder.Create(args);
 
-### Networking issues
+var acaEnv = builder.AddAzureContainerAppEnvironment(Config.ContainEnvironmentName);
 
-If apps can't communicate:
+acaEnv.ConfigureInfrastructure(config =>
+{
+    var resources = config.GetProvisionableResources();
+    var containerEnvironment = resources.OfType<ContainerAppManagedEnvironment>().FirstOrDefault();
 
-1. Verify all apps are in the same environment
-2. Check internal load balancer configuration
-3. Verify network security groups (if using VNet)
-4. Check Dapr configuration (if using Dapr)
+    containerEnvironment.Tags.Add("ExampleKey", "Example value");
+});
+```
 
-### Performance issues
+The preceding code:
 
-If experiencing performance problems:
-
-1. Review workload profile selection
-2. Check resource limits and scaling configuration
-3. Consider dedicated workload profiles
-4. Review Log Analytics for bottlenecks
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `ContainerAppManagedEnvironment` resource is retrieved.
+  - A tag is added to the Azure Container Apps environment resource with a key of `ExampleKey` and a value of `Example value`.
 
 ## See also
 
 - [Azure integrations overview](/integrations/cloud/azure/overview/)
 - [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
-- [Azure Container Apps documentation](https://learn.microsoft.com/container-apps/)
-- [Container Apps pricing](https://learn.microsoft.com/container-apps/billing)
+- [Azure Container Apps documentation](https://learn.microsoft.com/azure/container-apps/)
+- [Container Apps pricing](https://learn.microsoft.com/azure/container-apps/billing)

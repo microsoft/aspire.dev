@@ -18,7 +18,7 @@ import appConfigIcon from '@assets/icons/azure-appconfig-icon.png';
   data-zoom-off
 />
 
-[Azure App Configuration](https://learn.microsoft.com/azure-app-configuration) provides a service to centrally manage application settings and feature flags. The Aspire Azure App Configuration integration enables you to connect to App Configuration instances from your applications.
+[Azure App Configuration](https://learn.microsoft.com/azure-app-configuration) provides a service to centrally manage application settings and feature flags. Modern programs, especially programs running in a cloud, generally have many components that are distributed in nature. Spreading configuration settings across these components can lead to hard-to-troubleshoot errors during an application deployment. The Aspire Azure App Configuration integration enables you to connect to existing App Configuration instances or create new instances all from your AppHost.
 
 ## Hosting integration
 
@@ -33,19 +33,127 @@ To add an Azure App Configuration resource to your AppHost project, call the `Ad
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var appConfig = builder.AddAzureAppConfiguration("app-config");
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(appConfig);
+var appConfig = builder.AddAzureAppConfiguration("config");
 
 // After adding all resources, run the app...
+
+builder.Build().Run();
 ```
 
-The preceding code adds an Azure App Configuration resource named `app-config` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+When you add an `AzureAppConfigurationResource` to the AppHost, it exposes other useful APIs.
 
 <Aside type="caution">
-When you call `AddAzureAppConfiguration`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+When you call `AddAzureAppConfiguration`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
+
+#### Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure App Configuration resource, the following Bicep is generated:
+
+:::code language="bicep" source="../snippets/azure/AppHost/config/config.bicep":::
+
+```bicep title="Generated Bicep — config.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource config 'Microsoft.AppConfiguration/configurationStores@2024-06-01' = {
+  name: take('config-${uniqueString(resourceGroup().id)}', 50)
+  location: location
+  properties: {
+    disableLocalAuth: true
+  }
+  sku: {
+    name: 'standard'
+  }
+  tags: {
+    'aspire-resource-name': 'config'
+  }
+}
+
+output appConfigEndpoint string = config.properties.endpoint
+
+output name string = config.name
+```
+
+The preceding Bicep is a module that provisions an Azure App Configuration resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Generated Bicep — config-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param config_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource config 'Microsoft.AppConfiguration/configurationStores@2024-06-01' existing = {
+  name: config_outputs_name
+}
+
+resource config_AppConfigurationDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(config.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b')
+    principalType: principalType
+  }
+  scope: config
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they're reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the `ConfigureInfrastructure` API. For example, you can configure the `sku`, purge protection, and more. The following example demonstrates how to customize the Azure App Configuration resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppConfiguration("config")
+    .ConfigureInfrastructure(infra =>
+    {
+        var appConfigStore = infra.GetProvisionableResources()
+                                  .OfType<AppConfigurationStore>()
+                                  .Single();
+
+        appConfigStore.SkuName = "Free";
+        appConfigStore.EnablePurgeProtection = true;
+        appConfigStore.Tags.Add("ExampleKey", "Example value");
+    });
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `AppConfigurationStore` is retrieved.
+  - The `AppConfigurationStore.SkuName` is assigned to `Free`.
+  - A tag is added to the App Configuration store with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the Azure App Configuration resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+### Use existing Azure App Configuration resource
+
+You might have an existing Azure App Configuration store that you want to connect to. If you want to use an existing Azure App Configuration store, you can do so by calling the `AsExisting` method. This method accepts the config store and resource group names as parameters, and uses it to connect to the existing Azure App Configuration store resource.
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var configName = builder.AddParameter("configName");
+var configResourceGroupName = builder.AddParameter("configResourceGroupName");
+
+var appConfig = builder.AddAzureAppConfiguration("config")
+    .AsExisting(configName, configResourceGroupName);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 ### Connect to an existing Azure App Configuration instance
 
@@ -66,7 +174,7 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
-For more information on treating Azure App Configuration resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+For more information on treating Azure App Configuration resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 <Aside type="note">
 Alternatively, instead of representing an Azure App Configuration resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
@@ -110,7 +218,7 @@ The preceding code:
   - The `Sku` object has its name property set to `Standard`.
   - A tag is added to the App Configuration resource with a key of `ExampleKey` and a value of `Example value`.
 
-There are many more configuration options available to customize the App Configuration resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+There are many more configuration options available to customize the App Configuration resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
 
 ## Client integration
 

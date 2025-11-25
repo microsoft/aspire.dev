@@ -22,97 +22,184 @@ import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 [Azure AI Inference](https://learn.microsoft.com/ai-studio/how-to/deploy-models-serverless) provides serverless API endpoints for deploying and using AI models. The Aspire Azure AI Inference integration enables you to connect to Azure AI Inference services from your applications, making it easy to call models for chat, completions, embeddings, and more.
 
+## Hosting integration
+
+Although the Azure AI Inference library doesn't currently offer direct hosting integration, you can still integrate it into your AppHost project. Simply add a connection string to establish a reference to an existing Azure AI Foundry resource.
+
+### Connect to an existing Azure AI Foundry service
+
+If you already have an [Azure AI Foundry](https://ai.azure.com/) service, you can easily connect to it by adding a connection string to your AppHost. This approach uses a simple, string-based configuration. To establish the connection, use the `AddConnectionString` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aiFoundry = builder.AddConnectionString("ai-foundry");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(aiFoundry);
+
+// After adding all resources, run the app...
+```
+
+> [!NOTE]
+> Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In  nomenclature, the term "connection string" is used to represent any kind of connection information.
+
+The connection string is configured in the AppHost's configuration, typically under User Secrets, under the `ConnectionStrings` section:
+
+```json
+{
+  "ConnectionStrings": {
+    "ai-foundry": "Endpoint=https://{endpoint}/;DeploymentId={deploymentName}"
+  }
+}
+```
+
+For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
+
 ## Client integration
 
 The Aspire Azure AI Inference client integration is used to work with Azure AI models using the `IChatClient` abstraction from `Microsoft.Extensions.AI`. To get started, install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package.
 
 <InstallDotNetPackage packageName="Aspire.Azure.AI.Inference" />
 
-### Add Azure AI Inference client
+### Add an Azure AI Inference client
 
-In the `Program.cs` file of your client-consuming project, call the `AddAzureAIInferenceClient` extension method to register a chat client for use via the dependency injection container:
+In the _Program.cs_ file of your client-consuming project, use the `AddAzureChatCompletionsClient` method on any `IHostApplicationBuilder` to register an `ChatCompletionsClient` for dependency injection (DI).
 
 ```csharp
-builder.AddAzureAIInferenceClient(
-    connectionName: "inference",
-    modelId: "gpt-4");
+builder.AddAzureChatCompletionsClient(connectionName: "ai-foundry");
 ```
 
-After adding the client, you can inject the `IChatClient` interface:
+> [!TIP]
+> The `connectionName` parameter must match the name used when adding the Azure AI Inference resource in the AppHost project. For more information, see [Connect to an existing Azure AI Foundry service](#connect-to-an-existing-azure-ai-foundry-service).
+
+After adding the `ChatCompletionsClient`, you can retrieve the client instance using dependency injection:
+
+```csharp
+public class ExampleService(ChatCompletionsClient client)
+{
+    // Use client...
+}
+```
+
+For more information, see:
+
+- [What is Azure AI model inference?](https://azure.microsoft.com/services/ai-foundry/model-inference/) for details on Azure AI model interfence.
+- [Dependency injection in .NET](https://azure.microsoft.com/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+- [The Azure AI Foundry SDK: C#](https://azure.microsoft.com/azure/ai-foundry/how-to/develop/sdk-overview?tabs=sync&pivots=programming-language-csharp).
+
+### Add Azure AI Inference client with registered `IChatClient`
+
+If you're interested in using the `IChatClient` interface with the Azure AI Inference client, simply chain either of the following APIs to the `AddAzureChatCompletionsClient` method:
+
+- `AddChatClient`: Registers a singleton `IChatClient` in the services.
+- `AddKeyedChatClient`: Registers a keyed singleton `IChatClient` in the services.
+
+For example, consider the following C# code that adds an `IChatClient` to the DI container:
+
+```csharp
+builder.AddAzureChatCompletionsClient(connectionName: "ai-foundry")
+    .AddChatClient("deploymentName");
+```
+
+Similarly, you can add a keyed `IChatClient` with the following C# code:
+
+```csharp
+builder.AddAzureChatCompletionsClient(connectionName: "ai-foundry")
+    .AddKeyedChatClient("serviceKey", "deploymentName");
+```
+
+After adding the `IChatClient`, you can retrieve the client instance using dependency injection:
 
 ```csharp
 public class ExampleService(IChatClient chatClient)
 {
-    public async Task<string> GetCompletionAsync(string prompt)
+    public async Task<string> GetResponseAsync(string userMessage)
     {
-        var response = await chatClient.CompleteAsync(prompt);
-        return response.Message.Text;
+        var response = await chatClient.CompleteAsync(userMessage);
+        return response.Message.Text ?? string.Empty;
     }
 }
 ```
 
-### Using IChatClient abstraction
+For more information on the `IChatClient` and its corresponding library, see [Artificial intelligence in .NET](https://azure.microsoft.com/dotnet/core/extensions/artificial-intelligence).
 
-The integration supports the `IChatClient` abstraction from `Microsoft.Extensions.AI`, which provides a unified interface for working with different AI services:
+### Add keyed Azure AI Inference clients
+
+There might be situations where you want to register multiple `ChatCompletionsClient` instances with different connection names. To register keyed Azure AI Inference clients, call the `AddKeyedAzureChatCompletionsClient` method:
 
 ```csharp
-public class ChatService(IChatClient chatClient)
-{
-    public async Task<string> ChatAsync(string userMessage)
-    {
-        var messages = new List<ChatMessage>
-        {
-            new(ChatRole.System, "You are a helpful assistant."),
-            new(ChatRole.User, userMessage)
-        };
+builder.AddKeyedAzureChatCompletionsClient(name: "chat");
+builder.AddKeyedAzureChatCompletionsClient(name: "code");
+```
 
-        var response = await chatClient.CompleteAsync(messages);
-        return response.Message.Text;
-    }
+> [!IMPORTANT]
+> When using keyed services, ensure that your Azure AI Inference resource configures two named connections, one for `chat` and one for `code`.
+
+Then you can retrieve the client instances using dependency injection. For example, to retrieve the clients from a service:
+
+```csharp
+public class ExampleService(
+    [KeyedService("chat")] ChatCompletionsClient chatClient,
+    [KeyedService("code")] ChatCompletionsClient codeClient)
+{
+    // Use clients...
 }
 ```
 
-For more information on `IChatClient` and `Microsoft.Extensions.AI`, see [Unified AI Building Blocks for .NET](https://learn.microsoft.com/dotnet/ai/ai-extensions).
+For more information, see [Keyed services in .NET](https://azure.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
 
 ### Configuration
 
-The Aspire Azure AI Inference library provides multiple options to configure the connection based on the requirements and conventions of your project.
+The  Azure AI Inference library provides multiple options to configure the Azure AI Foundry Service based on the requirements and conventions of your project.
+
+> [!NOTE]
+> Either an `Endpoint` and `DeploymentId`, or a `ConnectionString` is required to be supplied.
 
 #### Use a connection string
 
-When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string:
+A connection can be constructed from the `Keys`, `Deployment ID` and `Endpoint` tab with the format:
 
-```csharp
-builder.AddAzureAIInferenceClient(
-    connectionName: "inference",
-    modelId: "gpt-4");
+```plaintext
+Endpoint={endpoint};Key={key};DeploymentId={deploymentId}`
 ```
 
-The connection information is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
+You can provide the name of the connection string when calling `builder.AddAzureChatCompletionsClient()`:
 
-- **Service endpoint (recommended)**: Uses the service endpoint with `DefaultAzureCredential`.
+```csharp
+builder.AddAzureChatCompletionsClient(
+    connectionName: "connection-string-name");
+```
 
-    ```json
-    {
-      "ConnectionStrings": {
-        "inference": "https://{endpoint}.inference.ai.azure.com"
-      }
-    }
-    ```
+The connection string is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
 
-- **Connection string**: Includes an API key.
+##### Azure AI Foundry endpoint
 
-    ```json
-    {
-      "ConnectionStrings": {
-        "inference": "Endpoint=https://{endpoint}.inference.ai.azure.com;Key={api_key}"
-      }
-    }
-    ```
+The recommended approach is to use an `Endpoint`, which works with the `ChatCompletionsClientSettings.Credential` property to establish a connection. If no credential is configured, `DefaultAzureCredential` is used.
+
+```json
+{
+  "ConnectionStrings": {
+    "connection-string-name": "Endpoint=https://{endpoint}/;DeploymentId={deploymentName}"
+  }
+}
+```
+
+##### Connection string
+
+Alternatively, a custom connection string can be used.
+
+```json
+{
+  "ConnectionStrings": {
+    "connection-string-name": "Endpoint=https://{endpoint}/;Key={account_key};DeploymentId={deploymentName}"
+  }
+}
+```
 
 #### Use configuration providers
 
-The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Azure:AI:Inference` key:
+The  Azure AI Inference library supports `Microsoft.Extensions.Configuration`. It loads the `ChatCompletionsClientSettings` and `AzureAIInferenceClientOptions` from configuration by using the `Aspire:Azure:AI:Inference` key. For example, consider an _appsettings.json_ that configures some of the options:
 
 ```json
 {
@@ -120,7 +207,11 @@ The library supports `Microsoft.Extensions.Configuration`. It loads settings fro
     "Azure": {
       "AI": {
         "Inference": {
-          "DisableTracing": false
+          "DisableTracing": false,
+          "EnableSensitiveTelemetryData": false,
+          "ClientOptions": {
+            "UserAgentApplicationId": "myapp"
+          }
         }
       }
     }
@@ -128,27 +219,78 @@ The library supports `Microsoft.Extensions.Configuration`. It loads settings fro
 }
 ```
 
-### Observability and telemetry
+#### Use inline delegates
 
-Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
+You can also pass the `Action<ChatCompletionsClientSettings> configureSettings` delegate to set up some or all the options inline, for example, to disable tracing from code:
 
-#### Logging
+```csharp
+builder.AddAzureChatCompletionsClient(
+    connectionName: "connection-string-name",
+    static settings => settings.DisableTracing = true);
+```
 
-The Aspire Azure AI Inference integration uses the following log categories:
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. For more information about integration observability and telemetry, see [Aspire integrations overview](/integrations/overview/). Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
 
-- `Azure`
+### Logging
+
+The  Azure AI Inference integration uses the following log categories:
+
 - `Azure.Core`
 - `Azure.Identity`
-- `Azure.AI.Inference`
 
-#### Tracing
+### Tracing
 
-The Aspire Azure AI Inference integration will emit the following tracing activities using OpenTelemetry:
+The  Azure AI Inference integration will emit the following tracing activities using OpenTelemetry:
 
-- `Azure.AI.Inference.*`
-- `gen_ai.system` - Generic AI system tracing
-- `gen_ai.operation.name` - Operation names for AI calls
+- `Experimental.Microsoft.Extensions.AI` - Used by Microsoft.Extensions.AI to record AI operations
 
-#### Metrics
+> [!IMPORTANT]
+> Telemetry is only recorded by default when using the `IChatClient` interface from Microsoft.Extensions.AI. Raw `ChatCompletionsClient` calls do not automatically generate telemetry.
 
-The Aspire Azure AI Inference integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.
+#### Configuring sensitive data in telemetry
+
+By default, telemetry includes metadata such as token counts, but not raw inputs and outputs like message content. To include potentially sensitive information in telemetry, set the `EnableSensitiveTelemetryData` configuration option:
+
+```csharp
+builder.AddAzureChatCompletionsClient(
+    connectionName: "ai-foundry",
+    configureSettings: settings =>
+    {
+        settings.EnableSensitiveTelemetryData = true;
+    })
+    .AddChatClient("deploymentName");
+```
+
+Or through configuration:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "AI": {
+        "Inference": {
+          "EnableSensitiveTelemetryData": true
+        }
+      }
+    }
+  }
+}
+```
+
+Alternatively, you can enable sensitive data capture by setting the environment variable:
+
+```bash
+OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true
+```
+
+#### Using underlying library telemetry
+
+If you need to access telemetry from the underlying Azure AI Inference library directly, you can manually add the appropriate activity sources and meters to your OpenTelemetry configuration:
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddSource("Azure.AI.Inference.*"))
+    .WithMetrics(metrics => metrics.AddMeter("Azure.AI.Inference.*"));
+```
+
+However, you'll need to enable experimental telemetry support in the Azure AI Inference library by setting the `AZURE_EXPERIMENTAL_ENABLE_ACTIVITY_SOURCE` environment variable to `"true"` or calling `AppContext.SetSwitch("Azure.Experimental.EnableActivitySource", true)` during app startup.

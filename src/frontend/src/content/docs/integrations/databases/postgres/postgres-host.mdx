@@ -1,6 +1,8 @@
 ---
 title: PostgreSQL Hosting integration
 description: Learn how to use the Aspire PostgreSQL Hosting integration to orchestrate and confgure a PostgreSQL database in an Aspire solution.
+title: PostgreSQL integration
+description: Learn how to integrate PostgreSQL with Aspire applications, using both hosting and client integrations.
 ---
 
 import { Image } from 'astro:assets';
@@ -31,7 +33,7 @@ The PostgreSQL hosting integration models various PostgreSQL resources as the fo
 - `PostgresPgAdminContainerResource`
 - `PostgresPgWebContainerResource`
 
-To access these types and APIs for expressing them as resources in your [`AppHost`](/get-started/welcome/) project, install the [📦 Aspire.Hosting.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.PostgreSQL) NuGet package:
+To access these types and APIs for expressing them as resources in your [`AppHost`](/get-started/app-host/) project, install the [📦 Aspire.Hosting.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.PostgreSQL) NuGet package:
 
 <InstallPackage packageName="Aspire.Hosting.PostgreSQL" />
 
@@ -297,3 +299,190 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 The PostgreSQL hosting integration automatically adds a health check for the PostgreSQL server resource. The health check verifies that the PostgreSQL server is running and that a connection can be established to it.
 
 The hosting integration relies on the [📦 AspNetCore.HealthChecks.Npgsql](https://www.nuget.org/packages/AspNetCore.HealthChecks.Npgsql) NuGet package.
+
+### Using with non-.NET applications
+
+The PostgreSQL hosting integration can be used with any application technology, not just .NET applications. When you use `WithReference` to reference a PostgreSQL resource, connection information is automatically injected as environment variables into the referencing application.
+
+For applications that don't use the [client integration](#client-integration), you can access the connection information through environment variables. Here's an example of how to configure environment variables for a non-.NET application:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var database = postgres.AddDatabase("myDatabase");
+
+// Example: Configure a non-.NET application with PostgreSQL access
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(database) // Provides ConnectionStrings__myDatabase
+    .WithEnvironment(context =>
+    {
+        // Additional individual connection details as environment variables
+        context.EnvironmentVariables["POSTGRES_HOST"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["POSTGRES_PORT"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["POSTGRES_USER"] = postgres.Resource.UserNameParameter;
+        context.EnvironmentVariables["POSTGRES_PASSWORD"] = postgres.Resource.PasswordParameter;
+        context.EnvironmentVariables["POSTGRES_DATABASE"] = database.Resource.DatabaseName;
+    });
+
+builder.Build().Run();
+```
+
+This configuration provides the non-.NET application with several environment variables:
+
+- `ConnectionStrings__myDatabase`: The complete PostgreSQL connection string
+- `POSTGRES_HOST`: The hostname/IP address of the PostgreSQL server
+- `POSTGRES_PORT`: The port number the PostgreSQL server is listening on  
+- `POSTGRES_USER`: The database username
+- `POSTGRES_PASSWORD`: The dynamically generated password
+- `POSTGRES_DATABASE`: The name of the database
+
+Your non-.NET application can then read these environment variables to connect to the PostgreSQL database using the appropriate database driver for that technology (for example, `psycopg2` for Python, `pg` for Node.js, or `pq` for Go).
+
+## Client integration
+
+To get started with the Aspire PostgreSQL client integration, install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) NuGet package in the client-consuming project, that is, the project for the application that uses the PostgreSQL client. The PostgreSQL client integration registers an [NpgsqlDataSource](https://www.npgsql.org/doc/api/Npgsql.NpgsqlDataSource.html) instance that you can use to interact with PostgreSQL.
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+### Add Npgsql client
+
+In the `Program.cs` file of your client-consuming project, call the `AddNpgsqlDataSource` extension method on any `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](#add-postgresql-server-resource).
+</Aside>
+
+After adding `NpgsqlDataSource` to the builder, you can get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource...
+}
+```
+
+### Add keyed Npgsql client
+
+There might be situations where you want to register multiple `NpgsqlDataSource` instances with different connection names. To register keyed Npgsql clients, call the `AddKeyedNpgsqlDataSource` method:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedNpgsqlDataSource(name: "chat");
+builder.AddKeyedNpgsqlDataSource(name: "queue");
+```
+
+Then you can retrieve the `NpgsqlDataSource` instances using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] NpgsqlDataSource chatDataSource,
+    [FromKeyedServices("queue")] NpgsqlDataSource queueDataSource)
+{
+    // Use data sources...
+}
+```
+
+### Configuration
+
+The Aspire PostgreSQL integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling the `AddNpgsqlDataSource` method:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource("postgresdb");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "postgresdb": "Host=myserver;Database=postgresdb"
+  }
+}
+```
+
+For more information, see the [ConnectionString](https://www.npgsql.org/doc/connection-string-parameters.html).
+
+#### Use configuration providers
+
+The Aspire PostgreSQL integration supports `Microsoft.Extensions.Configuration`. It loads the `NpgsqlSettings` from `appsettings.json` or other configuration files by using the `Aspire:Npgsql` key. Example `appsettings.json` that configures some of the options:
+
+The following example shows an `appsettings.json` file that configures some of the available options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Npgsql": {
+      "ConnectionString": "Host=myserver;Database=postgresdb",
+      "DisableHealthChecks": false,
+      "DisableTracing": true,
+      "DisableMetrics": false
+    }
+  }
+}
+```
+
+For the complete PostgreSQL client integration JSON schema, see [Aspire.Npgsql/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v9.1.0/src/Components/Aspire.Npgsql/ConfigurationSchema.json).
+
+#### Use inline delegates
+
+You can also pass the `Action<NpgsqlSettings> configureSettings` delegate to set up some or all the options inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(
+    "postgresdb",
+     static settings => settings.DisableHealthChecks = true);
+```
+
+### Client integration health checks
+
+By default, Aspire _client integrations_ have health checks enabled for all services. Similarly, many Aspire _hosting integrations_ also enable health check endpoints. For more information, see:
+
+- Adds the [`NpgSqlHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which verifies that commands can be successfully executed against the underlying Postgres database.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+#### Logging
+
+The Aspire PostgreSQL integration uses the following log categories:
+
+- `Npgsql.Connection`
+- `Npgsql.Command`
+- `Npgsql.Transaction`
+- `Npgsql.Copy`
+- `Npgsql.Replication`
+- `Npgsql.Exception`
+
+#### Tracing
+
+The Aspire PostgreSQL integration will emit the following tracing activities using OpenTelemetry:
+
+- `Npgsql`
+
+#### Metrics
+
+The Aspire PostgreSQL integration will emit the following metrics using OpenTelemetry:
+
+- Npgsql:
+  - `ec_Npgsql_bytes_written_per_second`
+  - `ec_Npgsql_bytes_read_per_second`
+  - `ec_Npgsql_commands_per_second`
+  - `ec_Npgsql_total_commands`
+  - `ec_Npgsql_current_commands`
+  - `ec_Npgsql_failed_commands`
+  - `ec_Npgsql_prepared_commands_ratio`
+  - `ec_Npgsql_connection_pools`
+  - `ec_Npgsql_multiplexing_average_commands_per_batch`
+  - `ec_Npgsql_multiplexing_average_write_time_per_batch`

@@ -27,25 +27,9 @@ The Aspire Azure Event Hubs hosting integration models the various Event Hub res
 - `AzureEventHubsResource`: Represents a top-level Azure Event Hubs resource, used for representing collections of hubs and the connection information to the underlying Azure resource.
 - `AzureEventHubResource`: Represents a single Event Hub resource.
 - `AzureEventHubsEmulatorResource`: Represents an Azure Event Hubs emulator as a container resource.
-
-[Azure Event Hubs](https://learn.microsoft.com/azure/event-hubs/event-hubs-about) is a native data-streaming service in the cloud
-
-
-**Includes:** Hosting integration and Client integration
-
-[Azure Event Hubs](https://learn.microsoft.com/azure/event-hubs/event-hubs-about) is a native data-streaming service in the cloud that can stream millions of events per second, with low latency, from any source to any destination. The Aspire Azure Event Hubs integration enables you to connect to Azure Event Hubs instances from your applications.
-
-## Hosting integration
-
-The Aspire [Azure Event Hubs](https://azure.microsoft.com/products/event-hubs) hosting integration models the various Event Hub resources as the following types:
-
-- `AzureEventHubsResource`: Represents a top-level Azure Event Hubs resource, used for representing collections of hubs and the connection information to the underlying Azure resource.
-- `AzureEventHubResource`: Represents a single Event Hub resource.
-- `AzureEventHubsEmulatorResource`: Represents an Azure Event Hubs emulator as a container resource.
-- `AzureEventHubConsumerGroupResource`: Represents a consumer group within an Event Hub resource.
 - `AzureEventHubConsumerGroupResource`: Represents a consumer group within an Event Hub resource.
 
-To access these types and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.EventHubs](https://www.nuget.org/packages/Aspire.Hosting.Azure.EventHubs) NuGet package:
+To access these types and APIs for expressing them within your [AppHost](/get-started/app-host/) project, install the [📦 Aspire.Hosting.Azure.EventHubs](https://www.nuget.org/packages/Aspire.Hosting.Azure.EventHubs) NuGet package:
 
 <InstallPackage packageName="Aspire.Hosting.Azure.EventHubs" />
 
@@ -60,7 +44,7 @@ var eventHubs = builder.AddAzureEventHubs("event-hubs");
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
@@ -68,7 +52,7 @@ builder.AddProject<Projects.ExampleService>()
 When you add an Azure Event Hubs resource to the AppHost, it exposes other useful APIs to add Event Hub resources, consumer groups, express explicit provisioning configuration, and enables the use of the Azure Event Hubs emulator. The preceding code adds an Azure Event Hubs resource named `event-hubs` and an Event Hub named `messages` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleService` project.
 
 <Aside type="caution">
-When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](https://learn.microsoft.com/local-provisioning/#configuration).
+When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 ### Connect to an existing Azure Event Hubs namespace
@@ -82,18 +66,18 @@ var existingEventHubsName = builder.AddParameter("existingEventHubsName");
 var existingEventHubsResourceGroup = builder.AddParameter("existingEventHubsResourceGroup");
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                    .AsExisting(existingEventHubsName, existingEventHubsResourceGroup);
+    .AsExisting(existingEventHubsName, existingEventHubsResourceGroup);
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
 
-For more information on treating Azure Event Hubs resources as existing resources, see [Use existing Azure resources](https://learn.microsoft.com/integrations-overview/#use-existing-azure-resources).
+For more information on treating Azure Event Hubs resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 <Aside type="note">
-Alternatively, instead of representing an Azure Event Hubs resource, you can add a connection string to the AppHost. This approach is weakly-typed, and doesn't work with role assignments or infrastructure customizations. For more information, see [Add existing Azure resources with connection strings](https://learn.microsoft.com/integrations-overview/#add-existing-azure-resources-with-connection-strings).
+Alternatively, instead of representing an Azure Event Hubs resource, you can add a connection string to the AppHost. This approach is weakly-typed, and doesn't work with role assignments or infrastructure customizations. For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
 </Aside>
 
 ### Add Event Hub consumer group
@@ -125,17 +109,17 @@ To run the Event Hubs resource as an emulator, call the `RunAsEmulator` method:
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                       .RunAsEmulator();
+    .RunAsEmulator();
 
 eventHubs.AddHub("messages");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
 
-The preceding code configures an Azure Event Hubs resource to run locally in a container. For more information, see [Azure Event Hubs Emulator](https://learn.microsoft.com/event-hubs/overview-emulator).
+The preceding code configures an Azure Event Hubs resource to run locally in a container. For more information, see [Azure Event Hubs Emulator](https://learn.microsoft.com/azure/event-hubs/overview-emulator).
 
 #### Configure Event Hubs emulator container
 
@@ -155,15 +139,15 @@ The port that it's listening on is dynamic by default. When the container starts
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                       .RunAsEmulator(emulator =>
-                       {
-                           emulator.WithHostPort(7777);
-                       });
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithHostPort(7777);
+    });
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
@@ -182,15 +166,15 @@ To add a data volume to the Event Hubs emulator resource, call the `WithDataVolu
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                       .RunAsEmulator(emulator =>
-                       {
-                           emulator.WithDataVolume();
-                       });
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithDataVolume();
+    });
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
@@ -205,15 +189,15 @@ The add a bind mount to the Event Hubs emulator container, chain a call to the `
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                       .RunAsEmulator(emulator =>
-                       {
-                           emulator.WithDataBindMount("/path/to/data");
-                       });
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithDataBindMount("/path/to/data");
+    });
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
@@ -230,15 +214,15 @@ To provide a custom JSON configuration file, call the `WithConfigurationFile` me
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                       .RunAsEmulator(emulator =>
-                       {
-                           emulator.WithConfigurationFile("./messaging/custom-config.json");
-                       });
+  .RunAsEmulator(emulator =>
+  {
+      emulator.WithConfigurationFile("./messaging/custom-config.json");
+  });
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
@@ -249,23 +233,23 @@ The preceding code configures the Event Hubs emulator container to use a custom 
 var builder = DistributedApplication.CreateBuilder(args);
 
 var eventHubs = builder.AddAzureEventHubs("event-hubs")
-                       .RunAsEmulator(emulator =>
-                       {
-                           emulator.WithConfiguration(
-                               (JsonNode configuration) =>
-                               {
-                                   var userConfig = configuration["UserConfig"];
-                                   var ns = userConfig["NamespaceConfig"][0];
-                                   var firstEntity = ns["Entities"][0];
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithConfiguration(
+            (JsonNode configuration) =>
+            {
+                var userConfig = configuration["UserConfig"];
+                var ns = userConfig["NamespaceConfig"][0];
+                var firstEntity = ns["Entities"][0];
 
-                                   firstEntity["PartitionCount"] = 5;
-                               });
-                       });
+                firstEntity["PartitionCount"] = 5;
+            });
+    });
 
 eventHubs.AddHub("messages");
 
 builder.AddProject<Projects.ExampleService>()
-       .WithReference(eventHubs);
+    .WithReference(eventHubs);
 
 // After adding all resources, run the app...
 ```
@@ -274,7 +258,64 @@ The preceding code retrieves the `UserConfig` node from the default configuratio
 
 ### Provisioning-generated Bicep
 
-If you're new to [Bicep](https://learn.microsoft.com/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand; instead, the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Event Hubs resource, Bicep is generated that provisions an Azure Event Hubs resource.
+If you're new to [Bicep](https://learn.microsoft.com/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand; instead, the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Event Hubs resource, the following Bicep is generated:
+
+```bicep title="Generated Bicep — event-hubs.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param sku string = 'Standard'
+
+resource event_hubs 'Microsoft.EventHub/namespaces@2024-01-01' = {
+  name: take('event_hubs-${uniqueString(resourceGroup().id)}', 256)
+  location: location
+  properties: {
+    disableLocalAuth: true
+  }
+  sku: {
+    name: sku
+  }
+  tags: {
+    'aspire-resource-name': 'event-hubs'
+  }
+}
+
+resource messages 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = {
+  name: 'messages'
+  parent: event_hubs
+}
+
+output eventHubsEndpoint string = event_hubs.properties.serviceBusEndpoint
+
+output name string = event_hubs.name
+```
+
+The preceding Bicep is a module that provisions an Azure Event Hubs resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Generated Bicep — event-hubs-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param event_hubs_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource event_hubs 'Microsoft.EventHub/namespaces@2024-01-01' existing = {
+  name: event_hubs_outputs_name
+}
+
+resource event_hubs_AzureEventHubsDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(event_hubs.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'f526a384-b230-433a-b45c-95f59c4a2dec'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'f526a384-b230-433a-b45c-95f59c4a2dec')
+    principalType: principalType
+  }
+  scope: event_hubs
+}
+```
 
 The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
 
@@ -285,23 +326,22 @@ All Aspire Azure resources are subclasses of the `AzureProvisioningResource` typ
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var eventHubs = builder.AddAzureEventHubs("event-hubs");
-
-eventHubs.ConfigureInfrastructure(infra =>
-{
-    var eventHubsNamespace = infra.GetProvisionableResources()
-                                  .OfType<EventHubsNamespace>()
-                                  .Single();
-
-    eventHubsNamespace.Sku = new EventHubsSku
+builder.AddAzureEventHubs("event-hubs")
+    .ConfigureInfrastructure(infra =>
     {
-        Name = "Premium",
-        Tier = "Premium",
-        Capacity = 7
-    };
-    eventHubsNamespace.PublicNetworkAccess = "SecuredByPerimeter";
-    eventHubsNamespace.Tags["ExampleKey"] = "Example value";
-});
+        var eventHubs = infra.GetProvisionableResources()
+                              .OfType<EventHubsNamespace>()
+                              .Single();
+
+        eventHubs.Sku = new EventHubsSku()
+        {
+            Name = EventHubsSkuName.Premium,
+            Tier = EventHubsSkuTier.Premium,
+            Capacity = 7,
+        };
+        eventHubs.PublicNetworkAccess = EventHubsPublicNetworkAccess.SecuredByPerimeter;
+        eventHubs.Tags.Add("ExampleKey", "Example value");
+    });
 ```
 
 The preceding code:
@@ -314,7 +354,7 @@ The preceding code:
   - The `PublicNetworkAccess` property is assigned to `SecuredByPerimeter`.
   - A tag is added to the Event Hubs resource with a key of `ExampleKey` and a value of `Example value`.
 
-There are many more configuration options available to customize the Event Hubs resource. For more information, see [Azure.Provisioning customization](https://learn.microsoft.com/customize-azure-resources/#azureprovisioning-customization).
+There are many more configuration options available to customize the Event Hubs resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
 
 ### Hosting integration health checks
 
@@ -378,7 +418,7 @@ The client integration provides additional APIs to configure client instances. W
 | `EventHubBufferedProducerClient` | `AddAzureEventHubBufferedProducerClient` |
 | `EventHubConsumerClient` | `AddAzureEventHubConsumerClient` |
 | `EventProcessorClient` | `AddAzureEventProcessorClient` |
-| PartitionReceiver class | `AddAzurePartitionReceiverClient` |
+| `PartitionReceiver` | `AddAzurePartitionReceiverClient` |
 
 All of the aforementioned APIs include optional parameters to configure the client instances.
 
@@ -488,7 +528,7 @@ The Aspire Azure Event Hubs library supports `Microsoft.Extensions.Configuration
 }
 ```
 
-For the complete Azure Event Hubs client integration JSON schema, see [Aspire.Azure.Messaging.EventHubs/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v9.1.0/src/Components/Aspire.Azure.Messaging.EventHubs/ConfigurationSchema.json).
+For the complete Azure Event Hubs client integration JSON schema, see [Aspire.Azure.Messaging.EventHubs/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Azure.Messaging.EventHubs/ConfigurationSchema.json).
 
 ### Use named configuration
 

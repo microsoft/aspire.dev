@@ -20,7 +20,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
       uk: 'Документи',
       'zh-CN': '文档',
     },
-    link: 'get-started/welcome',
+    link: 'docs',
     icon: 'open-book',
     items: [
       {
@@ -41,7 +41,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           tr: 'Aspire\'a Hoş Geldiniz',
           uk: 'Ласкаво просимо до Aspire',
           'zh-CN': '欢迎使用 Aspire',
-        }, slug: 'get-started/welcome'
+        }, slug: 'docs'
       },
       {
         label: "What's new", collapsed: true, autogenerate: { directory: 'whats-new' },
@@ -925,22 +925,22 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
         ]
       },
       {
-        label: "Compute & Hosting",
+        label: "Compute & hosting",
         collapsed: true,
         translations: {
           da: 'Compute og hosting',
-          de: 'Compute & Hosting',
-          en: 'Compute & Hosting',
+          de: 'Compute & hosting',
+          en: 'Compute & hosting',
           es: 'Computación y alojamiento',
           fr: 'Calcul et hébergement',
           hi: 'कंप्यूट और होस्टिंग',
-          id: 'Komputasi & Hosting',
+          id: 'Komputasi & hosting',
           it: 'Calcolo e hosting',
           ja: 'コンピューティングとホスティング',
           ko: '컴퓨팅 및 호스팅',
-          pt: 'Computação e Hospedagem',
-          'pt-BR': 'Computação e Hospedagem',
-          'pt-PT': 'Computação e Alojamento',
+          pt: 'Computação e hospedagem',
+          'pt-BR': 'Computação e hospedagem',
+          'pt-PT': 'Computação e alojamento',
           ru: 'Вычисления и хостинг',
           tr: 'Hesaplama ve Barındırma',
           uk: 'Обчислення та хостинг',
@@ -974,6 +974,19 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           'zh-CN': '数据库',
         }, items: [
           { label: "Elasticsearch", slug: "integrations/databases/elasticsearch" },
+          { label: "Entity Framework Core", items: [
+              { label: "Overview",  slug: "integrations/databases/efcore/overview" },
+              { label: "Apply migrations",  slug: "integrations/databases/efcore/migrations" },
+              { label: "Seed data",  slug: "integrations/databases/efcore/seed-database" },
+              { label: "Azure Cosmos DB",  slug: "integrations/databases/efcore/azure-cosmos-db" },
+              { label: "Azure PostgreSQL",  slug: "integrations/databases/efcore/azure-postgresql" },
+              { label: "Azure SQL",  slug: "integrations/databases/efcore/azure-sql" },
+              { label: "MySQL Pomelo",  slug: "integrations/databases/efcore/mysql" },
+              { label: "Oracle",  slug: "integrations/databases/efcore/oracle" },
+              { label: "PostgreSQL",  slug: "integrations/databases/efcore/postgresql" },
+              { label: "SQL Server",  slug: "integrations/databases/efcore/sql-server" },
+            ] 
+          },
           { label: "KurrentDB", slug: "integrations/databases/kurrentdb" },
           { label: "Meilisearch", slug: "integrations/databases/meilisearch" },
           { label: "Milvus", slug: "integrations/databases/milvus" },

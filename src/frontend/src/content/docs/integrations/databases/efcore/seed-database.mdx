@@ -1,0 +1,584 @@
+---
+title: Seed data in a database using Aspire
+description: Learn about how to seed database data in Aspire
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Pivot from '@components/Pivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import { Image } from 'astro:assets';
+
+<PivotSelector
+  title='Choose a Aspire Entity Framework Core client integration'
+  key='efcore'
+  options={[
+    { id: 'sql-server-ef', title: 'SQL Server' },
+    { id: 'postgresql-ef', title: 'PostgreSQL' },
+    { id: 'mysql-ef', title: 'Pomelo MySQL' },
+  ]}
+/>
+
+In this article, you learn how to configure Aspire projects to seed data in a database during app startup. Aspire enables you to seed data using database scripts or Entity Framework Core (EF Core) for common platforms such as SQL Server, PostgreSQL, and MySQL.
+
+## When to seed data
+
+Seeding data pre-populates database tables with rows of data so they're ready for testing your app. You may want to seed data for the following scenarios:
+
+- You want to develop and test different features of your app manually against a meaningful set of data, such as a product catalog or a list of customers.
+- You want to run test suites to verify that features behave correctly with a given set of data.
+
+Manually seeding data is tedious and time consuming, so you should automate the process whenever possible. You can seed your database either by running database scripts for Aspire projects during startup or by using tools like EF Core, which handles many underlying concerns for you.
+
+## Understand containerized databases
+
+By default, Aspire database integrations rely on containerized databases, which create the following challenges when trying to seed data:
+
+- By default, Aspire destroys and recreates containers every time the app restarts, which means you have to re-seed your database on each run.
+- Depending on your selected database technology, the new container instance may or may not create a default database, which means you might also have to create the database itself.
+- Even if a default database exists, it most likely won't have the desired name or schema for your specific app.
+
+Aspire enables you to resolve these challenges using volumes, bind mounts, and a few configurations to seed data effectively.
+
+> [!TIP]
+> Container hosts like Docker and Podman support volumes and bind mounts, both of which provide locations for data that persist when a container restarts. Volumes are the recommended solution, because they offer better performance, portability, and security. The container host creates and remains in control of volumes. Each volume can store data for multiple containers. Bind mounts have relatively limited functionality in comparison but enable you to access the data from the host machine.
+
+> [!NOTE]
+> Visit the [Database Container Sample App](https://github.com/dotnet/aspire-samples/blob/main/samples/DatabaseContainers/DatabaseContainers.AppHost/AppHost.cs) to view the full project and file structure for each database option.
+
+## Seed data using SQL scripts
+
+The recommended method for executing database seeding scripts depends on the database server you use:
+
+<Pivot id="sql-server-ef">
+
+With Aspire, you can use the `WithCreationScript` method to ensure a T-SQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
+
+The following code is an example T-SQL script that creates and populates an address book database:
+
+```sql title="SQL Server — init.sql"
+-- SQL Server init script
+
+-- Create the AddressBook database
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = N'AddressBook')
+BEGIN
+  CREATE DATABASE AddressBook;
+END;
+GO
+
+USE AddressBook;
+GO
+
+-- Create the Contacts table
+IF OBJECT_ID(N'Contacts', N'U') IS NULL
+BEGIN
+    CREATE TABLE Contacts
+    (
+        Id        INT PRIMARY KEY IDENTITY(1,1) ,
+        FirstName VARCHAR(255) NOT NULL,
+        LastName  VARCHAR(255) NOT NULL,
+        Email     VARCHAR(255) NULL,
+        Phone     VARCHAR(255) NULL
+    );
+END;
+GO
+
+-- Ensure that either the Email or Phone column is populated
+IF OBJECT_ID(N'chk_Contacts_Email_Phone', N'C') IS NULL
+BEGIN
+    ALTER TABLE Contacts
+    ADD CONSTRAINT chk_Contacts_Email_Phone CHECK
+    (
+        Email IS NOT NULL OR Phone IS NOT NULL
+    );
+END;
+GO
+
+-- Insert some sample data into the Contacts table
+IF (SELECT COUNT(*) FROM Contacts) = 0
+BEGIN
+    INSERT INTO Contacts (FirstName, LastName, Email, Phone)
+    VALUES
+        ('John', 'Doe', 'john.doe@example.com', '555-123-4567'),
+        ('Jane', 'Doe', 'jane.doe@example.com', '555-234-5678');
+END;
+GO
+```
+
+You must ensure that this script is copied to the AppHost's output directory, so that Aspire can execute it. Add the following XML to your *.csproj* file:
+
+```xml title="DatabaseContainers.AppHost.csproj" {11-15}
+<Project Sdk="Aspire.AppHost.Sdk/13.0.0">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>a664d119-7412-4e3e-8b8d-19191387b8f1</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\DatabaseContainers.ApiService\data\sqlserver\init.sql" Link="init.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DatabaseContainers.ApiService\DatabaseContainers.ApiService.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.MySql" Version="13.0.0" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.0.0" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.0.0" />
+  </ItemGroup>
+
+</Project>
+```
+
+Adjust the `Include` parameter to match the path to your SQL script in the project.
+
+Next, in the *AppHost.cs* file, create the database and run the creation script:
+
+```csharp title="C# — AppHost.cs"
+var sqlserver = builder.AddSqlServer("sqlserver")
+    // Configure the container to store data in a volume so that it persists across instances.
+    .WithDataVolume()
+    // Keep the container running between app host sessions.
+    .WithLifetime(ContainerLifetime.Persistent);
+
+// Add the database to the application model so that it can be referenced by other resources.
+var initScriptPath = Path.Join(Path.GetDirectoryName(typeof(Program).Assembly.Location), "init.sql");
+var addressBookDb = sqlserver.AddDatabase("AddressBook")
+    .WithCreationScript(File.ReadAllText(initScriptPath));
+```
+
+The preceding code:
+
+- Create a SQL Server container by calling `builder.AddSqlServer()`.
+- Ensures that data is persisted across debugging sessions by calling `WithDataVolume()` and `WithLifetime(ContainerLifetime.Persistent)`.
+- Obtains the path to the T-SQL script in the output folder.
+- Calls `WithCreationScript()` to create and seed the database.
+
+</Pivot>
+<Pivot id="postgresql-ef">
+
+With Aspire, you can use the `WithCreationScript()` method in the PostgreSQL integration but, because there is no `USE DATABASE` in PostgreSQL, it only supports operations against the default database. For example, you can issue `CREATE DATABASE` statements to create other databases, but you can't populate them with tables and data. Instead, you must use a bind mount and deploy the setup SQL script to it, so that the data is seeded when the container initializes the database.
+
+The following code is an example PostgreSQL script that creates and populates a to do list database:
+
+```sql title="PostgreSQL — init.sql"
+-- Postgres init script
+
+-- Create the Todos table
+CREATE TABLE IF NOT EXISTS Todos
+(
+    Id SERIAL PRIMARY KEY,
+    Title text UNIQUE NOT NULL,
+    IsComplete boolean NOT NULL DEFAULT false
+);
+
+-- Insert some sample data into the Todos table
+INSERT INTO Todos (Title, IsComplete)
+VALUES
+    ('Give the dog a bath', false),
+    ('Wash the dishes', false),
+    ('Do the groceries', false)
+ON CONFLICT DO NOTHING;
+```
+
+In the *AppHost.cs* file, create the database and mount the folder that contains the SQL script as a bind mount:
+
+```csharp title="C# — AppHost.cs"
+// PostgreSQL container is configured with an auto-generated password by default
+// and supports setting the default database name via an environment variable & running *.sql/*.sh scripts in a bind mount.
+var todosDbName = "Todos";
+
+var postgres = builder.AddPostgres("postgres")
+    // Set the name of the default database to auto-create on container startup.
+    .WithEnvironment("POSTGRES_DB", todosDbName)
+    // Mount the SQL scripts directory into the container so that the init scripts run.
+    .WithBindMount("../DatabaseContainers.ApiService/data/postgres", "/docker-entrypoint-initdb.d")
+    // Configure the container to store data in a volume so that it persists across instances.
+    .WithDataVolume()
+    .WithPgWeb()
+    // Keep the container running between app host sessions.
+    .WithLifetime(ContainerLifetime.Persistent);
+
+// Add the default database to the application model so that it can be referenced by other resources.
+var todosDb = postgres.AddDatabase(todosDbName);
+```
+
+</Pivot>
+<Pivot id="mysql-ef">
+
+With Aspire, you can use the `WithCreationScript` method to ensure a MySQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
+
+In the following AppHost code, the script is created as a string and passed to the `WithCreationScript` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogDbName = "catalog";
+
+var mysql = builder.AddMySql("mysql")
+                   .WithEnvironment("MYSQL_DATABASE", catalogDbName)
+                   .WithDataVolume()
+                   .WithLifetime(ContainerLifetime.Persistent)
+                   .WithPhpMyAdmin();
+
+var creationScript = $$"""
+USE catalog;
+CREATE TABLE IF NOT EXISTS `catalog`
+(
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `name` varchar(255) NOT NULL,
+    `description` varchar(255) NOT NULL,
+    `price` DECIMAL(18,2) NOT NULL,
+    PRIMARY KEY (`id`)
+);
+
+-- Insert some sample data into the Catalog table only if the table is empty
+INSERT INTO catalog (name, description, price)
+SELECT *
+FROM (
+        SELECT '.NET Bot Black Hoodie', 'This hoodie will keep you warm while looking cool and representing .NET!', 19.5 UNION ALL
+        SELECT '.NET Black & White Mug', 'The perfect place to keep your favorite beverage while you code.', 8.5 UNION ALL
+        SELECT 'Prism White T-Shirt', "It's a t-shirt, it's white, and it can be yours.", 12
+    ) data
+-- This clause ensures the rows are only inserted if the table is empty
+WHERE NOT EXISTS (SELECT NULL FROM catalog)
+""";
+
+var mysqldb = mysql.AddDatabase(catalogDbName)
+                   .WithCreationScript(creationScript);
+                   
+builder.Build().Run();
+```
+
+The preceding code:
+
+- Create a MySQL container by calling `builder.AddMySql()`.
+- Uses the `MYSQL_DATABASE` environment variable to name the database `catalog`.
+- Ensures that data is persisted across debugging sessions by calling `WithDataVolume()` and `WithLifetime(ContainerLifetime.Persistent)`.
+- Create a second container that runs the PHP My Admin user interface for MySQL.
+- Calls `WithCreationScript()` to create and seed the database.
+
+If you run this code, you can use the PHP My Admin resource to check that a table called **catalog** has been created and populated with products.
+
+</Pivot>
+
+## Seed data using EF Core
+
+To seed data, call `UseSeeding` or `UseAsyncSeeding` methods to configure database seeding directly during context configuration. This approach is cleaner than manually running migrations during startup and integrates better with EF Core's lifecycle management.
+
+> [!IMPORTANT]
+> These types of configurations should only be done during development, so make sure to add a conditional that checks your current environment context.
+
+### Seed data with UseSeeding and UseAsyncSeeding methods
+
+Add the following code to the `Program.cs` file of your **API Service** project:
+
+<Pivot id="sql-server-ef">
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerDbContext<TicketContext>("TicketsDB", 
+    configureDbContextOptions: options =>
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        options.UseSeeding((context, _) =>
+        {
+            var testTicket = context.Set<SupportTicket>()
+                .FirstOrDefault(t => t.Title == "Test Ticket 1");
+            if (testTicket is null)
+            {
+                context.Set<SupportTicket>().Add(new SupportTicket
+                {
+                    Title = "Test Ticket 1",
+                    Description = "This is a test ticket"
+                });
+                context.SaveChanges();
+            }
+
+        });
+    
+        options.UseAsyncSeeding(async (context, _, cancellationToken) =>
+        {
+            var testTicket = await context.Set<SupportTicket>()
+                .FirstOrDefaultAsync(t => t.Title == "Test Ticket 1", cancellationToken);
+            if (testTicket is null)
+            {
+                context.Set<SupportTicket>().Add(new SupportTicket
+                {
+                    Title = "Test Ticket 1",
+                    Description = "This is a test ticket"
+                });
+                await context.SaveChangesAsync(cancellationToken);
+            }
+        });
+    }
+});
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    // Ensure database is created and seeded
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+        await context.Database.EnsureCreatedAsync();
+    }
+}
+```
+
+</Pivot>
+<Pivot id="postgresql-ef">
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDbContext<TicketContext>("TicketsDB",
+    configureDbContextOptions: options =>
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        options.UseSeeding((context, _) =>
+        {
+            var testTicket = context.Set<SupportTicket>()
+                .FirstOrDefault(t => t.Title == "Test Ticket 1");
+            if (testTicket is null)
+            {
+                context.Set<SupportTicket>().Add(new SupportTicket
+                {
+                    Title = "Test Ticket 1",
+                    Description = "This is a test ticket"
+                });
+                context.SaveChanges();
+            }
+
+        });
+    
+        options.UseAsyncSeeding(async (context, _, cancellationToken) =>
+        {
+            var testTicket = await context.Set<SupportTicket>()
+                .FirstOrDefaultAsync(t => t.Title == "Test Ticket 1", cancellationToken);
+            if (testTicket is null)
+            {
+                context.Set<SupportTicket>().Add(new SupportTicket
+                {
+                    Title = "Test Ticket 1",
+                    Description = "This is a test ticket"
+                });
+                await context.SaveChangesAsync(cancellationToken);
+            }
+        });
+    }
+});
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    // Ensure database is created and seeded
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+        await context.Database.EnsureCreatedAsync();
+    }
+}
+```
+
+</Pivot>
+<Pivot id="mysql-ef">
+
+```csharp title="C# — Program.cs"
+builder.AddMySqlDbContext<TicketContext>("TicketsDB", 
+    configureDbContextOptions: options =>
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        options.UseSeeding((context, _) =>
+        {
+            var testTicket = context.Set<SupportTicket>()
+                .FirstOrDefault(t => t.Title == "Test Ticket 1");
+            if (testTicket is null)
+            {
+                context.Set<SupportTicket>().Add(new SupportTicket
+                {
+                    Title = "Test Ticket 1",
+                    Description = "This is a test ticket"
+                });
+                context.SaveChanges();
+            }
+
+        });
+    
+        options.UseAsyncSeeding(async (context, _, cancellationToken) =>
+        {
+            var testTicket = await context.Set<SupportTicket>()
+                .FirstOrDefaultAsync(t => t.Title == "Test Ticket 1", cancellationToken);
+            if (testTicket is null)
+            {
+                context.Set<SupportTicket>().Add(new SupportTicket
+                {
+                    Title = "Test Ticket 1",
+                    Description = "This is a test ticket"
+                });
+                await context.SaveChangesAsync(cancellationToken);
+            }
+        });
+    }
+});
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    // Ensure database is created and seeded
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+        await context.Database.EnsureCreatedAsync();
+    }
+}
+```
+
+</Pivot>
+
+> [!NOTE]
+> `UseSeeding` is called from the `EnsureCreated` method, and `UseAsyncSeeding` is called from the `EnsureCreatedAsync` method. When using this feature, it's recommended to implement both `UseSeeding` and `UseAsyncSeeding` methods using similar logic, even if the code using EF is asynchronous. EF Core tooling currently relies on the synchronous version of the method and will not seed the database correctly if the `UseSeeding` method isn't implemented.
+
+The `UseSeeding` and `UseAsyncSeeding` methods provide several advantages over manual seeding approaches:
+
+- **Integrated lifecycle**: Seeding is automatically triggered when the database is created or when migrations are applied.
+- **Conditional execution**: The seeding logic only runs when the database is first created, preventing duplicate data on subsequent runs.
+- **Better performance**: The seeding methods are optimized for bulk operations and integrate with EF Core's change tracking.
+- **Cleaner code**: Seeding configuration is co-located with the context configuration, making it easier to maintain.
+
+### Seed data manually
+
+You can also seed data in Aspire projects using EF Core by explicitly running migrations during startup. EF Core handles underlying database connections and schema creation for you, which eliminates the need to use volumes or run SQL scripts during container startup.
+
+> [!IMPORTANT]
+> These types of configurations should only be done during development, so make sure to add a conditional that checks your current environment context.
+
+Add the following code to the `Program.cs` file of your **API Service** project.
+
+<Pivot id="sql-server-ef">
+
+```csharp title="C# — Program.cs"
+// Register DbContext class
+builder.AddSqlServerDbContext<TicketContext>("sqldata");
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    // Retrieve an instance of the DbContext class and manually run migrations during startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+        context.Database.Migrate();
+
+        // Manually seed data
+        if (!context.Tickets.Any())
+        {
+            context.Tickets.AddRange(
+                new Ticket
+                {
+                    Title = "Example Ticket", 
+                    Description = "This is a sample ticket for testing"
+                }
+            );
+            context.SaveChanges();
+        }
+    }
+}
+```
+
+</Pivot>
+<Pivot id="postgresql-ef">
+
+```csharp title="C# — Program.cs"
+// Register DbContext class
+builder.AddNpgsqlDbContext<TicketContext>("sqldata");
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    // Retrieve an instance of the DbContext class and manually run migrations during startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+        context.Database.Migrate();
+
+        // Manually seed data
+        if (!context.Tickets.Any())
+        {
+            context.Tickets.AddRange(
+                new Ticket
+                {
+                    Title = "Example Ticket", 
+                    Description = "This is a sample ticket for testing"
+                }
+            );
+            context.SaveChanges();
+        }
+    }
+}
+```
+
+</Pivot>
+<Pivot id="mysql-ef">
+
+```csharp title="C# — Program.cs"
+// Register DbContext class
+builder.AddMySqlDataSource<TicketContext>("sqldata");
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    // Retrieve an instance of the DbContext class and manually run migrations during startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TicketContext>();
+        context.Database.Migrate();
+
+        // Manually seed data
+        if (!context.Tickets.Any())
+        {
+            context.Tickets.AddRange(
+                new Ticket
+                {
+                    Title = "Example Ticket", 
+                    Description = "This is a sample ticket for testing"
+                }
+            );
+            context.SaveChanges();
+        }
+    }
+}
+```
+
+</Pivot>
+
+## Next steps
+
+Database seeding is useful in a variety of app development scenarios. Try combining these techniques with the resource implementations demonstrated in the following articles:
+
+- [Tutorial: Apply Entity Framework Core migrations in Aspire](/integrations/databases/efcore/migrations/)
+- [Aspire orchestration overview](/get-started/app-host/)
