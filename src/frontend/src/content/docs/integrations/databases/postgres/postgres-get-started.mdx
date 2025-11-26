@@ -13,6 +13,16 @@ import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript (coming soon)", disabled: true },
+    ]}
+/>
+
 <Image
   src={postgresIcon}
   alt="PostgreSQL logo"
@@ -38,6 +48,8 @@ To begin, install the Aspire PostgreSQL Hosting integration in your Aspire AppHo
 
 Next, in the AppHost project, create instances of PostgreSQL server and database resources, then pass the database to the consuming client projects:
 
+<Pivot id="csharp">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -45,57 +57,37 @@ var postgres = builder.AddPostgres("postgres");
 var postgresdb = postgres.AddDatabase("postgresdb");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(postgresdb)
                             .WithReference(postgresdb);
 ```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddAddUvicornApp("api", "./api", "main.app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(postgresdb)
+                            .WithReference(postgresdb);
+```
+
+</Pivot>
 
 <Aside type="tip">
     This is the simplest implementation of PostgreSQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [PostgreSQL Hosting integration](../postgres-host/).
 </Aside>
 
-## Configuration properties of the PostgreSQL resources
-
-When you use the `WithReference` method to pass a PostgreSQL server or database resource from the AppHost project to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
-
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
-
-### PostgreSQL server resource
-
-The PostgreSQL server resource exposes the following connection properties:
-
-| Property Name | Description |
-|---------------|-------------|
-| `Host` | The hostname or IP address of the PostgreSQL server |
-| `Port` | The port number the PostgreSQL server is listening on |
-| `Username` | The username for authentication |
-| `Password` | The password for authentication |
-| `Uri` | The connection URI in postgresql:// format, with the format `postgresql://{Username}:{Password}@{Host}:{Port}` |
-| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:postgresql://{Host}:{Port}`. User and password credentials are provided as separate `Username` and `Password` properties. |
-
-### PostgreSQL database resource
-
-The PostgreSQL database resource inherits all properties from its parent `PostgresServerResource` and adds:
-
-| Property Name | Description |
-|---------------|-------------|
-| `Uri` | The connection URI with the database name, with the format `postgresql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
-| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:postgresql://{Host}:{Port}/{DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
-| `Database` | The name of the database |
-
 ## Set up the client integration
 
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
-
-<PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript (coming soon)", disabled: true },
-    ]}
-/>
-
 <Pivot id="csharp">
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
 
 In each of these consuming client projects, install the Aspire PostgreSQL client integration:
 
@@ -111,44 +103,86 @@ builder.AddNpgsqlDataSource(connectionName: "postgresdb");
     The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](#add-postgresql-server-resource).
 </Aside>
 
-After adding `NpgsqlDataSource` to the builder, you can get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+</Pivot>
+
+<Pivot id="python">
+
+> AJMTODO: Finish this.
+
+</Pivot>
+
+## Use PostgreSQL resources in client code
+
+Now that you've added `NpgsqlDataSource` to the builder in the consuming project, you can use the PostgreSQL resource to get and store data. Get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+<Pivot id="csharp"> 
 
 ```csharp title="C# — ExampleService.cs"
 public class ExampleService(NpgsqlDataSource dataSource)
 {
-    // Use dataSource...
+    // Use dataSource to query the database...
 }
-```
-
-You can use environment variables to obtain the configuration properties that Aspire injected when you called the `WithReference` method in the AppHost project:
-
-```csharp title="C# - Obtain configuration properties"
-string databasename = builder.Configuration.GetValue<string>("POSTGRESDB_DATABASENAME");
 ```
 
 </Pivot>
 <Pivot id="python">
 
-<Aside type="tip">
-    To find out how to create a Python app that works with Aspire, see [Build your first Aspire app](../../../../get-started/first-app/?lang=python).
-</Aside>
+> AJMTODO: Finish this.
 
-You can use environment variables to obtain the configuration properties that Aspire injected when you called the `WithReference` method in the AppHost project:
+</Pivot>
 
-```python title="Python - Obtain configuration properties"
-databasename = os.environ.get("POSTGRESDB_DATABASENAME")
+### Use injected PostgreSQL properties
+
+In the AppHost, when you used the `WithReference` method to pass a PostgreSQL server or database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string hostname = builder.Configuration.GetValue<string>("POSTGRESDB_HOST");
+string databaseport = builder.Configuration.GetValue<string>("POSTGRESDB_PORT");
+string jdbcconnectionstring = builder.Configuration.GetValue<string>("POSTGRESDB_JDBCCONNECTIONSTRING");
+string databasename = builder.Configuration.GetValue<string>("POSTGRESDB_DATABASE");
 ```
 
 </Pivot>
 
-## Completed solution
+<Pivot id="python">
+
+> AJMTODO: Finish this.
+
+Use the `os.environ.get()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+hostname = os.environ.get("POSTGRESDB_HOST")
+databaseport = os.environ.get("POSTGRESDB_PORT")
+jdbcconnectionstring = os.environ.get("POSTGRESDB_JDBCCONNECTIONSTRING")
+databasename = os.environ.get("POSTGRESDB_DATABASE")
+```
+
+</Pivot>
+
+<Aside type="tip">
+    The full set of properties the Aspire injects depends on whether you passed a PostgreSQL server or database resource. For more information, see [Properties of the PostgreSQL resources](../postgres-client/#properties-of-the-postgresql-resources).
+</Aside>
+
+## Run the solution
 
 import postgresqlDashboardLight from '@assets/integrations/postgresql/postgresql-dashboard-light.png';
 import postgresqlDashboardDark from '@assets/integrations/postgresql/postgresql-dashboard-dark.png';
 import postgresqlPythonDashboardLight from '@assets/integrations/postgresql/postgresql-python-dashboard-light.png';
 import postgresqlPythonDashboardDark from '@assets/integrations/postgresql/postgresql-python-dashboard-dark.png';
 
-In an Aspire solution that uses the PostgreSQL integrations, the **Resources** page includes the PostgreSQL instance:
+Run the solution on your local machine using this command:
+
+```bash
+aspire run
+```
+
+On the **Resources** page of the Aspire dashboard, you'll see the PostgreSQL resources that you added:
 
 <Pivot id="csharp">
 
@@ -176,8 +210,13 @@ Now, that you have an Aspire app with PostgreSQL integrations up and running, yo
 
 <CardGrid>
   <LinkCard
-    title="Learn more about the PostgreSQL Hosting intregration"
+    title="Learn more about the PostgreSQL hosting intregration"
     description="Discover how to configure persistence, pgAdmin resources, and more."
     href="/integrations/databases/postgres/postgres-host/"
+  />
+  <LinkCard
+    title="Learn more about the PostgreSQL client intregration"
+    description="Discover how to configure keyed clients, client integration health checks, and more."
+    href="/integrations/databases/postgres/postgres-client/"
   />
 </CardGrid>
