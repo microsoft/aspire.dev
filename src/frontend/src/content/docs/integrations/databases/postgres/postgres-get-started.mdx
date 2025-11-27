@@ -40,7 +40,7 @@ In this introduction, you'll see how to install and use the Aspire PostgreSQL in
     To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
 </Aside>
 
-## Set up the hosting integration
+## Set up hosting integration
 
 To begin, install the Aspire PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage PostgreSQL database instances from your Aspire hosting projects:
 
@@ -83,11 +83,13 @@ var exampleProject = builder.AddAddUvicornApp("api", "./api", "main.app")
     This is the simplest implementation of PostgreSQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [PostgreSQL Hosting integration](../postgres-host/).
 </Aside>
 
-## Set up the client integration
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
 
 <Pivot id="csharp">
 
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+### Set up client integration
 
 In each of these consuming client projects, install the Aspire PostgreSQL client integration:
 
@@ -100,22 +102,12 @@ builder.AddNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
 <Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](#add-postgresql-server-resource).
+    The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
 </Aside>
 
-</Pivot>
-
-<Pivot id="python">
-
-> AJMTODO: Finish this.
-
-</Pivot>
-
-## Use PostgreSQL resources in client code
+### Use PostgreSQL resources in client code
 
 Now that you've added `NpgsqlDataSource` to the builder in the consuming project, you can use the PostgreSQL resource to get and store data. Get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-<Pivot id="csharp"> 
 
 ```csharp title="C# — ExampleService.cs"
 public class ExampleService(NpgsqlDataSource dataSource)
@@ -124,20 +116,13 @@ public class ExampleService(NpgsqlDataSource dataSource)
 }
 ```
 
-</Pivot>
-<Pivot id="python">
-
-> AJMTODO: Finish this.
-
-</Pivot>
+Having obtained the data source, you can work with the PostgreSQL database as you would in any other C# application.
 
 ### Use injected PostgreSQL properties
 
 In the AppHost, when you used the `WithReference` method to pass a PostgreSQL server or database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
 
 Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
-
-<Pivot id="csharp">
 
 Use the `GetValue()` method to obtain these environment variables in consuming projects:
 
@@ -148,26 +133,57 @@ string jdbcconnectionstring = builder.Configuration.GetValue<string>("POSTGRESDB
 string databasename = builder.Configuration.GetValue<string>("POSTGRESDB_DATABASE");
 ```
 
+<Aside type="tip">
+    The full set of properties the Aspire injects depends on whether you passed a PostgreSQL server or database resource. For more information, see [Properties of the PostgreSQL resources](../postgres-client/#properties-of-the-postgresql-resources).
+</Aside>
+
 </Pivot>
 
 <Pivot id="python">
 
-> AJMTODO: Finish this.
+### Include a Python PostgreSQL adapter
 
-Use the `os.environ.get()` method to obtain these environment variables in consuming projects:
+To interact with PostgreSQL databases in your Python consuming projects, you need to include a PostgreSQL adapter library. Two popular options are `psycopg` (synchronous) and `asyncpg` (asynchronous). You can install either of these libraries using pip. In this article, example code uses `psycopg`:
 
-```python title="Python - Obtain configuration properties"
-hostname = os.environ.get("POSTGRESDB_HOST")
-databaseport = os.environ.get("POSTGRESDB_PORT")
-jdbcconnectionstring = os.environ.get("POSTGRESDB_JDBCCONNECTIONSTRING")
-databasename = os.environ.get("POSTGRESDB_DATABASE")
+```bash
+pip install psycopg[binary]
 ```
 
-</Pivot>
+Ensure that you `import psycopg` in code files that interact with the database. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import psycopg"
+import psycopg
+import os
+```
+
+### Obtain injected PostgreSQL properties
+
+In the AppHost, when you used the `WithReference` method to pass a PostgreSQL server or database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
+
+Use the `os.getenv()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+postgres_uri = os.getenv("POSTGRESDB_URI")
+postgres_name = os.getenv("POSTGRESDB_DATABASE", "db")
+```
 
 <Aside type="tip">
     The full set of properties the Aspire injects depends on whether you passed a PostgreSQL server or database resource. For more information, see [Properties of the PostgreSQL resources](../postgres-client/#properties-of-the-postgresql-resources).
 </Aside>
+
+### Connect to the PostgreSQL database
+
+Use the information you have obtained about the PostgreSQL resource to connect to the database. Here is an example of how to connect using `psycopg`:
+
+```python title="Python - Connect to PostgreSQL"
+async with await psycopg.AsyncConnection.connect(postgres_uri, autocommit=True) as conn
+```
+
+Having obtained the connection, you can work with the PostgreSQL database as you would in any other Python application.
+
+</Pivot>
 
 ## Run the solution
 
