@@ -147,7 +147,7 @@ The `aspire init` command is the starting point for adding Aspire to your existi
    
    <Pivot id="csharp">
    - Detect your existing solution structure
-   - Create a file-based AppHost (`apphost.cs`)
+   - Create a project-based AppHost (an _AppHost_ project with `Program.cs`)
    - Analyze your projects and suggest which ones to add to the orchestration
    - Install necessary Aspire packages
    </Pivot>
@@ -172,14 +172,15 @@ The `aspire init` command is the starting point for adding Aspire to your existi
 
 ### What does `aspire init` create?
 
-After running `aspire init`, your project will have a file-based AppHost:
-
 <Pivot id="csharp">
+After running `aspire init`, your solution will have a project-based AppHost:
+
 <FileTree>
-- ExampleEcommerce.sln
-- **apphost.cs** (new) orchestration code
-- **apphost.run.json** (new) configuration
+- ExampleEcommerce.sln (updated)
 - src/
+  - **ExampleEcommerce.AppHost/** (new)
+    - **ExampleEcommerce.AppHost.csproj** orchestration project
+    - **Program.cs** orchestration code
   - Api/
     - ExampleEcommerce.Api.csproj
     - Program.cs
@@ -196,6 +197,8 @@ After running `aspire init`, your project will have a file-based AppHost:
 A typical e-commerce solution with a web frontend, API service, and background worker.
 </Pivot>
 <Pivot id="python">
+After running `aspire init`, your project will have a file-based AppHost:
+
 <FileTree>
 - my-saas-app/
   - **apphost.cs** (new) orchestration code
@@ -246,6 +249,19 @@ A typical SaaS application with FastAPI backend, Flask frontend, and Celery work
 A typical monorepo with Node.js API, React storefront, and admin dashboard.
 </Pivot>
 
+<Pivot id="csharp">
+The `Program.cs` file in your new AppHost project initially contains a minimal starter:
+
+```csharp title="Program.cs — Initial state after aspire init"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO: Add resources here
+
+builder.Build().Run();
+```
+
+</Pivot>
+<Pivot id="python">
 The `apphost.cs` file initially contains a minimal starter:
 
 ```csharp title="apphost.cs — Initial state after aspire init"
@@ -257,6 +273,22 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.Build().Run();
 ```
+
+</Pivot>
+<Pivot id="javascript">
+The `apphost.cs` file initially contains a minimal starter:
+
+```csharp title="apphost.cs — Initial state after aspire init"
+#:sdk Aspire.AppHost.Sdk@13.0.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO: Add resources here
+
+builder.Build().Run();
+```
+
+</Pivot>
 
 This is your starting point. In the next section, you'll add your applications and configure their relationships.
 
@@ -292,15 +324,21 @@ This package provides methods like `AddViteApp`, `AddNodeApp`, and `AddJavaScrip
 
 ### Model your resources in the AppHost
 
+<Pivot id="csharp">
+Now update your `Program.cs` file in the AppHost project to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+</Pivot>
+<Pivot id="python">
 Now update your `apphost.cs` file to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+</Pivot>
+<Pivot id="javascript">
+Now update your `apphost.cs` file to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+</Pivot>
 
 <Pivot id="csharp">
 
 For C# projects, use `AddProject` to reference your existing C# projects:
 
-```csharp title="apphost.cs — Complete e-commerce example"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-
+```csharp title="Program.cs — Complete e-commerce example"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.ExampleEcommerce_Api>("api")
@@ -411,7 +449,7 @@ The calls to `WithReference` establish service dependencies and enable service d
 
 <Pivot id="csharp">
 
-```csharp title="apphost.cs — Connect .NET services" ".WithReference"
+```csharp title="Program.cs — Connect .NET services" ".WithReference"
 // Omitted for brevity...
 
 var api = builder.AddProject<Projects.YourApi>("api");
