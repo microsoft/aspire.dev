@@ -214,6 +214,29 @@ builder.Build().Run();
 
 For more information on providing parameters, see [External parameters](/get-started/resources/).
 
+### Use a specific SQL Server container image tag
+
+If you want to use a specific tag for the SQL Server container image, you can call the `WithImageTag` method to override the default tag. This is useful when you need to test against a specific version of SQL Server:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql")
+                 .WithImageTag("2019-latest");
+
+var db = sql.AddDatabase("database");
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+       .WithReference(db)
+       .WaitFor(db);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+The preceding code uses the `2019-latest` tag for the SQL Server container image. For a list of available tags, see [SQL Server container image tags](https://mcr.microsoft.com/en-us/artifact/mar/mssql/server/tags).
+
 ### Connect to database resources
 
 When the Aspire AppHost runs, the server's database resources can be accessed from external tools, such as [SQL Server Management Studio (SSMS)](https://learn.microsoft.com/sql/ssms/download-sql-server-management-studio-ssms) or [MSSQL for Visual Studio Code](https://learn.microsoft.com/sql/tools/visual-studio-code-extensions/mssql/mssql-extension-visual-studio-code). The connection string for the database resource is available in the dependent resources environment variables and is accessed using the [Aspire dashboard: Resource details](/dashboard/explore/#resource-details) pane. The environment variable is named `ConnectionStrings__{name}` where `{name}` is the name of the database resource, in this example it's `database`. Use the connection string to connect to the database resource from external tools. Imagine that you have a database named `todos` with a single `dbo.Todos` table.
