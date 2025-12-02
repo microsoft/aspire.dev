@@ -1,15 +1,15 @@
 ---
 import { Icon } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
 import type { StarlightIcon } from "@astrojs/starlight/types";
 import type { HTMLAttributes } from "astro/types";
-
-type CustomIconComponent = any; // Accept imported SVG components
+import type { ImageMetadata } from "astro";
 
 interface Props extends Omit<HTMLAttributes<"a">, "title"> {
 	title: string;
 	description?: string;
-	/** Icon can be a Starlight icon name or a custom SVG component */
-	icon?: StarlightIcon | CustomIconComponent | undefined;
+	/** Icon can be a Starlight icon name or an imported image */
+	icon?: StarlightIcon | ImageMetadata | undefined;
 	/** Where to place the arrow icon relative to the content. Default: 'end' */
 	placement?: "start" | "end";
 }
@@ -21,8 +21,9 @@ const {
 	placement = "end",
 	...attributes
 } = Astro.props as Props;
+
 const isStringIcon = typeof icon === "string";
-const CustomIcon = !isStringIcon ? (icon as CustomIconComponent) : null;
+const isImageIcon = !isStringIcon && icon && typeof icon === "object";
 ---
 
 <div class={`sl-link-card ${placement === "start" ? "start" : ""}`}>
@@ -31,12 +32,11 @@ const CustomIcon = !isStringIcon ? (icon as CustomIconComponent) : null;
 		<a {...attributes}>
 			<span class="title">
 				{
-					icon &&
-						(CustomIcon ? (
-							<CustomIcon class="icon" height="32" width="32" />
-						) : (
-							<Icon name={icon as StarlightIcon} class="icon" />
-						))
+					isImageIcon ? (
+						<Image src={icon as ImageMetadata} alt="" class="icon image-icon" height={32} />
+					) : icon ? (
+						<Icon name={icon as StarlightIcon} class="icon" />
+					) : null
 				}
 				{title}
 			</span>
@@ -49,6 +49,7 @@ const CustomIcon = !isStringIcon ? (icon as CustomIconComponent) : null;
 <style>
 	@layer starlight.components {
 		.sl-link-card {
+			margin-top: 1rem;
 			display: grid;
 			grid-template-columns: 1fr auto;
 			gap: 0.5rem;
@@ -97,6 +98,12 @@ const CustomIcon = !isStringIcon ? (icon as CustomIconComponent) : null;
 		.sl-link-card .title .icon {
 			color: var(--sl-color-gray-3);
 			flex-shrink: 0;
+		}
+
+		.sl-link-card .title .image-icon {
+			height: 32px;
+			width: auto;
+			object-fit: contain;
 		}
 
 		.sl-link-card .stack {
