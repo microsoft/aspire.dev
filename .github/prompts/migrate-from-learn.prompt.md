@@ -107,7 +107,7 @@ Example NUnit content
 1. **Import statement**: Add `import { Image } from 'astro:assets';` to imports
 2. **Asset import**: `import imageName from '@assets/{section}/{filename}';`
 3. **Usage**: `<Image src={imageName} alt="descriptive text" />`
-4. **Copy both**: Always copy `.png` (or other formats) AND `.excalidraw` source files
+4. **Copy both**: Always copy `.png`, `.svg` (or other formats) AND `.excalidraw` source files
 5. **Destination**: `src/frontend/src/assets/{section}/`
 
 ### Link Transformations
@@ -216,7 +216,7 @@ Copy-Item "source" "destination"
 5. What components need translation?
 6. What messaging improvements are desired?
 7. Are there dependencies on other articles?
-8. Does similar content already exist in aspire.dev?
+8. Does similar content already exist in aspire.dev
 9. Does the directory structure need to be created?
 10. What sidebar translations are needed?
 

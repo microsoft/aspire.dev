@@ -11,7 +11,6 @@ import catppuccin from '@catppuccin/starlight';
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
-import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightImageZoom from 'starlight-image-zoom';
 import starlightKbd from 'starlight-kbd';
