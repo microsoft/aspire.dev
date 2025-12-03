@@ -1,0 +1,120 @@
+---
+title: k6 integration
+---
+
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import ThemeImage from '@components/ThemeImage.astro';
+import k6Icon from '@assets/icons/k6-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={k6Icon}
+  dark={k6Icon}
+  alt="k6 logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+[Grafana k6](https://k6.io/) is a performance & load testing tool. The Aspire k integration enables you to create new container instances from Aspire with the `docker.io/grafana/k6` container image.
+
+## Hosting integration
+
+To get started with the Aspire k6 hosting integration, install the [CommunityToolkit.Aspire.Hosting.k6](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.k6) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.k6" />
+
+### Add k6 server resource
+
+In your app host project, call `AddK6` on the builder instance to add a flagd container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var myService = builder.AddProject<Projects.MyService>();
+
+var k6 = builder.AddK6("k6")
+                .WithBindMount("scripts", "/scripts", true)
+                .WithScript("/scripts/main.js")
+                .WithReference(myService)
+                .WaitFor(apiservice);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/grafana/k6` image, it creates a new k6 instance on your local machine. You may need to add a reference to your k6 instance in order to test this resource.
+
+<Aside type="caution">
+
+The k6 container requires a JavaScript entrypoint to run successfully. Use the `WithBindMount` method to configure a source for your scripts and the `WithScript` to configure the JavaScript entrypoint.
+
+</Aside>
+
+## Scripts configuration
+
+You will need to add a JavaScript file that will be executed by k6. Here is a simple example:
+
+```js title="scripts/main.js"
+import http from "k6/http";
+import { sleep } from "k6";
+
+export default function () {
+    http.get(`${__ENV.services__myService__http__0}/hello`);
+
+    sleep(1);
+}
+```
+
+The `services__myService__http__0` environment variable is used to get the `http` endpoint provided for the `myService` resource.
+
+For more information on how to write a Grafana k6 script, see the [Write your first test with Grafana k6](https://grafana.com/docs/k6/latest/get-started/write-your-first-test/).
+
+### Customize ports
+
+To customize the ports used by the k6 container resource, provide the `port` parameter to the `AddK6` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var myService = builder.AddProject<Projects.MyService>();
+
+var k6 = builder.AddK6("k6", port: 6565)
+                .WithBindMount("scripts", "/scripts", true)
+                .WithScript("/scripts/main.js")
+                .WithReference(myService)
+                .WaitFor(apiservice);
+
+// After adding all resources, run the app...
+```
+
+The `port` parameter specifies the host port for the k6 HTTP endpoint. If this parameter is not provided, a random port is assigned.
+
+### Enable browser extensions
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var myService = builder.AddProject<Projects.MyService>();
+
+var k6 = builder.AddK6("k6", enableBrowserExtensions: true)
+                .WithBindMount("scripts", "/scripts", true)
+                .WithScript("/scripts/main.js")
+                .WithReference(myService)
+                .WaitFor(apiservice);
+
+// After adding all resources, run the app...
+```
+
+The browser module brings browser automation and end-to-end web testing to k6 while supporting core k6 features. It adds browser-level APIs to interact with browsers and collect frontend performance metrics as part of your k6 tests.
+
+For more information on how to use Grafana k6 browser, see the [Using k6 browser](https://grafana.com/docs/k6/latest/using-k6-browser/).
+
+## See also
+
+- [Grafana k6 website](https://k6.io/)
+- [Grafana k6 documentation](https://grafana.com/docs/k6/latest/)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

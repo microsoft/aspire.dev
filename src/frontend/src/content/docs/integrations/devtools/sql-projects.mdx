@@ -54,9 +54,9 @@ This method takes a project reference to your SQL database project and deploys i
 Your SQL database project must use either [MSBuild.Sdk.SqlProj](https://github.com/rr-wfm/MSBuild.Sdk.SqlProj) or [Microsoft.Build.Sql](https://www.nuget.org/packages/Microsoft.Build.Sql) SDK. Add one of these to your SQL project file:
 
 ```xml
-<Project Sdk="MSBuild.Sdk.SqlProj/3.1.0">
+  <Project Sdk="MSBuild.Sdk.SqlProj/3.3.0">
   <!-- or -->
-  <Project Sdk="Microsoft.Build.Sql/0.2.0">
+  <Project Sdk="Microsoft.Build.Sql/2.0.0">
 ```
 
 </Aside>
@@ -156,6 +156,25 @@ db1.AddSqlProject<Projects.Database1Project>("db1-project");
 
 var db2 = sql.AddDatabase("db2");
 db2.AddSqlProject<Projects.Database2Project>("db2-project");
+
+// After adding all resources, run the app...
+```
+
+### Ability to skip deployment
+
+You can use the `WithSkipWhenDeployed` method to avoid re-deploying your SQL Database Project if no changes have been made. This is useful in scenarios where the SQL container database is persisted to permanent storage and will significantly reduce the app host startup time.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql")
+    .WithDataVolume("data")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var db1 = sql.AddDatabase("db1");
+
+db1.AddSqlProject<Projects.Database1Project>("db1-project")
+   .WithSkipWhenDeployed();
 
 // After adding all resources, run the app...
 ```
