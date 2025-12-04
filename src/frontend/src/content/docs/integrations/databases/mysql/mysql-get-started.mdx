@@ -1,0 +1,287 @@
+---
+title: Get started with the MySQL integrations
+description: Learn how to set up the Aspire MySQL Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript"},
+    ]}
+/>
+
+<Image
+  src={mysqlIcon}
+  alt="MySQL logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[MySQL](https://www.mysql.com/) is an open-source Relational Database Management System (RDBMS) that uses Structured Query Language (SQL) to manage and manipulate data. It's employed in a many different environments, from small projects to large-scale enterprise systems and it's a popular choice to host data that underpins microservices in a cloud-native application. The Aspire MySQL integration provides a way to connect to existing MySQL databases, or create new instances from the [`mysql` container image](https://hub.docker.com/_/mysql).
+
+In this introduction, you'll see how to install and use the Aspire MySQL integrations in a simple configuration. If you already have this knowledge, see [MySQL Hosting integration](../mysql-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire MySQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage MySQL database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.MySql" shortName="mysql" />
+
+Next, in the AppHost project, create instances of MySQL server and database resources, then pass the database to the consuming client projects:
+
+<Pivot id="csharp">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql");
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(mysqldb)
+                            .WithReference(mysqldb);
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql");
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(mysqldb)
+                            .WithReference(mysqldb);
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql");
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+                 .WithExternalHttpEndpoints()
+                 .WaitFor(mysqldb)
+                 .WithReference(mysqldb);
+```
+
+</Pivot>
+
+<Aside type="tip">
+    This is the simplest implementation of MySQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [MySQL Hosting integration](../mysql-host/).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+<Pivot id="csharp">
+
+In each of these consuming client projects, install the Aspire MySQL client integration:
+
+<InstallDotNetPackage packageName="Aspire.MySqlConnector" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddMySqlDataSource` extension method on any `IHostApplicationBuilder` to register a `MySqlDataSource` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddMySqlDataSource(connectionName: "mysqldb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the MySQL database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
+
+<Pivot id="python">
+
+To interact with MySQL databases in your Python consuming projects, you need to include a MySQL adapter library. A popular option is `mysql-connector-python` (the official Oracle connector). You can install this library using pip:
+
+```bash
+pip install mysql-connector-python
+```
+
+Ensure that you `import mysql.connector` in code files that interact with the database. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import mysql.connector"
+import mysql.connector
+import os
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+To interact with MySQL databases in your JavaScript consuming projects, you need to include a MySQL client library. A popular option is `mysql2` (a fast, modern MySQL client). You can install this library using npm:
+
+```bash
+npm install mysql2
+```
+
+Ensure that you `import mysql2` in code files that interact with the database. This code also uses the `express` library to access environment variables:
+
+```javascript title="JavaScript - Import mysql2"
+import mysql from 'mysql2/promise';
+import express from 'express';
+```
+
+</Pivot>
+
+### Use injected MySQL properties
+
+In the AppHost, when you used the `WithReference` method to pass a MySQL server or database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `mysqldb` becomes `MYSQLDB_URI`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string hostname = builder.Configuration.GetValue<string>("MYSQLDB_HOST");
+string databaseport = builder.Configuration.GetValue<string>("MYSQLDB_PORT");
+string jdbcconnectionstring = builder.Configuration.GetValue<string>("MYSQLDB_JDBCCONNECTIONSTRING");
+string databasename = builder.Configuration.GetValue<string>("MYSQLDB_DATABASE");
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the `os.getenv()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+mysql_host = os.getenv("MYSQLDB_HOST")
+mysql_port = os.getenv("MYSQLDB_PORT", "3306")
+mysql_user = os.getenv("MYSQLDB_USERNAME")
+mysql_password = os.getenv("MYSQLDB_PASSWORD")
+mysql_database = os.getenv("MYSQLDB_DATABASE", "mysqldb")
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the `process.env` method to obtain these environment variables in consuming projects:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const mysqlHost = process.env.MYSQLDB_HOST;
+const mysqlPort = process.env.MYSQLDB_PORT;
+const mysqlUser = process.env.MYSQLDB_USERNAME;
+const mysqlPassword = process.env.MYSQLDB_PASSWORD;
+const mysqlDatabase = process.env.MYSQLDB_DATABASE;
+```
+
+</Pivot>
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on whether you passed a MySQL server or database resource. For more information, see [Properties of the MySQL resources](../mysql-client/#properties-of-the-mysql-resources).
+</Aside>
+
+### Use MySQL resources in client code
+
+<Pivot id="csharp">
+
+Now that you've added `MySqlDataSource` to the builder in the consuming project, you can use the MySQL resource to get and store data. Get the `MySqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(MySqlDataSource dataSource)
+{
+    // Use dataSource to query the database...
+}
+```
+
+Having obtained the data source, you can work with the MySQL database as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the information you have obtained about the MySQL resource to connect to the database. Here is an example of how to connect using `mysql-connector-python`:
+
+```python title="Python - Connect to MySQL"
+connection = mysql.connector.connect(
+    host=mysql_host,
+    port=mysql_port,
+    user=mysql_user,
+    password=mysql_password,
+    database=mysql_database
+)
+
+cursor = connection.cursor()
+```
+
+Having obtained the connection, you can work with the MySQL database as you would in any other Python application.
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the information you have obtained about the MySQL resource to connect to the database. Here is an example of how to connect using `mysql2`:
+
+```javascript title="JavaScript - Connect to MySQL"
+const connection = await mysql.createConnection({
+  host: mysqlHost,
+  port: mysqlPort,
+  user: mysqlUser,
+  password: mysqlPassword,
+  database: mysqlDatabase
+});
+```
+
+Having obtained the connection, you can work with the MySQL database as you would in any other JavaScript application.
+
+</Pivot>
+
+## Next steps
+
+Now, that you have an Aspire app with MySQL integrations up and running, you can use the following reference documents to learn how to configure and interact with the MySQL resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the MySQL hosting integration"
+    description="Discover how to configure persistence, phpMyAdmin resources, and more."
+    href="/integrations/databases/mysql/mysql-host/"
+  />
+  <LinkCard
+    title="Understand the MySQL client integration"
+    description="Discover how to configure keyed clients, client integration health checks, and more."
+    href="/integrations/databases/mysql/mysql-client/"
+  />
+   <LinkCard
+    title="Understand the MySQL community extensions"
+    description="Discover how to add the DbGate management user interface, and more."
+    href="/integrations/databases/mysql/mysql-extensions/"
+  />
+</CardGrid>

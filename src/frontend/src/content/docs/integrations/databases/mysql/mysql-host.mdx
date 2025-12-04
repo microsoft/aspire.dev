@@ -1,12 +1,12 @@
 ---
-title: MySQL integration
-description: Learn how to use the MySQL integration, which includes both hosting and client integrations.
+title: MySQL Hosting integration reference
+description: Learn how to use the Aspire MySQL Hosting integration to create and manage MySQL server and database resources in your Aspire projects.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { Steps } from '@astrojs/starlight/components';
 import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
 
 <Image
@@ -18,15 +18,17 @@ import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
   data-zoom-off
 />
 
-[MySQL](https://www.mysql.com/) is an open-source Relational Database Management System (RDBMS) that uses Structured Query Language (SQL) to manage and manipulate data. It's employed in a many different environments, from small projects to large-scale enterprise systems and it's a popular choice to host data that underpins microservices in a cloud-native application. The Aspire MySQL database integration enables you to connect to existing MySQL databases or create new instances from .NET with the [`mysql` container image](https://hub.docker.com/_/mysql).
+To get started with the Aspire MySQL integrations, follow the [Get started with MySQL integrations](../mysql-get-started/) guide.
 
-## Hosting integration
+This article includes full details about the Aspire MySQL Hosting integration, which models the server as the `MySqlServerResource` type and the database as the `MySqlDatabaseResource` type. To access these types and APIs, you need to install the MySQL Hosting integration in your AppHost project.
 
-The MySQL hosting integration models the server as the `MySqlServerResource` type and the database as the `MySqlDatabaseResource` type. To access these types and APIs, add the [📦 Aspire.Hosting.MySql](https://www.nuget.org/packages/Aspire.Hosting.MySql) NuGet package in your AppHost project:
+## Installation
+
+To get started with the Aspire MySQL hosting integration, install the [📦 Aspire.Hosting.MySql](https://www.nuget.org/packages/Aspire.Hosting.MySql) NuGet package in your AppHost project:
 
 <InstallPackage packageName="Aspire.Hosting.MySql" />
 
-### Add MySQL server resource and database resource
+## Add MySQL server resource and database resource
 
 In your AppHost project, call `AddMySql` to add and return a MySQL resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add a MySQL database resource:
 
@@ -63,7 +65,35 @@ The `WithReference` method configures a connection in the `ExampleProject` named
 If you'd rather connect to an existing MySQL server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
 </Aside>
 
-### Add a MySQL resource with a data volume
+## Add MySQL server resource with database scripts
+
+You can use the `WithCreationScript` method to execute SQL scripts when the database is created. This is useful for initializing database schema or seeding data:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var mysqldb = mysql.AddDatabase("mysqldb")
+    .WithCreationScript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL
+        );
+        """);
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(mysqldb)
+    .WaitFor(mysqldb);
+```
+
+<Aside type="note">
+The script is executed only when the database is first created. If you need to run scripts on every startup, consider using init bind mounts or application-level migrations instead.
+</Aside>
+
+## Add a MySQL resource with a data volume
 
 To add a data volume to the MySQL resource, call the `WithDataVolume` method on the MySQL resource:
 
@@ -92,7 +122,7 @@ Some database integrations, including the MySQL integration, can't successfully 
 You can resolve the problem by deploying to a Kubernetes cluster, such as Azure Kubernetes Services (AKS). For more information, see [Deploy your first Aspire app](/get-started/deploy-first-app/).
 </Aside>
 
-### Add a MySQL resource with a data bind mount
+## Add a MySQL resource with a data bind mount
 
 To add a data bind mount to the MySQL resource, call the `WithDataBindMount` method:
 
@@ -115,7 +145,7 @@ Data bind mounts have limited functionality compared to volumes, and when you us
 
 Data bind mounts rely on the host machine's filesystem to persist the MySQL data across container restarts. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-### Add MySQL resource with parameters
+## Add MySQL resource with parameters
 
 When you want to provide a root MySQL password explicitly, you can pass it as a parameter:
 
@@ -136,7 +166,7 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 
 For more information, see [External parameters](/get-started/resources/).
 
-### Add a PhpMyAdmin resource
+## Add a PhpMyAdmin resource
 
 [**phpMyAdmin**](https://www.phpmyadmin.net/) is a popular web-based administration tool for MySQL. To use phpMyAdmin within your Aspire solution, call the `WithPhpMyAdmin` method. This method adds a new container resource that hosts phpMyAdmin and connects it to the MySQL container:
 
@@ -155,153 +185,64 @@ var myService = builder.AddProject<Projects.ExampleProject>()
 
 When you run the solution, the Aspire dashboard displays the phpMyAdmin resources with an endpoint. Select the link to the endpoint to view phpMyAdmin in a new browser tab.
 
-### Hosting integration health checks
+## Hosting integration health checks
 
 The MySQL hosting integration automatically adds a health check for the MySQL resource. The health check verifies that the MySQL server is running and that a connection can be established to it.
 
 The hosting integration relies on the [📦 AspNetCore.HealthChecks.MySql](https://www.nuget.org/packages/AspNetCore.HealthChecks.MySql) NuGet package.
 
+## Using with non-.NET applications
+
+When you use the `WithReference` method to pass a MySQL database resource to a non-.NET application (such as Python or JavaScript), Aspire automatically injects environment variables that describe the connection information. These environment variables follow the naming convention `[RESOURCE]_[PROPERTY]`, where `RESOURCE` is the uppercase name of the resource and `PROPERTY` is the name of the connection property.
+
+For example, if you reference a MySQL database resource named `mysqldb`:
+
+```csharp title="C# — AppHost.cs"
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var pythonApp = builder.AddUvicornApp("api", "./api", "main.app")
+    .WithReference(mysqldb);
+```
+
+The following environment variables are available in the Python application:
+
+- `MYSQLDB_HOST` - The hostname or IP address
+- `MYSQLDB_PORT` - The port number
+- `MYSQLDB_USERNAME` - The username for authentication
+- `MYSQLDB_PASSWORD` - The password for authentication
+- `MYSQLDB_DATABASE` - The database name
+- `MYSQLDB_URI` - The full connection URI
+- `MYSQLDB_JDBCCONNECTIONSTRING` - JDBC-format connection string
+
+You can access these environment variables in your application code:
+
+```python title="Python example"
+import os
+import mysql.connector
+
+connection = mysql.connector.connect(
+    host=os.getenv("MYSQLDB_HOST"),
+    port=os.getenv("MYSQLDB_PORT", "3306"),
+    user=os.getenv("MYSQLDB_USERNAME"),
+    password=os.getenv("MYSQLDB_PASSWORD"),
+    database=os.getenv("MYSQLDB_DATABASE")
+)
+```
+
+```javascript title="JavaScript example"
+import mysql from 'mysql2/promise';
+
+const connection = await mysql.createConnection({
+  host: process.env.MYSQLDB_HOST,
+  port: process.env.MYSQLDB_PORT,
+  user: process.env.MYSQLDB_USERNAME,
+  password: process.env.MYSQLDB_PASSWORD,
+  database: process.env.MYSQLDB_DATABASE
+});
+```
+
+For the complete list of properties available, see [Properties of the MySQL resources](../mysql-client/#properties-of-the-mysql-resources).
+
 ## Client integration
 
-To get started with the Aspire MySQL client integration, install the [📦 Aspire.MySqlConnector](https://www.nuget.org/packages/Aspire.MySqlConnector) NuGet package:
-
-<InstallDotNetPackage packageName="Aspire.MySqlConnector" />
-
-The MySQL client integration registers a `MySqlConnector.MySqlDataSource` instance that you can use to interact with the MySQL server.
-
-### Add a MySQL data source
-
-In the `Program.cs` file of your client-consuming project, call the `AddMySqlDataSource` extension method to register a `MySqlDataSource` for use via the dependency injection container:
-
-```csharp
-builder.AddMySqlDataSource(connectionName: "mysqldb");
-```
-
-<Aside type="tip">
-The `connectionName` parameter must match the name used when adding the MySQL database resource in the AppHost project.
-</Aside>
-
-You can then retrieve the `MySqlConnector.MySqlDataSource` instance using dependency injection:
-
-```csharp
-public class ExampleService(MySqlDataSource dataSource)
-{
-    // Use dataSource...
-}
-```
-
-### Add keyed MySQL data source
-
-There might be situations where you want to register multiple `MySqlDataSource` instances with different connection names. To register keyed MySQL data sources, call the `AddKeyedMySqlDataSource` method:
-
-```csharp
-builder.AddKeyedMySqlDataSource(name: "mainDb");
-builder.AddKeyedMySqlDataSource(name: "loggingDb");
-```
-
-<Aside type="danger">
-When using keyed services, it's expected that your MySQL resource configured two named databases, one for the `mainDb` and one for the `loggingDb`.
-</Aside>
-
-Then you can retrieve the `MySqlDataSource` instances using dependency injection:
-
-```csharp
-public class ExampleService(
-    [FromKeyedServices("mainDb")] MySqlDataSource mainDataSource,
-    [FromKeyedServices("loggingDb")] MySqlDataSource loggingDataSource)
-{
-    // Use data sources...
-}
-```
-
-For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
-
-### Configuration
-
-The MySQL database integration provides multiple options to configure the connection based on the requirements and conventions of your project.
-
-#### Use a connection string
-
-When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddMySqlDataSource`:
-
-```csharp
-builder.AddMySqlDataSource(connectionName: "mysql");
-```
-
-Then the connection string is retrieved from the `ConnectionStrings` configuration section:
-
-```json
-{
-  "ConnectionStrings": {
-    "mysql": "Server=mysql;Database=mysqldb"
-  }
-}
-```
-
-For more information on how to format this connection string, see [MySqlConnector: ConnectionString documentation](https://mysqlconnector.net/connection-options/).
-
-#### Use configuration providers
-
-The MySQL database integration supports `Microsoft.Extensions.Configuration`. It loads the `MySqlConnectorSettings` from configuration using the `Aspire:MySqlConnector` key. Example `appsettings.json`:
-
-```json
-{
-  "Aspire": {
-    "MySqlConnector": {
-      "ConnectionString": "YOUR_CONNECTIONSTRING",
-      "DisableHealthChecks": true,
-      "DisableTracing": true
-    }
-  }
-}
-```
-
-#### Use inline delegates
-
-You can pass the `Action<MySqlConnectorSettings>` delegate to set up some or all the options inline:
-
-```csharp
-builder.AddMySqlDataSource(
-    "mysql",
-    static settings => settings.DisableHealthChecks = true);
-```
-
-### Client integration health checks
-
-By default, Aspire integrations enable health checks for all services. The MySQL database integration:
-
-- Adds the health check when `DisableHealthChecks` is `false`, which verifies that a connection can be made and commands can be run against the MySQL database
-- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
-
-### Observability and telemetry
-
-#### Logging
-
-The MySQL integration uses the following log categories:
-
-- `MySqlConnector.ConnectionPool`
-- `MySqlConnector.MySqlBulkCopy`
-- `MySqlConnector.MySqlCommand`
-- `MySqlConnector.MySqlConnection`
-- `MySqlConnector.MySqlDataSource`
-
-#### Tracing
-
-The MySQL integration emits the following tracing activities using OpenTelemetry:
-
-- `MySqlConnector`
-
-#### Metrics
-
-The MySQL integration will emit the following metrics using OpenTelemetry:
-
-- MySqlConnector
-  - `db.client.connections.create_time`
-  - `db.client.connections.use_time`
-  - `db.client.connections.wait_time`
-  - `db.client.connections.idle.max`
-  - `db.client.connections.idle.min`
-  - `db.client.connections.max`
-  - `db.client.connections.pending_requests`
-  - `db.client.connections.timeouts`
-  - `db.client.connections.usage`
+To learn how to connect to and interact with MySQL databases from your consuming projects, see [MySQL Client integration](../mysql-client/).
