@@ -4,7 +4,7 @@ description: Learn how to create a custom Aspire hosting integration for an exis
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -18,6 +18,7 @@ import maildevWebUiLight from '@assets/integrations/custom-integrations/maildev-
 import maildevEnvvar from '@assets/integrations/custom-integrations/maildev-envvar.png';
 import maildevEnvvarLight from '@assets/integrations/custom-integrations/maildev-envvar-light.png';
 import maildevEmails from '@assets/integrations/custom-integrations/maildev-emails.png';
+import maildevEmailsLight from '@assets/integrations/custom-integrations/maildev-emails-light.png';
 
 Aspire improves the development experience by providing reusable building blocks that can be used to quickly arrange application dependencies and expose them to your own code. One of the key building blocks of an Aspire-based application is the _resource_.
 
@@ -391,7 +392,7 @@ The preceding screenshot shows the environment variables for the `newsletterserv
 
 To use the SMTP connection details that were injected into the newsletter service project, you inject an instance of `SmtpClient` into the dependency injection container as a singleton. Add the following code to the `Program.cs` file in the `MailDevResource.NewsletterService` project to set up the singleton service. In the `Program` class, immediately following the `// Add services to the container` comment, add the following code:
 
-```csharp
+```csharp title="C# — Program.cs"
 builder.Services.AddSingleton<SmtpClient>(serviceProvider =>
 {
     var connectionString = builder.Configuration.GetConnectionString("maildev");
@@ -401,13 +402,13 @@ builder.Services.AddSingleton<SmtpClient>(serviceProvider =>
 });
 ```
 
-<Aside type="tip">
+:::caution
 This code snippet relies on the official `SmtpClient`, however; this type is obsolete on some platforms and not recommended on others. For a more modern approach using [MailKit](https://github.com/jstedfast/MailKit), see [Create custom Aspire client integrations](/integrations/custom-integrations/client-integrations/).
-</Aside>
+:::
 
 To test the client, add two simple `subscribe` and `unsubscribe` POST methods to the newsletter service. Add the following code replacing the "weatherforecast" `MapGet` call in the `Program.cs` file of the `MailDevResource.NewsletterService` project to set up the ASP.NET Core routes:
 
-```csharp
+```csharp title="C# — Program.cs"
 app.MapPost("/subscribe", async (string email, SmtpClient client) =>
 {
     var message = new MailMessage("noreply@newsletter.local", email)
@@ -435,61 +436,73 @@ app.MapPost("/unsubscribe", async (string email, SmtpClient client) =>
 });
 ```
 
-<Aside type="tip">
-Remember to reference the `System.Net.Mail` and `Microsoft.AspNetCore.Mvc` namespaces in `Program.cs` if your code editor doesn't automatically add them.
-</Aside>
+:::tip
+Remember to reference the `System.Net.Mail` namespaces in `Program.cs` if your code editor doesn't automatically add them.
+:::
 
-Once the `Program.cs` file is updated, launch the AppHost and use your browser, or `curl` to hit the following URLs (alternatively if you're using Visual Studio you can use `.http` files):
+Once the `Program.cs` file is updated, launch the AppHost and use your browser, or `curl` to hit the following URLs (alternatively if you're using Visual Studio you can use `.http` files). The important thing to note, is that you obtain the correct port number from the Aspire dashboard for the `newsletterservice` resource, for example:
 
-```http
+```http title="HTTP request — subscribe" data-disable-copy
 POST /subscribe?email=test@test.com HTTP/1.1
-Host: localhost:7251
+Host: localhost:7286
 Content-Type: application/json
 ```
 
+:::note
+Your port number will likely be different to `7286` shown in this example. Be sure to replace it with the correct port number from your Aspire dashboard.
+:::
+
 To use this API, you can use `curl` to send the request. The following `curl` command sends an HTTP `POST` request to the `subscribe` endpoint, and it expects an `email` query string value to subscribe to the newsletter. The `Content-Type` header is set to `application/json` to indicate that the request body is in JSON format.
 
-**Unix:**
+<Tabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+        ```bash
+        curl -H "Content-Type: application/json" \
+            --request POST \
+            https://localhost:7286/subscribe?email=test@test.com
+        ```
+    </TabItem>
 
-```bash
-curl -H "Content-Type: application/json" --request POST https://localhost:7251/subscribe?email=test@test.com
-```
-
-**Windows:**
-
-```powershell
-curl -H @{ ContentType = "application/json" } -Method POST https://localhost:7251/subscribe?email=test@test.com
-```
+    <TabItem label="PowerShell" icon="seti:powershell">
+        ```powershell
+        curl -H @{ ContentType = "application/json" } `
+            -Method POST `
+            https://localhost:7286/subscribe?email=test@test.com
+        ```
+    </TabItem>
+</Tabs>
 
 The next API is the `unsubscribe` endpoint. This endpoint is used to unsubscribe from the newsletter.
 
-```http
+```http title="HTTP request — unsubscribe" data-disable-copy
 POST /unsubscribe?email=test@test.com HTTP/1.1
-Host: localhost:7251
+Host: localhost:7286
 Content-Type: application/json
 ```
 
 To unsubscribe from the newsletter, you can use the following `curl` command, passing an `email` parameter to the `unsubscribe` endpoint as a query string:
 
-**Unix:**
+<Tabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+        ```bash
+        curl -H "Content-Type: application/json" \
+            --request POST \
+            https://localhost:7286/unsubscribe?email=test@test.com
+        ```
+    </TabItem>
 
-```bash
-curl -H "Content-Type: application/json" --request POST https://localhost:7251/unsubscribe?email=test@test.com
-```
-
-**Windows:**
-
-```powershell
-curl -H @{ ContentType = "application/json" } -Method POST https://localhost:7251/unsubscribe?email=test@test.com
-```
-
-<Aside type="tip">
-Make sure that you replace the `https://localhost:7251` with the correct localhost port (the URL of the AppHost that you are running).
-</Aside>
+    <TabItem label="PowerShell" icon="seti:powershell">
+        ```powershell
+        curl -H @{ ContentType = "application/json" } `
+            -Method POST `
+            https://localhost:7286/unsubscribe?email=test@test.com
+        ```
+    </TabItem>
+</Tabs>
 
 If those API calls return a successful response (HTTP 200, Ok) then you should be able to select on the `maildev` resource the dashboard and the MailDev UI will show the emails that have been sent to the SMTP endpoint.
 
-<Image src={maildevEmails} alt="E-mails visible in the MailDev UI." />
+<ThemeImage dark={maildevEmails} light={maildevEmailsLight} alt="E-mails visible in the MailDev UI." />
 
 ## Technical details
 
@@ -497,7 +510,7 @@ In the following sections, various technical details are discussed which are imp
 
 ### Secure networking
 
-In this example, the MailDev resource is a container resource which is exposed to the host machine over HTTP and SMTP. The MailDev resource is a development tool and isn't intended for production use. To instead use HTTPS, see [MailDev: Configure HTTPS](https://github.com/maildev/maildev/blob/357a20edcd205413d3590aedb8fcd7c97563c40d/docs/https.md).
+In this example, the MailDev resource is a container resource which is exposed to the host machine over HTTP and SMTP. The MailDev resource is a development tool and isn't intended for production use. To instead use HTTPS, see [MailDev: Configure HTTPS](https://github.com/maildev/maildev/blob/1f2c75be259eaf3c2bf9e04f8193f5924cb324ff/docs/https.md).
 
 When developing custom resources that expose network endpoints, it's important to consider the security implications of the resource. For example, if the resource is a database, it's important to ensure that the database is secure and that the connection string isn't exposed to the public internet.
 
@@ -508,7 +521,7 @@ In the preceding code, the `MailDevResource` had two properties:
 - `SmtpEndpoint`: An `EndpointReference` type.
 - `ConnectionStringExpression`: A `ReferenceExpression` type.
 
-These types are among several which are used throughout Aspire to represent configuration data, which isn't finalized until the Aspire project is either run or published to the cloud via a tool such as [Azure Developer CLI](/azure/developer/azure-developer-cli/overview).
+These types are among several which are used throughout Aspire to represent configuration data, which isn't finalized until the Aspire project is either run or published to the cloud via a tool such as [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/overview).
 
 The fundamental problem that these types help to solve, is deferring resolution of concrete configuration information until _all_ the information is available.
 
@@ -528,7 +541,7 @@ public static ReferenceExpression Create(
     in ExpressionInterpolatedStringHandler handler)
 ```
 
-This isn't a regular string argument. The method makes use of the [interpolated string handler pattern](/dotnet/csharp/whats-new/tutorials/interpolated-string-handler), to capture the interpolated string template and the values referenced within it to allow for custom processing. In the case of Aspire, these details are captured in a `ReferenceExpression` which can be evaluated as each value referenced in the interpolated string becomes available.
+This isn't a regular string argument. The method makes use of the [interpolated string handler pattern](https://learn.microsoft.com//csharp/whats-new/tutorials/interpolated-string-handler), to capture the interpolated string template and the values referenced within it to allow for custom processing. In the case of Aspire, these details are captured in a `ReferenceExpression` which can be evaluated as each value referenced in the interpolated string becomes available.
 
 Here's how the flow of execution works:
 
@@ -544,23 +557,47 @@ Here's how the flow of execution works:
 
 ### Manifest publishing
 
-The `IManifestExpressionProvider` interface is designed to solve the problem of sharing connection information between resources at deployment. The solution for this particular problem is described in the [Aspire inner-loop networking overview](/docs/fundamentals/networking-overview/). Similarly to local development, many of the values are necessary to configure the app, yet they can't be determined until the app is being deployed via a tool, such as `azd` (Azure Developer CLI).
+The `IManifestExpressionProvider` interface is designed to solve the problem of sharing connection information between resources at deployment. Similarly to local development, many of the values are necessary to configure the app, yet they can't be determined until the app is being deployed.
 
-To solve this problem [Aspire produces a manifest file](/docs/deployment/manifest-format/) which `azd` and other deployment tools interpret. Rather than specifying concrete values for connection information between resources an expression syntax is used which deployment tools evaluate. Generally the manifest file isn't visible to developers but it's possible to generate one for manual inspection. The command below can be used on the AppHost to produce a manifest.
+To solve this problem Aspire produces a _manifest file_ which `azd` and other deployment tools interpret. Rather than specifying concrete values for connection information between resources an expression syntax is used which deployment tools evaluate. Generally the manifest file isn't visible to developers but it's possible to generate one for manual inspection. The command below can be used on the AppHost to produce a manifest.
 
-```bash title=".NET CLI"
-dotnet run --project MailDevResource.AppHost/MailDevResource.AppHost.csproj -- --publisher manifest --output-path aspire-manifest.json
+```bash title="Aspire CLI — publish-manifest"
+aspire do publish-manifest --output-path aspire-manifest.json
 ```
 
-This command produces a manifest file like the following:
+<LearnMore>
+[Command reference: `aspire do publish-manifest`](/reference/cli/commands/aspire-do/)
+</LearnMore>
 
-```json
+Consider the following example output:
+
+```bash data-disable-copy frame=none
+09:01:18 (pipeline execution) → Starting pipeline execution...
+09:01:18 (publish-manifest) → Starting publish-manifest...
+09:01:18 (publish-manifest) i [INF] Published manifest to: ./MailDevResource/aspire-manifest.json
+09:01:18 (publish-manifest) ✓ publish-manifest completed successfully
+09:01:18 (pipeline execution) ✓ Completed successfully
+------------------------------------------------------------
+✓ 2/2 steps succeeded • Total time: 0.0s
+
+Steps Summary:
+   0.0 s  ✓ pipeline execution
+   0.0 s  ✓ publish-manifest
+
+✓ PIPELINE SUCCEEDED
+------------------------------------------------------------
+```
+
+Navigate to the output file specified in the command to inspect the manifest file. This command produces a manifest file like the following:
+
+```json title="JSON — aspire-manifest.json"
 {
+  "$schema": "https://json.schemastore.org/aspire-8.0.json",
   "resources": {
     "maildev": {
       "type": "container.v0",
       "connectionString": "smtp://{maildev.bindings.smtp.host}:{maildev.bindings.smtp.port}",
-      "image": "docker.io/maildev/maildev:2.1.0",
+      "image": "docker.io/maildev/maildev:2.2.1",
       "bindings": {
         "http": {
           "scheme": "http",
@@ -578,12 +615,13 @@ This command produces a manifest file like the following:
     },
     "newsletterservice": {
       "type": "project.v0",
-      "path": "../MailDevResource.NewsletterService/MailDevResource.NewsletterService.csproj",
+      "path": "MailDevResource.NewsletterService/MailDevResource.NewsletterService.csproj",
       "env": {
         "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES": "true",
         "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES": "true",
         "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory",
         "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "HTTP_PORTS": "{newsletterservice.bindings.http.targetPort}",
         "ConnectionStrings__maildev": "{maildev.connectionString}"
       },
       "bindings": {
@@ -608,7 +646,7 @@ Because the `MailDevResource` implements `IResourceWithConnectionString` the man
 ```json
 {
     // ... other content omitted.
-    "connectionString": "smtp://{maildev.bindings.smtp.host}:{maildev.bindings.smtp.port}"
+    "connectionString": "smtp://{maildev.bindings.smtp.host}:{maildev.bindings.smtp.port}",
 }
 ```
 
@@ -616,7 +654,7 @@ Aspire knows how to form this string because it looks at `IResourceWithConnectio
 
 The `MailDevResource` automatically gets included in the manifest because it's derived from `ContainerResource`. Resource authors can choose to suppress outputting content to the manifest by using the `ExcludeFromManifest` extension method on the resource builder.
 
-```csharp
+```diff lang="csharp" title="C# — MailDevResourceBuilderExtensions.cs"
 public static IResourceBuilder<MailDevResource> AddMailDev(
     this IDistributedApplicationBuilder builder,
     string name,
@@ -637,7 +675,7 @@ public static IResourceBuilder<MailDevResource> AddMailDev(
                       targetPort: 1025,
                       port: smtpPort,
                       name: MailDevResource.SmtpEndpointName)
-                  .ExcludeFromManifest(); // This line was added
++                  .ExcludeFromManifest(); // This line was added
 }
 ```
 
