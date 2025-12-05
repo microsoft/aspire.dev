@@ -1,6 +1,6 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
-import { sidebarTopics } from './config/sidebar.topics';
+import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
 import { redirects } from './config/redirects.mjs';
 import { iconPacks } from './config/icon-packs.mjs';
 import { cookieConfig } from './config/cookie.config';

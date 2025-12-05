@@ -4,10 +4,13 @@ export const cookieConfig: CookieConsentConfig = {
     guiOptions: {
         consentModal: {
             layout: 'box',
-            position: 'bottom right'
+            position: 'bottom right',
+            equalWeightButtons: false
         },
         preferencesModal: {
-            layout: "box"
+            layout: 'bar wide',
+            position: 'right',
+            equalWeightButtons: false
         },
     },
     categories: {
@@ -29,37 +32,37 @@ export const cookieConfig: CookieConsentConfig = {
         translations: {
             en: {
                 consentModal: {
-                    title: 'We use cookies',
-                    description: 'Cookie modal description',
+                    title: 'This site uses cookies',
+                    description: 'We use cookies to enhance your browsing experience, analyze site traffic, and improve our services. By clicking "Accept all," you consent to our use of cookies.',
                     acceptAllBtn: 'Accept all',
                     acceptNecessaryBtn: 'Reject all',
-                    showPreferencesBtn: 'Manage Individual preferences'
+                    showPreferencesBtn: 'Manage preferences'
                 },
                 preferencesModal: {
-                    title: 'Manage cookie preferences',
+                    title: 'Cookie preferences',
                     acceptAllBtn: 'Accept all',
                     acceptNecessaryBtn: 'Reject all',
-                    savePreferencesBtn: 'Accept current selection',
-                    closeIconLabel: 'Close modal',
+                    savePreferencesBtn: 'Save preferences',
+                    closeIconLabel: 'Close',
                     sections: [
                         {
-                            title: 'Somebody said ... cookies?',
-                            description: 'I want one!'
+                            title: 'Cookie usage',
+                            description: 'We use cookies to provide essential website functionality and improve your experience.'
                         },
                         {
-                            title: 'Strictly Necessary cookies',
-                            description: 'These cookies are essential for the proper functioning of the website and cannot be disabled.',
+                            title: 'Strictly necessary',
+                            description: 'Required for the website to function properly. These cannot be disabled.',
                             //this field will generate a toggle linked to the 'necessary' category            
                             linkedCategory: 'necessary'
                         },
                         {
-                            title: 'Performance and Analytics',
-                            description: 'These cookies collect information about how you use our website. All of the data is anonymized and cannot be used to identify you.',
+                            title: 'Analytics',
+                            description: 'Help us understand how visitors interact with our website. All data is anonymized.',
                             linkedCategory: 'analytics'
                         },
                         {
                             title: 'More information',
-                            description: 'For any queries in relation to my policy on cookies and your choices, please <a href="https://support.microsoft.com/en-US/contactus/">contact us</a>'
+                            description: 'For questions about our cookie policy, please <a href="https://support.microsoft.com/en-US/contactus/">contact us</a>.'
                         }
                     ]
                 }

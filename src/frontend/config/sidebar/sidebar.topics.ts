@@ -153,27 +153,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: "Створіть свій перший додаток",
               "zh-CN": "构建您的第一个应用",
             },
-            slug: "get-started/first-app",
-            badge: {
-              text: {
-                da: "Hurtigstart",
-                de: "Schnellstart",
-                en: "Quickstart",
-                es: "Inicio rápido",
-                fr: "Démarrage rapide",
-                hi: "त्वरित प्रारंभ",
-                id: "Panduan Cepat",
-                it: "Avvio rapido",
-                ja: "クイックスタート",
-                ko: "빠른 시작",
-                "pt-BR": "Introdução Rápida",
-                "pt-PT": "Introdução Rápida",
-                ru: "Быстрый старт",
-                tr: "Hızlı Başlangıç",
-                uk: "Швидкий старт",
-                "zh-CN": "快速入门",
-              },
-            },
+            slug: "get-started/first-app"
           },
           {
             label: "Deploy your first app",
@@ -195,28 +175,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               uk: "Розгорніть свій перший додаток",
               "zh-CN": "部署您的第一个应用",
             },
-            slug: "get-started/deploy-first-app",
-            badge: {
-              variant: "success",
-              text: {
-                da: "",
-                de: "",
-                en: "Tutorial",
-                es: "",
-                fr: "",
-                hi: "",
-                id: "",
-                it: "",
-                ja: "",
-                ko: "",
-                "pt-BR": "",
-                "pt-PT": "",
-                ru: "",
-                tr: "",
-                uk: "",
-                "zh-CN": "",
-              },
-            },
+            slug: "get-started/deploy-first-app"
           },
           {
             label: "Aspireify an existing app",
@@ -1526,13 +1485,11 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "Overview", slug: "dashboard/standalone" },
           {
             label: "Python apps",
-            slug: "dashboard/standalone-for-python",
-            badge: { text: "Tutorial", variant: "success" },
+            slug: "dashboard/standalone-for-python"
           },
           {
             label: "Node.js apps",
-            slug: "dashboard/standalone-for-nodejs",
-            badge: { text: "Tutorial", variant: "success" },
+            slug: "dashboard/standalone-for-nodejs"
           },
         ],
       },
