@@ -12,9 +12,13 @@
   // If user already has a preference, respect it
   if (existingPreference) return;
   
-  // Detect OS
-  const userAgent = navigator.userAgent || navigator.platform || '';
-  const isWindows = /Win/i.test(userAgent);
+  // Detect OS - check platform first as it's more reliable, then fall back to userAgent
+  const platform = navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+  
+  // Check for Windows in platform or userAgent
+  const isWindows = /^Win/i.test(platform) || 
+                   /Win(dows|32|64)/i.test(userAgent);
   
   // Set default tab based on OS
   // Windows users get PowerShell, everyone else gets Bash
