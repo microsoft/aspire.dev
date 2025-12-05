@@ -52,7 +52,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'We use cookies to provide essential website functionality and improve your experience.'
                         },
                         {
-                            title: 'Strictly necessary',
+                            title: 'Strictly necessary <span class=\"pm__badge\">Always Enabled</span>',
                             description: 'Required for the website to function properly. These cannot be disabled.',
                             //this field will generate a toggle linked to the 'necessary' category            
                             linkedCategory: 'necessary'
@@ -90,7 +90,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Wir verwenden Cookies, um wesentliche Website-Funktionen bereitzustellen und Ihre Erfahrung zu verbessern.'
                         },
                         {
-                            title: 'Unbedingt erforderlich',
+                            title: 'Unbedingt erforderlich <span class="pm__badge">Immer aktiviert</span>',
                             description: 'Erforderlich, damit die Website ordnungsgemäß funktioniert. Diese können nicht deaktiviert werden.',
                             linkedCategory: 'necessary'
                         },
@@ -127,7 +127,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Utilizamos cookies para proporcionar funcionalidad esencial del sitio web y mejorar su experiencia.'
                         },
                         {
-                            title: 'Estrictamente necesarias',
+                            title: 'Estrictamente necesarias <span class="pm__badge">Siempre habilitado</span>',
                             description: 'Necesarias para que el sitio web funcione correctamente. No se pueden desactivar.',
                             linkedCategory: 'necessary'
                         },
@@ -164,7 +164,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'ウェブサイトの基本的な機能を提供し、ユーザー体験を向上させるためにクッキーを使用しています。'
                         },
                         {
-                            title: '必須',
+                            title: '必須 <span class="pm__badge">常に有効</span>',
                             description: 'ウェブサイトが正常に機能するために必要です。無効にすることはできません。',
                             linkedCategory: 'necessary'
                         },
@@ -201,7 +201,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Nous utilisons des cookies pour fournir des fonctionnalités essentielles du site web et améliorer votre expérience.'
                         },
                         {
-                            title: 'Strictement nécessaires',
+                            title: 'Strictement nécessaires <span class="pm__badge">Toujours activé</span>',
                             description: 'Nécessaires au bon fonctionnement du site web. Ils ne peuvent pas être désactivés.',
                             linkedCategory: 'necessary'
                         },
@@ -238,7 +238,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Utilizziamo i cookie per fornire funzionalità essenziali del sito web e migliorare la tua esperienza.'
                         },
                         {
-                            title: 'Strettamente necessari',
+                            title: 'Strettamente necessari <span class="pm__badge">Sempre abilitato</span>',
                             description: 'Necessari per il corretto funzionamento del sito web. Non possono essere disabilitati.',
                             linkedCategory: 'necessary'
                         },
@@ -275,7 +275,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Kami menggunakan cookie untuk menyediakan fungsi penting situs web dan meningkatkan pengalaman Anda.'
                         },
                         {
-                            title: 'Sangat diperlukan',
+                            title: 'Sangat diperlukan <span class="pm__badge">Selalu Diaktifkan</span>',
                             description: 'Diperlukan agar situs web berfungsi dengan baik. Ini tidak dapat dinonaktifkan.',
                             linkedCategory: 'necessary'
                         },
@@ -312,7 +312,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: '我们使用Cookie来提供基本的网站功能并改善您的体验。'
                         },
                         {
-                            title: '严格必要',
+                            title: '严格必要 <span class="pm__badge">始终启用</span>',
                             description: '网站正常运行所必需的。这些无法禁用。',
                             linkedCategory: 'necessary'
                         },
@@ -349,7 +349,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Usamos cookies para fornecer funcionalidade essencial do site e melhorar sua experiência.'
                         },
                         {
-                            title: 'Estritamente necessários',
+                            title: 'Estritamente necessários <span class="pm__badge">Sempre ativado</span>',
                             description: 'Necessários para que o site funcione corretamente. Estes não podem ser desativados.',
                             linkedCategory: 'necessary'
                         },
@@ -386,7 +386,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Utilizamos cookies para fornecer funcionalidades essenciais do site e melhorar a sua experiência.'
                         },
                         {
-                            title: 'Estritamente necessários',
+                            title: 'Estritamente necessários <span class="pm__badge">Sempre ativado</span>',
                             description: 'Necessários para que o site funcione corretamente. Não podem ser desativados.',
                             linkedCategory: 'necessary'
                         },
@@ -423,7 +423,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: '필수 웹사이트 기능을 제공하고 사용자 경험을 개선하기 위해 쿠키를 사용합니다.'
                         },
                         {
-                            title: '필수',
+                            title: '필수 <span class="pm__badge">항상 활성화됨</span>',
                             description: '웹사이트가 제대로 작동하는 데 필요합니다. 비활성화할 수 없습니다.',
                             linkedCategory: 'necessary'
                         },
@@ -460,7 +460,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Temel web sitesi işlevselliği sağlamak ve deneyiminizi geliştirmek için çerezler kullanıyoruz.'
                         },
                         {
-                            title: 'Kesinlikle gerekli',
+                            title: 'Kesinlikle gerekli <span class="pm__badge">Her Zaman Etkin</span>',
                             description: 'Web sitesinin düzgün çalışması için gereklidir. Bunlar devre dışı bırakılamaz.',
                             linkedCategory: 'necessary'
                         },
@@ -497,7 +497,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Мы используем файлы cookie для обеспечения основных функций веб-сайта и улучшения вашего опыта.'
                         },
                         {
-                            title: 'Строго необходимые',
+                            title: 'Строго необходимые <span class="pm__badge">Всегда включено</span>',
                             description: 'Необходимы для правильной работы веб-сайта. Их нельзя отключить.',
                             linkedCategory: 'necessary'
                         },
@@ -534,7 +534,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'हम आवश्यक वेबसाइट कार्यक्षमता प्रदान करने और आपके अनुभव को बेहतर बनाने के लिए कुकीज़ का उपयोग करते हैं।'
                         },
                         {
-                            title: 'सख्ती से आवश्यक',
+                            title: 'सख्ती से आवश्यक <span class="pm__badge">हमेशा सक्षम</span>',
                             description: 'वेबसाइट के ठीक से काम करने के लिए आवश्यक। इन्हें अक्षम नहीं किया जा सकता।',
                             linkedCategory: 'necessary'
                         },
@@ -571,7 +571,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Vi bruger cookies til at levere essentiel webstedsfunktionalitet og forbedre din oplevelse.'
                         },
                         {
-                            title: 'Strengt nødvendige',
+                            title: 'Strengt nødvendige <span class="pm__badge">Altid aktiveret</span>',
                             description: 'Krævet for at webstedet fungerer korrekt. Disse kan ikke deaktiveres.',
                             linkedCategory: 'necessary'
                         },
@@ -608,7 +608,7 @@ export const cookieConfig: CookieConsentConfig = {
                             description: 'Ми використовуємо файли cookie для забезпечення основних функцій веб-сайту та покращення вашого досвіду.'
                         },
                         {
-                            title: 'Суворо необхідні',
+                            title: 'Суворо необхідні <span class="pm__badge">Завжди ввімкнено</span>',
                             description: 'Необхідні для правильної роботи веб-сайту. Їх не можна вимкнути.',
                             linkedCategory: 'necessary'
                         },
