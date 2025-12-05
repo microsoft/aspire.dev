@@ -95,7 +95,6 @@ export default defineConfig({
 				{ tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' } },
 				{ tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'Aspire' } },
 				{ tag: 'link', attrs: { rel: 'alternate', type: 'application/rss+xml', title: 'Aspire Docs RSS', href: '/rss.xml' } },
-				{ tag: 'script', attrs: { src: '/os-tab-detector.js' } },
 				{ tag: 'script', attrs: { src: 'https://js.monitor.azure.com/scripts/c/ms.analytics-web-3.min.js', defer: true } },
 				{ tag: 'script', attrs: { src: '/1ds/', defer: true } }
 			],
