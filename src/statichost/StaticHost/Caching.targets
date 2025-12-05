@@ -1,0 +1,34 @@
+<Project>
+  <!-- Set immutable cache headers for _astro/ files at build time -->
+  <Target Name="SetAstroImmutableCacheHeaders" AfterTargets="ResolveProjectStaticWebAssets">
+    <!-- Filter endpoints for _astro/ files -->
+    <ItemGroup>
+      <_AstroEndpoints Include="@(StaticWebAssetEndpoint)" 
+                       Condition="$([System.String]::Copy('%(Identity)').StartsWith('_astro/'))" />
+    </ItemGroup>
+
+    <!-- Define the operation: Replace Cache-Control header with immutable value -->
+    <ItemGroup>
+      <_CacheHeaderOperation Include="Replace">
+        <UpdateTarget>Header</UpdateTarget>
+        <Name>Cache-Control</Name>
+        <Value>no-cache</Value>
+        <NewValue>max-age=31536000, public, immutable</NewValue>
+      </_CacheHeaderOperation>
+    </ItemGroup>
+
+    <!-- Apply the update -->
+    <UpdateStaticWebAssetEndpoints
+      EndpointsToUpdate="@(_AstroEndpoints)"
+      AllEndpoints="@(StaticWebAssetEndpoint)"
+      Operations="@(_CacheHeaderOperation)">
+      <Output TaskParameter="UpdatedEndpoints" ItemName="_UpdatedAstroEndpoints" />
+    </UpdateStaticWebAssetEndpoints>
+
+    <!-- Update the endpoint list -->
+    <ItemGroup>
+      <StaticWebAssetEndpoint Remove="@(_UpdatedAstroEndpoints)" />
+      <StaticWebAssetEndpoint Include="@(_UpdatedAstroEndpoints)" />
+    </ItemGroup>
+  </Target>
+</Project>
