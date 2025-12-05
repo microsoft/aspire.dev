@@ -37,7 +37,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'We use cookies to enhance your browsing experience, analyze site traffic, and improve our services. By clicking "Accept all," you consent to our use of cookies.',
                     acceptAllBtn: 'Accept all',
                     acceptNecessaryBtn: 'Reject all',
-                    showPreferencesBtn: 'Manage preferences'
+                    showPreferencesBtn: 'Manage preferences',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privacy & Cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Cookie preferences',
@@ -74,7 +75,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Wir verwenden Cookies, um Ihr Browsing-Erlebnis zu verbessern, den Website-Traffic zu analysieren und unsere Dienste zu verbessern. Indem Sie auf "Alle akzeptieren" klicken, stimmen Sie unserer Verwendung von Cookies zu.',
                     acceptAllBtn: 'Alle akzeptieren',
                     acceptNecessaryBtn: 'Alle ablehnen',
-                    showPreferencesBtn: 'Einstellungen verwalten'
+                    showPreferencesBtn: 'Einstellungen verwalten',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Datenschutz & Cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Cookie-Einstellungen',
@@ -110,7 +112,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Utilizamos cookies para mejorar su experiencia de navegación, analizar el tráfico del sitio y mejorar nuestros servicios. Al hacer clic en "Aceptar todo", acepta nuestro uso de cookies.',
                     acceptAllBtn: 'Aceptar todo',
                     acceptNecessaryBtn: 'Rechazar todo',
-                    showPreferencesBtn: 'Administrar preferencias'
+                    showPreferencesBtn: 'Administrar preferencias',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privacidad y cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Preferencias de cookies',
@@ -146,7 +149,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'ブラウジング体験を向上させ、サイトのトラフィックを分析し、サービスを改善するためにクッキーを使用しています。「すべて受け入れる」をクリックすると、クッキーの使用に同意したことになります。',
                     acceptAllBtn: 'すべて受け入れる',
                     acceptNecessaryBtn: 'すべて拒否',
-                    showPreferencesBtn: '設定を管理'
+                    showPreferencesBtn: '設定を管理',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">プライバシーとクッキー</a>'
                 },
                 preferencesModal: {
                     title: 'クッキーの設定',
@@ -182,7 +186,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Nous utilisons des cookies pour améliorer votre expérience de navigation, analyser le trafic du site et améliorer nos services. En cliquant sur "Tout accepter", vous consentez à notre utilisation de cookies.',
                     acceptAllBtn: 'Tout accepter',
                     acceptNecessaryBtn: 'Tout rejeter',
-                    showPreferencesBtn: 'Gérer les préférences'
+                    showPreferencesBtn: 'Gérer les préférences',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Confidentialité et cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Préférences des cookies',
@@ -218,7 +223,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Utilizziamo i cookie per migliorare la tua esperienza di navigazione, analizzare il traffico del sito e migliorare i nostri servizi. Cliccando su "Accetta tutto", acconsenti al nostro utilizzo dei cookie.',
                     acceptAllBtn: 'Accetta tutto',
                     acceptNecessaryBtn: 'Rifiuta tutto',
-                    showPreferencesBtn: 'Gestisci preferenze'
+                    showPreferencesBtn: 'Gestisci preferenze',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privacy e cookie</a>'
                 },
                 preferencesModal: {
                     title: 'Preferenze dei cookie',
@@ -254,7 +260,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Kami menggunakan cookie untuk meningkatkan pengalaman browsing Anda, menganalisis lalu lintas situs, dan meningkatkan layanan kami. Dengan mengklik "Terima semua", Anda menyetujui penggunaan cookie kami.',
                     acceptAllBtn: 'Terima semua',
                     acceptNecessaryBtn: 'Tolak semua',
-                    showPreferencesBtn: 'Kelola preferensi'
+                    showPreferencesBtn: 'Kelola preferensi',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privasi & Cookie</a>'
                 },
                 preferencesModal: {
                     title: 'Preferensi cookie',
@@ -290,7 +297,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: '我们使用Cookie来改善您的浏览体验，分析网站流量并改进我们的服务。点击"全部接受"即表示您同意我们使用Cookie。',
                     acceptAllBtn: '全部接受',
                     acceptNecessaryBtn: '全部拒绝',
-                    showPreferencesBtn: '管理偏好设置'
+                    showPreferencesBtn: '管理偏好设置',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">隐私和Cookie</a>'
                 },
                 preferencesModal: {
                     title: 'Cookie偏好设置',
@@ -326,7 +334,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Usamos cookies para melhorar sua experiência de navegação, analisar o tráfego do site e melhorar nossos serviços. Ao clicar em "Aceitar tudo", você consente com nosso uso de cookies.',
                     acceptAllBtn: 'Aceitar tudo',
                     acceptNecessaryBtn: 'Rejeitar tudo',
-                    showPreferencesBtn: 'Gerenciar preferências'
+                    showPreferencesBtn: 'Gerenciar preferências',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privacidade e Cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Preferências de cookies',
@@ -362,7 +371,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Utilizamos cookies para melhorar a sua experiência de navegação, analisar o tráfego do site e melhorar os nossos serviços. Ao clicar em "Aceitar tudo", consente a nossa utilização de cookies.',
                     acceptAllBtn: 'Aceitar tudo',
                     acceptNecessaryBtn: 'Rejeitar tudo',
-                    showPreferencesBtn: 'Gerir preferências'
+                    showPreferencesBtn: 'Gerir preferências',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privacidade e Cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Preferências de cookies',
@@ -398,7 +408,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: '브라우징 경험을 향상시키고 사이트 트래픽을 분석하며 서비스를 개선하기 위해 쿠키를 사용합니다. "모두 수락"을 클릭하면 쿠키 사용에 동의하는 것입니다.',
                     acceptAllBtn: '모두 수락',
                     acceptNecessaryBtn: '모두 거부',
-                    showPreferencesBtn: '기본 설정 관리'
+                    showPreferencesBtn: '기본 설정 관리',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">개인정보 및 쿠키</a>'
                 },
                 preferencesModal: {
                     title: '쿠키 기본 설정',
@@ -434,7 +445,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Gezinme deneyiminizi geliştirmek, site trafiğini analiz etmek ve hizmetlerimizi iyileştirmek için çerezler kullanıyoruz. "Tümünü kabul et"i tıklayarak çerez kullanımımızı onaylamış olursunuz.',
                     acceptAllBtn: 'Tümünü kabul et',
                     acceptNecessaryBtn: 'Tümünü reddet',
-                    showPreferencesBtn: 'Tercihleri yönet'
+                    showPreferencesBtn: 'Tercihleri yönet',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Gizlilik ve Tanımlama Bilgileri</a>'
                 },
                 preferencesModal: {
                     title: 'Çerez tercihleri',
@@ -470,7 +482,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Мы используем файлы cookie для улучшения вашего опыта просмотра, анализа трафика сайта и улучшения наших услуг. Нажимая "Принять все", вы соглашаетесь на использование нами файлов cookie.',
                     acceptAllBtn: 'Принять все',
                     acceptNecessaryBtn: 'Отклонить все',
-                    showPreferencesBtn: 'Управление настройками'
+                    showPreferencesBtn: 'Управление настройками',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Конфиденциальность и файлы cookie</a>'
                 },
                 preferencesModal: {
                     title: 'Настройки файлов cookie',
@@ -506,7 +519,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'हम आपके ब्राउज़िंग अनुभव को बेहतर बनाने, साइट ट्रैफ़िक का विश्लेषण करने और अपनी सेवाओं को बेहतर बनाने के लिए कुकीज़ का उपयोग करते हैं। "सभी स्वीकार करें" पर क्लिक करके, आप हमारे कुकीज़ के उपयोग के लिए सहमति देते हैं।',
                     acceptAllBtn: 'सभी स्वीकार करें',
                     acceptNecessaryBtn: 'सभी अस्वीकार करें',
-                    showPreferencesBtn: 'प्राथमिकताएँ प्रबंधित करें'
+                    showPreferencesBtn: 'प्राथमिकताएँ प्रबंधित करें',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">गोपनीयता और कुकीज़</a>'
                 },
                 preferencesModal: {
                     title: 'कुकी प्राथमिकताएँ',
@@ -542,7 +556,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Vi bruger cookies til at forbedre din browseroplevelse, analysere webstedstrafik og forbedre vores tjenester. Ved at klikke på "Acceptér alle" giver du samtykke til vores brug af cookies.',
                     acceptAllBtn: 'Acceptér alle',
                     acceptNecessaryBtn: 'Afvis alle',
-                    showPreferencesBtn: 'Administrer præferencer'
+                    showPreferencesBtn: 'Administrer præferencer',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Beskyttelse af personlige oplysninger og cookies</a>'
                 },
                 preferencesModal: {
                     title: 'Cookie-præferencer',
@@ -578,7 +593,8 @@ export const cookieConfig: CookieConsentConfig = {
                     description: 'Ми використовуємо файли cookie для покращення вашого досвіду перегляду, аналізу трафіку сайту та покращення наших послуг. Натискаючи "Прийняти все", ви погоджуєтесь на використання нами файлів cookie.',
                     acceptAllBtn: 'Прийняти все',
                     acceptNecessaryBtn: 'Відхилити все',
-                    showPreferencesBtn: 'Керувати налаштуваннями'
+                    showPreferencesBtn: 'Керувати налаштуваннями',
+                    footer: '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Конфіденційність і файли cookie</a>'
                 },
                 preferencesModal: {
                     title: 'Налаштування файлів cookie',
