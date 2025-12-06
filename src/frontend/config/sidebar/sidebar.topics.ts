@@ -1179,6 +1179,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ],
           },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
+          { label: "SurrealDB", slug: "integrations/databases/surrealdb" },
         ],
       },
       {
@@ -1354,6 +1355,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "Data API Builder", slug: "integrations/devtools/dab" },
           { label: "Dev Tunnels", slug: "integrations/devtools/dev-tunnels" },
           { label: "flagd", slug: "integrations/devtools/flagd" },
+          { label: "goff", slug: "integrations/devtools/goff" },
           { label: "k6", slug: "integrations/devtools/k6" },
           { label: "MailPit", slug: "integrations/devtools/mailpit" },
           {
