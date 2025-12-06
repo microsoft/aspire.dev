@@ -1179,6 +1179,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ],
           },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
+          { label: "SurrealDB", slug: "integrations/databases/surrealdb" },
         ],
       },
       {
