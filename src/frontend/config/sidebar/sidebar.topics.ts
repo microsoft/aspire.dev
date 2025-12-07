@@ -1223,6 +1223,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "Deno apps", slug: "integrations/frameworks/deno-apps" },
           { label: "Go apps", slug: "integrations/frameworks/go-apps" },
           { label: "Java", slug: "integrations/frameworks/java" },
+          { label: "JavaScript", slug: "integrations/frameworks/javascript" },
           { label: ".NET MAUI", slug: "integrations/frameworks/maui" },
           {
             label: "Node.js extensions",
