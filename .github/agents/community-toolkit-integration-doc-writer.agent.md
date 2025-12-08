@@ -67,7 +67,7 @@ Example entry:
 
 After completing all documentation writing and sidebar updates:
 
-1. Execute the "Update Integration Documentation Links" prompt located at `.github/prompts/update-integrations.promt.md`
+1. Execute the "Update Integration Documentation Links" prompt located at `.github/prompts/update-integrations.prompt.md`
 2. This prompt will:
    * Synchronize package names from the NuGet catalog with their corresponding documentation URLs
    * Update `src/frontend/src/data/integration-docs.json` with mappings for the newly created documentation
