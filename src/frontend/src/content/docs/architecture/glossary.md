@@ -7,13 +7,13 @@ prev: false
 ---
 
 | API Terms             | Description                                       |
-|-----------------------|---------------------------------------------------|
+| --------------------- | ------------------------------------------------- |
 | `IResourceAnnotation` | Typed metadata object attached to resources.      |
 | `WithAnnotation()`    | Fluent method to attach typed annotations.        |
 | `ReferenceExpression` | Structured formatter preserving value references. |
 
 | Term                          | Definition                                         |
-|-------------------------------|----------------------------------------------------|
+| ----------------------------- | -------------------------------------------------- |
 | Resource                      | Service or infrastructure element in your app.     |
 | Annotation                    | Metadata attached to a resource.                   |
 | DAG                           | Directed acyclic graph.                            |

@@ -52,7 +52,11 @@ builder.AddProject<Projects.ExampleService>()
 When you add an Azure Event Hubs resource to the AppHost, it exposes other useful APIs to add Event Hub resources, consumer groups, express explicit provisioning configuration, and enables the use of the Azure Event Hubs emulator. The preceding code adds an Azure Event Hubs resource named `event-hubs` and an Event Hub named `messages` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleService` project.
 
 <Aside type="caution">
-When you call `AddAzureEventHubs`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddAzureEventHubs`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 ### Connect to an existing Azure Event Hubs namespace
@@ -77,7 +81,11 @@ builder.AddProject<Projects.ExampleProject>()
 For more information on treating Azure Event Hubs resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 <Aside type="note">
-Alternatively, instead of representing an Azure Event Hubs resource, you can add a connection string to the AppHost. This approach is weakly-typed, and doesn't work with role assignments or infrastructure customizations. For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
+  Alternatively, instead of representing an Azure Event Hubs resource, you can
+  add a connection string to the AppHost. This approach is weakly-typed, and
+  doesn't work with role assignments or infrastructure customizations. For more
+  information, see [Add existing Azure resources with connection
+  strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
 </Aside>
 
 ### Add Event Hub consumer group
@@ -129,9 +137,9 @@ There are various configurations available for container resources, for example,
 
 By default, the Event Hubs emulator container when configured by Aspire exposes the following endpoints:
 
-| Endpoint | Image | Container port | Host port |
-|----------|-------|----------------|-----------|
-| `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator/latest` | 5672 | dynamic |
+| Endpoint   | Image                                                         | Container port | Host port |
+| ---------- | ------------------------------------------------------------- | -------------- | --------- |
+| `emulator` | `mcr.microsoft.com/azure-messaging/eventhubs-emulator/latest` | 5672           | dynamic   |
 
 The port that it's listening on is dynamic by default. When the container starts, the port is mapped to a random port on the host machine. To configure the endpoint port, chain calls on the container resource builder provided by the `RunAsEmulator` method and then the `WithHostPort` method as shown in the following example:
 
@@ -155,7 +163,7 @@ builder.AddProject<Projects.ExampleService>()
 The preceding code configures the Azure Event emulator container's existing `emulator` endpoint to listen on port `7777`. The Azure Event emulator container's port is mapped to the host port as shown in the following table:
 
 | Endpoint name | Port mapping (`container:host`) |
-|---------------|---------------------------------|
+| ------------- | ------------------------------- |
 | `emulator`    | `5672:7777`                     |
 
 ##### Add Event Hubs emulator with data volume
@@ -372,13 +380,13 @@ To get started with the Aspire Azure Event Hubs client integration, install the 
 
 The following Event Hub clients are supported by the library, along with their corresponding options and settings classes:
 
-| Azure client type | Azure options class | Aspire settings class |
-|-------------------|---------------------|----------------------|
-| `EventHubProducerClient` | `EventHubProducerClientOptions` | `AzureMessagingEventHubsProducerSettings` |
-| `EventHubBufferedProducerClient` | `EventHubBufferedProducerClientOptions` | `AzureMessagingEventHubsBufferedProducerSettings` |
-| `EventHubConsumerClient` | `EventHubConsumerClientOptions` | `AzureMessagingEventHubsConsumerSettings` |
-| `EventProcessorClient` | `EventProcessorClientOptions` | `AzureMessagingEventHubsProcessorSettings` |
-| PartitionReceiver Class | `PartitionReceiverOptions` | `AzureMessagingEventHubsPartitionReceiverSettings` |
+| Azure client type                | Azure options class                     | Aspire settings class                              |
+| -------------------------------- | --------------------------------------- | -------------------------------------------------- |
+| `EventHubProducerClient`         | `EventHubProducerClientOptions`         | `AzureMessagingEventHubsProducerSettings`          |
+| `EventHubBufferedProducerClient` | `EventHubBufferedProducerClientOptions` | `AzureMessagingEventHubsBufferedProducerSettings`  |
+| `EventHubConsumerClient`         | `EventHubConsumerClientOptions`         | `AzureMessagingEventHubsConsumerSettings`          |
+| `EventProcessorClient`           | `EventProcessorClientOptions`           | `AzureMessagingEventHubsProcessorSettings`         |
+| PartitionReceiver Class          | `PartitionReceiverOptions`              | `AzureMessagingEventHubsPartitionReceiverSettings` |
 
 The client types are from the Azure SDK for .NET, as are the corresponding options classes. The settings classes are provided by Aspire. The settings classes are used to configure the client instances.
 
@@ -391,7 +399,9 @@ builder.AddAzureEventHubProducerClient(connectionName: "event-hubs");
 ```
 
 <Aside type="tip">
-The `connectionName` parameter must match the name used when adding the Event Hubs resource in the AppHost project. For more information, see [Add an Azure Event Hubs resource](#add-an-azure-event-hubs-resource).
+  The `connectionName` parameter must match the name used when adding the Event
+  Hubs resource in the AppHost project. For more information, see [Add an Azure
+  Event Hubs resource](#add-an-azure-event-hubs-resource).
 </Aside>
 
 After adding the `EventHubProducerClient`, you can retrieve the client instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
@@ -412,13 +422,13 @@ For more information, see:
 
 The client integration provides additional APIs to configure client instances. When you need to register an Event Hubs client, consider the following APIs:
 
-| Azure client type | Registration API |
-|-------------------|------------------|
-| `EventHubProducerClient` | `AddAzureEventHubProducerClient` |
+| Azure client type                | Registration API                         |
+| -------------------------------- | ---------------------------------------- |
+| `EventHubProducerClient`         | `AddAzureEventHubProducerClient`         |
 | `EventHubBufferedProducerClient` | `AddAzureEventHubBufferedProducerClient` |
-| `EventHubConsumerClient` | `AddAzureEventHubConsumerClient` |
-| `EventProcessorClient` | `AddAzureEventProcessorClient` |
-| `PartitionReceiver` | `AddAzurePartitionReceiverClient` |
+| `EventHubConsumerClient`         | `AddAzureEventHubConsumerClient`         |
+| `EventProcessorClient`           | `AddAzureEventProcessorClient`           |
+| `PartitionReceiver`              | `AddAzurePartitionReceiverClient`        |
 
 All of the aforementioned APIs include optional parameters to configure the client instances.
 
@@ -432,7 +442,8 @@ builder.AddKeyedAzureEventHubProducerClient(name: "commands");
 ```
 
 <Aside type="caution">
-When using keyed services, it's expected that your Event Hubs resource configured two named hubs, one for the `messages` and one for the `commands`.
+  When using keyed services, it's expected that your Event Hubs resource
+  configured two named hubs, one for the `messages` and one for the `commands`.
 </Aside>
 
 Then you can retrieve the client instances using dependency injection. For example, to retrieve the clients from a service:
@@ -452,13 +463,13 @@ For more information, see [Keyed services in .NET](https://learn.microsoft.com/d
 
 The client integration provides additional APIs to configure keyed client instances. When you need to register a keyed Event Hubs client, consider the following APIs:
 
-| Azure client type | Registration API |
-|-------------------|------------------|
-| `EventHubProducerClient` | `AddKeyedAzureEventHubProducerClient` |
+| Azure client type                | Registration API                              |
+| -------------------------------- | --------------------------------------------- |
+| `EventHubProducerClient`         | `AddKeyedAzureEventHubProducerClient`         |
 | `EventHubBufferedProducerClient` | `AddKeyedAzureEventHubBufferedProducerClient` |
-| `EventHubConsumerClient` | `AddKeyedAzureEventHubConsumerClient` |
-| `EventProcessorClient` | `AddKeyedAzureEventProcessorClient` |
-| PartitionReceiver class | `AddKeyedAzurePartitionReceiverClient` |
+| `EventHubConsumerClient`         | `AddKeyedAzureEventHubConsumerClient`         |
+| `EventProcessorClient`           | `AddKeyedAzureEventProcessorClient`           |
+| PartitionReceiver class          | `AddKeyedAzurePartitionReceiverClient`        |
 
 All of the aforementioned APIs include optional parameters to configure the client instances.
 
@@ -581,7 +592,7 @@ builder.AddAzureEventProcessorClient(
 
 ### Observability and telemetry
 
-Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as _the pillars of observability_. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
 
 ### Logging
 

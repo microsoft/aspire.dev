@@ -52,13 +52,16 @@ Depending on the mode, the AppHost might treat these resources differently. For 
 
 The default mode is run mode, which is ideal for local development and testing. In this mode, the Aspire AppHost orchestrates your application model, including processes, containers, and cloud emulators, to facilitate fast and iterative development. Resources behave like real runtime entities with lifecycles that mirror production. With a simple <kbd>F5</kbd>, the AppHost launches everything in your app model—storage, databases, caches, messaging, jobs, APIs, front ends—all fully configured and ready to debug locally. Let's considering the app model from the previous section—where AppHost would orchestrate the following resources locally:
 
-import ThemeImage from "@components/ThemeImage.astro";
+import ThemeImage from '@components/ThemeImage.astro';
 
-import LocalAppTopology from "@assets/architecture/overview/local-app-topology.svg";
-import LocalAppTopologyLight from "@assets/architecture/overview/local-app-topology-light.svg";
+import LocalAppTopology from '@assets/architecture/overview/local-app-topology.svg';
+import LocalAppTopologyLight from '@assets/architecture/overview/local-app-topology-light.svg';
 
-<ThemeImage dark={LocalAppTopology} light={LocalAppTopologyLight} 
-            alt="Local app topology for dev-time orchestration" />
+<ThemeImage
+  dark={LocalAppTopology}
+  light={LocalAppTopologyLight}
+  alt="Local app topology for dev-time orchestration"
+/>
 
 For more information on how run mode works, see [Dev-time orchestration](#dev-time-orchestration).
 
@@ -66,18 +69,23 @@ For more information on how run mode works, see [Dev-time orchestration](#dev-ti
 
 The publish mode generates deployment-ready artifacts tailored to your target environment. The Aspire AppHost compiles your app model into outputs like Kubernetes manifests, Terraform configs, Bicep/ARM templates, Docker Compose files, or CDK constructs—ready for integration into any deployment pipeline. The output format depends on the chosen publisher, giving you flexibility across deployment scenarios. When you consider the app model from the previous section, the AppHost doesn't orchestrate anything—instead, it emits publish artifacts that can be used to deploy your application to a cloud provider. For example, let's assume you want to deploy to Azure—the AppHost would emit Bicep templates that define the following resources:
 
-import PublishAppTopology from "@assets/architecture/overview/publish-app-topology.svg";
-import PublishAppTopologyLight from "@assets/architecture/overview/publish-app-topology-light.svg";
+import PublishAppTopology from '@assets/architecture/overview/publish-app-topology.svg';
+import PublishAppTopologyLight from '@assets/architecture/overview/publish-app-topology-light.svg';
 
-<ThemeImage dark={PublishAppTopology} light={PublishAppTopologyLight} 
-            alt="Published app topology" />
+<ThemeImage
+  dark={PublishAppTopology}
+  light={PublishAppTopologyLight}
+  alt="Published app topology"
+/>
 
 ## Dev-time orchestration
 
 In run mode, [the AppHost orchestrates](/get-started/app-host/) all resources defined in your app model. But how does it achieve this?
 
 <Aside type="caution">
-The AppHost isn't a production runtime. It's a development-time orchestration tool that simplifies the process of running and debugging your application locally.
+  The AppHost isn't a production runtime. It's a development-time orchestration
+  tool that simplifies the process of running and debugging your application
+  locally.
 </Aside>
 
 In this section, several key questions are answered to help you understand how the AppHost orchestrates your app model:
@@ -118,12 +126,15 @@ DCP is a Kubernetes-compatible API server, meaning it uses the same network prot
 
 When you run the AppHost, it performs the first step of "lowering" by translating the general-purpose Aspire app model into a DCP-specific model tailored for local execution in run mode. This DCP model is then handed off to DCP, which evaluates it and orchestrates the resources accordingly. This separation ensures that the AppHost focuses on adapting the Aspire app model for local execution, while DCP specializes in executing the tailored model. The following diagram helps to visualize this orchestration process:
 
-import AppHostDcpFlow from "@assets/architecture/overview/app-host-dcp-flow.svg";
-import AppHostDcpFlowLight from "@assets/architecture/overview/app-host-dcp-flow-light.svg";
+import AppHostDcpFlow from '@assets/architecture/overview/app-host-dcp-flow.svg';
+import AppHostDcpFlowLight from '@assets/architecture/overview/app-host-dcp-flow-light.svg';
 
-<ThemeImage dark={AppHostDcpFlow} light={AppHostDcpFlowLight} 
-            alt="Flow diagram showing AppHost delegating to DCP"
-            label={"AppHost flow diagram"} />
+<ThemeImage
+  dark={AppHostDcpFlow}
+  light={AppHostDcpFlowLight}
+  alt="Flow diagram showing AppHost delegating to DCP"
+  label={'AppHost flow diagram'}
+/>
 
 ### Developer control plane
 
@@ -135,7 +146,13 @@ DCP is written in Go, aligning with Kubernetes and its ecosystem, which are also
 - `dcpctrl.exe`: Controller that monitors the API server for new objects and changes, ensuring that the real-world environment matches the specified model.
 
 <Aside type="note">
-DCP operates on the principle of "eventual consistency," meaning that changes to the model and the real-world environment are applied asynchronously. While this approach may introduce noticeable delays, DCP is designed to diligently synchronize both states. Unlike a "strongly consistent" system that might fail immediately on encountering issues, DCP persistently retries until the desired state is achieved or an error is conclusively determined, often resulting in a more robust alignment between the model and the real world.
+  DCP operates on the principle of "eventual consistency," meaning that changes
+  to the model and the real-world environment are applied asynchronously. While
+  this approach may introduce noticeable delays, DCP is designed to diligently
+  synchronize both states. Unlike a "strongly consistent" system that might fail
+  immediately on encountering issues, DCP persistently retries until the desired
+  state is achieved or an error is conclusively determined, often resulting in a
+  more robust alignment between the model and the real world.
 </Aside>
 
 When the AppHost runs, it uses Kubernetes client libraries to communicate with DCP. It translates the app model into a format DCP can process by converting the model's resources into specifications. Specifically, this involves generating Kubernetes Custom Resource Definitions (CRDs) that represent the application's desired state.
@@ -155,12 +172,15 @@ DCP performs the following tasks:
 
 Continuing from the diagram in the previous section, consider the following diagram that helps to visualize the responsibilities of DCP:
 
-import DcpArch from "@assets/architecture/overview/dcp-arch.svg";
-import DcpArchLight from "@assets/architecture/overview/dcp-arch-light.svg";
+import DcpArch from '@assets/architecture/overview/dcp-arch.svg';
+import DcpArchLight from '@assets/architecture/overview/dcp-arch-light.svg';
 
-<ThemeImage dark={DcpArch} light={DcpArchLight} 
-            alt="Architecture diagram showing DCP components"
-            label={"DCP architecture diagram"} />
+<ThemeImage
+  dark={DcpArch}
+  light={DcpArchLight}
+  alt="Architecture diagram showing DCP components"
+  label={'DCP architecture diagram'}
+/>
 
 DCP logs are streamed back to the AppHost, which then forwards them to the developer dashboard. While the developer dashboard exposes commands such as start, stop, and restart, these commands are not part of DCP itself. Instead, they are implemented by the app model runtime, specifically within its "dashboard service" component. These commands operate by manipulating DCP objects—creating new ones, deleting old ones, or updating their properties. For example, restarting a .NET project involves stopping and deleting the existing `ExecutableResource` representing the project and creating a new one with the same specifications.
 
