@@ -33,7 +33,7 @@ jobs:
       run: pnpm install --frozen-lockfile
 
     - name: Run pnpm audit
-      run: pnpm audit --audit-level=moderate | tee ../pnpm-audit.txt
+      run: pnpm audit --audit-level=moderate | tee pnpm-audit.txt
       continue-on-error: true
 
     - uses: actions/setup-dotnet@v4
@@ -41,7 +41,8 @@ jobs:
         global-json-file: global.json
 
     - name: Run .NET security scan
-      run: cd src/apphost/Aspire.Dev.AppHost && dotnet list package --vulnerable --include-transitive | tee ../../dotnet-vulnerabilities.txt
+      working-directory: src/apphost/Aspire.Dev.AppHost
+      run: dotnet list package --vulnerable --include-transitive | tee ../../../src/frontend/dotnet-vulnerabilities.txt
       continue-on-error: true
 
     - name: Trivy filesystem vulnerability scan (SARIF)
@@ -69,7 +70,7 @@ jobs:
         name: security-scan-results
         path: |
           trivy-results.sarif
-          src/pnpm-audit.txt
-          src/dotnet-vulnerabilities.txt
+          src/frontend/pnpm-audit.txt
+          src/frontend/dotnet-vulnerabilities.txt
         if-no-files-found: warn
         retention-days: 7
