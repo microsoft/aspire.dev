@@ -13,6 +13,9 @@ permissions:
 jobs:
   lint_validate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,19 +32,15 @@ jobs:
           cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install deps
-        working-directory: src/frontend
         run: pnpm install --frozen-lockfile
 
       - name: Run ESLint
-        working-directory: src/frontend
         run: pnpm lint
 
       - name: Astro type check
-        working-directory: src/frontend
         run: npx astro check | tee ../astro-check.txt
 
       - name: Astro config dry run
-        working-directory: src/frontend
         run: npx astro build --dry-run | tee ../astro-dry-run.txt || echo "Dry run validation completed"
 
       - name: Upload lint/validate artifacts
