@@ -119,9 +119,9 @@ export default defineConfig({
         }),
         starlightKbd({
           types: [
-            { id: 'mac', label: 'macOS' },
-            { id: 'windows', label: 'Windows', default: true },
-            { id: 'linux', label: 'Linux' },
+            { id: 'mac', label: 'macOS', detector: 'apple' },
+            { id: 'windows', label: 'Windows', detector: 'windows', default: true },
+            { id: 'linux', label: 'Linux', detector: 'linux' },
           ],
         }),
         starlightGiscus({
