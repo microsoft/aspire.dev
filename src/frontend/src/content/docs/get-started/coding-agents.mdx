@@ -1,0 +1,489 @@
+---
+title: Use coding agents with Aspire
+description: Learn how to set up and use AI coding agents with your Aspire applications using the Aspire MCP server.
+---
+
+import { Aside, Steps, Code, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import LearnMore from '@components/LearnMore.astro';
+
+<PivotSelector
+    title="Select your coding agent environment"
+    key="agent"
+    options={[
+        { id: "vscode", title: "VS Code" },
+        { id: "cursor", title: "Cursor" },
+        { id: "claude", title: "Claude Desktop" },
+        { id: "visualstudio", title: "Visual Studio" },
+    ]}
+/>
+
+Now that you've created and potentially deployed your first Aspire app, you can accelerate your development workflow by integrating AI coding agents. AI coding agents can help you understand your application, debug issues, write code, and optimize your distributed system using real-time data from your running Aspire application.
+
+This guide walks you through setting up the [Aspire MCP (Model Context Protocol) server](/dashboard/mcp-server/) to work with popular coding agents, enabling them to interact with your Aspire application's resources, logs, and telemetry.
+
+## What is the Aspire MCP server?
+
+The Aspire MCP server is a local [Model Context Protocol](https://modelcontextprotocol.io/) server that integrates your Aspire application into your AI development ecosystem. It provides AI coding agents with direct access to:
+
+- **Resource information**: Query resource states, endpoints, health status, and available commands
+- **Console logs**: Real-time access to console output from your services
+- **Structured logs**: Filter and analyze structured telemetry data
+- **Distributed traces**: Investigate request flows across your microservices
+- **Resource commands**: Execute commands to manage your resources (restart, stop, etc.)
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Completed the [Build your first app](/get-started/first-app/) quickstart
+- An Aspire application with an AppHost project
+- One of the following coding agent environments installed:
+  - [Visual Studio Code](https://code.visualstudio.com/) with [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot)
+  - [Cursor](https://cursor.com/)
+  - [Claude Desktop](https://claude.ai/download)
+  - [Visual Studio 2022](https://visualstudio.microsoft.com/) (version 17.13 or later)
+
+## Set up MCP configuration
+
+The Aspire CLI provides an `mcp init` command that generates the necessary MCP configuration files for your coding agent. This command creates configuration files that enable your coding agent to communicate with the Aspire MCP server.
+
+<Steps>
+
+1. **Navigate to your Aspire solution directory**
+
+   Open a terminal and navigate to the root directory of your Aspire solution (the directory containing your `.sln` file or AppHost project).
+
+2. **Run the MCP initialization command**
+
+   <Pivot id="vscode">
+
+   ```bash title="Terminal"
+   aspire mcp init --agent vscode
+   ```
+
+   This creates or updates the MCP configuration file for VS Code at:
+   - **Windows/Linux**: `%APPDATA%\Code\User\globalStorage\github.copilot-mcp\mcp.json`
+   - **macOS**: `~/Library/Application Support/Code/User/globalStorage/github.copilot-mcp/mcp.json`
+
+   </Pivot>
+
+   <Pivot id="cursor">
+
+   ```bash title="Terminal"
+   aspire mcp init --agent cursor
+   ```
+
+   This creates or updates the MCP configuration file for Cursor at:
+   - **Windows/Linux**: `%APPDATA%\Cursor\User\globalStorage\cursor-mcp\mcp.json`
+   - **macOS**: `~/Library/Application Support/Cursor/User/globalStorage/cursor-mcp/mcp.json`
+
+   </Pivot>
+
+   <Pivot id="claude">
+
+   ```bash title="Terminal"
+   aspire mcp init --agent claude
+   ```
+
+   This creates or updates the Claude Desktop MCP configuration file at:
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+   </Pivot>
+
+   <Pivot id="visualstudio">
+
+   ```bash title="Terminal"
+   aspire mcp init --agent visualstudio
+   ```
+
+   This creates or updates the MCP configuration file for Visual Studio at the appropriate location for your operating system.
+
+   </Pivot>
+
+3. **Review the configuration**
+
+   The `aspire mcp init` command adds an entry for the Aspire MCP server to your agent's configuration file. The configuration includes:
+   - The server command to run
+   - Any required environment variables
+   - Connection settings specific to your Aspire application
+
+</Steps>
+
+## What the MCP configuration does
+
+When you run `aspire mcp init`, it configures your coding agent to:
+
+1. **Auto-detect your Aspire app**: The configuration points to your AppHost project
+2. **Start the MCP server**: When you run your Aspire app, the MCP server starts automatically
+3. **Establish secure communication**: Sets up authenticated communication between your coding agent and the Aspire dashboard
+4. **Expose MCP tools**: Makes Aspire's MCP tools available to your AI assistant
+
+The configuration file includes connection details, authentication tokens, and tool definitions that your coding agent uses to interact with your running Aspire application.
+
+## Start your Aspire application
+
+Before your coding agent can interact with your Aspire app, you need to have it running:
+
+<Pivot id="vscode">
+
+```bash title="Terminal"
+aspire run
+```
+
+or press <Kbd platforms={["windows", "linux"]}>F5</Kbd><Kbd platforms={["mac"]}>Fn+F5</Kbd> in VS Code to start debugging.
+
+</Pivot>
+
+<Pivot id="cursor">
+
+```bash title="Terminal"
+aspire run
+```
+
+or use Cursor's run/debug functionality to start your AppHost project.
+
+</Pivot>
+
+<Pivot id="claude">
+
+```bash title="Terminal"
+aspire run
+```
+
+Make sure your Aspire application is running before using Claude Desktop to interact with it.
+
+</Pivot>
+
+<Pivot id="visualstudio">
+
+Press <Kbd platforms={["windows"]}>F5</Kbd> in Visual Studio to start debugging your AppHost project, or run:
+
+```bash title="Terminal"
+aspire run
+```
+
+</Pivot>
+
+Once your application is running, the Aspire dashboard opens in your browser, and the MCP server becomes available to your coding agent.
+
+## Available MCP tools
+
+The Aspire MCP server provides several tools that your coding agent can use to understand and manage your application:
+
+### list_resources
+
+Lists all resources in your Aspire application, including:
+- Resource names and types
+- Current state (Running, Starting, Finished, etc.)
+- Health status
+- Source information
+- Available endpoints
+- Executable commands
+
+**Example prompt**: "Show me all my resources and their current status"
+
+### list_console_logs
+
+Retrieves console logs for a specific resource, helping you debug issues or understand what's happening in your services.
+
+**Example prompt**: "Show me the latest console logs for the apiservice"
+
+### list_structured_logs
+
+Accesses structured telemetry logs with optional filtering by resource name. This provides detailed logging information with structured fields.
+
+**Example prompt**: "Show me all error logs from the webfrontend in the last 5 minutes"
+
+### list_traces
+
+Lists distributed traces across your application, optionally filtered by resource name. This helps you understand request flows through your microservices.
+
+**Example prompt**: "Show me recent traces involving the database resource"
+
+### list_trace_structured_logs
+
+Retrieves structured logs associated with a specific trace, enabling deep investigation of particular requests.
+
+**Example prompt**: "Show me all logs for trace ID abc123"
+
+### execute_resource_command
+
+Executes commands on resources (like restart, stop, or custom commands defined in your AppHost).
+
+**Example prompt**: "Restart the apiservice resource"
+
+<Aside type="tip">
+All resources, console logs, and telemetry are accessible by default. You can exclude specific resources from MCP by calling `.ExcludeFromMcp()` on the resource in your AppHost.
+</Aside>
+
+## Set up the Playwright MCP server (recommended)
+
+For a more comprehensive AI-assisted development experience, we recommend also setting up the [Playwright MCP server](https://github.com/executeautomation/mcp-playwright). This provides your coding agent with browser automation capabilities, which is particularly useful when working with web frontends in Aspire applications.
+
+The Playwright MCP server enables your coding agent to:
+- Navigate web pages and interact with UI elements
+- Take screenshots for debugging
+- Test web frontends automatically
+- Analyze page content and structure
+
+<Pivot id="vscode">
+
+To add Playwright MCP to VS Code:
+
+1. Install the Playwright MCP server globally:
+
+   ```bash title="Terminal"
+   npm install -g @executeautomation/mcp-playwright
+   ```
+
+2. Edit your MCP configuration file to add the Playwright server:
+
+   ```json title="mcp.json"
+   {
+     "mcpServers": {
+       "aspire": {
+         // ... existing Aspire MCP configuration
+       },
+       "playwright": {
+         "command": "mcp-playwright",
+         "args": []
+       }
+     }
+   }
+   ```
+
+</Pivot>
+
+<Pivot id="cursor">
+
+To add Playwright MCP to Cursor:
+
+1. Install the Playwright MCP server globally:
+
+   ```bash title="Terminal"
+   npm install -g @executeautomation/mcp-playwright
+   ```
+
+2. Edit your MCP configuration file to add the Playwright server:
+
+   ```json title="mcp.json"
+   {
+     "mcpServers": {
+       "aspire": {
+         // ... existing Aspire MCP configuration
+       },
+       "playwright": {
+         "command": "mcp-playwright",
+         "args": []
+       }
+     }
+   }
+   ```
+
+</Pivot>
+
+<Pivot id="claude">
+
+To add Playwright MCP to Claude Desktop:
+
+1. Install the Playwright MCP server globally:
+
+   ```bash title="Terminal"
+   npm install -g @executeautomation/mcp-playwright
+   ```
+
+2. Edit your Claude Desktop configuration file to add the Playwright server:
+
+   ```json title="claude_desktop_config.json"
+   {
+     "mcpServers": {
+       "aspire": {
+         // ... existing Aspire MCP configuration
+       },
+       "playwright": {
+         "command": "mcp-playwright",
+         "args": []
+       }
+     }
+   }
+   ```
+
+</Pivot>
+
+<Pivot id="visualstudio">
+
+To add Playwright MCP to Visual Studio:
+
+1. Install the Playwright MCP server globally:
+
+   ```bash title="Terminal"
+   npm install -g @executeautomation/mcp-playwright
+   ```
+
+2. Configure the Playwright MCP server in Visual Studio's MCP settings (consult the Visual Studio documentation for the exact location and format).
+
+</Pivot>
+
+3. Restart your coding agent to load the new configuration.
+
+## Try your first prompts
+
+Once everything is set up and your Aspire app is running, try these prompts with your coding agent:
+
+<Pivot id="vscode">
+
+Open GitHub Copilot Chat in VS Code and try:
+
+- "Are all my Aspire resources running and healthy?"
+- "Show me the console logs for my API service"
+- "What HTTP endpoints are exposed by my webfrontend?"
+- "Analyze the recent traces for the database resource"
+- "Restart any unhealthy resources"
+
+</Pivot>
+
+<Pivot id="cursor">
+
+Open Cursor's AI chat and try:
+
+- "Are all my Aspire resources running and healthy?"
+- "Show me the console logs for my API service"
+- "What HTTP endpoints are exposed by my webfrontend?"
+- "Analyze the recent traces for the database resource"
+- "Restart any unhealthy resources"
+
+</Pivot>
+
+<Pivot id="claude">
+
+Open Claude Desktop and try:
+
+- "Are all my Aspire resources running and healthy?"
+- "Show me the console logs for my API service"
+- "What HTTP endpoints are exposed by my webfrontend?"
+- "Analyze the recent traces for the database resource"
+- "Execute a restart on any unhealthy resources"
+
+</Pivot>
+
+<Pivot id="visualstudio">
+
+Use Visual Studio's AI features and try:
+
+- "Are all my Aspire resources running and healthy?"
+- "Show me the console logs for my API service"
+- "What HTTP endpoints are exposed by my webfrontend?"
+- "Analyze the recent traces for the database resource"
+- "Restart any unhealthy resources"
+
+</Pivot>
+
+## Common workflows
+
+Here are some common development workflows enhanced by the Aspire MCP server:
+
+### Debugging issues
+
+When something goes wrong:
+
+1. Ask your agent: "Are there any errors in my application logs?"
+2. Investigate specific services: "Show me the latest logs from the failing service"
+3. Trace the request: "Show me traces that involve the database"
+4. Examine the full context: "Show me all logs related to trace ID [trace-id]"
+
+### Understanding your application
+
+When exploring your distributed system:
+
+- "What resources make up my application?"
+- "Show me the dependency graph between my services"
+- "What endpoints are available and what do they do?"
+- "Which resources are using the most memory or CPU?"
+
+### Making changes
+
+When modifying your application:
+
+- "Help me add a new Redis cache resource to my AppHost"
+- "Show me how to add health checks to my API service"
+- "Update my service to use service discovery instead of hard-coded URLs"
+- After making changes: "Restart the apiservice so changes take effect"
+
+### Testing
+
+With Playwright MCP configured:
+
+- "Navigate to my web frontend and verify the homepage loads"
+- "Test the login flow and show me any errors"
+- "Take a screenshot of the dashboard page"
+- "Click the submit button and verify the API is called correctly"
+
+## Excluding resources from MCP
+
+If you have sensitive resources or simply want to limit what your coding agent can access, you can exclude resources from MCP:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// This resource will NOT be visible to MCP
+var sensitiveDb = builder.AddPostgres("sensitive-db")
+    .ExcludeFromMcp();
+
+// These resources ARE visible to MCP
+var apiservice = builder.AddProject<Projects.AspireApp_ApiService>("apiservice");
+
+builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(apiservice);
+
+builder.Build().Run();
+```
+
+## Troubleshooting
+
+### MCP server not connecting
+
+If your coding agent can't connect to the Aspire MCP server:
+
+1. **Verify your Aspire app is running**: The MCP server only runs when your AppHost is active
+2. **Check the configuration**: Run `aspire mcp init` again to regenerate the configuration
+3. **Restart your coding agent**: Some agents require a restart to pick up new MCP configurations
+4. **Check the dashboard**: Open the Aspire dashboard and look for the MCP button in the top right corner
+
+### HTTPS certificate issues
+
+Some coding agents don't support self-signed HTTPS certificates. If you encounter connection issues:
+
+- If you're using the `http` launch profile, your app doesn't use HTTPS and this isn't an issue
+- For HTTPS everywhere, configure just the MCP endpoint to use HTTP by updating `launchSettings.json`
+
+See the [Aspire MCP server troubleshooting guide](/dashboard/mcp-server/#troubleshooting) for detailed HTTPS configuration instructions.
+
+### Prompts not working as expected
+
+If your coding agent doesn't seem to understand Aspire-specific prompts:
+
+1. **Be specific**: Include resource names and specific questions
+2. **Verify MCP tools are loaded**: Ask your agent "What MCP tools do you have available?"
+3. **Check your app is running**: The MCP server needs an active Aspire application
+4. **Review agent-specific documentation**: Each coding agent has its own way of using MCP servers
+
+## Next steps
+
+<LearnMore>
+- [Aspire MCP server reference](/dashboard/mcp-server/) - Learn more about the MCP server capabilities
+- [Model Context Protocol specification](https://modelcontextprotocol.io/) - Understand the underlying protocol
+- [Aspire dashboard configuration](/dashboard/configuration/) - Customize your dashboard and MCP settings
+- [Build a three-tier architecture](/get-started/pipelines/) - Apply AI-assisted development to more complex scenarios
+</LearnMore>
+
+## Summary
+
+You've now set up AI coding agents to work with your Aspire application! By running `aspire mcp init`, you've configured your coding environment to interact with your running Aspire app through the MCP server. Your AI assistant can now help you understand, debug, and enhance your distributed application using real-time data from your resources, logs, and traces.
+
+This integration transforms your coding agent from a general-purpose assistant into a specialized Aspire expert that understands your specific application's architecture, runtime behavior, and operational state.
