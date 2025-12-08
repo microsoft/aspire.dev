@@ -1,0 +1,195 @@
+---
+title: PowerShell integration
+description: Learn about the Aspire hosting integration for PowerShell scripts.
+next: false
+---
+
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import { Image } from 'astro:assets';
+import powershellIcon from '@assets/icons/powershell-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={powershellIcon}
+  alt="PowerShell logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire PowerShell hosting integration enables you to run PowerShell Core (pwsh) scripts alongside your Aspire projects in the Aspire app host. This integration allows you to script your resources, reference connection strings, access live resources, and leverage the full power of PowerShell within your distributed application.
+
+<Aside type="note">
+
+This integration requires PowerShell Core (pwsh) 7.4 or later to be installed on your system and available in your PATH. For installation instructions, see [Install PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell).
+
+</Aside>
+
+## Hosting integration
+
+To get started with the Aspire PowerShell hosting integration, install the [CommunityToolkit.Aspire.Hosting.PowerShell](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.PowerShell) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.PowerShell" />
+
+### Add PowerShell resource
+
+To add a PowerShell resource to your app host, use the `AddPowerShell` extension method:
+
+```csharp title="C# — AppHost.cs"
+using CommunityToolkit.Aspire.Hosting.PowerShell;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+var blob = storage.AddBlobs("myblob");
+
+var ps = builder.AddPowerShell("ps")
+    .WithReference(blob)
+    .WaitFor(storage);
+
+// After adding all resources, run the app...
+```
+
+The `AddPowerShell` method requires:
+- **name**: The name of the PowerShell resource in the Aspire dashboard
+
+### Add scripts
+
+To execute PowerShell scripts within your resource, use the `AddScript` method:
+
+```csharp title="C# — AppHost.cs"
+var ps = builder.AddPowerShell("ps")
+    .WithReference(blob);
+
+var script1 = ps.AddScript("script1", """
+    param($name)
+
+    Write-Information "Hello, $name"
+    Write-Information "`$myblob is $myblob"
+    
+    az storage container create --connection-string $myblob -n demo
+    az storage blob upload --connection-string $myblob -c demo --file ./scripts/script.ps1
+    
+    Write-Information "Blob uploaded"
+""").WithArgs("world");
+
+var script2 = ps.AddScript("script2", """
+    & ./scripts/script.ps1 @args
+""")
+    .WithArgs(2, 3)
+    .WaitForCompletion(script1);
+
+// After adding all resources, run the app...
+```
+
+The `AddScript` method requires:
+- **name**: The name of the script resource in the Aspire dashboard
+- **script**: The PowerShell script content to execute
+
+### References and dependencies
+
+Use `WithReference` to pass connection strings and resource references to your PowerShell scripts. Referenced resources are available as variables in your script scope:
+
+```csharp title="C# — AppHost.cs"
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+var blob = storage.AddBlobs("myblob");
+
+var ps = builder.AddPowerShell("ps")
+    .WithReference(blob);  // The $myblob variable is now available in scripts
+
+var script = ps.AddScript("demo", """
+    Write-Information "Connection string: $myblob"
+""");
+
+// After adding all resources, run the app...
+```
+
+Use `WaitFor` to specify that a PowerShell resource should wait for other resources to be ready before executing:
+
+```csharp title="C# — AppHost.cs"
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+
+var ps = builder.AddPowerShell("ps")
+    .WaitFor(storage);  // Wait for storage to be ready before running scripts
+
+// After adding all resources, run the app...
+```
+
+### Custom arguments
+
+Pass arguments to your PowerShell scripts using the `WithArgs` method:
+
+```csharp title="C# — AppHost.cs"
+var ps = builder.AddPowerShell("ps");
+
+var script = ps.AddScript("process-data", """
+    param($count, $name)
+    
+    Write-Information "Processing $count items for $name"
+""").WithArgs(5, "demo");
+
+// After adding all resources, run the app...
+```
+
+Scripts can define parameters using PowerShell's `param()` block and receive arguments passed via `WithArgs`.
+
+### Script execution order
+
+Control the execution order of scripts using `WaitForCompletion`. A script that calls `WaitForCompletion` will not run until the referenced script completes:
+
+```csharp title="C# — AppHost.cs"
+var ps = builder.AddPowerShell("ps");
+
+var script1 = ps.AddScript("setup", """
+    Write-Information "Setting up resources"
+    "setup-data.txt" | Set-Content "ready"
+""");
+
+var script2 = ps.AddScript("process", """
+    Write-Information "Processing after setup"
+""").WaitForCompletion(script1);  // Waits for script1 to complete
+
+// After adding all resources, run the app...
+```
+
+### Working directory
+
+Scripts execute in the context of your app host's working directory. You can access files relative to this directory within your scripts:
+
+```csharp title="C# — AppHost.cs"
+var ps = builder.AddPowerShell("ps");
+
+var script = ps.AddScript("file-ops", """
+    $pwd | Write-Information
+    Get-ChildItem ./scripts
+""");
+
+// After adding all resources, run the app...
+```
+
+## Debugging
+
+While your app host is running a script that contains a `Wait-Debugger` call, you can attach a PowerShell debugger to debug the script interactively.
+
+Open a terminal with PowerShell Core (pwsh) 7.4 or later and use the following commands:
+
+```powershell
+Get-PSHostProcessInfo
+Enter-PSHostProcess -Id <ProcessId>
+Get-Runspace
+Debug-Runspace -Id <RunspaceId>
+```
+
+For more information about PowerShell debugging, see [Enter-PSHostProcess documentation](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/enter-pshostprocess?view=powershell-7.5).
+
+## See also
+
+- [PowerShell documentation](https://learn.microsoft.com/powershell/)
+- [Enter-PSHostProcess documentation](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/enter-pshostprocess?view=powershell-7.5)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Aspire integrations overview](overview.md)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)
