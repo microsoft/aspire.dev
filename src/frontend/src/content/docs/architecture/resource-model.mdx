@@ -38,6 +38,7 @@ architecture-beta
 ```
 
 <Steps>
+
 1. Use `.AddXyz(...)` helper methods to add and declare resources (e.g., `.AddPostgres(...)`, `.AddProject(...)`).
 1. Use `.WithReference(...)` (or similar) to represent explicit dependencies between resources.
 1. Call `Build().Run()` - Aspire builds the application model (graph) and executes it handling:
@@ -45,6 +46,7 @@ architecture-beta
    - Port allocation
    - Environment variables
    - Startup order
+
 </Steps>
 
 ## Resource basics
@@ -188,11 +190,13 @@ Custom resources must **opt-in manually** to these behaviors.
 Aspire defines standard events to orchestrate resource lifecycles, in the following order:
 
 <Steps>
+
 1. `InitializeResourceEvent`: Fired when a resource is first created to kick off the resource's lifecycle.
 1. `ConnectionStringAvailableEvent`: Fired when a connection string is ready, enabling dependent resources to wire themselves dynamically based on the resource's outputs.
 1. `ResourceEndpointsAllocatedEvent`: Fired when endpoints have been allocated and can be evaluated successfully.
 1. `BeforeResourceStartedEvent`: Fired just before the resource starts executing as a last-chance dynamic setup or validation point.
 1. `ResourceReadyEvent`: Fired when the resource is considered "ready," unblocking any dependents waiting for the resource.
+
 </Steps>
 
 Lifecycle events allow:
@@ -230,9 +234,11 @@ Events represent **moment-in-time actions**. Snapshots represent **ongoing state
 Aspire integrates with .NET health checks to monitor the status of resources after they have started. The health check mechanism is tied into the resource lifecycle:
 
 <Steps>
+
 1. When a resource transitions to the `Running` state, Aspire checks if it has any associated health check annotations (typically added via `.WithHealthCheck(...)`).
 1. **If health checks are configured:** Aspire begins executing these checks periodically. The resource is considered fully "ready" only after its health checks pass successfully. Once healthy, Aspire automatically publishes the `ResourceReadyEvent`.
 1. **If no health checks are configured:** The resource is considered "ready" as soon as it enters the `Running` state. Aspire automatically publishes the `ResourceReadyEvent` immediately in this case.
+
 </Steps>
 
 This automatic handling ensures that dependent resources (using mechanisms like `.WaitFor(...)`) only proceed when the target resource is truly ready, either by simply running or by passing its defined health checks.
