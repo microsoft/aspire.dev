@@ -61,6 +61,7 @@ By default, `AddJavaScriptApp`:
 The method accepts the following parameters:
 - `name`: The name of the resource in the Aspire dashboard
 - `workingDirectory`: The path to the directory containing your JavaScript application (where `package.json` is located)
+- `runScriptName` (optional): The name of the npm script to run when starting the application. Defaults to 'dev'.
 
 ## Add Node.js application
 
@@ -69,7 +70,7 @@ For Node.js applications that don't use a package.json script runner, you can di
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var nodeApp = builder.AddNodeApp("node-app", "server.js")
+var nodeApp = builder.AddNodeApp("node-app", "./node-app", "server.js")
     .WithHttpEndpoint(port: 3000, env: "PORT");
 
 builder.AddProject<Projects.ExampleProject>()
@@ -80,9 +81,8 @@ builder.AddProject<Projects.ExampleProject>()
 
 The `AddNodeApp` method requires:
 - **name**: The name of the resource in the Aspire dashboard
-- **scriptPath**: The path to the JavaScript file to execute
-- **workingDirectory** (optional): The working directory (defaults to the script's directory)
-- **args** (optional): Command-line arguments to pass to the script
+- **appDirectory**: The path to the directory containing the node application.
+- **scriptPath** The path to the script relative to the app directory to run.
 
 ## Add Vite application
 
@@ -91,8 +91,7 @@ For Vite applications, you can use the `AddViteApp` extension method which provi
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var viteApp = builder.AddViteApp("vite-app", "./vite-app")
-    .WithHttpEndpoint(port: 5173, env: "PORT");
+var viteApp = builder.AddViteApp("vite-app", "./vite-app");
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(viteApp);
@@ -108,7 +107,8 @@ builder.AddProject<Projects.ExampleProject>()
 
 The method accepts the same parameters as `AddJavaScriptApp`:
 - **name**: The name of the resource in the Aspire dashboard
-- **workingDirectory**: The path to the directory containing your Vite application
+- **appDirectory**: The path to the directory containing the Vite app.
+- **runScriptName** (optional): The name of the script that runs the Vite app. Defaults to "dev".
 
 ## Configure package managers
 
@@ -249,7 +249,7 @@ Common environment variables for JavaScript frameworks:
 
 ## Production builds
 
-When you publish your application using `aspire publish`, Aspire automatically:
+When you publish your application using `aspire deploy`, Aspire automatically:
 1. Installs dependencies using deterministic install commands based on lockfiles
 2. Runs the build script (typically "build") to create production assets
 3. Generates a Dockerfile for containerized deployment
