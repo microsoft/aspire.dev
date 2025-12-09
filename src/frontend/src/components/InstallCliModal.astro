@@ -194,22 +194,33 @@ const { id = 'install-cli-modal' } = Astro.props;
       openBtn.addEventListener('click', (e) => {
         e.preventDefault();
 
-        // On mobile/smaller screens, navigate to the full page instead
-        if (window.innerWidth < 1600) {
-          window.location.href = '/get-started/install-cli/';
+        // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
+        // Modal can't compete with mobile sidebar's z-index
+        const mobileMenuBtn = document.querySelector('starlight-menu-button button');
+        const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
+        if (window.innerWidth < 800 || mobileMenuOpen) {
+          window.location.assign('/get-started/install-cli/');
           return;
         }
 
         modal.showModal();
 
-        // Position modal below the button
+        // Position modal below the button on larger screens
         const btnRect = openBtn.getBoundingClientRect();
         const modalContent = modal.querySelector('.modal-content') as HTMLElement;
 
         if (modalContent) {
-          modalContent.style.position = 'absolute';
-          modalContent.style.top = `${btnRect.bottom + 8}px`;
-          modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
+          // Reset any previous positioning
+          modalContent.style.position = '';
+          modalContent.style.top = '';
+          modalContent.style.right = '';
+
+          // Only position absolutely below button on larger screens (72rem/1152px)
+          if (window.innerWidth >= 1152) {
+            modalContent.style.position = 'absolute';
+            modalContent.style.top = `${btnRect.bottom + 8}px`;
+            modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
+          }
         }
 
         // Load stored quality or default to release
@@ -234,11 +245,31 @@ const { id = 'install-cli-modal' } = Astro.props;
       if (e.key === 'Escape') modal.close();
     });
 
-    // Close modal if window is resized below 1600px width
+    // Close modal if window is resized below mobile breakpoint
     window.addEventListener('resize', () => {
-      if (window.innerWidth < 1600 && modal.open) modal.close();
+      if (window.innerWidth < 800 && modal.open) modal.close();
     });
   }
+
+  // Handle install button clicks via event delegation (works across page navigations)
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const openBtn = target.closest('[data-open-install-modal]');
+    if (!openBtn) return;
+
+    e.preventDefault();
+
+    // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
+    // Modal can't compete with mobile sidebar's z-index
+    const mobileMenuBtn = document.querySelector('starlight-menu-button button');
+    const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
+    if (window.innerWidth < 800 || mobileMenuOpen) {
+      window.location.assign('/get-started/install-cli/');
+      return;
+    }
+
+    // Otherwise show the modal (handled by initializeModal's listener)
+  });
 
   // Initialize on page load
   if (document.readyState === 'loading') {
@@ -256,17 +287,18 @@ const { id = 'install-cli-modal' } = Astro.props;
     border: none;
     padding: 0;
     background: transparent;
-    margin: 0;
+    margin: auto;
     max-width: none;
     max-height: none;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100%;
     overflow: visible;
+    z-index: 2147483647;
   }
 
   .install-cli-modal::backdrop {
-    background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
   }
 
   .modal-content {
@@ -277,8 +309,11 @@ const { id = 'install-cli-modal' } = Astro.props;
     border-radius: 0.5rem;
     border: 1px solid var(--sl-color-gray-5);
     box-shadow: var(--sl-shadow-lg);
-    max-width: 90vw;
-    min-width: 25rem;
+    width: calc(100% - 2rem);
+    max-width: 40rem;
+    margin: 1rem auto;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
 
     .expressive-code .copy button:not([data-disable-copy]) {
       opacity: 1;
@@ -294,13 +329,17 @@ const { id = 'install-cli-modal' } = Astro.props;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
+    padding: 1rem;
     border-bottom: 1px solid var(--sl-color-gray-5);
+    position: sticky;
+    top: 0;
+    background: var(--sl-color-bg);
+    z-index: 1;
   }
 
   .modal-header h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: var(--sl-text-lg);
     font-weight: 600;
     color: var(--sl-color-text);
   }
@@ -326,16 +365,16 @@ const { id = 'install-cli-modal' } = Astro.props;
   }
 
   .modal-body {
-    padding: 1.5rem;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1rem;
   }
 
   .install-option {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 
   .option-header {
@@ -346,7 +385,7 @@ const { id = 'install-cli-modal' } = Astro.props;
 
   .option-header h3 {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--sl-text-sm);
     font-weight: 600;
   }
 
@@ -355,17 +394,24 @@ const { id = 'install-cli-modal' } = Astro.props;
     margin: 0;
   }
 
+  .code-wrapper :global(pre) {
+    font-size: var(--sl-text-xs);
+  }
+
   .quality-aside {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
   }
 
   .modal-footer {
-    padding: 1rem 1.5rem 1.5rem;
+    padding: 1rem;
     border-top: 1px solid var(--sl-color-gray-5);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.75rem;
+    position: sticky;
+    bottom: 0;
+    background: var(--sl-color-bg);
   }
 
   .version-selector {
@@ -373,10 +419,11 @@ const { id = 'install-cli-modal' } = Astro.props;
     align-items: center;
     gap: 0.5rem;
     position: relative;
+    justify-content: flex-end;
   }
 
   .version-selector label {
-    font-size: 0.875rem;
+    font-size: var(--sl-text-sm);
     font-weight: 500;
     color: var(--sl-color-text);
   }
@@ -392,7 +439,7 @@ const { id = 'install-cli-modal' } = Astro.props;
     border-radius: 0.375rem;
     background-color: var(--sl-color-bg);
     color: var(--sl-color-text);
-    font-size: 0.875rem;
+    font-size: var(--sl-text-sm);
     cursor: pointer;
     transition: border-color 0.2s;
     appearance: none;
@@ -442,10 +489,11 @@ const { id = 'install-cli-modal' } = Astro.props;
   .learn-more-link {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     color: var(--sl-color-text-accent);
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: var(--sl-text-sm);
     font-weight: 500;
     transition: opacity 0.2s;
   }
@@ -463,25 +511,89 @@ const { id = 'install-cli-modal' } = Astro.props;
     transform: translateX(4px);
   }
 
-  @media (max-width: 640px) {
+  /* Tablet breakpoint (50em = 800px) */
+  @media (min-width: 50em) {
+    .install-cli-modal::backdrop {
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(2px);
+    }
+
     .modal-content {
-      width: 95vw;
-      max-width: none;
-      min-width: unset;
+      margin: 2rem auto;
+      max-height: calc(100vh - 4rem);
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
     }
 
     .modal-header h2 {
-      font-size: 1.25rem;
+      font-size: var(--sl-text-xl);
     }
 
-    .modal-footer {
-      flex-direction: column-reverse;
-      align-items: flex-start;
+    .modal-body {
+      padding: 1.25rem 1.5rem;
+      gap: 1.25rem;
+    }
+
+    .install-option {
       gap: 0.75rem;
     }
 
-    .version-selector {
-      align-self: flex-end;
+    .option-header h3 {
+      font-size: var(--sl-text-base);
+    }
+
+    .code-wrapper :global(pre) {
+      font-size: var(--sl-text-sm);
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem 1.5rem;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .learn-more-link {
+      justify-content: flex-start;
+    }
+  }
+
+  /* Desktop breakpoint (72rem = 1152px) */
+  @media (min-width: 72rem) {
+    .install-cli-modal {
+      margin: 0;
+      width: auto;
+      height: auto;
+    }
+
+    .install-cli-modal::backdrop {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-content {
+      min-width: 38rem;
+      max-width: 42rem;
+      margin: 0;
+      max-height: calc(100vh - 6rem);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      position: static;
+    }
+
+    .modal-header h2 {
+      font-size: var(--sl-text-2xl);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      position: static;
     }
   }
 </style>
