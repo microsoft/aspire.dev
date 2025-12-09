@@ -3,15 +3,21 @@ title: Create custom client integrations
 description: Learn how to create a custom Aspire client integration for an existing containerized application.
 ---
 
-import { Image } from 'astro:assets';
 import { Aside, Badge, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
+import ThemeImage from '@components/ThemeImage.astro';
 import maildevWithNewsletterDashboard from '@assets/integrations/custom-integrations/maildev-with-newsletterservice-dashboard.png';
-import swaggerUi from '@assets/integrations/custom-integrations/swagger-ui.png';
-import swaggerUiTry from '@assets/integrations/custom-integrations/swagger-ui-try.png';
-import maildevInbox from '@assets/integrations/custom-integrations/maildev-inbox.png';
+import maildevWithNewsletterDashboardLight from '@assets/integrations/custom-integrations/maildev-with-newsletterservice-dashboard-light.png';
+import scalarUi from '@assets/integrations/custom-integrations/scalar-ui.png';
+import scalarUiLight from '@assets/integrations/custom-integrations/scalar-ui-light.png';
+import scalarUiTry from '@assets/integrations/custom-integrations/scalar-ui-try.png';
+import scalarUiTryLight from '@assets/integrations/custom-integrations/scalar-ui-try-light.png';
+import maildevEmails from '@assets/integrations/custom-integrations/maildev-emails.png';
+import maildevEmailsLight from '@assets/integrations/custom-integrations/maildev-emails-light.png';
 import mailkitMetricsDashboard from '@assets/integrations/custom-integrations/mailkit-metrics-dashboard.png';
+import mailkitMetricsDashboardLight from '@assets/integrations/custom-integrations/mailkit-metrics-dashboard-light.png';
 import mailkitMetricsGraphDashboard from '@assets/integrations/custom-integrations/mailkit-metrics-graph-dashboard.png';
+import mailkitMetricsGraphDashboardLight from '@assets/integrations/custom-integrations/mailkit-metrics-graph-dashboard-light.png';
 
 This article is a continuation of the [Create custom hosting integrations](/integrations/custom-integrations/hosting-integrations/) article. It guides you through creating an Aspire client integration that uses [MailKit](https://github.com/jstedfast/MailKit) to send emails. This integration is then added into the Newsletter app you previously built. The previous example omitted the creation of a client integration and instead relied on the existing .NET `SmtpClient`. It's best to use MailKit's `SmtpClient` over the official .NET `SmtpClient` for sending emails, as it's more modern and supports more features/protocols. For more information, see [.NET SmtpClient: Remarks](https://learn.microsoft.com/dotnet/api/system.net.mail.smtpclient#remarks).
 
@@ -30,13 +36,13 @@ This article is inspired by existing Aspire integrations, and based on the team'
 <Steps>
 1. Create a new class library project named `MailKit.Client` in the same directory as the `MailDevResource.sln` from the previous article.
 
-    ```dotnetcli title=".NET CLI"
+    ```bash title=".NET CLI"
     dotnet new classlib -o MailKit.Client
     ```
 
 2. Add the project to the solution.
 
-    ```dotnetcli title=".NET CLI"
+    ```bash title=".NET CLI"
     dotnet sln ./MailDevResource.sln add MailKit.Client/MailKit.Client.csproj
     ```
 </Steps>
@@ -190,9 +196,8 @@ namespace MailKit.Client;
 /// <param name="settings">
 /// The <see cref="MailKitClientSettings"/> settings for the SMTP server
 /// </param>
-public sealed class MailKitClientFactory(MailKitClientSettings settings) : IDisposable
+public sealed class MailKitClientFactory(MailKitClientSettings settings)
 {
-
     /// <summary>
     /// Gets an <see cref="ISmtpClient"/> instance in the connected state
     /// (and that's been authenticated if configured).
@@ -469,17 +474,21 @@ if (settings.DisableMetrics is false)
 
 With the integration library created, you can now update the Newsletter service to use the MailKit client. The first step is to add a reference to the `MailKit.Client` project. Add the `MailKit.Client.csproj` project reference to the `MailDevResource.NewsletterService` project:
 
-```dotnetcli title=".NET CLI"
+```bash title=".NET CLI"
 dotnet add ./MailDevResource.NewsletterService/MailDevResource.NewsletterService.csproj reference MailKit.Client/MailKit.Client.csproj
 ```
 
 Next, add a reference to the `ServiceDefaults` project:
 
-```dotnetcli title=".NET CLI"
+```bash title=".NET CLI"
 dotnet add ./MailDevResource.NewsletterService/MailDevResource.NewsletterService.csproj reference MailDevResource.ServiceDefaults/MailDevResource.ServiceDefaults.csproj
 ```
 
-<Badge text="TODO: here's where I left off." size='large' variant='danger' />
+To make it easier to test the endpoints, add Scalar for a pleasant HTTP request user experience. Add the following NuGet package to the `MailDevResource.NewsletterService` project:
+
+```bash title=".NET CLI"
+dotnet add package Scalar.AspNetCore --project ./MailDevResource.NewsletterService/MailDevResource.NewsletterService.csproj
+```
 
 The final step is to replace the existing `Program.cs` file in the `MailDevResource.NewsletterService` project with the following C# code:
 
@@ -488,25 +497,28 @@ using System.Net.Mail;
 using MailKit.Client;
 using MailKit.Net.Smtp;
 using MimeKit;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 // Add services to the container.
 builder.AddMailKitClient("maildev");
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+
 app.MapDefaultEndpoints();
 
 // Configure the HTTP request pipeline.
-
-app.UseSwagger();
-app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
 app.MapPost("/subscribe",
@@ -543,28 +555,46 @@ app.Run();
 The most notable changes in the preceding code are:
 
 <Steps>
-1. The updated `using` statements that include the `MailKit.Client`, `MailKit.Net.Smtp`, and `MimeKit` namespaces.
+1. The updated `using` statements that include the `MailKit.Client`, `MailKit.Net.Smtp`, `MimeKit`, and `Scalar.AspNetCore` namespaces.
 2. The replacement of the registration for the official .NET `SmtpClient` with the call to the `AddMailKitClient` extension method.
 3. The replacement of both `/subscribe` and `/unsubscribe` map post calls to instead inject the `MailKitClientFactory` and use the `ISmtpClient` instance to send the email.
 </Steps>
 
+Back in the `AppHost.cs` file, update it to configure the scalar API reference endpoint:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var maildev = builder.AddMailDev("maildev");
+
+builder.AddProject<Projects.MailDevResource_NewsletterService>("newsletterservice")
+    .WithUrlForEndpoint("https", e =>
+    {
+        e.DisplayText = "Scalar";
+        e.Url += "/scalar";
+    })
+    .WithReference(maildev);
+
+builder.Build().Run();
+```
+
 ## Run the sample
 
-Now that you've created the MailKit client integration and updated the Newsletter service to use it, you can run the sample. From your IDE, select <Kbd mac="F5" windows="F5" /> or run `dotnet run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/docs/dashboard/overview/):
+Now that you've created the MailKit client integration and updated the Newsletter service to use it, you can run the sample. From your IDE, select <Kbd mac="F5" windows="F5" /> or run `aspire run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/):
 
-<Image src={maildevWithNewsletterDashboard} alt="Aspire dashboard: MailDev and Newsletter resources running." />
+<ThemeImage dark={maildevWithNewsletterDashboard} light={maildevWithNewsletterDashboardLight} alt="Aspire dashboard: MailDev and Newsletter resources running." />
 
-Once the application is running, navigate to the Swagger UI at [https://localhost:7251/swagger](https://localhost:7251/swagger) and test the `/subscribe` and `/unsubscribe` endpoints. Select the down arrow to expand the endpoint:
+Once the application is running, navigate to the Scalar UI by seleting the added Scalar link from the dashboard on the `newsletterservice` resource and test the `/subscribe` and `/unsubscribe` endpoints. Select the down arrow to expand the endpoint:
 
-<Image src={swaggerUi} alt="Swagger UI: Subscribe endpoint." />
+<ThemeImage dark={scalarUi} light={scalarUiLight} alt="Scalar UI: Subscribe endpoint." />
 
 Then select the `Try it out` button. Enter an email address, and then select the `Execute` button.
 
-<Image src={swaggerUiTry} alt="Swagger UI: Subscribe endpoint with email address." />
+<ThemeImage dark={scalarUiTry} light={scalarUiTryLight} alt="Scalar UI: Subscribe endpoint with email address." />
 
 Repeat this several times, to add multiple email addresses. You should see the email sent to the MailDev inbox:
 
-<Image src={maildevInbox} alt="MailDev inbox with multiple emails." />
+<ThemeImage dark={maildevEmails} light={maildevEmailsLight} alt="MailDev inbox with multiple emails." />
 
 Stop the application by selecting <Kbd mac="Command+C" windows="Control+C" /> in the terminal window where the application is running, or by selecting the stop button in your IDE.
 
@@ -572,12 +602,11 @@ Stop the application by selecting <Kbd mac="Command+C" windows="Control+C" /> in
 
 The MailKit client library exposes telemetry that can be viewed in the Aspire dashboard. To view the telemetry, navigate to the Aspire dashboard at [https://localhost:7251](https://localhost:7251). Select the `newsletter` resource to view the telemetry on the **Metrics** page:
 
-<Image src={mailkitMetricsDashboard} alt="Aspire dashboard: MailKit telemetry." />
+<ThemeImage dark={mailkitMetricsDashboard} light={mailkitMetricsDashboardLight} alt="Aspire dashboard: MailKit telemetry." />
 
-Open up the Swagger UI again, and make some requests to the `/subscribe` and `/unsubscribe` endpoints. Then, navigate back to the Aspire dashboard and select the `newsletter` resource. Select a metric under the **mailkit.net.smtp** node, such as `mailkit.net.smtp.client.operation.count`. You should see the telemetry for the MailKit client:
+Open up the Scalar UI again, and make some requests to the `/subscribe` and `/unsubscribe` endpoints. Then, navigate back to the Aspire dashboard and select the `newsletter` resource. Select a metric under the **mailkit.net.smtp** node, such as `mailkit.net.smtp.client.operation.count`. You should see the telemetry for the MailKit client:
 
-<Image src={mailkitMetricsGraphDashboard} alt="Aspire dashboard: MailKit telemetry for operation count." />
-
+<ThemeImage dark={mailkitMetricsGraphDashboard} light={mailkitMetricsGraphDashboardLight} alt="Aspire dashboard: MailKit telemetry for operation count." />
 ## Summary
 
 In this article, you learned how to create an Aspire integration that uses MailKit to send emails. You also learned how to integrate this integration into the Newsletter app you previously built. You learned about the core principles of Aspire integrations, such as exposing the underlying client library to consumers through dependency injection, and how to add health checks and telemetry to the integration. You also learned how to update the Newsletter service to use the MailKit client.
