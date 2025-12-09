@@ -1182,12 +1182,20 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             collapsed: true,
             items: [
               {
-                label: "Integration overview",
-                slug: "integrations/databases/sql-server",
+                label: "Get started",
+                slug: "integrations/databases/sql-server/sql-server-get-started",
+              },
+              {
+                label: "Hosting integration (AppHost)",
+                slug: "integrations/databases/sql-server/sql-server-host",
+              },
+              {
+                label: "Client integration (Your app)",
+                slug: "integrations/databases/sql-server/sql-server-client",
               },
               {
                 label: "Community extensions",
-                slug: "integrations/databases/sql-server-extensions",
+                slug: "integrations/databases/sql-server/sql-server-extensions",
               },
             ],
           },

@@ -1,0 +1,298 @@
+---
+title: Get started with the SQL Server integrations
+description: Learn how to set up the Aspire SQL Server Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import sqlIcon from '@assets/icons/sql-icon.png';
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript"},
+    ]}
+/>
+
+<Image
+  src={sqlIcon}
+  alt="SQL Server logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integration enables you to connect to existing SQL Server instances or create new instances from Aspire with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
+
+In this introduction, you'll see how to install and use the Aspire SQL Server integrations in a simple configuration. If you already have this knowledge, see [SQL Server Hosting integration](../sql-server-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire SQL Server Hosting integration in your Aspire AppHost project. This integration allows you to create and manage SQL Server database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.SqlServer" shortName="sqlserver" />
+
+Next, in the AppHost project, create instances of SQL Server server and database resources, then pass the database to the consuming client projects:
+
+<Pivot id="csharp">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql");
+var sqldb = sql.AddDatabase("sqldb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(sqldb)
+                            .WithReference(sqldb);
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql");
+var sqldb = sql.AddDatabase("sqldb");
+
+var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(sqldb)
+                            .WithReference(sqldb);
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql");
+var sqldb = sql.AddDatabase("sqldb");
+
+var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+                 .WithExternalHttpEndpoints()
+                 .WaitFor(sqldb)
+                 .WithReference(sqldb);
+```
+
+</Pivot>
+
+<Aside type="tip">
+    This is the simplest implementation of SQL Server resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [SQL Server Hosting integration](../sql-server-host/).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+<Pivot id="csharp">
+
+In each of these consuming client projects, install the Aspire SQL Server client integration:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Data.SqlClient" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddSqlServerClient` extension method on any `IHostApplicationBuilder` to register a `SqlConnection` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient(connectionName: "sqldb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
+
+<Pivot id="python">
+
+To interact with SQL Server databases in your Python consuming projects, you need to include a SQL Server adapter library. A popular option is `pyodbc` (the Python ODBC database driver). You can install this library using pip:
+
+```bash
+pip install pyodbc
+```
+
+Ensure that you `import pyodbc` in code files that interact with the database. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import pyodbc"
+import pyodbc
+import os
+```
+
+<Aside type="note">
+You may also need to install the Microsoft ODBC Driver for SQL Server. For instructions, see [Microsoft ODBC Driver for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server).
+</Aside>
+
+</Pivot>
+
+<Pivot id="javascript">
+
+To interact with SQL Server databases in your JavaScript consuming projects, you need to include a SQL Server client library. A popular option is `mssql` (the official SQL Server client for Node.js). You can install this library using npm:
+
+```bash
+npm install mssql
+```
+
+Ensure that you `import mssql` in code files that interact with the database:
+
+```javascript title="JavaScript - Import mssql"
+import sql from 'mssql';
+```
+
+</Pivot>
+
+### Use injected SQL Server properties
+
+In the AppHost, when you used the `WithReference` method to pass a SQL Server server or database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `sqldb` becomes `SQLDB_URI`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string hostname = builder.Configuration.GetValue<string>("SQLDB_HOST");
+string databaseport = builder.Configuration.GetValue<string>("SQLDB_PORT");
+string jdbcconnectionstring = builder.Configuration.GetValue<string>("SQLDB_JDBCCONNECTIONSTRING");
+string databasename = builder.Configuration.GetValue<string>("SQLDB_DATABASE");
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the `os.getenv()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+sql_host = os.getenv("SQLDB_HOST")
+sql_port = os.getenv("SQLDB_PORT", "1433")
+sql_user = os.getenv("SQLDB_USERNAME")
+sql_password = os.getenv("SQLDB_PASSWORD")
+sql_database = os.getenv("SQLDB_DATABASE", "sqldb")
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the `process.env` method to obtain these environment variables in consuming projects:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const sqlHost = process.env.SQLDB_HOST;
+const sqlPort = process.env.SQLDB_PORT;
+const sqlUser = process.env.SQLDB_USERNAME;
+const sqlPassword = process.env.SQLDB_PASSWORD;
+const sqlDatabase = process.env.SQLDB_DATABASE;
+```
+
+</Pivot>
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on whether you passed a SQL Server server or database resource. For more information, see [Properties of the SQL Server resources](../sql-server-client/#properties-of-the-sql-server-resources).
+</Aside>
+
+### Use SQL Server resources in client code
+
+<Pivot id="csharp">
+
+Now that you've added `SqlConnection` to the builder in the consuming project, you can use the SQL Server resource to get and store data. Get the `SqlConnection` instance using dependency injection. For example, to retrieve your connection object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SqlConnection connection)
+{
+    // Use connection to query the database...
+}
+```
+
+Having obtained the connection, you can work with the SQL Server database as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the information you have obtained about the SQL Server resource to connect to the database. Here is an example of how to connect using `pyodbc`:
+
+```python title="Python - Connect to SQL Server"
+connection_string = (
+    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+    f"SERVER={sql_host},{sql_port};"
+    f"DATABASE={sql_database};"
+    f"UID={sql_user};"
+    f"PWD={sql_password};"
+    f"TrustServerCertificate=yes;"
+)
+
+connection = pyodbc.connect(connection_string)
+cursor = connection.cursor()
+```
+
+Having obtained the connection, you can work with the SQL Server database as you would in any other Python application.
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the information you have obtained about the SQL Server resource to connect to the database. Here is an example of how to connect using `mssql`:
+
+```javascript title="JavaScript - Connect to SQL Server"
+const config = {
+  server: sqlHost,
+  port: parseInt(sqlPort),
+  user: sqlUser,
+  password: sqlPassword,
+  database: sqlDatabase,
+  options: {
+    encrypt: true,
+    trustServerCertificate: true
+  }
+};
+
+const pool = await sql.connect(config);
+```
+
+Having obtained the connection, you can work with the SQL Server database as you would in any other JavaScript application.
+
+</Pivot>
+
+## Next steps
+
+Now, that you have an Aspire app with SQL Server integrations up and running, you can use the following reference documents to learn how to configure and interact with the SQL Server resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the SQL Server hosting integration"
+    description="Discover how to configure persistence, database scripts, and more."
+    href="/integrations/databases/sql-server/sql-server-host/"
+  />
+  <LinkCard
+    title="Understand the SQL Server client integration"
+    description="Discover how to configure keyed clients, client integration health checks, and more."
+    href="/integrations/databases/sql-server/sql-server-client/"
+  />
+   <LinkCard
+    title="Understand the SQL Server community extensions"
+    description="Discover how to add the DbGate management user interface, and more."
+    href="/integrations/databases/sql-server/sql-server-extensions/"
+  />
+</CardGrid>

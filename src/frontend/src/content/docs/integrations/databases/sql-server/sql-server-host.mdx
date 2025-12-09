@@ -1,11 +1,10 @@
 ---
-title: SQL Server integration
-description: Learn how to use the Aspire SQL Server integration, which includes both hosting and client integrations.
+title: SQL Server Hosting integration reference
+description: Learn how to use the Aspire SQL Server Hosting integration to create and manage SQL Server server and database resources in your Aspire projects.
 ---
 
 import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import sqlIcon from '@assets/icons/sql-icon.png';
@@ -19,15 +18,17 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integration enables you to connect to existing SQL Server instances or create new instances from Aspire with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
+To get started with the Aspire SQL Server integrations, follow the [Get started with SQL Server integrations](../sql-server-get-started/) guide.
 
-## Hosting integration
+This article includes full details about the Aspire SQL Server Hosting integration, which models the server as the `SqlServerServerResource` type and the database as the `SqlServerDatabaseResource` type. To access these types and APIs, you need to install the SQL Server Hosting integration in your AppHost project.
 
-The SQL Server hosting integration models the server as the `SqlServerServerResource` type and the database as the `SqlServerDatabaseResource` type. To access these types and APIs, add the [📦 Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer) NuGet package in the [AppHost](/get-started/app-host/) project.
+## Installation
+
+To get started with the Aspire SQL Server hosting integration, install the [📦 Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer) NuGet package in your AppHost project:
 
 <InstallPackage packageName="Aspire.Hosting.SqlServer" />
 
-### Add SQL Server resource and database resource
+## Add SQL Server resource and database resource
 
 In your AppHost project, call `AddSqlServer` to add and return a SQL Server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add SQL Server database resource.
 
@@ -74,7 +75,7 @@ The `WithReference` method configures a connection in the `ExampleProject` named
 If you'd rather connect to an existing SQL Server, call `AddConnectionString` instead. For more information, see [Reference existing resources](../../fundamentals/app-host-overview.md#reference-existing-resources).
 </Aside>
 
-### Add SQL Server resource with database scripts
+## Add SQL Server resource with database scripts
 
 By default, when you add a `SqlServerDatabaseResource`, it relies on the following SQL script to create the database:
 
@@ -137,7 +138,7 @@ builder.Build().Run();
 
 The preceding example creates a database named `app_db` with a single `todos` table. The SQL script is executed when the database resource is created. The script is passed as a string to the `WithCreationScript` method, which is then executed in the context of the SQL Server resource.
 
-### Add SQL Server resource with data volume
+## Add SQL Server resource with data volume
 
 To add a data volume to the SQL Server resource, call the `WithDataVolume` method on the SQL Server resource:
 
@@ -164,7 +165,7 @@ The data volume is used to persist the SQL Server data outside the lifecycle of 
 The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
 </Aside>
 
-### Add SQL Server resource with data bind mount
+## Add SQL Server resource with data bind mount
 
 To add a data bind mount to the SQL Server resource, call the `WithDataBindMount` method:
 
@@ -191,7 +192,7 @@ builder.Build().Run();
 
 Data bind mounts rely on the host machine's filesystem to persist the SQL Server data across container restarts. The data bind mount is mounted at the `C:\SqlServer\Data` on Windows (or `/SqlServer/Data` on Unix) path on the host machine in the SQL Server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-### Add SQL Server resource with parameters
+## Add SQL Server resource with parameters
 
 When you want to explicitly provide the password used by the container image, you can provide these credentials as parameters. Consider the following alternative example:
 
@@ -214,7 +215,7 @@ builder.Build().Run();
 
 For more information on providing parameters, see [External parameters](/get-started/resources/).
 
-### Use a specific SQL Server container image tag
+## Use a specific SQL Server container image tag
 
 If you want to use a specific tag for the SQL Server container image, you can call the `WithImageTag` method to override the default tag. This is useful when you need to test against a specific version of SQL Server:
 
@@ -237,7 +238,7 @@ builder.Build().Run();
 
 The preceding code uses the `2025-RTM-ubuntu-24.04-preview` tag for the SQL Server container image. For a list of available tags, see [SQL Server container image tags](https://mcr.microsoft.com/en-us/artifact/mar/mssql/server/tags).
 
-### Connect to database resources
+## Connect to database resources
 
 When the Aspire AppHost runs, the server's database resources can be accessed from external tools, such as [SQL Server Management Studio (SSMS)](https://learn.microsoft.com/sql/ssms/download-sql-server-management-studio-ssms) or [MSSQL for Visual Studio Code](https://learn.microsoft.com/sql/tools/visual-studio-code-extensions/mssql/mssql-extension-visual-studio-code). The connection string for the database resource is available in the dependent resources environment variables and is accessed using the [Aspire dashboard: Resource details](/dashboard/explore/#resource-details) pane. The environment variable is named `ConnectionStrings__{name}` where `{name}` is the name of the database resource, in this example it's `database`. Use the connection string to connect to the database resource from external tools. Imagine that you have a database named `todos` with a single `dbo.Todos` table.
 
@@ -285,53 +286,7 @@ When the Aspire AppHost runs, the server's database resources can be accessed fr
     </TabItem>
 </Tabs>
 
-
-### Connection properties
-
-When you reference a SQL Server resource using `WithReference`, the following connection properties are made available to the consuming project:
-
-#### SQL Server server
-
-The SQL Server server resource exposes the following connection properties:
-
-| Property Name | Description |
-|---------------|-------------|
-| `Host` | The hostname or IP address of the SQL Server |
-| `Port` | The port number the SQL Server is listening on |
-| `Username` | The username for authentication |
-| `Password` | The password for authentication |
-| `Uri` | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}` |
-| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true`. User and password credentials are provided as separate `Username` and `Password` properties. |
-
-**Example connection strings:**
-
-```
-Uri: mssql://sa:p%40ssw0rd1@localhost:1433
-JdbcConnectionString: jdbc:sqlserver://localhost:1433;trustServerCertificate=true
-```
-
-#### SQL Server database
-
-The SQL Server database resource inherits all properties from its parent `SqlServerServerResource` and adds:
-
-| Property Name | Description |
-|---------------|-------------|
-| `Uri` | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
-| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true;databaseName={DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
-| `DatabaseName` | The name of the database |
-
-**Example connection strings:**
-
-```
-Uri: mssql://sa:p%40ssw0rd1@localhost:1433/catalog
-JdbcConnectionString: jdbc:sqlserver://localhost:1433;trustServerCertificate=true;databaseName=catalog
-```
-
-<Aside type="note">
-  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
-</Aside>
-
-### Hosting integration health checks
+## Hosting integration health checks
 
 The SQL Server hosting integration automatically adds a health check for the SQL Server resource. The health check verifies that the SQL Server is running and that a connection can be established to it.
 
@@ -339,197 +294,71 @@ The hosting integration relies on the [📦 AspNetCore.HealthChecks.SqlServer](h
 
 ## Using with non-.NET applications
 
-The SQL Server hosting integration can be used with any application technology, not just C# applications. When you use `WithReference` to reference a SQL Server resource, connection information is automatically injected as environment variables into the referencing application.
+When you use the `WithReference` method to pass a SQL Server database resource to a non-.NET application (such as Python or JavaScript), Aspire automatically injects environment variables that describe the connection information. These environment variables follow the naming convention `[RESOURCE]_[PROPERTY]`, where `RESOURCE` is the uppercase name of the resource and `PROPERTY` is the name of the connection property.
 
-For applications that don't use the [client integration](#client-integration), you can access the connection information through environment variables. Here's an example of how to configure environment variables for a non-.NET application:
+For example, if you reference a SQL Server database resource named `sqldb`:
 
 ```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+var sqldb = sql.AddDatabase("sqldb");
 
-var sql = builder.AddSqlServer("sql")
-    .WithLifetime(ContainerLifetime.Persistent);
-
-var database = sql.AddDatabase("myDatabase");
-
-// Example: Configure a non-.NET application with SQL Server access
-var app = builder.AddExecutable("my-app", "python", "app.py", ".")
-    .WithReference(database) // Provides ConnectionStrings__myDatabase
-    .WithEnvironment(context =>
-    {
-        // Additional individual connection details as environment variables
-        context.EnvironmentVariables["SQL_SERVER"] = sql.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
-        context.EnvironmentVariables["SQL_PORT"] = sql.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
-        context.EnvironmentVariables["SQL_USERNAME"] = "sa";
-        context.EnvironmentVariables["SQL_PASSWORD"] = sql.Resource.PasswordParameter;
-        context.EnvironmentVariables["SQL_DATABASE"] = database.Resource.DatabaseName;
-    });
-
-builder.Build().Run();
+var pythonApp = builder.AddUvicornApp("api", "./api", "main.app")
+    .WithReference(sqldb);
 ```
 
-This configuration provides the non-.NET application with several environment variables:
+The following environment variables are available in the Python application:
 
-- `ConnectionStrings__myDatabase`: The complete SQL Server connection string
-- `SQL_SERVER`: The hostname/IP address of the SQL Server
-- `SQL_PORT`: The port number the SQL Server is listening on
-- `SQL_USERNAME`: The username (typically `sa` for SQL Server)
-- `SQL_PASSWORD`: The dynamically generated password
-- `SQL_DATABASE`: The name of the database
+- `SQLDB_HOST` - The hostname or IP address
+- `SQLDB_PORT` - The port number
+- `SQLDB_USERNAME` - The username for authentication
+- `SQLDB_PASSWORD` - The password for authentication
+- `SQLDB_DATABASE` - The database name
+- `SQLDB_URI` - The full connection URI
+- `SQLDB_JDBCCONNECTIONSTRING` - JDBC-format connection string
 
-Your non-.NET application can then read these environment variables to connect to the SQL Server database using the appropriate database driver for that technology (for example, `pyodbc` for Python, `node-mssql` for Node.js, or `database/sql` with a SQL Server driver for Go).
+You can access these environment variables in your application code:
+
+```python title="Python example"
+import os
+import pyodbc
+
+sql_host = os.getenv("SQLDB_HOST")
+sql_port = os.getenv("SQLDB_PORT", "1433")
+sql_user = os.getenv("SQLDB_USERNAME")
+sql_password = os.getenv("SQLDB_PASSWORD")
+sql_database = os.getenv("SQLDB_DATABASE")
+
+connection_string = (
+    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+    f"SERVER={sql_host},{sql_port};"
+    f"DATABASE={sql_database};"
+    f"UID={sql_user};"
+    f"PWD={sql_password};"
+    f"TrustServerCertificate=yes;"
+)
+
+connection = pyodbc.connect(connection_string)
+```
+
+```javascript title="JavaScript example"
+import sql from 'mssql';
+
+const config = {
+  server: process.env.SQLDB_HOST,
+  port: parseInt(process.env.SQLDB_PORT),
+  user: process.env.SQLDB_USERNAME,
+  password: process.env.SQLDB_PASSWORD,
+  database: process.env.SQLDB_DATABASE,
+  options: {
+    encrypt: true,
+    trustServerCertificate: true
+  }
+};
+
+const pool = await sql.connect(config);
+```
+
+For the complete list of properties available, see [Properties of the SQL Server resources](../sql-server-client/#properties-of-the-sql-server-resources).
 
 ## Client integration
 
-To get started with the Aspire SQL Server client integration, install the [📦 Aspire.Microsoft.Data.SqlClient](https://www.nuget.org/packages/Aspire.Microsoft.Data.SqlClient) NuGet package in the client-consuming project, that is, the project for the application that uses the SQL Server client. The SQL Server client integration registers a `SqlConnection` instance that you can use to interact with SQL Server.
-
-<InstallDotNetPackage packageName="Aspire.Microsoft.Data.SqlClient" />
-
-### Add SQL Server client
-
-In the _Program.cs_ file of your client-consuming project, call the `AddSqlServerClient` extension method on any `IHostApplicationBuilder` to register a `SqlConnection` for use via the dependency injection container. The method takes a connection name parameter.
-
-```csharp
-builder.AddSqlServerClient(connectionName: "database");
-```
-
-<Aside type="tip">
-The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerClient`. For more information, see [Add SQL Server resource and database resource](../sql-server-integration.md#add-sql-server-resource-and-database-resource).
-</Aside>
-
-You can then retrieve the `SqlConnection` instance using dependency injection. For example, to retrieve the connection from an example service:
-
-```csharp
-public class ExampleService(SqlConnection connection)
-{
-    // Use connection...
-}
-```
-
-For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
-
-### Add keyed SQL Server client
-
-There might be situations where you want to register multiple `SqlConnection` instances with different connection names. To register keyed SQL Server clients, call the `AddKeyedSqlServerClient` method:
-
-```csharp
-builder.AddKeyedSqlServerClient(name: "mainDb");
-builder.AddKeyedSqlServerClient(name: "loggingDb");
-```
-
-<Aside type="caution">
-When using keyed services, it's expected that your SQL Server resource configured two named databases, one for the `mainDb` and one for the `loggingDb`.
-</Aside>
-
-Then you can retrieve the `SqlConnection` instances using dependency injection. For example, to retrieve the connection from an example service:
-
-```csharp
-public class ExampleService(
-    [FromKeyedServices("mainDb")] SqlConnection mainDbConnection,
-    [FromKeyedServices("loggingDb")] SqlConnection loggingDbConnection)
-{
-    // Use connections...
-}
-```
-
-For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
-
-### Configuration
-
-The Aspire SQL Server integration provides multiple options to configure the connection based on the requirements and conventions of your project.
-
-#### Use a connection string
-
-When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling the `AddSqlServerClient` method:
-
-```csharp
-builder.AddSqlServerClient(connectionName: "sql");
-```
-
-Then the connection string is retrieved from the `ConnectionStrings` configuration section:
-
-```json
-{
-  "ConnectionStrings": {
-    "database": "Data Source=myserver;Initial Catalog=master"
-  }
-}
-```
-
-For more information on how to format this connection string, see the [ConnectionString](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
-
-#### Use configuration providers
-
-The Aspire SQL Server integration supports `Microsoft.Extensions.Configuration`. It loads the `MicrosoftDataSqlClientSettings` from configuration by using the `Aspire:Microsoft:Data:SqlClient` key. The following snippet is an example of a `appsettings.json` file that configures some of the options:
-
-```json
-{
-  "Aspire": {
-    "Microsoft": {
-      "Data": {
-        "SqlClient": {
-          "ConnectionString": "YOUR_CONNECTIONSTRING",
-          "DisableHealthChecks": false,
-          "DisableMetrics": true
-        }
-      }
-    }
-  }
-}
-```
-
-For the complete SQL Server client integration JSON schema, see [Aspire.Microsoft.Data.SqlClient/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v8.2.2/src/Components/Aspire.Microsoft.Data.SqlClient/ConfigurationSchema.json).
-
-#### Use inline delegates
-
-Also you can pass the `Action<MicrosoftDataSqlClientSettings> configureSettings` delegate to set up some or all the options inline, for example to disable health checks from code:
-
-```csharp
-builder.AddSqlServerClient(
-    "database",
-    static settings => settings.DisableHealthChecks = true);
-```
-
-### Client integration health checks
-
-By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
-
-The Aspire SQL Server integration:
-
-- Adds the health check when `MicrosoftDataSqlClientSettings.DisableHealthChecks` is `false`, which attempts to connect to the SQL Server.
-- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
-
-### Observability and telemetry
-
-Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
-
-#### Logging
-
-The Aspire SQL Server integration currently doesn't enable logging by default due to limitations of the `SqlClient`.
-
-#### Tracing
-
-The Aspire SQL Server integration emits the following tracing activities using OpenTelemetry:
-
-- `OpenTelemetry.Instrumentation.SqlClient`
-
-#### Metrics
-
-The Aspire SQL Server integration will emit the following metrics using OpenTelemetry:
-
-- Microsoft.Data.SqlClient.EventSource
-  - `active-hard-connections`
-  - `hard-connects`
-  - `hard-disconnects`
-  - `active-soft-connects`
-  - `soft-connects`
-  - `soft-disconnects`
-  - `number-of-non-pooled-connections`
-  - `number-of-pooled-connections`
-  - `number-of-active-connection-pool-groups`
-  - `number-of-inactive-connection-pool-groups`
-  - `number-of-active-connection-pools`
-  - `number-of-inactive-connection-pools`
-  - `number-of-active-connections`
-  - `number-of-free-connections`
-  - `number-of-stasis-connections`
-  - `number-of-reclaimed-connections`
+To learn how to connect to and interact with SQL Server databases from your consuming projects, see [SQL Server Client integration](../sql-server-client/).
