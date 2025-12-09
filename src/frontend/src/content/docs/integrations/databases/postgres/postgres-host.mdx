@@ -292,7 +292,53 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
-## Hosting integration health checks
+
+### Connection properties
+
+When you reference a PostgreSQL resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### PostgreSQL server
+
+The PostgreSQL server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the PostgreSQL server |
+| `Port` | The port number the PostgreSQL server is listening on |
+| `Username` | The username for authentication |
+| `Password` | The password for authentication |
+| `Uri` | The connection URI in postgresql:// format, with the format `postgresql://{Username}:{Password}@{Host}:{Port}` |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:postgresql://{Host}:{Port}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+**Example connection strings:**
+
+```
+Uri: postgresql://postgres:p%40ssw0rd1@localhost:5432
+JdbcConnectionString: jdbc:postgresql://localhost:5432
+```
+
+#### PostgreSQL database
+
+The PostgreSQL database resource inherits all properties from its parent `PostgresServerResource` and adds:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Uri` | The connection URI with the database name, with the format `postgresql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:postgresql://{Host}:{Port}/{DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `DatabaseName` | The name of the database |
+
+**Example connection strings:**
+
+```
+Uri: postgresql://postgres:p%40ssw0rd1@localhost:5432/catalog
+JdbcConnectionString: jdbc:postgresql://localhost:5432/catalog
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
+</Aside>
+
+### Hosting integration health checks
 
 The PostgreSQL hosting integration automatically adds a health check for the PostgreSQL server resource. The health check verifies that the PostgreSQL server is running and that a connection can be established to it.
 

@@ -223,7 +223,7 @@ To create a service that applies the migrations:
 
 1. Add the highlighted lines to the *`Program.cs`* file in the *`SupportTicketApi.MigrationService`* project:
 
-    ```csharp title="C# — Program.cs"
+    ```csharp title="C# — Program.cs" {6,9-10,12}
     using SupportTicketApi.Data.Contexts;
     using SupportTicketApi.MigrationService;
 
@@ -349,22 +349,22 @@ The migration service is created, but it needs to be added to the Aspire AppHost
 1. In the *`SupportTicketApi.AppHost`* project, open the *`AppHost.cs`* file.
 1. Add the following highlighted code:
 
-    ```csharp title="C# — AppHost.cs"
-    using SupportTicketApi.Data.Contexts;
-    using SupportTicketApi.MigrationService;
+    ```csharp title="C# — AppHost.cs" {6-8,12-13}
+    var builder = DistributedApplication.CreateBuilder(args);
 
-    var builder = Host.CreateApplicationBuilder(args);
+    var sql = builder.AddSqlServer("sql")
+        .AddDatabase("sqldata");
 
-    builder.AddServiceDefaults();
-    builder.Services.AddHostedService<Worker>();
+    var migrations = builder.AddProject<Projects.SupportTicketApi_MigrationService>("migrations")
+        .WithReference(sql)
+        .WaitFor(sql);
 
-    builder.Services.AddOpenTelemetry()
-        .WithTracing(tracing => tracing.AddSource(Worker.ActivitySourceName));
+    builder.AddProject<Projects.SupportTicketApi_Api>("api")
+        .WithReference(sql)
+        .WithReference(migrations)
+        .WaitForCompletion(migrations);
 
-    builder.AddSqlServerDbContext<TicketContext>("sqldata");
-
-    var host = builder.Build();
-    host.Run();
+    builder.Build().Run();
     ```
 
     This code enlists the *`SupportTicketApi.MigrationService`* project as a service in the Aspire AppHost. It also ensures that the API resource doesn't run until the migrations are complete.

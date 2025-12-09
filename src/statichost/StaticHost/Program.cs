@@ -20,6 +20,9 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
 
+// add routing after default files, so the default file middleware can modify the path first
+app.UseRouting();
+
 app.UseStatusCodePages(async context =>
 {
     var response = context.HttpContext.Response;
@@ -38,37 +41,6 @@ app.UseStatusCodePages(async context =>
             response.ContentType = "text/html; charset=utf-8";
 
             await response.SendFileAsync(notFoundPath);
-        }
-    }
-});
-
-var provider = new FileExtensionContentTypeProvider();
-provider.Mappings[".cast"] = "application/x-asciinema+json";
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    ContentTypeProvider = provider,
-    OnPrepareResponse = ctx =>
-    {
-        var headers = ctx.Context.Response.Headers;
-        var name = ctx.File.Name.ToLowerInvariant();
-
-        // Astro hashes CSS/JS files, but HTML files should not be cached
-        // They'll always reference the hashed assets
-        if (name.EndsWith(".html") || name.EndsWith(".htm"))
-        {
-            headers.CacheControl = "no-cache, no-store, must-revalidate";
-            headers.Pragma = "no-cache";
-            headers.Expires = "0";
-        }
-        else if (name.EndsWith(".css") || name.EndsWith(".js")
-            || name.EndsWith(".jpg") || name.EndsWith(".jpeg")
-            || name.EndsWith(".png") || name.EndsWith(".gif")
-            || name.EndsWith(".svg") || name.EndsWith(".webp")
-            || name.EndsWith(".woff") || name.EndsWith(".woff2")
-            || name.EndsWith(".ttf") || name.EndsWith(".eot"))
-        {
-            headers.CacheControl = "public, max-age=31536000, immutable";
         }
     }
 });

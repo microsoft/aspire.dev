@@ -1,0 +1,45 @@
+---
+import { Tabs } from "@astrojs/starlight/components";
+
+interface Props {
+	syncKey?: string;
+}
+
+const { syncKey } = Astro.props;
+---
+
+<Tabs syncKey={syncKey}>
+	<slot />
+</Tabs>
+
+{syncKey && <script define:vars={{ syncKey }}>
+	// OS-aware tab selection - only runs once per syncKey on initial page load
+	(function() {
+		// Check if localStorage is available
+		if (typeof localStorage === 'undefined') return;
+		
+		const storageKey = `starlight-synced-tabs__${syncKey}`;
+		const existingPreference = localStorage.getItem(storageKey);
+		
+		// Only set default if user hasn't made a choice yet
+		if (existingPreference) return;
+		
+		// Detect OS using multiple methods for reliability
+		// Check userAgentData.platform first (modern), then navigator.platform, then userAgent
+		let isWindows = false;
+		
+		if (navigator.userAgentData?.platform) {
+			isWindows = /windows/i.test(navigator.userAgentData.platform);
+		} else if (navigator.platform) {
+			isWindows = /^Win/i.test(navigator.platform);
+		} else if (navigator.userAgent) {
+			isWindows = /Win(dows|32|64)/i.test(navigator.userAgent);
+		}
+		
+		// Set default tab based on OS
+		// Windows users get PowerShell, everyone else gets Bash
+		const defaultTab = isWindows ? 'PowerShell' : 'Bash';
+		
+		localStorage.setItem(storageKey, defaultTab);
+	})();
+</script>}

@@ -214,6 +214,29 @@ builder.Build().Run();
 
 For more information on providing parameters, see [External parameters](/get-started/resources/).
 
+### Use a specific SQL Server container image tag
+
+If you want to use a specific tag for the SQL Server container image, you can call the `WithImageTag` method to override the default tag. This is useful when you need to test against a specific version of SQL Server:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql")
+                 .WithImageTag("2025-RTM-ubuntu-24.04-preview");
+
+var db = sql.AddDatabase("database");
+
+builder.AddProject<Projects.AspireApp_ExampleProject>("exampleproject")
+       .WithReference(db)
+       .WaitFor(db);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+The preceding code uses the `2025-RTM-ubuntu-24.04-preview` tag for the SQL Server container image. For a list of available tags, see [SQL Server container image tags](https://mcr.microsoft.com/en-us/artifact/mar/mssql/server/tags).
+
 ### Connect to database resources
 
 When the Aspire AppHost runs, the server's database resources can be accessed from external tools, such as [SQL Server Management Studio (SSMS)](https://learn.microsoft.com/sql/ssms/download-sql-server-management-studio-ssms) or [MSSQL for Visual Studio Code](https://learn.microsoft.com/sql/tools/visual-studio-code-extensions/mssql/mssql-extension-visual-studio-code). The connection string for the database resource is available in the dependent resources environment variables and is accessed using the [Aspire dashboard: Resource details](/dashboard/explore/#resource-details) pane. The environment variable is named `ConnectionStrings__{name}` where `{name}` is the name of the database resource, in this example it's `database`. Use the connection string to connect to the database resource from external tools. Imagine that you have a database named `todos` with a single `dbo.Todos` table.
@@ -261,6 +284,52 @@ When the Aspire AppHost runs, the server's database resources can be accessed fr
         </LearnMore>
     </TabItem>
 </Tabs>
+
+
+### Connection properties
+
+When you reference a SQL Server resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### SQL Server server
+
+The SQL Server server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the SQL Server |
+| `Port` | The port number the SQL Server is listening on |
+| `Username` | The username for authentication |
+| `Password` | The password for authentication |
+| `Uri` | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}` |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+**Example connection strings:**
+
+```
+Uri: mssql://sa:p%40ssw0rd1@localhost:1433
+JdbcConnectionString: jdbc:sqlserver://localhost:1433;trustServerCertificate=true
+```
+
+#### SQL Server database
+
+The SQL Server database resource inherits all properties from its parent `SqlServerServerResource` and adds:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Uri` | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true;databaseName={DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `DatabaseName` | The name of the database |
+
+**Example connection strings:**
+
+```
+Uri: mssql://sa:p%40ssw0rd1@localhost:1433/catalog
+JdbcConnectionString: jdbc:sqlserver://localhost:1433;trustServerCertificate=true;databaseName=catalog
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
+</Aside>
 
 ### Hosting integration health checks
 

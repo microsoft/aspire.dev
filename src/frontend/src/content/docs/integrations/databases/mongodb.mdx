@@ -188,6 +188,43 @@ The MongoDB Express resource is configured to connect to the MongoDB server reso
 
 Additionally, the `WithMongoExpress` API exposes an optional `configureContainer` parameter that you use to configure the MongoDB Express container resource.
 
+
+### Connection properties
+
+When you reference a MongoDB resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### MongoDB server
+
+The MongoDB server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the MongoDB server |
+| `Port` | The port number the MongoDB server is listening on |
+| `Username` | The username for authentication |
+| `Password` | The password for authentication (available when a password parameter is configured) |
+| `AuthenticationDatabase` | The authentication database (available when a password parameter is configured) |
+| `AuthenticationMechanism` | The authentication mechanism (available when a password parameter is configured) |
+| `Uri` | The connection URI, with the format `mongodb://{Username}:{Password}@{Host}:{Port}/?authSource={AuthenticationDatabase}&authMechanism={AuthenticationMechanism}` |
+
+**Example connection string:**
+
+```
+Uri: mongodb://admin:p%40ssw0rd1@localhost:27017/?authSource=admin&authMechanism=SCRAM-SHA-256
+```
+
+#### MongoDB database
+
+The MongoDB database resource combines the server properties above and adds the following connection property:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Database` | The MongoDB database name |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
+</Aside>
+
 ### Hosting integration health checks
 
 The MongoDB hosting integration automatically adds a health check for the MongoDB server resource. The health check verifies that the MongoDB server resource is running and that a connection can be established to it.

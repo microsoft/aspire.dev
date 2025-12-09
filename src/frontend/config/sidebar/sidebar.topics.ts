@@ -154,26 +154,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               "zh-CN": "构建您的第一个应用",
             },
             slug: "get-started/first-app",
-            badge: {
-              text: {
-                da: "Hurtigstart",
-                de: "Schnellstart",
-                en: "Quickstart",
-                es: "Inicio rápido",
-                fr: "Démarrage rapide",
-                hi: "त्वरित प्रारंभ",
-                id: "Panduan Cepat",
-                it: "Avvio rapido",
-                ja: "クイックスタート",
-                ko: "빠른 시작",
-                "pt-BR": "Introdução Rápida",
-                "pt-PT": "Introdução Rápida",
-                ru: "Быстрый старт",
-                tr: "Hızlı Başlangıç",
-                uk: "Швидкий старт",
-                "zh-CN": "快速入门",
-              },
-            },
           },
           {
             label: "Deploy your first app",
@@ -196,27 +176,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
               "zh-CN": "部署您的第一个应用",
             },
             slug: "get-started/deploy-first-app",
-            badge: {
-              variant: "success",
-              text: {
-                da: "",
-                de: "",
-                en: "Tutorial",
-                es: "",
-                fr: "",
-                hi: "",
-                id: "",
-                it: "",
-                ja: "",
-                ko: "",
-                "pt-BR": "",
-                "pt-PT": "",
-                ru: "",
-                tr: "",
-                uk: "",
-                "zh-CN": "",
-              },
-            },
           },
           {
             label: "Aspireify an existing app",
@@ -1202,14 +1161,27 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ],
           },
           { label: "Oracle", slug: "integrations/databases/oracle" },
-          { label: "PostgreSQL",
+          {
+            label: "PostgreSQL",
             collapsed: true,
             items: [
-              { label: "Get started", slug: "integrations/databases/postgres/postgres-get-started" },
-              { label: "Hosting integration (AppHost)", slug: "integrations/databases/postgres/postgres-host" },
-              { label: "Client integration (Your app)", slug: "integrations/databases/postgres/postgres-client" },
-              { label: "Community extensions", slug: "integrations/databases/postgres/postgresql-extensions" }
-            ]
+              {
+                label: "Get started",
+                slug: "integrations/databases/postgres/postgres-get-started",
+              },
+              {
+                label: "Hosting integration (AppHost)",
+                slug: "integrations/databases/postgres/postgres-host",
+              },
+              {
+                label: "Client integration (Your app)",
+                slug: "integrations/databases/postgres/postgres-client",
+              },
+              {
+                label: "Community extensions",
+                slug: "integrations/databases/postgres/postgresql-extensions",
+              },
+            ],
           },
           { label: "Qdrant", slug: "integrations/databases/qdrant" },
           { label: "RavenDB", slug: "integrations/databases/ravendb" },
@@ -1228,6 +1200,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             ],
           },
           { label: "SQLite", slug: "integrations/databases/sqlite" },
+          { label: "SurrealDB", slug: "integrations/databases/surrealdb" },
         ],
       },
       {
@@ -1264,6 +1237,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             slug: "integrations/frameworks/nodejs-extensions",
           },
           { label: "Orleans", slug: "integrations/frameworks/orleans" },
+          { label: "PowerShell", slug: "integrations/frameworks/powershell" },
           { label: "Python", slug: "integrations/frameworks/python" },
           { label: "Rust", slug: "integrations/frameworks/rust" },
         ],
@@ -1403,6 +1377,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: "Data API Builder", slug: "integrations/devtools/dab" },
           { label: "Dev Tunnels", slug: "integrations/devtools/dev-tunnels" },
           { label: "flagd", slug: "integrations/devtools/flagd" },
+          { label: "goff", slug: "integrations/devtools/goff" },
           { label: "k6", slug: "integrations/devtools/k6" },
           { label: "MailPit", slug: "integrations/devtools/mailpit" },
           {
@@ -1535,12 +1510,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           {
             label: "Python apps",
             slug: "dashboard/standalone-for-python",
-            badge: { text: "Tutorial", variant: "success" },
           },
           {
             label: "Node.js apps",
             slug: "dashboard/standalone-for-nodejs",
-            badge: { text: "Tutorial", variant: "success" },
           },
         ],
       },

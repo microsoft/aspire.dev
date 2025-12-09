@@ -147,7 +147,7 @@ The `aspire init` command is the starting point for adding Aspire to your existi
    
    <Pivot id="csharp">
    - Detect your existing solution structure
-   - Create a file-based AppHost (`apphost.cs`)
+   - Create a project-based AppHost (an _AppHost_ project with `AppHost.cs`)
    - Analyze your projects and suggest which ones to add to the orchestration
    - Install necessary Aspire packages
    </Pivot>
@@ -172,14 +172,15 @@ The `aspire init` command is the starting point for adding Aspire to your existi
 
 ### What does `aspire init` create?
 
-After running `aspire init`, your project will have a file-based AppHost:
-
 <Pivot id="csharp">
+After running `aspire init`, your solution will have a project-based AppHost:
+
 <FileTree>
-- ExampleEcommerce.sln
-- **apphost.cs** (new) orchestration code
-- **apphost.run.json** (new) configuration
+- ExampleEcommerce.sln (updated)
 - src/
+  - **ExampleEcommerce.AppHost/** (new) orchestration project
+    - **ExampleEcommerce.AppHost.csproj** project file
+    - **AppHost.cs** orchestration code
   - Api/
     - ExampleEcommerce.Api.csproj
     - Program.cs
@@ -196,6 +197,8 @@ After running `aspire init`, your project will have a file-based AppHost:
 A typical e-commerce solution with a web frontend, API service, and background worker.
 </Pivot>
 <Pivot id="python">
+After running `aspire init`, your project will have a file-based AppHost:
+
 <FileTree>
 - my-saas-app/
   - **apphost.cs** (new) orchestration code
@@ -219,6 +222,8 @@ A typical e-commerce solution with a web frontend, API service, and background w
 A typical SaaS application with FastAPI backend, Flask frontend, and Celery worker.
 </Pivot>
 <Pivot id="javascript">
+After running `aspire init`, your project will have a file-based AppHost:
+
 <FileTree>
 - my-store/
   - **apphost.cs** (new) orchestration code
@@ -246,6 +251,19 @@ A typical SaaS application with FastAPI backend, Flask frontend, and Celery work
 A typical monorepo with Node.js API, React storefront, and admin dashboard.
 </Pivot>
 
+<Pivot id="csharp">
+The `AppHost.cs` file in your new AppHost project initially contains a minimal starter:
+
+```csharp title="AppHost.cs — Initial state after aspire init"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO: Add resources here
+
+builder.Build().Run();
+```
+
+</Pivot>
+<Pivot id="python">
 The `apphost.cs` file initially contains a minimal starter:
 
 ```csharp title="apphost.cs — Initial state after aspire init"
@@ -257,6 +275,22 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.Build().Run();
 ```
+
+</Pivot>
+<Pivot id="javascript">
+The `apphost.cs` file initially contains a minimal starter:
+
+```csharp title="apphost.cs — Initial state after aspire init"
+#:sdk Aspire.AppHost.Sdk@13.0.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO: Add resources here
+
+builder.Build().Run();
+```
+
+</Pivot>
 
 This is your starting point. In the next section, you'll add your applications and configure their relationships.
 
@@ -292,15 +326,18 @@ This package provides methods like `AddViteApp`, `AddNodeApp`, and `AddJavaScrip
 
 ### Model your resources in the AppHost
 
+<Pivot id="csharp">
+Now update your `AppHost.cs` file in the AppHost project to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+</Pivot>
+<Pivot id="python,javascript">
 Now update your `apphost.cs` file to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+</Pivot>
 
 <Pivot id="csharp">
 
 For C# projects, use `AddProject` to reference your existing C# projects:
 
-```csharp title="apphost.cs — Complete e-commerce example"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-
+```csharp title="AppHost.cs — Complete e-commerce example"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.ExampleEcommerce_Api>("api")
@@ -399,6 +436,35 @@ builder.Build().Run();
   - `WithNpm()` / `WithYarn()` / `WithPnpm()` - Specify package manager
 - `WithRunScript` - Specify which npm script to run during development
 
+:::note[Passing arguments to scripts]
+Unlike the deprecated `AddNpmApp` API in Aspire 9, the new JavaScript hosting methods (`AddJavaScriptApp`, `AddViteApp`, `AddNodeApp`) do not support an `args` constructor parameter. You have two options to pass arguments to your scripts:
+
+**Option 1: Use `WithArgs` to pass arguments directly**
+
+```csharp title="apphost.cs — Pass arguments using WithArgs"
+builder.AddViteApp("frontend", "./frontend")
+    .WithArgs("--no-open");
+```
+
+**Option 2: Define custom scripts in `package.json` with arguments**
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "vite",
+    "dev:no-open": "vite --no-open"
+  }
+}
+```
+
+```csharp title="apphost.cs — Reference custom script"
+builder.AddViteApp("frontend", "./frontend")
+    .WithRunScript("dev:no-open");
+```
+
+Option 2 keeps all script configuration in `package.json`, making your scripts more discoverable and easier to run outside of Aspire (e.g., `npm run dev:no-open`).
+:::
+
 </Pivot>
 
 <Aside type="tip">
@@ -411,7 +477,7 @@ The calls to `WithReference` establish service dependencies and enable service d
 
 <Pivot id="csharp">
 
-```csharp title="apphost.cs — Connect .NET services" ".WithReference"
+```csharp title="AppHost.cs — Connect .NET services" ".WithReference"
 // Omitted for brevity...
 
 var api = builder.AddProject<Projects.YourApi>("api");

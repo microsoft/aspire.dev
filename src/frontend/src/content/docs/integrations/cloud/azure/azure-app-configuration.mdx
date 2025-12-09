@@ -14,7 +14,7 @@ import appConfigIcon from '@assets/icons/azure-appconfig-icon.png';
   alt="Azure App Configuration logo"
   height={80}
   width={80}
-  class:list={'float-inline-left icon'}
+  class:list={"float-inline-left icon"}
   data-zoom-off
 />
 
@@ -155,171 +155,262 @@ builder.Build().Run();
 
 For more information, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
-### Connect to an existing Azure App Configuration instance
+### Connect to existing Azure App Configuration store
 
-You might have an existing Azure App Configuration service that you want to connect to. You can chain a call to annotate that your `AzureAppConfigurationResource` is an existing resource:
+An alternative approach to using the `*AsExisting` APIs enables the addition of a connection string instead, where the AppHost uses configuration to resolve the connection information. To add a connection to an existing Azure App Configuration store, call the `AddConnectionString` method:
 
-```csharp title="C# — AppHost.cs"
+```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
-var existingAppConfigName = builder.AddParameter("existingAppConfigName");
-var existingAppConfigResourceGroup = builder.AddParameter("existingAppConfigResourceGroup");
+var config = builder.AddConnectionString("config");
 
-var appConfig = builder.AddAzureAppConfiguration("app-config")
-                       .AsExisting(existingAppConfigName, existingAppConfigResourceGroup);
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(appConfig);
+builder.AddProject<Projects.WebApplication>("web")
+       .WithReference(config);
 
 // After adding all resources, run the app...
 ```
 
-For more information on treating Azure App Configuration resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+> [!NOTE]
+> Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In Aspire nomenclature, the term "connection string" is used to represent any kind of connection information.
 
-<Aside type="note">
-Alternatively, instead of representing an Azure App Configuration resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
-</Aside>
+The connection string is configured in the AppHost's configuration, typically under [User Secrets](/aspnet/core/security/app-secrets), under the `ConnectionStrings` section. The AppHost injects this connection string as an environment variable into all dependent resources, for example:
 
-### Provisioning-generated Bicep
+```json
+{
+    "ConnectionStrings": {
+        "config": "https://{store_name}.azconfig.io"
+    }
+}
+```
 
-When you publish your app, Aspire provisioning APIs generate Bicep alongside the manifest file. Bicep is a domain-specific language for defining Azure resources. For more information, see [Bicep Overview](https://learn.microsoft.com/azure-resource-manager/bicep/overview).
+The dependent resource can access the injected connection string by calling the `GetConnectionString` method, and passing the connection name as the parameter, in this case `"config"`. The `GetConnectionString` API is shorthand for `IConfiguration.GetSection("ConnectionStrings")[name]`.
 
-When you add an Azure App Configuration resource, Bicep is generated that provisions the resource. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+### Add Azure App Configuration emulator resource
 
-#### Customize provisioning infrastructure
-
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+Microsoft provides the Azure App Configuration emulator for developers who want a local, lightweight implementation of the Azure App Configuration service to code and test against. In Aspire, you can use this emulator by calling the `RunAsEmulator` method when you add your resource:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var appConfig = builder.AddAzureAppConfiguration("app-config");
+var appConfig = builder.AddAzureAppConfiguration("config")
+    .RunAsEmulator();
 
-appConfig.ConfigureInfrastructure(infra =>
-{
-    var configStore = infra.GetProvisionableResources()
-                           .OfType<AppConfigurationStore>()
-                           .Single();
+// After adding all resources, run the app...
 
-    configStore.Sku = new AppConfigurationStoreSku
-    {
-        Name = "Standard"
-    };
-    configStore.Tags["ExampleKey"] = "Example value";
-});
+builder.Build().Run();
 ```
 
-The preceding code:
+The Azure App Configuration emulator isn't installed on your local computer. Instead, it's accessible to Aspire as a container. The `RunAsEmulator` method creates and starts the container when the AppHost starts using the `azure-app-configuration/app-configuration-emulator` image.
 
-- Chains a call to the `ConfigureInfrastructure` API:
-  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
-  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
-  - The single `AppConfigurationStore` resource is retrieved.
-  - The `Sku` object has its name property set to `Standard`.
-  - A tag is added to the App Configuration resource with a key of `ExampleKey` and a value of `Example value`.
+#### Configure Azure App Configuration emulator container
 
-There are many more configuration options available to customize the App Configuration resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+There are various configurations available to container resources. For example, you can configure the container's port, environment variables, its lifetime, and more.
+
+##### Configure Azure App Configuration emulator host port
+
+By default, Aspire assigns a random host port for the emulator container. If you want to use a specific port, chain calls on the container resource builder provided by the `RunAsEmulator` method as shown in the following example:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appConfig = builder.AddAzureAppConfiguration("config")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithHostPort(28000);
+    });
+
+// After adding all resources, run the app...
+```
+
+The preceding code configures the emulator container's endpoint to listen on port `28000`.
+
+##### Configure Azure App Configuration emulator with persistent lifetime
+
+To configure the emulator container with a persistent lifetime, call the `WithLifetime` method on the emulator container resource and pass `ContainerLifetime.Persistent`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appConfig = builder.AddAzureAppConfiguration("config")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithLifetime(ContainerLifetime.Persistent);
+    });
+
+// After adding all resources, run the app...
+```
+
+##### Configure Azure App Configuration emulator with data volume
+
+By default, the Azure App Configuration emulator doesn't persist data between container restarts. To enable persistent storage using a Docker volume, call the `WithDataVolume` method on the emulator resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appConfig = builder.AddAzureAppConfiguration("config")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithDataVolume();
+    });
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the emulator data outside the lifecycle of its container, ensuring configuration values survive container restarts. The data volume is mounted at the `/data` path in the emulator container and when a `name` parameter isn't provided, the name is autogenerated from the application and resource names (for example, if your application is named `myapp` and the resource is `config`, the autogenerated name will be `myapp-config`). For more information on data volumes and details on why they're preferred over [bind mounts](#configure-azure-app-configuration-emulator-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+##### Configure Azure App Configuration emulator with data bind mount
+
+To persist emulator data to a specific directory on your host machine, call the `WithDataBindMount` method. This is useful when you want direct access to the data files on your host system:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appConfig = builder.AddAzureAppConfiguration("config")
+    .RunAsEmulator(emulator =>
+    {
+        emulator.WithDataBindMount("../Emulator/Data");
+    });
+
+// After adding all resources, run the app...
+```
+
+> [!IMPORTANT]
+> Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+
+Data bind mounts rely on the host machine's filesystem to persist the emulator data across container restarts. The data bind mount is mounted at the `../Emulator/Data` path on the host machine relative to the AppHost directory (`IDistributedApplicationBuilder.AppHostDirectory`) in the emulator container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
 ## Client integration
 
-The Aspire Azure App Configuration client integration is used to connect to an Azure App Configuration service. To get started with the Aspire Azure App Configuration client integration, install the [📦 Aspire.Azure.Data.AppConfiguration](https://www.nuget.org/packages/Aspire.Azure.Data.AppConfiguration) NuGet package.
+To get started with the Aspire Azure App Configuration client integration, install the [📦 Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration](https://www.nuget.org/packages/Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration) NuGet package in the client-consuming project, that is, the project for the application that uses the App Configuration client. The App Configuration client integration registers an Azure configuration provider to populate the `IConfiguration` instance.
 
-<InstallDotNetPackage packageName="Aspire.Azure.Data.AppConfiguration" />
+<InstallDotNetPackage packageName="Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration" />
 
-### Add App Configuration client
+In the `Program.cs` file of your client-consuming project, call the `AddAzureAppConfiguration` extension method on any `IHostApplicationBuilder` to register the required services to flow Azure App Configuration values into the `IConfiguration` instance for use via the dependency injection container. The method takes a connection name parameter.
 
-In the `Program.cs` file of your client-consuming project, call the `AddAzureAppConfiguration` extension method to register a `ConfigurationClient` for use via the dependency injection container. The method takes a connection name parameter:
-
-```csharp
-builder.AddAzureAppConfiguration(connectionName: "app-config");
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(connectionName: "config");
 ```
 
-<Aside type="tip">
-The `connectionName` parameter must match the name used when adding the App Configuration resource in the AppHost project.
-</Aside>
+> [!TIP]
+> The `connectionName` parameter must match the name used when adding the App Configuration resource in the AppHost project. In other words, when you call `AddAzureAppConfiguration` in the AppHost and provide a name of `config` that same name should be used when calling `AddAzureAppConfiguration` in the client-consuming project. For more information, see [Add Azure App Configuration resource](#add-azure-app-configuration-resource).
 
-After adding the `ConfigurationClient`, you can retrieve the client instance using dependency injection:
+You can then retrieve the `IConfiguration` instance using dependency injection. For example, to retrieve the client from an example service:
 
-```csharp
-public class ExampleService(ConfigurationClient client)
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IConfiguration configuration)
 {
-    // Use client...
+    private readonly string _someValue = configuration["SomeKey"];
 }
 ```
 
-For more information, see:
+### Configure the Azure App Configuration provider
 
-- [Azure.Data.AppConfiguration documentation](https://learn.microsoft.com/dotnet/api/azure.data.appconfiguration.configurationclient) for examples on using the `ConfigurationClient`.
-- [Dependency injection in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+The `AddAzureAppConfiguration` method accepts an optional `Action<AzureAppConfigurationOptions> configureOptions` delegate that you use to configure the Azure App Configuration provider. This follows the same pattern as the non-Aspire `Microsoft.Extensions.Configuration.AzureAppConfiguration` package, but Aspire automatically handles the connection—you don't need to call `options.Connect`.
 
-### Add keyed App Configuration client
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options =>
+    {
+        // Select specific keys or labels
+        options.Select("MyApp:*");
+        options.Select("MyApp:*", "Production");
 
-There might be situations where you want to register multiple `ConfigurationClient` instances with different connection names. To register keyed App Configuration clients, call the `AddKeyedAzureAppConfiguration` method:
-
-```csharp
-builder.AddKeyedAzureAppConfiguration(name: "primary-config");
-builder.AddKeyedAzureAppConfiguration(name: "secondary-config");
+        // Configure refresh options
+        options.ConfigureRefresh(refresh =>
+        {
+            refresh.Register("MyApp:Sentinel", refreshAll: true)
+                   .SetRefreshInterval(TimeSpan.FromSeconds(30));
+        });
+    });
 ```
 
-Then you can retrieve the client instances using dependency injection:
+For more information on available configuration options, see the [Azure App Configuration provider reference](https://learn.microsoft.com/azure/azure-app-configuration/reference-dotnet-provider).
 
-```csharp
-public class ExampleService(
-    [KeyedService("primary-config")] ConfigurationClient primaryClient,
-    [KeyedService("secondary-config")] ConfigurationClient secondaryClient)
+### Use feature flags
+
+To use feature flags, install the [📦 Microsoft.FeatureManagement](https://www.nuget.org/packages/Microsoft.FeatureManagement) NuGet package:
+
+<InstallDotNetPackage packageName="Microsoft.FeatureManagement" />
+
+App Configuration doesn't load feature flags by default. To load feature flags, use the `configureOptions` delegate (as shown in [Configure the Azure App Configuration provider](#configure-the-azure-app-configuration-provider)) to call `UseFeatureFlags()` when calling `builder.AddAzureAppConfiguration`.
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options => options.UseFeatureFlags());
+
+// Register feature management services
+builder.Services.AddFeatureManagement();
+```
+
+The `configureOptions` pattern is used to configure the Azure App Configuration provider. For more information, see [Azure App Configuration: .NET configuration provider](https://learn.microsoft.com/azure/azure-app-configuration/reference-dotnet-provider). You can then use `IFeatureManager` to evaluate feature flags in your app. Consider the following example ASP.NET Core Minimal API app:
+
+```csharp title="C# — Program.cs"
+using Microsoft.Extensions.Hosting;
+using Microsoft.FeatureManagement;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options => options.UseFeatureFlags());
+
+// Register feature management services
+builder.Services.AddFeatureManagement();
+
+var app = builder.Build();
+
+app.MapGet("/", async (IFeatureManager featureManager) =>
 {
-    // Use clients...
-}
+    if (await featureManager.IsEnabledAsync("NewFeature"))
+    {
+        return Results.Ok("New feature is enabled!");
+    }
+
+    return Results.Ok("Using standard implementation.");
+});
+
+app.Run();
 ```
 
-For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+For more information, see [.NET Feature Management](https://learn.microsoft.com/azure/azure-app-configuration/feature-management-dotnet-reference).
 
 ### Configuration
 
-The Aspire Azure App Configuration library provides multiple options to configure the Azure App Configuration connection based on the requirements and conventions of your project. Either an `Endpoint` or a `ConnectionString` must be supplied.
+The Aspire Azure App Configuration library provides multiple options to configure the Azure App Configuration connection based on the requirements and conventions of your project. The App Config endpoint is required to be supplied, either in `AzureAppConfigurationSettings.Endpoint` or using a connection string.
 
 #### Use a connection string
 
-When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddAzureAppConfiguration`:
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `builder.AddAzureAppConfiguration()`:
 
-```csharp
-builder.AddAzureAppConfiguration(connectionName: "app-config");
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration("config");
 ```
 
-The connection information is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
+Then the App Configuration endpoint is retrieved from the `ConnectionStrings` configuration section. The App Configuration store URI works with the `AzureAppConfigurationSettings.Credential` property to establish a connection. If no credential is configured, the `DefaultAzureCredential` is used.
 
-- **Service endpoint (recommended)**: Uses the service endpoint with `DefaultAzureCredential`.
-
-    ```json
-    {
-      "ConnectionStrings": {
-        "app-config": "https://{account_name}.azconfig.io"
-      }
-    }
-    ```
-
-- **Connection string**: Includes an access key.
-
-    ```json
-    {
-      "ConnectionStrings": {
-        "app-config": "Endpoint=https://{account_name}.azconfig.io;Id={id};Secret={secret}"
-      }
-    }
-    ```
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "config": "https://{store_name}.azconfig.io"
+  }
+}
+```
 
 #### Use configuration providers
 
-The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Azure:Data:AppConfiguration` key:
+The Aspire Azure App Configuration library supports `Microsoft.Extensions.Configuration`. It loads the `AzureAppConfigurationSettings` from configuration by using the `Aspire:Microsoft:Extensions:Configuration:AzureAppConfiguration` key. Example _appsettings.json_ that configures some of the options:
 
-```json
+```json title="JSON — appsettings.json"
 {
   "Aspire": {
-    "Azure": {
-      "Data": {
-        "AppConfiguration": {
-          "DisableHealthChecks": true,
-          "DisableTracing": false
+    "Microsoft": {
+      "Extensions": {
+        "Configuration": {
+          "AzureAppConfiguration": {
+            "Endpoint": "YOUR_APPCONFIGURATION_ENDPOINT_URI"
+          }
         }
       }
     }
@@ -327,35 +418,28 @@ The library supports `Microsoft.Extensions.Configuration`. It loads settings fro
 }
 ```
 
+For the complete App Configuration client integration JSON schema, see [ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration/ConfigurationSchema.json).
+
 #### Use inline delegates
 
-You can configure settings inline:
+You can also pass the `Action<AzureAppConfigurationSettings> configureSettings` delegate to set up some or all the options inline, for example to set App Configuration endpoint from code:
 
-```csharp
+```csharp title="C# — Program.cs"
 builder.AddAzureAppConfiguration(
-    "app-config",
-    settings => settings.DisableHealthChecks = true);
+    "config",
+    configureSettings: settings => settings.Endpoint = "https://YOUR_URI");
 ```
-
-### Observability and telemetry
-
-Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
 
 #### Logging
 
 The Aspire Azure App Configuration integration uses the following log categories:
 
-- `Azure`
-- `Azure.Core`
-- `Azure.Identity`
-- `Azure.Data.AppConfiguration`
+- `Microsoft.Extensions.Configuration.AzureAppConfiguration.Refresh`
 
 #### Tracing
 
-The Aspire Azure App Configuration integration will emit the following tracing activities using OpenTelemetry:
-
-- `Azure.Data.AppConfiguration.*`
+The Aspire Azure App Configuration integration doesn't make use of any activity sources thus no tracing is available.
 
 #### Metrics
 
-The Aspire Azure App Configuration integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET.
+The Aspire Azure App Configuration integration currently doesn't support metrics.

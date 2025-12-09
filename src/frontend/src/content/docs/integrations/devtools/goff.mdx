@@ -1,0 +1,184 @@
+---
+title: GO Feature Flag integration
+---
+
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from "@components/InstallPackage.astro";
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import goffIcon from '@assets/icons/go-feature-flag.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={goffIcon}
+  dark={goffIcon}
+  alt="goff logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+Feature flags lets you modify system behavior without changing code. Deploy every day, release when you are ready. Reduce risk by releasing your features progressively.
+
+* [GO Feature Flag](https://gofeatureflag.org/) believes in simplicity and offers a simple and lightweight solution to use feature flags.
+* Target individual segments, users, and development environments, use advanced rollout functionality.
+* 100% Opensource, no vendor locking, supports your favorite languages and is pushing for standardisation with the support of OpenFeature.
+
+## Hosting integration
+
+To get started with the Aspire GO Feature Flag hosting integration, install the [CommunityToolkit.Aspire.Hosting.GoFeatureFlag](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.GoFeatureFlag) NuGet package in the app host project.
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.GoFeatureFlag" />
+
+### Add goff server resource
+
+In your app host project, call `AddGoFeatureFlag` on the builder instance to add a goff container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+                  .WithGoffBindMount("./goff");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/gofeatureflag/go-feature-flag` image, it creates a new goff server instance on your local machine. A reference to your goff server (the `goff` variable) is added to the `ExampleProject`.
+
+<Aside type="caution">
+
+The goff container requires a folder source with configuration files. Use the `WithGoffBindMount` method to configure file-based flag synchronization.
+
+</Aside>
+
+### Flag configuration format
+
+goff uses either the `YAML`, `JSON` or `TOML` format to configure feature flags. Here is a simple example for you to get started:
+
+```yaml title="goff/flags.yaml"
+display-banner:
+  variations:
+    enabled: true
+    disabled: false
+  defaultRule:
+    variation: enabled
+```
+
+You can learn more on how to create flags here: [Create flags with goff](https://gofeatureflag.org/docs/configure_flag/create-flags).
+
+### Flag configuration
+
+In the previous section, we created flags via a configuration file. We now need another file to configure the Relay Proxy that will load your flags from the file system. Here is what you need to ingest the previous created file:
+
+```yaml title="goff/goff-proxy.yaml"
+retrievers:
+  - kind: file
+    path: /goff/flags.yaml
+```
+
+### Configure logging
+
+To configure debug logging for the goff container resource, call the `WithLogLevel` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+                  .WithGoffBindMount("./goff");
+                  .WithLogLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+The `WithLogLevel` method enables debug logging in the goff container, which provides verbose output for troubleshooting flag evaluation issues. Currently, only `Debug`, `Information`, `Warning` and `Error` log levels are supported.
+
+### Customize ports
+
+To customize the port used by the goff container resource, provide the `port` parameter to the `AddGoFeatureFlag` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag(name: "goff", port: 1031)
+                  .WithGoffBindMount("./goff");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+The `port` parameter specifies the host port for the goff HTTP endpoint. If this parameter is not provided, a random port is assigned.
+
+### Health checks
+
+The goff hosting integration automatically adds a health check for the goff server resource. The health check verifies that the goff server is running and that a connection can be established to it.
+
+The hosting integration uses the goff `/health` endpoint to perform health checks.
+
+## Client integration
+
+To get started with the Aspire goff client integration, install the [📦 CommunityToolkit.Aspire.GoFeatureFlag](https://nuget.org/packages/CommunityToolkit.Aspire.GoFeatureFlag) NuGet package in the client-consuming project.
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.GoFeatureFlag" />
+
+### Add GO Feature Flag client
+
+In the `Program.cs` file of your client-consuming project, call the `AddGoFeatureFlagClient` extension method to register a `GoFeatureFlagProvider` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddGoFeatureFlagClient(connectionName: "goff");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the goff resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `GoFeatureFlagProvider` instance using dependency injection:
+
+```csharp
+public class ExampleService(GoFeatureFlagProvider provider)
+{
+    // Use provider...
+}
+```
+
+### Add keyed GO Feature Flag client
+
+There might be situations where you want to register multiple `GoFeatureFlagProvider` instances with different connection names. To register keyed goff clients, call the `AddKeyedGoFeatureFlagClient` method:
+
+```csharp
+builder.AddKeyedGoFeatureFlagClient(name: "technical");
+builder.AddKeyedGoFeatureFlagClient(name: "business");
+```
+
+Then you can retrieve the `GoFeatureFlagProvider` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("technical")] GoFeatureFlagProvider technicalProvider,
+    [FromKeyedServices("business")] GoFeatureFlagProvider businessProvider)
+{
+    // Use providers...
+}
+```
+
+### Client integration health checks
+
+The Aspire goff integration uses the configured client to perform a health check.
+
+## See also
+
+- [GO Feature Flag documentation](https://gofeatureflag.org/)
+- [.NET SDK for GO Feature Flag](https://github.com/open-feature/dotnet-sdk-contrib/tree/main/src/OpenFeature.Providers.GOFeatureFlag)
+- [OpenFeature documentation](https://openfeature.dev)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

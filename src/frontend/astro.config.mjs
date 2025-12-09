@@ -1,8 +1,12 @@
 ﻿// @ts-check
 import { defineConfig } from 'astro/config';
-import { sidebarTopics } from './sidebar.topics';
-import { redirects } from './redirects.mjs';
-import { iconPacks } from './icon-packs.mjs';
+import { sidebarTopics } from './config/sidebar/sidebar.topics.ts';
+import { redirects } from './config/redirects.mjs';
+import { iconPacks } from './config/icon-packs.mjs';
+import { cookieConfig } from './config/cookie.config';
+import { locales } from './config/locales.ts';
+import { headAttrs } from './config/head.attrs.ts';
+import { socialConfig } from './config/socials.config.ts';
 import catppuccin from "@catppuccin/starlight";
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
@@ -15,26 +19,7 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
-
-// Localization: https://lunaria.dev/
-export const locales = {
-	root: { label: 'English', lang: 'en' },
-	de: { label: 'Deutsch', lang: 'de' },
-	es: { label: 'Español', lang: 'es' },
-	ja: { label: '日本語', lang: 'ja' },
-	fr: { label: 'Français', lang: 'fr' },
-	it: { label: 'Italiano', lang: 'it' },
-	id: { label: 'Bahasa Indonesia', lang: 'id' },
-	'zh-cn': { label: '简体中文', lang: 'zh-CN' },
-	'pt-br': { label: 'Português do Brasil', lang: 'pt-BR' },
-	'pt-pt': { label: 'Português', lang: 'pt-PT' },
-	ko: { label: '한국어', lang: 'ko' },
-	tr: { label: 'Türkçe', lang: 'tr' },
-	ru: { label: 'Русский', lang: 'ru' },
-	hi: { label: 'हिंदी', lang: 'hi' },
-	da: { label: 'Dansk', lang: 'da' },
-	uk: { label: 'Українська', lang: 'uk' },
-};
+import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 
 // https://astro.build/config
 export default defineConfig({
@@ -60,76 +45,8 @@ export default defineConfig({
 				baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
 			},
 			favicon: 'favicon.svg',
-			head: [
-				// SEO meta tags for discoverability (including legacy ".NET Aspire" branding)
-				{ tag: 'meta', attrs: { name: 'description', content: 'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.' } },
-				{ tag: 'meta', attrs: { name: 'keywords', content: `
-					Aspire, .NET Aspire, dotnet aspire,
-					distributed applications, cloud-native, microservices, orchestration,
-					.NET, observability, otel, opentelemetry, dashboard, service discovery, integrations,
-					C#, csharp, polyglot, python, go, node.js, javascript, typescript,
-					vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis,
-					docker, containers, kubernetes, compose
-				`.replace(/\s*\n\s*/g, ' ').trim() } },
-				{ tag: 'meta', attrs: { name: 'alternate-name', content: '.NET Aspire' } },
-				
-				// Open Graph meta tags
-				{ tag: 'meta', attrs: { property: 'og:title', content: 'Aspire—Your Stack, Streamlined' } },
-				{ tag: 'meta', attrs: { property: 'og:description', content: 'Aspire streamlines your development workflow with code-first control, modularity, and observability for distributed applications.' } },
-				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://aspire.dev/og-image.png' } },
-				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
-				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'Aspire' } },
-				
-				// Twitter Card meta tags
-				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
-				{ tag: 'meta', attrs: { property: 'twitter:domain', content: 'aspire.dev' } },
-				{ tag: 'meta', attrs: { property: 'twitter:url', content: 'https://aspire.dev' } },
-				{ tag: 'meta', attrs: { name: 'twitter:title', content: 'Aspire—Your Stack, Streamlined' } },
-				{ tag: 'meta', attrs: { name: 'twitter:description', content: 'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability.' } },
-				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://aspire.dev/og-image.png' } },
-				
-				// Favicons and icons (ordered: SVG → PNG → ICO → Apple Touch Icon)
-				{ tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' } },
-				{ tag: 'link', attrs: { rel: 'icon', type: 'image/png', href: '/favicon-96x96.png', sizes: '96x96' } },
-				{ tag: 'link', attrs: { rel: 'shortcut icon', href: '/favicon.ico' } },
-				{ tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' } },
-				{ tag: 'meta', attrs: { name: 'apple-mobile-web-app-title', content: 'Aspire' } },
-				{ tag: 'link', attrs: { rel: 'alternate', type: 'application/rss+xml', title: 'Aspire Docs RSS', href: '/rss.xml' } },
-				{ tag: 'script', attrs: { src: 'https://js.monitor.azure.com/scripts/c/ms.analytics-web-3.min.js', defer: true } },
-				{ tag: 'script', attrs: { src: '/1ds/', defer: true } }
-			],
-			social: [
-				{
-					icon: 'github',
-					label: 'GitHub',
-					href: 'https://github.com/dotnet/aspire'
-				},
-				{
-					icon: 'discord',
-					label: 'Discord',
-					href: 'https://discord.com/invite/raNPcaaSj8'
-				},
-				{
-					icon: 'x.com',
-					label: 'X',
-					href: 'https://x.com/aspiredotdev'
-				},
-				{
-					icon: 'blueSky',
-					label: 'BlueSky',
-					href: 'https://bsky.app/profile/aspire.dev'
-				},
-				{
-					icon: 'youtube',
-					label: 'YouTube',
-					href: 'https://www.youtube.com/@aspiredotdev'
-				},
-				{
-					icon: 'twitch',
-					label: 'Twitch',
-					href: 'https://www.twitch.tv/aspiredotdev'
-				}
-			],
+			head: headAttrs,
+            social: socialConfig,
 			customCss: [
 				'@fontsource-variable/outfit',
 				'./src/styles/site.css',
@@ -226,6 +143,7 @@ export default defineConfig({
 					}
 				})
 			],
-		})
+		}),
+        jopSoftwarecookieconsent(cookieConfig)
 	]
 });
