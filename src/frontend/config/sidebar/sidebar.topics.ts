@@ -178,6 +178,28 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             slug: "get-started/deploy-first-app",
           },
           {
+            label: "Use coding agents with Aspire",
+            translations: {
+              da: "Brug kodningsagenter med Aspire",
+              de: "Verwenden Sie Codierungsagenten mit Aspire",
+              en: "Use coding agents with Aspire",
+              es: "Usar agentes de codificación con Aspire",
+              fr: "Utiliser des agents de codage avec Aspire",
+              hi: "Aspire के साथ कोडिंग एजेंट का उपयोग करें",
+              id: "Gunakan agen pengkodean dengan Aspire",
+              it: "Usa agenti di codifica con Aspire",
+              ja: "Aspire でコーディングエージェントを使用する",
+              ko: "Aspire와 함께 코딩 에이전트 사용",
+              "pt-BR": "Use agentes de codificação com Aspire",
+              "pt-PT": "Use agentes de codificação com Aspire",
+              ru: "Используйте агенты кодирования с Aspire",
+              tr: "Aspire ile kodlama ajanlarını kullanın",
+              uk: "Використовуйте агенти кодування з Aspire",
+              "zh-CN": "在 Aspire 中使用编码代理",
+            },
+            slug: "get-started/coding-agents",
+          },
+          {
             label: "Aspireify an existing app",
             translations: {
               da: "Aspireify en eksisterende app",
