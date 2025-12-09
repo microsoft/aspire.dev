@@ -4,34 +4,41 @@ description: Learn how to orchestrate JavaScript applications with Aspire using 
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
 import InstallPackage from "@components/InstallPackage.astro";
 import ThemeImage from '@components/ThemeImage.astro';
-import nodejsIcon from '@assets/icons/nodejs-icon.png';
-import nodejsLightIcon from '@assets/icons/nodejs-light-icon.png';
+import jsIcon from '@assets/icons/javascript.svg';
 
-<ThemeImage
-  light={nodejsLightIcon}
-  dark={nodejsIcon}
+<Image
+  src={jsIcon}
   alt="Node.js logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-The Aspire JavaScript hosting integration enables you to orchestrate JavaScript applications alongside your Aspire projects in the app host. This integration provides a unified approach to running JavaScript applications with support for multiple package managers (npm, yarn, pnpm) and frameworks (Node.js, Vite, and more).
+The Aspire JavaScript/TypeScript hosting integration enables you to orchestrate JavaScript applications alongside your Aspire projects in the AppHost. This integration provides a unified approach to running JavaScript applications with support for multiple package managers (npm, yarn, pnpm) and frameworks (Node.js, Vite, and more).
 
+:::tip[Package rename]
 In Aspire 13.0, the `Aspire.Hosting.NodeJs` package was renamed to `Aspire.Hosting.JavaScript` to better reflect its broader support for JavaScript applications.
+:::
 
 ## Hosting integration
 
-To get started with the Aspire JavaScript hosting integration, install the [Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package in the app host project.
+To get started with the Aspire JavaScript hosting integration, install the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package in the AppHost project.
 
 <InstallPackage packageName="Aspire.Hosting.JavaScript" />
 
+The integration exposes a number of app resource types:
+
+- `JavaScriptAppResource`: Added with the `AddJavaScriptApp` method for general JavaScript applications
+- `NodeAppResource`: Added with the `AddNodeApp` method for running specific JavaScript files with Node.js
+- `ViteAppResource`: Added with the `AddViteApp` method for Vite applications with Vite-specific defaults
+
 ## Add JavaScript application
 
-The `AddJavaScriptApp` method is the foundational method for adding JavaScript applications to your Aspire app host. It provides a consistent way to orchestrate JavaScript applications with automatic package manager detection and intelligent defaults.
+The `AddJavaScriptApp` method is the foundational method for adding JavaScript applications to your Aspire AppHost. It provides a consistent way to orchestrate JavaScript applications with automatic package manager detection and intelligent defaults.
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -52,8 +59,56 @@ By default, `AddJavaScriptApp`:
 - Automatically generates Dockerfiles to build production assets
 
 The method accepts the following parameters:
+- `name`: The name of the resource in the Aspire dashboard
+- `workingDirectory`: The path to the directory containing your JavaScript application (where `package.json` is located)
+
+## Add Node.js application
+
+For Node.js applications that don't use a package.json script runner, you can directly run a JavaScript file using the `AddNodeApp` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nodeApp = builder.AddNodeApp("node-app", "server.js")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(nodeApp);
+
+// After adding all resources, run the app...
+```
+
+The `AddNodeApp` method requires:
 - **name**: The name of the resource in the Aspire dashboard
-- **workingDirectory**: The path to the directory containing your JavaScript application (where `package.json` is located)
+- **scriptPath**: The path to the JavaScript file to execute
+- **workingDirectory** (optional): The working directory (defaults to the script's directory)
+- **args** (optional): Command-line arguments to pass to the script
+
+## Add Vite application
+
+For Vite applications, you can use the `AddViteApp` extension method which provides Vite-specific defaults and optimizations:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var viteApp = builder.AddViteApp("vite-app", "./vite-app")
+    .WithHttpEndpoint(port: 5173, env: "PORT");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(viteApp);
+
+// After adding all resources, run the app...
+```
+
+`AddViteApp` automatically configures:
+- **Development**: Runs the "dev" script (typically `vite`)
+- **Build**: Runs the "build" script (typically `vite build`)
+- **Package manager**: Uses npm by default, but can be customized with `WithYarn()` or `WithPnpm()`
+- **Port configuration**: Commonly uses port 5173 (Vite's default)
+
+The method accepts the same parameters as `AddJavaScriptApp`:
+- **name**: The name of the resource in the Aspire dashboard
+- **workingDirectory**: The path to the directory containing your Vite application
 
 ## Configure package managers
 
@@ -61,13 +116,13 @@ Aspire automatically detects and supports multiple JavaScript package managers w
 
 ### Auto-install by default
 
-Starting in Aspire 13.0, package managers automatically install dependencies by default. This ensures dependencies are always up-to-date during development and publishing.
+Package managers automatically install dependencies by default. This ensures dependencies are always up-to-date during development and publishing.
 
 ### Use npm (default)
 
 npm is the default package manager. If your project has a `package.json` file, Aspire will use npm unless you specify otherwise:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — AppHost.cs" "WithNpm"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // npm is used by default
@@ -86,7 +141,7 @@ When publishing (production mode), Aspire automatically uses `npm ci` if `packag
 
 To use yarn as the package manager, call the `WithYarn` extension method:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — AppHost.cs" "WithYarn"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -108,7 +163,7 @@ When publishing, Aspire uses:
 
 To use pnpm as the package manager, call the `WithPnpm` extension method:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — AppHost.cs" "WithPnpm"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -133,7 +188,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Use different script names
 var app = builder.AddJavaScriptApp("app", "./app")
     .WithRunScript("start")      // Run "npm run start" during development instead of "dev"
-    .WithBuildScript("prod");     // Run "npm run prod" during publish instead of "build"
+    .WithBuildScript("prod");    // Run "npm run prod" during publish instead of "build"
 
 // After adding all resources, run the app...
 ```
@@ -191,28 +246,6 @@ Common environment variables for JavaScript frameworks:
 - **PORT**: Generic port configuration used by many frameworks (Express, Vite, Next.js)
 - **VITE_PORT**: For Vite applications
 - **HOST**: Some frameworks also use this to bind to specific interfaces
-
-## Add Node.js application
-
-For Node.js applications that don't use a package.json script runner, you can directly run a JavaScript file using the `AddNodeApp` extension method:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var nodeApp = builder.AddNodeApp("node-app", "server.js")
-    .WithHttpEndpoint(port: 3000, env: "PORT");
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(nodeApp);
-
-// After adding all resources, run the app...
-```
-
-The `AddNodeApp` method requires:
-- **name**: The name of the resource in the Aspire dashboard
-- **scriptPath**: The path to the JavaScript file to execute
-- **workingDirectory** (optional): The working directory (defaults to the script's directory)
-- **args** (optional): Command-line arguments to pass to the script
 
 ## Production builds
 
