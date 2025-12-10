@@ -185,6 +185,71 @@ This command stops and removes all containers, networks, and volumes created by 
 
 The Docker hosting integration captures environment variables from your app model and includes them in a `.env` file. This ensures that all configuration is properly passed to the containerized services.
 
+## Customize container image push options
+
+When deploying containers, you can customize how container images are named and tagged when pushed to a registry. This is useful when you need to:
+
+- Use different image names for different environments
+- Apply custom tagging strategies (e.g., semantic versioning, Git commit hashes)
+- Push to different registries or namespaces
+
+### Set remote image name and tag
+
+Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image reference:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService()
+    .WithRemoteImageName("myorg/myapi")
+    .WithRemoteImageTag("v1.0.0");
+
+// After adding all resources, run the app...
+```
+
+### Advanced customization with callbacks
+
+For more complex scenarios, use `WithImagePushOptions` to register a callback that can dynamically configure push options:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService()
+    .WithImagePushOptions(context =>
+    {
+        // Customize the image name based on the resource
+        context.Options.RemoteImageName = $"myorg/{context.Resource.Name}";
+        
+        // Apply a custom tag based on environment or version
+        var version = Environment.GetEnvironmentVariable("APP_VERSION") ?? "latest";
+        context.Options.RemoteImageTag = version;
+    });
+
+// After adding all resources, run the app...
+```
+
+For asynchronous operations (such as retrieving configuration from external sources), use the async overload:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService()
+    .WithImagePushOptions(async context =>
+    {
+        // Retrieve configuration asynchronously
+        var config = await LoadConfigurationAsync();
+        context.Options.RemoteImageName = config.ImageName;
+        context.Options.RemoteImageTag = config.ImageTag;
+    });
+
+// After adding all resources, run the app...
+```
+
+Multiple callbacks can be registered on the same resource, and they will be invoked in the order they were added.
+
 ## See also
 
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
