@@ -37,31 +37,34 @@ To help visualize how endpoints work, consider the Aspire starter templates inne
 architecture-beta
     group app [Aspire AppHost]
     group docker [Docker Daemon]
-    
+
     service browser(internet)[Browser]
-    
+
     service frontend_proxy(server)[Frontend Proxy]
     service api_proxy(server)[API Proxy]
     service redis_proxy(server)[Redis Proxy]
-    
+
     service frontend(disk)[frontend] in app
     service apiservice(disk)[apiservice] in app
     service redis(database)[redis] in docker
-    
+
     browser:R --> L:frontend_proxy
     frontend_proxy:R --> L:frontend
-    
+
     browser:R --> L:api_proxy
     api_proxy:R --> L:apiservice
-    
+
     browser:R --> L:redis_proxy
     redis_proxy:R --> L:redis
-    
+
     frontend:B --> T:frontend
     frontend:R --> L:api_proxy
 ```
 
-<Image src={networkingProxies} alt="Aspire Starter Application template inner loop networking diagram." />
+<Image
+  src={networkingProxies}
+  alt="Aspire Starter Application template inner loop networking diagram."
+/>
 
 ## How container networks are managed
 
@@ -84,7 +87,10 @@ Each AppHost instance gets its own network resources. The only differences are t
 Containers register themselves on the network using their resource name. Aspire uses this name for service discovery between containers. For example, a `pgadmin` container can connect to a database resource named `postgres` using `postgres:5432`.
 
 <Aside type="note">
-Host services, such as projects or other executables, don't use container networks. They rely on exposed container ports for service discovery and communication with containers. For more details on service discovery, see [service discovery](/fundamentals/service-discovery/).
+  Host services, such as projects or other executables, don't use container
+  networks. They rely on exposed container ports for service discovery and
+  communication with containers. For more details on service discovery, see
+  [service discovery](/fundamentals/service-discovery/).
 </Aside>
 
 ## Launch profiles
@@ -139,7 +145,8 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 ```
 
 <Aside type="caution">
-If there's no _launchSettings.json_ (or launch profile), there are no bindings by default.
+  If there's no _launchSettings.json_ (or launch profile), there are no bindings
+  by default.
 </Aside>
 
 For more information, see [Launch profiles](/fundamentals/launch-profiles/).
@@ -171,7 +178,8 @@ The preceding configuration specifies an `Https` endpoint. The `Url` property is
 With the Kestrel endpoint configured, the project should remove any configured `applicationUrl` from the _launchSettings.json_ file.
 
 <Aside type="note">
-If the `applicationUrl` is present in the _launchSettings.json_ file and the Kestrel endpoint is configured, the AppHost will throw an exception.
+  If the `applicationUrl` is present in the _launchSettings.json_ file and the
+  Kestrel endpoint is configured, the AppHost will throw an exception.
 </Aside>
 
 When you add a project resource, there's an overload that lets you specify that the Kestrel endpoint should be used instead of the _launchSettings.json_ file:
@@ -191,7 +199,7 @@ For more information, see `AddProject`.
 
 ## Ports and proxies
 
-When defining a service binding, the host port is *always* given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, all resource dependencies that use the `WithReference` API rely of the proxy endpoint from the environment variable.
+When defining a service binding, the host port is _always_ given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, all resource dependencies that use the `WithReference` API rely of the proxy endpoint from the environment variable.
 
 Consider the following method chain that calls `AddProject`, `WithHttpEndpoint`, and then `WithReplicas`:
 
@@ -203,7 +211,10 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 
 The preceding code results in the following networking diagram:
 
-<Image src={proxyWithReplicas} alt="Aspire frontend app networking diagram with specific host port and two replicas." />
+<Image
+  src={proxyWithReplicas}
+  alt="Aspire frontend app networking diagram with specific host port and two replicas."
+/>
 
 The preceding diagram depicts the following:
 
@@ -225,7 +236,10 @@ There are two ports defined:
 - A host port of 5066.
 - A random proxy port that the underlying service will be bound to.
 
-<Image src={proxyHostPortAndRandomPort} alt="Aspire frontend app networking diagram with specific host port and random port." />
+<Image
+  src={proxyHostPortAndRandomPort}
+  alt="Aspire frontend app networking diagram with specific host port and random port."
+/>
 
 The preceding diagram depicts the following:
 
@@ -243,7 +257,10 @@ builder.AddNpmApp("frontend", "../NodeFrontend", "watch")
 
 The previous code makes the random port available in the `PORT` environment variable. The app uses this port to listen to incoming connections from the proxy. Consider the following diagram:
 
-<Image src={proxyWithEnvVarPort} alt="Aspire frontend app networking diagram with specific host port and environment variable port." />
+<Image
+  src={proxyWithEnvVarPort}
+  alt="Aspire frontend app networking diagram with specific host port and environment variable port."
+/>
 
 The preceding diagram depicts the following:
 
@@ -253,7 +270,9 @@ The preceding diagram depicts the following:
 - The frontend service listening on an environment 65001.
 
 <Aside type="tip">
-To avoid an endpoint being proxied, set the `IsProxied` property to `false` when calling the `WithEndpoint` extension method. For more information, see [Endpoint extensions: additional considerations](#additional-considerations).
+  To avoid an endpoint being proxied, set the `IsProxied` property to `false`
+  when calling the `WithEndpoint` extension method. For more information, see
+  [Endpoint extensions: additional considerations](#additional-considerations).
 </Aside>
 
 ## Omit the host port
@@ -267,7 +286,10 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 
 In this scenario, both the host and service ports are random, as shown in the following diagram:
 
-<Image src={proxyWithRandomPorts} alt="Aspire frontend app networking diagram with random host port and proxy port." />
+<Image
+  src={proxyWithRandomPorts}
+  alt="Aspire frontend app networking diagram with random host port and proxy port."
+/>
 
 The preceding diagram depicts the following:
 
@@ -292,7 +314,10 @@ The preceding code:
 
 Consider the following diagram:
 
-<Image src={proxyWithDockerPortMapping} alt="Aspire frontend app networking diagram with a docker host." />
+<Image
+  src={proxyWithDockerPortMapping}
+  alt="Aspire frontend app networking diagram with a docker host."
+/>
 
 ## Endpoint extension methods
 
@@ -328,7 +353,10 @@ When calling the `WithEndpoint` extension method, the `callback` overload expose
 The `AllocatedEndpoint` property allows you to get or set the endpoint for a service. The `IsExternal` and `IsProxied` properties determine how the endpoint is managed and exposed: `IsExternal` decides if it should be publicly accessible, while `IsProxied` ensures DCP manages it, allowing for internal port differences and replication.
 
 <Aside type="tip">
-If you're hosting an external executable that runs its own proxy and encounters port binding issues due to DCP already binding the port, try setting the `IsProxied` property to `false`. This prevents DCP from managing the proxy, allowing your executable to bind the port successfully.
+  If you're hosting an external executable that runs its own proxy and
+  encounters port binding issues due to DCP already binding the port, try
+  setting the `IsProxied` property to `false`. This prevents DCP from managing
+  the proxy, allowing your executable to bind the port successfully.
 </Aside>
 
 The `Name` property identifies the service, whereas the `Port` and `TargetPort` properties specify the desired and listening ports, respectively.
