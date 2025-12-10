@@ -1,6 +1,6 @@
 ---
-title: Add Dockerfiles to your .NET app model
-description: Learn how to add Dockerfiles to your .NET app model.
+title: Add Dockerfiles to your app model
+description: Learn how to add Dockerfiles to your app model.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -35,7 +35,7 @@ Choose the appropriate method based on your scenario:
 
 In the following example the `AddDockerfile` extension method is used to specify a container by referencing the context path for the container build.
 
-```csharp
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.AddDockerfile(
@@ -48,7 +48,7 @@ By default the name of the _Dockerfile_ which is used is `Dockerfile` and is exp
 
 This is useful if you wish to modify the specific _Dockerfile_ being used when running locally or when the AppHost is deploying.
 
-```csharp
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.ExecutionContext.IsRunMode
@@ -64,41 +64,41 @@ When using `AddDockerfile` the return value is an `IResourceBuilder<ContainerRes
 
 Using the `WithDockerfile` extension method it's possible to take an existing Aspire component (like PostgreSQL, Redis, or SQL Server) and replace its default container image with a custom one built from your own Dockerfile. This allows you to continue using the strongly typed resource types and their specific extension methods while customizing the underlying container.
 
-```csharp
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // This replaces the default PostgreSQL container image with a custom one
 // built from your Dockerfile, while keeping PostgreSQL-specific functionality
 var pgsql = builder.AddPostgres("pgsql")
-                   .WithDockerfile("path/to/context")
-                   .WithPgAdmin(); // Still works because it's still a PostgreSQL resource
+    .WithDockerfile("path/to/context")
+    .WithPgAdmin(); // Still works because it's still a PostgreSQL resource
 ```
 
 ## Pass build arguments
 
 The `WithBuildArg` method can be used to pass arguments into the container image build.
 
-```csharp
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.AddDockerfile("mygoapp", "relative/context/path")
-                       .WithBuildArg("GO_VERSION", "1.22");
+    .WithBuildArg("GO_VERSION", "1.22");
 ```
 
 The value parameter on the `WithBuildArg` method can be a literal value (`boolean`, `string`, `int`) or it can be a resource builder for a [parameter resource](/fundamentals/external-parameters/). The following code replaces the `GO_VERSION` with a parameter value that can be specified at deployment time.
 
-```csharp
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var goVersion = builder.AddParameter("goversion");
 
 var container = builder.AddDockerfile("mygoapp", "relative/context/path")
-                       .WithBuildArg("GO_VERSION", goVersion);
+    .WithBuildArg("GO_VERSION", goVersion);
 ```
 
 Build arguments correspond to the [`ARG` command](https://docs.docker.com/build/guide/build-args/) in _Dockerfiles_. Expanding the preceding example, this is a multi-stage _Dockerfile_ which specifies specific container image version to use as a parameter.
 
-```dockerfile
+```dockerfile title="Dockerfile"
 # Stage 1: Build the Go program
 ARG GO_VERSION=1.22
 FROM golang:${GO_VERSION} AS builder
@@ -121,18 +121,18 @@ Instead of hardcoding values into the container image, it's recommended to use e
 
 In addition to build arguments it's possible to specify build secrets using `WithBuildSecret` which are made selectively available to individual commands in the _Dockerfile_ using the `--mount=type=secret` syntax on `RUN` commands.
 
-```csharp
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var accessToken = builder.AddParameter("accesstoken", secret: true);
 
 var container = builder.AddDockerfile("myapp", "relative/context/path")
-                       .WithBuildSecret("ACCESS_TOKEN", accessToken);
+    .WithBuildSecret("ACCESS_TOKEN", accessToken);
 ```
 
 For example, consider the `RUN` command in a _Dockerfile_ which exposes the specified secret to the specific command:
 
-```dockerfile
+```dockerfile title="Dockerfile"
 # The helloworld command can read the secret from /run/secrets/ACCESS_TOKEN
 RUN --mount=type=secret,id=ACCESS_TOKEN helloworld
 ```
