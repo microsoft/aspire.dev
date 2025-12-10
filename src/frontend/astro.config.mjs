@@ -54,7 +54,6 @@ export default defineConfig({
         Header: './src/components/starlight/Header.astro',
         Hero: './src/components/starlight/Hero.astro',
         MarkdownContent: './src/components/starlight/MarkdownContent.astro',
-        Pagination: './src/components/starlight/Pagination.astro',
         Search: './src/components/starlight/Search.astro',
         Sidebar: './src/components/starlight/Sidebar.astro',
         SocialIcons: './src/components/starlight/SocialIcons.astro',

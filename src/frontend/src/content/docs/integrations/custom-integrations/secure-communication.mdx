@@ -3,11 +3,13 @@ title: Secure communication between integrations
 description: Learn how to secure communication between hosting and client integrations.
 ---
 
-import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
+import ThemeImage from '@components/ThemeImage.astro';
 import maildevDetails from '@assets/integrations/custom-integrations/maildev-details.png';
+import maildevDetailsLight from '@assets/integrations/custom-integrations/maildev-details-light.png';
 import newsletterDetails from '@assets/integrations/custom-integrations/newsletter-details.png';
+import newsletterDetailsLight from '@assets/integrations/custom-integrations/newsletter-details-light.png';
 
 This article is a continuation of two previous articles demonstrating the creation of [custom hosting integrations](/integrations/custom-integrations/hosting-integrations/) and [custom client integrations](/integrations/custom-integrations/client-integrations/).
 
@@ -42,7 +44,7 @@ To flow authentication credentials from the MailDev resource to the MailKit inte
 
 The MailDev container supports basic authentication for both incoming and outgoing simple mail transfer protocol (SMTP). To configure the credentials for incoming, you need to set the `MAILDEV_INCOMING_USER` and `MAILDEV_INCOMING_PASS` environment variables. For more information, see [MailDev: Usage](https://maildev.github.io/maildev/#usage). Update the `MailDevResource.cs` file in the `MailDev.Hosting` project, by replacing its contents with the following C# code:
 
-```csharp {9-10} title="MailDev.Hosting/MailDevResource.cs"
+```csharp {9-10,25-28,30-33,35-38,48} title="MailDev.Hosting/MailDevResource.cs"
 // For ease of discovery, resource types should be placed in
 // the Aspire.Hosting.ApplicationModel namespace. If there is
 // likelihood of a conflict on the resource name consider using
@@ -90,7 +92,7 @@ public sealed class MailDevResource(
     // the connection string is composed of the SmtpEndpoint endpoint reference.
     public ReferenceExpression ConnectionStringExpression =>
         ReferenceExpression.Create(
-            $"Endpoint=smtp://{SmtpEndpoint.Property(EndpointProperty.HostAndPort))};Username={UserNameReference};Password={PasswordParameter}"
+            $"Endpoint=smtp://{SmtpEndpoint.Property(EndpointProperty.HostAndPort)};Username={UserNameReference};Password={PasswordParameter}"
         );
 }
 ```
@@ -126,7 +128,7 @@ public static class MailDevResourceBuilderExtensions
         string name,
         int? httpPort = null,
         int? smtpPort = null,
-        IResourceBuilder<ParameterResource>? userName = null,
+        IResourceBuilder<ParameterResource>? username = null,
         IResourceBuilder<ParameterResource>? password = null)
     {
         var passwordParameter = password?.Resource ??
@@ -138,7 +140,7 @@ public static class MailDevResourceBuilderExtensions
         // IResourceBuilder<T> instance. Extension methods to customize
         // the resource (if any exist) target the builder interface.
         var resource = new MailDevResource(
-            name, userName?.Resource, passwordParameter);
+            name, username?.Resource, passwordParameter);
 
         return builder.AddResource(resource)
                       .WithImage(MailDevContainerImageTags.Image)
@@ -202,7 +204,7 @@ builder.Build().Run();
 
 The preceding code adds two parameters for the MailDev username and password. It assigns these parameters to the MailDev resource. The `AddMailDev` method has two chained calls to `WithEnvironment` which includes these environment variables.
 
-Next, configure the secrets for these parameters. Right-click on the `MailDevResource.AppHost` project and select `Manage User Secrets`. Add the following JSON to the `secrets.json` file:
+Next, configure the secrets for these parameters. Right-click on the `MailDevResource.AppHost` project and select `Manage User Secrets` (from within Visual Studio Code or Visual Studio). Add the following JSON to the `secrets.json` file:
 
 ```json
 {
@@ -211,8 +213,20 @@ Next, configure the secrets for these parameters. Right-click on the `MailDevRes
 }
 ```
 
+Alternatively, you can use the `dotnet user-secrets` CLI to set these parameters:
+
+```bash
+dotnet user-secrets set "Parameters:maildev-username" "@admin"
+```
+
+```bash
+dotnet user-secrets set "Parameters:maildev-password" "t3st1ng"
+```
+
 <Aside type="danger">
-These credentials are for demonstration purposes only and MailDev is intended for local development. These credentials are fictitious and shouldn't be used in a production environment.
+  These credentials are for demonstration purposes only and MailDev is intended
+  for local development. These credentials are fictitious and shouldn't be used
+  in a production environment.
 </Aside>
 
 ## Update the MailKit integration
@@ -295,7 +309,7 @@ public sealed class MailKitClientSettings
             {
                 ConnectionString = connectionString
             };
-            
+
             if (builder.TryGetValue("Endpoint", out var endpoint) is false)
             {
                 throw new InvalidOperationException($"""
@@ -313,7 +327,7 @@ public sealed class MailKitClientSettings
             }
 
             Endpoint = uri;
-            
+
             if (builder.TryGetValue("Username", out var username) &&
                 builder.TryGetValue("Password", out var password))
             {
@@ -329,8 +343,7 @@ The preceding settings class, now includes a `Credentials` property of type `Net
 
 With the settings class updated to understand and populate the credentials, update the factory to conditionally use the credentials if they're configured. Update the `MailKitClientFactory.cs` file in the `MailKit.Client` project with the following C# code:
 
-```csharp {45-49} title="MailKit.Client/MailKitClientFactory.cs"
-using System.Net;
+```csharp {44-48} title="MailKit.Client/MailKitClientFactory.cs"
 using MailKit.Net.Smtp;
 
 namespace MailKit.Client;
@@ -342,7 +355,7 @@ namespace MailKit.Client;
 /// <param name="settings">
 /// The <see cref="MailKitClientSettings"/> settings for the SMTP server
 /// </param>
-public sealed class MailKitClientFactory(MailKitClientSettings settings) 
+public sealed class MailKitClientFactory(MailKitClientSettings settings)
     : IDisposable
 {
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -372,19 +385,19 @@ public sealed class MailKitClientFactory(MailKitClientSettings settings)
                 _client = new SmtpClient();
 
                 await _client.ConnectAsync(settings.Endpoint, cancellationToken)
-                             .ConfigureAwait(false);
+                    .ConfigureAwait(false);
 
                 if (settings.Credentials is not null)
                 {
                     await _client.AuthenticateAsync(settings.Credentials, cancellationToken)
-                                 .ConfigureAwait(false);
+                        .ConfigureAwait(false);
                 }
             }
         }
         finally
         {
             _semaphore.Release();
-        }       
+        }
 
         return _client;
     }
@@ -399,127 +412,31 @@ public sealed class MailKitClientFactory(MailKitClientSettings settings)
 
 When the factory determines that credentials have been configured, it authenticates with the SMTP server after connecting before returning the `SmtpClient`.
 
-Update the `MailKitExtensions.cs` file to properly parse the connection string with credentials:
-
-```csharp
-namespace MailKit.Client;
-
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using OpenTelemetry;
-using MailKit.Telemetry;
-
-/// <summary>
-/// Extension methods for adding MailKit client integration to the service collection.
-/// </summary>
-public static class MailKitExtensions
-{
-    /// <summary>
-    /// Adds MailKit SMTP client to the service collection.
-    /// </summary>
-    /// <param name="builder">The host application builder.</param>
-    /// <param name="configureSettings">Optional action to configure settings.</param>
-    /// <returns>The host application builder.</returns>
-    public static IHostApplicationBuilder AddMailKitClient(
-        this IHostApplicationBuilder builder,
-        Action<MailKitClientSettings>? configureSettings = null)
-    {
-        return AddMailKitClientInternal(builder, null, configureSettings);
-    }
-
-    /// <summary>
-    /// Adds a keyed MailKit SMTP client to the service collection.
-    /// </summary>
-    /// <param name="builder">The host application builder.</param>
-    /// <param name="serviceKey">The service key for keyed dependency injection.</param>
-    /// <param name="configureSettings">Optional action to configure settings.</param>
-    /// <returns>The host application builder.</returns>
-    public static IHostApplicationBuilder AddKeyedMailKitClient(
-        this IHostApplicationBuilder builder,
-        string serviceKey,
-        Action<MailKitClientSettings>? configureSettings = null)
-    {
-        return AddMailKitClientInternal(builder, serviceKey, configureSettings);
-    }
-
-    private static IHostApplicationBuilder AddMailKitClientInternal(
-        IHostApplicationBuilder builder,
-        string? serviceKey,
-        Action<MailKitClientSettings>? configureSettings)
-    {
-        var settings = new MailKitClientSettings();
-        var connectionName = serviceKey ?? "mailkit";
-        var connectionString = builder.Configuration.GetConnectionString(connectionName);
-
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            connectionString = builder.Configuration[$"MailKit:Client:ConnectionString"];
-        }
-
-        if (!string.IsNullOrEmpty(connectionString))
-        {
-            var (uri, credentials) = MailKitClientSettings.ParseConnectionString(connectionString);
-            settings.Endpoint = uri;
-            settings.Credentials = credentials;
-        }
-
-        configureSettings?.Invoke(settings);
-
-        if (serviceKey is null)
-        {
-            builder.Services.AddScoped<MailKitClientFactory>(_ => new MailKitClientFactory(settings));
-        }
-        else
-        {
-            builder.Services.AddKeyedScoped<MailKitClientFactory>(serviceKey, (_, _) => new MailKitClientFactory(settings));
-        }
-
-        // Add health checks
-        if (settings.DisableHealthChecks is false)
-        {
-            builder.Services.AddHealthChecks()
-                .AddCheck<MailKitHealthCheck>(
-                    name: serviceKey is null ? "MailKit" : $"MailKit_{connectionName}",
-                    failureStatus: default,
-                    tags: []);
-        }
-
-        // Add telemetry
-        if (settings.DisableTracing is false)
-        {
-            builder.Services.AddOpenTelemetry()
-                .WithTracing(
-                    traceBuilder => traceBuilder.AddSource(
-                        SmtpClient.ActivitySourceName));
-        }
-
-        if (settings.DisableMetrics is false)
-        {
-            SmtpClient.Configure();
-
-            builder.Services.AddOpenTelemetry()
-                .WithMetrics(
-                    metricsBuilder => metricsBuilder.AddMeter(
-                        SmtpClient.MeterName));
-        }
-
-        return builder;
-    }
-}
-```
-
 ## Run the sample
 
-Now that you've updated the resource, corresponding integration projects, and the AppHost, you're ready to run the sample app. To run the sample from your IDE, select <Kbd mac="F5" windows="F5" /> or use `dotnet run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/). Navigate to the `maildev` container resource and view the details. You should see the username and password parameters in the resource details, under the **Environment Variables** section:
+Now that you've updated the resource, corresponding integration projects, and the AppHost, you're ready to run the sample app. To run the sample from your IDE, select <Kbd mac="F5" windows="F5" /> or use `aspire run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/). Navigate to the `maildev` container resource and view the details. You should see the username and password parameters as resources.
 
-<Image src={maildevDetails} alt="Aspire Dashboard: MailDev container resource details." />
+<Steps>
 
-Likewise, you should see the connection string in the `newsletterservice` resource details, under the **Environment Variables** section:
+1. To verify that the credentials are flowing correctly, navigate to the Aspire dashboard and select the `maildev` resource row. You should see the username and password parameters in the resource details, under the **Environment Variables** section:
 
-<Image src={newsletterDetails} alt="Aspire Dashboard: Newsletter service resource details." />
+    <ThemeImage
+        dark={maildevDetails}
+        light={maildevDetailsLight}
+        alt="Aspire Dashboard: MailDev container resource details."
+        />
 
-Validate that everything is working as expected.
+2. Likewise, you should see the connection string in the `newsletterservice` resource details, under the **Environment Variables** section:
+
+    <ThemeImage
+        dark={newsletterDetails}
+        light={newsletterDetailsLight}
+        alt="Aspire Dashboard: Newsletter service resource details."
+        />
+
+3. Validate that everything is working as expected.
+
+</Steps>
 
 ## Summary
 
