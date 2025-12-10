@@ -17,17 +17,23 @@ One of the primary benefits to Aspire is how it simplifies the configurability o
 
 Since this article continues from previous content, you should have already created the resulting solution as a starting point for this article. If you haven't already, complete the following articles:
 
-- [Create custom hosting integrations](/integrations/custom-integrations/hosting-integrations/)
-- [Create custom client integrations](/integrations/custom-integrations/client-integrations/)
+<Steps>
+
+1. [Create custom hosting integrations](/integrations/custom-integrations/hosting-integrations/)
+1. [Create custom client integrations](/integrations/custom-integrations/client-integrations/)
+
+</Steps>
 
 The resulting solution from these previous articles contains the following projects:
 
 <Steps>
+
 1. `MailDev.Hosting`: Contains the custom resource type for the MailDev container.
 2. `MailDevResource.AppHost`: The [AppHost](/get-started/app-host/) that uses the custom resource and defines it as a dependency for a Newsletter service.
 3. `MailDevResource.NewsletterService`: An ASP.NET Core Web API project that sends emails using the MailDev container.
 4. `MailDevResource.ServiceDefaults`: Contains the [default service configurations](/fundamentals/service-defaults/) intended for sharing.
 5. `MailKit.Client`: Contains the custom client integration that exposes the MailKit `SmtpClient` through a factory.
+
 </Steps>
 
 ## Update the MailDev resource
@@ -36,127 +42,133 @@ To flow authentication credentials from the MailDev resource to the MailKit inte
 
 The MailDev container supports basic authentication for both incoming and outgoing simple mail transfer protocol (SMTP). To configure the credentials for incoming, you need to set the `MAILDEV_INCOMING_USER` and `MAILDEV_INCOMING_PASS` environment variables. For more information, see [MailDev: Usage](https://maildev.github.io/maildev/#usage). Update the `MailDevResource.cs` file in the `MailDev.Hosting` project, by replacing its contents with the following C# code:
 
-```csharp
-namespace MailDev.Hosting;
+```csharp {9-10} title="MailDev.Hosting/MailDevResource.cs"
+// For ease of discovery, resource types should be placed in
+// the Aspire.Hosting.ApplicationModel namespace. If there is
+// likelihood of a conflict on the resource name consider using
+// an alternative namespace.
+namespace Aspire.Hosting.ApplicationModel;
 
-using Aspire.Hosting.ApplicationModel;
-
-/// <summary>
-/// A resource that represents a MailDev container.
-/// </summary>
-public class MailDevResource : ContainerResource, IResourceWithConnectionString
+public sealed class MailDevResource(
+    string name,
+    ParameterResource? username,
+    ParameterResource password)
+        : ContainerResource(name), IResourceWithConnectionString
 {
-    /// <summary>
-    /// The name of the HTTP endpoint.
-    /// </summary>
-    public const string HttpEndpointName = "http";
+    // Constants used to refer to well known-endpoint names, this is specific
+    // for each resource type. MailDev exposes an SMTP and HTTP endpoints.
+    internal const string SmtpEndpointName = "smtp";
+    internal const string HttpEndpointName = "http";
+
+    private const string DefaultUsername = "mail-dev";
+
+    // An EndpointReference is a core Aspire type used for keeping
+    // track of endpoint details in expressions. Simple literal values cannot
+    // be used because endpoints are not known until containers are launched.
+    private EndpointReference? _smtpReference;
 
     /// <summary>
-    /// The name of the SMTP endpoint.
+    /// Gets the parameter that contains the MailDev SMTP server username.
     /// </summary>
-    public const string SmtpEndpointName = "smtp";
+    public ParameterResource? UsernameParameter { get; } = username;
+
+    internal ReferenceExpression UserNameReference =>
+        UsernameParameter is not null ?
+        ReferenceExpression.Create($"{UsernameParameter}") :
+        ReferenceExpression.Create($"{DefaultUsername}");
 
     /// <summary>
-    /// The username parameter name for environment variables.
+    /// Gets the parameter that contains the MailDev SMTP server password.
     /// </summary>
-    public const string UserEnvVarName = "MAILDEV_INCOMING_USER";
+    public ParameterResource PasswordParameter { get; } = password;
 
-    /// <summary>
-    /// The password parameter name for environment variables.
-    /// </summary>
-    public const string PasswordEnvVarName = "MAILDEV_INCOMING_PASS";
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MailDevResource"/> class.
-    /// </summary>
-    /// <param name="name">The name of the resource.</param>
-    public MailDevResource(string name) : base(name)
-    {
-    }
-
-    /// <summary>
-    /// Gets or sets the username parameter.
-    /// </summary>
-    public Parameter? UsernameParameter { get; set; }
-
-    /// <summary>
-    /// Gets or sets the password parameter.
-    /// </summary>
-    public Parameter? PasswordParameter { get; set; }
-
-    /// <summary>
-    /// Gets the SMTP endpoint for the MailDev container.
-    /// </summary>
     public EndpointReference SmtpEndpoint =>
-        GetEndpoint(SmtpEndpointName);
+        _smtpReference ??= new(this, SmtpEndpointName);
 
-    /// <summary>
-    /// Gets the connection string expression for the MailDev resource.
-    /// </summary>
+    // Required property on IResourceWithConnectionString. Represents a connection
+    // string that applications can use to access the MailDev server. In this case
+    // the connection string is composed of the SmtpEndpoint endpoint reference.
     public ReferenceExpression ConnectionStringExpression =>
         ReferenceExpression.Create(
-            $"smtp://{UsernameParameter}:{PasswordParameter}@{SmtpEndpoint.Property(EndpointProperty.HostAndPort)}"
+            $"Endpoint=smtp://{SmtpEndpoint.Property(EndpointProperty.HostAndPort))};Username={UserNameReference};Password={PasswordParameter}"
         );
 }
 ```
 
 These updates add a `UsernameParameter` and `PasswordParameter` property. These properties are used to store the parameters for the MailDev username and password. The `ConnectionStringExpression` property is updated to include the username and password parameters in the connection string. Next, update the `MailDevResourceBuilderExtensions.cs` file in the `MailDev.Hosting` project with the following C# code:
 
-```csharp
-namespace MailDev.Hosting;
-
-using Aspire.Hosting;
+```csharp {9-10,29-30,32-34,40-41,55-59} title="MailDev.Hosting/MailDevResourceBuilderExtensions.cs"
 using Aspire.Hosting.ApplicationModel;
 
-/// <summary>
-/// Extension methods for adding MailDev resources to the Aspire application model.
-/// </summary>
+// Put extensions in the Aspire.Hosting namespace to ease discovery as referencing
+// the Aspire hosting package automatically adds this namespace.
+namespace Aspire.Hosting;
+
 public static class MailDevResourceBuilderExtensions
 {
-    private const string MailDevImage = "maildev/maildev";
-    private const string MailDevImageTag = "2.1.0";
+    private const string UserEnvVarName = "MAILDEV_INCOMING_USER";
+    private const string PasswordEnvVarName = "MAILDEV_INCOMING_PASS";
 
     /// <summary>
-    /// Adds a MailDev container resource to the Aspire application model.
+    /// Adds the <see cref="MailDevResource"/> to the given
+    /// <paramref name="builder"/> instance. Uses the "2.2.1" tag.
     /// </summary>
-    /// <param name="builder">The distributed application builder.</param>
-    /// <param name="name">The name of the MailDev resource.</param>
-    /// <param name="userName">The optional username parameter.</param>
-    /// <param name="password">The optional password parameter.</param>
-    /// <param name="httpPort">The optional HTTP port to expose.</param>
-    /// <param name="smtpPort">The optional SMTP port to expose.</param>
-    /// <returns>A resource builder for the MailDev resource.</returns>
+    /// <param name="builder">The <see cref="IDistributedApplicationBuilder"/>.</param>
+    /// <param name="name">The name of the resource.</param>
+    /// <param name="httpPort">The HTTP port.</param>
+    /// <param name="smtpPort">The SMTP port.</param>
+    /// <returns>
+    /// An <see cref="IResourceBuilder{MailDevResource}"/> instance that
+    /// represents the added MailDev resource.
+    /// </returns>
     public static IResourceBuilder<MailDevResource> AddMailDev(
         this IDistributedApplicationBuilder builder,
         string name,
-        IResourceBuilder<ParameterResource>? userName = null,
-        IResourceBuilder<ParameterResource>? password = null,
         int? httpPort = null,
-        int? smtpPort = null)
+        int? smtpPort = null,
+        IResourceBuilder<ParameterResource>? userName = null,
+        IResourceBuilder<ParameterResource>? password = null)
     {
-        var resource = new MailDevResource(name);
+        var passwordParameter = password?.Resource ??
+            ParameterResourceBuilderExtensions.CreateDefaultPasswordParameter(
+                builder, $"{name}-password");
 
-        var userNameParameter = userName?.Resource ?? builder.AddParameter("maildev-username").Resource;
-        var passwordParameter = password?.Resource ?? builder.AddParameter("maildev-password").Resource;
+        // The AddResource method is a core API within Aspire and is
+        // used by resource developers to wrap a custom resource in an
+        // IResourceBuilder<T> instance. Extension methods to customize
+        // the resource (if any exist) target the builder interface.
+        var resource = new MailDevResource(
+            name, userName?.Resource, passwordParameter);
 
-        resource.UsernameParameter = userNameParameter;
-        resource.PasswordParameter = passwordParameter;
-
-        return builder
-            .AddResource(resource)
-            .WithImage(MailDevImage)
-            .WithImageTag(MailDevImageTag)
-            .WithHttpEndpoint(
-                targetPort: 1080,
-                port: httpPort,
-                name: MailDevResource.HttpEndpointName)
-            .WithEndpoint(
-                targetPort: 1025,
-                port: smtpPort,
-                name: MailDevResource.SmtpEndpointName)
-            .WithEnvironment(MailDevResource.UserEnvVarName, userNameParameter)
-            .WithEnvironment(MailDevResource.PasswordEnvVarName, passwordParameter);
+        return builder.AddResource(resource)
+                      .WithImage(MailDevContainerImageTags.Image)
+                      .WithImageRegistry(MailDevContainerImageTags.Registry)
+                      .WithImageTag(MailDevContainerImageTags.Tag)
+                      .WithHttpEndpoint(
+                          targetPort: 1080,
+                          port: httpPort,
+                          name: MailDevResource.HttpEndpointName)
+                      .WithEndpoint(
+                          targetPort: 1025,
+                          port: smtpPort,
+                          name: MailDevResource.SmtpEndpointName)
+                      .WithEnvironment(context =>
+                      {
+                          context.EnvironmentVariables[UserEnvVarName] = resource.UserNameReference;
+                          context.EnvironmentVariables[PasswordEnvVarName] = resource.PasswordParameter;
+                      });
     }
+}
+
+// This class just contains constant strings that can be updated periodically
+// when new versions of the underlying container are released.
+internal static class MailDevContainerImageTags
+{
+    internal const string Registry = "docker.io";
+
+    internal const string Image = "maildev/maildev";
+
+    internal const string Tag = "2.2.1";
 }
 ```
 
@@ -166,22 +178,29 @@ The preceding code updates the `AddMailDev` extension method to include the `use
 
 Now that the resource is updated to include the username and password parameters, you need to update the AppHost to include these parameters. Update the `AppHost.cs` file in the `MailDevResource.AppHost` project with the following C# code:
 
-```csharp
+```csharp {3-4,6-9} title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var maildevUsername = builder.AddParameter("maildev-username");
-var maildevPassword = builder.AddParameter("maildev-password");
+var mailDevUsername = builder.AddParameter("maildev-username");
+var mailDevPassword = builder.AddParameter("maildev-password");
 
-var maildev = builder.AddMailDev("maildev", maildevUsername, maildevPassword);
+var maildev = builder.AddMailDev(
+    name: "maildev",
+    userName: mailDevUsername,
+    password: mailDevPassword);
 
-builder.AddProject<Projects.MailDevResource.NewsletterService>(
-        "newsletterservice")
+builder.AddProject<Projects.MailDevResource_NewsletterService>("newsletterservice")
+    .WithUrlForEndpoint("https", e =>
+    {
+        e.DisplayText = "Scalar";
+        e.Url += "/scalar";
+    })
     .WithReference(maildev);
 
 builder.Build().Run();
 ```
 
-The preceding code adds two parameters for the MailDev username and password. It assigns these parameters to the MailDev resource. The `AddMailDev` method has two chained calls to `WithEnvironment` which includes these environment variables. For more information on parameters, see [External parameters](/docs/fundamentals/external-parameters/).
+The preceding code adds two parameters for the MailDev username and password. It assigns these parameters to the MailDev resource. The `AddMailDev` method has two chained calls to `WithEnvironment` which includes these environment variables.
 
 Next, configure the secrets for these parameters. Right-click on the `MailDevResource.AppHost` project and select `Manage User Secrets`. Add the following JSON to the `secrets.json` file:
 
@@ -200,71 +219,108 @@ These credentials are for demonstration purposes only and MailDev is intended fo
 
 It's good practice for client integrations to expect connection strings to contain various key/value pairs, and to parse these pairs into the appropriate properties. Update the `MailKitClientSettings.cs` file in the `MailKit.Client` project with the following C# code:
 
-```csharp
-namespace MailKit.Client;
-
+```csharp {21-28,95-100} title="MailKit.Client/MailKitClientSettings.cs"
+using System.Data.Common;
 using System.Net;
 
+namespace MailKit.Client;
+
 /// <summary>
-/// Settings for configuring the MailKit SMTP client.
+/// Provides the client configuration settings for connecting MailKit to an SMTP server.
 /// </summary>
-public class MailKitClientSettings
+public sealed class MailKitClientSettings
 {
+    internal const string DefaultConfigSectionName = "MailKit:Client";
+
     /// <summary>
-    /// Gets or sets the SMTP server endpoint.
+    /// Gets or sets the SMTP server <see cref="Uri"/>.
     /// </summary>
+    /// <value>
+    /// The default value is <see langword="null"/>.
+    /// </value>
     public Uri? Endpoint { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether health checks are disabled.
+    /// Gets or sets the network credentials that are optionally configurable for SMTP
+    /// server's that require authentication.
     /// </summary>
-    public bool DisableHealthChecks { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether tracing is disabled.
-    /// </summary>
-    public bool DisableTracing { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether metrics are disabled.
-    /// </summary>
-    public bool DisableMetrics { get; set; }
-
-    /// <summary>
-    /// Gets or sets the network credentials for the SMTP server.
-    /// </summary>
+    /// <value>
+    /// The default value is <see langword="null"/>.
+    /// </value>
     public NetworkCredential? Credentials { get; set; }
 
     /// <summary>
-    /// Parses the connection string into a valid URI and extracts credentials.
+    /// Gets or sets a boolean value that indicates whether the database health check is disabled or not.
     /// </summary>
-    /// <param name="connectionString">The connection string to parse.</param>
-    /// <returns>A tuple containing the parsed URI and credentials.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when the connection string is invalid.</exception>
-    public static (Uri Uri, NetworkCredential? Credentials) ParseConnectionString(string connectionString)
+    /// <value>
+    /// The default value is <see langword="false"/>.
+    /// </value>
+    public bool DisableHealthChecks { get; set; }
+
+    /// <summary>
+    /// Gets or sets a boolean value that indicates whether the OpenTelemetry tracing is disabled or not.
+    /// </summary>
+    /// <value>
+    /// The default value is <see langword="false"/>.
+    /// </value>
+    public bool DisableTracing { get; set; }
+
+    /// <summary>
+    /// Gets or sets a boolean value that indicates whether the OpenTelemetry metrics are disabled or not.
+    /// </summary>
+    /// <value>
+    /// The default value is <see langword="false"/>.
+    /// </value>
+    public bool DisableMetrics { get; set; }
+
+    internal void ParseConnectionString(string? connectionString)
     {
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("Connection string is missing.");
+            throw new InvalidOperationException($"""
+                ConnectionString is missing.
+                It should be provided in 'ConnectionStrings:<connectionName>'
+                or '{DefaultConfigSectionName}:Endpoint' key.'
+                configuration section.
+                """);
         }
 
-        if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) || uri.Scheme != "smtp")
+        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
         {
-            throw new InvalidOperationException($"Invalid connection string: '{connectionString}'");
+            Endpoint = uri;
         }
-
-        NetworkCredential? credentials = null;
-
-        if (!string.IsNullOrEmpty(uri.UserInfo))
+        else
         {
-            var parts = uri.UserInfo.Split(':');
-            if (parts.Length == 2)
+            var builder = new DbConnectionStringBuilder
             {
-                credentials = new NetworkCredential(parts[0], parts[1]);
+                ConnectionString = connectionString
+            };
+            
+            if (builder.TryGetValue("Endpoint", out var endpoint) is false)
+            {
+                throw new InvalidOperationException($"""
+                    The 'ConnectionStrings:<connectionName>' (or 'Endpoint' key in
+                    '{DefaultConfigSectionName}') is missing.
+                    """);
+            }
+
+            if (Uri.TryCreate(endpoint.ToString(), UriKind.Absolute, out uri) is false)
+            {
+                throw new InvalidOperationException($"""
+                    The 'ConnectionStrings:<connectionName>' (or 'Endpoint' key in
+                    '{DefaultConfigSectionName}') isn't a valid URI.
+                    """);
+            }
+
+            Endpoint = uri;
+            
+            if (builder.TryGetValue("Username", out var username) &&
+                builder.TryGetValue("Password", out var password))
+            {
+                Credentials = new(
+                    username.ToString(), password.ToString());
             }
         }
-
-        return (uri, credentials);
     }
 }
 ```
@@ -273,54 +329,70 @@ The preceding settings class, now includes a `Credentials` property of type `Net
 
 With the settings class updated to understand and populate the credentials, update the factory to conditionally use the credentials if they're configured. Update the `MailKitClientFactory.cs` file in the `MailKit.Client` project with the following C# code:
 
-```csharp
-namespace MailKit.Client;
-
+```csharp {45-49} title="MailKit.Client/MailKitClientFactory.cs"
+using System.Net;
 using MailKit.Net.Smtp;
 
+namespace MailKit.Client;
+
 /// <summary>
-/// Factory for creating MailKit SMTP client instances.
+/// A factory for creating <see cref="ISmtpClient"/> instances
+/// given a <paramref name="smtpUri"/> (and optional <paramref name="credentials"/>).
 /// </summary>
-public class MailKitClientFactory(MailKitClientSettings settings)
+/// <param name="settings">
+/// The <see cref="MailKitClientSettings"/> settings for the SMTP server
+/// </param>
+public sealed class MailKitClientFactory(MailKitClientSettings settings) 
+    : IDisposable
 {
-    private ISmtpClient? _client;
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
+
+    private SmtpClient? _client;
 
     /// <summary>
-    /// Gets or creates an SMTP client instance.
+    /// Gets an <see cref="ISmtpClient"/> instance in the connected state
+    /// (and that's been authenticated if configured).
     /// </summary>
-    /// <returns>The SMTP client instance.</returns>
-    public async Task<ISmtpClient> GetSmtpClientAsync()
+    /// <param name="cancellationToken">Used to abort client creation and connection.</param>
+    /// <returns>A connected (and authenticated) <see cref="ISmtpClient"/> instance.</returns>
+    /// <remarks>
+    /// Since both the connection and authentication are considered expensive operations,
+    /// the <see cref="ISmtpClient"/> returned is intended to be used for the duration of a request
+    /// (registered as 'Scoped') and is automatically disposed of.
+    /// </remarks>
+    public async Task<ISmtpClient> GetSmtpClientAsync(
+        CancellationToken cancellationToken = default)
     {
-        if (_client is not null)
+        await _semaphore.WaitAsync(cancellationToken);
+
+        try
         {
-            return _client;
+            if (_client is null)
+            {
+                _client = new SmtpClient();
+
+                await _client.ConnectAsync(settings.Endpoint, cancellationToken)
+                             .ConfigureAwait(false);
+
+                if (settings.Credentials is not null)
+                {
+                    await _client.AuthenticateAsync(settings.Credentials, cancellationToken)
+                                 .ConfigureAwait(false);
+                }
+            }
         }
-
-        var client = new SmtpClient();
-
-        if (settings.Endpoint is null)
+        finally
         {
-            throw new InvalidOperationException("SMTP endpoint is not configured.");
-        }
+            _semaphore.Release();
+        }       
 
-        await client.ConnectAsync(settings.Endpoint.Host, settings.Endpoint.Port);
-
-        if (settings.Credentials is not null)
-        {
-            await client.AuthenticateAsync(settings.Credentials);
-        }
-
-        _client = client;
         return _client;
     }
 
-    /// <summary>
-    /// Disposes the SMTP client if it exists.
-    /// </summary>
     public void Dispose()
     {
-        _client?.Disconnect(true);
         _client?.Dispose();
+        _semaphore.Dispose();
     }
 }
 ```
@@ -439,7 +511,7 @@ public static class MailKitExtensions
 
 ## Run the sample
 
-Now that you've updated the resource, corresponding integration projects, and the AppHost, you're ready to run the sample app. To run the sample from your IDE, select <Kbd mac="F5" windows="F5" /> or use `dotnet run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/docs/dashboard/overview/). Navigate to the `maildev` container resource and view the details. You should see the username and password parameters in the resource details, under the **Environment Variables** section:
+Now that you've updated the resource, corresponding integration projects, and the AppHost, you're ready to run the sample app. To run the sample from your IDE, select <Kbd mac="F5" windows="F5" /> or use `dotnet run` from the root directory of the solution to start the application—you should see the [Aspire dashboard](/dashboard/overview/). Navigate to the `maildev` container resource and view the details. You should see the username and password parameters in the resource details, under the **Environment Variables** section:
 
 <Image src={maildevDetails} alt="Aspire Dashboard: MailDev container resource details." />
 
