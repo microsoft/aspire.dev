@@ -24,10 +24,11 @@ export async function GET(context) {
     const title = doc.data?.title ? String(doc.data.title) : String(doc.slug ?? '');
     const description = doc.data.description;
 
-    const rawDate = doc.data?.lastUpdated ?? doc.data?.date ?? doc.data?.published ?? doc.data?.created;
+    const rawDate =
+      doc.data?.lastUpdated ?? doc.data?.date ?? doc.data?.published ?? doc.data?.created;
     const pubDate = toDate(rawDate);
 
-    const id = doc.id === "index" ? "" : doc.id;
+    const id = doc.id === 'index' ? '' : doc.id;
 
     return {
       title,

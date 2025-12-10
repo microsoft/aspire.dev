@@ -44,11 +44,16 @@ builder.AddProject<Projects.ExampleProject>()
 The `WithReference` method configures a connection in the `ExampleProject` named `"key-vault"`.
 
 <Aside type="caution">
-By default, `AddAzureKeyVault` configures a [Key Vault Administrator built-in role](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/security#key-vault-administrator).
+  By default, `AddAzureKeyVault` configures a [Key Vault Administrator built-in
+  role](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/security#key-vault-administrator).
 </Aside>
 
 <Aside type="tip">
-When you call `AddAzureKeyVault`, it implicitly calls `AddAzureProvisioning`, which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddAzureKeyVault`, it implicitly calls `AddAzureProvisioning`,
+  which adds support for generating Azure resources dynamically during app
+  startup. The app must configure the appropriate subscription and location. For
+  more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 ### Connect to an existing Azure Key Vault instance
@@ -69,7 +74,9 @@ builder.AddProject<Projects.ExampleProject>()
 ```
 
 <Aside type="note">
-Alternatively, instead of representing an Azure Key Vault resource, you can add a connection string to the AppHost. This approach is weakly-typed and doesn't work with role assignments or infrastructure customizations.
+  Alternatively, instead of representing an Azure Key Vault resource, you can
+  add a connection string to the AppHost. This approach is weakly-typed and
+  doesn't work with role assignments or infrastructure customizations.
 </Aside>
 
 ### Provisioning-generated Bicep
@@ -77,6 +84,7 @@ Alternatively, instead of representing an Azure Key Vault resource, you can add 
 If you're new to [Bicep](https://learn.microsoft.com/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you add an Azure Key Vault resource, the following Bicep is generated:
 
 :::code language="bicep" source="../snippets/azure/AppHost/key-vault/key-vault.bicep":::
+
 ```bicep title="Generated Bicep — key-vault.bicep"
 @description('The location for the resource(s) to be deployed.')
 param location string = resourceGroup().location
@@ -103,7 +111,6 @@ output name string = key_vault.name
 ```
 
 The preceding Bicep is a module that provisions an Azure Key Vault resource. Additionally, role assignments are created for the Azure resource in a separate module:
-
 
 ```bicep title="Generated Bicep — key-vault-roles.bicep"
 @description('The location for the resource(s) to be deployed.')
@@ -188,11 +195,15 @@ builder.Configuration.AddAzureKeyVaultSecrets(connectionName: "key-vault");
 ```
 
 <Aside type="note">
-The `AddAzureKeyVaultSecrets` API name has caused a bit of confusion. The method is used to configure the `SecretClient` based on the given connection name, and _it's not used_ to add secrets to the configuration.
+  The `AddAzureKeyVaultSecrets` API name has caused a bit of confusion. The
+  method is used to configure the `SecretClient` based on the given connection
+  name, and _it's not used_ to add secrets to the configuration.
 </Aside>
 
 <Aside type="tip">
-The `connectionName` parameter must match the name used when adding the Azure Key Vault resource in the AppHost project. For more information, see [Add Azure Key Vault resource](#add-azure-key-vault-resource)
+  The `connectionName` parameter must match the name used when adding the Azure
+  Key Vault resource in the AppHost project. For more information, see [Add
+  Azure Key Vault resource](#add-azure-key-vault-resource)
 </Aside>
 
 You can then retrieve a secret-based configuration value through the normal `IConfiguration` APIs, or by binding to strongly-typed classes with the options pattern.
@@ -354,12 +365,12 @@ builder.AddAzureKeyVaultSecrets(
 
 The following configurable options are exposed through the `AzureSecurityKeyVaultSettings` class:
 
-| Name | Description |
-|------|-------------|
-| `Credential` | The credential used to authenticate to the Azure Key Vault. |
-| `DisableHealthChecks` | A boolean value that indicates whether the Key Vault health check is disabled or not. |
-| `DisableTracing` | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not. |
-| `VaultUri` | A URI to the vault on which the client operates. Appears as "DNS Name" in the Azure portal. |
+| Name                  | Description                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `Credential`          | The credential used to authenticate to the Azure Key Vault.                                 |
+| `DisableHealthChecks` | A boolean value that indicates whether the Key Vault health check is disabled or not.       |
+| `DisableTracing`      | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not.        |
+| `VaultUri`            | A URI to the vault on which the client operates. Appears as "DNS Name" in the Azure portal. |
 
 ### Client integration health checks
 

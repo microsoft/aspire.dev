@@ -10,11 +10,11 @@ const charMap = {
   '\t': '\\t',
   '\0': '\\0',
   '\u2028': '\\u2028',
-  '\u2029': '\\u2029'
+  '\u2029': '\\u2029',
 };
 
 function escapeUnsafeChars(str) {
-  return str.replace(/[<>\b\f\n\r\t\0\u2028\u2029/\\]/g, x => charMap[x]);
+  return str.replace(/[<>\b\f\n\r\t\0\u2028\u2029/\\]/g, (x) => charMap[x]);
 }
 
 export async function GET({ request }) {
@@ -30,7 +30,7 @@ export async function GET({ request }) {
       return new Response(js, {
         headers: {
           'Content-Type': 'application/javascript',
-          'Cache-Control': 'public, max-age=60'
+          'Cache-Control': 'public, max-age=60',
         },
       });
     }
