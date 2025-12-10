@@ -1143,12 +1143,20 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             collapsed: true,
             items: [
               {
-                label: "Integration overview",
-                slug: "integrations/databases/mysql",
+                label: "Get started",
+                slug: "integrations/databases/mysql/mysql-get-started",
+              },
+              {
+                label: "Hosting integration (AppHost)",
+                slug: "integrations/databases/mysql/mysql-host",
+              },
+              {
+                label: "Client integration (Your app)",
+                slug: "integrations/databases/mysql/mysql-client",
               },
               {
                 label: "Community extensions",
-                slug: "integrations/databases/mysql-extensions",
+                slug: "integrations/databases/mysql/mysql-extensions",
               },
             ],
           },
