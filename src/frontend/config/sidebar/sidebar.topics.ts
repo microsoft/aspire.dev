@@ -411,6 +411,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             label: 'Persist data with volumes',
             slug: 'fundamentals/persist-data-volumes',
           },
+          {
+            label: 'Resource annotations',
+            slug: 'fundamentals/annotations-overview',
+          },
         ],
       },
       {
@@ -436,6 +440,10 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           {
             label: 'Dockerfiles',
             slug: 'app-host/withdockerfile',
+          },
+          {
+            label: 'Executable resources',
+            slug: 'app-host/executable-resources',
           },
         ],
       },
