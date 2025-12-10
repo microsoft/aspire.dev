@@ -1,138 +1,138 @@
 ---
-import { Icon } from "@astrojs/starlight/components";
-import { Image } from "astro:assets";
-import type { StarlightIcon } from "@astrojs/starlight/types";
-import type { HTMLAttributes } from "astro/types";
-import type { ImageMetadata } from "astro";
+import { Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+import type { HTMLAttributes } from 'astro/types';
+import type { ImageMetadata } from 'astro';
 
-interface Props extends Omit<HTMLAttributes<"a">, "title"> {
-	title: string;
-	description?: string;
-	/** Icon can be a Starlight icon name or an imported image */
-	icon?: StarlightIcon | ImageMetadata | undefined;
-	/** Where to place the arrow icon relative to the content. Default: 'end' */
-	placement?: "start" | "end";
+interface Props extends Omit<HTMLAttributes<'a'>, 'title'> {
+  title: string;
+  description?: string;
+  /** Icon can be a Starlight icon name or an imported image */
+  icon?: StarlightIcon | ImageMetadata | undefined;
+  /** Where to place the arrow icon relative to the content. Default: 'end' */
+  placement?: 'start' | 'end';
 }
 
 const {
-	title,
-	description,
-	icon = undefined,
-	placement = "end",
-	...attributes
+  title,
+  description,
+  icon = undefined,
+  placement = 'end',
+  ...attributes
 } = Astro.props as Props;
 
-const isStringIcon = typeof icon === "string";
-const isImageIcon = !isStringIcon && icon && typeof icon === "object";
+const isStringIcon = typeof icon === 'string';
+const isImageIcon = !isStringIcon && icon && typeof icon === 'object';
 ---
 
-<div class={`sl-link-card ${placement === "start" ? "start" : ""}`}>
-	{placement === "start" && <Icon name="left-arrow" class="icon rtl:flip" />}
-	<span class="sl-flex stack">
-		<a {...attributes}>
-			<span class="title">
-				{
-					isImageIcon ? (
-						<Image src={icon as ImageMetadata} alt="" class="icon image-icon" height={32} />
-					) : icon ? (
-						<Icon name={icon as StarlightIcon} class="icon" />
-					) : null
-				}
-				{title}
-			</span>
-		</a>
-		{description && <span class="description" set:html={description} />}
-	</span>
-	{placement !== "start" && <Icon name="right-arrow" class="icon rtl:flip" />}
+<div class={`sl-link-card ${placement === 'start' ? 'start' : ''}`}>
+  {placement === 'start' && <Icon name="left-arrow" class="icon rtl:flip" />}
+  <span class="sl-flex stack">
+    <a {...attributes}>
+      <span class="title">
+        {
+          isImageIcon ? (
+            <Image src={icon as ImageMetadata} alt="" class="icon image-icon" height={32} />
+          ) : icon ? (
+            <Icon name={icon as StarlightIcon} class="icon" />
+          ) : null
+        }
+        {title}
+      </span>
+    </a>
+    {description && <span class="description" set:html={description} />}
+  </span>
+  {placement !== 'start' && <Icon name="right-arrow" class="icon rtl:flip" />}
 </div>
 
 <style>
-	@layer starlight.components {
-		.sl-link-card {
-			margin-top: 1rem;
-			display: grid;
-			grid-template-columns: 1fr auto;
-			gap: 0.5rem;
-			border: 1px solid var(--sl-color-gray-5);
-			border-radius: 0.5rem;
-			padding: 1rem;
-			box-shadow: var(--sl-shadow-sm);
-			position: relative;
-			overflow: hidden;
-			min-width: 0;
-			cursor: pointer;
-		}
+  @layer starlight.components {
+    .sl-link-card {
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: var(--sl-shadow-sm);
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      cursor: pointer;
+    }
 
-		/* Arrow at start → flip columns */
-		.sl-link-card.start {
-			grid-template-columns: auto 1fr;
-		}
+    /* Arrow at start → flip columns */
+    .sl-link-card.start {
+      grid-template-columns: auto 1fr;
+    }
 
-		.sl-link-card a {
-			text-decoration: none;
-			line-height: var(--sl-line-height-headings);
-			min-width: 0;
-			overflow: hidden;
-			position: relative;
-		}
+    .sl-link-card a {
+      text-decoration: none;
+      line-height: var(--sl-line-height-headings);
+      min-width: 0;
+      overflow: hidden;
+      position: relative;
+    }
 
-		/* a11y fix for https://github.com/withastro/starlight/issues/487 */
-		.sl-link-card a::before {
-			content: "";
-			position: absolute;
-			inset: 0;
-		}
-		.sl-link-card .title {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			min-width: 0;
-			color: var(--sl-color-white);
-			font-weight: 500;
-			font-size: var(--sl-text-md);
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-		}
+    /* a11y fix for https://github.com/withastro/starlight/issues/487 */
+    .sl-link-card a::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+    }
+    .sl-link-card .title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+      color: var(--sl-color-white);
+      font-weight: 500;
+      font-size: var(--sl-text-md);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-		.sl-link-card .title .icon {
-			color: var(--sl-color-gray-3);
-			flex-shrink: 0;
-		}
+    .sl-link-card .title .icon {
+      color: var(--sl-color-gray-3);
+      flex-shrink: 0;
+    }
 
-		.sl-link-card .title .image-icon {
-			height: 32px;
-			width: auto;
-			object-fit: contain;
-		}
+    .sl-link-card .title .image-icon {
+      height: 32px;
+      width: auto;
+      object-fit: contain;
+    }
 
-		.sl-link-card .stack {
-			display: flex;
-			flex-direction: column;
-			gap: 0.5rem;
-			min-width: 0;
-			overflow: hidden;
-		}
+    .sl-link-card .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-width: 0;
+      overflow: hidden;
+    }
 
-		.sl-link-card .description {
-			color: var(--sl-color-gray-3);
-			line-height: 1.5;
-			word-wrap: break-word;
-			overflow-wrap: break-word;
-		}
+    .sl-link-card .description {
+      color: var(--sl-color-gray-3);
+      line-height: 1.5;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
 
-		.sl-link-card .icon {
-			align-self: center;
-			color: var(--sl-color-gray-3);
-		}
+    .sl-link-card .icon {
+      align-self: center;
+      color: var(--sl-color-gray-3);
+    }
 
-		.sl-link-card:hover {
-			background: var(--sl-color-gray-7, var(--sl-color-gray-6));
-			border-color: var(--sl-color-gray-2);
-		}
+    .sl-link-card:hover {
+      background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+      border-color: var(--sl-color-gray-2);
+    }
 
-		.sl-link-card:hover .icon {
-			color: var(--sl-color-white);
-		}
-	}
+    .sl-link-card:hover .icon {
+      color: var(--sl-color-white);
+    }
+  }
 </style>
