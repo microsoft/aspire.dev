@@ -14,16 +14,6 @@ import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import sqlIcon from '@assets/icons/sql-icon.png';
 
-<PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript"},
-    ]}
-/>
-
 <Image
   src={sqlIcon}
   alt="SQL Server logo"
@@ -33,7 +23,7 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integration enables you to connect to existing SQL Server instances or create new instances from Aspire with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
+[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server integrations enable you to connect to existing SQL Server instances or create new instances from Aspire with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
 
 In this introduction, you'll see how to install and use the Aspire SQL Server integrations in a simple configuration. If you already have this knowledge, see [SQL Server Hosting integration](../sql-server-host/) for full reference details.
 
@@ -49,9 +39,19 @@ To begin, install the Aspire SQL Server Hosting integration in your Aspire AppHo
 
 Next, in the AppHost project, create instances of SQL Server server and database resources, then pass the database to the consuming client projects:
 
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript" },
+    ]}
+/>
+
 <Pivot id="csharp">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql");
@@ -66,7 +66,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 
 <Pivot id="python">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="apphost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql");
@@ -82,7 +82,7 @@ var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
 
 <Pivot id="javascript">
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql");
@@ -173,7 +173,7 @@ Use the `GetValue()` method to obtain these environment variables in consuming p
 
 ```csharp title="C# - Obtain configuration properties"
 string hostname = builder.Configuration.GetValue<string>("SQLDB_HOST");
-string databaseport = builder.Configuration.GetValue<string>("SQLDB_PORT");
+string port = builder.Configuration.GetValue<string>("SQLDB_PORT");
 string jdbcconnectionstring = builder.Configuration.GetValue<string>("SQLDB_JDBCCONNECTIONSTRING");
 string databasename = builder.Configuration.GetValue<string>("SQLDB_DATABASE");
 ```
@@ -209,7 +209,7 @@ const sqlDatabase = process.env.SQLDB_DATABASE;
 </Pivot>
 
 <Aside type="tip">
-    The full set of properties that Aspire injects depends on whether you passed a SQL Server server or database resource. For more information, see [Properties of the SQL Server resources](../sql-server-client/#properties-of-the-sql-server-resources).
+    The full set of properties that Aspire injects depends on whether you passed a server or database resource. For more information, see [Properties of the SQL Server resources](../sql-server-client/#properties-of-the-sql-server-resources).
 </Aside>
 
 ### Use SQL Server resources in client code
@@ -235,12 +235,12 @@ Use the information you have obtained about the SQL Server resource to connect t
 
 ```python title="Python - Connect to SQL Server"
 connection_string = (
-    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-    f"SERVER={sql_host},{sql_port};"
-    f"DATABASE={sql_database};"
-    f"UID={sql_user};"
-    f"PWD={sql_password};"
-    f"TrustServerCertificate=yes;"
+    "DRIVER={{ODBC Driver 18 for SQL Server}};"
+    "SERVER={sql_host},{sql_port};"
+    "DATABASE={sql_database};"
+    "UID={sql_user};"
+    "PWD={sql_password};"
+    "TrustServerCertificate=yes;"
 )
 
 connection = pyodbc.connect(connection_string)
