@@ -253,6 +253,10 @@ aside {
   margin-bottom: 1rem;
 }
 
+starlight-toc a {
+  white-space: normal;
+}
+
 starlight-file-tree {
   border-radius: 0.5rem;
   box-shadow: var(--sl-shadow-sm);
@@ -848,9 +852,76 @@ li a.external-link::after {
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z'/><path d='M5 5h7v2H7v10h10v-5h2v7H5z'/></svg>");
 }
 
-@media (min-width: 72rem) {
+:root {
+  --sl-content-width: 68rem;
+}
+
+/* 
+see: https://github.com/withastro/starlight/issues/3513#issuecomment-3638588654
+here the second rem value can be configured to your needs, 
+it configures at which point the mobile toc should be replaced with the normal toc */
+@media (min-width: 72rem) and (max-width: 99.999rem) {
   :root {
-    --sl-content-width: 68rem;
+    --sl-content-width: 10000rem;
+    /* very dirty */
+    --sl-content-pad-x: 1rem;
+    --sl-mobile-toc-height: 3rem;
+  }
+
+  .lg\:sl-hidden {
+    display: block;
+  }
+
+  .lg\:sl-flex {
+    display: flex;
+  }
+
+  .lg\:sl-block {
+    display: flex;
+  }
+
+  .right-sidebar-panel > .sl-container {
+    width: calc(var(--sl-sidebar-width) - 2 * var(--sl-sidebar-pad-x));
+  }
+
+  .content-panel > .sl-container {
+    margin-inline: 0;
+  }
+}
+
+/* remember to also update this value accordingly */
+@media (min-width: 100rem) {
+  :root {
+    --sl-content-pad-x: 1.5rem;
+    --sl-mobile-toc-height: 0rem;
+  }
+
+  .lg\:sl-hidden {
+    display: none;
+  }
+
+  .lg\:sl-flex {
+    display: flex;
+  }
+
+  .lg\:sl-block {
+    display: block;
+  }
+
+  .right-sidebar-panel > .sl-container {
+    max-width: calc(
+      (
+        (
+            100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 *
+              var(--sl-sidebar-pad-x)
+          ) *
+          0.25 /* MAGIC NUMBER 🥲 */
+      )
+    );
+  }
+
+  .content-panel > .sl-container {
+    margin-inline: var(--sl-content-margin-inline, auto);
   }
 }
 
