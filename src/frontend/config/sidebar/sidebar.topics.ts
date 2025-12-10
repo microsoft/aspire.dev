@@ -399,6 +399,66 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
             },
             slug: 'fundamentals/health-checks',
           },
+          {
+            label: 'Networking overview',
+            slug: 'fundamentals/networking-overview',
+          },
+          {
+            label: 'External parameters',
+            slug: 'fundamentals/external-parameters',
+          },
+          {
+            label: 'Persist data with volumes',
+            slug: 'fundamentals/persist-data-volumes',
+          },
+        ],
+      },
+      {
+        label: 'AppHost',
+        collapsed: true,
+        items: [
+          {
+            label: 'Configuration',
+            slug: 'app-host/configuration',
+          },
+          {
+            label: 'Certificate trust',
+            slug: 'app-host/certificate-trust',
+          },
+          {
+            label: 'Eventing',
+            slug: 'app-host/eventing',
+          },
+          {
+            label: 'Persistent containers',
+            slug: 'app-host/persistent-containers',
+          },
+          {
+            label: 'Dockerfiles',
+            slug: 'app-host/withdockerfile',
+          },
+        ],
+      },
+      {
+        label: 'Extensibility',
+        collapsed: true,
+        items: [
+          {
+            label: 'Interaction service',
+            slug: 'extensibility/interaction-service',
+          },
+          {
+            label: 'Custom resource commands',
+            slug: 'fundamentals/custom-resource-commands',
+          },
+          {
+            label: 'Custom HTTP commands',
+            slug: 'fundamentals/http-commands',
+          },
+          {
+            label: 'Custom resource URLs',
+            slug: 'fundamentals/custom-resource-urls',
+          },
         ],
       },
       {
