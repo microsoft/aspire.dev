@@ -2,11 +2,7 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 
 const SERVICE_INDEX = 'https://api.nuget.org/v3/index.json';
-const API_QUERIES = [
-  'owner:aspire',
-  'Aspire.Hosting.',
-  'CommunityToolkit.Aspire',
-];
+const API_QUERIES = ['owner:aspire', 'Aspire.Hosting.', 'CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
   'Aspire.Hosting',
@@ -16,7 +12,7 @@ const EXCLUDED_PACKAGES = [
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.EventStore',
-  'CommunityToolkit.Aspire.EventStore'
+  'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
 const OUTPUT_NAME_PATH = './src/data/aspire-integration-names.json';
@@ -30,9 +26,7 @@ const MAX_SKIP = 3000;
 async function discoverBase() {
   const res = await fetch(SERVICE_INDEX);
   const idx = await res.json();
-  const svc = idx.resources.find(r =>
-    r['@type']?.startsWith('SearchQueryService')
-  );
+  const svc = idx.resources.find((r) => r['@type']?.startsWith('SearchQueryService'));
   if (!svc) throw new Error('SearchQueryService not in service index');
   return svc['@id'];
 }
@@ -40,19 +34,22 @@ async function discoverBase() {
 async function discoverRegistrationBase() {
   const res = await fetch(SERVICE_INDEX);
   const idx = await res.json();
-  const regs = (idx.resources || []).filter(r => r['@type']?.startsWith('RegistrationsBaseUrl'));
+  const regs = (idx.resources || []).filter((r) => r['@type']?.startsWith('RegistrationsBaseUrl'));
   if (!regs.length) throw new Error('RegistrationsBaseUrl not in service index');
   // Prefer semver2 gz endpoint for complete metadata
   const byPreference = [
-    r => /registration5-gz-semver2/i.test(r['@id'] || ''),
-    r => /registration5-semver2/i.test(r['@id'] || ''),
-    r => /registration5-gz/i.test(r['@id'] || ''),
-    r => /registration5/i.test(r['@id'] || ''),
+    (r) => /registration5-gz-semver2/i.test(r['@id'] || ''),
+    (r) => /registration5-semver2/i.test(r['@id'] || ''),
+    (r) => /registration5-gz/i.test(r['@id'] || ''),
+    (r) => /registration5/i.test(r['@id'] || ''),
   ];
   let chosen = regs[0];
   for (const pred of byPreference) {
     const found = regs.find(pred);
-    if (found) { chosen = found; break; }
+    if (found) {
+      chosen = found;
+      break;
+    }
   }
   const id = chosen['@id'];
   return id.endsWith('/') ? id : id + '/';
@@ -76,7 +73,9 @@ async function fetchAllFromQuery(base, q) {
     if (skip >= MAX_SKIP) {
       console.warn(`⚠️ Skip reached limit (${skip} ≥ ${MAX_SKIP}), stopping page loop.`);
       if (total > skip + json.data.length) {
-        console.warn(`⚠️ Total hits (${total}) > retrieved (${skip + json.data.length}). Some packages may be missing.`);
+        console.warn(
+          `⚠️ Total hits (${total}) > retrieved (${skip + json.data.length}). Some packages may be missing.`
+        );
       }
       break;
     }
@@ -90,9 +89,9 @@ async function fetchAllFromQuery(base, q) {
 
 function filterAndTransform(pkgs) {
   return pkgs
-    .filter(pkg => {
+    .filter((pkg) => {
       const id = pkg.id.toLowerCase();
-      const excludedLower = EXCLUDED_PACKAGES.map(p => p.toLowerCase());
+      const excludedLower = EXCLUDED_PACKAGES.map((p) => p.toLowerCase());
       return (
         (id.startsWith('aspire.') || id.startsWith('communitytoolkit.aspire')) &&
         pkg.verified === true &&
@@ -100,16 +99,15 @@ function filterAndTransform(pkgs) {
         pkg.deprecated !== true &&
         !pkg.deprecation &&
         !excludedLower.includes(id) &&
-        !['x86','x64','arm64','projecttemplates','apphost']
-          .some(t => id.includes(t))
+        !['x86', 'x64', 'arm64', 'projecttemplates', 'apphost'].some((t) => id.includes(t))
       );
     })
-    .map(pkg => ({
+    .map((pkg) => ({
       title: pkg.id,
       description: pkg.description,
       icon: pkg.iconUrl || 'https://www.nuget.org/Content/gallery/img/default-package-icon.svg',
       href: `https://www.nuget.org/packages/${pkg.id}`,
-      tags: pkg.tags?.map(t => t.toLowerCase()) ?? [],
+      tags: pkg.tags?.map((t) => t.toLowerCase()) ?? [],
       downloads: pkg.totalDownloads,
       version: pkg.version,
     }));
@@ -119,7 +117,7 @@ async function filterOutDeprecatedWithRegistration(pkgs) {
   const regBase = await discoverRegistrationBase();
   console.log('🔗 Registration base:', regBase);
   // Light pre-filter in case search already flags deprecated
-  const prefiltered = pkgs.filter(p => p.deprecated !== true && !p.deprecation);
+  const prefiltered = pkgs.filter((p) => p.deprecated !== true && !p.deprecation);
 
   const concurrency = 10;
   const out = [];
@@ -128,7 +126,7 @@ async function filterOutDeprecatedWithRegistration(pkgs) {
     while (i < prefiltered.length) {
       const idx = i++;
       const p = prefiltered[idx];
-  const preferred = await getPreferredNonDeprecatedVersion(regBase, p.id);
+      const preferred = await getPreferredNonDeprecatedVersion(regBase, p.id);
       if (preferred) {
         out.push({ ...p, version: preferred });
       }
@@ -141,10 +139,13 @@ async function filterOutDeprecatedWithRegistration(pkgs) {
 
 function parseSemVer(v) {
   // Strip build metadata
-  const [core, ] = v.split('+', 1).concat('');
+  const [core] = v.split('+', 1).concat('');
   const [nums, pre = ''] = core.split('-', 2).concat('');
-  const [maj, min, pat] = nums.split('.').map(x => parseInt(x, 10) || 0);
-  const preParts = pre === '' ? [] : pre.split('.').map(x => (x.match(/^\d+$/) ? { n: parseInt(x, 10) } : { s: x }));
+  const [maj, min, pat] = nums.split('.').map((x) => parseInt(x, 10) || 0);
+  const preParts =
+    pre === ''
+      ? []
+      : pre.split('.').map((x) => (x.match(/^\d+$/) ? { n: parseInt(x, 10) } : { s: x }));
   return { maj, min, pat, pre: preParts };
 }
 
@@ -204,7 +205,7 @@ async function getAllRegistrationLeaves(regBase, id) {
       const ce = leaf.catalogEntry || {};
       const version = (ce.version || leaf.version || '').trim();
       if (!version) continue;
-      const isPrerelease = !!(ce.isPrerelease ?? (version.includes('-')));
+      const isPrerelease = !!(ce.isPrerelease ?? version.includes('-'));
       const listed = ce.listed !== false; // default true if missing
       const deprecated = !!(leaf.deprecation || ce.deprecation);
       leaves.push({ version, isPrerelease, listed, deprecated });
@@ -226,19 +227,19 @@ async function getAllRegistrationLeaves(regBase, id) {
 
 async function getPreferredNonDeprecatedVersion(regBase, id) {
   try {
-  const leaves = await getAllRegistrationLeaves(regBase, id);
+    const leaves = await getAllRegistrationLeaves(regBase, id);
     if (leaves.length === 0) return null;
     // Prefer listed versions
-    const listed = leaves.filter(l => l.listed);
+    const listed = leaves.filter((l) => l.listed);
     const pool = listed.length > 0 ? listed : leaves;
-  const nonDeprecated = pool.filter(l => !l.deprecated);
-  if (nonDeprecated.length === 0) return null;
-  const hasAnyStable = pool.some(l => !l.isPrerelease);
-  const nonDeprecatedStable = nonDeprecated.filter(l => !l.isPrerelease);
-  // If the package has any stable releases but none are non-deprecated, treat the package as deprecated overall
-  if (hasAnyStable && nonDeprecatedStable.length === 0) return null;
-  // Otherwise, prefer stable non-deprecated; if no stable releases exist at all, allow prerelease
-  const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
+    const nonDeprecated = pool.filter((l) => !l.deprecated);
+    if (nonDeprecated.length === 0) return null;
+    const hasAnyStable = pool.some((l) => !l.isPrerelease);
+    const nonDeprecatedStable = nonDeprecated.filter((l) => !l.isPrerelease);
+    // If the package has any stable releases but none are non-deprecated, treat the package as deprecated overall
+    if (hasAnyStable && nonDeprecatedStable.length === 0) return null;
+    // Otherwise, prefer stable non-deprecated; if no stable releases exist at all, allow prerelease
+    const pickFrom = nonDeprecatedStable.length > 0 ? nonDeprecatedStable : nonDeprecated;
     // Pick highest per SemVer
     pickFrom.sort((a, b) => cmpSemVer(a.version, b.version));
     return pickFrom[pickFrom.length - 1].version;
@@ -253,17 +254,24 @@ async function getPreferredNonDeprecatedVersion(regBase, id) {
     const base = await discoverBase();
     console.log('🔗 Using:', base);
 
-    const results = await Promise.all(API_QUERIES.map(q => fetchAllFromQuery(base, q)));
-  const merged = results.flat();
-  const unique = Object.values(
-      merged.reduce((acc, pkg) => (acc[pkg.id] = pkg, acc), {})
-    ).sort((a,b) => a.id.localeCompare(b.id));
+    const results = await Promise.all(API_QUERIES.map((q) => fetchAllFromQuery(base, q)));
+    const merged = results.flat();
+    const unique = Object.values(merged.reduce((acc, pkg) => ((acc[pkg.id] = pkg), acc), {})).sort(
+      (a, b) => a.id.localeCompare(b.id)
+    );
 
-  // Exclude deprecated packages using registration metadata
-  const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
-  const output = filterAndTransform(nonDeprecated);
+    // Exclude deprecated packages using registration metadata
+    const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
+    const output = filterAndTransform(nonDeprecated);
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
-    fs.writeFileSync(OUTPUT_NAME_PATH, JSON.stringify(output.map(p => p.title), null, 2));
+    fs.writeFileSync(
+      OUTPUT_NAME_PATH,
+      JSON.stringify(
+        output.map((p) => p.title),
+        null,
+        2
+      )
+    );
     console.log(`✅ Saved ${output.length} packages to ${OUTPUT_PATH}`);
   } catch (err) {
     console.error('❌ Error:', err);

@@ -21,7 +21,8 @@ When a resource implements the `IResourceWithParent` interface, it declares **tr
 - **Failure Propagation**: If a parent enters a terminal failure state (`FailedToStart`, etc.), dependent children are stopped.
 
 <Aside type="note">
-A logging sidecar container is tied to the lifecycle of a main application container — if the main app stops, the logging sidecar is also terminated.
+  A logging sidecar container is tied to the lifecycle of a main application
+  container — if the main app stops, the logging sidecar is also terminated.
 </Aside>
 
 ### Visual grouping (without lifecycle impact)
@@ -35,7 +36,8 @@ Visual relationships:
 - Improve **clarity** by logically grouping related components.
 
 <Aside type="tip">
-A Redis database container and a Redis Commander admin UI container can be grouped visually, even though they start independently.
+  A Redis database container and a Redis Commander admin UI container can be
+  grouped visually, even though they start independently.
 </Aside>
 
 ### Manual Relationships — No Inference
@@ -53,11 +55,11 @@ This explicitness ensures developers have full control over resource containment
 
 The following scenarios illustrate how Aspire models parent-child relationships:
 
-| Scenario | Parent | Child |
-|----------|--------|-------|
-| Main application container with logging sidecar | App container | Fluentd container |
-| Database with admin dashboard | Database container | Admin UI container |
-| Microservice with associated health monitor | API container | Health probe container |
+| Scenario                                        | Parent             | Child                  |
+| ----------------------------------------------- | ------------------ | ---------------------- |
+| Main application container with logging sidecar | App container      | Fluentd container      |
+| Database with admin dashboard                   | Database container | Admin UI container     |
+| Microservice with associated health monitor     | API container      | Health probe container |
 
 ## Values and references
 
@@ -102,7 +104,8 @@ Endpoints are modeled as **external entities**:
   - A backend exposing CORS settings that reference the frontend URL.
 
 <Aside type="tip">
-  Endpoints are managed separately from strict dependency edges to allow flexible, real-world service wiring.
+  Endpoints are managed separately from strict dependency edges to allow
+  flexible, real-world service wiring.
 </Aside>
 
 ### How the DAG forms
@@ -120,7 +123,8 @@ Each reference **adds an edge** to the graph, allowing Aspire to:
 - Validate application integrity before execution.
 
 <Aside type="note">
-  Aspire **never infers references automatically** — all value flows must be explicitly authored by developers.
+  Aspire **never infers references automatically** — all value flows must be
+  explicitly authored by developers.
 </Aside>
 
 ### Structured vs literal values
@@ -136,16 +140,18 @@ At publish time and run time:
 - Literal values are simply copied.
 
 <Aside type="caution">
-  **Flattening values too early destroys portability, environment substitution, and cross-platform compatibility.** Aspire delays flattening as long as possible to maintain graph fidelity.
+  **Flattening values too early destroys portability, environment substitution,
+  and cross-platform compatibility.** Aspire delays flattening as long as
+  possible to maintain graph fidelity.
 </Aside>
 
 ### Value providers and deferred evaluation
 
 Every structured value type in Aspire implements two fundamental interfaces:
 
-| Interface | When Used | Purpose |
-|-----------|-----------|---------|
-| `IValueProvider` | Run mode | Resolves live values when the application starts. |
+| Interface                     | When Used    | Purpose                                                                           |
+| ----------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| `IValueProvider`              | Run mode     | Resolves live values when the application starts.                                 |
 | `IManifestExpressionProvider` | Publish mode | Emits structured expressions (like `{pg.outputs.url}`) into deployment artifacts. |
 
 This dual-interface model enables **deferred evaluation**:
@@ -156,19 +162,20 @@ This dual-interface model enables **deferred evaluation**:
 Internally, value providers are attached to environment variables, CLI arguments, configuration fields, and other structured outputs during application graph construction.
 
 <Aside type="note">
-  Deferred evaluation guarantees that Aspire applications can be **published safely**, **deployed flexibly**, and **run consistently** across environments.
+  Deferred evaluation guarantees that Aspire applications can be **published
+  safely**, **deployed flexibly**, and **run consistently** across environments.
 </Aside>
 
 ### Core value types (expanded)
 
-| Type | Represents | Run Mode | Publish Mode |
-|------|------------|----------|--------------|
-| `string` | A literal string value. | Same literal. | Same literal. |
-| `EndpointReference` | A link to a named endpoint on another resource. | Concrete URL (`http://localhost:5000`). | Target-specific endpoint translation (DNS, ingress, etc.). |
-| `EndpointReferenceExpression` | A property of an endpoint (`Host`, `Port`, `Scheme`). | Concrete value. | Platform-specific translation. |
-| `ConnectionStringReference` | A symbolic pointer to a resource's connection string. | Concrete string. | Token or externalized secret. |
-| `ParameterResource` | An external input, secret, or setting. | Local dev value or environment lookup. | Placeholder `${PARAM}` for substitution. |
-| `ReferenceExpression` | A composite string with embedded references. | Concrete formatted string. | Format string preserved for substitution. |
+| Type                          | Represents                                            | Run Mode                                | Publish Mode                                               |
+| ----------------------------- | ----------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
+| `string`                      | A literal string value.                               | Same literal.                           | Same literal.                                              |
+| `EndpointReference`           | A link to a named endpoint on another resource.       | Concrete URL (`http://localhost:5000`). | Target-specific endpoint translation (DNS, ingress, etc.). |
+| `EndpointReferenceExpression` | A property of an endpoint (`Host`, `Port`, `Scheme`). | Concrete value.                         | Platform-specific translation.                             |
+| `ConnectionStringReference`   | A symbolic pointer to a resource's connection string. | Concrete string.                        | Token or externalized secret.                              |
+| `ParameterResource`           | An external input, secret, or setting.                | Local dev value or environment lookup.  | Placeholder `${PARAM}` for substitution.                   |
+| `ReferenceExpression`         | A composite string with embedded references.          | Concrete formatted string.              | Format string preserved for substitution.                  |
 
 ## `ReferenceExpression`
 
@@ -177,7 +184,7 @@ Internally, value providers are attached to environment variables, CLI arguments
 Aspire evaluates the model in **two distinct modes**:
 
 | Phase       | `ReferenceExpression` yields                                            |
-|-------------|-------------------------------------------------------------------------|
+| ----------- | ----------------------------------------------------------------------- |
 | **Publish** | Publisher-specific placeholder text (e.g., `{api.bindings.http.host}`). |
 | **Run**     | Concrete value such as `localhost`.                                     |
 
@@ -193,19 +200,21 @@ builder.WithEnvironment("HEALTH_URL",
 );
 ```
 
-*Publish manifest excerpt:*
+_Publish manifest excerpt:_
 
 ```ini
 HEALTH_URL=https://{api.bindings.http.host}:{api.bindings.http.port}/health
 ```
 
-*Run-time value:*
+_Run-time value:_
 
 ```ini
 HEALTH_URL=https://localhost:5000/health
 ```
+
 <Aside type="tip">
-  **Avoid resolving values directly** — build the string inside `ReferenceExpression.Create()` to preserve structure.
+  **Avoid resolving values directly** — build the string inside
+  `ReferenceExpression.Create()` to preserve structure.
 </Aside>
 
 ### Alternate pattern using `ExecutionContext`
@@ -248,7 +257,7 @@ private static ReferenceExpression BuildConnectionString(
 The following patterns are common mistakes when using `ReferenceExpression`:
 
 | Error                                  | Correct approach                                        |
-|----------------------------------------|---------------------------------------------------------|
+| -------------------------------------- | ------------------------------------------------------- |
 | Build the string first, wrap later.    | Build **inside** `ReferenceExpression.Create(...)`.     |
 | Access `Endpoint.Url` during publish.  | Use `Endpoint.Property(...)` in the expression.         |
 | Mix resolved strings and placeholders. | Keep the entire value inside one `ReferenceExpression`. |
@@ -287,17 +296,17 @@ In **publish mode**, endpoints are not allocated with concrete values. Instead, 
 
 #### Comparison: Run Mode vs Publish Mode
 
-| **Context** | **Run Mode** | **Publish Mode** |
-|--|--|--|
+| **Context**         | **Run Mode**                             | **Publish Mode**                                                  |
+| ------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
 | **Endpoint Values** | Fully resolved (`tcp://localhost:6379`). | Represented by manifest expressions (`{redis.bindings.tcp.url}`). |
-| **Use Case** | Local development and debugging. | Deployed environments (e.g., Kubernetes, Azure, AWS, etc.). |
-| **Behavior** | Endpoints are allocated dynamically. | Endpoint placeholders resolve at runtime. |
+| **Use Case**        | Local development and debugging.         | Deployed environments (e.g., Kubernetes, Azure, AWS, etc.).       |
+| **Behavior**        | Endpoints are allocated dynamically.     | Endpoint placeholders resolve at runtime.                         |
 
 Use the `IsAllocated` property on an `EndpointReference` to check whether an endpoint has been allocated before accessing its runtime values.
 
 ### Accessing Allocated Endpoints Safely
 
-Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `AfterEndpointsAllocatedEvent`, to access endpoints after allocation. These APIs ensure code executes only when endpoints are ready. 
+Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `AfterEndpointsAllocatedEvent`, to access endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
 
 ```csharp title="Example — Checking Allocation and Using Eventing"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -342,6 +351,7 @@ The preceding code will output different results depending on whether the applic
 IsAllocated: True
 Resolved Url: http://localhost:6379
 ```
+
 **Publish Mode**:
 
 ```bash title="Publish Mode — Console Output"
@@ -350,7 +360,8 @@ Error accessing Url: Endpoint has not been allocated.
 ```
 
 <Aside type="tip">
-  The overloads of `WithEnvironment` that take a callback run after endpoints have been allocated.
+  The overloads of `WithEnvironment` that take a callback run after endpoints
+  have been allocated.
 </Aside>
 
 ## Referencing Endpoints from Other Resources
@@ -399,7 +410,7 @@ builder.Build().Run();
 Call `endpoint.Property(...)` to get that field; the result is still a structured value and stays deferred until publish/run time.
 
 | Need                                    | Pattern                                                |
-|-----------------------------------------|--------------------------------------------------------|
+| --------------------------------------- | ------------------------------------------------------ |
 | Only one part (e.g., host)              | `endpoint.Property(EndpointProperty.Host)`             |
 | Compose multiple parts into one setting | Build a `ReferenceExpression` (see dedicated section). |
 
@@ -433,7 +444,7 @@ This pattern avoids resolving endpoint values prematurely and works in both publ
 ### `EndpointProperty` API Surface
 
 | Property               | Meaning                                          |
-|------------------------|--------------------------------------------------|
+| ---------------------- | ------------------------------------------------ |
 | `Url`                  | Fully qualified URL (`scheme://host:port`).      |
 | `Host` or `IPV4Host`   | Host name or IPv4 literal.                       |
 | `Port` or `TargetPort` | Allocated host port vs. container-internal port. |
@@ -444,11 +455,11 @@ The `EndpointReference` type exposes live or placeholder values for an endpoint 
 
 Key members:
 
-| Member | Description |
-|--|--|
-| `Url`, `Host`, `Port`, `Scheme`, `TargetPort` | Concrete in run mode; undefined in publish mode. |
-| `bool IsAllocated` | Indicates if concrete values are available (run mode). |
-| `EndpointReferenceExpression Property(EndpointProperty)` | Creates a deferred expression for one field. |
+| Member                                                   | Description                                            |
+| -------------------------------------------------------- | ------------------------------------------------------ |
+| `Url`, `Host`, `Port`, `Scheme`, `TargetPort`            | Concrete in run mode; undefined in publish mode.       |
+| `bool IsAllocated`                                       | Indicates if concrete values are available (run mode). |
+| `EndpointReferenceExpression Property(EndpointProperty)` | Creates a deferred expression for one field.           |
 
 `EndpointReferenceExpression` implements the same `IManifestExpressionProvider` / `IValueProvider` pair, so it can be embedded in a `ReferenceExpression` or resolved directly with `GetValueAsync()`.
 
@@ -458,11 +469,11 @@ Aspire resolves endpoints differently based on the relationship between the sour
 
 ### Resolution Rules
 
-| **Source** | **Target** | **Resolution** | **Example URL** |
-|--|--|--|--|
-| Container | Container | Container network (`resource name:port`). | `redis:6379` |
-| Executable / Project | Container | Host network (`localhost:port`). | `localhost:6379` |
-| Container | Executable / Project | Host network (`host.docker.internal:port`). | `host.docker.internal:5000` |
+| **Source**           | **Target**           | **Resolution**                              | **Example URL**             |
+| -------------------- | -------------------- | ------------------------------------------- | --------------------------- |
+| Container            | Container            | Container network (`resource name:port`).   | `redis:6379`                |
+| Executable / Project | Container            | Host network (`localhost:port`).            | `localhost:6379`            |
+| Container            | Executable / Project | Host network (`host.docker.internal:port`). | `host.docker.internal:5000` |
 
 #### Advanced Scenario: Dynamic Endpoint Resolution Across Contexts
 
@@ -490,10 +501,10 @@ var api = builder.AddProject<Projects.Api>("api")
 
         if (ctx.ExecutionContext.IsRunMode)
         {
-            // The project needs to get the URL for keycloak in the context 
+            // The project needs to get the URL for keycloak in the context
             // of the container network, but since this is a project, it'll
-            // resolve the url in the context of the host network. We get 
-            // the runtime url and change the host and port to match the 
+            // resolve the url in the context of the host network. We get
+            // the runtime url and change the host and port to match the
             // container network pattern (host = resource name, port = target port ?? port)
             var keycloakUrl = new UriBuilder(keyCloakEndpoint.Url)
             {

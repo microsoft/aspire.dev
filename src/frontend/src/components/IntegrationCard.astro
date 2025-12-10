@@ -1,273 +1,250 @@
 ---
-import { Icon, Badge } from "@astrojs/starlight/components";
+import { Icon, Badge } from '@astrojs/starlight/components';
 
 // Helper to abbreviate download counts
 function formatDownloads(n?: number) {
-    if (!n) return "0";
-    if (n >= 1_000_000_000)
-        return `${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
-    if (n >= 1_000_000)
-        return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-    if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  if (!n) return '0';
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
 
-    return n.toString();
+  return n.toString();
 }
 
 interface Props {
-    pkg: {
-        title: string;
-        href: string;
-        icon?: string;
-        description: string;
-        downloads?: number;
-        version?: string;
-        tags?: string[];
-        docs?: string;
-    };
+  pkg: {
+    title: string;
+    href: string;
+    icon?: string;
+    description: string;
+    downloads?: number;
+    version?: string;
+    tags?: string[];
+    docs?: string;
+  };
 }
 
 const { pkg } = Astro.props as Props;
 ---
 
 <article
-    class="card"
-    data-tags={(pkg.tags ?? []).join(",")}
-    data-title={pkg.title.toLowerCase()}
-    data-downloads={pkg.downloads}
-    data-description={pkg.description.toLowerCase()}
+  class="card"
+  data-tags={(pkg.tags ?? []).join(',')}
+  data-title={pkg.title.toLowerCase()}
+  data-downloads={pkg.downloads}
+  data-description={pkg.description.toLowerCase()}
 >
-    <div class="card-header">
-        {
-            pkg.icon && (
-                <img
-                    class="icon"
-                    src={pkg.icon}
-                    alt={Astro.locals.t("integrations.icon", {
-                        title: pkg.title,
-                    })}
-                    loading="lazy"
-                />
-            )
-        }
-        <span
-            class="title"
-            set:html={pkg.title}
-            title={pkg.title}
-            data-tooltip-placement="top"
+  <div class="card-header">
+    {
+      pkg.icon && (
+        <img
+          class="icon"
+          src={pkg.icon}
+          alt={Astro.locals.t('integrations.icon', {
+            title: pkg.title,
+          })}
+          loading="lazy"
         />
-    </div>
-    <div class="body">
-        <div class="desc">{pkg.description}</div>
+      )
+    }
+    <span class="title" set:html={pkg.title} title={pkg.title} data-tooltip-placement="top" />
+  </div>
+  <div class="body">
+    <div class="desc">{pkg.description}</div>
+    {
+      (() => {
+        const filteredTags = (pkg.tags ?? []).filter((tag: string) => {
+          const lower = tag.toLowerCase();
+          return (
+            lower !== 'aspire' && lower !== 'dotnetcommunitytoolkit' && lower !== 'integration'
+          );
+        });
+        const hasOverflow = filteredTags.length > 4;
+        const visibleTags = hasOverflow ? filteredTags.slice(0, 3) : filteredTags.slice(0, 4);
+        const remaining = hasOverflow ? Math.max(filteredTags.length - 3, 0) : 0;
+        const overflowTags = hasOverflow ? filteredTags.slice(3) : [];
+
+        const sanitizeForAttr = (s: string) =>
+          String(s ?? '')
+            .normalize('NFKC')
+            .replace(/[\u0000-\u001F\u007F]/g, '')
+            .replace(/[<>&"'`]/g, '')
+            .trim();
+
+        if (hasOverflow && overflowTags.length) {
+          const sanitized = overflowTags.map(sanitizeForAttr);
+          overflowTags.splice(0, overflowTags.length, ...sanitized);
+        }
+
+        const overflowTitle = overflowTags.join(', ');
+
+        return (
+          filteredTags.length > 0 && (
+            <div class="badges">
+              {visibleTags.map((tag: string) => (
+                <Badge text={tag} size="small" />
+              ))}
+              {hasOverflow && remaining > 0 && (
+                <Badge text={`+${remaining}`} size="small" variant="tip" title={overflowTitle} />
+              )}
+            </div>
+          )
+        );
+      })()
+    }
+    <div class="footer">
+      <div class="downloads">
+        <Icon name="download" size="2rem" />
+        <span class="count">{formatDownloads(pkg.downloads)}</span>
+      </div>
+      <div class="version">
         {
-            (() => {
-                const filteredTags = (pkg.tags ?? []).filter((tag: string) => {
-                    const lower = tag.toLowerCase();
-                    return (
-                        lower !== "aspire" &&
-                        lower !== "dotnetcommunitytoolkit" &&
-                        lower !== "integration"
-                    );
-                });
-                const hasOverflow = filteredTags.length > 4;
-                const visibleTags = hasOverflow
-                    ? filteredTags.slice(0, 3)
-                    : filteredTags.slice(0, 4);
-                const remaining = hasOverflow
-                    ? Math.max(filteredTags.length - 3, 0)
-                    : 0;
-                const overflowTags = hasOverflow ? filteredTags.slice(3) : [];
-
-                const sanitizeForAttr = (s: string) =>
-                    String(s ?? "")
-                        .normalize("NFKC")
-                        .replace(/[\u0000-\u001F\u007F]/g, "")
-                        .replace(/[<>&"'`]/g, "")
-                        .trim();
-
-                if (hasOverflow && overflowTags.length) {
-                    const sanitized = overflowTags.map(sanitizeForAttr);
-                    overflowTags.splice(0, overflowTags.length, ...sanitized);
-                }
-
-                const overflowTitle = overflowTags.join(", ");
-
-                return (
-                    filteredTags.length > 0 && (
-                        <div class="badges">
-                            {visibleTags.map((tag: string) => (
-                                <Badge text={tag} size="small" />
-                            ))}
-                            {hasOverflow && remaining > 0 && (
-                                <Badge
-                                    text={`+${remaining}`}
-                                    size="small"
-                                    variant="tip"
-                                    title={overflowTitle}
-                                />
-                            )}
-                        </div>
-                    )
-                );
-            })()
+          Astro.locals.t('integrations.version', {
+            version: pkg.version,
+          })
         }
-        <div class="footer">
-            <div class="downloads">
-                <Icon name="download" size="2rem" />
-                <span class="count">{formatDownloads(pkg.downloads)}</span>
-            </div>
-            <div class="version">
-                {
-                    Astro.locals.t("integrations.version", {
-                        version: pkg.version,
-                    })
-                }
-            </div>
-            <div>
-                <a
-                    href={pkg.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="link"
-                >
-                    {Astro.locals.t("integrations.package")}
-                    <Icon name="right-arrow" size="2rem" />
-                    <span class="sr-only">
-                        {
-                            Astro.locals.t("integrations.link", {
-                                title: pkg.title,
-                            })
-                        }
-                    </span>
-                </a>
-            </div>
+      </div>
+      <div>
+        <a href={pkg.href} target="_blank" rel="noopener noreferrer" class="link">
+          {Astro.locals.t('integrations.package')}
+          <Icon name="right-arrow" size="2rem" />
+          <span class="sr-only">
             {
-                pkg.docs && (
-                    <div>
-                        <a href={pkg.docs} class="link">
-                            Docs
-                            <Icon name="document" size="2rem" />
-                            <span class="sr-only">
-                                {Astro.locals.t("integrations.visitDocs", {
-                                    title: pkg.title,
-                                })}
-                            </span>
-                        </a>
-                    </div>
-                )
+              Astro.locals.t('integrations.link', {
+                title: pkg.title,
+              })
             }
-        </div>
+          </span>
+        </a>
+      </div>
+      {
+        pkg.docs && (
+          <div>
+            <a href={pkg.docs} class="link">
+              Docs
+              <Icon name="document" size="2rem" />
+              <span class="sr-only">
+                {Astro.locals.t('integrations.visitDocs', {
+                  title: pkg.title,
+                })}
+              </span>
+            </a>
+          </div>
+        )
+      }
     </div>
+  </div>
 
-    <style>
-        .card {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5em;
-            border: 1px solid var(--sl-color-gray-5);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            box-shadow: var(--sl-shadow-sm);
-            background-color: var(--sl-color-gray-6);
-            height: 100%;
-        }
+  <style>
+    .card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: var(--sl-shadow-sm);
+      background-color: var(--sl-color-gray-6);
+      height: 100%;
+    }
 
-        .card .footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: auto;
-            padding-top: 0.75em;
-            border-top: 1px solid var(--sl-color-gray-5);
-            width: 100%;
-        }
+    .card .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 0.75em;
+      border-top: 1px solid var(--sl-color-gray-5);
+      width: 100%;
+    }
 
-        .card .footer * {
-            margin-top: 0;
-        }
+    .card .footer * {
+      margin-top: 0;
+    }
 
-        .card .card-header {
-            display: flex;
-            align-items: center;
-            gap: 1em;
-            margin-bottom: 0.5em;
-            max-width: 100%;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            overflow: hidden;
-            min-width: 0;
-        }
+    .card .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      margin-bottom: 0.5em;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      min-width: 0;
+    }
 
-        .card .icon {
-            height: 2.5rem !important;
-            width: 2.5rem !important;
-            object-fit: contain;
-            background: var(--sl-color-gray-5);
-            border-radius: 0.25rem;
-            padding: 0.2em;
-            margin: 0;
-            flex-shrink: 0;
-        }
+    .card .icon {
+      height: 2.5rem !important;
+      width: 2.5rem !important;
+      object-fit: contain;
+      background: var(--sl-color-gray-5);
+      border-radius: 0.25rem;
+      padding: 0.2em;
+      margin: 0;
+      flex-shrink: 0;
+    }
 
-        .card .title {
-            font-size: 1.2em;
-            font-weight: 600;
-            padding-bottom: 0;
-            margin: 0;
-            color: var(--sl-color-white);
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+    .card .title {
+      font-size: 1.2em;
+      font-weight: 600;
+      padding-bottom: 0;
+      margin: 0;
+      color: var(--sl-color-white);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-        .card .body {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            gap: 0.75em;
-        }
+    .card .body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      gap: 0.75em;
+    }
 
-        .card .version {
-            color: var(--sl-color-white);
-        }
+    .card .version {
+      color: var(--sl-color-white);
+    }
 
-        .card .desc {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            color: var(--sl-color-white);
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            line-height: 1.5em;
-            margin: 0;
-        }
+    .card .desc {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--sl-color-white);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      line-height: 1.5em;
+      margin: 0;
+    }
 
-        .card .downloads {
-            display: flex;
-            align-items: center;
-            color: var(--sl-color-white);
-        }
+    .card .downloads {
+      display: flex;
+      align-items: center;
+      color: var(--sl-color-white);
+    }
 
-        .card .downloads .count {
-            margin-left: 0.5em;
-        }
+    .card .downloads .count {
+      margin-left: 0.5em;
+    }
 
-        .card .link {
-            display: flex;
-            align-items: center;
-            color: var(--sl-color-accent-high);
-        }
+    .card .link {
+      display: flex;
+      align-items: center;
+      color: var(--sl-color-accent-high);
+    }
 
-        .card .badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.3em;
-            align-items: flex-start;
-            justify-content: flex-start;
-            margin: 0;
-            padding: 0;
-            flex-grow: 1;
-        }
-    </style>
+    .card .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3em;
+      align-items: flex-start;
+      justify-content: flex-start;
+      margin: 0;
+      padding: 0;
+      flex-grow: 1;
+    }
+  </style>
 </article>

@@ -13,35 +13,43 @@ permissions:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
-          cache: npm
-          cache-dependency-path: src/frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
 
       - name: Install frontend deps
-        run: cd src/frontend && npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend
         env:
           MODE: production
-        run: cd src/frontend && npm run build:production
+        run: pnpm build:production
 
       - name: Build AppHost
-        run: cd src/apphost/Aspire.Dev.AppHost && dotnet build --configuration Release
+        working-directory: src/apphost/Aspire.Dev.AppHost
+        run: dotnet build --configuration Release
 
       - name: Validate frontend index
         run: |
-          if [ ! -f "src/frontend/dist/index.html" ]; then
+          if [ ! -f "dist/index.html" ]; then
             echo "Frontend build incomplete - index.html not found"
             exit 1
           fi

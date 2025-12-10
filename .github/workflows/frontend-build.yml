@@ -16,32 +16,39 @@ jobs:
   build:
     name: Frontend Build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
-          cache: npm
-          cache-dependency-path: src/frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install deps
-        run: cd src/frontend && npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend
         env:
           MODE: production
-        run: cd src/frontend && npm run build:production
+        run: pnpm build:production
 
       - name: Check dist
         run: |
-          if [ ! -d "src/frontend/dist" ]; then
+          if [ ! -d "dist" ]; then
             echo "Frontend build failed - dist directory not found"
             exit 1
           fi
-          ls -la src/frontend/dist
+          ls -la dist
 
       - name: Upload artifact
         if: ${{ always() }}
