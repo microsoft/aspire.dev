@@ -1,0 +1,118 @@
+---
+title: Azure security best practices for Aspire deployments
+description: Learn about the default security posture of Aspire deployments to Azure Container Apps and additional steps to enhance security.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+When you deploy Aspire applications to Azure using the Aspire CLI or Azure Developer CLI (`azd`)<LearnMore href="/reference/cli/commands/aspire-deploy/"></LearnMore>, the platform provides several security features by default. This article explains the default security posture and provides guidance on additional steps you can take to enhance the security of your applications.
+
+## Overview
+
+This guide covers:
+
+- Understanding the default security configuration for Aspire deployments
+- Learning about built-in security features in Azure Container Apps
+- Implementing additional security hardening measures
+- Configuring secure communication between services
+- Applying security best practices for production deployments
+
+## Default security posture
+
+When you deploy an Aspire application to Azure Container Apps using `azd`, several security measures are automatically configured:
+
+### Container-level security
+
+**Secure base images**: Aspire generates container images using secure Microsoft-maintained base images that are regularly updated with security patches.
+
+**Non-root execution**: Containers run with non-root user permissions by default, reducing the attack surface.
+
+**Minimal image surface**: The generated containers include only the necessary runtime components, following the principle of least privilege.
+
+### Network security
+
+**Private networking**: Azure Container Apps environments use virtual networks with private IP addresses for internal communication between services.
+
+**Secure service-to-service communication**: Inter-service communication uses Azure Container Apps' built-in service discovery with encrypted traffic.
+
+**HTTPS endpoints**: Public-facing endpoints are automatically configured with HTTPS using Azure-managed certificates.
+
+### Identity and access management
+
+**Managed identities**: Azure Container Apps are configured with system-assigned managed identities by default, eliminating the need to store credentials in your application code.
+
+**Azure RBAC integration**: Resources are deployed with appropriate role-based access control (RBAC) permissions.
+
+### Configuration and secrets management
+
+**Secure configuration**: Application configuration is stored in Azure App Configuration when available, separate from your application code.
+
+**Environment variables**: Sensitive configuration values are injected as secure environment variables rather than being embedded in container images.
+
+## Additional security hardening
+
+While Aspire provides good security defaults, you can implement additional measures for enhanced protection:
+
+### Enable Azure Key Vault integration
+
+Store sensitive configuration data and secrets in Azure Key Vault:
+
+```csharp title="Program.cs - Add Azure Key Vault"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add Azure Key Vault resource
+var keyVault = builder.AddAzureKeyVault("key-vault");
+
+// Reference Key Vault in your services
+builder.AddProject<Projects.ApiService>()
+       .WithReference(keyVault);
+```
+
+For more information, see [Aspire Azure Key Vault integration](/integrations/azure-key-vault/).
+
+### Configure user-assigned managed identities
+
+For more granular control over permissions, use user-assigned managed identities:
+
+```csharp title="Program.cs - Add user-assigned managed identity"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Create or reference a user-assigned managed identity
+var managedIdentity = builder.AddAzureUserAssignedIdentity("app-identity");
+
+// Apply the identity to your container apps
+builder.AddProject<Projects.ApiService>()
+       .WithReference(managedIdentity);
+```
+
+For detailed guidance, see [Aspire Azure user-assigned managed identity integration](/integrations/azure-user-assigned-managed-identity/).
+
+### Enable comprehensive monitoring
+
+**Application Insights**: Monitor your applications for security anomalies and performance issues:
+
+```csharp title="Program.cs - Add Application Insights"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add Application Insights
+var appInsights = builder.AddAzureApplicationInsights("monitoring");
+
+builder.AddProject<Projects.ApiService>()
+       .WithReference(appInsights);
+```
+
+For more information, see [Aspire Azure Application Insights integration](/integrations/azure-application-insights/).
+
+**Azure Monitor**: Configure alerts for suspicious activities and resource consumption anomalies.
+
+## Additional security resources
+
+For comprehensive guidance on Azure security, see [Azure security best practices and patterns](/azure/security/fundamentals/best-practices-and-patterns/).
+
+## Related content
+
+- [Deploy to Azure Container Apps using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/)
+- [Aspire Azure Key Vault integration](/integrations/azure-key-vault/)
+- [Aspire Azure user-assigned managed identity integration](/integrations/azure-user-assigned-managed-identity/)
+- [Aspire Azure Application Insights integration](/integrations/azure-application-insights/)

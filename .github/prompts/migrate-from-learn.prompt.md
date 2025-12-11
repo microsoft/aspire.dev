@@ -107,7 +107,7 @@ Example NUnit content
 1. **Import statement**: Add `import { Image } from 'astro:assets';` to imports
 2. **Asset import**: `import imageName from '@assets/{section}/{filename}';`
 3. **Usage**: `<Image src={imageName} alt="descriptive text" />`
-4. **Copy both**: Always copy `.png` (or other formats) AND `.excalidraw` source files
+4. **Copy both**: Always copy `.png`, `.svg` (or other formats) AND `.excalidraw` source files
 5. **Destination**: `src/frontend/src/assets/{section}/`
 
 ### Link Transformations
