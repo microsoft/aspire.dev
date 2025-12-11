@@ -9,7 +9,48 @@ import LearnMore from '@components/LearnMore.astro';
 
 The dashboard is configured when it starts up. Configuration includes frontend and OpenTelemetry Protocol (OTLP) addresses, the resource service endpoint, authentication, telemetry limits, and more.
 
-When the dashboard is launched with the Aspire AppHost project, it's automatically configured to display the app's resources and telemetry. Configuration is provided when launching the dashboard in [standalone mode](overview#standalone-mode).
+<Aside type="caution">
+The dashboard displays information about resources, including their configuration, console logs and in-depth telemetry.
+
+Data displayed in the dashboard can be sensitive. For example, secrets in environment variables, and sensitive runtime data in telemetry. Care should be taken to configure the dashboard to secure access.
+
+<LearnMore>
+For more information, see [dashboard security](/dashboard/security-considerations/).
+</LearnMore>
+</Aside>
+
+## How to configure the dashboard
+
+How you configure the dashboard depends on whether it's being started by the Aspire AppHost project, or whether it is started in [standalone mode](overview#standalone-mode).
+
+### Aspire AppHost
+
+The AppHost automatically configures the dashboard. However, it is possible to override values if required. The recommeded way to configure the dashboard from the Aspire AppHost is to add environment variables to the _launchSettings.json_ file.
+
+```json title="JSON — launchSettings.json" {14-15}
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:17134;http://localhost:15170",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21030",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22057",
+        "DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT": "50000"
+      }
+    }
+  }
+}
+```
+
+The proceeding launch settings increases `Dashboard:TelemetryLimits:MaxLogCount` [telemetry limit](#telemetry-limit) to 50,000. The `:` delimiter must be replaced with double underscore (`__`) in environment variable names.
+
+### Standalone dashboard
 
 There are many ways to provide configuration:
 
@@ -50,27 +91,13 @@ Alternatively, these same values could be configured using a JSON configuration 
 {
   "Dashboard": {
     "TelemetryLimits": {
-      "MaxLogCount": 1000,
-      "MaxTraceCount": 1000,
-      "MaxMetricsCount": 1000
+      "MaxLogCount": 50000,
+      "MaxTraceCount": 50000,
+      "MaxMetricsCount": 50000
     }
   }
 }
 ```
-
-<Aside type="caution">
-The dashboard displays information about resources, including their configuration, console logs and in-depth telemetry.
-
-Data displayed in the dashboard can be sensitive. For example, secrets in environment variables, and sensitive runtime data in telemetry. Care should be taken to configure the dashboard to secure access.
-
-<LearnMore>
-For more information, see [dashboard security](/dashboard/security-considerations/).
-</LearnMore>
-</Aside>
-
-<Aside type="note">
-Configuration described on this page is for the standalone dashboard. To configure an Aspire AppHost project, see [AppHost configuration](https://learn.microsoft.com/dotnet/aspire/app-host/configuration).
-</Aside>
 
 ## Common configuration
 
