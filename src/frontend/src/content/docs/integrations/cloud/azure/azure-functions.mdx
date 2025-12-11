@@ -109,7 +109,11 @@ The Aspire Azure Functions hosting integration models Azure Functions projects a
 
 ### Add Azure Functions resource
 
-In your AppHost project, call `AddAzureFunctionsProject` on the `builder` instance to add an Azure Functions resource:
+In your AppHost project, call `AddAzureFunctionsProject` on the `builder` instance to add an Azure Functions resource. There are two ways to add an Azure Functions project, depending on whether the Functions project is referenced in your AppHost project.
+
+#### Add a referenced Functions project
+
+If the Azure Functions project is referenced in your AppHost project, use the generic overload of `AddAzureFunctionsProject`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -124,7 +128,28 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
-When Aspire adds an Azure Functions project resource the AppHost, as shown in the preceding example, the `functions` resource can be referenced by other project resources. The `WithReference` method configures a connection in the `ExampleProject` named `"functions"`. If the Azure Resource was deployed and it exposed an HTTP trigger, its endpoint would be external due to the call to `WithExternalHttpEndpoints`.
+#### Add a Functions project by file path
+
+If the Azure Functions project is not referenced in your AppHost project, you can add it by specifying the path to the project file:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+```
+
+In the preceding example, the path to the Functions project file is relative to the AppHost project directory. If the path is not absolute, it will be resolved relative to the AppHost directory.
+
+---
+
+When Aspire adds an Azure Functions project resource to the AppHost, as shown in the preceding examples, the `functions` resource can be referenced by other project resources. The `WithReference` method configures a connection in the `ExampleProject` named `"functions"`. If the Azure Resource was deployed and it exposed an HTTP trigger, its endpoint would be external due to the call to `WithExternalHttpEndpoints`.
 
 ### Add Azure Functions resource with host storage
 
