@@ -17,16 +17,6 @@ import sqliteIcon from '@assets/icons/sqlite-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript"},
-    ]}
-/>
-
 <Image
   src={sqliteIcon}
   alt="SQLite logo"
@@ -52,6 +42,16 @@ To begin, install the Aspire SQLite Hosting integration in your Aspire AppHost p
 
 Next, in the AppHost project, create an instance of a SQLite database resource, then pass the database to the consuming client projects:
 
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript" },
+    ]}
+/>
+
 <Pivot id="csharp">
 
 ```csharp title="C# — AppHost.cs"
@@ -60,6 +60,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var sqlite = builder.AddSQLite("sqlite");
 
 var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(sqlite)
                             .WithReference(sqlite);
 ```
 
@@ -74,6 +75,7 @@ var sqlite = builder.AddSQLite("sqlite");
 
 var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
                             .WithExternalHttpEndpoints()
+                            .WaitFor(sqlite)
                             .WithReference(sqlite);
 ```
 
@@ -88,6 +90,7 @@ var sqlite = builder.AddSQLite("sqlite");
 
 var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
                  .WithExternalHttpEndpoints()
+                 .WaitFor(sqlite)
                  .WithReference(sqlite);
 ```
 
@@ -112,11 +115,11 @@ In each of these consuming client projects, install the Aspire SQLite client int
 In the `Program.cs` file of your client-consuming project, call the `AddSqliteConnection` extension method on any `IHostApplicationBuilder` to register a `SqliteConnection` for use via the dependency injection container. The method takes a connection name parameter.
 
 ```csharp title="C# — Program.cs"
-builder.AddSqliteConnection(connectionName: "sqlite");
+builder.AddSqliteConnection("sqlite");
 ```
 
 <Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the SQLite database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+    The parameter must match the name used when adding the SQLite database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
 </Aside>
 
 </Pivot>
@@ -134,16 +137,16 @@ import os
 
 <Pivot id="javascript">
 
-To interact with SQLite databases in your JavaScript consuming projects, you need to include a SQLite client library. A popular option is `better-sqlite3` (a synchronous, fast SQLite client). You can install this library using npm:
+To interact with SQLite databases in your JavaScript consuming projects, you need to include a SQLite client library. A popular option is `sqlite3`. You can install this library using npm:
 
 ```bash
-npm install better-sqlite3
+npm install sqlite3
 ```
 
-Ensure that you `import better-sqlite3` in code files that interact with the database:
+Ensure that you `import sqlite3` in code files that interact with the database:
 
-```javascript title="JavaScript - Import better-sqlite3"
-import Database from 'better-sqlite3';
+```javascript title="JavaScript - Import sqlite3"
+import sqlite3 from 'sqlite3';
 ```
 
 </Pivot>
@@ -159,7 +162,7 @@ Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPE
 Use the `GetValue()` method to obtain these environment variables in consuming projects:
 
 ```csharp title="C# - Obtain configuration properties"
-string connectionString = builder.Configuration.GetValue<string>("ConnectionStrings__sqlite");
+string sqldatasource = builder.Configuration.GetValue<string>("SQLITE_DATASOURCE");
 ```
 
 </Pivot>
@@ -169,7 +172,7 @@ string connectionString = builder.Configuration.GetValue<string>("ConnectionStri
 Use the `os.getenv()` method to obtain these environment variables in consuming projects:
 
 ```python title="Python - Obtain configuration properties"
-connection_string = os.getenv("ConnectionStrings__sqlite")
+connection_string = os.getenv("SQLITE_DATASOURCE")
 ```
 
 </Pivot>
@@ -179,7 +182,7 @@ connection_string = os.getenv("ConnectionStrings__sqlite")
 Use the `process.env` method to obtain these environment variables in consuming projects:
 
 ```javascript title="JavaScript - Obtain configuration properties"
-const connectionString = process.env.ConnectionStrings__sqlite;
+const connectionString = process.env.SQLITE_DATASOURCE;
 ```
 
 </Pivot>
@@ -210,11 +213,7 @@ Having obtained the connection, you can work with the SQLite database as you wou
 Use the information you have obtained about the SQLite resource to connect to the database. Here is an example of how to connect using `sqlite3`:
 
 ```python title="Python - Connect to SQLite"
-# Extract the database file path from the connection string
-# ConnectionStrings typically look like: "Data Source=/path/to/file.db"
-db_path = connection_string.replace("Data Source=", "")
-
-connection = sqlite3.connect(db_path)
+connection = sqlite3.connect(connection_string)
 cursor = connection.cursor()
 ```
 
@@ -224,14 +223,10 @@ Having obtained the connection, you can work with the SQLite database as you wou
 
 <Pivot id="javascript">
 
-Use the information you have obtained about the SQLite resource to connect to the database. Here is an example of how to connect using `better-sqlite3`:
+Use the information you have obtained about the SQLite resource to connect to the database. Here is an example of how to connect using `sqlite3`:
 
 ```javascript title="JavaScript - Connect to SQLite"
-// Extract the database file path from the connection string
-// ConnectionStrings typically look like: "Data Source=/path/to/file.db"
-const dbPath = connectionString.replace("Data Source=", "");
-
-const db = new Database(dbPath);
+const db = new sqlite3.Database(connectionString);
 ```
 
 Having obtained the connection, you can work with the SQLite database as you would in any other JavaScript application.
