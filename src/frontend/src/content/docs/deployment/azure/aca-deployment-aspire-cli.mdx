@@ -1,0 +1,234 @@
+---
+title: Deploy Aspire to Azure Container Apps using the Aspire CLI
+description: Learn how to deploy Aspire applications to Azure Container Apps using the aspire deploy command.
+---
+
+import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
+When you deploy Aspire applications to Azure Container Apps using the `aspire deploy` command, the platform provides several deployment options and configurations. This guide explains how to use the Aspire CLI to deploy your applications to Azure Container Apps with various configuration options.
+
+<Aside type="tip">
+For general information about deploying Aspire applications, see [Aspire deployment overview](/deployment/overview/).
+</Aside>
+
+## Prerequisites
+
+- Aspire common [prerequisites](/getting-started/prerequisites/)
+- The [Aspire CLI](/reference/cli/aspire/install/) installed
+- An Azure subscription: [Create one for free](https://azure.microsoft.com/free/)
+- Install the [Azure CLI](/cli/azure/install-azure-cli)
+
+## Enable the deploy command
+
+The `aspire deploy` command is currently in preview and must be explicitly enabled. Enable the feature by setting the following environment variable:
+
+<OsAwareTabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+        <Code
+            lang='bash'
+            code={'export DOTNET_ASPIRE_ENABLE_DEPLOY_COMMAND=true'}
+        />
+    </TabItem>
+    <TabItem label="PowerShell" icon="seti:powershell">
+        <Code
+            lang='powershell'
+            code={'$env:DOTNET_ASPIRE_ENABLE_DEPLOY_COMMAND="true"'}
+        />
+    </TabItem>
+</OsAwareTabs>
+
+
+## Authenticate with Azure
+
+Before deploying your application, authenticate with Azure using the Azure CLI:
+
+```bash title="Authenticate with Azure CLI"
+az login
+```
+
+This command opens a browser window for you to sign in to your Azure account. After authentication completes, you can proceed with deployment.
+
+## Create an Aspire project
+
+If you don't already have an Aspire project, create one using the Aspire CLI:
+
+```bash title="Create new Aspire project"
+aspire new AspireApp
+cd AspireApp
+```
+
+This creates a new solution with an AppHost project and a sample web frontend.
+
+## Deploy using aspire deploy
+
+Deploy your application to Azure Container Apps using the `aspire deploy` command:
+
+```bash title="Deploy to Azure Container Apps"
+aspire deploy
+```
+
+The command performs the following steps:
+
+<Steps>
+
+1. **Validates your configuration**: Checks for required settings and dependencies.
+
+2. **Generates the deployment manifest**: Creates a manifest describing all resources in your application.
+
+3. **Provisions Azure resources**: Creates or updates Azure Container Apps, Container Registry, and other required resources.
+
+4. **Builds and pushes container images**: Builds Docker images for your projects and pushes them to Azure Container Registry.
+
+5. **Deploys the application**: Updates your Container Apps with the new images and configuration.
+
+</Steps>
+
+### Specify deployment parameters
+
+You can provide deployment parameters inline using the `--deployment-param` flag:
+
+```bash title="Deploy with parameters"
+aspire deploy --deployment-param location=eastus --deployment-param environment=production
+```
+
+### Use a parameters file
+
+For complex deployments, create a parameters file:
+
+```json title="deployment-params.json"
+{
+  "location": "eastus",
+  "environment": "production",
+  "resourceGroupName": "my-aspire-app-rg"
+}
+```
+
+Then reference the file during deployment:
+
+```bash title="Deploy with parameters file"
+aspire deploy --deployment-params-file deployment-params.json
+```
+
+## Deployment process
+
+During deployment, the CLI displays progress information:
+
+```plaintext title="Deployment progress output" data-disable-copy
+Building projects...
+  ✓ AspireApp.Web
+  ✓ AspireApp.ApiService
+
+Pushing images to registry...
+  ✓ aspireapp-web:latest
+  ✓ aspireapp-apiservice:latest
+
+Provisioning Azure resources...
+  ✓ Resource group: aspireapp-rg
+  ✓ Container Registry: aspireappacr
+  ✓ Container Apps Environment: aspireapp-env
+  ✓ Container App: web
+  ✓ Container App: apiservice
+
+Deployment complete!
+Web endpoint: https://web.proudriver-12345678.eastus.azurecontainerapps.io
+```
+
+## Monitor your deployment
+
+After deployment completes, monitor your application using several methods:
+
+### View logs using Azure CLI
+
+```bash title="View container logs"
+az containerapp logs show --name web --resource-group aspireapp-rg --follow
+```
+
+### Access the Azure portal
+
+Navigate to the [Azure portal](https://portal.azure.com) to:
+
+- View application metrics and logs
+- Configure scaling rules
+- Manage environment variables and secrets
+- Monitor application health
+
+### Use Application Insights
+
+For comprehensive monitoring, integrate Application Insights:
+
+```csharp title="AppHost.cs - Add Application Insights"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var appInsights = builder.AddAzureApplicationInsights("monitoring");
+
+builder.AddProject<Projects.AspireApp_Web>("web")
+    .WithReference(appInsights);
+
+builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    .WithReference(appInsights);
+
+builder.Build().Run();
+```
+
+For more information, see [Aspire Azure Application Insights integration](/integrations/azure-application-insights/).
+
+## Troubleshooting
+
+### Authentication issues
+
+If you encounter authentication errors:
+
+<Steps>
+
+1. Verify you're logged in to Azure:
+
+    ```bash title="Check Azure login status"
+    az account show
+    ```
+
+2. Ensure you have the correct subscription selected:
+
+    ```bash title="Set Azure subscription"
+    az account set --subscription <subscription-id>
+    ```
+
+3. Verify your account has the necessary permissions to create resources in the target resource group.
+
+</Steps>
+
+### Image build failures
+
+If container image builds fail:
+
+- Ensure Docker Desktop or Podman is running
+- Check that your Dockerfile syntax is correct
+- Verify you have sufficient disk space for image builds
+
+### Deployment failures
+
+If the deployment fails:
+
+- Check the error message for specific details
+- Verify your deployment parameters are correct
+- Ensure the target region supports Azure Container Apps
+- Check Azure service health for any outages
+
+## Clean up resources
+
+To remove all deployed resources:
+
+```bash title="Delete resource group"
+az group delete --name aspireapp-rg --yes --no-wait
+```
+
+<Aside type="caution">
+This command deletes all resources in the resource group, including any resources not created by the Aspire CLI.
+</Aside>
+
+## Related content
+
+- [Aspire deployment overview](/deployment/overview/)
+- [Azure Container Apps documentation](/azure/container-apps/)
+- [Aspire manifest format](/deployment/manifest-format/)

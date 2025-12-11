@@ -216,7 +216,7 @@ Copy-Item "source" "destination"
 5. What components need translation?
 6. What messaging improvements are desired?
 7. Are there dependencies on other articles?
-8. Does similar content already exist in aspire.dev
+8. Does similar content already exist in aspire.dev?
 9. Does the directory structure need to be created?
 10. What sidebar translations are needed?
 
