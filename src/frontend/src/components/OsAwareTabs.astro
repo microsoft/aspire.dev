@@ -1,5 +1,5 @@
 ---
-import { Tabs } from "@astrojs/starlight/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 interface Props {
 	syncKey?: string;
@@ -9,10 +9,15 @@ const { syncKey } = Astro.props;
 ---
 
 <Tabs syncKey={syncKey}>
-	<slot />
+	<TabItem label="Bash" icon="seti:shell">
+		<slot name="unix" />
+	</TabItem>
+	<TabItem label="PowerShell" icon="seti:powershell">
+		<slot name="windows" />
+	</TabItem>
 </Tabs>
 
-{syncKey && <script define:vars={{ syncKey }}>
+{syncKey && <script is:inline define:vars={{ syncKey }}>
 	// OS-aware tab selection - only runs once per syncKey on initial page load
 	(function() {
 		// Check if localStorage is available
@@ -28,11 +33,16 @@ const { syncKey } = Astro.props;
 		// Check userAgentData.platform first (modern), then navigator.platform, then userAgent
 		let isWindows = false;
 		
-		if (navigator.userAgentData?.platform) {
-			isWindows = /windows/i.test(navigator.userAgentData.platform);
-		} else if (navigator.platform) {
+		// Check modern API first
+		const platform = navigator.userAgentData?.platform;
+		if (platform) {
+			isWindows = /windows/i.test(platform);
+		}
+		// Fallback to legacy APIs
+		else if (typeof navigator.platform === 'string') {
 			isWindows = /^Win/i.test(navigator.platform);
-		} else if (navigator.userAgent) {
+		}
+		else if (typeof navigator.userAgent === 'string') {
 			isWindows = /Win(dows|32|64)/i.test(navigator.userAgent);
 		}
 		
