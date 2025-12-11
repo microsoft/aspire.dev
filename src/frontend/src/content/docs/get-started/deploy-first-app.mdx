@@ -319,11 +319,17 @@ Steps Summary:
     14:28:32 (docker-compose-up-env) → Running docker compose up for env
     14:28:35 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (2.3s)
     14:28:35 (docker-compose-up-env) ✓ docker-compose-up-env completed successfully
+    14:28:35 (print-env-dashboard-summary) → Starting print-env-dashboard-summary...
+    14:28:35 (print-webfrontend-summary) → Starting print-webfrontend-summary...
+    14:28:35 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+    14:28:35 (print-webfrontend-summary) i [INF] Successfully deployed webfrontend to http://localhost:54463.
+    14:28:35 (print-env-dashboard-summary) ✓ print-env-dashboard-summary completed successfully
+    14:28:35 (print-webfrontend-summary) ✓ print-webfrontend-summary completed successfully
     14:28:35 (deploy) → Starting deploy...
     14:28:35 (deploy) ✓ deploy completed successfully
     14:28:35 (pipeline execution) ✓ Completed successfully
     ------------------------------------------------------------
-    ✓ 11/11 steps succeeded • Total time: 20.0s
+    ✓ 13/13 steps succeeded • Total time: 20.0s
 
     Steps Summary:
     19.9 s  ✓ pipeline execution
@@ -335,6 +341,8 @@ Steps Summary:
     0.0 s  ✓ build-prereq
     0.0 s  ✓ build
     0.0 s  ✓ prepare-env
+    0.0 s  ✓ print-env-dashboard-summary
+    0.0 s  ✓ print-webfrontend-summary
     0.0 s  ✓ deploy
     0.0 s  ✓ publish
 
@@ -385,11 +393,17 @@ Steps Summary:
     13:24:07 (docker-compose-up-env) → Running docker compose up for env
     13:24:13 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (5.6s)
     13:24:13 (docker-compose-up-env) ✓ docker-compose-up-env completed successfully
+    13:24:13 (print-env-dashboard-summary) → Starting print-env-dashboard-summary...
+    13:24:13 (print-app-summary) → Starting print-app-summary...
+    13:24:13 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+    13:24:13 (print-app-summary) i [INF] Successfully deployed app to http://localhost:54463.
+    13:24:13 (print-env-dashboard-summary) ✓ print-env-dashboard-summary completed successfully
+    13:24:13 (print-app-summary) ✓ print-app-summary completed successfully
     13:24:13 (deploy) → Starting deploy...
     13:24:13 (deploy) ✓ deploy completed successfully
     13:24:13 (pipeline execution) ✓ Completed successfully
     ------------------------------------------------------------
-    ✓ 11/11 steps succeeded • Total time: 44.1s
+    ✓ 13/13 steps succeeded • Total time: 44.1s
 
     Steps Summary:
     44.0 s  ✓ pipeline execution
@@ -399,6 +413,8 @@ Steps Summary:
     0.0 s  ✓ publish-env
     0.0 s  ✓ deploy-prereq
     0.0 s  ✓ build-prereq
+    0.0 s  ✓ print-env-dashboard-summary
+    0.0 s  ✓ print-app-summary
     0.0 s  ✓ deploy
     0.0 s  ✓ build
     0.0 s  ✓ prepare-env
@@ -873,24 +889,18 @@ To verify that your application is running as expected after deployment, follow 
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
 
-        When deploying to Docker Compose, you verify that your application is running by navigating to `http://localhost:{PORT}` in your web browser, where `{PORT}` is the port number you configured for your web frontend service in your Aspire application.
-
-        ```bash title="Docker CLI - List running containers"
-        docker ps
-        ```        
+        When deploying to Docker Compose, the `aspire deploy` command displays the URLs where your services are running. Look for the `print-*-summary` steps in the deployment output, which show the localhost URLs for each service that has been configured with `WithExternalHttpEndpoints`.
 
         <Pivot id="csharp">
 
-        After running the above command, look for an image with a name starting with `webfrontend:latest` and a `COMMAND` value similar to `dotnet /app/AspireApp.W...`. This indicates that your ASP.NET Core/Blazor application is running successfully.
-        
+        In the deployment output, you'll see lines similar to the following:
 
-        ```bash title="Docker CLI - List running containers" "0.0.0.0:55445->80/tcp"
-        CONTAINER ID  IMAGE               COMMAND                CREATED         STATUS        PORTS                  NAMES
-        d4f1e8c3b6a1  webfrontend:latest  "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds  0.0.0.0:55445->80/tcp  aspire_app_webfrontend_1
-        a1b2c3d4e5f6  apiservice:latest   "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds                         aspire_app_apiservice_1
+        ```bash title="Aspire CLI - Deployment summary"
+        14:28:35 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+        14:28:35 (print-webfrontend-summary) i [INF] Successfully deployed webfrontend to http://localhost:54463.
         ```
 
-        Find the port number in the `PORTS` column—it will look similar to `0.0.0.0:55445->80/tcp`. Open your web browser and navigate to `http://localhost:55445` (replace `55445` with your actual port number) to see your deployed application.
+        Open your web browser and navigate to the URL shown for your web frontend (for example, `http://localhost:54463`) to see your deployed application.
 
         <ThemeImage
             light={csharpStarterPng}
@@ -903,14 +913,14 @@ To verify that your application is running as expected after deployment, follow 
         </Pivot>
         <Pivot id="python">
         
-        After running the above command, look for an image with a name starting with `app:` followed by a SHA hash (for example, `app:1b50e6124ca45c2d2539808a72664d40cfeed109`) and a `COMMAND` value of `uvicorn main:app...`. This indicates that your Python/React application is running successfully.
-        
-        ```bash title="Docker CLI - List running containers" "0.0.0.0:53588->80/tcp"
-        CONTAINER ID  IMAGE          COMMAND              CREATED         STATUS         PORTS                  NAMES
-        e7b8c9d0f1a2  app:1b50e6...  "uvicorn main:app…"  15 seconds ago  Up 12 seconds  0.0.0.0:53588->80/tcp  aspire_app_frontend_1
+        In the deployment output, you'll see lines similar to the following:
+
+        ```bash title="Aspire CLI - Deployment summary"
+        13:24:13 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+        13:24:13 (print-app-summary) i [INF] Successfully deployed app to http://localhost:54463.
         ```
 
-        Find the port number in the `PORTS` column—it will look similar to `0.0.0.0:53588->80/tcp`. Open your web browser and navigate to `http://localhost:53588` (replace `53588` with your actual port number) to see your deployed application.
+        Open your web browser and navigate to the URL shown for your app (for example, `http://localhost:54463`) to see your deployed application.
 
         <ThemeImage
             light={pythonStarterLightPng}
