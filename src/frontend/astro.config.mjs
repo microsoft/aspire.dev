@@ -11,7 +11,6 @@ import catppuccin from '@catppuccin/starlight';
 import lunaria from '@lunariajs/starlight';
 import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
-import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightImageZoom from 'starlight-image-zoom';
 import starlightKbd from 'starlight-kbd';
@@ -123,20 +122,6 @@ export default defineConfig({
             { id: 'windows', label: 'Windows', detector: 'windows', default: true },
             { id: 'linux', label: 'Linux', detector: 'linux' },
           ],
-        }),
-        starlightGiscus({
-          repo: 'IEvangelist/aspire-docs-discussions',
-          repoId: 'R_kgDOPYdXEQ',
-          category: 'General',
-          categoryId: 'DIC_kwDOPYdXEc4Ctyny',
-          mapping: 'pathname',
-          inputPosition: 'bottom',
-          reactions: true,
-          lazy: true,
-          theme: {
-            light: 'catppuccin_latte',
-            dark: 'catppuccin_mocha',
-          },
         }),
       ],
     }),
