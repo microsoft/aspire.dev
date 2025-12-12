@@ -1764,6 +1764,24 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
           { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
           { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
           { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
+          {
+            label: 'aspire mcp',
+            collapsed: true,
+            items: [
+              {
+                label: 'aspire mcp',
+                slug: 'reference/cli/commands/aspire-mcp',
+              },
+              {
+                label: 'aspire mcp init',
+                slug: 'reference/cli/commands/aspire-mcp-init',
+              },
+              {
+                label: 'aspire mcp start',
+                slug: 'reference/cli/commands/aspire-mcp-start',
+              },
+            ],
+          },
           { label: 'aspire new', slug: 'reference/cli/commands/aspire-new' },
           {
             label: 'aspire publish',
