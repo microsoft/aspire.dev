@@ -3,59 +3,11 @@ title: Aspire dashboard configuration
 description: Aspire dashboard configuration options
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 The dashboard is configured when it starts up. Configuration includes frontend and OpenTelemetry Protocol (OTLP) addresses, the resource service endpoint, authentication, telemetry limits, and more.
-
-When the dashboard is launched with the Aspire AppHost project, it's automatically configured to display the app's resources and telemetry. Configuration is provided when launching the dashboard in [standalone mode](overview#standalone-mode).
-
-There are many ways to provide configuration:
-
-- Command line arguments.
-- Environment variables. The `:` delimiter should be replaced with double underscore (`__`) in environment variable names.
-- Optional JSON configuration file. The `ASPIRE_DASHBOARD_CONFIG_FILE_PATH` setting can be used to specify a JSON configuration file.
-
-Consider the following example, which shows how to configure the dashboard when started from a Docker container:
-
-<Tabs syncKey="terminal">
-<TabItem label="Bash" icon="seti:shell">
-
-```bash
-docker run --rm -it -p 18888:18888 -p 4317:18889 -d --name aspire-dashboard \
-    -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' \
-    -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' \
-    -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' \
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
-```
-
-</TabItem>
-<TabItem label="PowerShell"icon="seti:powershell">
-
-```powershell
-docker run --rm -it -p 18888:18888 -p 4317:18889 -d --name aspire-dashboard `
-    -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' `
-    -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' `
-    -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' `
-    mcr.microsoft.com/dotnet/aspire-dashboard:latest
-```
-
-</TabItem>
-</Tabs>
-
-Alternatively, these same values could be configured using a JSON configuration file that is specified using `ASPIRE_DASHBOARD_CONFIG_FILE_PATH`:
-
-```json title="JSON — appsettings.json"
-{
-  "Dashboard": {
-    "TelemetryLimits": {
-      "MaxLogCount": 1000,
-      "MaxTraceCount": 1000,
-      "MaxMetricsCount": 1000
-    }
-  }
-}
-```
 
 <Aside type="caution">
 The dashboard displays information about resources, including their configuration, console logs and in-depth telemetry.
@@ -67,9 +19,85 @@ For more information, see [dashboard security](/dashboard/security-consideration
 </LearnMore>
 </Aside>
 
-<Aside type="note">
-Configuration described on this page is for the standalone dashboard. To configure an Aspire AppHost project, see [AppHost configuration](https://learn.microsoft.com/dotnet/aspire/app-host/configuration).
-</Aside>
+## How to configure the dashboard
+
+How you configure the dashboard depends on whether it's started by the Aspire AppHost project or run in [standalone mode](overview#standalone-mode).
+
+### Aspire AppHost
+
+The AppHost automatically configures the dashboard, but you can override values if needed. The recommended way to configure the dashboard from the Aspire AppHost is by adding environment variables to the _launchSettings.json_ file.
+
+```json title="JSON — launchSettings.json" {14}
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:17134;http://localhost:15170",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21030",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22057",
+        "DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT": "50000"
+      }
+    }
+  }
+}
+```
+
+These launch settings increase the `Dashboard:TelemetryLimits:MaxLogCount` [telemetry limit](#telemetry-limit) to 50,000. The `:` delimiter must be replaced with double underscore (`__`) in environment variable names.
+
+### Standalone dashboard
+
+There are many ways to provide configuration:
+
+- Command line arguments.
+- Environment variables. The `:` delimiter should be replaced with double underscore (`__`) in environment variable names.
+- Optional JSON configuration file. The `ASPIRE_DASHBOARD_CONFIG_FILE_PATH` setting can be used to specify a JSON configuration file.
+
+Consider the following example, which shows how to configure the dashboard when started from a Docker container:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+docker run --rm -it -p 18888:18888 -p 4317:18889 -d --name aspire-dashboard \
+    -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' \
+    -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' \
+    -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' \
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+docker run --rm -it -p 18888:18888 -p 4317:18889 -d --name aspire-dashboard `
+    -e DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT='1000' `
+    -e DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT='1000' `
+    -e DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT='1000' `
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</div>
+</OsAwareTabs>
+
+Alternatively, these same values could be configured using a JSON configuration file that is specified using `ASPIRE_DASHBOARD_CONFIG_FILE_PATH`:
+
+```json title="JSON — appsettings.json"
+{
+  "Dashboard": {
+    "TelemetryLimits": {
+      "MaxLogCount": 50000,
+      "MaxTraceCount": 50000,
+      "MaxMetricsCount": 50000
+    }
+  }
+}
+```
 
 ## Common configuration
 
