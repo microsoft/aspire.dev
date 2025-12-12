@@ -409,6 +409,65 @@ Environment:
 (Type to search)
 ```
 
+#### Load input options dynamically
+
+The interaction service supports dynamic inputs so you can populate options based on earlier responses. This enables cascading dropdowns and other dependent prompts in both the dashboard and CLI experiences.
+
+To configure a dynamic input, set the `InteractionInput.DynamicLoading` property to an instance of `InputLoadOptions`. `InputLoadOptions` has a range of properties:
+
+- **LoadCallback**: A callback function that populates or refreshes the input options. This function is invoked when the input needs to be loaded or refreshed. You can access the current values of other inputs through the `context.AllInputs` dictionary.
+- **DependsOnInputs**: A list of input names that the dynamic input depends on. When any of these inputs change, the `LoadCallback` is triggered to refresh the options for the dynamic input. If no dependencies are specified then the callback is triggered when the interaction starts.
+- **AlwaysLoadOnStart**: If set to `true`, the `LoadCallback` is always called when the interaction starts, even if the dynamic input has dependencies.
+
+```csharp
+var inputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "DatabaseType",
+        InputType = InputType.Choice,
+        Label = "Database Type",
+        Required = true,
+        Options =
+        [
+            KeyValuePair.Create("postgres", "PostgreSQL"),
+            KeyValuePair.Create("mysql", "MySQL"),
+            KeyValuePair.Create("sqlserver", "SQL Server")
+        ]
+    },
+
+    new()
+    {
+        Name = "DatabaseVersion",
+        InputType = InputType.Choice,
+        Label = "Database Version",
+        Required = true,
+        DynamicLoading = new InputLoadOptions
+        {
+            LoadCallback = async context =>
+            {
+                var dbType = context.AllInputs["DatabaseType"].Value;
+                context.Input.Options = await GetAvailableVersionsAsync(dbType);
+            },
+            DependsOnInputs = ["DatabaseType"]
+        }
+    }
+};
+
+var result = await interactionService.PromptInputsAsync(
+    title: "Database configuration",
+    message: "Select a database type and version",
+    inputs: inputs);
+
+if (!result.Canceled)
+{
+    var version = result.Data["DatabaseVersion"].Value;
+    // Use version-specific configuration...
+}
+```
+
+In the preceding example, the `DatabaseVersion` input is dynamically populated based on the selected `DatabaseType`.
+
 #### Input validation
 
 Basic input validation is available by configuring `InteractionInput`. It provides options for requiring a value, or the maximum text length of `Text` or `SecretText` fields.
