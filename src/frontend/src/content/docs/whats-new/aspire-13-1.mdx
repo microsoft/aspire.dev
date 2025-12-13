@@ -25,6 +25,9 @@ This release introduces:
 - **Azure Managed Redis**: Renamed from `AddAzureRedisEnterprise` to `AddAzureManagedRedis` with improved validation.
 - **Container registry support**: New `ContainerRegistryResource` for general-purpose container registries.
 - **JavaScript improvements**: New frontend starter template, Vite HTTPS configuration, and pnpm fixes.
+- **DevTunnels stabilization**: `Aspire.Hosting.DevTunnels` is now a stable package.
+- **TLS termination support**: New APIs for configuring HTTPS certificates on containers and resources.
+- **Connection properties for Azure resources**: Polyglot support for Azure resource connection strings.
 
 **Requirements:**
 
@@ -200,6 +203,14 @@ var redis = builder.AddAzureManagedRedis("cache");
 `AddAzureRedis` is now obsolete. Migrate to `AddAzureManagedRedis` for new projects.
 </Aside>
 
+### Azure Managed Redis `rediss://` scheme
+
+Azure Managed Redis URIs now use `rediss://` as the default scheme, ensuring proper TLS connections for polyglot applications (Python, JavaScript, Java) that rely on the URI scheme to determine connection security.
+
+### Connection properties for Azure resources
+
+Azure resources now expose connection properties in a standardized format that works across all supported languages. This enables polyglot applications using Java, JavaScript, and Python SDKs to connect to Azure resources using consistent configuration patterns.
+
 ### Compute environment validation
 
 Azure deployments now validate that required compute environments exist before attempting deployment, providing earlier and clearer error messages when infrastructure is missing.
@@ -271,6 +282,24 @@ Fixed Dockerfile generation for projects using pnpm by properly enabling corepac
 
 ## 🔒 Certificates and security
 
+### TLS termination support
+
+New APIs allow configuring HTTPS certificate key pairs for resources that need to terminate TLS connections. This is useful for securing traffic to containers and other resources with the ASP.NET Core developer certificate:
+
+```csharp title="C# — TLS termination with developer certificate"
+builder.AddYarp("gateway")
+    .WithDeveloperCertificateKeyPair();
+```
+
+```csharp title="C# — TLS termination with custom certificate"
+var passwordParam = builder.AddParameter("tls-password", secret: true);
+
+builder.AddYarp("gateway")
+    .WithCertificateKeyPair(certificate, password: passwordParam);
+```
+
+Built-in support is included for YARP, Uvicorn, Keycloak, and Redis containers.
+
 ### Server authentication certificates
 
 The experimental KeyPair API has been renamed to `WithServerAuthenticationCertificate` for clarity:
@@ -299,7 +328,36 @@ Endpoint references now correctly honor their specific network context when reso
 
 All pipeline steps now include a `Description` property, improving diagnostics output during deployment operations.
 
+### System log formatting
+
+System-level logs from DCP now use a human-friendly format with a `[sys]` prefix instead of verbose JSON objects:
+
+```
+[sys] Starting process: Cmd = dotnet, Args = [run]
+[sys] Failed to start Container: Error = container start failed (exit code 1)
+```
+
+This makes it easier to distinguish system logs from application output and improves readability in the console.
+
 ## 📦 Integration updates
+
+### DevTunnels stabilization
+
+The `Aspire.Hosting.DevTunnels` package is now stable and no longer in preview. Use dev tunnels to expose your local Aspire applications to the internet for testing webhooks, mobile apps, and external integrations.
+
+### Endpoint proxy support stabilization
+
+The `WithEndpointProxySupport` API is now stable and no longer requires the experimental attribute:
+
+```csharp title="C# — Endpoint proxy support"
+var redis = builder.AddRedis("cache", 1234)
+    .WithEndpointProxySupport(false)
+    .WithLifetime(ContainerLifetime.Persistent);
+```
+
+### OpenTelemetry updates
+
+OpenTelemetry dependencies have been updated to the latest stable versions across the codebase. The update includes switching from deprecated `RecordException` to `AddException` for improved exception recording in traces.
 
 ### Package updates
 
@@ -307,6 +365,7 @@ All pipeline steps now include a `Description` property, improving diagnostics o
 - `Azure.Provisioning.AppService` updated.
 - Npgsql updated to version 10.
 - FluentUI components updated.
+- OpenTelemetry packages updated to latest stable versions.
 
 ### Azure Functions
 
