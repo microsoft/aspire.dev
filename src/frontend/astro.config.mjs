@@ -54,13 +54,13 @@ export default defineConfig({
         Header: './src/components/starlight/Header.astro',
         Hero: './src/components/starlight/Hero.astro',
         MarkdownContent: './src/components/starlight/MarkdownContent.astro',
-        Pagination: './src/components/starlight/Pagination.astro',
         Search: './src/components/starlight/Search.astro',
         Sidebar: './src/components/starlight/Sidebar.astro',
         SocialIcons: './src/components/starlight/SocialIcons.astro',
       },
       expressiveCode: {
         // https://expressive-code.com/guides/themes/#using-bundled-themes
+        // preview themes here: https://textmate-grammars-themes.netlify.app/
         themes: ['laserwave', 'slack-ochin'],
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },

@@ -1,0 +1,586 @@
+---
+title: Interaction service (Preview)
+description: Use the interaction service API to prompt users for input, request confirmation, and display messages in the Aspire dashboard or CLI during publish and deploy.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
+import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
+import confirmation from '@assets/extensibility/interaction-service-confirmation.png';
+import multipleInput from '@assets/extensibility/interaction-service-multiple-input.png';
+import multipleInputFilled from '@assets/extensibility/interaction-service-multiple-input-filled.png';
+import multipleInputLogs from '@assets/extensibility/interaction-service-multiple-input-logs.png';
+
+The interaction service (`Aspire.Hosting.IInteractionService`) allows you to prompt users for input, request confirmation, and display messages. The interaction service works in two different contexts:
+
+- **Aspire dashboard**: When running `aspire run` or launching the AppHost directly, interactions appear as dialogs and notifications in the dashboard UI.
+- **Aspire CLI**: When running `aspire publish` or `aspire deploy`, interactions are prompted through the command-line interface.
+
+This is useful for scenarios where you need to gather information from the user or provide feedback on the status of operations, regardless of how the application is being launched or deployed.
+
+## The `IInteractionService` API
+
+The `IInteractionService` interface is retrieved from the `DistributedApplication` dependency injection container. `IInteractionService` can be injected into types created from DI or resolved from `IServiceProvider`, which is usually available on a context argument passed to events.
+
+When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown.
+
+```csharp
+var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
+if (interactionService.IsAvailable)
+{
+    var result = await interactionService.PromptConfirmationAsync(
+        title: "Delete confirmation",
+        message: "Are you sure you want to delete the data?");
+
+    if (result.Data)
+    {
+        // Run your resource/command logic.
+    }
+}
+```
+
+The interaction service has several methods that you use to interact with users or display messages. The behavior of these methods depends on the execution context:
+
+- **Dashboard context** (`aspire run` or direct AppHost launch): Interactions appear as modal dialogs, notifications, and form inputs in the [Aspire dashboard web interface](/dashboard/overview/).
+- **CLI context** (`aspire publish` or `aspire deploy`): Interactions are prompted through the command-line interface with text-based prompts and responses.
+
+The following sections describe how to use these APIs effectively in both contexts:
+
+| Method | Description | Contexts supported |
+|--------|-------------|-------------------|
+| `PromptMessageBoxAsync` | Displays a modal dialog box with a message and buttons for user interaction. | Dashboard only |
+| `PromptNotificationAsync` | Displays a non-modal notification in the dashboard as a message bar. | Dashboard only |
+| `PromptConfirmationAsync` | Displays a confirmation dialog with options for the user to confirm or cancel an action. | Dashboard only |
+| `PromptInputAsync` | Prompts the user for a single input value, such as text or secret. | Dashboard, CLI |
+| `PromptInputsAsync` | Prompts the user for multiple input values in a single dialog (dashboard) or sequentially (CLI). | Dashboard, CLI |
+
+<Aside type="caution">
+During `aspire publish` and `aspire deploy` operations, only `PromptInputAsync` and `PromptInputsAsync` are available. Other interaction methods (`PromptMessageBoxAsync`, `PromptNotificationAsync`, and `PromptConfirmationAsync`) will throw an exception if called in CLI contexts.
+</Aside>
+
+## Where to use the interaction service
+
+Any of the available callback-based extension methods of `IResourceBuilder<T>` can use the interaction service to prompt users for input or confirmation. Use the interaction service in these scenarios:
+
+- **Custom resource types**: Gather input from users or confirm actions when you create custom resource types. Resource types are free to define dashboard interactions, such as prompting for user input or displaying messages.
+
+- **Custom resource commands**: Add commands to resources in the Aspire dashboard or CLI. Use the interaction service to prompt users for input or confirmation when these commands run. When you chain a call to `WithCommand` on a target `IResourceBuilder<T>`, your callback can use the interaction service to gather input or confirm actions. For more information, see [Custom resource commands](/fundamentals/custom-resource-commands/).
+
+- **Publish and deploy workflows**: During `aspire publish` or `aspire deploy` operations, use the interaction service to gather deployment-specific configuration and confirm destructive operations through the CLI.
+
+These approaches help you create interactive, user-friendly experiences for local development, dashboard interactions, and deployment workflows.
+
+<Aside type="tip">
+This article demonstrates the interaction service in the context of a `WithCommand` callback with a `FakeResource` type, but the same principles apply to other extension methods that support user interactions.
+
+For example:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddFakeResource("fake-resource")
+       .WithCommand("msg-dialog", "Example Message Dialog", async context =>
+{
+    var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+
+    // Use interaction service...
+
+    return CommandResults.Success();
+});
+```
+
+For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
+</Aside>
+
+## Display messages
+
+There are several ways to display messages to the user:
+
+- **Dialog messages**: Show important information in a dialog box.
+- **Notification messages**: Display less critical information in a notification.
+
+<Aside type="note">
+Message display methods (`PromptMessageBoxAsync` and `PromptNotificationAsync`) are only available in dashboard contexts. These methods throw an exception if called during `aspire publish` or `aspire deploy` operations.
+</Aside>
+
+### Display a dialog message box
+
+Dialog messages provide important information that requires user attention.
+
+The `IInteractionService.PromptMessageBoxAsync` method displays a message with customizable response options.
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var result = await interactionService.PromptMessageBoxAsync(
+    "Simple Message Box: Example",
+    """
+    ##### 🤓 Nice!
+
+    It's worth noting that **Markdown** is _supported_
+    (and demonstrated here) in the message body.
+
+    Cool, [📖 learn more](https://learn.microsoft.com/dotnet/aspire/extensibility/interaction-service)...
+    """,
+    new MessageBoxInteractionOptions
+    {
+        EnableMessageMarkdown = true,
+        PrimaryButtonText = "Awesome"
+    }
+);
+
+if (result.Canceled)
+{
+    return CommandResults.Failure("User cancelled.");
+}
+
+return result.Data
+    ? CommandResults.Success()
+    : CommandResults.Failure("The user doesn't like the example");
+```
+
+**Dashboard view:**
+
+<Image src={messageDialog} alt="Aspire dashboard interface showing a message dialog with a title, message, and buttons." />
+
+**CLI view:**
+
+The `PromptMessageBoxAsync` method only works in the dashboard context. If you call it during `aspire publish` or `aspire deploy`, the method throws an exception and doesn't display a message in the CLI.
+
+### Display a notification message
+
+Notification messages provide non-modal notifications.
+
+<Aside type="tip">
+In the dashboard, notification messages appear stacked at the top, so you can show several messages at once. You can display notifications one after another by awaiting each dismissal before showing the next. Or, you can display multiple notifications at the same time without waiting for each to be dismissed.
+</Aside>
+
+The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+// Demonstrating various notification types with different intents
+var tasks = new List<Task>
+{
+    interactionService.PromptNotificationAsync(
+        title: "Confirmation",
+        message: "Are you sure you want to proceed?",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Confirmation
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Success",
+        message: "Your operation completed successfully.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Success,
+            LinkText = "View Details",
+            LinkUrl = "https://learn.microsoft.com/dotnet/aspire/success"
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Warning",
+        message: "Your SSL certificate will expire soon.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Warning,
+            LinkText = "Renew Certificate",
+            LinkUrl = "https://portal.azure.com/certificates"
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Information",
+        message: "There is an update available for your application.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Information,
+            LinkText = "Update Now",
+            LinkUrl = "https://learn.microsoft.com/dotnet/aspire"
+        }),
+    interactionService.PromptNotificationAsync(
+        title: "Error",
+        message: "An error occurred while processing your request.",
+        options: new NotificationInteractionOptions
+        {
+            Intent = MessageIntent.Error,
+            LinkText = "Troubleshoot",
+            LinkUrl = "https://learn.microsoft.com/dotnet/aspire/troubleshoot"
+        })
+};
+
+await Task.WhenAll(tasks);
+
+return CommandResults.Success();
+```
+
+The previous example demonstrates several ways to use the notification API. Each approach displays different types of notifications, all of which are invoked in parallel and displayed in the dashboard around the same time.
+
+**Dashboard view:**
+
+<Image src={messageBar} alt="Aspire dashboard interface showing multiple notification messages stacked near the top of the page. There are five notifications displayed, each with a different type of notification." />
+
+**CLI view:**
+
+The `PromptNotificationAsync` method isn't available in CLI contexts. If you call it during `aspire publish` or `aspire deploy`, it throws an exception.
+
+## Prompt for user confirmation
+
+Use the interaction service when you need the user to confirm an action before proceeding. The `PromptConfirmationAsync` method displays a confirmation prompt in the dashboard context. Confirmation prompts are essential for destructive operations or actions that have significant consequences. They help prevent accidental actions and give users a chance to reconsider their decisions.
+
+### Prompt for confirmation before destructive operations
+
+For operations that can't be undone, such as deleting resources, always prompt for confirmation:
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+// Prompt for confirmation before resetting database
+var resetConfirmation = await interactionService.PromptConfirmationAsync(
+    title: "Confirm Reset",
+    message: "Are you sure you want to reset the `development-database`? This action **cannot** be undone.",
+    options: new MessageBoxInteractionOptions
+    {
+        Intent = MessageIntent.Confirmation,
+        PrimaryButtonText = "Reset",
+        SecondaryButtonText = "Cancel",
+        ShowSecondaryButton = true,
+        EnableMessageMarkdown = true
+    });
+
+if (resetConfirmation.Data is true)
+{
+    // Perform the reset operation...
+
+    return CommandResults.Success();
+}
+else
+{
+    return CommandResults.Failure("Database reset canceled by user.");
+}
+```
+
+**Dashboard view:**
+
+<Image src={confirmation} alt="Aspire dashboard interface showing a confirmation dialog with a title, message, and buttons for confirming or canceling the operation." />
+
+**CLI view:**
+
+The `PromptConfirmationAsync` method isn't available in CLI contexts. If you call it during `aspire publish` or `aspire deploy`, the method throws an exception.
+
+## Prompt for user input
+
+The interaction service API allows you to prompt users for input in various ways. You can collect single values or multiple values, with support for different input types including text, secrets, choices, booleans, and numbers. The presentation adapts automatically to the execution context.
+
+| Type         | Dashboard                 | CLI prompt            |
+|--------------|---------------------------|-----------------------|
+| `Text`       | Textbox                   | Text prompt           |
+| `SecretText` | Textbox with masked input | Masked text prompt    |
+| `Choice`     | Dropdown box of options   | Choice prompt         |
+| `Boolean`    | Checkbox                  | Boolean choice prompt |
+| `Number`     | Number textbox            | Text prompt           |
+
+### Prompt the user for input values
+
+You can prompt for a single value using the `PromptInputAsync` method, or collect multiple pieces of information with `PromptInputsAsync`. In the dashboard, multiple inputs appear together in a single dialog. In the CLI, each input is requested one after another.
+
+<Aside type="caution">
+It's possible to create wizard-like flows using the interaction service. By chaining multiple prompts together—handling the results from one prompt before moving to the next—you can guide users through a series of related questions, making it easier to collect all the necessary information.
+</Aside>
+
+Consider the following example, which prompts the user for multiple input values:
+
+```csharp title="AppHost.cs"
+var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
+var loggerService = context.ServiceProvider.GetRequiredService<ResourceLoggerService>();
+var logger = loggerService.GetLogger(fakeResource);
+
+var inputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "Application Name",
+        InputType = InputType.Text,
+        Required = true,
+        Placeholder = "my-app"
+    },
+    new()
+    {
+        Name = "Environment",
+        InputType = InputType.Choice,
+        Required = true,
+        Options =
+        [
+            new("dev", "Development"),
+            new("staging", "Staging"),
+            new("test", "Testing")
+        ]
+    },
+    new()
+    {
+        Name = "Instance Count",
+        InputType = InputType.Number,
+        Required = true,
+        Placeholder = "1"
+    },
+    new()
+    {
+        Name = "Enable Monitoring",
+        InputType = InputType.Boolean,
+        Required = false
+    }
+};
+
+var appConfigurationInput = await interactionService.PromptInputsAsync(
+    title: "Application Configuration",
+    message: "Configure your application deployment settings:",
+    inputs: inputs);
+
+if (!appConfigurationInput.Canceled)
+{
+    // Process the collected input values
+    var appName = appConfigurationInput.Data[0].Value;
+    var environment = appConfigurationInput.Data[1].Value;
+    var instanceCount = int.Parse(appConfigurationInput.Data[2].Value ?? "1");
+    var enableMonitoring = bool.Parse(appConfigurationInput.Data[3].Value ?? "false");
+
+    logger.LogInformation("""
+        Application Name: {AppName}
+        Environment: {Environment}
+        Instance Count: {InstanceCount}
+        Monitoring Enabled: {EnableMonitoring}
+        """,
+        appName, environment, instanceCount, enableMonitoring);
+
+    // Use the collected values as needed
+    return CommandResults.Success();
+}
+else
+{
+    return CommandResults.Failure("User canceled application configuration input.");
+}
+```
+
+**Dashboard view:**
+
+This renders on the dashboard as shown in the following image:
+
+<Image src={multipleInput} alt="Aspire dashboard interface showing a multiple input dialog with labels, input fields, and buttons for confirming or canceling the input." />
+
+Imagine you fill out the dialog with the following values:
+
+<Image src={multipleInputFilled} alt="Aspire dashboard interface showing a multiple input dialog with filled input fields and buttons for confirming or canceling the input." />
+
+After you select the **Ok** button, the resource logs display the following output:
+
+<Image src={multipleInputLogs} alt="Aspire dashboard interface showing logs with the input values entered in the multiple input dialog." />
+
+**CLI view:**
+
+In the CLI context, the same inputs are requested sequentially:
+
+```plaintext data-disable-copy
+aspire deploy
+
+Step 1: Analyzing model.
+
+       ✓ DONE: Analyzing the distributed application model for publishing and deployment capabilities. 00:00:00
+       Found 1 resources that support deployment. (FakeResource)
+
+✅ COMPLETED: Analyzing model. completed successfully
+
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Configure your application deployment settings:
+Application Name: example-app
+Environment:  Staging
+Instance Count: 3
+Enable Monitoring: [y/n] (n): y
+✓ DEPLOY COMPLETED: Deploying completed successfully
+```
+
+Depending on the input type, the CLI might display additional prompts. For example, the `Enable Monitoring` input is a boolean choice, so the CLI prompts for a yes/no response. If you enter `y`, it enables monitoring; if you enter `n`, it disables monitoring. For the environment input, the CLI displays a list of available environments for selection:
+
+```plaintext data-disable-copy
+Configure your application deployment settings:
+Application Name: example-app
+Environment:
+
+> Development
+  Staging
+  Testing
+
+(Type to search)
+```
+
+#### Load input options dynamically
+
+The interaction service supports dynamic inputs so you can populate options based on earlier responses. This enables cascading dropdowns and other dependent prompts in both the dashboard and CLI experiences.
+
+To configure a dynamic input, set the `InteractionInput.DynamicLoading` property to an instance of `InputLoadOptions`. `InputLoadOptions` has a range of properties:
+
+- **LoadCallback**: A callback function that populates or refreshes the input options. This function is invoked when the input needs to be loaded or refreshed. You can access the current values of other inputs through the `context.AllInputs` dictionary.
+- **DependsOnInputs**: A list of input names that the dynamic input depends on. When any of these inputs change, the `LoadCallback` is triggered to refresh the options for the dynamic input. If no dependencies are specified then the callback is triggered when the interaction starts.
+- **AlwaysLoadOnStart**: If set to `true`, the `LoadCallback` is always called when the interaction starts, even if the dynamic input has dependencies.
+
+```csharp
+var inputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "DatabaseType",
+        InputType = InputType.Choice,
+        Label = "Database Type",
+        Required = true,
+        Options =
+        [
+            KeyValuePair.Create("postgres", "PostgreSQL"),
+            KeyValuePair.Create("mysql", "MySQL"),
+            KeyValuePair.Create("sqlserver", "SQL Server")
+        ]
+    },
+
+    new()
+    {
+        Name = "DatabaseVersion",
+        InputType = InputType.Choice,
+        Label = "Database Version",
+        Required = true,
+        DynamicLoading = new InputLoadOptions
+        {
+            LoadCallback = async context =>
+            {
+                var dbType = context.AllInputs["DatabaseType"].Value;
+                context.Input.Options = await GetAvailableVersionsAsync(dbType);
+            },
+            DependsOnInputs = ["DatabaseType"]
+        }
+    }
+};
+
+var result = await interactionService.PromptInputsAsync(
+    title: "Database configuration",
+    message: "Select a database type and version",
+    inputs: inputs);
+
+if (!result.Canceled)
+{
+    var version = result.Data["DatabaseVersion"].Value;
+    // Use version-specific configuration...
+}
+```
+
+In the preceding example, the `DatabaseVersion` input is dynamically populated based on the selected `DatabaseType`.
+
+#### Input validation
+
+Basic input validation is available by configuring `InteractionInput`. It provides options for requiring a value, or the maximum text length of `Text` or `SecretText` fields.
+
+For complex scenarios, you can provide custom validation logic using the `InputsDialogInteractionOptions.ValidationCallback` property:
+
+```csharp
+// Multiple inputs with custom validation
+var databaseInputs = new List<InteractionInput>
+{
+    new()
+    {
+        Name = "Database Name",
+        InputType = InputType.Text,
+        Required = true,
+        Placeholder = "myapp-db"
+    },
+    new()
+    {
+        Name = "Username",
+        InputType = InputType.Text,
+        Required = true,
+        Placeholder = "admin"
+    },
+    new()
+    {
+        Name = "Password",
+        InputType = InputType.SecretText,
+        Required = true,
+        Placeholder = "Enter a strong password"
+    },
+    new()
+    {
+        Name = "Confirm password",
+        InputType = InputType.SecretText,
+        Required = true,
+        Placeholder = "Confirm your password"
+    }
+};
+
+var validationOptions = new InputsDialogInteractionOptions
+{
+    ValidationCallback = async context =>
+    {
+        var passwordInput = context.Inputs.FirstOrDefault(i => i.Label == "Password");
+        var confirmPasswordInput = context.Inputs.FirstOrDefault(i => i.Label == "Confirm password");
+
+        // Validate password strength
+        if (passwordInput?.Value is { Length: < 8 })
+        {
+            context.AddValidationError(passwordInput, "Password must be at least 8 characters long");
+        }
+
+        // Validate password confirmation
+        if (passwordInput?.Value != confirmPasswordInput?.Value)
+        {
+            context.AddValidationError(confirmPasswordInput!, "Passwords do not match");
+        }
+
+        await Task.CompletedTask;
+    }
+};
+
+var dbResult = await interactionService.PromptInputsAsync(
+    title: "Database configuration",
+    message: "Configure your PostgreSQL database connection:",
+    inputs: databaseInputs,
+    options: validationOptions);
+
+if (!dbResult.Canceled && dbResult.Data != null)
+{
+    // Use the validated configuration
+}
+```
+
+Prompting the user for a password and confirming they match is referred to as "dual independent verification" input. This approach is common in scenarios where you want to ensure the user enters the same password twice to avoid typos or mismatches.
+
+### Best practices for user input
+
+When prompting for user input, consider these best practices:
+
+<Steps>
+
+1. **Group related inputs**: Use multiple input prompts to collect related configuration values. In the dashboard, these appear in a single dialog; in the CLI, they're requested sequentially but grouped conceptually.
+1. **Provide clear labels and placeholders**: Help users understand what information is expected, regardless of context.
+1. **Use appropriate input types**: Choose the right input type for the data you're collecting (secret for passwords, choice for predefined options, etc.). Both contexts support these input types appropriately.
+1. **Implement validation**: Validate user input and provide clear error messages when validation fails. Both contexts support validation feedback.
+1. **Make required fields clear**: Mark required fields and provide appropriate defaults for optional ones.
+1. **Handle cancellation**: Always check if the user canceled the input prompt and handle it gracefully. Users can cancel in both dashboard and CLI contexts.
+
+</Steps>
+
+## Interaction contexts
+
+The interaction service behaves differently depending on how your Aspire solution is launched:
+
+### Dashboard context
+
+When you run your application using `aspire run` or by directly launching the AppHost project, interactions appear in the Aspire dashboard web interface:
+
+- **Modal dialogs**: Message boxes and input prompts appear as overlay dialogs that require user interaction.
+- **Notification messages**: Informational messages appear as dismissible banners at the top of the dashboard.
+- **Rich UI**: Full support for interactive form elements, validation, and visual feedback.
+- **All methods available**: All interaction service methods are supported in dashboard contexts.
+
+### CLI context
+
+When you run `aspire publish` or `aspire deploy`, interactions are prompted through the command-line interface:
+
+- **Text prompts**: Only input prompts (`PromptInputAsync` and `PromptInputsAsync`) are available and appear as text-based prompts in the terminal.
+- **Sequential input**: Multiple inputs are requested one at a time rather than in a single dialog.
+- **Limited functionality**: Message boxes, notifications, and confirmation dialogs aren't available and throws exceptions if called.
+
+<Aside type="caution">
+The interaction service adapts automatically to dashboard and CLI contexts. In CLI mode, only input-related methods—`PromptInputAsync` and `PromptInputsAsync`—are supported. Calling `PromptMessageBoxAsync`, `PromptNotificationAsync`, or `PromptConfirmationAsync` in CLI operations like `aspire publish` or `aspire deploy` results in an exception.
+</Aside>

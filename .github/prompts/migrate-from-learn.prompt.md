@@ -107,7 +107,7 @@ Example NUnit content
 1. **Import statement**: Add `import { Image } from 'astro:assets';` to imports
 2. **Asset import**: `import imageName from '@assets/{section}/{filename}';`
 3. **Usage**: `<Image src={imageName} alt="descriptive text" />`
-4. **Copy both**: Always copy `.png` (or other formats) AND `.excalidraw` source files
+4. **Copy both**: Always copy `.png`, `.svg` (or other formats) AND `.excalidraw` source files
 5. **Destination**: `src/frontend/src/assets/{section}/`
 
 ### Link Transformations
@@ -165,7 +165,7 @@ Example NUnit content
 12. When linking to NuGet packages, ensure the link name matches the package name on nuget.org and is prefixed with the 📦 emoji, i.e.; [📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing).
 
 ### Phase 4: Sidebar Integration
-1. Update `src/frontend/sidebar.topics.ts`
+1. Update `src/frontend/sidebar.topics.ts`, or the nested imported topics.
 2. Add new section or items with proper translations
 3. Follow existing patterns for structure
 4. Include all required language translations
