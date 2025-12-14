@@ -540,8 +540,8 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/configuration',
         },
         {
-          label: 'Certificate trust',
-          slug: 'app-host/certificate-trust',
+          label: 'Certificate configuration',
+          slug: 'app-host/certificate-configuration',
         },
         {
           label: 'Eventing',
