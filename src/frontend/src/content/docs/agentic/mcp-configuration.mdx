@@ -1,55 +1,62 @@
 ---
-title: Manual MCP server configuration
-description: Learn how to manually configure the Aspire MCP server for older Aspire versions (9.0 - 13.0).
+title: Configure the Aspire MCP server
+description: Learn how to configure the Aspire MCP server using the Aspire CLI for agentic development.
 ---
 
 import { Image } from 'astro:assets';
 import { Aside, Steps } from '@astrojs/starlight/components';
 import mcpDialogImage from '@assets/dashboard/mcp-server/mcp-dialog.png';
 
-<Aside type="tip" title="New in Aspire 13.1">
-Starting with Aspire 13.1, you can configure the MCP server automatically using the `aspire mcp init` command. See [Configure Aspire MCP](/agentic/mcp-configuration/) for the recommended approach.
-</Aside>
-
-This page describes manual MCP configuration for Aspire versions 9.0 through 13.0, or for situations where you need more control over the configuration.
-
-The Aspire MCP server is a local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. Aspire MCP integrates Aspire into your development AI eco-system. With Aspire MCP, you can:
+The Aspire MCP server is a local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that integrates Aspire into your AI development ecosystem. With Aspire MCP, your AI assistants can:
 
 - Query resources, including resource states, endpoints, health status and commands.
 - Debug with real-time console logs.
 - Investigate development time telemetry, such as structured logs and distributed tracing across resources.
 - Execute resource commands.
 
-## Get started
+## Get started with `aspire mcp init`
 
-To get started, configure your local AI assistant to use Aspire MCP.
+The easiest way to configure the Aspire MCP server is using the Aspire CLI. The `aspire mcp init` command automatically detects your AI development environment and creates the necessary configuration files.
 
 <Steps>
 
-1. Run your Aspire app.
-1. Open the Aspire dashboard and click on the MCP button in the top right corner of the dashboard. This launches a dialog that contains instructions for using Aspire MCP.
-1. Use the specified details in the dialog to configure your local AI assistant.
+1. Open a terminal in your Aspire project directory (the folder containing your AppHost).
+
+1. Run the following command:
+
+   ```bash title="Aspire CLI"
+   aspire mcp init
+   ```
+
+1. The command detects supported agent environments (such as VS Code with GitHub Copilot, Cursor, or other MCP-compatible tools) and creates the appropriate configuration files.
 
 </Steps>
 
-Important settings required to use Aspire MCP:
+That's it! The Aspire CLI handles all the configuration details for you, including setting up the MCP server connection and any required authentication.
 
-- `url` - Aspire MCP address.
-- `type` - `http` to indicate Aspire MCP is a [streamable-HTTP MCP server](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http).
-- `x-mcp-api-key` - An HTTP header with a key to secure access to the MCP server.
+## Understanding the configuration
 
-<Image src={mcpDialogImage} alt="A screenshot of the Aspire MCP dialog in the dashboard with the url and API header highlighted." />
+When you run `aspire mcp init`, the CLI creates configuration files appropriate for your detected environment. For example, if you're using VS Code with GitHub Copilot, it creates or updates an `mcp.json` file with the Aspire MCP server settings.
 
-There isn't a standard way to configure AI assistants with new MCP servers. Configuration varies depending on your local AI assistant:
+The key settings configured include:
 
-- [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
-- [Codex](https://developers.openai.com/codex/mcp/)
-- [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli#add-an-mcp-server)
-- [Cursor](https://cursor.com/docs/context/mcp#installing-mcp-servers)
-- [Visual Studio](https://learn.microsoft.com/visualstudio/ide/mcp-servers?view=visualstudio#options-for-adding-an-mcp-server)
-- [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
+- **url** - The Aspire MCP server address.
+- **type** - Set to `http` to indicate Aspire MCP is a [streamable-HTTP MCP server](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http).
+- **x-mcp-api-key** - An HTTP header with a key to secure access to the MCP server.
 
-The `x-mcp-api-key` value is used to secure access to the MCP, but the AI assistant must have access to it. Use features in the AI assistant to securely store the value. For example, if you're using VS Code then [input variables](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_input-variables-for-sensitive-data) can be used to configure the API key and avoid adding the API key to source control in an *mcp.json* file.
+## Starting the MCP server
+
+You can start the Aspire MCP server independently using:
+
+```bash title="Aspire CLI"
+aspire mcp start
+```
+
+This command starts the MCP server, which enables AI assistants and development tools to interact with your Aspire AppHost. The MCP server provides a standardized interface for resource management, diagnostics, and observability operations.
+
+<Aside type="tip">
+When you run your Aspire app using `aspire run`, the MCP server is automatically started and configured for you.
+</Aside>
 
 ## Your first prompts
 
@@ -86,6 +93,17 @@ builder.AddProject<Projects.AspireApp_Web>("webfrontend")
 
 builder.Build().Run();
 ```
+
+## Supported AI assistants
+
+The `aspire mcp init` command supports the following AI assistants:
+
+- [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
+- [Codex](https://developers.openai.com/codex/mcp/)
+- [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli#add-an-mcp-server)
+- [Cursor](https://cursor.com/docs/context/mcp#installing-mcp-servers)
+- [Visual Studio](https://learn.microsoft.com/visualstudio/ide/mcp-servers?view=visualstudio#options-for-adding-an-mcp-server)
+- [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
 
 ## Troubleshooting
 
@@ -138,3 +156,10 @@ AI models have limits on how much data they can process at once. Aspire MCP may 
 
 - Large data fields (e.g., long exception stack traces) may be truncated.
 - Requests involving large collections of telemetry may be shortened by omitting older items.
+
+## See also
+
+- [aspire mcp command](/reference/cli/commands/aspire-mcp/)
+- [aspire mcp init command](/reference/cli/commands/aspire-mcp-init/)
+- [aspire mcp start command](/reference/cli/commands/aspire-mcp-start/)
+- [Manual MCP configuration (Aspire 9.0 - 13.0)](/dashboard/mcp-server/) - For older Aspire versions or manual configuration
