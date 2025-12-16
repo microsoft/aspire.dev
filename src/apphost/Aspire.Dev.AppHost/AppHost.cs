@@ -7,6 +7,7 @@ if (builder.ExecutionContext.IsRunMode)
 {
     // For local development: Use ViteApp for hot reload and development experience
     builder.AddViteApp("frontend", "../../frontend")
+           .WithPnpm()
            .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
            .WithExternalHttpEndpoints();
 }

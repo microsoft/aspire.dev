@@ -1,0 +1,272 @@
+---
+title: JavaScript integration
+description: Learn how to orchestrate JavaScript applications with Aspire using the Aspire.Hosting.JavaScript package.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import InstallPackage from '@components/InstallPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import jsIcon from '@assets/icons/javascript.svg';
+
+<Image
+  src={jsIcon}
+  alt="JavaScript logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire JavaScript/TypeScript hosting integration enables you to orchestrate JavaScript applications alongside your Aspire projects in the AppHost. This integration provides a unified approach to running JavaScript applications with support for multiple package managers (npm, yarn, pnpm), runtimes (Node.js), and build tools (Vite, and more).
+
+:::tip[Package rename]
+In Aspire 13.0, the `Aspire.Hosting.NodeJs` package was renamed to `Aspire.Hosting.JavaScript` to better reflect its broader support for JavaScript applications.
+:::
+
+## Hosting integration
+
+To get started with the Aspire JavaScript hosting integration, install the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package in the AppHost project.
+
+<InstallPackage packageName="Aspire.Hosting.JavaScript" />
+
+The integration exposes a number of app resource types:
+
+- `JavaScriptAppResource`: Added with the `AddJavaScriptApp` method for general JavaScript applications
+- `NodeAppResource`: Added with the `AddNodeApp` method for running specific JavaScript files with Node.js
+- `ViteAppResource`: Added with the `AddViteApp` method for Vite applications with Vite-specific defaults
+
+## Add JavaScript application
+
+The `AddJavaScriptApp` method is the foundational method for adding JavaScript applications to your Aspire AppHost. It provides a consistent way to orchestrate JavaScript applications with automatic package manager detection and intelligent defaults.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ExampleProject>();
+
+var frontend = builder.AddJavaScriptApp("frontend", "./frontend")
+    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithReference(api);
+
+// After adding all resources, run the app...
+```
+
+By default, `AddJavaScriptApp`:
+
+- Uses npm as the package manager when `package.json` is present
+- Runs the "dev" script during local development
+- Runs the "build" script when publishing to create production assets
+- Automatically generates Dockerfiles to build production assets
+
+The method accepts the following parameters:
+
+- `name`: The name of the resource in the Aspire dashboard
+- `appDirectory`: The path to the directory containing your JavaScript application (where `package.json` is located)
+- `runScriptName` (optional): The name of the npm script to run when starting the application. Defaults to 'dev'.
+
+## Add Node.js application
+
+For Node.js applications that don't use a package.json script runner, you can directly run a JavaScript file using the `AddNodeApp` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ExampleProject>();
+
+var nodeApp = builder.AddNodeApp("node-app", "./node-app", "server.js")
+    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithReference(api);
+
+// After adding all resources, run the app...
+```
+
+The `AddNodeApp` method requires:
+
+- **name**: The name of the resource in the Aspire dashboard
+- **appDirectory**: The path to the directory containing the node application.
+- **scriptPath** The path to the script relative to the app directory to run.
+
+## Add Vite application
+
+For Vite applications, you can use the `AddViteApp` extension method which provides Vite-specific defaults and optimizations:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ExampleProject>();
+
+var viteApp = builder.AddViteApp("vite-app", "./vite-app")
+    .WithReference(api);
+
+// After adding all resources, run the app...
+```
+
+`AddViteApp` automatically configures:
+
+- **Development script**: Runs the "dev" script (typically `vite`) during local development
+- **Build script**: Runs the "build" script (typically `vite build`) when publishing
+- **Package manager**: Uses npm by default, but can be customized with `WithYarn()` or `WithPnpm()`
+
+The method accepts the same parameters as `AddJavaScriptApp`:
+
+- **name**: The name of the resource in the Aspire dashboard
+- **appDirectory**: The path to the directory containing the Vite app.
+- **runScriptName** (optional): The name of the script that runs the Vite app. Defaults to "dev".
+
+## Configure package managers
+
+Aspire automatically detects and supports multiple JavaScript package managers with intelligent defaults for both development and production scenarios.
+
+### Auto-install by default
+
+Package managers automatically install dependencies by default. This ensures dependencies are always up-to-date during development and publishing.
+
+### Use npm (default)
+
+npm is the default package manager. If your project has a `package.json` file, Aspire will use npm unless you specify otherwise:
+
+```csharp title="C# — AppHost.cs" "WithNpm"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// npm is used by default
+var app = builder.AddJavaScriptApp("app", "./app");
+
+// Customize npm with additional flags
+var customApp = builder.AddJavaScriptApp("custom-app", "./custom-app")
+    .WithNpm(installCommand: "ci", installArgs: ["--legacy-peer-deps"]);
+
+// After adding all resources, run the app...
+```
+
+When publishing (production mode), Aspire automatically uses `npm ci` if `package-lock.json` exists, otherwise it uses `npm install` for deterministic builds.
+
+### Use yarn
+
+To use yarn as the package manager, call the `WithYarn` extension method:
+
+```csharp title="C# — AppHost.cs" "WithYarn"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithYarn();
+
+// Customize yarn with additional flags
+var customApp = builder.AddJavaScriptApp("custom-app", "./custom-app")
+    .WithYarn(installArgs: ["--immutable"]);
+
+// After adding all resources, run the app...
+```
+
+When publishing, Aspire uses:
+
+- `yarn install --immutable` if `yarn.lock` exists and yarn v2+ is detected
+- `yarn install --frozen-lockfile` if `yarn.lock` exists with yarn v1
+- `yarn install` otherwise
+
+### Use pnpm
+
+To use pnpm as the package manager, call the `WithPnpm` extension method:
+
+```csharp title="C# — AppHost.cs" "WithPnpm"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithPnpm();
+
+// Customize pnpm with additional flags
+var customApp = builder.AddJavaScriptApp("custom-app", "./custom-app")
+    .WithPnpm(installArgs: ["--frozen-lockfile"]);
+
+// After adding all resources, run the app...
+```
+
+When publishing, Aspire uses `pnpm install --frozen-lockfile` if `pnpm-lock.yaml` exists, otherwise it uses `pnpm install`.
+
+## Customize scripts
+
+You can customize which scripts run during development and build:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Use different script names
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithRunScript("start")      // Run "npm run start" during development instead of "dev"
+    .WithBuildScript("prod");    // Run "npm run prod" during publish instead of "build"
+
+// After adding all resources, run the app...
+```
+
+### Pass arguments to scripts
+
+To pass command-line arguments to your scripts, use the `WithArgs` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithRunScript("dev")
+    .WithArgs("--port", "3000", "--host");
+
+// After adding all resources, run the app...
+```
+
+Alternatively, you can define custom scripts in your `package.json` with arguments baked in:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "vite",
+    "dev:custom": "vite --port 3000 --host"
+  }
+}
+```
+
+Then reference the custom script:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithRunScript("dev:custom");
+
+// After adding all resources, run the app...
+```
+
+## Configure endpoints
+
+JavaScript applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the environment variable:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+Common environment variables for JavaScript frameworks:
+
+- **PORT**: Generic port configuration used by many frameworks (Express, Vite, Next.js)
+- **VITE_PORT**: For Vite applications
+- **HOST**: Some frameworks also use this to bind to specific interfaces
+
+## Production builds
+
+When you publish your application using `aspire deploy`, Aspire automatically:
+
+1. Generates a Dockerfile for containerized deployment
+2. Installs dependencies using deterministic install commands based on lockfiles
+3. Runs the build script (typically "build") to create production assets
+4. Creates production-ready containers
+
+This ensures your JavaScript applications are built consistently across environments and deployed alongside your other Aspire services.
+
+## See also
+
+- [Node.js hosting extensions](/integrations/frameworks/nodejs-extensions/) - Community Toolkit extensions for Vite, Yarn, and pnpm
+- [What's new in Aspire 13](/whats-new/aspire-13/) - Learn about first-class JavaScript support
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)

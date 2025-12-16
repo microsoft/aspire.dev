@@ -1,358 +1,332 @@
 ---
-import { CardGrid, Card } from "@astrojs/starlight/components";
-import IntegrationCard from "@components/IntegrationCard.astro";
-import IntegrationTotals from "@components/IntegrationTotals.astro";
+import { CardGrid, Card } from '@astrojs/starlight/components';
+import IntegrationCard from '@components/IntegrationCard.astro';
+import IntegrationTotals from '@components/IntegrationTotals.astro';
 
 interface Props {
-    integrations: Integrations;
-    availableDocs: AvailableDocs;
+  integrations: Integrations;
+  availableDocs: AvailableDocs;
 }
 
 const { integrations, availableDocs } = Astro.props;
 
 interface Integration {
-    title: string;
-    href: string;
-    icon: string;
-    description: string;
-    downloads?: number;
-    version?: string;
-    tags?: string[];
-    docs?: string;
+  title: string;
+  href: string;
+  icon: string;
+  description: string;
+  downloads?: number;
+  version?: string;
+  tags?: string[];
+  docs?: string;
 }
 
 type Integrations = Integration[];
 
 interface AvailableDoc {
-    match: string;
-    href: string;
+  match: string;
+  href: string;
 }
 
 type AvailableDocs = AvailableDoc[];
 
 const sortedIntegrations = integrations.sort((a, b) => {
-    const aDownloads = a.downloads ?? 0;
-    const bDownloads = b.downloads ?? 0;
-    return bDownloads - aDownloads; // Sort by downloads descending
+  const aDownloads = a.downloads ?? 0;
+  const bDownloads = b.downloads ?? 0;
+  return bDownloads - aDownloads; // Sort by downloads descending
 });
 ---
 
 <div class="sl-mb-4 search-wrapper">
-    <div class="search-container">
-        <input
-            autocomplete="off"
-            spellcheck="false"
-            type="text"
-            class="search-box filter"
-            placeholder={Astro.locals.t("integrations.search")}
-        />
-    </div>
-    <button class="clear-button" aria-label="Clear search" type="button">
-        {Astro.locals.t("integrations.clear")}
-    </button>
+  <div class="search-container">
+    <input
+      autocomplete="off"
+      spellcheck="false"
+      type="text"
+      class="search-box filter"
+      placeholder={Astro.locals.t('integrations.search')}
+    />
+  </div>
+  <button class="clear-button" aria-label="Clear search" type="button">
+    {Astro.locals.t('integrations.clear')}
+  </button>
 </div>
 
 {
-    sortedIntegrations.length > 0 && (
-        <section>
-            <div class="integration-stats">
-                <IntegrationTotals integrations={sortedIntegrations} />
-            </div>
+  sortedIntegrations.length > 0 && (
+    <section>
+      <div class="integration-stats">
+        <IntegrationTotals integrations={sortedIntegrations} />
+      </div>
 
-            <div class="equal-columns">
-                <CardGrid>
-                    {sortedIntegrations.map((pkg) => {
-                        // Find a matching doc by checking if pkg.title, pkg.description, or any tag matches availableDocs.match
-                        const doc = availableDocs.find((doc) => {
-                            const match = doc.match.toLowerCase();
-                            const titleMatch = pkg.title
-                                .toLowerCase()
-                                .includes(match);
-                            const descMatch = pkg.description
-                                .toLowerCase()
-                                .includes(match);
-                            const tagsMatch = pkg.tags?.some((tag) =>
-                                tag.toLowerCase().includes(match),
-                            );
-                            return titleMatch || descMatch || tagsMatch;
-                        });
+      <div class="equal-columns">
+        <CardGrid>
+          {sortedIntegrations.map((pkg) => {
+            // Find a matching doc by checking if pkg.title.
+            const doc = availableDocs.find((doc) => {
+              const match = doc.match.toLowerCase();
+              const titleMatch = pkg.title.toLowerCase() == match;
+              return titleMatch;
+            });
 
-                        // Assign docs property if a match is found
-                        const pkgWithDocs = doc
-                            ? { ...pkg, docs: doc.href }
-                            : pkg;
+            // Assign docs property if a match is found
+            const pkgWithDocs = doc ? { ...pkg, docs: doc.href } : pkg;
 
-                        return <IntegrationCard pkg={pkgWithDocs} />;
-                    })}
-                </CardGrid>
-            </div>
+            return <IntegrationCard pkg={pkgWithDocs} />;
+          })}
+        </CardGrid>
+      </div>
 
-            <div class="no-results">
-                <Card title="No integrations found" icon="magnifier">
-                    {Astro.locals.t("integrations.noResults")}
-                </Card>
-            </div>
-        </section>
-    )
+      <div class="no-results">
+        <Card title="No integrations found" icon="magnifier">
+          {Astro.locals.t('integrations.noResults')}
+        </Card>
+      </div>
+    </section>
+  )
 }
 
 <style>
-    .no-results {
-        margin-top: 0;
-        display: none; /* Hidden by default */
+  .no-results {
+    margin-top: 0;
+    display: none; /* Hidden by default */
+  }
+
+  .integration-stats {
+    margin-bottom: 1rem;
+    display: none; /* Hidden by default on mobile */
+  }
+
+  /* Force equal columns in the card grid */
+  .equal-columns :global(.card-grid) {
+    display: grid;
+    grid-template-columns: 1fr; /* Default to single column for mobile */
+    width: 100%;
+    gap: 1rem; /* Ensure consistent spacing */
+  }
+
+  /* Ensure each card takes full space in its column */
+  .equal-columns :global(.card-grid > *) {
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Switch to two columns on larger screens and show stats */
+  @media (min-width: 768px) {
+    .equal-columns :global(.card-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .integration-stats {
-        margin-bottom: 1rem;
-        display: none; /* Hidden by default on mobile */
+      display: block; /* Show stats on larger screens */
     }
+  }
 
-    /* Force equal columns in the card grid */
-    .equal-columns :global(.card-grid) {
-        display: grid;
-        grid-template-columns: 1fr; /* Default to single column for mobile */
-        width: 100%;
-        gap: 1rem; /* Ensure consistent spacing */
-    }
+  .search-wrapper {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    width: 100%;
+  }
 
-    /* Ensure each card takes full space in its column */
-    .equal-columns :global(.card-grid > *) {
-        width: 100%;
-        box-sizing: border-box;
-        min-width: 0;
-        max-width: 100%;
-    }
+  .search-container {
+    flex-grow: 1;
+    position: relative;
+  }
 
-    /* Switch to two columns on larger screens and show stats */
-    @media (min-width: 768px) {
-        .equal-columns :global(.card-grid) {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+  input.filter {
+    padding-inline: 0.75rem;
+    background-color: var(--sl-color-black);
+    color: var(--sl-color-text);
+    font-size: var(--sl-text);
+    width: 100%;
+    height: 2.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    font-size: calc(21px * var(--pagefind-ui-scale));
+    position: relative;
+    display: flex;
+    box-sizing: border-box;
+  }
 
-        .integration-stats {
-            display: block; /* Show stats on larger screens */
-        }
-    }
+  .clear-button {
+    background-color: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    color: var(--sl-color-white);
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    height: 2.5rem;
+    margin-top: 0;
+    transition: background-color 0.2s ease;
+  }
 
-    .search-wrapper {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-        width: 100%;
-    }
-
-    .search-container {
-        flex-grow: 1;
-        position: relative;
-    }
-
-    input.filter {
-        padding-inline: 0.75rem;
-        background-color: var(--sl-color-black);
-        color: var(--sl-color-text);
-        font-size: var(--sl-text);
-        width: 100%;
-        height: 2.5rem;
-        border: 1px solid var(--sl-color-gray-5);
-        border-radius: 0.5rem;
-        font-size: calc(21px * var(--pagefind-ui-scale));
-        position: relative;
-        display: flex;
-        box-sizing: border-box;
-    }
-
-    .clear-button {
-        background-color: var(--sl-color-gray-6);
-        border: 1px solid var(--sl-color-gray-5);
-        border-radius: 0.375rem;
-        color: var(--sl-color-white);
-        cursor: pointer;
-        font-size: 0.875rem;
-        padding: 0.5rem 1rem;
-        height: 2.5rem;
-        margin-top: 0;
-        transition: background-color 0.2s ease;
-    }
-
-    .clear-button:hover {
-        background-color: var(--sl-color-gray-5);
-    }
+  .clear-button:hover {
+    background-color: var(--sl-color-gray-5);
+  }
 </style>
 
 <script type="module" is:inline>
-    const searchBox = document.querySelector(".search-box");
-    const clearButton = document.querySelector(".clear-button");
-    const cards = document.querySelectorAll(".card-grid .card");
-    const noResults = document.querySelector(".no-results");
-    const statsSection = document.querySelector(".integration-stats");
+  const searchBox = document.querySelector('.search-box');
+  const clearButton = document.querySelector('.clear-button');
+  const cards = document.querySelectorAll('.card-grid .card');
+  const noResults = document.querySelector('.no-results');
+  const statsSection = document.querySelector('.integration-stats');
 
-    let activeTags = new Set();
+  let activeTags = new Set();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialSearch = urlParams.get("search") || "";
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialSearch = urlParams.get('search') || '';
 
-    if (initialSearch) {
-        searchBox.value = initialSearch;
-    }
+  if (initialSearch) {
+    searchBox.value = initialSearch;
+  }
 
-    function updateURL() {
-        const params = new URLSearchParams();
-        if (activeTags.size > 0) params.set("tags", [...activeTags].join(","));
-        if (searchBox.value.trim())
-            params.set("search", searchBox.value.trim());
-        const newUrl = `${window.location.pathname}?${params.toString()}`;
-        history.pushState({}, "", newUrl);
-    }
+  function updateURL() {
+    const params = new URLSearchParams();
+    if (activeTags.size > 0) params.set('tags', [...activeTags].join(','));
+    if (searchBox.value.trim()) params.set('search', searchBox.value.trim());
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    history.pushState({}, '', newUrl);
+  }
 
-    function clearSearch() {
-        searchBox.value = "";
-        filterCards();
-        searchBox.focus();
-    }
-
-    function updateTotals(visibleCards) {
-        // Get the IntegrationTotals component
-        const totalsComponent = document.querySelector(".integration-totals");
-        if (!totalsComponent) return;
-
-        // Extract data from visible cards
-        const visibleIntegrations = Array.from(visibleCards).map((card) => ({
-            title: card.dataset.title || "",
-            downloads: parseInt(card.dataset.downloads || "0"),
-            tags: card.dataset.tags ? card.dataset.tags.split(",") : [],
-        }));
-
-        // Calculate new stats
-        const totalPackages = visibleIntegrations.length;
-
-        // Calculate unique tags from visible integrations
-        const uniqueTags = new Set();
-        visibleIntegrations.forEach((pkg) => {
-            if (pkg.tags) pkg.tags.forEach((tag) => uniqueTags.add(tag));
-        });
-        const totalTags = uniqueTags.size;
-
-        // Calculate total downloads from visible integrations
-        const totalDownloads = visibleIntegrations.reduce(
-            (sum, pkg) => sum + (pkg.downloads || 0),
-            0,
-        );
-
-        // Update the data-target attributes for each total card
-        const totalCards = totalsComponent.querySelectorAll(
-            ".total-card .total-number",
-        );
-        if (totalCards.length >= 3) {
-            // Update packages count
-            totalCards[0].setAttribute("data-target", totalPackages);
-
-            // Update tags count
-            totalCards[1].setAttribute("data-target", totalTags);
-
-            // Update downloads count
-            totalCards[2].setAttribute("data-target", totalDownloads);
-        }
-
-        // After updating the data-target attributes, trigger the animation if enabled in config
-        if (window.animateIntegrationTotals) {
-            window.animateIntegrationTotals();
-        }
-    }
-
-    function filterCards(updateUrl = true) {
-        const searchTerm = searchBox.value.toLowerCase().trim();
-        let visibleCount = 0;
-        const visibleCards = [];
-
-        // Split search term by spaces to support multiple keywords
-        const searchTerms = searchTerm
-            ? searchTerm.split(/\s+/).filter((term) => term.length > 0)
-            : [];
-
-        cards.forEach((card) => {
-            const cardTags = card.dataset.tags
-                ? card.dataset.tags.split(",")
-                : [];
-            const cardTitle = card.dataset.title
-                ? card.dataset.title.toLowerCase()
-                : "";
-            const cardDescription = card.dataset.description
-                ? card.dataset.description.toLowerCase()
-                : "";
-
-            // Match against tags
-            const matchesTags = [...activeTags].every((tag) =>
-                cardTags.includes(tag),
-            );
-
-            // Check if ALL search terms appear in title, tags, or description
-            const matchesSearch =
-                searchTerms.length === 0 ||
-                searchTerms.some(
-                    (term) =>
-                        cardTitle.includes(term) ||
-                        cardDescription.includes(term) ||
-                        cardTags.some((tag) =>
-                            tag.toLowerCase().includes(term),
-                        ),
-                );
-
-            const visible = matchesTags && matchesSearch;
-            card.style.display = visible ? "" : "none";
-
-            if (visible) {
-                visibleCount++;
-                visibleCards.push(card);
-            }
-        });
-
-        // Show/hide the no results message based on visible count
-        noResults.style.display = visibleCount === 0 ? "block" : "none";
-
-        // Show/hide the stats based on visible count
-        statsSection.style.display = visibleCount === 0 ? "none" : "block";
-
-        // Update totals with visible cards
-        if (visibleCount > 0) {
-            updateTotals(visibleCards);
-        }
-
-        if (updateUrl) updateURL();
-    }
-
-    // Debounce helper
-    function debounce(fn, delay) {
-        let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), delay);
-        };
-    }
-
-    // Replace direct filterCards call with debounced version for input
-    const debouncedFilterCards = debounce(() => filterCards(), 500);
-
-    searchBox.addEventListener("input", () => {
-        debouncedFilterCards();
-    });
-
-    clearButton.addEventListener("click", clearSearch);
-
-    // Also clear when user presses Escape in the search box
-    searchBox.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            clearSearch();
-        }
-    });
-
-    window.addEventListener("popstate", () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const search = urlParams.get("search") || "";
-
-        searchBox.value = search;
-        filterCards(false);
-    });
-
-    filterCards(); // Initial render
+  function clearSearch() {
+    searchBox.value = '';
+    filterCards();
     searchBox.focus();
+  }
+
+  function updateTotals(visibleCards) {
+    // Get the IntegrationTotals component
+    const totalsComponent = document.querySelector('.integration-totals');
+    if (!totalsComponent) return;
+
+    // Extract data from visible cards
+    const visibleIntegrations = Array.from(visibleCards).map((card) => ({
+      title: card.dataset.title || '',
+      downloads: parseInt(card.dataset.downloads || '0'),
+      tags: card.dataset.tags ? card.dataset.tags.split(',') : [],
+    }));
+
+    // Calculate new stats
+    const totalPackages = visibleIntegrations.length;
+
+    // Calculate unique tags from visible integrations
+    const uniqueTags = new Set();
+    visibleIntegrations.forEach((pkg) => {
+      if (pkg.tags) pkg.tags.forEach((tag) => uniqueTags.add(tag));
+    });
+    const totalTags = uniqueTags.size;
+
+    // Calculate total downloads from visible integrations
+    const totalDownloads = visibleIntegrations.reduce((sum, pkg) => sum + (pkg.downloads || 0), 0);
+
+    // Update the data-target attributes for each total card
+    const totalCards = totalsComponent.querySelectorAll('.total-card .total-number');
+    if (totalCards.length >= 3) {
+      // Update packages count
+      totalCards[0].setAttribute('data-target', totalPackages);
+
+      // Update tags count
+      totalCards[1].setAttribute('data-target', totalTags);
+
+      // Update downloads count
+      totalCards[2].setAttribute('data-target', totalDownloads);
+    }
+
+    // After updating the data-target attributes, trigger the animation if enabled in config
+    if (window.animateIntegrationTotals) {
+      window.animateIntegrationTotals();
+    }
+  }
+
+  function filterCards(updateUrl = true) {
+    const searchTerm = searchBox.value.toLowerCase().trim();
+    let visibleCount = 0;
+    const visibleCards = [];
+
+    // Split search term by spaces to support multiple keywords
+    const searchTerms = searchTerm ? searchTerm.split(/\s+/).filter((term) => term.length > 0) : [];
+
+    cards.forEach((card) => {
+      const cardTags = card.dataset.tags ? card.dataset.tags.split(',') : [];
+      const cardTitle = card.dataset.title ? card.dataset.title.toLowerCase() : '';
+      const cardDescription = card.dataset.description
+        ? card.dataset.description.toLowerCase()
+        : '';
+
+      // Match against tags
+      const matchesTags = [...activeTags].every((tag) => cardTags.includes(tag));
+
+      // Check if ALL search terms appear in title, tags, or description
+      const matchesSearch =
+        searchTerms.length === 0 ||
+        searchTerms.some(
+          (term) =>
+            cardTitle.includes(term) ||
+            cardDescription.includes(term) ||
+            cardTags.some((tag) => tag.toLowerCase().includes(term))
+        );
+
+      const visible = matchesTags && matchesSearch;
+      card.style.display = visible ? '' : 'none';
+
+      if (visible) {
+        visibleCount++;
+        visibleCards.push(card);
+      }
+    });
+
+    // Show/hide the no results message based on visible count
+    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+
+    // Show/hide the stats based on visible count
+    statsSection.style.display = visibleCount === 0 ? 'none' : 'block';
+
+    // Update totals with visible cards
+    if (visibleCount > 0) {
+      updateTotals(visibleCards);
+    }
+
+    if (updateUrl) updateURL();
+  }
+
+  // Debounce helper
+  function debounce(fn, delay) {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
+  }
+
+  // Replace direct filterCards call with debounced version for input
+  const debouncedFilterCards = debounce(() => filterCards(), 500);
+
+  searchBox.addEventListener('input', () => {
+    debouncedFilterCards();
+  });
+
+  clearButton.addEventListener('click', clearSearch);
+
+  // Also clear when user presses Escape in the search box
+  searchBox.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      clearSearch();
+    }
+  });
+
+  window.addEventListener('popstate', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const search = urlParams.get('search') || '';
+
+    searchBox.value = search;
+    filterCards(false);
+  });
+
+  filterCards(); // Initial render
+  searchBox.focus();
 </script>

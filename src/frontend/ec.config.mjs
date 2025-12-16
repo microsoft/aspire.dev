@@ -4,12 +4,8 @@ import { pluginDisableCopy } from './src/expressive-code-plugins/disable-copy.mj
 
 /** @type {import('@astrojs/starlight/expressive-code').StarlightExpressiveCodeOptions} */
 export default {
-    plugins: [
-        pluginCollapsibleSections(),
-        pluginLineNumbers(),
-        pluginDisableCopy()
-    ],
-    defaultProps: {
-        showLineNumbers: false
-    }
-}
+  plugins: [pluginCollapsibleSections(), pluginLineNumbers(), pluginDisableCopy()],
+  defaultProps: {
+    showLineNumbers: false,
+  },
+};

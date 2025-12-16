@@ -12,7 +12,7 @@ Since Aspire projects use a containerized architecture, databases are ephemeral 
 
 In this tutorial, you learn how to configure Aspire projects to run EF Core migrations during app startup.
 
-Please be sure that you're already setup your development environment, see [Prerequisites](/get-started/prequisites/).
+Please be sure that you're already setup your development environment, see [Prerequisites](/get-started/prerequisites/).
 
 ## Obtain the starter app
 
@@ -95,6 +95,7 @@ Start by creating some migrations to apply.
 </Tabs>
 
 <Steps>
+
 1. Modify the model so that it includes a new property. Open `SupportTicketApi.Data/Models/SupportTicket.cs` and add a new property to the `SupportTicket` class:
 
     ```csharp title="C# — SupportTicket.cs" {12}
@@ -128,6 +129,7 @@ Start by creating some migrations to apply.
         ```
     </TabItem>
     </Tabs>
+
 </Steps>
 
 Now you've got some migrations to apply. Next, you'll create a migration service that applies these migrations during app startup.
@@ -143,6 +145,7 @@ If you get an error like "No database provider has been configured for this DbCo
 **Solution**: Temporarily add a connection string to your project's `appsettings.json` file:
 
 <Steps>
+
 1. In your API project (where the DbContext is registered), open or create an `appsettings.json` file.
 1. Add a connection string with the same name used in your Aspire AppHost:
 
@@ -156,6 +159,7 @@ If you get an error like "No database provider has been configured for this DbCo
 
 1. Run your migration commands as normal.
 1. Remove the connection string from `appsettings.json` when you're done, as Aspire will provide it at runtime.
+
 </Steps>
 
 > [!TIP]
@@ -166,6 +170,7 @@ If you get an error like "No database provider has been configured for this DbCo
 When your Aspire solution has multiple services with different databases, create migrations for each database separately:
 
 <Steps>
+
 1. Navigate to each service project directory that has a DbContext.
 1. Run migration commands with the appropriate project reference:
 
@@ -178,6 +183,7 @@ When your Aspire solution has multiple services with different databases, create
     ```
 
 1. Create separate migration services for each database, or handle multiple DbContexts in a single migration service.
+
 </Steps>
 
 ### Startup project configuration
@@ -197,6 +203,7 @@ To execute migrations, call the EF Core `Microsoft.EntityFrameworkCore.Migration
 To create a service that applies the migrations:
 
 <Steps>
+
 1. Add a new Worker Service project to the solution. If using Visual Studio, right-click the solution in Solution Explorer and select `Add > New Project`. Select `Worker Service`, name the project `SupportTicketApi.MigrationService` and target **.NET 10.0**. If using the command line, use the following commands from the solution directory:
 
     ```bash title=".NET CLI"
@@ -339,6 +346,7 @@ To create a service that applies the migrations:
       1. Stops the worker with `StopApplication`.
       </Steps>
     - The `RunMigrationAsync` and `SeedDataAsync` methods both encapsulate their respective database operations using execution strategies to handle transient errors that may occur when interacting with the database. To learn more about execution strategies, see [Connection Resiliency](https://learn.microsoft.com/ef/core/miscellaneous/connection-resiliency).
+
 </Steps>
 
 ## Add the migration service to the orchestrator
@@ -346,6 +354,7 @@ To create a service that applies the migrations:
 The migration service is created, but it needs to be added to the Aspire AppHost so that it runs when the app starts.
 
 <Steps>
+
 1. In the *`SupportTicketApi.AppHost`* project, open the *`AppHost.cs`* file.
 1. Add the following highlighted code:
 
@@ -383,6 +392,7 @@ The migration service is created, but it needs to be added to the Aspire AppHost
 
     > [!IMPORTANT]
     > If you are using Visual Studio, and you selected the **`Enlist in Aspire orchestration`** option when creating the Worker Service project, similar code is added automatically with the service name `supportticketapi-migrationservice`. Replace that code with the preceding code.
+
 </Steps>
 
 ## Multiple databases scenario
@@ -394,6 +404,7 @@ If your Aspire solution uses multiple databases, you have two options for managi
 Create a dedicated migration service for each database. This approach provides better isolation and makes it easier to manage different database schemas independently.
 
 <Steps>
+
 1. Create separate migration service projects for each database:
 
     ```bash title=".NET CLI"
@@ -423,6 +434,7 @@ Create a dedicated migration service for each database. This approach provides b
         .WithReference(secondDb)
         .WaitFor(secondMigrations);
     ```
+
 </Steps>
 
 ### Option 2: Single migration service with multiple contexts
@@ -430,6 +442,7 @@ Create a dedicated migration service for each database. This approach provides b
 Alternatively, you can create one migration service that handles multiple database contexts:
 
 <Steps>
+
 1. Add references to all data projects in the migration service.
 1. Register all DbContexts in the migration service's `Program.cs`.
 1. Modify the `Worker.cs` to apply migrations for each context:
@@ -448,6 +461,7 @@ Alternatively, you can create one migration service that handles multiple databa
         return true;
     }
     ```
+
 </Steps>
 
 ## Remove existing seeding code
@@ -455,6 +469,7 @@ Alternatively, you can create one migration service that handles multiple databa
 Since the migration service seeds the database, you should remove the existing data seeding code from the API project.
 
 <Steps>
+
 1. In the *`SupportTicketApi.Api`* project, open the *`Program.cs`* file.
 1. Delete the highlighted lines.
 
@@ -482,6 +497,7 @@ Since the migration service seeds the database, you should remove the existing d
         }
     }
     ```
+
 </Steps>
 
 ## Test the migration service
@@ -489,6 +505,7 @@ Since the migration service seeds the database, you should remove the existing d
 Now that the migration service is configured, run the app to test the migrations.
 
 <Steps>
+
 1. Run the app and observe the `SupportTicketApi` dashboard.
 1. After a short wait, the `migrations` service state will display **Finished**.
 
@@ -498,6 +515,7 @@ Now that the migration service is configured, run the app to test the migrations
       lightbox={true} />
 
 1. Select the `Console logs` icon on the migration service to investigate the logs showing the SQL commands that were executed.
+
 </Steps>
 
 ## Get the code
