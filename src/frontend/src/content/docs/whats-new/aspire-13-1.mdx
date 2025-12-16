@@ -252,6 +252,23 @@ var api = builder.AddProject<Projects.Api>("api")
 
 The deployment pipeline now includes `Push` and `PushPrereq` steps for container registry operations.
 
+### Explicit container registry support for Azure deployments
+
+Prior to Aspire 13.1, when deploying to Azure Container Apps using `AddAzureContainerAppEnvironment`, the Azure Container Registry (ACR) was provisioned implicitly as part of the environment. This automatic provisioning could cause deployment delays and made it difficult for developers to discover which registry was being used.
+
+Aspire 13.1 addresses this by moving toward explicit container registry configuration, giving developers more control and visibility into where and when images are pushed. This improves reliability, speeds up deployments, and enables custom registries for advanced scenarios.
+
+```csharp title="C# — Explicit Azure Container Registry"
+var acr = builder.AddAzureContainerRegistry("myacr");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(acr);
+```
+
+<LearnMore>
+For a deeper dive into container registry improvements and their impact on Azure deployments, check out [Safia Abdalla's blog post on fixing Aspire's image problem](https://blog.safia.rocks/2025/12/15/aspire-image-push/).
+</LearnMore>
+
 ### Docker Compose improvements
 
 - Bind mount sources are now replaced with environment placeholders for portability.
