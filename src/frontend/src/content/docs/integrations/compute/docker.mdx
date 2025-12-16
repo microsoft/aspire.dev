@@ -185,6 +185,26 @@ This command stops and removes all containers, networks, and volumes created by 
 
 The Docker hosting integration captures environment variables from your app model and includes them in a `.env` file. This ensures that all configuration is properly passed to the containerized services.
 
+#### Customize environment file
+
+For advanced scenarios, use `ConfigureEnvFile` to customize the generated `.env` file:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose")
+    .ConfigureEnvFile(env =>
+    {
+        env["CUSTOM_VAR"] = new CapturedEnvironmentVariable
+        {
+            Name = "CUSTOM_VAR",
+            DefaultValue = "my-value"
+        };
+    });
+```
+
+This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
+
 ## Customize container image push options
 
 When deploying containers, you can customize how container images are named and tagged when pushed to a registry. This is useful when you need to:
