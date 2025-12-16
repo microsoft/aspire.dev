@@ -1,0 +1,495 @@
+---
+title: What's new in Aspire 13.1
+description: Aspire 13.1 delivers comprehensive MCP support for AI coding agents, CLI enhancements with channel persistence, dashboard improvements, Azure Managed Redis, container registry support, and numerous bug fixes.
+sidebar:
+  label: Aspire 13.1
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import { Code, Tabs, Steps, TabItem, Aside, Icon } from '@astrojs/starlight/components';
+import resourcesParametersView from '@assets/whats-new/resources-parameters-view.png';
+import genaiVisualizerTooldefinitions from '@assets/whats-new/genai-visualizer-tooldefinitions.png';
+
+Aspire 13.1 builds on the polyglot foundation established in Aspire 13, delivering significant improvements to the CLI experience, enhanced MCP (Model Context Protocol) support for AI coding agents, dashboard refinements, and streamlined Azure deployments. This release focuses on developer productivity and seamless integration with modern AI-assisted development workflows.
+
+This release introduces:
+
+- **MCP for AI Coding Agents**: New `aspire mcp init` command and MCP tools for AI assistants to discover integrations and interact with your Aspire applications.
+- **CLI enhancements**: Channel persistence, automatic instance detection, and installation path options.
+- **Dashboard improvements**: Dedicated Parameters tab and GenAI visualizer enhancements.
+- **Azure Managed Redis**: Renamed from `AddAzureRedisEnterprise` to `AddAzureManagedRedis` with improved validation.
+- **Container registry support**: New `ContainerRegistryResource` for general-purpose container registries.
+- **JavaScript improvements**: New frontend starter template, Vite HTTPS configuration, and pnpm fixes.
+- **DevTunnels stabilization**: `Aspire.Hosting.DevTunnels` is now a stable package.
+- **TLS termination support**: New APIs for configuring HTTPS certificates on containers and resources.
+- **Connection properties for Azure resources**: Polyglot support for Azure resource connection strings.
+
+**Requirements:**
+
+- .NET 10 SDK or later.
+
+If you have feedback, questions, or want to contribute to Aspire, collaborate with us on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/dotnet/aspire) or join us on our [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and other community members.
+
+## 🆙 Upgrade to Aspire 13.1
+
+<Aside type="caution">
+Aspire 13.1 includes breaking changes to Azure Redis APIs. Please review the [Breaking changes](#-breaking-changes) section before upgrading.
+</Aside>
+
+The easiest way to upgrade to Aspire 13.1 is using the `aspire update` command:
+
+1. Update your Aspire project using the [`aspire update` command](/reference/cli/commands/aspire-update/):
+
+    ```bash title="Aspire CLI — Update all Aspire packages"
+    aspire update
+    ```
+
+2. Update the Aspire CLI itself:
+
+    ```bash title="Aspire CLI — Update the CLI"
+    aspire update --self
+    ```
+
+<Aside type="note">
+When you run `aspire update --self` and select a channel, your selection is now saved globally. Future `aspire new` and `aspire init` commands will use this channel by default.
+</Aside>
+
+## 🤖 MCP for AI Coding Agents
+
+Aspire 13.1 introduces comprehensive support for AI coding agents through MCP (Model Context Protocol) integration. Configure your favorite AI coding tools to understand and interact with your Aspire applications.
+
+### Initialize MCP for your project
+
+The new `aspire mcp init` command detects your development environment and configures MCP servers for supported AI coding agents:
+
+```bash title="Bash — Initialize MCP configuration"
+aspire mcp init
+```
+
+The command presents a streamlined two-step selection process:
+
+```
+Which agent environments do you want to configure?
+[ ] Configure VS Code to use the Aspire MCP server
+[ ] Configure GitHub Copilot CLI to use Aspire MCP server
+[ ] Configure Claude Code to use Aspire MCP server
+[ ] Configure Open Code to use Aspire MCP server
+
+Which additional options do you want to enable?
+[ ] Create an agent instructions file (AGENTS.md)
+[ ] Configure Playwright MCP server
+```
+
+### MCP tools for AI agents
+
+AI coding agents connected via MCP can now discover and use Aspire integrations directly:
+
+- **`list_integrations`** — Returns available Aspire hosting integrations (Redis, PostgreSQL, Azure services, etc.).
+- **`get_integration_docs`** — Retrieves detailed documentation for a specific integration package.
+- **`list_apphosts`** — Lists all detected AppHost projects in the workspace.
+- **`select_apphost`** — Switches context to a specific AppHost when multiple exist.
+
+```csharp title="C# — AI agents can help add integrations with full context"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Agent suggests: "Adding Redis cache with Aspire.Hosting.Redis"
+var cache = builder.AddRedis("cache");
+```
+
+### Dashboard MCP integration
+
+When connected to an AppHost, the dashboard exposes MCP endpoints, enabling AI agents to query resource state, view logs, and inspect traces directly from your running application.
+
+<LearnMore>
+Learn more about the [MCP server integration](/dashboard/mcp-server/).
+</LearnMore>
+
+## 🛠️ CLI enhancements
+
+### Channel selection and persistence
+
+The `--channel` option is now available on `aspire new` and `aspire init` commands, letting you explicitly choose which Aspire version channel to use:
+
+```bash title="Bash — Channel selection"
+aspire new aspire-starter --channel preview
+aspire init --channel stable
+```
+
+When you update the CLI with `aspire update --self`, your channel selection is persisted to `~/.aspire/globalsettings.json` and becomes the default for future project creation.
+
+### Automatic instance detection
+
+Running `aspire run` when an instance is already running? Aspire 13.1 automatically detects running instances and offers to terminate them:
+
+```bash title="Bash — Automatic instance detection"
+aspire run
+
+# Output:
+# An Aspire application is already running for this AppHost.
+# Do you want to stop it and start a new instance? [Y/n]
+```
+
+### Installation path option
+
+The installation scripts now support `--skip-path` to install the CLI without modifying your PATH:
+
+<OsAwareTabs syncKey="terminal">
+    <TabItem label="Bash" icon="seti:shell">
+        <Code
+            lang="bash"
+            code="curl -fsSL https://aka.ms/install-aspire.sh | bash -s -- --skip-path"
+        />
+    </TabItem>
+    <TabItem label="PowerShell" icon="seti:powershell">
+        <Code
+            lang="powershell"
+            code='irm https://aka.ms/install-aspire.ps1 | iex -SkipPath'
+        />
+    </TabItem>
+</OsAwareTabs>
+
+## 📊 Dashboard improvements
+
+### Dedicated Parameters tab
+
+The Resources page now includes a dedicated **Parameters** tab, making it easier to view and manage configuration parameters for your resources without navigating away from the resource details.
+
+<Image src={resourcesParametersView} alt="Resources parameters view" title="Resources parameters view" />
+
+### GenAI visualizer enhancements
+
+The GenAI visualizer received several improvements:
+
+- **Tool definitions & evaluations** — Tool definitions and evaluations associated with GenAI spans are displayed in the visualizer.
+- **Video and audio preview** — Video and audio content can be previewed in the GenAI visualizer.
+- **Linked log entries** — Log entries associated with GenAI spans now include a direct link to the GenAI visualizer.
+- **Improved content parsing** — Better handling of various AI model response formats.
+
+<Image src={genaiVisualizerTooldefinitions} alt="GenAI visualizer tool definitions" title="GenAI visualizer tool definitions" />
+
+### Bug fixes
+
+- Fixed `OverflowException` in the Traces page when trace duration exceeds `int.MaxValue`.
+- Fixed combobox filter behavior when no items match the search criteria.
+- Fixed view options menu visibility when hidden resources exist.
+
+## ☁️ Azure improvements
+
+### Azure Managed Redis
+
+<Aside type="caution">
+**Breaking Change**: The `AddAzureRedisEnterprise` method has been renamed to `AddAzureManagedRedis` to better reflect the Azure service naming.
+</Aside>
+
+```csharp title="C# — Azure Managed Redis (before)"
+// Before (Aspire 13.0)
+var redis = builder.AddAzureRedisEnterprise("cache");
+```
+
+```csharp title="C# — Azure Managed Redis (after)"
+// After (Aspire 13.1)
+var redis = builder.AddAzureManagedRedis("cache");
+```
+
+<Aside type="note">
+`AddAzureRedis` is now obsolete. Migrate to `AddAzureManagedRedis` for new projects.
+</Aside>
+
+### Azure Managed Redis `rediss://` scheme
+
+Azure Managed Redis URIs now use `rediss://` as the default scheme, ensuring proper TLS connections for polyglot applications (Python, JavaScript, Java) that rely on the URI scheme to determine connection security.
+
+### Connection properties for Azure resources
+
+Azure resources now expose connection properties in a standardized format that works across all supported languages. This enables polyglot applications using Java, JavaScript, and Python SDKs to connect to Azure resources using consistent configuration patterns.
+
+Resources now expose additional properties such as `HostName`, `Port`, and `JdbcConnectionString` where applicable, making it easier to configure clients in languages that don't use .NET connection string formats.
+
+### Compute environment validation
+
+Azure deployments now validate that required compute environments exist before attempting deployment, providing earlier and clearer error messages when infrastructure is missing.
+
+### Cross-tenant authentication fix
+
+Fixed an issue with Azure authentication when working across multiple tenants by implementing lazy credential creation.
+
+### Clear default role assignments
+
+New `ClearDefaultRoleAssignments` extension method to disable automatic role assignments on Azure resources when you need fine-grained control over permissions.
+
+### Azure App Service deployment slots
+
+New `WithDeploymentSlot` extension method to configure deployment slots for Azure App Service:
+
+```csharp title="C# — Configure deployment slot"
+builder.AddAzureAppServiceEnvironment("appservice")
+    .WithDeploymentSlot("staging");
+```
+
+## 🐳 Container and Docker Compose
+
+### Container registry resource
+
+<Aside type="caution">
+This API is experimental and may change in future releases. Use diagnostic code `ASPIRECOMPUTE003` to suppress the experimental warning.
+</Aside>
+
+A new `ContainerRegistryResource` enables integration with general-purpose container registries beyond Azure Container Registry:
+
+```csharp title="C# — Container registry resource"
+var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+The deployment pipeline now includes `Push` and `PushPrereq` steps for container registry operations.
+
+### Docker Compose improvements
+
+- Bind mount sources are now replaced with environment placeholders for portability.
+- Resource endpoints are displayed after Docker Compose deployment.
+- Fixed race condition in Dockerfile materialization during parallel pipeline execution.
+
+For advanced scenarios, use `ConfigureEnvFile` to customize the generated `.env` file:
+
+```csharp title="C# — Customize Docker Compose .env file"
+builder.AddDockerComposeEnvironment("compose")
+    .ConfigureEnvFile(env =>
+    {
+        env["CUSTOM_VAR"] = new CapturedEnvironmentVariable
+        {
+            Name = "CUSTOM_VAR",
+            DefaultValue = "my-value"
+        };
+    });
+```
+
+### Default container platform
+
+Containers now default to `LinuxAmd64` as the target platform, reducing configuration needed for the most common scenario.
+
+## 🌐 JavaScript and frontend support
+
+### JavaScript frontend starter template
+
+A new `aspire-js-frontend-starter` template provides a ready-to-use JavaScript frontend setup:
+
+```bash title="Bash — Create JavaScript frontend starter"
+aspire new aspire-js-frontend-starter
+```
+
+### Vite HTTPS configuration
+
+Aspire now dynamically augments existing Vite configurations to enable HTTPS endpoints at runtime, eliminating manual certificate configuration for development.
+
+### pnpm support
+
+Fixed Dockerfile generation for projects using pnpm by properly enabling corepack.
+
+## 🔒 Certificates and security
+
+### TLS termination support
+
+<Aside type="caution">
+These APIs are experimental and may change in future releases. Use diagnostic code `ASPIRECERTIFICATES001` to suppress the experimental warning.
+</Aside>
+
+New APIs allow configuring HTTPS certificates for resources that need to terminate TLS connections.
+
+The following containers have built-in TLS termination support:
+
+| Container | Default |
+|-----------|---------|
+| YARP | Enabled |
+| Redis | Enabled |
+| Keycloak | Enabled |
+| Uvicorn (Python) | Enabled |
+| Vite (JavaScript) | Opt-in |
+
+When TLS is enabled by default, the ASP.NET Core developer certificate is automatically used if available and trusted.
+
+To explicitly enable the developer certificate on a resource (e.g., for Vite):
+
+```csharp title="C# — Enable developer certificate"
+builder.AddViteApp("frontend")
+    .WithHttpsDeveloperCertificate();
+```
+
+To use a custom certificate:
+
+```csharp title="C# — TLS termination with custom certificate"
+var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
+
+builder.AddYarp("gateway")
+    .WithHttpsCertificate(certificate);
+```
+
+For YARP, you can also explicitly set the HTTPS port:
+
+```csharp title="C# — YARP with custom HTTPS port"
+builder.AddYarp("gateway")
+    .WithHostHttpsPort(8443);
+```
+
+For advanced scenarios, use the configuration callback:
+
+```csharp title="C# — TLS termination with configuration callback"
+builder.AddContainer("my-service", "my-image")
+    .WithHttpsCertificateConfiguration(ctx =>
+    {
+        ctx.Arguments.Add("--https-certificate-path");
+        ctx.Arguments.Add(ctx.PfxPath);
+        return Task.CompletedTask;
+    });
+```
+
+To disable HTTPS certificate configuration for a resource:
+
+```csharp title="C# — Disable HTTPS certificate"
+builder.AddRedis("cache")
+    .WithoutHttpsCertificate();
+```
+
+### macOS improvements
+
+- Disabled `DefaultTlsTerminationEnabled` on macOS to avoid keychain permission prompts.
+- Fixed keychain access spam when using dev certificates.
+
+## 🧩 App model updates
+
+### Endpoint reference resolution
+
+Endpoint references now properly wait for endpoint allocation when evaluating, fixing race conditions in complex orchestration scenarios.
+
+### Container network context
+
+Endpoint references now correctly honor their specific network context when resolving, ensuring proper networking in multi-network container deployments.
+
+### System log formatting
+
+System-level logs from DCP now use a human-friendly format with a `[sys]` prefix instead of verbose JSON objects:
+
+```
+[sys] Starting process: Cmd = dotnet, Args = [run]
+[sys] Failed to start Container: Error = container start failed (exit code 1)
+```
+
+This makes it easier to distinguish system logs from application output and improves readability in the console.
+
+## 📦 Integration updates
+
+### DevTunnels stabilization
+
+The `Aspire.Hosting.DevTunnels` package is now stable and no longer in preview. Use dev tunnels to expose your local Aspire applications to the internet for testing webhooks, mobile apps, and external integrations.
+
+### Endpoint proxy support stabilization
+
+The `WithEndpointProxySupport` API is now stable and no longer requires the experimental attribute.
+
+### Keycloak improvements
+
+Keycloak containers can now export telemetry to your OTLP collector:
+
+```csharp title="C# — Keycloak with OTLP export"
+builder.AddKeycloak("keycloak")
+    .WithOtlpExporter();
+```
+
+### OpenTelemetry updates
+
+OpenTelemetry dependencies have been updated to the latest stable versions across the codebase. The update includes switching from deprecated `RecordException` to `AddException` for improved exception recording in traces.
+
+### Package updates
+
+- `Azure.Provisioning.RedisEnterprise` updated to 1.1.0 (uses Azure API version `2025-07-01`).
+- `Azure.Provisioning.AppService` updated.
+- Npgsql updated to version 10.
+- FluentUI components updated.
+- OpenTelemetry packages updated to latest stable versions.
+
+### Azure Functions
+
+- Improved documentation for `AddAzureFunctionsProject` regarding ACA deployment and host storage.
+- New overload `AddAzureFunctionsProject(name, projectPath)` for adding Functions projects without a generic type parameter:
+
+```csharp title="C# — Azure Functions without generic type"
+builder.AddAzureFunctionsProject("myfunc", "../MyFunctions/MyFunctions.csproj");
+```
+
+## 🏗️ Templates
+
+All Aspire templates have been updated for 13.1 with consistent patterns:
+
+- Unified project structure across starter templates.
+- `WithExternalHttpEndpoints` moved to server projects in TypeScript templates.
+- Consistent port allocation across playground projects.
+
+<Aside type="note">
+Template changes may require updating existing projects created from older templates.
+</Aside>
+
+## 🐛 Bug fixes
+
+- Fixed `aspire mcp init` hanging in VS Code terminal on Windows.
+- Fixed path normalization for AppHost paths on Windows.
+- Fixed CLI tool detection on Windows with proper PATHEXT handling.
+- Fixed saving parameters with custom config keys.
+- Fixed container image builds for resources with dashes in names.
+- Fixed relative endpoint URL handling.
+- Fixed deployment state file case sensitivity on Linux.
+
+## 🙏 Community contributions
+
+Thank you to all community contributors who helped make Aspire 13.1 possible:
+
+- Improved resource graph layout with adaptive force-directed positioning.
+- Updated npm dependencies across playground apps.
+- Documentation link updates.
+- Various bug fixes and improvements.
+
+## ⚠️ Breaking changes
+
+### Azure Redis API rename
+
+| Change | Migration |
+|--------|-----------|
+| `AddAzureRedisEnterprise` renamed | Use `AddAzureManagedRedis` |
+| `AddAzureRedis` obsolete | Migrate to `AddAzureManagedRedis` for new projects |
+
+### Migration from Aspire 13.0 to 13.1
+
+<Steps>
+
+1. **Update the CLI**: Run `aspire update --self`.
+2. **Update your projects**: Run `aspire update` in your project directory.
+3. **Rename Azure Redis**: Replace `AddAzureRedisEnterprise` with `AddAzureManagedRedis`.
+4. **Review MCP configuration**: Run `aspire mcp init` to set up AI coding agent support.
+
+</Steps>
+
+### Connection Properties rename
+
+Some connection properties have been renamed for consistency across resources:
+
+| Resource | Old property | New property |
+|---|---|---|
+| GitHub Models resource | `Model` | `ModelName` |
+| OpenAI model resource | `Model` | `ModelName` |
+| Milvus database resource | `Database` | `DatabaseName` |
+| MongoDB database resource | `Database` | `DatabaseName` |
+| MySQL database resource | `Database` | `DatabaseName` |
+| Oracle database resource | `Database` | `DatabaseName` |
+---
+
+If your client apps where using some of these properties, please update them to use the new names.
+For instance for a GitHub Models resource named `chat` the model name environment variable would change from `CHAT_MODEL` to `CHAT_MODELNAME`.
+
+**Feedback and contributions**: We'd love to hear about your experience with Aspire 13.1! Share feedback on [GitHub](https://github.com/dotnet/aspire/issues) or join the conversation on [Discord](https://aka.ms/aspire-discord).
