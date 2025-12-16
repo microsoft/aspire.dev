@@ -150,7 +150,7 @@ aspire run
 
 The installation scripts now support `--skip-path` to install the CLI without modifying your PATH:
 
-<OsAwareTabs syncKey="terminal">    
+<OsAwareTabs syncKey="terminal">
   <Code
     slot='unix'
     lang="bash"
@@ -339,7 +339,7 @@ Learn more about the [JavaScript frontend integration](/integrations/frameworks/
 
 ### Vite HTTPS configuration
 
-Aspire now dynamically augments existing Vite configurations to enable HTTPS endpoints at runtime, eliminating manual certificate configuration for development.
+Aspire now supports dynamically augmenting existing Vite configurations to enable HTTPS endpoints at runtime, eliminating manual certificate configuration for development.
 
 ### pnpm support
 
@@ -396,21 +396,6 @@ builder.AddYarp("gateway")
     .WithHostHttpsPort(8443);
 ```
 
-For advanced scenarios, use the configuration callback:
-
-```csharp title="C# — TLS termination with configuration callback"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddContainer("my-service", "my-image")
-    .WithHttpsCertificateConfiguration(ctx =>
-    {
-        ctx.Arguments.Add("--https-certificate-path");
-        ctx.Arguments.Add(ctx.PfxPath);
-
-        return Task.CompletedTask;
-    });
-```
-
 To disable HTTPS certificate configuration for a resource:
 
 ```csharp title="C# — Disable HTTPS certificate"
@@ -420,10 +405,25 @@ builder.AddRedis("cache")
     .WithoutHttpsCertificate();
 ```
 
-### macOS improvements
+To configure TLS termination for a resource without built-in support, you can use a configuration callback to pass custom arguments and environment variables:
 
-- Disabled `DefaultTlsTerminationEnabled` on macOS to avoid keychain permission prompts.
-- Fixed keychain access spam when using dev certificates.
+```csharp title="C# — TLS termination with configuration callback"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("my-service", "my-image")
+    .WithHttpsCertificateConfiguration(ctx =>
+    {
+        // Pass the path to the cert in PFX format as an argument
+        ctx.Arguments.Add("--https-certificate-path");
+        ctx.Arguments.Add(ctx.PfxPath);
+
+        // Set the public and private PEM format certificate paths as environment variables
+        ctx.EnvironmentVariables["HTTPS_CERT"] = ctx.CertificatePath;
+        ctx.EnvironmentVariables["HTTPS_CERT_KEY"] = ctx.KeyPath;
+
+        return Task.CompletedTask;
+    });
+```
 
 <LearnMore>
 Learn more about [Certificate configuration](/app-host/certificate-configuration/).
