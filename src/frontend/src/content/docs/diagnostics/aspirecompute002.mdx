@@ -1,0 +1,86 @@
+---
+title: Compiler Warning ASPIRECOMPUTE002
+description: Learn more about compiler Warning ASPIRECOMPUTE002. The GetHostAddressExpression method is for evaluation purposes only and is subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.0"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> The `GetHostAddressExpression` method is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `GetHostAddressExpression` method from the `IComputeEnvironmentResource` interface.
+
+## Example
+
+The following code generates `ASPIRECOMPUTE002`:
+
+```csharp title="C# — Using GetHostAddressExpression"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var computeEnv = builder.AddAzureContainerAppEnvironment("env");
+
+// Accessing GetHostAddressExpression on a compute environment resource
+var endpoint = computeEnv.Resource.GetEndpoint("http");
+var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
+```
+
+## Understanding GetHostAddressExpression
+
+The `GetHostAddressExpression` method is part of the `IComputeEnvironmentResource` interface and provides a way to retrieve the host address or hostname for a specified endpoint reference as a `ReferenceExpression`.
+
+### Key characteristics
+
+- **Returns host only** — The returned value contains only the hostname or address, without scheme, port, or path information
+- **Reference expression** — Returns a `ReferenceExpression` that can be evaluated in different contexts
+- **Compute environment specific** — Designed for use with compute environment resources like Azure Container Apps, Kubernetes, or Docker Compose
+
+This method is useful when you need to configure resources with just the hostname rather than a full URL, which is common in scenarios like:
+
+- Configuring service-to-service communication within a compute environment
+- Setting up DNS-based service discovery
+- Configuring load balancers or ingress controllers
+
+## To suppress this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECOMPUTE002.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECOMPUTE002</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECOMPUTE002` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  var computeEnv = builder.AddAzureContainerAppEnvironment("env");
+
+  #pragma warning disable ASPIRECOMPUTE002
+  var endpoint = computeEnv.Resource.GetEndpoint("http");
+  var hostAddress = computeEnv.Resource.GetHostAddressExpression(endpoint);
+  #pragma warning restore ASPIRECOMPUTE002
+  ```
+
+## See also
+
+- [ASPIRECOMPUTE001](/diagnostics/aspirecompute001/) — Compute environment resource creation
+- [ASPIRECOMPUTE003](/diagnostics/aspirecompute003/) — Container registry resources

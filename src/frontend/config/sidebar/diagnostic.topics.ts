@@ -31,6 +31,42 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
         { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
         { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
+        {
+          label: 'ASPIRECERTIFICATES001',
+          link: '/diagnostics/aspirecertificates001',
+        },
+        {
+          label: 'ASPIRECOMPUTE002',
+          link: '/diagnostics/aspirecompute002',
+        },
+        {
+          label: 'ASPIRECOMPUTE003',
+          link: '/diagnostics/aspirecompute003',
+        },
+        {
+          label: 'ASPIRECONTAINERRUNTIME001',
+          link: '/diagnostics/aspirecontainerruntime001',
+        },
+        {
+          label: 'ASPIREDOCKERFILEBUILDER001',
+          link: '/diagnostics/aspiredockerfilebuilder001',
+        },
+        {
+          label: 'ASPIREFILESYSTEM001',
+          link: '/diagnostics/aspirefilesystem001',
+        },
+        {
+          label: 'ASPIREPIPELINES004',
+          link: '/diagnostics/aspirepipelines004',
+        },
+        {
+          label: 'ASPIREPROBES001',
+          link: '/diagnostics/aspireprobes001',
+        },
+        {
+          label: 'ASPIREUSERSECRETS001',
+          link: '/diagnostics/aspireusersecrets001',
+        },
       ],
     },
     {

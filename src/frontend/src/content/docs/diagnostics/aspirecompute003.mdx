@@ -1,0 +1,113 @@
+---
+title: Compiler Warning ASPIRECOMPUTE003
+description: Learn more about compiler Warning ASPIRECOMPUTE003. The ContainerRegistryResource type is for evaluation purposes only and is subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.1"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> The `ContainerRegistryResource` type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `ContainerRegistryResource` class and related container registry functionality.
+
+## Example
+
+The following code generates `ASPIRECOMPUTE003`:
+
+```csharp title="C# — Using ContainerRegistryResource"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add a container registry with literal values
+var registry = builder.AddContainerRegistry("docker-hub", "docker.io", "myusername");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+```csharp title="C# — Using ContainerRegistryResource with parameters"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add a container registry with parameterized values
+var endpointParameter = builder.AddParameter("registry-endpoint");
+var repositoryParameter = builder.AddParameter("registry-repo");
+
+var registry = builder.AddContainerRegistry("my-registry", endpointParameter, repositoryParameter);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+## Understanding container registry resources
+
+The `ContainerRegistryResource` represents a general-purpose container registry that can be referenced in your Aspire application model. It enables integration with:
+
+- **Docker Hub** — Public or private Docker Hub repositories
+- **GitHub Container Registry** — GitHub's container registry (ghcr.io)
+- **Azure Container Registry** — Azure's managed container registry service
+- **Private registries** — Self-hosted or third-party container registries
+
+### Key features
+
+**Flexible configuration**
+
+- Use literal strings for static registry configuration
+- Use `ParameterResource` values for dynamic configuration
+- Specify optional repository paths within the registry
+
+**Integration with deployment pipelines**
+
+- Automatic `Push` and `PushPrereq` steps for container registry operations
+- Seamless integration with container image builds
+- Support for authentication and credentials
+
+**Resource builder pattern**
+
+- Follows Aspire's resource builder pattern for consistency
+- Can be referenced by other resources using `WithContainerRegistry`
+- Supports chaining with other resource configuration methods
+
+## To suppress this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECOMPUTE003.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECOMPUTE003</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECOMPUTE003` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  #pragma warning disable ASPIRECOMPUTE003
+  var registry = builder.AddContainerRegistry("docker-hub", "docker.io", "myusername");
+  #pragma warning restore ASPIRECOMPUTE003
+
+  var api = builder.AddProject<Projects.Api>("api")
+      .WithContainerRegistry(registry);
+  ```
+
+## See also
+
+- [ASPIRECOMPUTE001](/diagnostics/aspirecompute001/) — Compute environment resource creation
+- [ASPIRECOMPUTE002](/diagnostics/aspirecompute002/) — Host address expression method
+- [What's new in Aspire 13.1 - Container registry support](/whats-new/aspire-13-1/#container-registry-resource)

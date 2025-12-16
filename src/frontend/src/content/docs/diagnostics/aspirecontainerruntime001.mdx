@@ -1,0 +1,76 @@
+---
+title: ASPIRECONTAINERRUNTIME001
+description: Diagnostic for experimental container runtime APIs
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge text="Available: 13.1" variant="note" size="large" class:list={'mb-1'} />
+
+> Type is for evaluation purposes only and is subject to change or removal in future updates
+
+This diagnostic warns when using the experimental `IContainerRuntime` interface and related container runtime implementations. These APIs provide abstraction over container runtimes like Docker and Podman for building, tagging, pushing, and managing container images during deployment.
+
+### Example generating diagnostic
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IContainerRuntime
+var containerRuntime = builder.Services.BuildServiceProvider().GetRequiredService<IContainerRuntime>();
+var isRunning = await containerRuntime.CheckIfRunningAsync(cancellationToken);
+var runtimeName = containerRuntime.Name;
+```
+
+The diagnostic is triggered because `IContainerRuntime` is marked with the `[Experimental("ASPIRECONTAINERRUNTIME001")]` attribute.
+
+## Understanding the diagnostic
+
+The `IContainerRuntime` interface provides a unified abstraction for interacting with container runtimes:
+
+- **Runtime detection**: Check if Docker or Podman is running and available
+- **Image building**: Build container images from Dockerfiles with build arguments and secrets
+- **Image management**: Tag, push, and remove container images
+- **Registry operations**: Login to container registries for authentication
+
+This API is experimental because the container runtime abstraction layer is being refined based on deployment scenario requirements, and the interface may evolve to support additional container runtime features or optimizations.
+
+### Related types
+
+- **`IContainerRuntime`**: Interface representing a container runtime (Docker, Podman)
+- **`DockerContainerRuntime`**: Implementation for Docker runtime
+- **`PodmanContainerRuntime`**: Implementation for Podman runtime
+- **`CheckIfRunningAsync()`**: Verifies if the container runtime is available
+- **`BuildImageAsync()`**: Builds a container image from a Dockerfile
+- **`TagImageAsync()`**: Tags a container image with a new name
+- **`PushImageAsync()`**: Pushes a container image to a registry
+- **`RemoveImageAsync()`**: Removes a container image
+- **`LoginToRegistryAsync()`**: Authenticates with a container registry
+
+## Suppressing the diagnostic
+
+The diagnostic can be suppressed using one of several methods:
+
+### Suppressing in .editorconfig
+
+```ini title=".editorconfig"
+[*.cs]
+dotnet_diagnostic.ASPIRECONTAINERRUNTIME001.severity = none
+```
+
+### Suppressing in a project file
+
+```xml title="YourProject.csproj"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIRECONTAINERRUNTIME001</NoWarn>
+</PropertyGroup>
+```
+
+### Suppressing in source code
+
+```csharp
+#pragma warning disable ASPIRECONTAINERRUNTIME001
+var containerRuntime = builder.Services.BuildServiceProvider().GetRequiredService<IContainerRuntime>();
+var isRunning = await containerRuntime.CheckIfRunningAsync(cancellationToken);
+#pragma warning restore ASPIRECONTAINERRUNTIME001
+```

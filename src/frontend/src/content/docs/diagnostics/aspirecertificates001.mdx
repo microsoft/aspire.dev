@@ -1,0 +1,109 @@
+---
+title: Compiler Warning ASPIRECERTIFICATES001
+description: Learn more about compiler Warning ASPIRECERTIFICATES001. Certificate configuration types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.1"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Certificate configuration types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental certificate configuration APIs in Aspire, including:
+
+- `IDeveloperCertificateService` interface
+- `HttpsCertificateAnnotation` class
+- Certificate-related extension methods like `WithHttpsCertificate`, `WithHttpsDeveloperCertificate`, `WithoutHttpsCertificate`
+- Certificate configuration builder extensions like `WithHttpsCertificateConfig` and `WithHttpsCertificateConfiguration`
+
+These APIs enable configuring HTTPS/TLS server certificates for resources in your Aspire application, including support for custom certificates and developer certificates for local development scenarios.
+
+## Example
+
+The following code generates `ASPIRECERTIFICATES001`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using developer certificate
+builder.AddViteApp("frontend")
+    .WithHttpsDeveloperCertificate();
+
+// Using a custom certificate
+var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
+builder.AddYarp("gateway")
+    .WithHttpsCertificate(certificate);
+
+// Disabling HTTPS certificate configuration
+builder.AddRedis("cache")
+    .WithoutHttpsCertificate();
+
+// Using IDeveloperCertificateService
+var developerCertService = builder.Services
+    .BuildServiceProvider()
+    .GetRequiredService<IDeveloperCertificateService>();
+```
+
+## Understanding certificate configuration
+
+Aspire 13.1 introduced TLS termination support APIs that allow you to configure HTTPS certificates for resources that need to terminate TLS connections. Several containers have built-in TLS termination support:
+
+| Container         | Default |
+| ----------------- | ------- |
+| YARP              | Enabled |
+| Redis             | Enabled |
+| Keycloak          | Enabled |
+| Uvicorn (Python)  | Enabled |
+| Vite (JavaScript) | Opt-in  |
+
+When TLS is enabled by default, the ASP.NET Core developer certificate is automatically used if available and trusted.
+
+### Developer certificate configuration
+
+The `IDeveloperCertificateService` provides information about developer certificates:
+
+- **`Certificates`** — List of valid development certificates available for trust
+- **`SupportsContainerTrust`** — Indicates if certificates support container domains like `host.docker.internal`
+- **`UseForHttps`** — Indicates if developer certificates should be used for TLS termination by default
+- **`TrustCertificate`** — Indicates if certificates should be trusted at runtime by default
+
+## To suppress this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECERTIFICATES001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECERTIFICATES001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECERTIFICATES001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIRECERTIFICATES001
+  var developerCertService = builder.Services
+      .BuildServiceProvider()
+      .GetRequiredService<IDeveloperCertificateService>();
+  #pragma warning restore ASPIRECERTIFICATES001
+  ```
+
+## See also
+
+- [Certificate configuration](/app-host/certificate-configuration/)
+- [What's new in Aspire 13.1 - Certificates and security](/whats-new/aspire-13-1/#-certificates-and-security)
