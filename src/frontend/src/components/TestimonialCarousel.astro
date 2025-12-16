@@ -1,19 +1,22 @@
 ---
+import { Image } from 'astro:assets';
 import { Icon } from '@astrojs/starlight/components';
 import testimonialsData from '@data/testimonials.json';
 import { processAvatars } from '@utils/imageImporter';
 
+import type { ImageMetadata } from 'astro';
+
 export interface Testimonial {
   name: string;
   text: string;
-  avatar: string | { src: string; alt?: string };
+  avatar: ImageMetadata;
   company?: string | null;
   role?: string | null;
   link?: string | null;
 }
 
 export type Testimonials = Testimonial[];
-const testimonials: Testimonials = processAvatars(testimonialsData as Testimonials);
+const testimonials = processAvatars(testimonialsData) as unknown as Testimonials;
 
 // Helper function to get initials from name
 function getInitials(name: string): string {
@@ -54,7 +57,6 @@ function getColorForIndex(index: number): { bg: string; fg: string } {
           !endsWithParen(t.name) && extraInfo ? `${t.name} (${extraInfo})` : t.name;
         const initials = getInitials(t.name);
         const colors = getColorForIndex(i);
-        const avatarSrc = typeof t.avatar === 'object' ? t.avatar.src : t.avatar;
 
         return (
           <div class="card">
@@ -65,11 +67,12 @@ function getColorForIndex(index: number): { bg: string; fg: string } {
               >
                 {initials}
               </div>
-              <img
+              <Image
                 class="avatar-image"
-                src={avatarSrc}
+                src={t.avatar}
                 alt={t.name}
-                loading="lazy"
+                width={84}
+                height={84}
                 title={displayName}
                 data-tooltip-placement="top"
               />
@@ -299,14 +302,6 @@ function getColorForIndex(index: number): { bg: string; fg: string } {
     opacity: 1;
   }
 
-  .avatar {
-    width: 5.25rem;
-    height: 5.25rem;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 1rem;
-    border: 3px solid var(--carousel-primary);
-  }
   .text {
     font-size: 1rem;
     margin-bottom: 0.75rem;
