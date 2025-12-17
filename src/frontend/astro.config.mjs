@@ -60,6 +60,7 @@ export default defineConfig({
       },
       expressiveCode: {
         // https://expressive-code.com/guides/themes/#using-bundled-themes
+        // preview themes here: https://textmate-grammars-themes.netlify.app/
         themes: ['laserwave', 'slack-ochin'],
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },
