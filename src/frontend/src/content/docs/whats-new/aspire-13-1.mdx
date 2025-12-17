@@ -100,15 +100,6 @@ AI coding agents connected via MCP can now discover and use Aspire integrations 
 - **`list_apphosts`** — Lists all detected AppHost projects in the workspace.
 - **`select_apphost`** — Switches context to a specific AppHost when multiple exist.
 
-```csharp title="C# — AI agents can help add integrations with full context"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Agent suggests: "Adding Redis cache with Aspire.Hosting.Redis"
-var cache = builder.AddRedis("cache");
-
-// omitted for brevity...
-```
-
 ### Dashboard MCP integration
 
 When connected to an AppHost, the dashboard exposes MCP endpoints, enabling AI agents to query resource state, view logs, and inspect traces directly from your running application.
@@ -151,7 +142,7 @@ The installation scripts now support `--skip-path` to install the CLI without mo
   <Code
     slot='windows'
     lang="powershell"
-    code='irm https://aspire.dev/install.ps1 | iex -SkipPath'
+    code='iex "& { $(irm https://aspire.dev/install.ps1) } -SkipPath"'
   />
 </OsAwareTabs>
 
@@ -206,27 +197,11 @@ var redis = builder.AddAzureManagedRedis("cache");
 `AddAzureRedis` is now obsolete. Migrate to `AddAzureManagedRedis` for new projects.
 </Aside>
 
-### Azure Managed Redis `rediss://` scheme
-
-Azure Managed Redis URIs now use `rediss://` as the default scheme, ensuring proper TLS connections for polyglot applications (Python, JavaScript, Java) that rely on the URI scheme to determine connection security.
-
 ### Connection properties for Azure resources
 
 Azure resources now expose connection properties in a standardized format that works across all supported languages. This enables polyglot applications using Java, JavaScript, and Python SDKs to connect to Azure resources using consistent configuration patterns.
 
 Resources now expose additional properties such as `HostName`, `Port`, and `JdbcConnectionString` where applicable, making it easier to configure clients in languages that don't use .NET connection string formats.
-
-### Compute environment validation
-
-Azure deployments now validate that required compute environments exist before attempting deployment, providing earlier and clearer error messages when infrastructure is missing.
-
-### Cross-tenant authentication fix
-
-Fixed an issue with Azure authentication when working across multiple tenants by implementing lazy credential creation.
-
-### Clear default role assignments
-
-New `ClearDefaultRoleAssignments` extension method to disable automatic role assignments on Azure resources when you need fine-grained control over permissions.
 
 ### Azure App Service deployment slots
 
@@ -238,6 +213,15 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddAzureAppServiceEnvironment("appservice")
     .WithDeploymentSlot("staging");
 ```
+
+### Clear default role assignments
+
+New `ClearDefaultRoleAssignments` extension method to disable automatic role assignments on Azure resources when you need fine-grained control over permissions.
+
+### Bug fixes
+
+- Azure deployments now validate that required compute environments exist before attempting deployment, providing earlier and clearer error messages when infrastructure is missing.
+- Fixed an issue with Azure authentication when working across multiple tenants.
 
 ## 🐳 Container and Docker Compose
 
@@ -258,7 +242,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 ```
 
-The deployment pipeline now includes `Push` and `PushPrereq` steps for container registry operations.
+The deployment pipeline now includes a `push` step for container registry operations.
 
 ```
 $ aspire do push
@@ -343,10 +327,6 @@ builder.AddDockerComposeEnvironment("compose")
 Learn more about the [Docker Compose integration](/integrations/compute/docker/).
 </LearnMore>
 
-### Default container platform
-
-Containers now default to `LinuxAmd64` as the target platform, reducing configuration needed for the most common scenario.
-
 ## 🌐 JavaScript and frontend support
 
 ### JavaScript frontend starter template
@@ -375,9 +355,9 @@ Learn more about the [JavaScript frontend integration](/integrations/frameworks/
 
 Aspire now supports dynamically augmenting existing Vite configurations to enable HTTPS endpoints at runtime, eliminating manual certificate configuration for development.
 
-### pnpm support
+### Bug fixes
 
-Fixed Dockerfile generation for projects using `pnpm` by properly enabling corepack. If you're unfamiliar with corepack, see the [corepack documentation](https://nodejs.org/api/corepack.html), and it works [well with `pnpm`](https://pnpm.io/docker).
+- Fixed Dockerfile generation for projects using `pnpm` by properly enabling corepack. If you're unfamiliar with corepack, see the [corepack documentation](https://nodejs.org/api/corepack.html), and it works [well with `pnpm`](https://pnpm.io/docker).
 
 ## 🔒 Certificates and security
 
@@ -515,15 +495,7 @@ Learn more about the [Keycloak integration](/integrations/security/keycloak/).
 
 ### OpenTelemetry updates
 
-OpenTelemetry dependencies have been updated to the latest stable versions across the codebase. The update includes switching from deprecated `RecordException` to `AddException` for improved exception recording in traces.
-
-### Package updates
-
-- [📦 Azure.Provisioning.RedisEnterprise](https://www.nuget.org/packages/Azure.Provisioning.RedisEnterprise) updated to 1.1.0 (uses Azure API version `2025-07-01`).
-- [📦 Azure.Provisioning.AppService](https://www.nuget.org/packages/Azure.Provisioning.AppService) updated.
-- [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) updated to version 10.
-- FluentUI components updated.
-- OpenTelemetry packages updated to latest stable versions.
+OpenTelemetry dependencies have been updated to the latest stable versions across the codebase.
 
 ### Azure Functions
 
@@ -546,9 +518,8 @@ Learn more about the [Azure Functions integration](/integrations/cloud/azure/azu
 
 All Aspire templates have been updated for 13.1 with consistent patterns:
 
+- Dropped support for previous Aspire versions.
 - Unified project structure across starter templates.
-- `WithExternalHttpEndpoints` moved to server projects in TypeScript templates.
-- Consistent port allocation across playground projects.
 
 <Aside type="note">
 Template changes may require updating existing projects created from older templates.
