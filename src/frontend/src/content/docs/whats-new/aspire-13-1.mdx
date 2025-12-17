@@ -260,16 +260,54 @@ var api = builder.AddProject<Projects.Api>("api")
 
 The deployment pipeline now includes `Push` and `PushPrereq` steps for container registry operations.
 
+```
+$ aspire do push
+16:03:38 (pipeline-execution) → Starting pipeline-execution...
+16:03:38 (push-prereq) → Starting push-prereq...
+16:03:38 (process-parameters) → Starting process-parameters...
+16:03:38 (push-prereq) ✓ push-prereq completed successfully
+16:03:38 (process-parameters) i [INF] 3 parameter values saved to deployment state.
+16:03:38 (process-parameters) ✓ process-parameters completed successfully
+16:03:38 (build-prereq) → Starting build-prereq...
+16:03:38 (build-prereq) ✓ build-prereq completed successfully
+16:03:38 (build-go-app) → Starting build-go-app...
+16:03:38 (build-pythonapp-standalone) → Starting build-pythonapp-standalone...
+16:03:38 (build-api) → Starting build-api...
+16:03:38 (build-viteapp) → Starting build-viteapp...
+...
+16:03:43 (push-api) → Starting push-api...
+16:03:43 (push-api) → Pushing api to container-registry
+16:03:44 (push-api) i [INF] Docker tag for api -> docker.io/captainsafia/api:latest succeeded.
+16:03:44 (push-pythonapp) i [INF] Docker tag for pythonapp:d5325602e04758397792c8332c5882846516b35c -> docker.io/captainsafia/pythonapp:latest succeeded.
+16:03:48 (push-go-app) i [INF] Docker push for docker.io/captainsafia/go-app:latest succeeded.
+16:03:48 (push-go-app) ✓ Successfully pushed go-app to docker.io/captainsafia/go-app:latest (5.1s)
+16:03:48 (push-go-app) ✓ push-go-app completed successfully
+16:03:48 (push-pythonapp-standalone) i [INF] Docker push for docker.io/captainsafia/pythonapp-standalone:latest succeeded.
+16:03:48 (push-pythonapp-standalone) ✓ Successfully pushed pythonapp-standalone to docker.io/captainsafia/pythonapp-standalone:latest (5.4s)
+16:03:48 (push-pythonapp-standalone) ✓ push-pythonapp-standalone completed successfully
+16:03:49 (push-pythonapp) i [INF] Docker push for docker.io/captainsafia/pythonapp:latest succeeded.
+16:03:49 (push-pythonapp) ✓ Successfully pushed pythonapp to docker.io/captainsafia/pythonapp:latest (5.7s)
+16:03:49 (push-pythonapp) ✓ push-pythonapp completed successfully
+16:04:05 (push-api) i [INF] Docker push for docker.io/captainsafia/api:latest succeeded.
+16:04:05 (push-api) ✓ Successfully pushed api to docker.io/captainsafia/api:latest (21.3s)
+16:04:05 (push-api) ✓ push-api completed successfully
+16:04:05 (push) → Starting push...
+16:04:05 (push) ✓ push completed successfully
+16:04:05 (pipeline-execution) ✓ Completed successfully
+------------------------------------------------------------
+✓ 14/14 steps succeeded • Total time: 26.41s
+```
+
 ### Explicit container registry support for Azure deployments
 
 Prior to Aspire 13.1, when deploying to Azure Container Apps using `AddAzureContainerAppEnvironment`, the Azure Container Registry (ACR) was provisioned implicitly as part of the environment. This automatic provisioning could cause deployment delays and made it difficult for developers to discover which registry was being used.
 
-Aspire 13.1 addresses this by moving toward explicit container registry configuration, giving developers more control and visibility into where and when images are pushed. This improves reliability, speeds up deployments, and enables custom registries for advanced scenarios.
+Aspire 13.1 addresses this by moving toward explicit container registry configuration, giving developers more control and visibility into where and when images are pushed. With the configuration below, the ACR associated with the "myenv" environment will be provisioned in parallel with the environment and image pushes will begin as soon as the registry has been successfully provisioned.
 
 ```csharp title="C# — Explicit Azure Container Registry"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var acr = builder.AddAzureContainerRegistry("myacr");
+var acr = builder.AddAzureContainerAppEnvironment("myenv");
 
 var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(acr);
@@ -489,7 +527,9 @@ OpenTelemetry dependencies have been updated to the latest stable versions acros
 
 ### Azure Functions
 
-- Improved documentation for `AddAzureFunctionsProject` regarding ACA deployment and host storage.
+In Aspire 13.1, the Azure Functions integration is officially out of preview. Azure Functions now support a local development story with Aspire and deployments to ACA Native Functions with support for KEDA-based auto-scaling rules.
+
+- Aspire dashboard will notify if the Azure Functions Core Tools are not installed on the local machine.
 - New overload `AddAzureFunctionsProject(name, projectPath)` for adding Functions projects without a generic type parameter:
 
 ```csharp title="C# — Azure Functions without generic type"
@@ -499,7 +539,7 @@ builder.AddAzureFunctionsProject("myfunc", "../MyFunctions/MyFunctions.csproj");
 ```
 
 <LearnMore>
-Learn more about the [Azure Functions integration](/integrations/cloud/azure/azure-functions/).
+Learn more about the [Azure Functions integration](/integrations/cloud/azure/azure-functions/) or [how to use Azure Functions with Aspire](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration).
 </LearnMore>
 
 ## 🏗️ Templates
