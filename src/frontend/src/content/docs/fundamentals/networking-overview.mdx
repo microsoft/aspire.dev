@@ -1,0 +1,383 @@
+---
+title: Inner-loop networking overview
+description: Learn how Aspire handles networking and endpoints, and how you can use them in your app code.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import networkingProxies from '@assets/fundamentals/networking/networking-proxies-1x.png';
+import proxyWithReplicas from '@assets/fundamentals/networking/proxy-with-replicas-1x.png';
+import proxyHostPortAndRandomPort from '@assets/fundamentals/networking/proxy-host-port-and-random-port-1x.png';
+import proxyWithEnvVarPort from '@assets/fundamentals/networking/proxy-with-env-var-port-1x.png';
+import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-random-ports-1x.png';
+import proxyWithDockerPortMapping from '@assets/fundamentals/networking/proxy-with-docker-port-mapping-1x.png';
+
+One of the advantages of developing with Aspire is that it enables you to develop, test, and debug cloud-native apps locally. Inner-loop networking is a key aspect of Aspire that allows your apps to communicate with each other in your development environment. In this article, you learn how Aspire handles various networking scenarios with proxies, endpoints, endpoint configurations, and launch profiles.
+
+## Networking in the inner loop
+
+The inner loop is the process of developing and testing your app locally before deploying it to a target environment. Aspire provides several tools and features to simplify and enhance the networking experience in the inner loop, such as:
+
+- **Launch profiles**: Launch profiles are configuration files that specify how to run your app locally. You can use launch profiles (such as the _launchSettings.json_ file) to define the endpoints, environment variables, and launch settings for your app.
+- **Kestrel configuration**: Kestrel configuration allows you to specify the endpoints that the Kestrel web server listens on. You can configure Kestrel endpoints in your app settings, and Aspire automatically uses these settings to create endpoints.
+- **Endpoints/Endpoint configurations**: Endpoints are the connections between your app and the services it depends on, such as databases, message queues, or APIs. Endpoints provide information such as the service name, host port, scheme, and environment variable. You can add endpoints to your app either implicitly (via launch profiles) or explicitly by calling `WithEndpoint`.
+- **Proxies**: Aspire automatically launches a proxy for each service binding you add to your app, and assigns a port for the proxy to listen on. The proxy then forwards the requests to the port that your app listens on, which might be different from the proxy port. This way, you can avoid port conflicts and access your app and services using consistent and predictable URLs.
+
+## How endpoints work
+
+A service binding in Aspire involves two integrations: a **service** representing an external resource your app requires (for example, a database, message queue, or API), and a **binding** that establishes a connection between your app and the service and provides necessary information.
+
+Aspire supports two service binding types: **implicit**, automatically created based on specified launch profiles defining app behavior in different environments, and **explicit**, manually created using `WithEndpoint`.
+
+Upon creating a binding, whether implicit or explicit, Aspire launches a lightweight reverse proxy on a specified port, handling routing and load balancing for requests from your app to the service. The proxy is an Aspire implementation detail, requiring no configuration or management concern.
+
+To help visualize how endpoints work, consider the Aspire starter templates inner-loop networking diagram:
+
+```mermaid
+architecture-beta
+    group app [Aspire AppHost]
+    group docker [Docker Daemon]
+
+    service browser(internet)[Browser]
+
+    service frontend_proxy(server)[Frontend Proxy]
+    service api_proxy(server)[API Proxy]
+    service redis_proxy(server)[Redis Proxy]
+
+    service frontend(disk)[frontend] in app
+    service apiservice(disk)[apiservice] in app
+    service redis(database)[redis] in docker
+
+    browser:R --> L:frontend_proxy
+    frontend_proxy:R --> L:frontend
+
+    browser:R --> L:api_proxy
+    api_proxy:R --> L:apiservice
+
+    browser:R --> L:redis_proxy
+    redis_proxy:R --> L:redis
+
+    frontend:B --> T:frontend
+    frontend:R --> L:api_proxy
+```
+
+<Image
+  src={networkingProxies}
+  alt="Aspire Starter Application template inner loop networking diagram."
+/>
+
+## How container networks are managed
+
+When you add one or more container resources, Aspire creates a dedicated container bridge network to enable service discovery between containers. This bridge network is a virtual network that lets containers communicate with each other and provides a DNS server for container-to-container service discovery using DNS names.
+
+The network's lifetime depends on the container resources:
+
+- If all containers have a session lifetime, the network is also session-based and is cleaned up when the AppHost process ends.
+- If any container has a persistent lifetime, the network is persistent and remains running after the AppHost process terminates. Aspire reuses this network on subsequent runs, allowing persistent containers to keep communicating even when the AppHost isn't running.
+
+For more information on container lifetimes, see [Persistent container lifetimes](/app-host/persistent-containers/).
+
+Here are the naming conventions for container networks:
+
+- **Session networks**: `aspire-session-network-<unique-id>-<app-host-name>`
+- **Persistent networks**: `aspire-persistent-network-<project-hash>-<app-host-name>`
+
+Each AppHost instance gets its own network resources. The only differences are the network's lifetime and name; service discovery works the same way for both.
+
+Containers register themselves on the network using their resource name. Aspire uses this name for service discovery between containers. For example, a `pgadmin` container can connect to a database resource named `postgres` using `postgres:5432`.
+
+<Aside type="note">
+  Host services, such as projects or other executables, don't use container
+  networks. They rely on exposed container ports for service discovery and
+  communication with containers. For more details on service discovery, see
+  [service discovery](/fundamentals/service-discovery/).
+</Aside>
+
+## Launch profiles
+
+When you call `AddProject`, the AppHost looks for _Properties/launchSettings.json_ to determine the default set of endpoints. The AppHost selects a specific launch profile using the following rules:
+
+1. An explicit `launchProfileName` argument passed when calling `AddProject`.
+1. The `DOTNET_LAUNCH_PROFILE` environment variable. For more information, see [.NET environment variables](https://learn.microsoft.com/dotnet/core/tools/dotnet-environment-variables).
+1. The first launch profile defined in _launchSettings.json_.
+
+Consider the following _launchSettings.json_ file:
+
+```json title="launchSettings.json"
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
+      "applicationUrl": "https://localhost:7239;http://localhost:5066",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
+For the remainder of this article, imagine that you've created an `IDistributedApplicationBuilder` assigned to a variable named `builder` with the `DistributedApplication.CreateBuilder` API:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+```
+
+To specify the **http** and **https** launch profiles, configure the `applicationUrl` values for both in the _launchSettings.json_ file. These URLs are used to create endpoints for this project. This is the equivalent of:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_Frontend>("frontend")
+       .WithHttpEndpoint(port: 5066)
+       .WithHttpsEndpoint(port: 7239);
+```
+
+<Aside type="caution">
+  If there's no _launchSettings.json_ (or launch profile), there are no bindings
+  by default.
+</Aside>
+
+For more information, see [Launch profiles](/fundamentals/launch-profiles/).
+
+## Kestrel configured endpoints
+
+Aspire supports Kestrel endpoint configuration. For example, consider an _appsettings.json_ file for a project that defines a Kestrel endpoint with the HTTPS scheme and port 5271:
+
+```json title="appsettings.Development.json" {8-14}
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "Kestrel": {
+    "Endpoints": {
+      "Https": {
+        "Url": "https://*:5271"
+      }
+    }
+  }
+}
+```
+
+The preceding configuration specifies an `Https` endpoint. The `Url` property is set to `https://*:5271`, which means the endpoint listens on all interfaces on port 5271. For more information, see [Configure endpoints for the ASP.NET Core Kestrel web server](https://learn.microsoft.com/aspnet/core/fundamentals/servers/kestrel/endpoints).
+
+With the Kestrel endpoint configured, the project should remove any configured `applicationUrl` from the _launchSettings.json_ file.
+
+<Aside type="note">
+  If the `applicationUrl` is present in the _launchSettings.json_ file and the
+  Kestrel endpoint is configured, the AppHost will throw an exception.
+</Aside>
+
+When you add a project resource, there's an overload that lets you specify that the Kestrel endpoint should be used instead of the _launchSettings.json_ file:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_ApiService>(
+    name: "apiservice",
+    configure: static project =>
+    {
+        project.ExcludeLaunchProfile = true;
+        project.ExcludeKestrelEndpoints = false;
+    })
+    .WithHttpsEndpoint();
+```
+
+For more information, see `AddProject`.
+
+## Ports and proxies
+
+When defining a service binding, the host port is _always_ given to the proxy that sits in front of the service. This allows single or multiple replicas of a service to behave similarly. Additionally, all resource dependencies that use the `WithReference` API rely of the proxy endpoint from the environment variable.
+
+Consider the following method chain that calls `AddProject`, `WithHttpEndpoint`, and then `WithReplicas`:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_Frontend>("frontend")
+       .WithHttpEndpoint(port: 5066)
+       .WithReplicas(2);
+```
+
+The preceding code results in the following networking diagram:
+
+<Image
+  src={proxyWithReplicas}
+  alt="Aspire frontend app networking diagram with specific host port and two replicas."
+/>
+
+The preceding diagram depicts the following:
+
+- A web browser as an entry point to the app.
+- A host port of 5066.
+- The frontend proxy sitting between the web browser and the frontend service replicas, listening on port 5066.
+- The `frontend_0` frontend service replica listening on the randomly assigned port 65001.
+- The `frontend_1` frontend service replica listening on the randomly assigned port 65002.
+
+Without the call to `WithReplicas`, there's only one frontend service. The proxy still listens on port 5066, but the frontend service listens on a random port:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_Frontend>("frontend")
+       .WithHttpEndpoint(port: 5066);
+```
+
+There are two ports defined:
+
+- A host port of 5066.
+- A random proxy port that the underlying service will be bound to.
+
+<Image
+  src={proxyHostPortAndRandomPort}
+  alt="Aspire frontend app networking diagram with specific host port and random port."
+/>
+
+The preceding diagram depicts the following:
+
+- A web browser as an entry point to the app.
+- A host port of 5066.
+- The frontend proxy sitting between the web browser and the frontend service, listening on port 5066.
+- The frontend service listening on random port of 65001.
+
+The underlying service is fed this port via `ASPNETCORE_URLS` for project resources. Other resources access to this port by specifying an environment variable on the service binding:
+
+```csharp title="AppHost.cs"
+builder.AddNpmApp("frontend", "../NodeFrontend", "watch")
+       .WithHttpEndpoint(port: 5067, env: "PORT");
+```
+
+The previous code makes the random port available in the `PORT` environment variable. The app uses this port to listen to incoming connections from the proxy. Consider the following diagram:
+
+<Image
+  src={proxyWithEnvVarPort}
+  alt="Aspire frontend app networking diagram with specific host port and environment variable port."
+/>
+
+The preceding diagram depicts the following:
+
+- A web browser as an entry point to the app.
+- A host port of 5067.
+- The frontend proxy sitting between the web browser and the frontend service, listening on port 5067.
+- The frontend service listening on an environment 65001.
+
+<Aside type="tip">
+  To avoid an endpoint being proxied, set the `IsProxied` property to `false`
+  when calling the `WithEndpoint` extension method. For more information, see
+  [Endpoint extensions: additional considerations](#additional-considerations).
+</Aside>
+
+## Omit the host port
+
+When you omit the host port, Aspire generates a random port for both host and service port. This is useful when you want to avoid port conflicts and don't care about the host or service port. Consider the following code:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_Frontend>("frontend")
+       .WithHttpEndpoint();
+```
+
+In this scenario, both the host and service ports are random, as shown in the following diagram:
+
+<Image
+  src={proxyWithRandomPorts}
+  alt="Aspire frontend app networking diagram with random host port and proxy port."
+/>
+
+The preceding diagram depicts the following:
+
+- A web browser as an entry point to the app.
+- A random host port of 65000.
+- The frontend proxy sitting between the web browser and the frontend service, listening on port 65000.
+- The frontend service listening on a random port of 65001.
+
+## Container ports
+
+When you add a container resource, Aspire automatically assigns a random port to the container. To specify a container port, configure the container resource with the desired port:
+
+```csharp title="AppHost.cs"
+builder.AddContainer("frontend", "mcr.microsoft.com/dotnet/samples", "aspnetapp")
+           .WithHttpEndpoint(port: 8000, targetPort: 8080);
+```
+
+The preceding code:
+
+- Creates a container resource named `frontend`, from the `mcr.microsoft.com/dotnet/samples:aspnetapp` image.
+- Exposes an `http` endpoint by binding the host to port 8000 and mapping it to the container's port 8080.
+
+Consider the following diagram:
+
+<Image
+  src={proxyWithDockerPortMapping}
+  alt="Aspire frontend app networking diagram with a docker host."
+/>
+
+## Endpoint extension methods
+
+Any resource that implements the `IResourceWithEndpoints` interface can use the `WithEndpoint` extension methods. There are several overloads of this extension, allowing you to specify the scheme, container port, host port, environment variable name, and whether the endpoint is proxied.
+
+There's also an overload that allows you to specify a delegate to configure the endpoint. This is useful when you need to configure the endpoint based on the environment or other factors. Consider the following code:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_ApiService>("apiService")
+       .WithEndpoint(
+            endpointName: "admin",
+            callback: static endpoint =>
+       {
+           endpoint.Port = 17003;
+           endpoint.UriScheme = "http";
+           endpoint.Transport = "http";
+       });
+```
+
+The preceding code provides a callback delegate to configure the endpoint. The endpoint is named `admin` and configured to use the `http` scheme and transport, as well as the 17003 host port. The consumer references this endpoint by name, consider the following `AddHttpClient` call:
+
+```csharp
+builder.Services.AddHttpClient<WeatherApiClient>(
+    client => client.BaseAddress = new Uri("http://_admin.apiservice"));
+```
+
+The `Uri` is constructed using the `admin` endpoint name prefixed with the `_` sentinel. This is a convention to indicate that the `admin` segment is the endpoint name belonging to the `apiservice` service. For more information, see [Service discovery](/fundamentals/service-discovery/).
+
+### Additional considerations
+
+When calling the `WithEndpoint` extension method, the `callback` overload exposes the raw `EndpointAnnotation`, which allows the consumer to customize many aspects of the endpoint.
+
+The `AllocatedEndpoint` property allows you to get or set the endpoint for a service. The `IsExternal` and `IsProxied` properties determine how the endpoint is managed and exposed: `IsExternal` decides if it should be publicly accessible, while `IsProxied` ensures DCP manages it, allowing for internal port differences and replication.
+
+<Aside type="tip">
+  If you're hosting an external executable that runs its own proxy and
+  encounters port binding issues due to DCP already binding the port, try
+  setting the `IsProxied` property to `false`. This prevents DCP from managing
+  the proxy, allowing your executable to bind the port successfully.
+</Aside>
+
+The `Name` property identifies the service, whereas the `Port` and `TargetPort` properties specify the desired and listening ports, respectively.
+
+For network communication, the `Protocol` property supports **TCP** and **UDP**, with potential for more in the future, and the `Transport` property indicates the transport protocol (**HTTP**, **HTTP2**, **HTTP3**). Lastly, if the service is URI-addressable, the `UriScheme` property provides the URI scheme for constructing the service URI.
+
+For more information, see the available properties of the [EndpointAnnotation properties](https://learn.microsoft.com/dotnet/api/aspire.hosting.applicationmodel.endpointannotation#properties).
+
+## Endpoint filtering
+
+All Aspire project resource endpoints follow a set of default heuristics. Some endpoints are included in `ASPNETCORE_URLS` at runtime, some are published as `HTTP/HTTPS_PORTS`, and some configurations are resolved from Kestrel configuration. Regardless of the default behavior, you can filter the endpoints that are included in environment variables by using the `WithEndpointsInEnvironment` extension method:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Networking_ApiService>("apiservice")
+    .WithHttpsEndpoint() // Adds a default "https" endpoint
+    .WithHttpsEndpoint(port: 19227, name: "admin")
+    .WithEndpointsInEnvironment(
+        filter: static endpoint =>
+        {
+            return endpoint.Name is not "admin";
+        });
+```
+
+The preceding code adds a default HTTPS endpoint, as well as an `admin` endpoint on port 19227. However, the `admin` endpoint is excluded from the environment variables. This is useful when you want to expose an endpoint for internal use only.

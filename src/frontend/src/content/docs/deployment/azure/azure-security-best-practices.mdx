@@ -4,9 +4,8 @@ description: Learn about the default security posture of Aspire deployments to A
 ---
 
 import { Aside } from '@astrojs/starlight/components';
-import LearnMore from '@components/LearnMore.astro';
 
-When you deploy Aspire applications to Azure using the Aspire CLI or Azure Developer CLI (`azd`)<LearnMore href="/reference/cli/commands/aspire-deploy/"></LearnMore>, the platform provides several security features by default. This article explains the default security posture and provides guidance on additional steps you can take to enhance the security of your applications.
+When you deploy Aspire applications to Azure using the Aspire CLI or Azure Developer CLI (`azd`), the platform provides several security features by default. This article explains the default security posture and provides guidance on additional steps you can take to enhance the security of your applications.
 
 ## Overview
 
@@ -58,7 +57,7 @@ While Aspire provides good security defaults, you can implement additional measu
 
 Store sensitive configuration data and secrets in Azure Key Vault:
 
-```csharp title="Program.cs - Add Azure Key Vault"
+```csharp title="AppHost.cs - Add Azure Key Vault"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add Azure Key Vault resource
@@ -69,13 +68,13 @@ builder.AddProject<Projects.ApiService>()
        .WithReference(keyVault);
 ```
 
-For more information, see [Aspire Azure Key Vault integration](/integrations/azure-key-vault/).
+For more information, see [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/).
 
 ### Configure user-assigned managed identities
 
 For more granular control over permissions, use user-assigned managed identities:
 
-```csharp title="Program.cs - Add user-assigned managed identity"
+```csharp title="AppHost.cs - Add user-assigned managed identity"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Create or reference a user-assigned managed identity
@@ -86,33 +85,30 @@ builder.AddProject<Projects.ApiService>()
        .WithReference(managedIdentity);
 ```
 
-For detailed guidance, see [Aspire Azure user-assigned managed identity integration](/integrations/azure-user-assigned-managed-identity/).
+For detailed guidance, see [Aspire Azure user-assigned managed identity integration](/integrations/cloud/azure/user-assigned-identity/).
 
 ### Enable comprehensive monitoring
 
 **Application Insights**: Monitor your applications for security anomalies and performance issues:
 
-```csharp title="Program.cs - Add Application Insights"
+```csharp title="AppHost.cs - Add Application Insights"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add Application Insights
 var appInsights = builder.AddAzureApplicationInsights("monitoring");
 
 builder.AddProject<Projects.ApiService>()
-       .WithReference(appInsights);
+    .WithReference(appInsights);
 ```
-
-For more information, see [Aspire Azure Application Insights integration](/integrations/azure-application-insights/).
 
 **Azure Monitor**: Configure alerts for suspicious activities and resource consumption anomalies.
 
 ## Additional security resources
 
-For comprehensive guidance on Azure security, see [Azure security best practices and patterns](/azure/security/fundamentals/best-practices-and-patterns/).
+For comprehensive guidance on Azure security, see [Azure security best practices and patterns](https://learn.microsoft.com/azure/security/fundamentals/best-practices-and-patterns/).
 
 ## Related content
 
 - [Deploy to Azure Container Apps using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/)
-- [Aspire Azure Key Vault integration](/integrations/azure-key-vault/)
-- [Aspire Azure user-assigned managed identity integration](/integrations/azure-user-assigned-managed-identity/)
-- [Aspire Azure Application Insights integration](/integrations/azure-application-insights/)
+- [Aspire Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/)
+- [Aspire Azure user-assigned managed identity integration](/integrations/cloud/azure/user-assigned-identity/)
