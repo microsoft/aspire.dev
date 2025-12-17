@@ -1,0 +1,88 @@
+---
+title: テストの概要
+description: Learn how to write integration tests for your Aspire applications using the Aspire.Hosting.Testing package.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import testingDiagram from '@assets/testing/testing-diagram.svg';
+import testingLightDiagram from '@assets/testing/testing-diagram-light.svg';
+
+Aspire は、[📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet パッケージを通じて、分散アプリケーションの自動テストをサポートしています。このパッケージは、アプリケーション用のテストホストを作成する `DistributedApplicationTestingBuilder` クラスを提供します。テスト用ビルダーは AppHost プロジェクトをバックグラウンドスレッドで起動し、そのライフサイクルを管理することで、アプリケーションやそのリソースを制御・操作できるようにします。
+
+既定では、テスト用ビルダーはダッシュボードを無効化し、プロキシされたリソースのポートをランダム化します。これにより、複数のアプリケーションインスタンスを同時に実行できます。テストが完了すると、アプリケーションまたはテスト用ビルダーを破棄することで、アプリのリソースはクリーンアップされます。
+
+## Aspire テストを理解する
+
+Aspire のテスト機能は、分散アプリケーション全体を対象としたクローズドボックスの統合テスト向けに特別に設計されています。個々のコンポーネントを分離して実行するユニットテストやオープンボックスの統合テストとは異なり、Aspire のテストでは AppHost とそのすべてのリソースを含む完全なソリューションを個別のプロセスとして起動し、実運用に近いシナリオを再現します。
+
+次の図は、Aspire のテストプロジェクトが AppHost を起動し、AppHost がアプリケーションとそのリソースを起動する流れを示しています:
+
+<ThemeImage
+  dark={testingDiagram}
+  light={testingLightDiagram}
+  alt="テストプロジェクトが AppHost を起動し、AppHost が Database、API、Front end アプリケーションをオーケストレーションする様子を示した Aspire のテスト図です。テストプロジェクトは Front end アプリケーションに HTTP リクエストを送信します。"
+/>
+
+<Steps>
+
+1. The **テストプロジェクト** が AppHost を起動する
+1. The **AppHost** プロセスが起動する
+1. The **AppHost** が `Database`、`API`、`Front end` アプリケーションを実行する
+1. The **テストプロジェクト** が `Front end` アプリケーションに HTTP リクエストを送信する
+
+</Steps>
+
+テストプロジェクトは AppHost を起動し、AppHost は種類に関係なく、依存するすべてのアプリリソースをオーケストレーションします。テストプロジェクトは `Front end` アプリに HTTP リクエストを送信でき、この `Front end` アプリは `API` アプリに依存し、さらに `API` アプリは `Database` に依存しています。リクエストが成功することで、`Front end` アプリが `API` アプリと通信でき、かつ `API` アプリが `Database` から正常にデータを取得できることが確認されます。
+
+<Aside type="caution">
+  Aspire
+  のテストは、依存関係の注入におけるサービスのモック化、置き換え、差し替えといったシナリオには対応していません。これは、テストが別プロセスで実行されるためです。
+</Aside>
+
+### Aspire テストを使用するタイミング
+
+次のような場合に Aspire テストを使用してください:
+
+- 分散アプリケーションのエンドツーエンドの機能を検証したい場合
+- 複数のサービスやリソース（データベースなど）間の連携が、現実的な条件下で正しく動作することを確認したい場合
+- PostgreSQL データベースのような実際の外部依存関係とのデータ永続化や統合を確認したい場合
+
+単一のプロジェクトを分離してテストしたい場合や、コンポーネントをインメモリで実行したい場合、あるいは外部依存関係をモックしたい場合は、代わりに `WebApplicationFactory<T>` の使用を検討してください。
+
+<Aside type="note">
+  Aspire
+  テストはアプリケーションを別プロセスとして実行します。そのため、テストコードから内部サービスやコンポーネントに直接アクセスすることはできません。環境変数や構成設定を通じてアプリケーションの動作に影響を与えることはできますが、内部の状態やサービスはそれぞれのプロセス内にカプセル化されたままです。
+</Aside>
+
+## 構成オプション
+
+`DistributedApplicationTestingBuilder` には、テストの実行方法をカスタマイズするための複数の構成オプションが用意されています。ポートの割り当てを制御したり、ダッシュボードを有効化したり、そのほかの設定をビルダーのオプションで調整できます。
+
+### ポートのランダム化を無効にする
+
+既定では、Aspire は複数のアプリケーションインスタンスを干渉なく同時に実行できるよう、ランダムなポートを使用します。アプリケーション同士が互いのエンドポイントを見つけられるように、Aspire のサービス検出が利用されます。ポートのランダム化を無効にするには、テスト用ビルダーを作成する際に `"DcpPublisher:RandomizePorts=false"` を指定します:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        [
+            "DcpPublisher:RandomizePorts=false"
+        ]);
+```
+
+### ダッシュボードを有効にする
+
+テスト用ビルダーでは、既定で Aspire ダッシュボードが無効化されています。有効にするには、テスト用ビルダーの作成時に `DisableDashboard` プロパティを `false` に設定します:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+        args: [],
+        configureBuilder: (appOptions, hostSettings) =>
+        {
+            appOptions.DisableDashboard = false;
+        });
+```

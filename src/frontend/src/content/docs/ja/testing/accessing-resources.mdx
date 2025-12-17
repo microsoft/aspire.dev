@@ -1,0 +1,44 @@
+---
+title: テストでリソースにアクセスする
+description: Learn how to access the resources from the Aspire AppHost in your tests.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+この記事では、テストから Aspire AppHost に含まれるリソースへアクセスする方法について学びます。AppHost はアプリケーション全体の実行環境を表しており、アプリケーションで利用可能なすべてのリソースを含んでいます。Aspire を使って機能テストや統合テストを書く際、アプリケーションの挙動を検証するために、これらのリソースへアクセスする必要が出てくることがあります。
+
+## HTTP リソースへのアクセス
+
+HTTP リソースへアクセスするには、`HttpClient` を使用してリクエストを送り、レスポンスを受け取ります。`DistributedApplication` と `DistributedApplicationFactory` のどちらにも、AppHost に定義されたリソース名に基づいて特定のリソース用の `HttpClient` インスタンスを作成するための `CreateHttpClient` メソッドが用意されています。このメソッドは任意の `endpointName` パラメーターも受け取ることができ、リソースに複数のエンドポイントがある場合には、どのエンドポイントを使用するかを指定できます。
+
+## その他のリソースへのアクセス
+
+テストでは、例えばデータの状態を検証するためにデータベースへクエリを実行するなど、リソースが提供する接続情報を使って他のリソースへアクセスしたい場合があります。その場合は、`GetConnectionString` メソッドを使用して対象リソースの接続文字列を取得し、それをテスト内でクライアントライブラリに渡してリソースとやり取りします。
+
+## リソースが利用可能であることを保証する
+
+Aspire 9 以降では、依存するリソースが利用可能になるまで待機する仕組みが（[正常性チェック](/ja/fundamentals/health-checks/) メカニズムを通じて）サポートされています。これは、リソースへアクセスする前に、そのリソースが利用可能であることを確認したいテストにおいて有用です。`ResourceNotificationService` クラスには、指定した名前のリソースが利用可能になるまで待機するための `WaitForResourceAsync` メソッドが用意されています。このメソッドは、リソース名と期待するリソースの状態をパラメーターとして受け取り、リソースが利用可能になった時点で完了する `Task` を返します。`ResourceNotificationService` には、次の例のように `app.ResourceNotifications` を通じてアクセスできます。
+
+<Aside type="note">
+  リソースの待機時には、リソースがいつまでも利用可能にならない状況でテストが無期限に停止してしまうのを防ぐため、タイムアウトを設定することが推奨されます。
+</Aside>
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceNotifications.WaitForResourceAsync(
+    "webfrontend",
+    KnownResourceStates.Running,
+    cts.Token);
+```
+
+リソースは実行を開始するとすぐに `KnownResourceStates.Running` 状態に入りますが、これは必ずしもリクエストを処理できる準備が整ったことを意味するわけではありません。もしリソースがリクエストを受け付けられる状態になるまで待ちたい場合で、かつそのリソースに正常性チェックが定義されているのであれば、`WaitForResourceHealthyAsync` メソッドを使ってリソースが正常状態になるまで待機できます。
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+await app.ResourceNotifications.WaitForResourceHealthyAsync(
+    "webfrontend",
+    cts.Token);
+```
+
+このリソース通知パターンを利用することで、テスト実行前にリソースが確実に利用可能であることを保証でき、リソースの準備が整っていないことによるテスト失敗を防ぐことができます。
