@@ -547,7 +547,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Oracle', slug: 'integrations/databases/oracle' },
+        {
+          label: 'Oracle',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/oracle/oracle-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/oracle/oracle-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/oracle/oracle-client',
+            },
+          ],
+        },
         {
           label: 'PostgreSQL',
           collapsed: true,
