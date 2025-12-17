@@ -505,7 +505,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'MySQL Pomelo',
               slug: 'integrations/databases/efcore/mysql',
             },
-            { label: 'Oracle', slug: 'integrations/databases/efcore/oracle' },
+            {
+              label: 'Oracle',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/oracle/oracle-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/databases/efcore/oracle/oracle-host',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/oracle/oracle-client',
+                },
+              ],
+            },
             {
               label: 'PostgreSQL',
               slug: 'integrations/databases/efcore/postgresql',
@@ -544,24 +561,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Community extensions',
               slug: 'integrations/databases/mysql-extensions',
-            },
-          ],
-        },
-        {
-          label: 'Oracle',
-          collapsed: true,
-          items: [
-            {
-              label: 'Get started',
-              slug: 'integrations/databases/oracle/oracle-get-started',
-            },
-            {
-              label: 'Hosting integration (AppHost)',
-              slug: 'integrations/databases/oracle/oracle-host',
-            },
-            {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/databases/oracle/oracle-client',
             },
           ],
         },
