@@ -518,7 +518,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         { label: 'KurrentDB', slug: 'integrations/databases/kurrentdb' },
         { label: 'Meilisearch', slug: 'integrations/databases/meilisearch' },
-        { label: 'Milvus', slug: 'integrations/databases/milvus' },
+        {
+          label: 'Milvus',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/milvus/milvus-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/milvus/milvus-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/milvus/milvus-client',
+            },
+          ],
+        },
         {
           label: 'MongoDB',
           collapsed: true,
