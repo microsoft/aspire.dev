@@ -570,7 +570,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Qdrant', slug: 'integrations/databases/qdrant' },
+        {
+          label: 'Qdrant',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/qdrant/qdrant-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/qdrant/qdrant-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/qdrant/qdrant-client',
+            },
+          ],
+        },
         { label: 'RavenDB', slug: 'integrations/databases/ravendb' },
         {
           label: 'SQL Server',
