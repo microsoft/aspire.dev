@@ -27,12 +27,18 @@ export const collections = {
     loader: changelogsLoader([
       {
         provider: 'github',
-        base: 'release',
+        base: 'releases',
         owner: 'dotnet',
         repo: 'aspire',
-        title: 'Aspire releases',
-        pageSize: 5
-      }
+        title: 'Release notes',
+        pageSize: 5,
+        process: ({ title }) => {
+          // Titles are similar to 'Aspire 13.1.0 Release', parse out the version only
+          const match = title.match(/Aspire (\d+\.\d+\.\d+) Release/);
+
+          return match ? match[1] : title;
+        },
+      },
     ]),
   }),
 };

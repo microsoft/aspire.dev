@@ -81,7 +81,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             ...makeChangelogsSidebarLinks([
               {
                 type: 'recent',
-                base: 'release',
+                base: 'releases',
               },
             ]),
           ],
