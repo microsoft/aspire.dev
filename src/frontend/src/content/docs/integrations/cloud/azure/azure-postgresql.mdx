@@ -245,6 +245,39 @@ The preceding code:
 
 There are many more configuration options available to customize the PostgreSQL resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
 
+### Connection properties
+
+When you reference Azure PostgreSQL resources using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### Azure PostgreSQL flexible server
+
+The Azure PostgreSQL server resource exposes the following connection properties:
+
+| Property Name          | Description                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Host`                 | The hostname for the PostgreSQL server                                                                                                                                                                                   |
+| `Port`                 | The PostgreSQL port (fixed at `5432` in Azure Flexible Server)                                                                                                                                                           |
+| `Uri`                  | The connection URI for the server, with the format `postgresql://{Username}:{Password}@{Host}` (credentials omitted when not applicable)                                                                                 |
+| `JdbcConnectionString` | JDBC-format connection string for the server, with the format `jdbc:postgresql://{Host}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin` |
+| `Username`             | Present when password authentication is enabled; the configured administrator username                                                                                                                                   |
+| `Password`             | Present when password authentication is enabled; the configured administrator password                                                                                                                                   |
+
+#### Azure PostgreSQL database
+
+The Azure PostgreSQL database resource inherits all properties from its parent server and adds:
+
+| Property Name          | Description                                                                                                                                                                                                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DatabaseName`         | The name of the database                                                                                                                                                                                                                  |
+| `Uri`                  | The database-specific connection URI, with the format `postgresql://{Username}:{Password}@{Host}/{DatabaseName}` (credentials omitted when not applicable)                                                                                |
+| `JdbcConnectionString` | JDBC-format connection string for the database, with the format `jdbc:postgresql://{Host}/{DatabaseName}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin` |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `db1` becomes `DB1_URI`.
+</Aside>
+
 ## Client integration
 
 To get started with the Aspire Azure PostgreSQL client integration, install the [📦 Aspire.Azure.Npgsql](https://www.nuget.org/packages/Aspire.Azure.Npgsql) NuGet package in the client-consuming project, that is, the project for the application that uses the PostgreSQL client. The PostgreSQL client integration registers an [NpgsqlDataSource](https://www.npgsql.org/doc/api/Npgsql.NpgsqlDataSource.html) instance that you can use to interact with PostgreSQL.
