@@ -1,4 +1,5 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
+import { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 export const docsTopics: StarlightSidebarTopicsUserConfig = {
   label: {
@@ -47,7 +48,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
     {
       label: "What's new",
       collapsed: true,
-      autogenerate: { directory: 'whats-new' },
       translations: {
         da: 'Hvad er nyt',
         de: 'Was gibt es Neues',
@@ -66,6 +66,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Що нового',
         'zh-CN': '新内容',
       },
+      items: [
+        {
+          label: "What's new in Aspire 13.1",
+          slug: 'whats-new/aspire-13-1',
+        },
+        {
+          label: "What's new in Aspire 13.0",
+          slug: 'whats-new/aspire-13',
+        },
+        {
+          label: 'Aspire releases',
+          items: [
+            ...makeChangelogsSidebarLinks([
+              {
+                type: 'recent',
+                base: 'release',
+              },
+            ]),
+          ],
+        },
+      ],
     },
     {
       label: 'Get started',

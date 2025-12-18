@@ -19,6 +19,7 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+import starlightChangelogs from 'starlight-changelogs';
 
 // https://astro.build/config
 export default defineConfig({
@@ -65,6 +66,7 @@ export default defineConfig({
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },
       plugins: [
+        starlightChangelogs(),
         lunaria({
           route: '/i18n',
           sync: false,

@@ -3,6 +3,7 @@ eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-un
 import { defineCollection, z } from 'astro:content';
 import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
+import { changelogsLoader } from 'starlight-changelogs/loader';
 
 export const collections = {
   docs: defineCollection({
@@ -21,5 +22,17 @@ export const collections = {
   i18n: defineCollection({
     loader: i18nLoader(),
     schema: i18nSchema(),
+  }),
+  changelogs: defineCollection({
+    loader: changelogsLoader([
+      {
+        provider: 'github',
+        base: 'release',
+        owner: 'dotnet',
+        repo: 'aspire',
+        title: 'Aspire releases',
+        pageSize: 5
+      }
+    ]),
   }),
 };
