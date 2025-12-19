@@ -1,0 +1,72 @@
+---
+title: ASPIREPIPELINES004
+description: Diagnostic for experimental pipeline output service APIs
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge text="Version introduced: 13.1" variant="note" size="large" class:list={'mb-1'} />
+
+> Type is for evaluation purposes only and is subject to change or removal in future updates
+
+This diagnostic warns when using the experimental `IPipelineOutputService` interface and the `PipelineOutputService` implementation. These APIs are part of the Aspire pipeline infrastructure for managing output and temporary directories during deployment operations.
+
+### Example generating diagnostic
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IPipelineOutputService
+var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
+var outputDir = outputService.GetOutputDirectory();
+var tempDir = outputService.GetTempDirectory();
+```
+
+The diagnostic is triggered because `IPipelineOutputService` is marked with the `[Experimental("ASPIREPIPELINES004")]` attribute.
+
+## Understanding the diagnostic
+
+The `IPipelineOutputService` interface provides directory management functionality for Aspire deployment pipelines:
+
+- **Output directories**: Manages the location where deployment artifacts are written
+- **Temporary directories**: Provides isolated temporary storage for build operations
+- **Resource-specific paths**: Creates subdirectories for individual resources
+
+This API is experimental because the pipeline infrastructure is under active development, and the directory management strategy may evolve based on deployment scenario requirements.
+
+### Related types
+
+- **`IPipelineOutputService`**: Service for managing pipeline output and temporary directories
+- **`PipelineOutputService`**: Default implementation managing configured and default paths
+- **`GetOutputDirectory()`**: Gets the base output directory for deployment artifacts
+- **`GetOutputDirectory(IResource)`**: Gets a resource-specific output subdirectory
+- **`GetTempDirectory()`**: Gets the base temporary directory for build artifacts
+- **`GetTempDirectory(IResource)`**: Gets a resource-specific temporary subdirectory
+
+## Suppressing the diagnostic
+
+The diagnostic can be suppressed using one of several methods:
+
+### Suppressing in .editorconfig
+
+```ini title=".editorconfig"
+[*.cs]
+dotnet_diagnostic.ASPIREPIPELINES004.severity = none
+```
+
+### Suppressing in a project file
+
+```xml title="YourProject.csproj"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIREPIPELINES004</NoWarn>
+</PropertyGroup>
+```
+
+### Suppressing in source code
+
+```csharp
+#pragma warning disable ASPIREPIPELINES004
+var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
+var outputDir = outputService.GetOutputDirectory();
+#pragma warning restore ASPIREPIPELINES004
+```

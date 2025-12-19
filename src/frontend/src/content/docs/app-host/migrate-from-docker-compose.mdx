@@ -1,0 +1,443 @@
+---
+title: Migrate from Docker Compose to Aspire
+description: Learn how to migrate your Docker Compose applications to Aspire and understand the key conceptual differences.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+This guide helps you understand how to migrate applications from Docker Compose to Aspire, highlighting the key conceptual differences and providing accurate, practical examples for common migration scenarios.
+
+## Understand the differences
+
+While Docker Compose and Aspire might seem similar at first glance, they serve different purposes and operate at different levels of abstraction.
+
+### Docker Compose vs Aspire
+
+|  | Docker Compose | Aspire |
+|--|--|--|
+| **Primary purpose** | Container orchestration | Development-time orchestration and app composition |
+| **Scope** | Container-focused | Multi-resource (containers, .NET projects, cloud resources) |
+| **Configuration** | YAML-based | C#-based, strongly typed |
+| **Target environment** | Any Docker runtime | Development and cloud deployment |
+| **Service discovery** | DNS-based container discovery | Built-in service discovery with environment variables |
+| **Development experience** | Manual container management | Integrated tooling, dashboard, and telemetry |
+
+### Key conceptual shifts
+
+When migrating from Docker Compose to Aspire, consider these conceptual differences:
+
+- **From YAML to C#** — Configuration moves from declarative YAML to imperative, strongly-typed C# code
+- **From containers to resources** — Aspire manages not just containers, but .NET projects, executables, parameters, and cloud resources
+- **From manual networking to service discovery** — Aspire automatically configures service discovery and connection strings
+- **From development gaps to integrated experience** — Aspire provides dashboard, telemetry, and debugging integration
+- **Startup orchestration differs** — Docker Compose `depends_on` controls startup order, while Aspire `WithReference` only configures service discovery; use `WaitFor` for startup ordering
+
+<LearnMore>
+For detailed API mappings, see [Docker Compose to Aspire AppHost API reference](/app-host/docker-compose-to-apphost-reference/).
+</LearnMore>
+
+## Common migration patterns
+
+This section demonstrates practical migration scenarios you'll likely encounter when moving from Docker Compose to Aspire. Each pattern shows a complete Docker Compose example alongside its accurate Aspire equivalent.
+
+### Multi-service web application
+
+This example shows a typical three-tier application with frontend, API, and database.
+
+**Docker Compose example:**
+
+```yaml title="compose.yaml"
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - API_URL=http://api:5000
+
+  api:
+    build: ./api
+    ports:
+      - "5000:5000"
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=database;Database=myapp;Username=postgres;Password=secret
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=myapp
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  postgres_data:
+```
+
+**Aspire equivalent:**
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add the database with explicit configuration
+var database = builder.AddPostgres("postgres")
+    .WithImageTag("15")
+    .WithEnvironment("POSTGRES_USER", "postgres")
+    .WithEnvironment("POSTGRES_PASSWORD", "secret")
+    .WithDataVolume()  // Adds persistent volume
+    .AddDatabase("myapp");
+
+// Add the API project with proper dependencies
+var api = builder.AddProject<Projects.MyApp_Api>("api")
+    .WithHttpEndpoint(port: 5000)
+    .WithHttpHealthCheck("/health")
+    .WithReference(database)
+    .WaitFor(database);  // Ensures database is ready before starting
+
+// Add the frontend project with dependencies
+var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
+    .WithHttpEndpoint(port: 3000)
+    .WithReference(api)
+    .WithEnvironment("API_URL", api.GetEndpoint("http"))
+    .WaitFor(api);  // Ensures API is ready before starting
+
+builder.Build().Run();
+```
+
+**Key differences explained:**
+
+- **Ports** — Both examples explicitly map ports (3000 and 5000)
+- **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses `WaitFor()` with health checks
+- **Service discovery** — `WithReference()` configures service discovery but doesn't control startup order
+- **Environment variables** — Connection strings are automatically generated by `WithReference(database)`, providing `ConnectionStrings__myapp`
+- **Volumes** — `WithDataVolume()` explicitly creates and manages persistent storage
+- **Image versions** — Aspire uses `WithImageTag()` to specify PostgreSQL 15
+
+### Container-based services
+
+This example shows existing container images being orchestrated.
+
+**Docker Compose example:**
+
+```yaml title="compose.yaml"
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:secret@postgres:5432/main
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+
+volumes:
+  postgres_data:
+```
+
+**Aspire equivalent:**
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add backing services with explicit versions
+var redis = builder.AddRedis("redis")
+    .WithImageTag("7")
+    .WithHostPort(6379);  // Static port mapping
+
+var postgres = builder.AddPostgres("postgres")
+    .WithImageTag("15")
+    .WithEnvironment("POSTGRES_PASSWORD", "secret")
+    .WithDataVolume()  // Persistent storage
+    .AddDatabase("main");
+
+// Add the containerized web application
+var web = builder.AddContainer("web", "myapp", "latest")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080)
+    .WithReference(redis)
+    .WithReference(postgres)
+    .WaitFor(redis)     // Wait for dependencies
+    .WaitFor(postgres);
+
+builder.Build().Run();
+```
+
+**Key differences explained:**
+
+- **Image versions** — Explicitly specified with `WithImageTag()` to match Docker Compose
+- **Ports** — Redis uses `WithHostPort()` for static port mapping
+- **Volumes** — `WithDataVolume()` explicitly adds persistent storage
+- **Container source** — `AddContainer()` uses existing built image
+- **Startup ordering** — `WaitFor()` ensures services start in correct order
+- **Connection strings** — Automatically generated in Aspire's format, not matching Docker Compose URLs exactly
+
+### Environment variables and configuration
+
+This example shows different approaches to configuration management.
+
+**Docker Compose approach:**
+
+```yaml title="compose.yaml"
+services:
+  app:
+    image: myapp:latest
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/myapp
+      - REDIS_URL=redis://cache:6379
+      - API_KEY=${API_KEY}
+      - LOG_LEVEL=info
+```
+
+**Aspire approach:**
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add external parameter for secrets
+var apiKey = builder.AddParameter("apiKey", secret: true);
+
+var database = builder.AddPostgres("db")
+    .WithEnvironment("POSTGRES_USER", "user")
+    .WithEnvironment("POSTGRES_PASSWORD", "pass")
+    .AddDatabase("myapp");
+
+var cache = builder.AddRedis("cache");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithReference(database)      // Sets ConnectionStrings__myapp
+    .WithReference(cache)         // Sets ConnectionStrings__cache
+    .WithEnvironment("API_KEY", apiKey)
+    .WithEnvironment("LOG_LEVEL", "info");
+
+builder.Build().Run();
+```
+
+**Important differences:**
+
+<Aside type="caution">
+Aspire generates connection strings in .NET format, which differs from Docker Compose URLs:
+
+- Docker Compose: `postgresql://user:pass@db:5432/myapp`
+- Aspire: `ConnectionStrings__myapp=Host=localhost;Port=12345;Username=postgres;Password=abc...;Database=myapp`
+
+If your application expects specific URL formats, you'll need to manually construct and pass them using `WithEnvironment()`.
+</Aside>
+
+### Custom volumes and bind mounts
+
+**Docker Compose example:**
+
+```yaml title="compose.yaml"
+version: '3.8'
+services:
+  app:
+    image: myapp:latest
+    volumes:
+      - app_data:/data
+      - ./config:/app/config:ro
+
+  worker:
+    image: myworker:latest
+    volumes:
+      - app_data:/shared
+
+volumes:
+  app_data:
+```
+
+**Aspire equivalent:**
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Create a named volume for sharing data
+var appData = builder.AddVolume("app-data");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithVolume(appData, "/data")
+    .WithBindMount("./config", "/app/config", isReadOnly: true);
+
+var worker = builder.AddContainer("worker", "myworker", "latest")
+    .WithVolume(appData, "/shared");
+
+builder.Build().Run();
+```
+
+**Key differences:**
+
+- **Named volumes** — Created with `AddVolume()` and shared between containers
+- **Bind mounts** — Use `WithBindMount()` for host directory access
+- **Networking** — Aspire automatically handles container networking; custom networks aren't needed for most scenarios
+
+## Migration strategy
+
+Successfully migrating from Docker Compose to Aspire requires a systematic approach.
+
+<Steps>
+
+1. ### Assess your current setup
+
+   Before migrating, inventory your Docker Compose setup:
+
+   - **Services** — Identify all services including databases, caches, APIs, and web applications
+   - **Dependencies** — Map out service dependencies from `depends_on` declarations
+   - **Data persistence** — Catalog all volumes and bind mounts used for data storage
+   - **Environment variables** — List all configuration variables and secrets
+   - **Health checks** — Document any custom health check commands
+   - **Image versions** — Note specific versions used in production
+
+2. ### Create the Aspire AppHost
+
+   Start by creating a new Aspire project:
+
+   ```bash
+   aspire new aspire-starter -o MyApp
+   ```
+
+3. ### Migrate services incrementally
+
+   Migrate services one by one, starting with backing services:
+
+   - **Add backing services** like PostgreSQL, Redis with specific versions using `WithImageTag()`
+   - **Add persistent storage** using `WithDataVolume()` where needed
+   - **Convert .NET applications** to project references for better integration
+   - **Convert other containers** using `AddContainer()` for existing Docker images
+   - **Configure dependencies** with `WithReference()` for service discovery
+   - **Add startup ordering** with `WaitFor()` to match `depends_on` behavior
+   - **Set up environment variables** — Note that connection string formats will differ
+   - **Migrate health checks** — Use `WithHttpHealthCheck()` or `WithHealthCheck()` for custom checks
+
+4. ### Handle data migration
+
+   For persistent data:
+
+   - Use `WithDataVolume()` for automatic volume management with integrations
+   - Use `WithVolume()` for named volumes that need to persist data
+   - Use `WithBindMount()` for host directory mounts when you need direct access to host files
+
+5. ### Test and validate
+
+   - Start the Aspire AppHost and verify all services start correctly
+   - Check the dashboard to confirm service health and connectivity status
+   - Validate that inter-service communication works as expected
+   - **Verify connection strings** — If your app expects specific URL formats, you may need to adjust environment variables
+
+</Steps>
+
+## Migration troubleshooting
+
+### Common issues and solutions
+
+**Connection string format mismatch**
+
+Aspire generates .NET-style connection strings (`ConnectionStrings__*`) rather than URL formats like `postgresql://` or `redis://`.
+
+**Solution**: If your application expects specific URL formats, construct them manually:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("db", password: "secret")
+    .WithImageTag("15")
+    .AddDatabase("myapp");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithReference(postgres)  // Still provides service discovery
+    .WithEnvironment("DATABASE_URL", $"postgresql://postgres:secret@{{db.GetEndpoint(\"tcp\").Host}}:{{db.GetEndpoint(\"tcp\").Port}}/myapp");
+```
+
+**Service startup order issues**
+
+`WithReference()` only configures service discovery, not startup ordering.
+
+**Solution**: Use `WaitFor()` to ensure dependencies are ready:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(database)  // Service discovery
+    .WaitFor(database);       // Startup ordering
+```
+
+**Volume mounting issues**
+
+- Use absolute paths for bind mounts to avoid path resolution issues
+- Ensure the host directory exists and has proper permissions
+- Use `WithDataVolume()` for database integrations for automatic configuration
+
+**Port conflicts**
+
+Aspire automatically assigns random ports by default.
+
+**Solution**: Use `WithHostPort()` or `WithHttpEndpoint(port:)` for static port mapping:
+
+```csharp title="AppHost.cs"
+var redis = builder.AddRedis("cache")
+    .WithHostPort(6379);  // Static port
+```
+
+**Health check migration**
+
+Docker Compose health checks use shell commands.
+
+**Solution**: For HTTP health checks, use `WithHttpHealthCheck()`:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpHealthCheck("/health");
+```
+
+For custom container health checks:
+
+```csharp title="AppHost.cs"
+var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
+    .WithHealthCheck("rabbitmqctl", ["ping"], 
+        interval: TimeSpan.FromSeconds(30),
+        timeout: TimeSpan.FromSeconds(10),
+        startPeriod: TimeSpan.FromSeconds(10));
+```
+
+## Next steps
+
+After migrating to Aspire:
+
+- Explore [Aspire integrations](/integrations/overview/) to replace custom container configurations
+- Set up [health checks](/fundamentals/health-checks/) for better monitoring
+- Learn about [deployment options](/deployment/overview/) for production environments
+- Consider [testing](/testing/overview/) your distributed application
+- Review [telemetry configuration](/fundamentals/telemetry/) for observability

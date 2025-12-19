@@ -1,0 +1,382 @@
+---
+title: サービスの既定値（Service Defaults）
+description: Learn about the Aspire service defaults project.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+この記事では、Aspire のサービスの既定値(Service Defaults)プロジェクトについて学びます。これは、次のような拡張メソッドの集合です:
+
+- テレメトリ、正常性チェック、サービス 検出をアプリに接続する
+- カスタマイズや拡張が可能である
+
+クラウド ネイティブ アプリケーションでは、さまざまな環境で信頼性とセキュリティを保って動作させるために、広範な設定が必要になることが少なくありません。Aspire は、OpenTelemetry、正常性チェック、環境変数などの構成管理を効率化するための、多くのヘルパー メソッドやツールを提供しています。
+
+## Service Default プロジェクトを確認する
+
+Aspire オーケストレーションに参加、または新しい Aspire プロジェクトを作成すると、_YourAppName.ServiceDefaults.csproj_ プロジェクトがソリューションに追加されます。たとえば API を構築する場合、アプリの _Program.cs_ ファイル内で `AddServiceDefaults` メソッドを呼び出します。:
+
+```csharp
+builder.AddServiceDefaults();
+```
+
+`AddServiceDefaults` メソッドは、次の処理を行います:
+
+- OpenTelemetry のメトリクスとトレーシングを構成します
+- 既定の正常性チェック エンドポイントを追加します
+- サービス 検出機能を追加します
+- サービス 検出と連携するように `HttpClient` を構成します
+
+`AddServiceDefaults` メソッドの詳細については、[提供されている拡張メソッド](#提供されている拡張メソッド)をご覧ください。
+
+<Aside type="caution">
+  Aspire の Service Defaults プロジェクトは、Extensions.cs
+  ファイルとその機能を共有することに特化して設計されています。このプロジェクトには、その他の共有機能やモデルを含めないでください。それらの用途には、一般的な共有クラス
+  ライブラリ プロジェクトを使用してください。
+</Aside>
+
+## プロジェクトの特性
+
+_YourAppName.ServiceDefaults_ プロジェクトは、次のような XML を含む .NET 10.0 のライブラリです。:
+
+```xml title="YourAppName.ServiceDefaults.csproj" {11}
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAspireSharedProject>true</IsAspireSharedProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.5.2" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
+  </ItemGroup>
+
+</Project>
+```
+
+ServiceDefaults プロジェクトのテンプレートでは、`Microsoft.AspNetCore.App` に対する `FrameworkReference` 依存関係が必須となっています。
+
+<Aside type="tip">
+  `Microsoft.AspNetCore.App` への依存関係を持たせたくない場合は、カスタムの
+  ServiceDefaults プロジェクトを作成できます。 詳細については[Service Defaults
+  のカスタマイズ](#service-defaults-のカスタマイズ)をご参照ください。
+</Aside>
+
+`IsAspireSharedProject` プロパティは `true` に設定されており、このプロジェクトが共有プロジェクトであることを示しています。Aspire のツールは、このプロジェクトを Aspire ソリューションに追加される他のプロジェクトの参照先として使用します。新しいプロジェクトをオーケストレーションに参加させると、自動的に _YourAppName.ServiceDefaults_ プロジェクトが参照され、あわせて _Program.cs_ ファイルが更新されて` AddServiceDefaults` メソッドが呼び出されるようになります。
+
+## 提供されている拡張メソッド
+
+_YourAppName.ServiceDefaults_ プロジェクトは、いくつかの設計方針に基づいた拡張メソッドを含む、単一の Extensions.cs ファイルを公開しています:
+
+- `AddServiceDefaults`: サービスの既定値の機能を追加します
+- `ConfigureOpenTelemetry`: OpenTelemetry のメトリクスとトレーシングを構成します
+- `AddDefaultHealthChecks`: 既定の正常性チェック エンドポイントを追加します
+- `MapDefaultEndpoints`: 正常性チェック エンドポイントを `/health` に、Liveness エンドポイントを `/alive` にマップします
+
+### サービスの既定値の機能を追加
+
+`AddServiceDefaults` メソッドでは、次のような設計方針に基づいた既定の構成が定義されています:
+
+```csharp title="Extensions.cs"
+public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    builder.ConfigureOpenTelemetry();
+
+    builder.AddDefaultHealthChecks();
+
+    builder.Services.AddServiceDiscovery();
+
+    builder.Services.ConfigureHttpClientDefaults(http =>
+    {
+        // 既定でレジリエンスを有効化
+        http.AddStandardResilienceHandler();
+
+        // 既定でサービス 検出を有効化
+        http.AddServiceDiscovery();
+    });
+
+    // サービス 検出で許可するスキームを制限する場合は、以下のコメントを解除します
+    // builder.Services.Configure<ServiceDiscoveryOptions>(options =>
+    // {
+    //     options.AllowedSchemes = ["https"];
+    // });
+
+    return builder;
+}
+```
+
+上記のコードでは、次の処理が行われています:
+
+- `ConfigureOpenTelemetry` メソッドを呼び出し、OpenTelemetry のメトリクスとトレーシングを構成します。
+- `AddDefaultHealthChecks` メソッドを呼び出し、既定の正常性チェック エンドポイントを追加します。
+- `AddServiceDiscovery` メソッドを呼び出し、[サービス検出](/ja/fundamentals/service-discovery/)機能を追加します。
+- [回復性がある HTTP アプリを構築する: 主要な開発パターン](https://learn.microsoft.com/ja-jp/dotnet/core/resilience/http-resilience) を基にした `ConfigureHttpClientDefaults` メソッドを呼び出して、`HttpClient` の既定値を構成します:
+  - `AddStandardResilienceHandler` メソッドを呼び出し、標準の HTTP レジリエンス ハンドラーを追加します。
+  - `AddServiceDiscovery` メソッドを呼び出し、`IHttpClientBuilder` がサービス ディスカバリーを使用するように指定します。
+- メソッド チェーンを可能にするため、`IHostApplicationBuilder` のインスタンスを返します
+
+### OpenTelemetry の構成
+
+テレメトリは、あらゆるクラウド ネイティブ アプリケーションにとって重要な要素です。Aspire では、`ConfigureOpenTelemetry` メソッドによって構成される OpenTelemetry の（設計方針に基づいた）既定値一式が提供されています:
+
+```csharp title="Extensions.cs"
+public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    builder.Logging.AddOpenTelemetry(logging =>
+    {
+        logging.IncludeFormattedMessage = true;
+        logging.IncludeScopes = true;
+    });
+
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddRuntimeInstrumentation();
+        })
+        .WithTracing(tracing =>
+        {
+            tracing.AddSource(builder.Environment.ApplicationName)
+                .AddAspNetCoreInstrumentation(tracing =>
+                    // 正常性チェックのリクエストはトレース対象から除外
+                    tracing.Filter = context =>
+                        !context.Request.Path.StartsWithSegments(HealthEndpointPath)
+                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
+                )
+                // gRPC インストルメンテーションを有効化する場合は、次の行のコメントを解除します
+                // （OpenTelemetry.Instrumentation.GrpcNetClient パッケージが必要です）
+                //.AddGrpcClientInstrumentation()
+                .AddHttpClientInstrumentation();
+        });
+
+    builder.AddOpenTelemetryExporters();
+
+    return builder;
+}
+```
+
+`ConfigureOpenTelemetry` メソッドでは、次の処理を行います
+
+- フォーマット済みメッセージとスコープを含めるように、Aspire のテレメトリ ログを追加します
+- 以下の OpenTelemetry のメトリクスとトレーシングを追加します:
+  - ランタイム インストルメンテーションのメトリクス
+  - ASP.NET Core インストルメンテーションのメトリクス
+  - HttpClient インストルメンテーションのメトリクス
+  - 開発環境では、すべてのトレースを確認するために `AlwaysOnSampler` が使用されます
+  - ASP.NET Core、gRPC、HTTP インストルメンテーションに関するトレーシングの詳細
+- `AddOpenTelemetryExporters` を呼び出して OpenTelemetry のエクスポーターを追加します
+
+`AddOpenTelemetryExporters` メソッドは、次のように private として定義されています:
+
+```csharp title="Extensions.cs"
+private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+
+    if (useOtlpExporter)
+    {
+        builder.Services.AddOpenTelemetry().UseOtlpExporter();
+    }
+
+    // Azure Monitor エクスポーターを有効化する場合は、次の行のコメントを解除します
+    // （Azure.Monitor.OpenTelemetry.AspNetCore パッケージが必要です）
+    //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    //{
+    //    builder.Services.AddOpenTelemetry()
+    //       .UseAzureMonitor();
+    //}
+
+    return builder;
+}
+```
+
+`AddOpenTelemetryExporters` メソッドは、次の条件に基づいて OpenTelemetry のエクスポーターを追加します:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` 環境変数が設定されている場合、OpenTelemetry エクスポーターを追加します
+- Aspire の ServiceDefaults の利用者は、必要に応じてコードの一部をコメント解除することで、Prometheus エクスポーターや Azure Monitor エクスポーターを有効化できます
+
+### 正常性チェックの構成
+
+正常性チェックは、さまざまなツールやシステムがアプリの準備状態（レディネス）を評価するために使用されます。Aspire では、`AddDefaultHealthChecks` メソッドによって構成される、設計方針に基づいた正常性チェックの既定値が提供されています:
+
+```csharp title="Extensions.cs"
+public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+{
+    builder.Services.AddHealthChecks()
+        // アプリが応答可能であることを確認するための既定の Liveness チェックを追加
+        .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+
+    return builder;
+}
+```
+
+`AddDefaultHealthChecks` メソッドは、アプリが応答可能であることを保証するための既定の Liveness チェックを追加します。
+`AddHealthChecks` の呼び出しにより、HealthCheckService が登録されます。
+
+#### Web アプリにおける正常性チェックの構成
+
+Web アプリで正常性チェックを公開するために、Aspire はソリューション内で参照されているプロジェクトの種類を自動的に判別し、適切な `MapDefaultEndpoints` の呼び出しを追加します:
+
+```csharp title="Extensions.cs"
+public static WebApplication MapDefaultEndpoints(this WebApplication app)
+{
+    // 開発環境以外で正常性チェック エンドポイントを公開することには、セキュリティ上の考慮点があります。
+    // 詳細については https://aspire.dev/ja/fundamentals/health-checks/ をご確認ください。
+    if (app.Environment.IsDevelopment())
+    {
+        // アプリ起動後にトラフィックを受け付け可能と判断されるには、すべての正常性チェックが成功する必要があります
+        app.MapHealthChecks(HealthEndpointPath);
+
+        // アプリが稼働中（alive）と判断されるには、"live" タグが付いた正常性チェックのみが成功すれば十分です
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        });
+    }
+
+    return app;
+}
+```
+
+`MapDefaultEndpoints` メソッドでは、次の処理が行われます:
+
+- 必要に応じて、Prometheus エンドポイントを有効化するためのコードをコメント解除できるようにしています
+- 正常性チェック エンドポイントを `/health` にマップします
+- 正常性チェックのタグに `live` を含むものを対象として、Liveness エンドポイントを `/alive` にマップします
+
+<Aside type="note">
+  **Service Defaults** project template. Aspire 9.2 以降、スターター
+  テンプレートは ASP.NET Core プロジェクト向けに `WithHttpsHealthCheck`
+  の呼び出しを含むように更新されています。 開発中のリクエスト トレース
+  ログをより見やすく保つため、構成された正常性チェック エンドポイント
+  （`/health` および `/alive`）に対するトレースは、**Service
+  Defaults**プロジェクト テンプレートでは 既定で除外されるようになっています。
+</Aside>
+
+## Service Defaults のカスタマイズ
+
+プロジェクト テンプレートで提供される既定のサービス構成が要件に十分でない場合は、独自の Service Defaults プロジェクトを作成することもできます。これは特に、Worker プロジェクトや WinForms プロジェクトなどの利用側プロジェクトが、`Microsoft.AspNetCore.App` に対する `FrameworkReference` 依存関係を持てない（または持ちたくない）場合に有用です。
+
+そのためには、新しい .NET 9.0 のクラス ライブラリ プロジェクトを作成し、プロジェクト ファイルに必要な依存関係を追加します。次の例を参考にしてください:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+  </ItemGroup>
+</Project>
+```
+
+次に、アプリの既定値を構成するために必要なメソッドを含む拡張クラスを作成します:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+
+namespace Microsoft.Extensions.Hosting;
+
+public static class AppDefaultsExtensions
+{
+    public static IHostApplicationBuilder AddAppDefaults(
+        this IHostApplicationBuilder builder)
+    {
+        builder.ConfigureAppOpenTelemetry();
+
+        builder.Services.AddServiceDiscovery();
+
+        builder.Services.ConfigureHttpClientDefaults(http =>
+        {
+            // 既定でレジリエンスを有効化
+            http.AddStandardResilienceHandler();
+
+            // 既定でサービス 検出を有効化
+            http.AddServiceDiscovery();
+        });
+
+        return builder;
+    }
+
+    public static IHostApplicationBuilder ConfigureAppOpenTelemetry(
+        this IHostApplicationBuilder builder)
+    {
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+        });
+
+        builder.Services.AddOpenTelemetry()
+            .WithMetrics(static metrics =>
+            {
+                metrics.AddRuntimeInstrumentation();
+            })
+            .WithTracing(tracing =>
+            {
+                if (builder.Environment.IsDevelopment())
+                {
+                    // 開発環境ではすべてのトレースを確認したいため、AlwaysOnSampler を使用
+                    tracing.SetSampler(new AlwaysOnSampler());
+                }
+
+                tracing.AddGrpcClientInstrumentation()
+                       .AddHttpClientInstrumentation();
+            });
+
+        builder.AddOpenTelemetryExporters();
+
+        return builder;
+    }
+
+    private static IHostApplicationBuilder AddOpenTelemetryExporters(
+        this IHostApplicationBuilder builder)
+    {
+        var useOtlpExporter =
+            !string.IsNullOrWhiteSpace(
+                builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+
+        if (useOtlpExporter)
+        {
+            builder.Services.Configure<OpenTelemetryLoggerOptions>(
+                logging => logging.AddOtlpExporter());
+            builder.Services.ConfigureOpenTelemetryMeterProvider(
+                metrics => metrics.AddOtlpExporter());
+            builder.Services.ConfigureOpenTelemetryTracerProvider(
+                tracing => tracing.AddOtlpExporter());
+        }
+
+        return builder;
+    }
+}
+```
+
+これはあくまで例であり、`AppDefaultsExtensions` クラスは要件に合わせて自由にカスタマイズできます。
+
+## 次のステップ
+
+このコードは Aspire Starter Application テンプレートを元にしており、出発点として用意されています。必要に応じて、要件を満たすように自由に変更できます。重要な点として、Service Defaults プロジェクトとその機能は、Aspire ソリューション内のすべてのプロジェクト リソースに自動的に適用されます。

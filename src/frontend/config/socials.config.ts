@@ -1,5 +1,5 @@
 export type SocialLink = {
-  icon: 'github' | 'discord' | 'x.com' | 'blueSky' | 'youtube' | 'twitch';
+  icon: 'github' | 'discord' | 'x.com' | 'blueSky' | 'youtube' | 'twitch' | 'document';
   label: string;
   href: string;
 };
@@ -35,4 +35,9 @@ export const socialConfig: SocialLink[] = [
     label: 'Twitch',
     href: 'https://www.twitch.tv/aspiredotdev',
   },
+  {
+    icon: 'document',
+    label: 'Blog',
+    href: 'https://devblogs.microsoft.com/aspire',
+  }
 ];

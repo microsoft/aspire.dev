@@ -1,0 +1,229 @@
+---
+title: 正常性チェック
+description: Explore Aspire health checks
+---
+
+import { Image } from 'astro:assets';
+import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
+
+正常性チェックは、アプリの可用性や状態に関する情報を提供します。正常性チェックは多くの場合 HTTP エンドポイントとして公開されますが、アプリ内部で現在の正常性に基づいてログを書き込んだり、他の処理を実行したりする用途にも利用できます。通常、正常性チェックは外部の監視サービスやコンテナ オーケストレーターと組み合わせて、アプリの状態を確認するために使用されます。
+
+Aspire では、正常性チェックは主に次の 2 つのコンテキストで動作します:
+
+- **AppHost リソースの正常性チェック** - AppHost プロジェクト内で実行され、オーケストレーションや依存関係管理のためにリソースの準備完了状態を判断します。これらのチェックは、依存するリソースがいつ起動するかを制御し、Aspire ダッシュボードに表示されます。
+- **アプリケーションの正常性チェック エンドポイント** - 個々のアプリケーションやサービス内で実行され、監視やロードバランシングの判断のために `/health` や `/alive` エンドポイントを公開します。
+
+正常性チェックによって報告されるデータは、さまざまなシナリオで利用できます:
+
+- コンテナ オーケストレーター、ロードバランサー、API ゲートウェイ、その他の管理サービスが行う判断に影響を与えます。例えば、コンテナ化されたアプリの正常性チェックが失敗した場合、そのアプリはロードバランサーによるトラフィックの振り分け対象から外されることがあります。
+- データベースやキャッシュなどの基盤となる依存関係が利用可能かどうかを確認し、適切なステータスメッセージを返します。
+- アプリが期待どおりに応答していない場合に、アラートや通知をトリガーします。
+
+## Aspire の正常性チェック エンドポイント
+
+Aspire では、Program.cs ファイル内で `AddServiceDefaults` と `MapDefaultEndpoints` メソッドを呼び出すと、**開発**環境において既定で 2 つの正常性チェック用 HTTP エンドポイントが公開されます:
+
+- `/health` エンドポイントはアプリが正常に動作しており、リクエストを受け付ける準備ができているかどうかを示します。アプリ起動後、トラフィックを受け付け可能と判断されるためには、すべての正常性チェックが成功する必要があります。
+
+  ```http title="HTTP"
+  GET /health
+  ```
+
+  `/health` エンドポイントは、アプリが _「正常」_ である場合に、HTTP ステータスコード 200 と、`text/plain` 形式の値 `Healthy` を返します。
+
+- `/alive` エンドポイントは、アプリが実行中であるか、またはクラッシュして再起動が必要な状態かどうかを示します。アプリが 「生存中」と判断されるためには、_live_ タグが付与された正常性チェックのみが成功している必要があります。
+
+  ```http title="HTTP"
+  GET /alive
+  ```
+
+  `/alive` エンドポイントは、アプリが _「生存中」_ である場合に、HTTP ステータスコード 200 と、`text/plain` 形式の値 `Healthy` を返します。
+
+なお、`AddServiceDefaults` と `MapDefaultEndpoints` メソッドは、正常性チェックの設定だけでなく、OpenTelemetry や [サービス検出](/ja/fundamentals/service-discovery/) の構成など、アプリに対してさまざまな既定の設定も適用します。
+
+### 非開発環境（本番環境）
+
+非開発環境では、`/health` および `/alive` エンドポイントは既定で無効になっています。これらを有効化する必要がある場合は、ホスト フィルタリングや認可などの各種ルーティング機能を用いて、エンドポイントを保護することが推奨されます。詳細については、[ASP.NET Core における正常性チェック](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#use-health-checks-routing) をご参照ください。
+
+さらに、悪用やサービス拒否（DoS）攻撃を防ぐため、これらのエンドポイントに対してリクエスト タイムアウトや出力キャッシュを構成することも有効です。その一例として、次のように変更した `AddDefaultHealthChecks` メソッドが考えられます:
+
+```csharp title="Extensions.cs"
+public static IHostApplicationBuilder AddDefaultHealthChecks(
+    this IHostApplicationBuilder builder)
+{
+    builder.Services.AddRequestTimeouts(
+        configure: static timeouts =>
+            timeouts.AddPolicy("HealthChecks", TimeSpan.FromSeconds(5)));
+
+    builder.Services.AddOutputCache(
+        configureOptions: static caching =>
+            caching.AddPolicy("HealthChecks",
+            build: static policy => policy.Expire(TimeSpan.FromSeconds(10))));
+
+    builder.Services.AddHealthChecks()
+        // アプリが応答していることを確認するための既定の生存チェックを追加
+        .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+
+    return builder;
+}
+```
+
+上記のコードでは、次の設定を行っています:
+
+- `HealthChecks` というポリシー名で、正常性チェック リクエストに 5 秒のタイムアウト を追加しています。
+- `HealthChecks` というポリシー名で、正常性チェックのレスポンスに 10 秒間のキャッシュ を追加しています。
+
+次に、更新された `MapDefaultEndpoints` メソッドを見てみましょう:
+
+```csharp title="Extensions.cs"
+public static WebApplication MapDefaultEndpoints(
+    this WebApplication app)
+{
+    var healthChecks = app.MapGroup("");
+
+    healthChecks
+        .CacheOutput("HealthChecks")
+        .WithRequestTimeout("HealthChecks");
+
+    // アプリ起動後、トラフィックを受け付け可能と判断されるためには
+    // すべての正常性チェックが成功する必要があります
+    healthChecks.MapHealthChecks("/health");
+
+    // アプリが生存中と判断されるためには
+    // "live" タグが付与された正常性チェックのみが成功している必要があります
+    healthChecks.MapHealthChecks("/alive", new()
+    {
+        Predicate = static r => r.Tags.Contains("live")
+    });
+
+    return app;
+}
+```
+
+このコードでは、次のことを行っています:
+
+- 正常性チェック エンドポイントを `/` パス配下でグループ化しています。
+- 対応する `HealthChecks` ポリシーを指定し、出力キャッシュとリクエスト タイムアウトを適用しています。
+
+なお、更新した `AddDefaultHealthChecks` および `MapDefaultEndpoints` メソッドに加えて、リクエスト タイムアウト と 出力キャッシュ の両方に対応するサービスを登録する必要があります。
+
+利用するアプリケーションのエントリーポイント（通常は Program.cs ファイル）に、次のコードを追加してください。:
+
+```csharp
+// サービスを登録している箇所。
+// Build() を呼び出す前に追加します。
+builder.Services.AddRequestTimeouts();
+builder.Services.AddOutputCache();
+
+var app = builder.Build();
+
+// アプリをビルドした後、Run() を呼び出す前に追加します。
+app.UseRequestTimeouts();
+app.UseOutputCache();
+
+app.Run();
+```
+
+詳細については、 [ASP.NET Core のリクエスト タイムアウト ミドルウェア](https://learn.microsoft.com/ja-jp/aspnet/core/performance/timeouts) と [ASP.NET Core の出力キャッシュ ミドルウェア](https://learn.microsoft.com/ja-jp/aspnet/core/performance/caching/output) をご参照ください。
+
+## 統合（Integration）正常性チェック
+
+Aspire の各種統合機能では、アプリに対して追加の正常性チェックを登録することもできます。これらの正常性チェックは、`/health` および `/alive` エンドポイントが返す状態に反映されます。例えば、Aspire の PostgreSQL 統合では、次の条件を検証する正常性チェックが自動的に追加されます:
+
+- データベースへの接続を確立できること
+- データベース クエリを正常に実行できること
+
+これらのいずれかの処理が失敗した場合、対応する正常性チェックも失敗として扱われます。
+
+### 正常性チェックの構成
+
+利用している統合機能ごとに、用意されている構成オプションのいずれかを使って正常性チェックを無効化できます。Aspire の統合機能は [Microsoft.Extensions.Configuration](https://learn.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.configuration) をサポートしており、_appsettings.json_ などの構成ファイルを通じて設定を適用できます:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Npgsql": {
+      "DisableHealthChecks": true
+    }
+  }
+}
+```
+
+また、インライン デリゲートを使用して正常性チェックを構成することも可能です:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDbContext<MyDbContext>(
+    "postgresdb",
+    static settings => settings.DisableHealthChecks  = true);
+```
+
+## AppHost リソースの正常性チェック
+
+AppHost リソースの正常性チェックは、先に説明した正常性チェック エンドポイントとは異なります。これらの正常性チェックは AppHost プロジェクト内で構成され、オーケストレーターの視点から見たリソースの準備完了状態を判断するために使用されます。特に、`WaitFor` 機能を用いて依存するリソースの起動タイミングを制御する際に重要な役割を果たし、Aspire ダッシュボード上にも表示されます。
+
+### 正常性チェックによるリソースの準備完了判定
+
+リソースに正常性チェックが構成されている場合、AppHost はそれらを使用して、依存するリソースを起動する前に対象リソースが準備完了かどうかを判断します。一方、リソースに正常性チェックが登録されていない場合、AppHost はそのリソースが `Running` 状態になるまで待機します。
+
+### リソース向け HTTP 正常性チェック
+
+HTTP エンドポイントを公開しているリソースに対しては、特定のパスをポーリングする正常性チェックを追加できます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
+                        .WithHttpEndpoint(targetPort: 8080)
+                        .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithReference(catalogApi)
+       .WaitFor(catalogApi); // /health が HTTP 200 を返すまで待機
+```
+
+`WithHttpHealthCheck` メソッドは、プロジェクト リソースにも適用できます:
+
+```csharp title="C# — AppHost.cs"
+var backend = builder.AddProject<Projects.Backend>("backend")
+                     .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.Frontend>("frontend")
+       .WithReference(backend)
+       .WaitFor(backend);
+```
+
+### リソース正常性チェックのカスタマイズ
+
+より複雑な準備完了条件に対応するために、カスタムの正常性チェックを作成することもできます。まず AppHost のサービス コレクションに正常性チェックを定義し、その後リソースに関連付けます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var startAfter = DateTime.Now.AddSeconds(30);
+
+builder.Services.AddHealthChecks().AddCheck("mycheck", () =>
+    {
+        return DateTime.Now > startAfter
+            ? HealthCheckResult.Healthy()
+            : HealthCheckResult.Unhealthy();
+    });
+
+var pg = builder.AddPostgres("pg")
+    .WithHealthCheck("mycheck");
+
+builder.AddProject<Projects.MyApp>("myapp")
+    .WithReference(pg)
+    .WaitFor(pg); // Postgres コンテナーが実行中であり、かつカスタムの
+                  // "mycheck" 正常性チェックが正常になるまで待機
+```
+
+`AddCheck` メソッドは正常性チェックを登録し、`WithHealthCheck` はそれを特定のリソースに関連付けます。カスタム正常性チェックの作成および登録についての詳細は、`[正常性チェックを作成する](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/health-checks#create-health-checks) をご参照ください。
+
+### ダッシュボードとの統合
+
+リソースの正常性チェックの状態は Aspire ダッシュボードに表示され、リソースの準備状況をリアルタイムで確認できます。リソースが正常性チェックの完了待ちの状態にある場合、ダッシュボードには現在のステータスや失敗の詳細が表示されます。
+
+<Image
+  src={healthChecksDashboardStatus}
+  alt="リソースの正常性チェックの状態を表示している Aspire ダッシュボードのスクリーンショット"
+/>

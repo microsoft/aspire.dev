@@ -159,6 +159,23 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 The realm import files are mounted at `/opt/keycloak/data/import` in the Keycloak container. Realm import files are JSON files that represent the realm configuration.
 
+### Export telemetry to OTLP collector
+
+Keycloak containers can export telemetry to your OTLP collector using the `WithOtlpExporter` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keycloak = builder.AddKeycloak("keycloak", 8080)
+    .WithOtlpExporter();
+
+var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+    .WithReference(keycloak)
+    .WaitFor(keycloak);
+```
+
+This enables Keycloak to send traces, metrics, and logs to the Aspire dashboard, providing better observability for your authentication flows.
+
 ### Hosting integration health checks
 
 The Keycloak hosting integration doesn't currently support health checks, nor does it automatically add them.

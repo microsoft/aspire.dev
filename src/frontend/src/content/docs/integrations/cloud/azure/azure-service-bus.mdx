@@ -341,6 +341,52 @@ The Azure Service Bus hosting integration automatically adds a health check for 
 
 The hosting integration relies on the [📦 AspNetCore.HealthChecks.AzureServiceBus](https://www.nuget.org/packages/AspNetCore.HealthChecks.AzureServiceBus) NuGet package.
 
+### Connection properties
+
+When you reference Azure Service Bus resources using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### Service Bus namespace
+
+The Service Bus namespace resource exposes the following connection properties:
+
+| Property Name      | Description                                                                     |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `Host`             | The hostname of the Service Bus namespace                                       |
+| `Port`             | The port of the Service Bus namespace when the emulator is used                 |
+| `Uri`              | The connection URI, with the format `sb://myservicebus.servicebus.windows.net`  |
+| `ConnectionString` | **Emulator only.** Includes SAS key material for the local emulator connection. |
+
+#### Service Bus queue
+
+The Service Bus queue resource inherits all properties from its parent Service Bus namespace and adds:
+
+| Property Name | Description           |
+| ------------- | --------------------- |
+| `QueueName`   | The name of the queue |
+
+#### Service Bus topic
+
+The Service Bus topic resource inherits all properties from its parent Service Bus namespace and adds:
+
+| Property Name | Description           |
+| ------------- | --------------------- |
+| `TopicName`   | The name of the topic |
+
+#### Service Bus subscription
+
+The Service Bus subscription resource inherits all properties from its parent Service Bus topic and adds:
+
+| Property Name      | Description                                |
+| ------------------ | ------------------------------------------ |
+| `SubscriptionName` | The name of the subscription               |
+| `ConnectionString` | The connection string for the subscription |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `sb1` becomes `SB1_URI`.
+</Aside>
+
 ## Client integration
 
 To get started with the Aspire Azure Service Bus client integration, install the [📦 Aspire.Azure.Messaging.ServiceBus](https://www.nuget.org/packages/Aspire.Azure.Messaging.ServiceBus) NuGet package in the client-consuming project, that is, the project for the application that uses the Service Bus client. The Service Bus client integration registers a `ServiceBusClient` instance that you can use to interact with Service Bus.

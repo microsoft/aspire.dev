@@ -1,0 +1,113 @@
+---
+title: サービス検出
+description: Understand essential service discovery concepts in Aspire.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+この記事では、Aspire プロジェクト内でサービス検出がどのように動作するかを学びます。Aspire には、開発時およびテスト時にサービス検出を構成するための機能が含まれています。サービス検出の機能は、Aspire AppHost プロジェクトに含まれる _構成ベースのエンドポイント リゾルバー_ が期待する形式で構成情報を提供し、それをアプリケーション モデルに追加された各サービス プロジェクトへ渡すことで動作します。詳しくは、[.NET でのサービス検出](https://learn.microsoft.com/ja-jp/dotnet/core/extensions/service-discovery) をご参照ください。
+
+## 参照による暗黙的なサービス検出
+
+サービス検出用の構成は、あるプロジェクトから参照されているサービスに対してのみ追加されます。たとえば、次の AppHost プログラムを考えてみましょう:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalog = builder.AddProject<Projects.CatalogService>("catalog");
+var basket = builder.AddProject<Projects.BasketService>("basket");
+
+var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
+                      .WithReference(basket)
+                      .WithReference(catalog);
+```
+
+この例では、_frontend_ プロジェクトが _catalog_ プロジェクトと _basket_ プロジェクトを参照しています。2 つの `WithReference` 呼び出しにより、Aspire プロジェクトは、参照されているプロジェクト（_catalog_ と _basket_）のサービス検出情報を _frontend_ プロジェクトへ渡すよう指示されます。
+
+## 名前付きエンドポイント
+
+一部のサービスは、複数の「名前付きエンドポイント」を公開します。名前付きエンドポイントは、HTTP リクエスト URI のホスト部分にエンドポイント名を指定することで解決できます。形式は `scheme://_endpointName.serviceName` です。たとえば、「basket」という名前のサービスが「dashboard」というエンドポイントを公開している場合、`https+http://_dashboard.basket` という URI でそのエンドポイントを指定できます:
+
+```csharp
+builder.Services.AddHttpClient<BasketServiceClient>(
+    static client => client.BaseAddress = new("https+http://basket"));
+
+builder.Services.AddHttpClient<BasketServiceDashboardClient>(
+    static client => client.BaseAddress = new("https+http://_dashboard.basket"));
+```
+
+この例では、basket サービス 用と、basket サービスのダッシュボード用の 2 つの `HttpClient` クラスが追加されています。
+
+### 構成を使用した名前付きエンドポイント
+
+構成ベースのエンドポイント リゾルバーを使用すると、エンドポイント名の前に `_endpointName` を付けることで、構成内に名前付きエンドポイントを指定できます。ここで `endpointName` はエンドポイント名です。たとえば、次の _appsettings.json_ では、名前なしの既定エンドポイントと、「dashboard」という名前のエンドポイントが定義されています:
+
+```json
+{
+  "Services": {
+    "basket": {
+      "https": "https://10.2.3.4:8080" /* the https endpoint, requested via https://basket */,
+      "dashboard": "https://10.2.3.4:9999" /* the "dashboard" endpoint, requested via https://_dashboard.basket */
+    }
+  }
+}
+```
+
+この JSON では、次のように解決されます:
+
+- 既定エンドポイントである `https://basket` を解決した場合は `10.2.3.4:8080`です。
+- 「dashboard」エンドポイントである `https://_dashboard.basket` を解決した場合は `10.2.3.4:9999`.
+
+### Aspire における名前付きエンドポイント
+
+名前付きエンドポイントは、App Host のコードから公開することもできます。たとえば、先ほどの例は次のようにモデル化できます：
+
+```csharp
+var basket = builder.AddProject<Projects.BasketService>("basket")
+    .WithHttpsEndpoint(port: 9999, name: "dashboard");
+```
+
+### DNS SRV を使用した Kubernetes 上の名前付きエンドポイント
+
+Kubernetes にデプロイする場合、DNS SRV サービス エンドポイント リゾルバーを使用して名前付きエンドポイントを解決できます。たとえば、次のリソース定義では、「basket」というサービスに対して、「default」と「dashboard」という 2 つのエンドポイント用の DNS SRV レコードが作成されます。
+
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: basket
+spec:
+  selector:
+    name: basket-service
+  clusterIP: None
+  ports:
+    - name: default
+      port: 8080
+    - name: dashboard
+      port: 9999
+```
+
+「basket」サービスの「dashboard」エンドポイントを解決するように構成するには、次のように DNS SRV サービス エンドポイント リゾルバーをホスト ビルダーに追加します:
+
+```csharp
+builder.Services.AddServiceDiscoveryCore();
+builder.Services.AddDnsSrvServiceEndpointProvider();
+```
+
+詳しくは、`AddServiceDiscoveryCore` および `AddDnsSrvServiceEndpointProvider` をご参照ください。
+
+特別なポート名である「default」は、`https://basket` という URI で解決される既定のエンドポイントを指定するために使用されます。
+
+先ほどと同様に、バスケット サービス用の `HttpClient` にサービス ディスカバリーを追加するには、次のようにします:
+
+```csharp
+builder.Services.AddHttpClient<BasketServiceClient>(
+    static client => client.BaseAddress = new("https://basket"));
+```
+
+同様に、「dashboard」エンドポイントは次のように指定できます:
+
+```csharp
+builder.Services.AddHttpClient<BasketServiceDashboardClient>(
+    static client => client.BaseAddress = new("https://_dashboard.basket"));
+```
