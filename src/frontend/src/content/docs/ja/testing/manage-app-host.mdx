@@ -1,0 +1,222 @@
+---
+title: テストで AppHost を管理する
+description: Learn how to manage the AppHost in Aspire tests.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+
+<PivotSelector
+  title="使用するテストフレームワークを選択してください"
+  key="testing-framework"
+  options={[
+    { id: 'xunit', title: 'xUnit.net' },
+    { id: 'mstest', title: 'MSTest' },
+    { id: 'nunit', title: 'NUnit' },
+  ]}
+/>
+
+Aspire を使って機能テストや統合テストを書く際には、AppHost(/ja/get-started/app-host/) インスタンスを効率的に管理することが重要です。AppHost はアプリケーション全体の実行環境を表しており、作成や破棄にコストがかかる場合があります。本記事では、Aspire のテストにおいて AppHost インスタンスをどのように管理するかを解説します。
+
+Aspire でテストを書く場合は、[Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing) NuGet パッケージを使用します。このパッケージには、テスト内で AppHost インスタンスを管理するためのいくつかのヘルパークラスが含まれています。
+
+## `DistributedApplicationTestingBuilder` クラスを使用する
+
+[最初のテストを書くチュートリアル](/ja/testing/write-your-first-test/)
+では、AppHost インスタンスを作成するために使用できる DistributedApplicationTestingBuilder クラスを紹介しました:
+
+```csharp
+var appHost = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.AspireApp_AppHost>();
+```
+
+`DistributedApplicationTestingBuilder.CreateAsync<T>` メソッドは、AppHost プロジェクトの型をジェネリック パラメーターとして受け取り、AppHost インスタンスを作成します。このメソッドは各テストの開始時に実行されますが、テストスイートが大きくなるにつれて、AppHost インスタンスを一度だけ作成し、テスト間で共有した方が効率的です。
+
+<Pivot id="xunit">
+
+xUnit では、テストクラスに [IAsyncLifetime](https://github.com/xunit/xunit/blob/master/src/xunit.core/IAsyncLifetime.cs) インターフェイスを実装することで、AppHost インスタンスの非同期な初期化と破棄をサポートできます。`InitializeAsync` メソッドはテスト実行前に AppHost インスタンスを作成するために使用され、`DisposeAsync` メソッドはすべてのテスト完了後に AppHost を破棄します。
+
+```csharp
+public class WebTests : IAsyncLifetime
+{
+    private DistributedApplication _app;
+
+    public async Task InitializeAsync()
+    {
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        _app = await appHost.BuildAsync();
+    }
+
+    public async Task DisposeAsync() => await _app.DisposeAsync();
+
+    [Fact]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // ここにテストコードを記述します
+    }
+}
+```
+
+</Pivot>
+<Pivot id="mstest">
+
+MSTest では、テストクラスの static メソッド に `ClassInitializeAttribute` と `ClassCleanupAttribute` を付与することで、AppHost インスタンスの初期化とクリーンアップを行います。`ClassInitialize` メソッドはテスト実行前に AppHost インスタンスを作成するために使用され、`ClassCleanup` メソッドはすべてのテスト完了後に AppHost インスタンスを破棄します。
+
+```csharp
+[TestClass]
+public class WebTests
+{
+    private static DistributedApplication _app;
+
+    [ClassInitialize]
+    public static async Task ClassInitialize(TestContext context)
+    {
+       var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        _app = await appHost.BuildAsync();
+    }
+
+    [ClassCleanup]
+    public static async Task ClassCleanup() => await _app.DisposeAsync();
+
+    [TestMethod]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // ここにテストコードを記述します
+    }
+}
+```
+
+</Pivot>
+<Pivot id="nunit">
+
+NUnit では、テストクラスのメソッドに [OneTimeSetUp](https://docs.nunit.org/articles/nunit/writing-tests/attributes/onetimesetup.html) 属性と [OneTimeTearDown](https://docs.nunit.org/articles/nunit/writing-tests/attributes/onetimeteardown.html) 属性を使用して、AppHost インスタンスのセットアップと破棄を行います。`OneTimeSetUp` メソッドはテスト実行前に AppHost インスタンスを作成するために使用され、`OneTimeTearDown` メソッドはすべてのテストが完了した後に AppHost インスタンスを破棄します。
+
+```csharp
+public class WebTests
+{
+    private DistributedApplication _app;
+
+    [OneTimeSetUp]
+    public async Task OneTimeSetup()
+    {
+       var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        _app = await appHost.BuildAsync();
+    }
+
+    [OneTimeTearDown]
+    public async Task OneTimeTearDown() => await _app.DisposeAsync();
+
+    [Test]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // ここにテストコードを記述します
+    }
+}
+```
+
+</Pivot>
+
+テスト実行の開始時に AppHost をフィールドとして保持しておくことで、各テストから再作成することなく AppHost にアクセスできるようになり、テスト実行にかかる時間を短縮できます。そしてテスト実行が完了すると AppHost は破棄され、コンテナーなど、テスト実行中に作成されたすべてのリソースがクリーンアップされます。
+
+## AppHost に引数を渡す
+
+You can access the arguments from your AppHost with the `args` parameter. Arguments are also passed to [.NET's configuration system](https://learn.microsoft.com/dotnet/core/extensions/configuration), so you can override many configuration settings this way. In the following example, you override the [environment](https://learn.microsoft.com/aspnet/core/fundamentals/environments) by specifying it as a command line option:
+AppHost では、`args` パラメーターを使って引数にアクセスできます。引数は [.NET の構成システム](https://learn.microsoft.com/ja-jp/dotnet/core/extensions/configuration) にも渡されるため、この方法で多くの構成設定を上書きできます。次の例では、コマンドライン オプションとして指定することで [ASP.NET Core ランタイム環境](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/environments) を上書きしています:
+
+```csharp
+var builder = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+    [
+        "--environment=Testing"
+    ]);
+```
+
+他の引数も AppHost の `Program` に渡して、AppHost 内で利用できます。次の例では、Postgres インスタンスにデータ ボリュームを追加するかどうかを制御するための引数を AppHost に渡しています。
+
+AppHost の `Program` では、構成を使ってボリュームの有効／無効を切り替えています:
+
+```csharp
+var postgres = builder.AddPostgres("postgres1");
+if (builder.Configuration.GetValue("UseVolumes", true))
+{
+    postgres.WithDataVolume();
+}
+```
+
+In test code, you pass `"UseVolumes=false"` in the `args` to the AppHost:
+テストコードでは、AppHost の `args` に `"UseVolumes=false"` を渡します:
+
+```csharp
+public async Task DisableVolumesFromTest()
+{
+    // 引数でボリュームを無効化する:
+    using var builder = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.TestingAppHost1_AppHost>(
+        [
+            "UseVolumes=false"
+        ]);
+
+    // UseVolumes=false を渡しているため、コンテナーにはボリューム Annotatin が付与されない
+    var postgres = builder.Resources.Single(r => r.Name == "postgres1");
+
+    Assert.Empty(postgres.Annotations.OfType<ContainerMountAnnotation>());
+}
+```
+
+## `DistributedApplicationFactory` クラスを使用する
+
+`DistributedApplicationTestingBuilder` クラスは多くの場面で便利ですが、たとえば builder を作成する前にコードを実行したい、あるいは AppHost をビルドした後に処理を挟みたいなど、AppHost の起動フローをより細かく制御したいケースもあります。そうした場合は、`DistributedApplicationFactory` クラスを自分で実装します。これは `DistributedApplicationTestingBuilder` が内部的に利用している仕組みです。
+
+```csharp
+public class TestingAspireAppHost()
+    : DistributedApplicationFactory(typeof(Projects.AspireApp_AppHost))
+{
+    // メソッドをオーバーライドして処理を追加します
+}
+```
+
+コンストラクターには、AppHost プロジェクト参照の型をパラメーターとして渡します。必要に応じて、基盤となるホスト アプリケーション ビルダーに引数を渡すこともできます。これらの引数は AppHost の起動方法を制御し、_AppHost.cs_ ファイル内で AppHost インスタンスを起動するために使われる args 変数にも値として渡されます。
+
+### ライフサイクル メソッド
+
+`DistributionApplicationFactory` クラスには、AppHost の準備から作成までの流れの中でカスタム動作を差し込める複数のライフサイクル メソッドが用意されています。オーバーライド可能なメソッドは `OnBuilderCreating`、`OnBuilderCreated`、`OnBuilding`、`OnBuilt` です。
+
+たとえば `OnBuilderCreating` を使うと、AppHost の作成前（依存する Azure リソースがプロビジョニングされる前）に、Azure のサブスクリプションやリソース グループ情報などの構成を設定できます。これにより、テストが正しい Azure 環境を使って実行されるようにできます。
+
+```csharp
+public class TestingAspireAppHost()
+    : DistributedApplicationFactory(typeof(Projects.AspireApp_AppHost))
+{
+    protected override void OnBuilderCreating(
+        DistributedApplicationOptions applicationOptions,
+        HostApplicationBuilderSettings hostOptions)
+    {
+        hostOptions.Configuration ??= new();
+        hostOptions.Configuration["environment"] = "Development";
+        hostOptions.Configuration["AZURE_SUBSCRIPTION_ID"] = "00000000-0000-0000-0000-000000000000";
+        hostOptions.Configuration["AZURE_RESOURCE_GROUP"] = "my-resource-group";
+    }
+}
+```
+
+.NET の構成システムには優先順位があるため、この例では 環境変数が _appsettings.json_ や _secrets.json_ の設定よりも優先されます。
+
+また、ライフサイクルの別の活用例として、AppHost が利用するサービス構成を変更するケースがあります。次の例では、`OnBuilderCreated` API をオーバーライドして `HttpClient` にレジリエンス（耐障害性）を追加しています:
+
+```csharp
+protected override void OnBuilderCreated(
+    DistributedApplicationBuilder applicationBuilder)
+{
+    applicationBuilder.Services.ConfigureHttpClientDefaults(clientBuilder =>
+    {
+        clientBuilder.AddStandardResilienceHandler();
+    });
+}
+```

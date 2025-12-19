@@ -1,0 +1,1814 @@
+---
+title: Aspire 13 の新機能
+description: Aspire 13.0 introduces polyglot application development with first-class Python and JavaScript support, container-based builds, aspire do pipelines, VS Code extension, and modern CLI tooling updates and improvements.
+sidebar:
+  label: Aspire 13.0
+  order: 1
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import { Code, Steps } from '@astrojs/starlight/components';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import mcpDialog from '@assets/whats-new/mcp-dialog.png';
+import interactionService from '@assets/whats-new/interaction-service.png';
+import languageIcons from '@assets/whats-new/language-icons.png';
+import colorTweaks from '@assets/whats-new/color-tweaks.png';
+import healthChecksLastRun from '@assets/whats-new/health-checks-last-run.png';
+
+📢 Aspire 13 は、Aspire 製品ラインにおける大きな節目となるリリースです。
+
+Aspire はもはや「.NET Aspire」ではなく、単に **Aspire** と呼ばれる **フル機能のポリグロット（多開発言語）・アプリケーション・プラットフォーム**になりました。 Aspire は引き続き .NET アプリケーションに対して最高水準のサポートを提供しますが、バージョン 13.0 では **Python と JavaScript が第一級の言語として位置付けられ**、これらの言語で書かれたアプリケーションの実行、デバッグ、デプロイを包括的にサポートします。
+
+このリリースでは、次の新機能が導入されています:
+
+- **Python の第一級サポート**: Python モジュールのサポート、uvicorn を用いたデプロイ、柔軟なパッケージ管理（uv、pip、venv）、および本番用 Dockerfile の自動生成。
+- **JavaScript の第一級サポート**: Vite および npm ベースのアプリケーションに対応し、パッケージマネージャーの自動検出、デバッグのサポート、コンテナベースのビルドパイプラインを提供。
+- **ポリグロット（多開発言語）なインフラストラクチャ**: 接続プロパティがあらゆる言語で利用可能（URI、JDBC、個別プロパティ）、言語やコンテナをまたいだ証明書信頼。
+- **ビルド成果物としてのコンテナファイル**: ビルドの出力をフォルダーではなくコンテナとする新しいパラダイムにより、再現性が高く、分離され、可搬性のあるビルドを実現。
+- **aspire do：ビルド、公開、デプロイのための新しいプラットフォーム**: 並列実行、依存関係の追跡、拡張可能なワークフローにより、アプリケーションのビルド・公開・デプロイを可能に。
+- **モダンな CLI**: 既存アプリを Aspire 化する `aspire init` 、および実行間で設定を記憶する改良されたデプロイ状態管理。
+- **VS Code 拡張機能**: プロジェクト作成、統合管理、複数言語のデバッグ、デプロイを行うためのコマンドにより、Aspire 開発を効率化。
+
+また、リブランディングに伴い、Aspire は **[aspire.dev](https://aspire.dev)** に新しい拠点を構えました。ここはドキュメント、入門ガイド、コミュニティリソースの中心となります。
+
+**要件:**
+
+- .NET 10 SDK 以降
+
+import { Aside, Icon } from '@astrojs/starlight/components';
+
+Aspire に関するフィードバックや質問、または貢献にご興味がありましたら、 [<Icon name="github" class='d-inline' /> GitHub](https://github.com/dotnet/aspire) で私たちとコラボレーションするか、新しく開設された [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) に参加して、チームや他のコミュニティメンバーと交流してください。
+
+## 🆙 Aspire 13.0 へのアップグレード
+
+<Aside type="caution">
+  Aspire 13.0
+  は破壊的変更を含むメジャーバージョンリリースです。アップグレード前に、必ず「破壊的変更」セクションをご確認ください。
+</Aside>
+
+Aspire 13.0 へアップグレードする最も簡単な方法は、 `aspire update` コマンドを使用することです:
+
+1. Aspire CLI を最新バージョンに更新します:
+
+   <OsAwareTabs syncKey="terminal">
+     <Code
+       slot="unix"
+       lang="bash"
+       code="curl -sSL https://aspire.dev/install.sh | bash"
+     />
+     <Code
+       slot="windows"
+       lang="powershell"
+       code="irm https://aspire.dev/install.ps1 | iex"
+     />
+   </OsAwareTabs>
+
+2. [`aspire update` コマンド](/reference/cli/commands/aspire-update/)を使用して、Aspire プロジェクトを更新します:
+
+   ```bash title="Aspire CLI — すべての Aspire パッケージを更新"
+   aspire update
+   ```
+
+   このコマンドでは、次の処理が行われます:
+   - AppHost プロジェクト内の `Aspire.AppHost.Sdk` のバージョンを更新します。
+   - すべての Aspire の NuGet パッケージをバージョン 13.0 に更新します。
+   - 依存関係の解決を自動的に行います。
+   - 通常のプロジェクトと Central Package Management（CPM）の両方に対応しています。
+
+3. Aspire テンプレートを更新します:
+
+   ```bash
+   dotnet new install Aspire.ProjectTemplates
+   ```
+
+<Aside type="note">
+  Aspire 8.x からアップグレードする場合は、まず [upgrade
+  guide](https://learn.microsoft.com/dotnet/aspire/get-started/upgrade-to-aspire-9)
+  に従って 9.x へアップグレードし、その後 13.0 へアップグレードしてください。
+</Aside>
+
+## 🧩 AppHost テンプレートの更新
+
+Aspire 13.0 では、AppHost プロジェクト テンプレートの構成が簡素化されました。SDK が `Aspire.Hosting.AppHost` パッケージを内包するようになり、プロジェクト ファイルがよりすっきりとした構成になります。
+
+**変更前 (9.x):**
+
+```xml {1,3,7,19-20}
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>1bf2ca25-7be4-4963-8782-c53a74e10ad9</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyApp.ApiService\MyApp.ApiService.csproj" />
+    <ProjectReference Include="..\MyApp.Web\MyApp.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="9.5.2" />
+  </ItemGroup>
+
+</Project>
+```
+
+**変更後 (13.0):**
+
+```xml {1,5,17}
+<Project Sdk="Aspire.AppHost.Sdk/13.0.0">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>1bf2ca25-7be4-4963-8782-c53a74e10ad9</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyApp.ApiService\MyApp.ApiService.csproj" />
+    <ProjectReference Include="..\MyApp.Web\MyApp.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.0.0" />
+  </ItemGroup>
+
+</Project>
+```
+
+**主な変更点:**
+
+- **SDK 宣言の簡素化**: SDKは `<Project>` タグ内でバージョン付きで直接指定するようになりました。(`Sdk="Aspire.AppHost.Sdk/13.0.0"`)
+- **`Aspire.Hosting.AppHost` の明示的な参照が不要**: SDK がこのパッケージを自動的に含むため、記述量が削減されます。
+- **よりクリーンな構成**: 個別の `<Sdk Name="..." />` 要素および `Microsoft.NET.Sdk` のベース SDK が削除されました。
+- **ターゲット フレームワーク**: `net9.0` から `net10.0` に更新されました。
+
+`aspire update` コマンドは、9.x から 13.0 へのアップグレード時に、この移行を自動的に処理します。
+
+> [!TIP]
+> さらに簡単なセットアップとして、Aspire 13.0 では プロジェクト ファイルを一切必要としない [単一ファイル AppHost](#単一ファイル-apphost-サポート) もサポートされています。単一ファイル AppHost は、素早いプロトタイプ作成や学習用途に最適です。
+>
+> 同じプロジェクトを、ファイルベースの AppHost として表した場合:
+>
+> ```csharp
+> // apphost.cs
+> #:sdk Aspire.AppHost.Sdk@13.0.0
+> #:package Aspire.Hosting.Redis@13.0.0
+>
+> var builder = DistributedApplication.CreateBuilder(args);
+>
+> var cache = builder.AddRedis("cache");
+> var api = builder.AddProject("apiservice", "../MyApi")
+>                  .WithReference(cache);
+>
+> builder.Build().Run();
+> ```
+>
+> プロジェクト ファイルは不要で、`#:package` ディレクティブを使用してパッケージ参照を宣言した単一の `.cs` ファイルだけで構成できます。
+
+## 🌐 ポリグロット（多開発言語）・プラットフォームとしての Aspire
+
+Aspire 13.0 は、.NET 中心のオーケストレーション ツールから、真に **ポリグロットなアプリケーション プラットフォーム** への大きな転換点となります。Python と JavaScript は .NET と並ぶ第一級の言語として位置付けられ、開発・デバッグ・デプロイのワークフローを包括的にサポートします。
+
+### 第一級言語としての Python
+
+Aspire 13.0 では Python に対する包括的なサポートが導入され、他のサービスと並行して Python アプリケーションを簡単に構築、デバッグ、デプロイできるようになりました。
+
+#### 柔軟な Python アプリケーション モデル
+
+Aspire では、用途に応じて使い分けられる 3 つの方法で Python コードを実行できます:
+
+```csharp title="C# — 柔軟な Python アプリケーション モデル"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Python スクリプトを直接実行
+var etl = builder.AddPythonApp("etl-job", "../etl", "process_data.py");
+
+// Python モジュールを実行 (例: python -m celery)
+var worker = builder.AddPythonModule("celery-worker", "../worker", "celery")
+    .WithArgs("worker", "-A", "tasks", "--loglevel=info");
+
+// 仮想環境内の実行ファイルを実行 (例: gunicorn)
+var api = builder.AddPythonExecutable("api", "../api", "gunicorn")
+    .WithArgs("app:app", "--bind", "0.0.0.0:8000");
+```
+
+#### ASGI アプリケーション向けの Uvicorn 統合
+
+FastAPI、Starlette、Quart などの ASGI フレームワークを使用した Python Web アプリケーションに対して、Aspire は専用の `AddUvicornApp` サポートを提供します:
+
+```csharp title="C# — Uvicorn 統合"
+var api = builder.AddUvicornApp("api", "./api", "main:app")
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health");
+```
+
+`AddUvicornApp` メソッドは自動的に次の処理を行います:
+
+- HTTP エンドポイントを構成します。
+- 適切な Uvicorn のコマンドライン引数を設定します。
+- 開発時のホットリロードをサポートします。
+- Aspire の正常性チェック システムと統合します。
+
+#### Python のパッケージ管理
+
+Aspire 13.0 では、自動検出により柔軟な Python パッケージ管理が提供されます。
+
+**パッケージマネージャーの自動検出:**
+
+Python アプリを追加すると、Aspire がパッケージ管理を自動的に検出して構成します:
+
+```csharp title="C# — 自動パッケージ検出"
+// pyproject.toml または requirements.txt が存在する場合 → 自動的に pip を使用します
+// どちらも存在しない場合 → 仮想環境（.venv）を作成します
+var api = builder.AddUvicornApp("api", "./api", "main:app");
+```
+
+**ほとんどの場合、パッケージ管理を明示的に設定する必要はありません。**Aspire が自動的に検出します。
+
+**uv を使用する場合（新規プロジェクトに推奨）:**
+
+[uv](https://github.com/astral-sh/uv)を使用したモダンな Python プロジェクトでは、 `WithUv()` を指定して明示的に有効化します:
+
+```csharp title="C# — uv を使用したパッケージ管理"
+builder.AddUvicornApp("api", "./api", "main:app")
+    .WithUv();  // Use uv for package management
+```
+
+`WithUv()` を使用すると、Aspire は次の処理を自動的に行います:
+
+- `pyproject.toml` に基づいて依存関係をインストールするために `uv sync` を自動実行します。
+- プロジェクトごとに分離された仮想環境を作成します。
+- uv の高いパフォーマンスを活用します（pip より 10～100 倍高速）。
+- プロジェクト構成から Python のバージョンを自動検出します。
+
+**pip の明示的な構成:**
+
+pip の挙動を明示的に設定するには、 `WithPip()` を使用します:
+
+```csharp title="C# — pip を使用したパッケージ管理"
+builder.AddUvicornApp("api", "./api", "main:app")
+    .WithPip();  // パッケージ管理に pip を明示的に使用します
+```
+
+`WithPip()` を使用すると、Aspire は次の処理を行います:
+
+- `requirements.txt` または `pyproject.toml`（pip は両方をサポート）から依存関係を自動的にインストールします。
+- 親ディレクトリをたどって仮想環境（.venv）を検出します。
+- 仮想環境が存在しない場合は、新しく作成します。
+
+**仮想環境パスの構成:**
+
+既定では、Aspire はアプリ ディレクトリ内の `.venv` を仮想環境のパスとして使用します。カスタム パスを指定したり、自動作成の挙動を制御したりするには `WithVirtualEnvironment()` を使用します:
+
+```csharp title="C# — 仮想環境パスの構成"
+// カスタムの仮想環境（venv）パスを使用する
+builder.AddPythonApp("api", "./api", "main.py")
+    .WithVirtualEnvironment("myenv");
+
+// 自動作成せず、既存の仮想環境（venv）を使用する
+builder.AddPythonApp("worker", "./worker", "worker.py")
+    .WithVirtualEnvironment(".venv", createIfNotExists: false);
+```
+
+既定では `createIfNotExists` は `true` に設定されており、仮想環境が存在しない場合は Aspire が自動的に作成します。既存の仮想環境が必須の場合は、`false` に設定してください。
+
+#### VS Code デバッグ サポート
+
+Python アプリケーションは、ブレークポイントを含む完全なデバッグ機能を使用して、VS Code から直接デバッグできます。Aspire 13.0 では、すべての Python リソースに対してデバッグ用インフラストラクチャが自動的に有効化されており、追加の設定は不要です。詳しくは [Visual Studio Code 拡張機能](#visual-studio-code-拡張機能) を参照してください。
+
+**サポートされるデバッグ シナリオ:**
+
+- **Python スクリプト**: ブレークポイントや変数の確認を行いながら `AddPythonApp` をデバッグ可能。
+- **Python モジュール**: モジュール解決を含めて `AddPythonModule` をデバッグ可能。
+- **Flask アプリケーション**: 自動リロード付きで Flask アプリをデバッグ可能。
+- **Uvicorn/FastAPI**: async/await をサポートした ASGI アプリケーションをデバッグ可能。
+
+> [!NOTE]
+> Python リソースに対するデバッグは自動的に有効化されます。Aspire の VS Code 拡張機能により、VS Code の起動構成（launch configuration）が自動的に生成されます。
+
+#### Dockerfile の自動生成
+
+Aspire は、公開（パブリッシュ）時に Python アプリケーション向けの本番対応 Dockerfile を自動生成します:
+
+```csharp title="C# — Dockerfile 自動生成"
+// uv を使用する場合（推奨）
+builder.AddUvicornApp("api", "./api", "main:app")
+    .WithUv();
+
+// または pip を使用する場合
+builder.AddUvicornApp("api", "./api", "main:app")
+    .WithPip();
+```
+
+生成される Dockerfile は、選択したパッケージマネージャーに応じて自動的に最適化されます:
+
+- **uv を使用する場合**: `pyproject.toml` から高速に依存関係をインストールするために uv を使用します。
+- **pip を使用する場合**: `requirements.txt` から依存関係をインストールするために pip を使用します。
+
+いずれの方法でも、適切な Python ベース イメージが使用され、コンテナのベスト プラクティスに沿った構成になります。
+
+#### Python バージョンの自動検出
+
+Aspire は、Dockerfile 生成時に使用する Python のバージョンを、次の複数の情報源から 優先順位順 に自動検出します:
+
+<Steps>
+
+1. **`.python-version` ファイル** (最優先)。
+2. **`pyproject.toml`** の `requires-python` フィールド。
+3. **仮想環境** - フォールバックとして　`python --version` を使用。
+
+</Steps>
+
+検出されたバージョンに基づいて、Docker 公開時に使用する適切な Python ベース イメージが選択されます。
+
+#### スターター テンプレート: Vite + FastAPI
+
+Aspire 13.0 には、フルスタックの Python アプリケーションを示す新しい `aspire-py-starter` テンプレートが含まれています:
+
+```bash title="Bash — Python スターター テンプレートで作成"
+aspire new aspire-py-starter
+```
+
+このテンプレートには、次の内容が含まれています:
+
+- **FastAPI バックエンド**: Uvicorn を使用する Python の ASGI アプリケーション。
+- **Vite + React フロントエンド**: TypeScript を用いたモダンな JavaScript フロントエンド。
+- **OpenTelemetry 統合**: 分散トレーシング、ログ、メトリクス。
+- **Redis キャッシュ** (任意): リクエスト間で利用できる分散キャッシュ。
+- **コンテナ ファイル**: Python バックエンドから配信されるフロントエンドの静的ファイル。
+
+フルスタックのポリグロット アプリ（Python バックエンド + JavaScript フロントエンド）を素早く構築できます。試して、カスタマイズして、出荷しましょう。 [今すぐ作成](/ja/get-started/first-app/?lang=python) して [今すぐデプロイ](/ja/get-started/deploy-first-app/?lang=python)できます！
+
+React フロントエンドは HTTP エンドポイントを通じて FastAPI バックエンドと通信し、1 つの Aspire アプリケーションの中で 2 つの言語がシームレスに統合されることを示しています。新しいテンプレートはモダンな UX を備えています:
+
+import pythonStarterDarkPng from '@assets/get-started/python-starter-dark.png';
+import pythonStarterLightPng from '@assets/get-started/python-starter-light.png';
+
+<ThemeImage
+  light={pythonStarterLightPng}
+  dark={pythonStarterDarkPng}
+  alt="Docker Compose 上で稼働する、デプロイ済みの Python／React アプリケーション"
+/>
+
+### 第一級言語としての JavaScript
+
+Aspire 13.0 では、JavaScript サポートが再設計・拡張されました。従来のバージョンでは `Aspire.Hosting.NodeJs` 統合によって JavaScript アプリケーションが有効化されていましたが、Aspire 13.0 ではこの統合は `Aspire.Hosting.JavaScript` に名称変更され、すべての JavaScript アプリケーションの基盤となるメソッドとして `AddJavaScriptApp` が導入されています。
+
+#### 統一された JavaScript アプリケーション モデル
+
+新しい `AddJavaScriptApp` メソッドは、従来の `AddNpmApp`（削除済み）に代わるもので、JavaScript アプリケーションを追加するための一貫した方法を提供します:
+
+```csharp title="C# — 統一された JavaScript アプリケーション モデル"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// JavaScript アプリケーションを追加します（既定では npm run dev が実行されます）
+var frontend = builder.AddJavaScriptApp("frontend", "./frontend");
+
+// 別のパッケージ マネージャーを使用する
+var admin = builder.AddJavaScriptApp("admin", "./admin")
+    .WithYarn();
+```
+
+既定では、`AddJavaScriptApp` は次の処理を自動的に行います:
+
+- `package.json` から npm を自動検出します。
+- ローカル開発時には "dev" スクリプトを実行します。
+- パブリッシュ時には "build" スクリプトを実行して本番用アセットを生成します。
+- 本番用アセットをビルドするための Dockerfile を自動生成します。
+
+#### パッケージ マネージャーの柔軟性
+
+Aspire は、開発環境と本番環境の両方に適した賢い既定動作により、複数の JavaScript パッケージ マネージャーを自動検出してサポートします。
+
+**既定で自動インストール:**
+
+Aspire 13.0 からは、パッケージ マネージャーは既定で依存関係を自動インストールします（`install = true`）。これにより、開発時およびパブリッシュ時のいずれにおいても、依存関係が常に最新の状態に保たれます。
+
+**再現性の高いビルドのためのスマートな既定動作:**
+
+パブリッシュ時（本番モード）には、Aspire はロックファイルの有無に基づいて、再現性のあるインストール コマンドを自動的に使用します:
+
+- **npm**: `package-lock.json` が存在する場合は `npm ci` を使用し、存在しない場合は `npm install` を使用します。
+- **yarn**:
+  - `yarn.lock` が存在し、かつ yarn v2 以降が検出された場合は `yarn install --immutable` を使用します。
+  - それ以外で `yarn.lock` が存在する場合は `yarn install --frozen-lockfile` を使用し、存在しない場合は `yarn install` を使用します。
+- **pnpm**: `pnpm-lock.yaml` が存在する場合は `pnpm install --frozen-lockfile` を使用し、存在しない場合は `pnpm install` を使用します。
+
+これにより、開発時の柔軟性を保ちつつ、CI/CD や本番環境では再現性の高いビルドが実現されます。
+
+**パッケージ マネージャーのカスタマイズ:**
+
+```csharp title="C# — パッケージ マネージャーのカスタマイズ"
+// 追加のフラグを指定して npm をカスタマイズする
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithNpm(installCommand: "ci", installArgs: ["--legacy-peer-deps"]);
+
+// もしくは別のパッケージ マネージャーを使用する
+var yarnApp = builder.AddJavaScriptApp("yarn-app", "./yarn-app")
+    .WithYarn(installArgs: ["--immutable"]);
+```
+
+#### スクリプトのカスタマイズ
+
+開発時やビルド時に実行されるスクリプトをカスタマイズできます。:
+
+```csharp title="C# — スクリプトのカスタマイズ"
+// Use different script names
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithRunScript("start")      // 開発時に "dev" の代わりに "npm run start" を実行
+    .WithBuildScript("prod");     // パブリッシュ時に "build" の代わりに "npm run prod" を実行
+```
+
+#### スクリプトに引数を渡す方法
+
+非推奨となった `AddNpmApp` API とは異なり、`AddJavaScriptApp` では、スクリプトにコマンドライン引数を直接渡すための `args` コンストラクター パラメーターはサポートされていません。引数を渡す方法は 2 つあります:
+
+**方法 1: `WithArgs` を使用して引数を直接渡す**
+
+```csharp title="C# — WithArgs を使用して引数を渡す"
+// 以前の方法 (Aspire 9.x with AddNpmApp)
+// builder.AddNpmApp("hasura-console", "../Web/ClientApp",
+//     scriptName: "hasura:console",
+//     args: ["--no-browser"])
+
+// これから (Aspire 13.0 with AddJavaScriptApp)
+builder.AddJavaScriptApp("hasura-console", "../Web/ClientApp")
+    .WithRunScript("hasura:console")
+    .WithArgs("--no-browser");
+```
+
+**方法 2: 引数付きのカスタム スクリプトを `package.json` に定義する**
+
+```json title="package.json — 引数付きのカスタム スクリプトを定義"
+{
+  "scripts": {
+    "dev": "vite",
+    "hasura:console": "hasura console --no-browser"
+  }
+}
+```
+
+```csharp title="C# — カスタム スクリプトを参照"
+// 以前の方法 (Aspire 9.x with AddNpmApp)
+// builder.AddNpmApp("hasura-console", "../Web/ClientApp",
+//     scriptName: "hasura:console",
+//     args: ["--no-browser"])
+
+// これから (Aspire 13.0 with AddJavaScriptApp)
+builder.AddJavaScriptApp("hasura-console", "../Web/ClientApp")
+    .WithRunScript("hasura:console");
+```
+
+方法 2 では、すべてのスクリプト設定を `package.json` に集約できるため、スクリプトの見通しが良くなり、Aspire 以外の環境（例：`npm run hasura:console`）からも実行しやすくなります。
+
+#### Vite 対応
+
+`AddViteApp` は、`AddJavaScriptApp` が Vite 固有の最適化（特化した）ものとして提供されるようになりました:
+
+```csharp title="C# — Vite 対応"
+var frontend = builder.AddViteApp("frontend", "./frontend")
+    .WithReference(api);
+```
+
+Vite アプリケーションでは、次の機能が提供されます:
+
+- ポート バインディングの自動構成。
+- ホット モジュール リプレースメント（HMR）のサポート。
+- 本番向けに最適化されたビルド スクリプト。
+- Dockerfile の自動生成。
+
+#### 動的な Dockerfile の生成
+
+JavaScript アプリケーションは、パブリッシュ時にパッケージ マネージャーに応じた賢い既定設定を用いて、Dockerfile が自動的に生成されます:
+
+```csharp title="C# — 動的な Dockerfile の生成"
+var app = builder.AddJavaScriptApp("app", "./app");
+```
+
+生成される Dockerfile では、次の処理が行われます:
+
+- `.nvmrc`、`.node-version`、`package.json`、または `.tool-versions` から Node.js のバージョンを検出します。
+- イメージサイズを小さくするためにマルチステージ ビルドを使用します。
+- キャッシュ効率を高めるため、依存関係を別レイヤーでインストールします。
+- 本番用アセットを生成するためにビルド スクリプトを実行します。
+- バージョンが指定されていない場合は、既定で `node:22-slim` を使用します。
+
+他のコンテナで JavaScript のビルド成果物を使用する方法については、 [ビルド成果物としてのコンテナファイル](#ビルド成果物としてのコンテナファイル) を参照してください。
+
+#### Node 対応
+
+`AddNodeApp` は、他の言語統合と整合するようにリファクタリングされました。
+
+```csharp title="C# — Node 対応"
+var app = builder.AddNodeApp("frontend", "./frontend", "app.js")
+    .WithReference(api);
+```
+
+Node.js アプリケーションでは、次の機能が提供されます:
+
+- `package.json` が存在する場合、既定で npm が使用されます。
+- パッケージ マネージャーやビルド／実行スクリプトをカスタマイズできます。
+- マルチステージ ビルドによる Dockerfile が自動生成され、イメージサイズを小さく抑えます（バージョン指定がない場合は既定で `node:22-alpine` を使用）。
+
+### ポリグロット インフラストラクチャ
+
+言語固有のサポートにとどまらず、Aspire 13.0 では、すべての言語で共通して利用できるインフラストラクチャ機能が導入されています。
+
+#### ポリグロット接続プロパティ
+
+データベース リソースは、複数の接続文字列形式を自動的に公開するようになり、どの言語からでも簡単に接続できるようになりました:
+
+```csharp title="C# — ポリグロット接続プロパティ"
+var postgres = builder.AddPostgres("db").AddDatabase("mydb");
+
+// .NET アプリは「ConnectionStrings」構成セクションを使用します
+var dotnetApi = builder.AddProject<Projects.Api>()
+    .WithReference(postgres);
+
+// Python アプリは URI 形式を使用できます
+var pythonWorker = builder.AddPythonModule("worker", "./worker", "worker.main")
+    .WithEnvironment("DATABASE_URL", postgres.Resource.UriExpression);
+
+// Java アプリは JDBC 形式を使用できます
+var javaApp = builder.AddExecutable("java-app", "java", "./app", ["-jar", "app.jar"])
+    .WithEnvironment("DB_JDBC", postgres.Resource.JdbcConnectionStringExpression);
+```
+
+`WithReference` を使ってデータベース リソースを参照すると、Aspire は複数の接続プロパティを環境変数として自動的に公開します。たとえば、`db` という名前の PostgreSQL リソースでは、次のような環境変数が公開されます。:
+
+- `DB_URI` - PostgreSQL の URI 形式: `postgresql://user:pass@host:port/dbname`.
+- `DB_JDBCCONNECTIONSTRING` - JDBC 形式: `jdbc:postgresql://host:port/dbname`.
+- `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASENAME` - 個別のプロパティ.
+
+JDBC 接続文字列には、セキュリティのベスト プラクティスに従い、資格情報は含まれていません。認証には、`DB_USERNAME` と `DB_PASSWORD` の環境変数を別途使用するか、これらのプロパティを利用するように JDBC ドライバーを構成してください。
+
+このパターンは、PostgreSQL、SQL Server、Oracle、MySQL、MongoDB など、サポートされているすべてのデータベースで機能し、それぞれに適した URI 形式および JDBC 形式が提供されます。
+
+> [!NOTE]
+> これらの新しい接続プロパティの規約は、Aspire に組み込まれているデータベース統合（PostgreSQL、SQL Server、Oracle、MySQL、MongoDB など）で利用できます。
+> カスタム統合やコミュニティ製の統合を使用している場合は、これらのプロパティを公開するように更新が必要になることがあります。
+> 独自の統合にこれらの規約を実装する方法については、 [connection properties agent documentation](https://github.com/dotnet/aspire/blob/main/.github/agents/connectionproperties.agent.md) をご参照ください。
+
+#### 言語をまたいだ証明書の信頼設定
+
+Aspire 13.0 では、追加の構成を行うことなく、Python、Node.js、そしてコンテナ化されたアプリケーションに対しても、ASP.NET 開発用証明書の信頼設定が自動的に構成されます。:
+
+```csharp title="C# — 言語をまたいだ証明書の信頼設定"
+// Python アプリケーションは開発用証明書を自動的に信頼
+var pythonApi = builder.AddUvicornApp("api", "./api", "main:app");
+
+// Node.js アプリケーションは開発用証明書を自動的に信頼
+var nodeApi = builder.AddJavaScriptApp("frontend", "./frontend");
+
+// コンテナ化されたアプリケーションは開発用証明書を自動的に信頼
+var container = builder.AddContainer("service", "myimage");
+```
+
+Aspire は次の処理を自動的に行います:
+
+- **Python**: `SSL_CERT_FILE` および `REQUESTS_CA_BUNDLE` 環境変数を構成します。
+- **Node.js**: `NODE_EXTRA_CA_CERTS` 環境変数を構成します。
+- **コンテナ**: 証明書バンドルをマウントし、適切な環境変数を構成します。
+- **すべてのプラットフォーム**: 手動操作なしで開発用証明書を生成・管理します。
+
+これにより、すべての言語およびコンテナ化されたサービスにおいて、ローカル開発時でも安全な HTTPS 通信が可能になります。
+
+#### サービス URL 用環境変数の簡素化
+
+Aspire 13.0 では、非 .NET アプリケーションでもサービス検出を容易にする、ポリグロット対応の環境変数が導入されています
+
+```csharp title="C# — サービス URL 用環境変数の簡素化"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// Python アプリはシンプルな環境変数を利用できます
+var pythonApp = builder.AddPythonModule("worker", "./worker", "worker.main")
+    .WithReference(api); // API および API_HTTPS の環境変数が設定されます
+
+await builder.Build().RunAsync();
+```
+
+複雑なサービス検出形式の代わりに、非 .NET アプリケーションには次のようなシンプルな環境変数が提供されます:
+
+- `API_HTTP=http://localhost:5000` — HTTP エンドポイント
+- `API_HTTPS=https://localhost:5001` — HTTPS エンドポイント
+
+この機能により、Aspire のサービス検出の仕組みは、サービス検出ライブラリを利用する .NET アプリケーションに限らず、あらゆるプログラミング言語から利用できるようになります。
+
+## 🛠️ CLI と ツール
+
+<span id="cli-and-tooling"></span>
+
+### aspire init コマンド
+
+新しい `aspire init` コマンドは、包括的なプロジェクト設定と構成を備えた Aspire ソリューションを初期化するための、簡潔で対話的な体験を提供します。
+
+<LearnMore>
+  `aspire init` コマンドの詳細については、 [aspire init
+  documentation](/reference/cli/commands/aspire-init/)をご確認ください。
+</LearnMore>
+
+```bash title="Bash — 新しい Aspire ソリューションを初期化"
+# 新しい Aspire ソリューションを初期化します。対話形式のプロンプトが表示され、セットアップを順を追ってガイドします
+aspire init
+```
+
+`aspire init` を実行すると、CLI は次の処理を行います:
+
+- **既存のソリューションを検出**: 現在のディレクトリ内にあるソリューション ファイルを自動的に検出し、更新します。
+- **単一ファイルの AppHost を作成**: ソリューションが存在しない場合、クイックスタート用に単一ファイルの AppHost を作成します。
+- **プロジェクトを賢く追加**: AppHost に追加するプロジェクトを対話的に選択できます。
+- **サービスデフォルトを構成**: サービスデフォルトの参照を自動的に設定します。
+- **NuGet.config をセットアップ**: Aspire パッケージ用のパッケージ ソース マッピングを作成します。
+- **テンプレート バージョンを管理**: 適切なテンプレート バージョンを対話的に選択します。
+
+この init コマンドにより、対話型ワークフローを通じて初期プロジェクト設定が簡素化され、チーム メンバー間で一貫した構成が保証されます。
+
+> [!NOTE]
+> `aspire init` コマンドは Aspire のプロジェクト構成と設定をセットアップしますが、リソース（データベース、キャッシュ、メッセージ キューなど）を AppHost に自動で追加するわけではありません。 `AddPostgres`、`AddRedis`、`AddRabbitMQ`などのメソッドを使って、AppHost のコード内にリソース定義を手動で追加する必要があります。
+
+### aspire new：厳選されたスターター テンプレート
+
+Aspire 13.0 では、`aspire new` はさまざまなアプリケーション パターンを示す、厳選されたスターター テンプレートを中心に再構成されています。このコマンドは、すぐに実行できるサンプルを用いた対話的な体験を提供し、素早く始められるように設計されています。
+
+```bash
+aspire new
+```
+
+このコマンドを実行すると、スターター テンプレートを選択するための対話型メニューが表示されます:
+
+```
+Select a template:
+
+> Blazor & Minimal API starter
+  React (Vite) & FastAPI starter
+  Empty AppHost
+
+(Type to search)
+```
+
+**利用可能なスターター テンプレート:**
+
+- [**Blazor & Minimal API starter**](/ja/get-started/first-app/?lang=csharp): Blazor フロントエンドと ASP.NET Core API を備えた、フルスタックの .NET アプリケーションです。
+- [**React (Vite) & FastAPI starter**](/ja/get-started/first-app/?lang=python): Python と JavaScript の統合を示す、ポリグロット アプリケーションです。
+- **Empty AppHost**: カスタム アプリケーション向けの、最小構成の単一ファイル AppHost です。
+
+このスターター テンプレート コレクションは拡張可能な設計となっており、今後さまざまなアーキテクチャ パターンや技術の組み合わせを紹介する形で拡充されていく予定です。このアプローチにより、Aspire の機能を実際に動作するサンプルから学び、理解しやすくなります。
+
+<LearnMore>
+  コマンドの詳細については、[aspire new
+  documentation](/reference/cli/commands/aspire-new/)をご参照ください。
+</LearnMore>
+
+### Aspire update の改善点
+
+Aspire 13.0 では、`aspire update` コマンドが大幅に改善され、CLI 自体を更新するための新しい `--self` フラグが追加されました。:
+
+```bash title="Bash — Aspire update の改善点"
+# 現在のプロジェクト内のすべての Aspire パッケージを更新
+aspire update
+
+# Aspire CLI 自体を更新（13.0 で新規追加）
+aspire update --self
+
+# 特定のプロジェクトを更新
+aspire update --project ./src/MyApp.AppHost
+```
+
+**Aspire 13.0 の新機能:**
+
+- **CLI のセルフアップデート**: `--self` フラグを使用することで、再インストールせずに Aspire CLI を更新できます。
+- **信頼性の向上**: 依存関係解決におけるエッジケースに対する多数のバグ修正が行われました。
+- **エラーハンドリングの改善**: 更新に失敗した際のエラーメッセージが、より分かりやすくなりました。
+- **パフォーマンスの向上**: パッケージ検出および更新処理が高速化されました。
+
+`aspire update` コマンドは、引き続き次の機能をサポートしています:
+
+- Central Package Management（CPM）ソリューション。
+- ダイヤモンド依存関係の解決。
+- 単一ファイルのアプリホスト。
+- 解決できない AppHost SDK に対する XML フォールバック解析。
+- 色付き出力による視覚表現の強化。
+- チャネル認識（stable、preview、staging）。
+
+<LearnMore>
+  詳細なコマンドリファレンスについては、 [aspire
+  update](/reference/cli/commands/aspire-update/)を参照してください。
+</LearnMore>
+
+### Visual Studio Code 拡張機能
+
+Aspire 13.0 には、新しい Aspire VS Code 拡張機能が含まれており、Aspire CLI の機能を VS Code 上で利用できるようになります。コマンドパレットから、プロジェクトの作成やデバッグ、統合の追加、起動設定の構成、デプロイの管理を直接行うことができます。
+
+> [!NOTE]
+> 拡張機能のほとんどの機能を利用するには、Aspire 13.0 の CLI がインストールされ、ユーザーの `PATH` に含まれている必要があります。VS Code のターミナルで `aspire --version` を実行することで確認できます。インストール手順については、 [Upgrade to Aspire 13.0](#-upgrade-to-aspire-130)を参照してください。
+
+**主な機能:**
+
+- **VS Code 内での Python / C# プロジェクトのデバッグ**: Aspire デバッガーを使用して AppHost を起動し、アプリ内の C# および Python リソースを起動・デバッグできます。
+- **プロジェクト作成**: `Aspire: New Aspire project` を使用して、テンプレートから新しい Aspire プロジェクトを作成できます。
+- **統合管理**: `Aspire: Add an integration` を使用して、Aspire の統合機能を AppHost に追加できます。
+- **起動構成**: `Aspire: Configure launch.json` を使用して、VS Code の起動構成（launch.json）を自動的に設定できます。
+- **構成管理**: `Aspire: Manage configuration settings` を使用して、Aspire CLI の設定を構成できます。
+- **発行とデプロイ**: `Aspire: Publish deployment artifacts` および `Aspire: Deploy app` コマンド（プレビュー）を使用できます。
+
+**はじめに:**
+
+<Steps>
+
+1. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=microsoft-aspire.aspire-vscode)から拡張機能をインストールします。
+1. コマンドパレットを開きます (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>).
+1. 「Aspire」と入力すると、利用可能なすべてのコマンドが表示されます。
+1. `Aspire: Configure launch.json` を使用して、AppHost のデバッグ設定を行います。
+
+</Steps>
+
+この拡張機能を利用するには、Aspire CLI がインストールされ、PATH に含まれている必要があります。すべてのコマンドは、コマンドパレット内の **Aspire** カテゴリにまとめられており、簡単に見つけることができます。
+
+### 単一ファイル AppHost サポート
+
+Aspire 13.0 では、単一ファイルの AppHost に対する包括的なサポートが導入され、プロジェクトファイルを使用せずに、分散アプリケーション全体を 1 つの `.cs` ファイルで定義できるようになりました。
+
+```csharp title="C# — 単一ファイル AppHost"
+// apphost.cs
+#:sdk Aspire.AppHost.Sdk@13.0.0
+#:package Aspire.Hosting.PostgreSQL@13.0.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var database = builder.AddPostgres("postgres");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(database);
+
+await builder.Build().RunAsync();
+```
+
+単一ファイルの AppHost サポートには、次の内容が含まれます:
+
+- **テンプレートのサポート**: `aspire new` から `aspire-apphost-singlefile` テンプレートを使用できます。
+- **CLI との完全な統合**: `aspire run`、 `aspire deploy`、 `aspire publish`、 `aspire add`、 `aspire update`とシームレスに連携します。
+- **起動プロファイルのサポート**: デバッグおよび起動構成を完全にサポートします。
+
+> [!NOTE]
+> 単一ファイルの AppHost には、.NET 10.0 SDK 以降が必要です。
+
+### .NET SDK の自動インストール（プレビュー）
+
+Aspire CLI には、必要な .NET SDK のバージョンが存在しない場合に自動でインストールするプレビュー機能が含まれています。
+
+> [!IMPORTANT]
+> これは 既定では有効になっていない プレビュー機能です。.NET SDK の自動インストールを使用するには、次のコマンドで有効化してください:
+>
+> ```bash
+> aspire config set features.dotnetSdkInstallationEnabled true
+> ```
+
+有効化すると、CLI は不足している SDK を自動的にインストールします。:
+
+```bash
+# この機能を有効にすると、CLI が必要な SDK を自動的にインストールします
+aspire run
+
+# Installing .NET SDK 10.0.100...
+# ✅ SDK installation complete
+# Running app host...
+```
+
+.NET SDK の自動インストール機能では、次の特長が提供されます:
+
+- **クロスプラットフォーム対応**: Windows、macOS、Linux で動作します。
+- **バージョン検出**: 必要な SDK バージョンを自動的に検出します。
+- **フォールバック対応**: 自動インストールに失敗した場合に、代替のインストール方法を提供します。
+
+このプレビュー機能を有効にすることで、新しいチームメンバーのオンボーディングや CI/CD 環境でのセットアップ体験を改善できます。
+
+### CI/CD 向けの非対話モード
+
+`--non-interactive` フラグを使用すると、CI/CD シナリオ向けにプロンプトや対話的な進行表示が無効になります。CLI は一般的な CI 環境を自動検出して、このモードを有効化します。また、`ASPIRE_NON_INTERACTIVE=true` を設定するか、`--non-interactive` を明示的に指定することもできます。
+
+> [!NOTE]
+> すべてのコマンドが非対話モードをサポートしているわけではありません。ユーザー入力を必要とするコマンドは、`--non-interactive` フラグが設定され、かつ必要な値が他の手段で提供されていない場合、失敗します。
+
+---
+
+**高度なデプロイワークフロー**, については、ビルド、デプロイ、発行処理を連携させる包括的なパイプラインシステムを導入する [aspire do](#aspire-do)を参照してください。
+
+## ⭐ 主要な新機能
+
+### aspire do
+
+Aspire 13.0 では、ビルド、デプロイ、発行処理を統合的に調整する包括的な仕組みとして `aspire do` が導入されました。この新しいアーキテクチャは、ステップ間の依存関係、並列実行、詳細な進捗レポートを標準でサポートし、複雑なデプロイワークフローをオーケストレーションするための基盤を提供します。
+
+`aspire do` システムは、従来の発行インフラストラクチャを、より柔軟で拡張性の高いモデルに置き換えるものです。これにより、リソース固有のデプロイロジックを分散して定義し、それらを組み合わせてより大きなワークフローを構築できるようになります。
+
+> [!IMPORTANT]
+> 🧪 **アーリープレビュー**: パイプライン API は初期プレビュー段階であり、実験的（experimental）として扱われています。詳細については、 [aspire do command reference](/reference/cli/commands/aspire-do/) を参照してください。
+
+基本的な CLI コマンドやツールについては、 [CLI と ツール](#%EF%B8%8F-cli-と-ツール)を参照してください。ここでは、 [aspire init](#aspire-init-コマンド)、[aspire update](#aspire-update-の改善点)、および [non-interactive mode](#cicd-向けの非対話モード)について説明しています。
+
+**例: カスタム パイプライン ステップ**
+
+Aspire の AppHost では、`DistributedApplicationBuilder` 上にグローバルな `DistributedApplicationPipeline` インスタンスが定義されており、これを使用してトップレベルでパイプラインにステップを登録できます。
+
+```csharp title="C# — カスタム パイプライン ステップ"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Pipeline.AddStep("validate", (context) =>
+{
+    context.Logger.LogInformation("Running validation checks...");
+    // 独自の検証ロジック
+    return Task.CompletedTask;
+}, requiredBy: WellKnownPipelineSteps.Build);
+```
+
+パイプラインに登録されたステップは、CLI から実行できます:
+
+```bash title="Bash — カスタム パイプライン ステップを実行"
+aspire do validate
+```
+
+パイプラインシステムは、グローバルステップ、リソース固有のステップ、依存関係の構成、並列実行、組み込みのログ機能をサポートしています。各リソースは `WithPipelineStepFactory` を使用して独自のステップを提供でき、`WithPipelineConfiguration` によって実行順序を制御できます。
+
+#### パイプライン ステップの実行
+
+`aspire do` を使用してパイプライン ステップを実行します。このコマンドは依存関係を自動的に解決し、正しい順序でステップを実行します。:
+
+```bash title="Bash — Running pipeline steps"
+aspire do deploy                              # アプリをデプロイするために必要なすべてのステップを実行
+aspire do publish --output-path ./artifacts   # 出力先パスを指定
+aspire do deploy --environment Production     # 特定の環境を対象に実行
+aspire do deploy --log-level debug            # トラブルシューティング用の詳細ログ
+```
+
+### ビルド成果物としてのコンテナファイル
+
+Aspire 13.0 では、ビルドプロセス中に **あるリソースのコンテナーからファイルを取り出し、別のリソースのコンテナーにコピーする** 機能が新たに導入されました。これにより、フロントエンドを 1 つのコンテナーでビルドし、その成果物を別のバックエンドのコンテナーから配信するといった、柔軟で強力な構成が可能になります。
+
+```csharp title="C# — ビルド成果物としてのコンテナファイル"
+var frontend = builder.AddViteApp("frontend", "./frontend");
+var api = builder.AddUvicornApp("api", "./api", "main:app");
+
+// フロントエンドのコンテナーからファイルを抽出し、
+// API コンテナー内の「static」フォルダーにコピーする
+api.PublishWithContainerFiles(frontend, "./static");
+```
+
+**How it works:**
+
+1. `frontend` リソースは自身のコンテナー内でビルドされ、出力ファイルを生成します。
+2. Aspire がそのファイルをフロントエンド コンテナーから抽出します。
+3. 抽出されたファイルは、`api` コンテナー内の `./static` にコピーされます。
+4. 最終的な `api` コンテナーには、API のコードとフロントエンドの静的ファイルの両方が含まれます。
+
+**例: バックエンドからフロントエンドを配信**
+
+FastAPI アプリは、静的ファイルを配信できます:
+
+```python title="Python — バックエンドからフロントエンドを配信"
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+# API エンドポイント
+@app.get("/api/data")
+def get_data():
+    return {"message": "Hello from API"}
+
+# フロントエンドの静的ファイルを配信
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
+```
+
+このパターンは、C#、Python、JavaScript など あらゆるリソースタイプ で利用でき、依存関係の追跡、並列実行、インクリメンタル ビルドを提供する `aspire do` ともシームレスに統合されます。
+
+### Dockerfile builder API (実験的)
+
+Aspire 13.0 では、構成可能で型安全な API を用いて、C# コードから Dockerfile を定義できる 実験的なプログラム式 Dockerfile 生成 API が導入されました。
+
+> [!IMPORTANT]
+> 🧪 **実験的機能**: Dockerfile ビルダー API は実験段階にあり、一般提供（GA）前に変更される可能性があります。
+
+```csharp
+var app = builder.AddContainer("app", "app")
+    .PublishAsDockerFile(publish =>
+    {
+        publish.WithDockerfileBuilder("/path/to/app", context =>
+        {
+            var buildStage = context.Builder
+                .From("golang:1.23", "builder")
+                .WorkDir("/build")
+                .Copy(".", "./")
+                .Run("go build -o /app/server .");
+
+            context.Builder
+                .From("alpine:latest")
+                .CopyFrom(buildStage.StageName!, "/app/server", "/app/server")
+                .Entrypoint(["/app/server"]);
+        });
+    });
+```
+
+この API は、マルチステージ ビルド、フルーエントなメソッドチェーン (`WorkDir`、`Copy`、`Run`、`Env`、`User`、`Entrypoint`)、コメントやフォーマットの制御、さらに BuildKit の機能を提供します。
+
+### 証明書管理
+
+Aspire 13.0 では、カスタム証明書認証局（CA）および開発者証明書の信頼管理のための証明書管理機能が新たに導入されました:
+
+```csharp
+// Add custom certificate collections
+var certs = builder.AddCertificateAuthorityCollection("custom-certs")
+    .WithCertificatesFromFile("./certs/my-ca.pem")
+    .WithCertificatesFromStore(StoreName.CertificateAuthority, StoreLocation.LocalMachine);
+
+var gateway = builder.AddYarp("gateway")
+    .WithCertificateAuthorityCollection(certs)
+    .WithDeveloperCertificateTrust(trust: true);
+```
+
+PEM ファイルや証明書ストアからの読み込み、柔軟な信頼スコープの設定、コンテナー内パスのカスタマイズ、開発者証明書の信頼設定の自動化といった機能が含まれています。
+
+## 📦 統合機能
+
+Aspire 13.0 では、プラットフォーム対応を拡張する新しい統合パッケージが導入されました。
+
+### .NET MAUI 統合
+
+Aspire 13.0 では、新たに `Aspire.Hosting.Maui` パッケージが導入され、クラウド サービスと並行して .NET MAUI のモバイル アプリケーションをオーケストレーション できるようになりました。
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// エミュレーター／シミュレーター／実機デバイスからローカルの API プロジェクトに
+// 簡単にアクセスするために、Dev Tunnels の統合を利用できます
+var publicDevTunnel = builder.AddDevTunnel("devtunnel-public")
+    .WithAnonymousAccess()
+    .WithReference(api.GetEndpoint("https"));
+
+// .NET MAUI プロジェクト リソースを追加
+var mauiapp = builder.AddMauiProject("myapp", @"../MyApp/MyApp.csproj");
+
+// Windows 向けの MAUI アプリを追加
+mauiapp.AddWindowsDevice()
+    .WithReference(api);
+
+// Mac Catalyst 向けの MAUI アプリを追加
+mauiapp.AddMacCatalystDevice()
+    .WithReference(api);
+
+// iOS シミュレーター上で実行する MAUI アプリを追加します
+// （ランダムなシミュレーターを起動するか、すでに起動中のものを使用します）
+mauiapp.AddiOSSimulator()
+    .WithOtlpDevTunnel() // OpenTelemetry のデータを「localhost」に送信するために必要
+    .WithReference(api, publicDevTunnel); // 「localhost」にアクセスするために Dev Tunnel が必要
+
+// 既定の Android エミュレーター上で実行する MAUI アプリを追加します
+// （起動中のエミュレーター、または既定のエミュレーターを使用します。エミュレーターは事前に起動しておく必要があります）
+mauiapp.AddAndroidEmulator()
+    .WithOtlpDevTunnel() // OpenTelemetry のデータを「localhost」に送信するために必要
+    .WithReference(api, publicDevTunnel); // 「localhost」にアクセスするために Dev Tunnel が必要
+
+builder.Build().Run();
+```
+
+MAUI 統合の機能:
+
+- **プラットフォーム対応**: Windows、Mac Catalyst、Android、iOS
+- **デバイス登録**: テスト用に複数のデバイス インスタンスを登録可能
+- **プラットフォーム検証**: ホスト OS の互換性を自動検出し、必要に応じてリソースを「非対応」として扱います
+- **完全なオーケストレーション**: MAUI アプリがサービス検出に参加し、バックエンド サービスを参照できます
+
+これにより、モバイルアプリとバックエンド サービスを 1 つの Aspire プロジェクト内で一緒に実行・デバッグできる、モバイル + クラウドの一貫した開発体験が実現します。
+
+## 📊 ダッシュボードの機能強化
+
+### Aspire MCP サーバー
+
+[ダッシュボードには MCP サーバーが新たに追加されました](/dashboard/mcp-server/)。これにより、Aspire を AI 開発エコシステムに統合できます。MCP サーバーを利用すると、AI アシスタントがリソースを照会したり、テレメトリ データにアクセスしたり、開発環境から直接コマンドを実行したりできるようになります。
+
+**始め方:**
+
+1. Aspire アプリを実行し、ダッシュボードを開きます。
+2. 右上にある MCP ボタンをクリックします。
+3. 表示される手順に従って、AI アシスタント（Claude Code、GitHub Copilot CLI、Cursor、VS Code など）を設定します。
+
+MCP サーバーは、ストリーム可能な HTTP と API キー認証を使用して安全なアクセスを提供します。設定には次の項目が必要です:
+
+- `url`: Aspire MCP エンドポイントのアドレス
+- `type`: ストリーム可能な HTTP の MCP サーバーを使用するため "http" を指定
+- `x-mcp-api-key`: 認証用の HTTP ヘッダー
+
+**利用可能なツール:**
+
+- `list_resources` — 状態、エンドポイント、環境変数、メタデータを含むすべてのリソースを取得
+- `list_console_logs` — リソースのコンソール出力にアクセス
+- `list_structured_logs` — リソースでフィルター可能なテレメトリ データを取得
+- `list_traces` — 分散トレース情報にアクセス
+- `list_trace_structured_logs` — 特定のトレースに関連付けられたログを表示
+- `execute_resource_command` — リソース上でコマンドを実行
+
+これにより、AI アシスタントが Aspire アプリケーションと直接やり取りし、テレメトリをリアルタイムで分析しながら、開発中にインテリジェントな洞察を提供できるようになります。
+
+<Image src={mcpDialog} alt="MCP ダイアログ" title="MCP ダイアログ" />
+
+### インタラクション サービスの動的入力とコンボボックス
+
+Tインタラクション サービスが大幅に強化されました:
+
+- 💫 ドロップダウンでテキスト入力が可能になりました。つまり、コンボボックス入力に対応しています。詳しくは [インタラクション-サービスのカスタム選択肢](#インタラクション-サービスのカスタム選択肢)を参照してください。
+- 🔄 カスケード型ドロップダウン向けに、動的データ読み込みをサポートしました。詳しくは [インタラクション-サービスの動的入力](#インタラクション-サービスの動的入力)を参照してください。
+
+新しいインタラクション サービスの機能は、Azure プロビジョニング ダイアログを通じてダッシュボード上で確認できます。 🚀
+
+<Image
+  src={interactionService}
+  alt="Azure プロビジョニング ダイアログにおける新しいインタラクション サービス機能"
+  title="Azure プロビジョニング ダイアログにおける新しいインタラクション サービス機能"
+/>
+
+### ポリグロット言語アイコン
+
+Aspire は JavaScript ☕ や Python 🐍 アプリを強力にサポートする、ポリグロット対応へと進化しています。ダッシュボードでは、アプリ リソース向けに新しいプログラミング言語アイコンが表示されるようになりました。これには、.NET プロジェクト（C#、F#、VB.NET）に加えて、JavaScript および Python アプリも含まれます。
+
+<Image
+  src={languageIcons}
+  alt="ポリグロット言語アイコン"
+  title="ポリグロット言語アイコン"
+/>
+
+### アクセントカラーの改善
+
+ダッシュボード内の各リソースには、アイコンやテレメトリの表示に使用されるアクセントカラーが設定されています。今回の改善により、アクセントカラーはより Fluent UI らしい表現 となり、彩度が高められ、ライト テーマ／ダーク テーマそれぞれに合わせた細かな調整が行われました。
+
+これまでダーク背景ではほとんど見えなかった 濃い青のアクセントカラー も、はっきりと視認できるようになっています！
+
+<Image
+  src={colorTweaks}
+  alt="アクセントカラーの調整"
+  title="アクセントカラーの調整"
+/>
+
+### 正常性チェックの最終実行時刻
+
+ダッシュボードでは、各リソースの正常性状態を簡単に確認できます。Aspire 13 では新たに、各リソースの現在の状態の横に、正常性チェックの最終実行時刻が表示されるようになりました。これにより、不健康な状態のリソースが 現在もチェック中なのか、それとも 健全な状態に向けて進行しているのか を把握しやすくなります。
+
+<Image
+  src={healthChecksLastRun}
+  alt="Health checks last run time"
+  title="Health checks last run time"
+/>
+
+## 🖥️ アプリ モデルの強化
+
+<span id="-app-model-enhancements"></span>
+
+### C# ファイルベース アプリのサポート
+
+Aspire 13.0 では、C# のファイルベース アプリケーションに対するファーストクラスのサポートが追加されました。これにより、完全なプロジェクト ファイルを用意せずに、C# アプリを分散アプリケーションに追加できるようになります。
+
+```csharp
+// apphost.cs
+#:sdk Aspire.AppHost.Sdk@13.0.0
+#:package Aspire.Hosting.Redis@13.0.0
+
+// この型は評価目的のみで提供されており、将来の更新で変更または削除される可能性があります。
+// 続行するには、この診断を抑制してください。
+#pragma warning disable ASPIRECSHARPAPPS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddCSharpApp("worker", "../worker/Program.cs")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+これは .NET 10 SDK のファイルベース アプリケーション サポートとシームレスに連携します。C# のファイルベース アプリでも、通常のプロジェクトと同様に、サービス検出を利用したり、参照しているリソースにアクセスしたり、VS Code でデバッグしたりすることができます。
+
+### ネットワーク識別子
+
+Aspire 13.0 では、エンドポイント解決時のネットワーク コンテキスト認識を向上させるために、新たに `NetworkIdentifier` が導入されました
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// 特定のネットワーク コンテキストを指定してエンドポイントを取得
+var localhostEndpoint = api.GetEndpoint("http", KnownNetworkIdentifiers.LocalhostNetwork);
+var containerEndpoint = api.GetEndpoint("http", KnownNetworkIdentifiers.DefaultAspireContainerNetwork);
+
+await builder.Build().RunAsync();
+```
+
+ネットワーク識別子の機能は次のとおりです:
+
+- **コンテキスト認識型のエンドポイント解決**: ホスト、コンテナー ネットワークなどのネットワーク コンテキストに基づいてエンドポイントを解決します
+- **既知のネットワーク識別子**: 一般的なシナリオ向けに定義済みの識別子が用意されました（`LocalhostNetwork`、`DefaultAspireContainerNetwork`、`PublicInternet`）
+- **AllocatedEndpoint の変更**: エンドポイントは、コンテナーのホスト アドレスではなく `NetworkID` を含むようになりました
+- **コンテナー ネットワークの強化**: コンテナー間通信シナリオのサポートが改善されました
+
+### インタラクション サービスの動的入力
+
+インタラクション サービスは、動的入力をサポートすることで強化されました。この機能により、他の入力値に基づいて選択肢を読み込むことができ、カスケード型ドロップダウンや、依存関係のあるパラメーターの入力を実現できます。
+
+> [!NOTE]
+> これは `[Experimental("ASPIREINTERACTION001")]`としてマークされた実験的機能です。
+
+```csharp
+var inputs = new List<InteractionInput>
+{
+    // 最初の入力 — 静的な選択肢
+    new InteractionInput
+    {
+        Name = "DatabaseType",
+        InputType = InputType.Choice,
+        Label = "Database Type",
+        Required = true,
+        Options =
+        [
+            KeyValuePair.Create("postgres", "PostgreSQL"),
+            KeyValuePair.Create("mysql", "MySQL"),
+            KeyValuePair.Create("sqlserver", "SQL Server")
+        ]
+    },
+
+    // 2番目の入力 — DatabaseType に基づいて動的に読み込まれる
+    new InteractionInput
+    {
+        Name = "DatabaseVersion",
+        InputType = InputType.Choice,
+        Label = "Database Version",
+        Required = true,
+        DynamicLoading = new InputLoadOptions
+        {
+            LoadCallback = async (context) =>
+            {
+                var dbType = context.AllInputs["DatabaseType"].Value;
+                context.Input.Options = await GetAvailableVersionsAsync(dbType);
+            },
+            DependsOnInputs = ["DatabaseType"]
+        }
+    }
+};
+```
+
+これらの機能には、コールバックによる読み込み（`LoadCallback`）、依存関係の追跡（`DependsOnInputs`）、他の入力値へのアクセス（`context.AllInputs`）、さらに API やデータベースからの読み込みを可能にする非同期処理のサポート が含まれています。
+
+### インタラクション サービスのカスタム選択肢
+
+選択入力は、`AllowCustomChoice` を `true` に設定することで、カスタム入力を受け付けるように構成できます。ダッシュボード上では、これらの入力は[コンボボックス](https://ja.wikipedia.org/wiki/コンボボックス)として表示されます。
+
+```csharp
+var input = new InteractionInput
+{
+    Name = "AllowCustomInput",
+    Label = "Favorite food?",
+    InputType = InputType.Choice,
+    Options = [KeyValuePair.Create("pizza", "Pizza"), KeyValuePair.reate("burger", "Burger")],
+    AllowCustomChoice = true
+};
+
+var result = await interactionService.PromptInputAsync("What is your favorite food?", "Select your favorite food.", input);
+```
+
+### 参照および接続の改善
+
+#### 名前付き参照
+
+環境変数のプレフィックスを制御するために、明示的な名前を付けてリソースを参照できます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var primaryDb = builder.AddPostgres("postgres-primary")
+    .AddDatabase("customers");
+
+var replicaDb = builder.AddPostgres("postgres-replica")
+    .AddDatabase("customers");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(primaryDb, "primary")
+    .WithReference(replicaDb, "replica");
+```
+
+**`api` に注入された環境変数:**
+
+```bash
+# 「primary」という名前で指定された primaryDb から
+ConnectionStrings__primary=Host=postgres-primary;...
+
+# 「replica」という名前で指定された replicaDb から
+ConnectionStrings__replica=Host=postgres-replica;...
+```
+
+これにより、アプリケーションはカスタム名を用いて、複数のデータベース接続を区別できるようになります。
+
+#### 接続プロパティ
+
+個々の接続文字列コンポーネントにアクセスし、カスタムの接続文字列や構成を組み立てることができます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres").AddDatabase("mydb");
+var redis = builder.AddRedis("cache");
+
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithEnvironment("DB_HOST", postgres.Resource.GetConnectionProperty("Host"))
+    .WithEnvironment("DB_PORT", postgres.Resource.GetConnectionProperty("Port"))
+    .WithEnvironment("DB_NAME", postgres.Resource.DatabaseName)
+    .WithEnvironment("CACHE_HOST", redis.Resource.GetConnectionProperty("Host"))
+    .WithEnvironment("CACHE_PORT", redis.Resource.GetConnectionProperty("Port"));
+```
+
+**`worker`に注入された環境変数**
+
+```bash
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=mydb
+CACHE_HOST=cache
+CACHE_PORT=6379
+```
+
+これは、アプリケーションが完全な接続文字列ではなく 個々の接続要素 を必要とする場合や、Aspire が標準では提供していない形式で接続文字列を構築する必要がある場合に便利です。
+
+#### エンドポイント参照の強化
+
+ネットワークを意識したエンドポイント参照を用いることで、サービス URL の解決方法や注入方法を制御できます:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+
+var frontend = builder.AddJavaScriptApp("frontend", "./frontend")
+    .WithEnvironment("API_URL", api.GetEndpoint("https"));
+```
+
+**`frontend`に注入された環境変数:**
+
+```bash
+# 既定の動作 — 外部エンドポイントの URL を使用
+API_URL=https://localhost:7123
+```
+
+高度なシナリオでは、ネットワーク コンテキストを指定できます:
+
+```csharp
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithEnvironment("API_URL",
+        api.GetEndpoint("http",
+            KnownNetworkIdentifiers.DefaultAspireContainerNetwork));
+```
+
+**`worker`に注入された環境変数:**
+
+```bash
+# コンテナー ネットワーク コンテキスト — 内部コンテナー アドレスを使用
+API_URL=http://api:8080
+```
+
+これにより、利用側がホスト上で実行されている場合でも、コンテナー内で実行されている場合でも、適切なサービス間通信が可能になります。
+
+### その他のアプリ モデル改善点
+
+**コンピューティング環境のサポート（実験的から昇格）**:
+
+- `WithComputeEnvironment`API が安定版となり、実験的（experimental）のマークが外れました
+- 実験的な警告なしで、特定のコンピューティング環境へリソースをデプロイできます
+
+**MCP からのリソース除外**:
+
+- 特定のリソースを Model Context Protocol の公開対象から除外するための `ExcludeFromMcp` 拡張が追加されました
+- AI アシスタントや MCP クライアントに表示されるリソースを制御できます
+
+**参照による環境変数注入の制御**:
+
+- 参照から環境変数をどのように注入するかを制御する `WithReferenceEnvironment`
+- 環境変数の挙動を細かく制御するための `ReferenceEnvironmentInjectionFlags`
+
+**ヘルパー メソッド**:
+
+- 失敗時のハンドリングを行いながら安全にリソース ビルダーの作成を試みる `TryCreateResourceBuilder`
+- リソース ビルダーの作成に失敗した場合でも例外を投げず、false を返します
+
+## 🚀 デプロイの改善
+
+### デプロイ パイプラインの再実装
+
+Aspire 13.0 では、デプロイ ワークフローが [aspire do](#aspire-do) を基盤として完全に再実装されました。 このアーキテクチャ変更により、デプロイは従来のモノリシックな処理から、構成可能で分割されたステップの集合へと進化しています。
+
+新しいデプロイ パイプラインでは、依存関係のない操作が自動的に並列実行され、デプロイ時間が大幅に短縮されます。前提条件の確認、ビルド、プロビジョニングといったステップは、依存関係が許す限り同時に実行されます。
+
+**ステップ単位での細かな制御:**
+
+`aspire do` を使用して、個別のデプロイ フェーズを実行できます:
+
+```bash
+aspire do build                           # すべてのコンテナーをビルド
+aspire deploy                             # デプロイを完全に実行
+aspire do deploy --log-level debug        # 詳細ログ付きでデプロイ
+```
+
+これにより、インクリメンタル デプロイ、特定ステップのデバッグ、CI/CD パイプラインの分割が可能になります。詳細なトラブルシューティング出力を確認するには、`--log-level debug` を使用してください。
+
+**パイプライン診断:**
+
+`aspire do diagnostics` を使用すると、パイプライン グラフの把握、並列化を示す実行順序の確認、ステップの依存関係や対象リソースの確認、「もし〜だったら」というシナリオのシミュレーション、孤立したステップや循環依存といった構成上の問題の検出が行えます。
+
+**利点:**
+
+パイプライン ベースのデプロイにより、依存関係の追跡、リアルタイムの進捗レポート、障害の分離、選択的な実行、拡張性、組み込みの診断機能が提供されます。
+
+詳細については、 [aspire do](#aspire-do) を参照してください。
+
+### デプロイ状態の管理
+
+Aspire 13.0 では、デプロイ状態管理が導入され、デプロイ情報が実行間で自動的にローカルに保存されるようになりました。Azure へデプロイする際、Aspire はセッションをまたいで、選択内容やデプロイ状態を記憶します。
+
+**ローカルに保持される内容:**
+
+- **Azure の構成情報**: サブスクリプション、リソース グループ、リージョン、テナントの選択
+- **パラメーター値**: 過去のデプロイ時に入力した値
+- **デプロイ済みリソース**: 何がどこにデプロイされたかの追跡
+
+**ユーザー体験:**
+
+```bash
+# 初回のデプロイ — 構成の入力が求められ、「Production」環境として扱われます
+aspire deploy
+# Azure のサブスクリプション、リソース グループ、リージョン、テナントを選択...
+
+# 2回目以降のデプロイ — プロンプトなしで保存された状態を使用
+aspire deploy
+# 以前の選択内容が自動的に使用されます
+
+# 別の環境への初回デプロイ — 再度プロンプトが表示されます
+aspire deploy --environment staging
+```
+
+これにより、繰り返し表示されるプロンプトが不要になり、反復的なデプロイをより高速に行えるようになります。デプロイ構成は ローカルに保存され（ソース管理には含まれません）、そのため各開発者が衝突することなく、それぞれ独自の Azure 構成を持つことができます。
+
+**ワークフロー例:**
+
+<Steps>
+
+1. 初回: サブスクリプション「My Subscription」、リソース グループ「my-rg」、リージョン「eastus」を選択
+2. デプロイが完了し、状態がローカルに保存される
+3. コードを変更
+4. 再度 `aspire deploy` を実行 — 自動的に「My Subscription」「my-rg」「eastus」が使用される
+5. 構成を再入力する必要はなし
+
+</Steps>
+
+**保存場所:**
+
+状態情報は、ローカルのユーザープロファイルに保存されます:
+
+- **Windows**: `%USERPROFILE%\.aspire\deployments\<project-hash>\<environment>.json`
+- **macOS/Linux**: `$HOME/.aspire/deployments/<project-hash>/<environment>.json`
+
+`<project-hash>` は AppHost プロジェクトのパスから生成された SHA256 ハッシュで、異なるプロジェクトごとに状態を分離して管理できるようになっています。`<environment>` はデプロイ環境（例: `production`、`development`）に対応します。
+
+この保存場所は設計上、ソース管理から除外されているため、各開発者が競合することなく、それぞれ独自の Azure 設定を持つことができます。
+
+**デプロイ状態のリセット:**
+
+デプロイ状態をリセットしたい場合（例: サブスクリプションを変更したい、最初からやり直したい場合）は、`--clear-cache` フラグを使用します。:
+
+```bash
+aspire deploy --clear-cache
+# 保存されている状態をクリアし、再度設定を求められます
+```
+
+これにより、Azure の設定、パラメーター値、デプロイコンテキストを含む、保存されているすべてのデプロイ状態が削除されます。次回のデプロイ時には、初回デプロイ時と同様に、すべての設定値の入力を求められます。
+
+## ☁️ Azure
+
+<span id="-azure"></span>
+
+### Azure テナントの選択
+
+Aspire 13.0 では、Azure のプロビジョニング時に対話形式でテナントを選択できるようになり、マルチテナント環境（業務用アカウントと個人アカウントの併用など）で発生していた問題が解消されました。
+
+Azure リソースをプロビジョニングする際、複数のテナントが利用可能な場合は、CLI から適切なテナントを選択するよう促されます。選択したテナントは、サブスクリプション、リージョン、リソース グループの選択とあわせて保存され、以降のデプロイでも一貫した設定が使用されます。
+
+```bash
+aspire deploy
+
+# 複数のテナントがある場合、次のように表示されます:
+# Select Azure tenant:
+#   > work@company.com (Default Directory)
+#     personal@outlook.com (Personal Account)
+```
+
+### Azure App Service の機能強化
+
+Aspire 13.0 では、Azure App Service へのデプロイに関する大幅な改善が行われており、本番環境へのアプリケーションのデプロイや監視が、より簡単に行えるようになっています。
+
+#### App Service 上の Aspire ダッシュボード
+
+Aspire Dashboard は、Azure App Service へデプロイする際に既定で含まれるようになり、デプロイ済みアプリケーションの状態を可視化できます:
+
+```csharp
+builder.AddAzureAppServiceEnvironment("env");
+// ダッシュボードは既定で次の URL に含まれます
+// https://[prefix]-aspiredashboard-[unique string].azurewebsites.net
+```
+
+デプロイされたダッシュボードでは、ローカル開発時と同様の体験が提供され、本番環境におけるログ、トレース、メトリクス、アプリケーション トポロジを確認できます。
+
+ダッシュボードを無効化するには、次のように設定します:
+
+```csharp
+builder.AddAzureAppServiceEnvironment("env")
+    .WithDashboard(enable: false);
+```
+
+#### Application Insights との統合
+
+包括的な監視とテレメトリを有効化するために、Azure Application Insights を使用できます:
+
+```csharp
+builder.AddAzureAppServiceEnvironment("env")
+    .WithAzureApplicationInsights();
+```
+
+有効化すると、Aspire は自動的に次の処理を行います:
+
+- Log Analytics ワークスペースを作成します
+- Application Insights リソースを作成します
+- すべての App Service Web アプリに接続文字列を設定します
+- `APPLICATIONINSIGHTS_CONNECTION_STRING` をアプリケーションに注入します
+
+既存の Application Insights リソースを参照することも可能です:
+
+```csharp
+var insights = builder.AddAzureApplicationInsights("insights");
+
+builder.AddAzureAppServiceEnvironment("env")
+    .WithAzureApplicationInsights(insights);
+```
+
+## ⚠️ 破壊的変更
+
+<span id="-breaking-changes"></span>
+
+### パッケージ名の変更
+
+**Aspire.Hosting.NodeJs → Aspire.Hosting.JavaScript**
+
+`Aspire.Hosting.NodeJs` パッケージは、JavaScript アプリケーション（Node.js、Vite など）へのより幅広い対応を反映するため、`Aspire.Hosting.JavaScript` に名称変更されました。
+
+パッケージ参照を次のように更新してください:
+
+```xml
+<!-- これまで (9.x) -->
+<PackageReference Include="Aspire.Hosting.NodeJs" Version="9.x.x" />
+
+<!-- これから (13.0) -->
+<PackageReference Include="Aspire.Hosting.JavaScript" Version="13.0.0" />
+```
+
+または、CLI を使用する場合は次のとおりです:
+
+```bash
+# これまで (9.x)
+aspire add nodejs
+
+# これから (13.0)
+aspire add javaScript
+```
+
+### 削除された API
+
+Aspire 13.0 では、以下の API が削除されました:
+
+**パブリッシング関連のインフラストラクチャ** (`aspire do` に置き換え):
+
+- `PublishingContext` および `PublishingCallbackAnnotation`
+- `DeployingContext` および `DeployingCallbackAnnotation`
+- `WithPublishingCallback` 拡張メソッド
+- `IDistributedApplicationPublisher` インターフェース
+- `IPublishingActivityReporter`, `IPublishingStep`, `IPublishingTask` インターフェース
+- `NullPublishingActivityReporter` クラス
+- `PublishingExtensions` クラス (すべての拡張メソッド)
+- `PublishingOptions` クラス
+- `CompletionState` 列挙型
+
+**デバッグ関連 API** (新しい柔軟な API に置き換え):
+
+- `debugAdapterId` および `requiredExtensionId` パラメーターを持つ旧 `WithDebugSupport` オーバーロード
+- `SupportsDebuggingAnnotation` (新しいデバッグ サポート用アノテーションに置き換え)
+
+**診断コード**:
+
+- `ASPIRECOMPUTE001` 診断コード（削除 ― API が実験段階を卒業したため）
+- `ASPIREPUBLISHERS001` (`ASPIREPIPELINES001-003` に名称変更)
+
+**CLI コマンド**:
+
+- `aspire run` から `--watch` フラグが削除（`features.defaultWatchEnabled` 機能フラグに置き換え）
+
+### 非推奨（Obsolete）となった API
+
+以下の API は Aspire 13.0 で 非推奨 とされており、将来のリリースで削除される予定です:
+
+**ライフサイクル フック**:
+
+- `IDistributedApplicationLifecycleHook` インターフェース → 代わりに `IDistributedApplicationEventingSubscriber` を使用してください
+
+**ライフサイクル フック用の拡張メソッド** (イベント サブスクライバー用拡張メソッドを使用):
+
+- `AddLifecycleHook<T>()` → 代わりに `AddEventingSubscriber<T>()` を使用
+- `AddLifecycleHook<T>(Func<IServiceProvider, T>)` → 代わりに `AddEventingSubscriber<T>(Func<IServiceProvider, T>)` を使用
+- `TryAddLifecycleHook<T>()` → 代わりに `TryAddEventingSubscriber<T>()` を使用
+- `TryAddLifecycleHook<T>(Func<IServiceProvider, T>)` → 代わりに `TryAddEventingSubscriber<T>(Func<IServiceProvider, T>)` を使用
+
+**パブリッシング関連インターフェース** (代わりに `aspire do` を使用):
+
+- `IDistributedApplicationPublisher` → 代わりに `PipelineStep` を使用
+- `PublishingOptions` → 代わりに `PipelineOptions` を使用
+
+**Node.js/JavaScript APIs** (代わりに新しい JavaScript ホスティングを使用):
+
+- `AddNpmApp()` → 代わりに一般的な npm ベースのアプリには `AddJavaScriptApp()` 、Vite プロジェクトには `AddViteApp()` を使用してください
+
+:::note[AddNpmApp からの移行]
+`AddNpmApp` API では、スクリプトにコマンドライン引数を渡すための `args` パラメーターがサポートされていましたが、`AddJavaScriptApp` にはこのパラメーターはありません。その代わりに、必要な引数を含んだカスタム スクリプトを `package.json` に定義してください。詳細や例については、[スクリプトに引数を渡す方法](#スクリプトに引数を渡す方法)を参照してください。
+:::
+
+なお、これらの非推奨 API は Aspire 13.0 では引き続き動作しますが、次のメジャー バージョンでは削除される予定です。
+推奨されている代替 API への移行を進めてください。
+
+### シグネチャの変更
+
+**AllocatedEndpoint コンストラクター**:
+
+```csharp {5,9,12}
+// これまで (9.x)
+var endpoint = new AllocatedEndpoint(
+    "http",
+    8080,
+    containerHostAddress: "localhost");
+
+// これから (13.0)
+var endpoint = new AllocatedEndpoint(
+    endpointAnnotation,
+    "http",
+    8080,
+    networkIdentifier: KnownNetworkIdentifiers.LocalhostNetwork);
+```
+
+**ParameterProcessor コンストラクター**:
+
+```csharp {8,17}
+// これまで (9.x)
+var processor = new ParameterProcessor(
+    notificationService,
+    loggerService,
+    interactionService,
+    logger,
+    executionContext,
+    distributedApplicationOptions);
+
+// これから (13.0)
+var processor = new ParameterProcessor(
+    notificationService,
+    loggerService,
+    interactionService,
+    logger,
+    executionContext,
+    deploymentStateManager);
+```
+
+**InteractionInput プロパティの変更**:
+
+- `MaxLength`: Set 可能から init のみに変更
+- `Options`: init のみから Set 可能に変更
+- `Placeholder`: Set 可能から init のみに変更
+
+**IResourceWithServiceDiscovery に対する WithReference**:
+
+- 名前付き参照を指定できる `name` パラメーター付きの新しいオーバーロードが追加
+- 既存のオーバーロードも互換性のため引き続き利用可能
+
+**ProcessArgumentValuesAsync および ProcessEnvironmentVariableValuesAsync**:
+
+```csharp
+// これまで (9.x)
+await resource.ProcessArgumentValuesAsync(
+    executionContext, processValue, logger,
+    containerHostName: "localhost", cancellationToken);
+
+// これから (13.0)
+await resource.ProcessArgumentValuesAsync(
+    executionContext, processValue, logger, cancellationToken);
+```
+
+`containerHostName` パラメーターは削除されました。ネットワークのコンテキストは、現在は `NetworkIdentifier` を通じて管理されます。
+
+**EndpointReference.GetValueAsync の挙動変更**:
+
+```csharp
+// これまで (9.x) - 割り当てられていない場合、即座に例外をスロー
+var value = await endpointRef.GetValueAsync(cancellationToken);
+
+// これから (13.0) - 割り当て完了まで待機し、即座に失敗させたい場合は IsAllocated を確認します
+if (!endpointRef.IsAllocated)
+{
+    throw new InvalidOperationException("Endpoint not allocated");
+}
+var value = await endpointRef.GetValueAsync(cancellationToken);
+```
+
+### 主要なアーキテクチャ変更
+
+#### コンテナからホストへのユニバーサル通信
+
+Aspire 13.0 では、コンテナ オーケストレーターの対応状況に依存しない、コンテナからホストへのユニバーサルな通信を実現するための大きなアーキテクチャ変更が導入されました。
+
+**変更点:**
+
+- DCP のコンテナ トンネル機能を利用して、コンテナからホストへの接続性を実現
+- `EndpointReference` の解決がコンテキスト認識型に変更（`NetworkIdentifier` を使用）
+- エンドポイント参照は `EndpointAnnotation` によって追跡されるように変更
+- `AllocatedEndpoint` コンストラクターのシグネチャを変更
+
+**影響:**
+
+- すべてのデプロイ シナリオにおいて、コンテナがホスト ベースのサービスと安定して通信できるようになります
+- `AllocatedEndpoint` を直接生成しているコードは修正が必要になります
+- エンドポイント参照を処理する拡張メソッドでは、Network Identifier のコンテキストが必要になる場合があります
+
+**移行方法:**
+
+このユニバーサルなコンテナからホストへの通信機能は、現在は実験的機能として提供されています。有効化するには、環境変数 `ASPIRE_ENABLE_CONTAINER_TUNNEL` を `true` に設定してください。
+
+この変更により、コンテナからホストへの通信に関する長年の問題（issue #6547）が解消されます。
+
+#### AddNodeApp API のリファクタリング
+
+`AddNodeApp` API は、Node.js アプリケーションの構成方法に関して 破壊的変更を伴うリファクタリングが行われました。
+
+**シグネチャの変更:**
+
+```csharp
+// これまで (9.x) - 絶対パスの scriptPath と任意の workingDirectory
+builder.AddNodeApp(
+    name: "frontend",
+    scriptPath: "/absolute/path/to/app.js",
+    workingDirectory: "/absolute/path/to",
+    args: ["--port", "3000"]);
+
+// これから (13.0) - アプリのディレクトリと相対パスの scriptPath
+builder.AddNodeApp(
+    name: "frontend",
+    appDirectory: "../frontend",
+    scriptPath: "app.js");
+```
+
+**挙動の変更:**
+
+<Steps>
+
+1. **npm の自動統合**: `appDirectory` 内に `package.json` が存在する場合、npm が自動的に構成され、依存関係の自動インストールが有効になります
+2. **Dockerfile の自動生成**: マルチステージ ビルドを既定とした Docker 発行（パブリッシュ）対応が、自動的に含まれるようになりました
+3. **パッケージ マネージャーの柔軟性向上**: `WithNpm()`, `WithYarn()`, `WithPnpm()` を使用し、あわせて `WithRunScript()` を指定することで、`package.json` に定義されたスクリプトを実行できます
+
+</Steps>
+
+**移行:**
+
+```csharp
+// これまで (9.x)
+var app = builder.AddNodeApp("frontend", "../frontend/server.js", "../frontend");
+
+// これから (13.0)
+var app = builder.AddNodeApp("frontend", "../frontend", "server.js");
+
+// または package.json の script を使用
+var app = builder.AddNodeApp("frontend", "../frontend", "server.js")
+    .WithNpm()
+    .WithRunScript("dev");
+```
+
+### 移行ガイド
+
+#### パブリッシング コールバックからパイプライン ステップへの移行
+
+**これまで (9.x)**:
+
+```csharp
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPublishingCallback(async (context, cancellationToken) =>
+    {
+        await CustomDeployAsync(context, cancellationToken);
+    });
+```
+
+**これから (13.0)**:
+
+```csharp
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPipelineStepFactory(context =>
+    {
+        return new PipelineStep()
+        {
+            Name = "CustomDeployStep",
+            Action = CustomDeployAsync,
+            RequiredBySteps = [WellKnownPipelineSteps.Publish]
+        };
+    });
+```
+
+詳細については、 [Deployment pipeline documentation](/ja/get-started/pipelines/) を参照してください。
+
+#### ライフサイクル フックからイベントへの移行
+
+**これまで (9.x)**:
+
+```csharp
+public class MyLifecycleHook : IDistributedApplicationLifecycleHook
+{
+    public async Task BeforeStartAsync(
+        DistributedApplicationModel model,
+        CancellationToken cancellationToken)
+    {
+        // 起動前の処理
+    }
+}
+
+builder.Services.TryAddLifecycleHook<MyLifecycleHook>();
+```
+
+**これから (13.0)**:
+
+```csharp
+public class MyEventSubscriber : IDistributedApplicationEventingSubscriber
+{
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext executionContext,
+        CancellationToken cancellationToken)
+    {
+        eventing.Subscribe<BeforeStartEvent>((@event, ct) =>
+        {
+            // イベントからモデルやサービスにアクセスできます
+            var model = @event.Model;
+            var services = @event.Services;
+
+            // 起動前の処理
+
+            return Task.CompletedTask;
+        });
+
+        return Task.CompletedTask;
+    }
+}
+
+builder.Services.TryAddEventingSubscriber<MyEventSubscriber>();
+```
+
+### 実験的（Experimental）機能
+
+以下の機能は `[Experimental]` として扱われており、将来のリリースで変更される可能性があります:
+
+- **Dockerfile ビルダー API**: `WithDockerfileBuilder`, `AddDockerfileBuilder`, `WithDockerfileBaseImage`
+- **C# ファイルベース アプリのサポート**: `AddCSharpApp`
+- **動的入力**: `InputLoadOptions`、動的入力の読み込み
+- **パイプライン機能**: `IDistributedApplicationPipeline` と関連 API
+
+実験的機能を使用するには、明示的に有効化し、将来変更される可能性があることを理解したうえで利用する必要があります:
+
+```csharp
+#pragma warning disable ASPIREXXX // 実験的機能
+var app = builder.AddCSharpApp("myapp", "./app.cs");
+#pragma warning restore ASPIREXXX
+```
+
+---
+
+**フィードバックと貢献**: Aspire 13.0 の利用体験について、ぜひご意見をお聞かせください！ フィードバックは [GitHub](https://github.com/dotnet/aspire/issues) で共有いただくか、 [Discord](https://aka.ms/aspire-discord)で会話に参加できます。

@@ -1,0 +1,205 @@
+---
+title: AppHost とは？
+description: Learn how to define your application's architecture using Aspire's AppHost.
+lastUpdated: true
+---
+
+import { Aside, Code, FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
+
+Aspire の AppHost は、アプリケーションのサービスやそれらの関係性を コードファーストで宣言するための場所です。分散した設定ファイルを管理する代わりに、アーキテクチャをコードで記述します。その後のローカル オーケストレーションは Aspire が担ってくれるため、機能開発に集中できます。
+
+## アーキテクチャの定義
+
+フロントエンドが API と通信し、API がデータベースと通信する、シンプルな 3 層アーキテクチャを考えてみましょう:
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:dotnet)[API service]
+  service frontend(logos:react)[React front end]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+このアーキテクチャは、次のように AppHost で表現できます:
+
+<SimpleAppHostCode />
+
+Aspire は、使用する言語やフレームワークに関係なく、サービス、リソース、そしてそれらの接続関係という一貫したモデルを提供します。
+
+### AppHost コードの分解
+
+ここでは、典型的な AppHost の主要な部分を取り上げ、各ステップが何をしているのかを説明します。
+
+<SimpleAppHostCode collapse={['3-16']} />
+
+展開されている行では、次の処理を行っています:
+
+<Steps>
+
+1. `DistributedApplication.CreateBuilder(args)` を使用して、分散アプリケーション ビルダーを作成します。
+1. `Build()` を呼び出して、構成を実行可能な AppHost として具体化します。
+1. `Run()` を呼び出してオーケストレーションを開始し、サービスは依存関係の順序に従って起動されます。
+
+</Steps>
+
+AppHost は分散アプリケーションの設計図であり、残りの処理は Aspire が管理します。
+
+#### PostgreSQL リソースの追加
+
+ビルダーの準備ができたら、リソースやサービスを定義します。次のスニペットは、PostgreSQL サーバーとデータベースを追加する方法を示しています:
+
+<SimpleAppHostCode mark={{ range: '4-6' }} collapse={['8-18']} />
+
+仕組みの説明:
+
+- `AddPostgres("db")` は、`db` という名前の PostgreSQL コンテナーを登録します。
+  - これは `IResourceBuilder<PostgresServerResource>` を返すため、Fluent スタイルで設定を連結できます。
+- `.AddDatabase("appdata")` は、そのサーバー上に `appdata` という名前のデータベースを作成します。
+- `.WithDataVolume()` は、コンテナーの再起動後もデータが保持されるように、ボリュームをプロビジョニングします。
+
+<LearnMore>
+  詳しくは公式の [PostgreSQL
+  integration](/integrations/databases/postgres/postgres-get-started/)をご覧ください。
+</LearnMore>
+
+#### API リソースの追加と依存関係の宣言
+
+次に、API サービスを登録し、PostgreSQL リソースに接続します:
+
+<SimpleAppHostCode mark={{ range: '9-11' }} collapse={['1-6', '13-18']} />
+
+これで行われること:
+
+- `AddProject<Projects.Api>("api")` は、API プロジェクトを `api` という名前のサービスとして登録します。
+- `WithReference(postgres)` は、接続情報（ホスト、ポート、資格情報、接続文字列）を API の構成に注入します。
+- `WaitFor(postgres)` は、PostgreSQL が正常状態（healthy）になるまで API の起動を遅らせ、起動タイミングに依存した脆さを避けます。
+
+これで `api` サービスが定義できたので、次はフロントエンドを接続できます。
+
+#### フロントエンド リソースの追加
+
+フロントエンド プロジェクトを登録し、API への依存関係を宣言すると、AppHost が API のアドレスを自動的に提供します。
+
+<Aside type="note">
+  この例では Node.js（React）のフロントエンドを使用していますが、Aspire
+  ではどんなフロントエンドも実行可能なサービスとして扱われるため、どの言語やフレームワークでも利用できます。
+</Aside>
+
+<SimpleAppHostCode mark={{ range: '14-16' }} collapse={['1-11']} />
+
+ポイント:
+
+- `.AddViteApp("front end", "../frontend")` は、（Vite ベースの）フロントエンド プロジェクトを `front end` という名前のサービスとして登録します。
+- `.WithHttpEndpoint(env: "PORT", targetPort: 3000)` は、アプリケーションをポート `3000` で公開します。`PORT` 環境変数で上書きすることも可能です。
+- `.WithReference(api)` は、API のベース アドレスをフロントエンドの構成に注入します
+
+要するに、バックエンド（DB → API）を先に定義し、その後 UI から API を参照するという流れです。
+AppHost は、依存関係のグラフ、接続の流れ、起動順序をまとめて管理します。
+
+#### 構成とネットワーク
+
+これらの依存関係や接続は、Aspire によって自動的に管理されます。AppHost は、接続文字列やエンドポイントといった構成値を生成し、必要に応じて各サービスへ注入します。 AppHost でリソースを追加する際には、 `db`, `api`, `front end` のように名前を付けますが、Aspire はこれらの名前を DNS 解決に使用するため、サービス同士は予測可能なアドレスで通信できます。また、利用側のサービスは、これらの名前を基に構成情報の注入を受け取ります。
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:dotnet)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[front end]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+**How these resources communicate**
+
+<Steps>
+
+1. `pg` 、接続文字列（ホスト、ポート、データベース、ユーザー、パスワード）をまとめた、Aspire が理解できる強く型付けされた `ConnectionStringReference` (host, port, database, user, password) を公開します。
+1. `api` はその参照への依存関係を宣言し、Aspire はローカル実行時・デプロイ時の両方において、シークレット、パラメーター、接続文字列を含む設定値を注入する独自の構成フローを通じて、接続文字列を設定に注入します。
+1. `api` は、HTTP エンドポイントが割り当てられた後に、自身のベース URL として `EndpointReference` を公開します。
+1. `front end` はそのエンドポイントに依存し、Aspire が API のベース URL を注入するため、アドレスをハードコードする必要がありません。
+
+</Steps>
+
+<Aside type="tip">
+  Aspire
+  は、場当たり的な実行スクリプト、分散した環境変数、脆弱なコピー＆ペーストの接続文字列を、**単一の宣言的な信頼できる情報源**に置き換えます。
+  サービス、リソース、依存関係をコードでモデル化することで、エンドポイント、資格情報、接続文字列といった型付き構成を必要な場所へ直接提供し、設定の乖離を防ぎ、オンボーディングを加速し、接着コードを書き直すことなくアーキテクチャを進化させられるようにします。
+</Aside>
+
+## AppHost の仕組み
+
+AppHost を実行すると、Aspire は次のような中核的な役割を担います:
+
+<Steps>
+
+1. **サービス検出**: AppHost に宣言されたサービスやリソースを検出します。
+1. **依存関係の解決**: 宣言された依存関係に基づき、正しい順序でサービスを起動します。
+1. **構成情報の注入**: 接続文字列、エンドポイント、その他の構成値を自動的に注入します。
+1. **状態監視**: サービスの状態を監視し、必要に応じて再起動します。
+
+</Steps>
+
+<LearnMore>
+  Aspire のオーケストレーションや
+  [リソースモデル](/ja/architecture/resource-model/)について、さらに詳しくご覧ください。
+</LearnMore>
+
+## AppHost の構成
+
+テンプレートの AppHost は、次のような構成になっています:
+
+<Tabs syncKey="apphost-type">
+  <TabItem label="File-based AppHost" icon="seti:c-sharp">
+    <FileTree>
+    - **AspireApp.AppHost**
+        - apphost.cs  開発時オーケストレーター
+        - apphost.run.json
+    </FileTree>
+  </TabItem>
+  <TabItem label="Project-based AppHost" icon="seti:html">
+    <FileTree>
+    - **AspireApp.AppHost**
+        - Properties
+          - launchSettings.json
+        - appsettings.Development.json
+        - appsettings.json
+        - AspireApp.AppHost.csproj
+        - AppHost.cs  開発時オーケストレーター
+    </FileTree>
+  </TabItem>
+</Tabs>
+
+## AppHost のライフサイクル イベント
+
+AppHost では、起動時やリソース割り当ての過程でカスタム ロジックを実行するために、ライフサイクル イベントにフックできます。
+
+<Steps>
+
+1. `BeforeStartEvent`: AppHost がサービスの起動を開始する前に発生します。
+1. `AfterEndpointsAllocatedEvent`: サービスのエンドポイントが割り当てられた後に発生します。
+1. `AfterResourcesCreatedEvent`: すべてのリソースが作成された後に発生します。
+
+</Steps>
+
+<LearnMore>
+  より細かなライフサイクル制御については、 [既知のライフサイクル
+  イベント](/ja/architecture/resource-model/#well-known-lifecycle-events)をご覧ください。
+</LearnMore>
+
+## ベスト プラクティス
+
+- まずは AppHost をシンプルに保ち、必要に応じて段階的に複雑さを追加しましょう。
+- `.WithReference(...)` を使って明示的に依存関係を定義し、接続関係を分かりやすくします。
+- 開発・テスト・本番で構成を分けて管理しましょう。
+- デバッグやログを容易にするため、リソースには分かりやすく説明的な名前を付けましょう。
