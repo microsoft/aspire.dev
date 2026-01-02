@@ -1,0 +1,222 @@
+---
+title: SQL Server Client integration reference
+description: Learn how to use the Aspire SQL Server Client integration to query SQL Server databases from your Aspire projects.
+---
+
+import { Image } from 'astro:assets';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import sqlIcon from '@assets/icons/sql-icon.png';
+
+<Image
+  src={sqlIcon}
+  alt="SQL Server logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire SQL Server integrations, follow the [Get started with SQL Server integrations](../sql-server-get-started/) guide.
+
+This article includes full details about the Aspire SQL Server Client integration, which allows you to connect to and interact with SQL Server databases from your Aspire consuming projects.
+
+## Installation
+
+To get started with the Aspire SQL Server client integration, install the [📦 Aspire.Microsoft.Data.SqlClient](https://www.nuget.org/packages/Aspire.Microsoft.Data.SqlClient) NuGet package in the client-consuming project, that is, the project for the application that uses the SQL Server client. The SQL Server client integration registers a `SqlConnection` instance that you can use to interact with SQL Server.
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Data.SqlClient" />
+
+## Add SQL Server client
+
+In the _Program.cs_ file of your client-consuming project, call the `AddSqlServerClient` extension method on any `IHostApplicationBuilder` to register a `SqlConnection` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient(connectionName: "database");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerClient`. For more information, see [Add SQL Server resource and database resource](../sql-server-host/#add-sql-server-resource-and-database-resource).
+</Aside>
+
+You can then retrieve the `SqlConnection` instance using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SqlConnection connection)
+{
+    // Use connection...
+}
+```
+
+For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
+
+## Add keyed SQL Server client
+
+There might be situations where you want to register multiple `SqlConnection` instances with different connection names. To register keyed SQL Server clients, call the `AddKeyedSqlServerClient` method:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedSqlServerClient(name: "mainDb");
+builder.AddKeyedSqlServerClient(name: "loggingDb");
+```
+
+<Aside type="caution">
+When using keyed services, it's expected that your SQL Server resource configured two named databases, one for the `mainDb` and one for the `loggingDb`.
+</Aside>
+
+Then you can retrieve the `SqlConnection` instances using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("mainDb")] SqlConnection mainDbConnection,
+    [FromKeyedServices("loggingDb")] SqlConnection loggingDbConnection)
+{
+    // Use connections...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Properties of the SQL Server resources
+
+When you use the `WithReference` method to pass a SQL Server server or database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `sqldb` becomes `SQLDB_URI`.
+
+### SQL Server server resource
+
+The SQL Server server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the SQL Server |
+| `Port` | The port number the SQL Server is listening on |
+| `Username` | The username for authentication |
+| `Password` | The password for authentication |
+| `Uri` | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}` |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+**Example connection strings:**
+
+```
+Uri: mssql://sa:p%40ssw0rd1@localhost:1433
+JdbcConnectionString: jdbc:sqlserver://localhost:1433;trustServerCertificate=true
+```
+
+### SQL Server database resource
+
+The SQL Server database resource inherits all properties from its parent `SqlServerServerResource` and adds:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Uri` | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true;databaseName={DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `DatabaseName` | The name of the database |
+
+**Example connection strings:**
+
+```
+Uri: mssql://sa:p%40ssw0rd1@localhost:1433/catalog
+JdbcConnectionString: jdbc:sqlserver://localhost:1433;trustServerCertificate=true;databaseName=catalog
+```
+
+## Configuration
+
+The Aspire SQL Server integration provides multiple options to configure the connection based on the requirements and conventions of your project.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling the `AddSqlServerClient` method:
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient(connectionName: "sql");
+```
+
+Then the connection string is retrieved from the `ConnectionStrings` configuration section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "database": "Data Source=myserver;Initial Catalog=master"
+  }
+}
+```
+
+For more information on how to format this connection string, see the [ConnectionString](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
+
+### Use configuration providers
+
+The Aspire SQL Server integration supports `Microsoft.Extensions.Configuration`. It loads the `MicrosoftDataSqlClientSettings` from configuration by using the `Aspire:Microsoft:Data:SqlClient` key. The following snippet is an example of a `appsettings.json` file that configures some of the options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Microsoft": {
+      "Data": {
+        "SqlClient": {
+          "ConnectionString": "YOUR_CONNECTIONSTRING",
+          "DisableHealthChecks": false,
+          "DisableMetrics": true
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete SQL Server client integration JSON schema, see [Aspire.Microsoft.Data.SqlClient/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Microsoft.Data.SqlClient/ConfigurationSchema.json).
+
+### Use inline delegates
+
+Also you can pass the `Action<MicrosoftDataSqlClientSettings> configureSettings` delegate to set up some or all the options inline, for example to disable health checks from code:
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient(
+    "database",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+## Client integration health checks
+
+By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
+
+The Aspire SQL Server integration:
+
+- Adds the health check when `MicrosoftDataSqlClientSettings.DisableHealthChecks` is `false`, which attempts to connect to the SQL Server.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
+
+## Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+### Logging
+
+The Aspire SQL Server integration currently doesn't enable logging by default due to limitations of the `SqlClient`.
+
+### Tracing
+
+The Aspire SQL Server integration emits the following tracing activities using OpenTelemetry:
+
+- `OpenTelemetry.Instrumentation.SqlClient`
+
+### Metrics
+
+The Aspire SQL Server integration will emit the following metrics using OpenTelemetry:
+
+- Microsoft.Data.SqlClient.EventSource
+  - `active-hard-connections`
+  - `hard-connects`
+  - `hard-disconnects`
+  - `active-soft-connects`
+  - `soft-connects`
+  - `soft-disconnects`
+  - `number-of-non-pooled-connections`
+  - `number-of-pooled-connections`
+  - `number-of-active-connection-pool-groups`
+  - `number-of-inactive-connection-pool-groups`
+  - `number-of-active-connection-pools`
+  - `number-of-inactive-connection-pools`
+  - `number-of-active-connections`
+  - `number-of-free-connections`
+  - `number-of-stasis-connections`
+  - `number-of-reclaimed-connections`
