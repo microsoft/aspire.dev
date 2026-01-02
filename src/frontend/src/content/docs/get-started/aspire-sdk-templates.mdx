@@ -1,0 +1,174 @@
+---
+title: Aspire templates
+description: Learn about the Aspire templates and how to use them to create new apps.
+---
+
+import { Image } from 'astro:assets';
+import ThemeImage from '@components/ThemeImage.astro';
+import createProject from '@assets/get-started/code-extension-create-aspire-project.png';
+import createProjectLight from '@assets/get-started/code-extension-create-aspire-project-light.png';
+import vsCreateProj from '@assets/get-started/vs-create-dotnet-aspire-proj.png';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire provides a number of project templates to help you create new apps. You can use these templates to create full Aspire solutions, or add individual projects to existing Aspire solutions.
+
+The Aspire templates are available in the [📦 Aspire.ProjectTemplates](https://www.nuget.org/packages/Aspire.ProjectTemplates) NuGet package.
+
+## Available templates
+
+The Aspire templates allow you to create new apps pre-configured with the Aspire solutions structure and default settings. These projects also provide a unified debugging experience across the different resources of your app.
+
+Aspire templates are available in two categories: solution templates and project templates. Solution templates create a new Aspire solution with multiple projects, while project templates create individual projects that can be added to an existing Aspire solution.
+
+### Solution templates
+
+The following Aspire solution templates are available (assume the solution is named _AspireSample_):
+
+- **Aspire Empty App**: A minimal Aspire project that includes the following:
+  - **AspireSample.AppHost**: An orchestrator project designed to connect and configure the different projects and services of your app.
+  - **AspireSample.ServiceDefaults**: An Aspire shared project to manage configurations that are reused across the projects in your solution related to [resilience](https://learn.microsoft.com/dotnet/core/resilience/http-resilience), [service discovery](/fundamentals/service-discovery/), and [telemetry](/fundamentals/telemetry/).
+
+- **Aspire Starter App**: In addition to the AppHost and ServiceDefaults projects, the Aspire Starter App also includes the following:
+  - **AspireSample.ApiService**: An [ASP.NET Core Minimal API](https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis) project is used to provide data to the frontend. This project depends on the shared ServiceDefaults project.
+  - **AspireSample.Web**: An [ASP.NET Core Blazor App](https://learn.microsoft.com/aspnet/core/blazor) project with default Aspire service configurations, this project depends on the ServiceDefaults project.
+  - **AspireSample.Test**: Either an MSTest, NUnit, or xUnit test project with project references to the AppHost and an example _WebTests.cs_ file demonstrating an integration test.
+
+- **Aspire Starter App with ASP.NET Core and React**: This template includes the AppHost and ServiceDefaults projects, plus:
+  - **AspireSample.ApiService**: An [ASP.NET Core Minimal API](https://learn.microsoft.com/aspnet/core/fundamentals/minimal-apis) project that provides data to the frontend.
+  - **AspireSample.Web**: A React-based frontend application with TypeScript configured to work with the Aspire app.
+
+- **Aspire Starter App with FastAPI and React**: This template provides a Python-based starter app with the following projects:
+  - **AspireSample.AppHost**: The orchestrator project for managing the app's services.
+  - **AspireSample.ApiService**: A [FastAPI](https://fastapi.tiangolo.com/) Python backend service that provides data to the frontend.
+  - **AspireSample.Web**: A React-based frontend application with TypeScript.
+
+  For more information on getting started with Python in Aspire, see [Build your first app](/get-started/first-app/?lang=python).
+
+### Project templates
+
+The following Aspire project templates are available:
+
+- **Aspire AppHost**: A standalone AppHost project that can be used to orchestrate and manage the different projects and services of your app.
+
+- **Aspire Test projects**: These project templates are used to create test projects for your Aspire app, and they're intended to represent functional and integration tests. The test projects include the following templates:
+  - **MSTest**: A project that contains MSTest integration of an Aspire AppHost project.
+  - **NUnit**: A project that contains NUnit integration of an Aspire AppHost project.
+  - **xUnit**: A project that contains xUnit.net integration of an Aspire AppHost project.
+
+  For more information on the test templates, see [Testing overview](/testing/overview/).
+
+- **Aspire Service Defaults**: A standalone ServiceDefaults project that can be used to manage configurations that are reused across the projects in your solution related to [resilience](https://learn.microsoft.com/dotnet/core/resilience/http-resilience), [service discovery](/fundamentals/service-discovery/), and [telemetry](/fundamentals/telemetry/).
+
+:::caution
+The service defaults project template takes a `FrameworkReference` dependency on `Microsoft.AspNetCore.App`. This may not be ideal for some project types. For more information, see [Aspire service defaults](/fundamentals/service-defaults/).
+:::
+
+## Install the Aspire templates
+
+The Aspire templates are included with the Aspire workload. To install the templates, run the following command:
+
+```bash title=".NET CLI"
+dotnet new install Aspire.ProjectTemplates
+```
+
+:::tip
+To install a specific version of the Aspire templates, use the `::{version}` syntax. For example, to install version 13.1.0, run the following command:
+
+```bash title=".NET CLI"
+dotnet new install Aspire.ProjectTemplates::13.1.0
+```
+:::
+
+## Create solutions and projects using templates
+
+To create an Aspire solution or project, use Visual Studio, Visual Studio Code, or the Aspire CLI, and base it on the available templates. Explore additional Aspire templates in the [Aspire samples](https://github.com/dotnet/aspire-samples) repository.
+
+<br/>
+
+<PivotSelector
+  title="Select your development environment"
+  key="dev-environment"
+  options={[
+    { id: 'aspire-cli', title: 'Aspire CLI' },
+    { id: 'vscode', title: 'Visual Studio Code' },
+    { id: 'visual-studio', title: 'Visual Studio' },
+  ]}
+/>
+
+<Pivot id="visual-studio">
+To create an Aspire project using Visual Studio, search for *Aspire* in the Visual Studio new project window and select your desired template.
+
+<Image
+  src={vsCreateProj}
+  alt="Visual Studio: Aspire templates showing various Aspire project templates available for selection."
+/>
+
+Follow the prompts to configure your project or solution from the template, and then select **Create**.
+
+</Pivot>
+
+<Pivot id="vscode">
+To create an Aspire project using Visual Studio Code, search for *Aspire* in the Visual Studio Code new project window and select your desired template.
+
+<ThemeImage
+  dark={createProject}
+  light={createProjectLight}
+  alt="Visual Studio Code: Aspire templates showing various Aspire project templates available for selection."
+/>
+
+Select the desired location, enter a name, and select **Create**.
+
+</Pivot>
+
+<Pivot id="aspire-cli">
+To create an Aspire solution or project using the Aspire CLI, use the `aspire new` command and specify which template you would like to create.
+
+<LearnMore>
+  For detailed information about the `aspire new` command and all available options, see the [aspire new command reference](/reference/cli/commands/aspire-new/).
+</LearnMore>
+
+Consider the following examples:
+
+To create an empty AppHost project:
+
+```bash title="Aspire CLI"
+aspire new aspire-apphost-singlefile
+```
+
+To create an Aspire starter app (ASP.NET Core/Blazor), which is a full solution with a sample UI and backing API:
+
+```bash title="Aspire CLI"
+aspire new aspire-starter
+```
+
+To create an Aspire starter app with ASP.NET Core and React:
+
+```bash title="Aspire CLI"
+aspire new aspire-ts-cs-starter
+```
+
+To create an Aspire starter app with FastAPI and React:
+
+```bash title="Aspire CLI"
+aspire new aspire-py-starter
+```
+
+:::tip
+The `aspire new` command runs in interactive mode by default. When you don't provide options like `--name` or `--output`, the command prompts you for these values. To run non-interactively, provide all required options:
+
+```bash title="Aspire CLI"
+aspire new aspire-starter --name MyApp --output ./projects
+```
+:::
+
+You need to trust the ASP.NET Core localhost certificate before running the app. Run the following command:
+
+```bash title=".NET CLI"
+dotnet dev-certs https --trust
+```
+
+For more information, see [Troubleshoot untrusted localhost certificate](https://learn.microsoft.com/dotnet/aspire/troubleshooting/untrusted-localhost-certificate). For in-depth details about troubleshooting localhost certificates on Linux, see [ASP.NET Core: GitHub repository issue #32842](https://github.com/dotnet/aspnetcore/issues/32842).
+
+</Pivot>
