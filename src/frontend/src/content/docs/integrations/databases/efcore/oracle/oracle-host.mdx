@@ -1,0 +1,216 @@
+---
+title: Oracle Hosting integration reference
+description: Learn how to use the Aspire Oracle Hosting integration to orchestrate and configure Oracle databases in your Aspire projects.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import oracleIcon from '@assets/icons/oracle-icon.svg';
+
+<Image
+  src={oracleIcon}
+  alt="Oracle Database logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Oracle integrations, follow the [Get started with Oracle integrations](../oracle-get-started/) guide.
+
+This article includes full details about the Aspire Oracle Hosting integration, which models Oracle server and database resources as the `OracleDatabaseServerResource` and `OracleDatabaseResource` types. To access these types and APIs, you need to install the Oracle Hosting integration in your AppHost project.
+
+## Installation
+
+The Aspire Oracle hosting integration models various Oracle resources as the following types:
+
+- `OracleDatabaseServerResource`
+- `OracleDatabaseResource`
+
+To access these types and APIs for expressing them as resources in your AppHost project, install the [📦 Aspire.Hosting.Oracle](https://www.nuget.org/packages/Aspire.Hosting.Oracle) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Oracle" />
+
+## Add Oracle server and database resources
+
+In the AppHost project, call `AddOracle` to add and return an Oracle server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add an Oracle database to the server resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var oracle = builder.AddOracle("oracle")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(oracledb)
+       .WaitFor(oracledb);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+The Oracle database container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+</Aside>
+
+When Aspire adds a container image to the AppHost, as shown in the preceding example with the `container-registry.oracle.com/database/free` image, it creates a new Oracle server on your local machine. A reference to your Oracle resource builder (the `oracle` variable) is used to add a database. The database is named `oracledb` and then added to the `ExampleProject`. The Oracle resource includes a random `password` generated using the `CreateDefaultPasswordParameter` method.
+
+The `WithReference` method configures a connection in the `ExampleProject` named `"oracledb"`. For more information, see [Container resource lifecycle](/architecture/resource-model/#built-in-resources-and-lifecycle).
+
+<Aside type="tip">
+If you'd rather connect to an existing Oracle server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+</Aside>
+
+## Add Oracle resource with password parameter
+
+The Oracle resource includes default credentials with a random password. Oracle supports configuration-based default passwords by using the environment variable `ORACLE_PWD`. When you want to provide a password explicitly, you can provide it as a parameter:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var password = builder.AddParameter("password", secret: true);
+
+var oracle = builder.AddOracle("oracle", password)
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(oracledb)
+                       .WaitFor(oracledb);
+```
+
+The preceding code gets a parameter to pass to the `AddOracle` API, and internally assigns the parameter to the `ORACLE_PWD` environment variable of the Oracle container. The `password` parameter is usually specified as a user secret:
+
+```json title="JSON — secrets.json"
+{
+  "Parameters": {
+    "password": "Non-default-P@ssw0rd"
+  }
+}
+```
+
+For more information, see [External parameters](/get-started/resources/).
+
+## Add Oracle resource with data volume
+
+To add a data volume to the Oracle resource, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var oracle = builder.AddOracle("oracle")
+                    .WithDataVolume()
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(oracledb)
+       .WaitFor(oracledb);
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the Oracle data outside the lifecycle of its container. The data volume is mounted at the `/opt/oracle/oradata` path in the Oracle container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-oracle-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+:::danger
+The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+:::
+
+## Add Oracle resource with data bind mount
+
+To add a data bind mount to the Oracle resource, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var oracle = builder.AddOracle("oracle")
+                    .WithDataBindMount(source: @"C:\Oracle\Data");
+
+var oracledb = oracle.AddDatabase("oracledb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(oracledb)
+       .WaitFor(oracledb);
+
+// After adding all resources, run the app...
+```
+
+<Aside>
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+
+Data bind mounts rely on the host machine's filesystem to persist the Oracle data across container restarts. The data bind mount is mounted at the `C:\Oracle\Data` on Windows (or `/Oracle/Data` on Unix) path on the host machine in the Oracle container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+</Aside>
+
+## Using with non-.NET applications
+
+When you use the `WithReference` method to pass an Oracle database resource to a non-.NET application (such as Python or JavaScript), Aspire automatically injects environment variables that describe the connection information.
+
+For example, if you reference an Oracle database resource named `oracledb`:
+
+```csharp title="C# — AppHost.cs"
+var oracle = builder.AddOracle("oracle");
+var oracledb = oracle.AddDatabase("oracledb");
+
+var pythonApp = builder.AddUvicornApp("api", "./api", "main.app")
+    .WithReference(oracledb);
+```
+
+The following environment variables are available in the Python application:
+
+- `ConnectionStrings__oracledb` - The connection string for the Oracle database
+- `ORACLEDB_HOST` - The hostname of the Oracle server
+- `ORACLEDB_PORT` - The port number
+- `ORACLEDB_USERNAME` - The username for authentication
+- `ORACLEDB_PASSWORD` - The password for authentication
+- `ORACLEDB_URI` - The connection URI in oracle:// format
+- `ORACLEDB_JDBCCONNECTIONSTRING` - JDBC-format connection string
+- `ORACLEDB_DATABASENAME` - The database name
+
+You can access these environment variables in your application code:
+
+```python title="Python example"
+import oracledb
+import os
+
+# Get connection properties
+host = os.getenv("ORACLEDB_HOST")
+port = os.getenv("ORACLEDB_PORT")
+username = os.getenv("ORACLEDB_USERNAME")
+password = os.getenv("ORACLEDB_PASSWORD")
+service_name = os.getenv("ORACLEDB_DATABASENAME")
+
+# Create connection
+connection = oracledb.connect(
+    user=username,
+    password=password,
+    dsn=f"{host}:{port}/{service_name}"
+)
+```
+
+```javascript title="JavaScript example"
+const oracledb = require('oracledb');
+
+// Get connection properties
+const host = process.env.ORACLEDB_HOST;
+const port = process.env.ORACLEDB_PORT;
+const user = process.env.ORACLEDB_USERNAME;
+const password = process.env.ORACLEDB_PASSWORD;
+const serviceName = process.env.ORACLEDB_DATABASENAME;
+
+// Create connection
+const connection = await oracledb.getConnection({
+  user: user,
+  password: password,
+  connectString: `${host}:${port}/${serviceName}`
+});
+```
+
+## Hosting integration health checks
+
+The Oracle hosting integration automatically adds a health check for the Oracle resource. The health check verifies that the Oracle server is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.Oracle](https://www.nuget.org/packages/AspNetCore.HealthChecks.Oracle) NuGet package.

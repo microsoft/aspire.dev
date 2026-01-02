@@ -1,0 +1,261 @@
+---
+title: Oracle Client integration reference
+description: Learn how to use the Aspire Oracle Client integration to interact with Oracle databases from your Aspire projects.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import oracleIcon from '@assets/icons/oracle-icon.svg';
+
+<Image
+  src={oracleIcon}
+  alt="Oracle Database logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Oracle integrations, follow the [Get started with Oracle integrations](../oracle-get-started/) guide.
+
+This article includes full details about the Aspire Oracle Client integration, which allows you to connect to and interact with Oracle databases from your Aspire consuming projects.
+
+## Installation
+
+You need an Oracle database and connection string for accessing the database. To get started with the Aspire Oracle client integration, install the [📦 Aspire.Oracle.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Oracle.EntityFrameworkCore) NuGet package in the client-consuming project, that is, the project for the application that uses the Oracle client. The Oracle client integration registers a `DbContext` instance that you can use to interact with Oracle.
+
+<InstallDotNetPackage packageName="Aspire.Oracle.EntityFrameworkCore" />
+
+## Add Oracle client
+
+In the `Program.cs` file of your client-consuming project, call the `AddOracleDatabaseDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddOracleDatabaseDbContext<ExampleDbContext>(connectionName: "oracledb");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Oracle database resource in the AppHost project. For more information, see [Add Oracle server and database resources](../oracle-host/#add-oracle-server-and-database-resources).
+</Aside>
+
+You can then retrieve the `DbContext` instance using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ExampleDbContext context)
+{
+    // Use database context...
+}
+```
+
+For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
+
+## Enrich Oracle database context
+
+You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
+
+```csharp title="C# — Program.cs"
+builder.Services.AddDbContext<ExampleDbContext>(options =>
+    options.UseOracle(builder.Configuration.GetConnectionString("oracledb")
+        ?? throw new InvalidOperationException("Connection string 'oracledb' not found.")));
+```
+
+<Aside type="note">
+The connection string name that you pass to the `GetConnectionString` method must match the name used when adding the Oracle resource in the AppHost project. For more information, see [Add Oracle server and database resources](../oracle-host/#add-oracle-server-and-database-resources).
+</Aside>
+
+You have more flexibility when you create the database context in this way, for example:
+
+- You can reuse existing configuration code for the database context without rewriting it for Aspire.
+- You can use Entity Framework Core interceptors to modify database operations.
+- You can choose not to use Entity Framework Core context pooling, which may perform better in some circumstances.
+
+If you use this method, you can enhance the database context with Aspire-style retries, health checks, logging, and telemetry features by calling the `EnrichOracleDatabaseDbContext` method:
+
+```csharp title="C# — Program.cs"
+builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30 // seconds
+    });
+```
+
+The `settings` parameter is an instance of the `OracleEntityFrameworkCoreSettings` class.
+
+## Properties of the Oracle resources
+
+When you use the `WithReference` method to pass an Oracle server or database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
+
+### Oracle database server
+
+The Oracle database server resource exposes the following connection properties:
+
+| Property Name          | Description                                                                                                                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Host`                 | The hostname or IP address of the Oracle server                                                                                                                              |
+| `Port`                 | The port number the Oracle server is listening on                                                                                                                            |
+| `Username`             | The username for authentication                                                                                                                                              |
+| `Password`             | The password for authentication                                                                                                                                              |
+| `Uri`                  | The connection URI in oracle:// format, with the format `oracle://{Username}:{Password}@{Host}:{Port}`                                                                       |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:oracle:thin:@//{Host}:{Port}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+**Example connection strings:**
+
+```
+Uri: oracle://system:p%40ssw0rd1@localhost:1521
+JdbcConnectionString: jdbc:oracle:thin:@//localhost:1521
+```
+
+### Oracle database
+
+The Oracle database resource inherits all properties from its parent `OracleDatabaseServerResource` and adds:
+
+| Property Name          | Description                                                                                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Uri`                  | The connection URI in oracle:// format, with the format `oracle://{Username}:{Password}@{Host}:{Port}/{DatabaseName}`                                                                                |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:oracle:thin:@//{Host}:{Port}/{DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `DatabaseName`         | The name of the database                                                                                                                                                                              |
+
+**Example connection strings:**
+
+```
+Uri: oracle://system:p%40ssw0rd1@localhost:1521/FREEPDB1
+JdbcConnectionString: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `db1` becomes `DB1_URI`.
+</Aside>
+
+## Configuration
+
+The Aspire Oracle Entity Framework Core integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `builder.AddOracleDatabaseDbContext<TContext>()`:
+
+```csharp title="C# — Program.cs"
+builder.AddOracleDatabaseDbContext<ExampleDbContext>("oracleConnection");
+```
+
+The connection string is retrieved from the `ConnectionStrings` configuration section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "oracleConnection": "Data Source=TORCL;User Id=OracleUser;Password=Non-default-P@ssw0rd;"
+  }
+}
+```
+
+The `EnrichOracleDatabaseDbContext` won't make use of the `ConnectionStrings` configuration section since it expects a `DbContext` to be registered at the point it is called.
+
+For more information, see the [ODP.NET documentation](https://www.oracle.com/database/technologies/appdev/dotnet/odp.html).
+
+### Use configuration providers
+
+The Aspire Oracle Entity Framework Core integration supports `Microsoft.Extensions.Configuration` from configuration files such as `appsettings.json` by using the `Aspire:Oracle:EntityFrameworkCore` key. If you have set up your configurations in the `Aspire:Oracle:EntityFrameworkCore` section you can just call the method without passing any parameter.
+
+The following is an example of an `appsettings.json` that configures some of the available options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Oracle": {
+      "EntityFrameworkCore": {
+        "DisableHealthChecks": true,
+        "DisableTracing": true,
+        "DisableRetry": false,
+        "CommandTimeout": 30
+      }
+    }
+  }
+}
+```
+
+<Aside type="tip">
+The `CommandTimeout` property is in seconds. When set as shown in the preceding example, the timeout is 30 seconds.
+</Aside>
+
+### Use inline delegates
+
+You can also pass the `Action<OracleEntityFrameworkCoreSettings>` delegate to set up some or all the options inline, for example to disable health checks from code:
+
+```csharp title="C# — Program.cs"
+builder.AddOracleDatabaseDbContext<ExampleDbContext>(
+    "oracle",
+    static settings => settings.DisableHealthChecks  = true);
+```
+
+or
+
+```csharp title="C# — Program.cs"
+builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
+    static settings => settings.DisableHealthChecks  = true);
+```
+
+### Configuration options
+
+Here are the configurable options with corresponding default values:
+
+| Name | Description |
+|--|--|
+| `ConnectionString` | The connection string of the Oracle database to connect to. |
+| `DisableHealthChecks` | A boolean value that indicates whether the database health check is disabled or not. |
+| `DisableTracing` | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not. |
+| `DisableRetry` | A boolean value that indicates whether command retries should be disabled or not. |
+| `CommandTimeout` | The time in seconds to wait for the command to execute. |
+
+## Client integration health checks
+
+By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
+
+By default, the Aspire Oracle Entity Framework Core integration handles the following:
+
+- Checks if the `OracleEntityFrameworkCoreSettings.DisableHealthChecks` is `true`.
+- If so, adds the `DbContextHealthCheck`, which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
+
+## Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+### Logging
+
+The Aspire Oracle Entity Framework Core integration uses the following log categories:
+
+- `Microsoft.EntityFrameworkCore.ChangeTracking`
+- `Microsoft.EntityFrameworkCore.Database.Command`
+- `Microsoft.EntityFrameworkCore.Database.Connection`
+- `Microsoft.EntityFrameworkCore.Database.Transaction`
+- `Microsoft.EntityFrameworkCore.Infrastructure`
+- `Microsoft.EntityFrameworkCore.Migrations`
+- `Microsoft.EntityFrameworkCore.Model`
+- `Microsoft.EntityFrameworkCore.Model.Validation`
+- `Microsoft.EntityFrameworkCore.Query`
+- `Microsoft.EntityFrameworkCore.Update`
+
+### Tracing
+
+The Aspire Oracle Entity Framework Core integration will emit the following tracing activities using OpenTelemetry:
+
+- `OpenTelemetry.Instrumentation.EntityFrameworkCore`
+
+### Metrics
+
+The Aspire Oracle Entity Framework Core integration currently supports the following metrics:
+
+- `Microsoft.EntityFrameworkCore`
+
+## See also
+
+- [Oracle Database](https://www.oracle.com/database/)
+- [Oracle Database Documentation](https://docs.oracle.com/en/database/oracle/oracle-database/index.html)
+- [Entity Framework Core docs](https://learn.microsoft.com/ef/core)
+- [Aspire integrations](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)
