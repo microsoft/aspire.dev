@@ -571,10 +571,7 @@ const { options, key, title } = Astro.props;
     // Collapse/Expand functionality
     const collapseBtn = document.getElementById(`pivot-collapse-${key}`);
     const expandBtn = document.getElementById(`pivot-expand-${key}`);
-    const collapseStorageKey = `${key}-collapsed`;
 
-    // Check if user previously collapsed this pivot, default to true (collapsed)
-    const wasCollapsed = localStorage.getItem(collapseStorageKey) !== 'false';
     let isCollapsed = false;
     let autoCollapseTimer = null;
     let userExpanded = false; // Track if user manually expanded
@@ -585,12 +582,10 @@ const { options, key, title } = Astro.props;
 
       if (collapsed) {
         container.classList.add('collapsed');
-        localStorage.setItem(collapseStorageKey, 'true');
         clearAutoCollapseTimer();
         enableScrollCollapse = false;
       } else {
         container.classList.remove('collapsed');
-        localStorage.setItem(collapseStorageKey, 'false');
 
         // If user manually expanded, mark it and start auto-collapse timer
         if (isUserAction) {
@@ -619,8 +614,8 @@ const { options, key, title } = Astro.props;
       }
     }
 
-    // Restore collapsed state if it was floating and previously collapsed
-    if (wasCollapsed && isFloating) {
+    // Always start collapsed when floating
+    if (isFloating) {
       setCollapsed(true);
     }
 
@@ -674,8 +669,8 @@ const { options, key, title } = Astro.props;
       const wasFloatingBefore = isFloating;
       originalUpdateFloatingState();
 
-      // If we just became floating and user had it collapsed, restore that state
-      if (!wasFloatingBefore && isFloating && wasCollapsed) {
+      // Always collapse when becoming floating
+      if (!wasFloatingBefore && isFloating) {
         setCollapsed(true);
       }
       // If we're no longer floating, remove collapsed state
@@ -684,10 +679,6 @@ const { options, key, title } = Astro.props;
         clearAutoCollapseTimer();
         userExpanded = false;
         enableScrollCollapse = false;
-      }
-      // If we just became floating and it's not collapsed, start auto-collapse timer
-      if (!wasFloatingBefore && isFloating && !isCollapsed) {
-        startAutoCollapseTimer();
       }
     };
   }

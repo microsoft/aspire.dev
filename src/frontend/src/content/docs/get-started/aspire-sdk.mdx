@@ -1,0 +1,72 @@
+---
+title: Aspire SDK
+description: Learn about the Aspire SDK and how it simplifies orchestrating Aspire applications.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Aspire SDK is intended for [AppHost projects](/get-started/app-host/), which serve as the orchestrator for Aspire applications. These projects are designated by their usage of the `Aspire.AppHost.Sdk` in the project file. The SDK provides features that simplify the development of Aspire apps.
+
+The [📦 Aspire.AppHost.Sdk](https://www.nuget.org/packages/Aspire.AppHost.Sdk) is used for building Aspire apps.
+
+<Tabs syncKey='sdk'>
+
+<TabItem label='Project file'>
+
+The `Aspire.AppHost.Sdk` is defined in the top-level `Project` node's `Sdk` attribute:
+
+```xml title='XML — *.csproj file' {1}
+<Project Sdk="Aspire.AppHost.Sdk/13.1">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <!-- Omitted for brevity -->
+    </PropertyGroup>
+
+    <!-- Omitted for brevity -->
+</Project>
+```
+
+</TabItem>
+<TabItem label="File-based app">
+
+The `Aspire.AppHost.Sdk` is defined in a file-based app's source file using the `#:sdk` directive:
+
+```csharp title='C# — file-based app' {1}
+#:sdk Aspire.AppHost.Sdk@13.1.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Omitted for brevity
+```
+
+</TabItem>
+
+</Tabs>
+
+The preceding example defines the top-level SDK as `Aspire.AppHost.Sdk`. The project also references the [📦 Aspire.Hosting.AppHost](https://www.nuget.org/packages/Aspire.Hosting.AppHost) package which brings in a number of Aspire-related dependencies.
+
+## SDK Features
+
+The Aspire SDK provides several key features.
+
+### Project references
+
+Each `ProjectReference` in the AppHost project isn't treated as standard project references. Instead, they enable the AppHost to execute these projects as part of its orchestration. Each project reference triggers a generator to create a `class` that represents the project as an `IProjectMetadata`. This metadata is used to populate the named projects in the generated `Projects` namespace. When you call the `AddProject` API, the `Projects` namespace is used to reference the project—passing the generated class as a generic-type parameter.
+
+:::tip
+To prevent a project from being treated as an Aspire resource in the AppHost, set the `IsAspireProjectResource` attribute on the `ProjectReference` element to `false`, as shown in the following example:
+
+```xml
+<ProjectReference Include="..\MyProject\MyProject.csproj" IsAspireProjectResource="false" />
+```
+
+Otherwise, by default, the `ProjectReference` is treated as Aspire project resource.
+:::
+
+### Orchestrator dependencies
+
+The Aspire SDK dynamically adds references to the [Aspire dashboard](/dashboard/overview/) and other AppHost dependencies, such as the developer control plane (DCP) packages. These dependencies are specific to the platform that the AppHost is built on.
+
+When the AppHost project runs, the orchestrator relies on these dependencies to provide the necessary functionality to the AppHost. For more information, see [Aspire orchestration overview](/get-started/app-host/).
