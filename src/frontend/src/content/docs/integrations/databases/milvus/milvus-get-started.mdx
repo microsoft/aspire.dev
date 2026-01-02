@@ -1,0 +1,290 @@
+---
+title: Get started with the Milvus integrations
+description: Learn how to set up the Aspire Milvus Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import milvusIcon from '@assets/icons/milvus-icon.png';
+
+<Image
+  src={milvusIcon}
+  alt="Milvus logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Milvus](https://milvus.io/) is an open-source vector database system that efficiently stores, indexes, and searches large-scale vector data. It's commonly used in machine learning, artificial intelligence, and data science applications. The Aspire Milvus integration enables you to connect to existing Milvus servers or create new servers from Aspire with the [`milvusdb/milvus` container image](https://hub.docker.com/r/milvusdb/milvus).
+
+In this introduction, you'll see how to install and use the Aspire Milvus integrations in a simple configuration. If you already have this knowledge, see [Milvus Hosting integration](../milvus-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Milvus Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Milvus vector database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Milvus" shortName="milvus" />
+
+Next, in the AppHost project, create instances of Milvus server and database resources, then pass the database to the consuming client projects:
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript" },
+    ]}
+/>
+
+<Pivot id="csharp">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(milvusdb)
+                            .WithReference(milvusdb);
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(milvusdb)
+                            .WithReference(milvusdb);
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var milvus = builder.AddMilvus("milvus")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var milvusdb = milvus.AddDatabase("milvusdb");
+
+var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+                 .WithExternalHttpEndpoints()
+                 .WaitFor(milvusdb)
+                 .WithReference(milvusdb);
+```
+
+</Pivot>
+
+<Aside type="tip">
+    This is the simplest implementation of Milvus resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Milvus Hosting integration](../milvus-host/).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+<Pivot id="csharp">
+
+In each of these consuming client projects, install the Aspire Milvus client integration:
+
+<InstallDotNetPackage packageName="Aspire.Milvus.Client" />
+
+<Aside type="caution">The client integration is currently in preview.</Aside>
+
+In the `Program.cs` file of your client-consuming project, call the `AddMilvusClient` extension method on any `IHostApplicationBuilder` to register a `MilvusClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddMilvusClient(connectionName: "milvusdb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the Milvus database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
+
+<Pivot id="python">
+
+To interact with Milvus vector databases in your Python consuming projects, you need to include a Milvus client library. The official option is `pymilvus`, which is Milvus's Python SDK. You can install this library using pip:
+
+```bash
+pip install pymilvus
+```
+
+Ensure that you import the `MilvusClient` in code files that interact with the vector database. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import pymilvus"
+from pymilvus import MilvusClient, connections
+import os
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+To interact with Milvus vector databases in your JavaScript consuming projects, you need to include a Milvus client library. The official option is `@zilliz/milvus2-sdk-node`, which is Milvus's Node.js SDK. You can install this library using npm:
+
+```bash
+npm install @zilliz/milvus2-sdk-node
+```
+
+Ensure that you import the `MilvusClient` in code files that interact with the vector database:
+
+```javascript title="JavaScript - Import @zilliz/milvus2-sdk-node"
+const { MilvusClient } = require('@zilliz/milvus2-sdk-node');
+```
+
+</Pivot>
+
+### Use injected Milvus properties
+
+In the AppHost, when you used the `WithReference` method to pass a Milvus database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `milvusdb` becomes `MILVUSDB_URI`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string connectionUri = builder.Configuration.GetValue<string>("ConnectionStrings__milvusdb");
+string token = builder.Configuration.GetValue<string>("MILVUSDB_TOKEN");
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the `os.getenv()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+connection_uri = os.getenv("ConnectionStrings__milvusdb")
+host = os.getenv("MILVUSDB_HOST")
+port = os.getenv("MILVUSDB_PORT")
+token = os.getenv("MILVUSDB_TOKEN")
+database_name = os.getenv("MILVUSDB_DATABASENAME")
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the `process.env` method to obtain these environment variables in consuming projects:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const connectionUri = process.env.ConnectionStrings__milvusdb;
+const host = process.env.MILVUSDB_HOST;
+const port = process.env.MILVUSDB_PORT;
+const token = process.env.MILVUSDB_TOKEN;
+const databaseName = process.env.MILVUSDB_DATABASENAME;
+```
+
+</Pivot>
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on the Milvus resource configuration. For more information, see [Properties of the Milvus resources](../milvus-client/#properties-of-the-milvus-resources).
+</Aside>
+
+### Use Milvus resources in client code
+
+<Pivot id="csharp">
+
+Now that you've added the `MilvusClient` to the builder in the consuming project, you can use the Milvus vector database to store and search vector data. Get the `MilvusClient` instance using dependency injection. For example, to retrieve your client object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(MilvusClient client)
+{
+    // Use Milvus client...
+}
+```
+
+Having obtained the client, you can work with the Milvus vector database as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the information you have obtained about the Milvus resource to connect to the vector database. Here is an example of how to connect using `pymilvus`:
+
+```python title="Python - Connect to Milvus"
+# Create Milvus client
+# The token format is "username:password"
+client = MilvusClient(
+    uri=f"http://{host}:{port}",
+    token=token,
+    db_name=database_name
+)
+
+# Verify connection
+print(f"Connected to Milvus database: {database_name}")
+```
+
+Having obtained the client, you can work with the Milvus vector database as you would in any other Python application.
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the information you have obtained about the Milvus resource to connect to the vector database. Here is an example of how to connect using `@zilliz/milvus2-sdk-node`:
+
+```javascript title="JavaScript - Connect to Milvus"
+// Create Milvus client
+const client = new MilvusClient({
+  address: `${host}:${port}`,
+  token: token,
+  database: databaseName
+});
+
+// Verify connection
+console.log(`Connected to Milvus database: ${databaseName}`);
+```
+
+Having obtained the client, you can work with the Milvus vector database as you would in any other JavaScript application.
+
+</Pivot>
+
+## Next steps
+
+Now, that you have an Aspire app with Milvus integrations up and running, you can use the following reference documents to learn how to configure and interact with the Milvus resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the Milvus hosting integration"
+    description="Discover how to configure data volumes, Attu GUI, and more."
+    href="/integrations/databases/milvus/milvus-host/"
+  />
+  <LinkCard
+    title="Understand the Milvus client integration"
+    description="Learn about the Milvus client integration, including connection strings and observability."
+    href="/integrations/databases/milvus/milvus-client/"
+  />
+</CardGrid>
