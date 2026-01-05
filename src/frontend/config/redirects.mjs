@@ -3,7 +3,8 @@ export const redirects = {
   // For example:
   // '/original/path/': '/new/path'
   '/get-started/welcome/': '/docs/',
-  '/integrations/postgres/': '/integrations/databases/postgres/postgres-getting-started/',
+  '/integrations/postgres/': '/integrations/databases/postgres/postgres-get-started/',
+  '/integrations/qdrant/': '/integrations/databases/qdrant/qdrant-get-started/',
   '/integrations/rabbitmq/': '/integrations/messaging/rabbitmq/',
   '/integrations/eventstore/': '/integrations/databases/kurrentdb/',
 };
