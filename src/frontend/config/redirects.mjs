@@ -3,8 +3,8 @@ export const redirects = {
   // For example:
   // '/original/path/': '/new/path'
   '/get-started/welcome/': '/docs/',
-  '/integrations/postgres/': '/integrations/databases/postgres/postgres-getting-started/',
-  '/integrations/sqlite/': '/integrations/databases/sqlite/sqlite-getting-started/',
+  '/integrations/postgres/': '/integrations/databases/postgres/postgres-get-started/',
+  '/integrations/sqlite/': '/integrations/databases/sqlite/sqlite-get-started/',
   '/integrations/rabbitmq/': '/integrations/messaging/rabbitmq/',
   '/integrations/eventstore/': '/integrations/databases/kurrentdb/',
 };
