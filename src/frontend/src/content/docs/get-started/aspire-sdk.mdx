@@ -65,6 +65,30 @@ To prevent a project from being treated as an Aspire resource in the AppHost, se
 Otherwise, by default, the `ProjectReference` is treated as Aspire project resource.
 :::
 
+#### Customizing generated project names
+
+When you reference a project in the AppHost, the Aspire SDK generates a strongly-typed class in the `Projects` namespace. By default, the generated class name is based on the project's name. However, if you have multiple projects with the same name or want to customize the generated type name, you can use the `AspireProjectMetadataTypeName` attribute.
+
+For example, if you have two microservices with the same project name (like `Presentation.Api`), you can differentiate them by setting custom names:
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="..\Microservice1\Presentation.Api\Presentation.Api.csproj"
+                    AspireProjectMetadataTypeName="MicroService1" />
+  <ProjectReference Include="..\Microservice2\Presentation.Api\Presentation.Api.csproj"
+                    AspireProjectMetadataTypeName="MicroService2" />
+</ItemGroup>
+```
+
+This generates `Projects.MicroService1` and `Projects.MicroService2` classes, allowing you to reference each project distinctly in your AppHost:
+
+```csharp
+var microservice1 = builder.AddProject<Projects.MicroService1>("micro1");
+var microservice2 = builder.AddProject<Projects.MicroService2>("micro2");
+```
+
+For more information, see [ProjectResourceBuilderExtensions.AddProject Method](https://learn.microsoft.com/en-us/dotnet/api/aspire.hosting.projectresourcebuilderextensions.addproject?view=dotnet-aspire-13.0).
+
 ### Orchestrator dependencies
 
 The Aspire SDK dynamically adds references to the [Aspire dashboard](/dashboard/overview/) and other AppHost dependencies, such as the developer control plane (DCP) packages. These dependencies are specific to the platform that the AppHost is built on.
