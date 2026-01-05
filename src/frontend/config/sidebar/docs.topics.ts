@@ -434,6 +434,28 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'get-started/resources',
         },
         {
+          label: 'Orchestrating resources',
+          translations: {
+            da: 'Orkestrer ressourcer',
+            de: 'Ressourcen orchestrieren',
+            en: 'Orchestrating resources',
+            es: 'Orquestar recursos',
+            fr: 'Orchestration des ressources',
+            hi: 'संसाधनों का आयोजन',
+            id: 'Mengatur sumber daya',
+            it: 'Orchestrazione delle risorse',
+            ja: 'リソースのオーケストレーション',
+            ko: '리소스 오케스트레이션',
+            'pt-BR': 'Orquestração de recursos',
+            'pt-PT': 'Orquestração de recursos',
+            ru: 'Оркестрация ресурсов',
+            tr: 'Kaynakları düzenleme',
+            uk: 'Оркестрація ресурсів',
+            'zh-CN': '编排资源',
+          },
+          slug: 'fundamentals/orchestrate-resources',
+        },
+        {
           label: 'Pipelines and app topology',
           translations: {
             da: 'Udrulning og apptopologi',
