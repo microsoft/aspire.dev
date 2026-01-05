@@ -264,33 +264,33 @@ builder.Services.AddEventingSubscriber<LifecycleLoggerSubscriber>();
 builder.Build().Run();
 
 internal sealed class LifecycleLoggerSubscriber(ILogger<LifecycleLoggerSubscriber> logger)
-      : IDistributedApplicationEventingSubscriber
+    : IDistributedApplicationEventingSubscriber
 {
-      public Task SubscribeAsync(
-            IDistributedApplicationEventing eventing,
-            DistributedApplicationExecutionContext executionContext,
-            CancellationToken cancellationToken)
-      {
-            eventing.Subscribe<BeforeStartEvent>((@event, ct) =>
-            {
-                  logger.LogInformation("1. BeforeStartEvent");
-                  return Task.CompletedTask;
-            });
-
-            eventing.Subscribe<ResourceEndpointsAllocatedEvent>((@event, ct) =>
-            {
-                  logger.LogInformation("2. {Resource} ResourceEndpointsAllocatedEvent", @event.Resource.Name);
-                  return Task.CompletedTask;
-            });
-
-            eventing.Subscribe<AfterResourcesCreatedEvent>((@event, ct) =>
-            {
-                  logger.LogInformation("3. AfterResourcesCreatedEvent");
-                  return Task.CompletedTask;
-            });
-
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext executionContext,
+        CancellationToken cancellationToken)
+    {
+        eventing.Subscribe<BeforeStartEvent>((@event, ct) =>
+        {
+            logger.LogInformation("1. BeforeStartEvent");
             return Task.CompletedTask;
-      }
+        });
+
+        eventing.Subscribe<ResourceEndpointsAllocatedEvent>((@event, ct) =>
+        {
+            logger.LogInformation("2. {Resource} ResourceEndpointsAllocatedEvent", @event.Resource.Name);
+            return Task.CompletedTask;
+        });
+
+        eventing.Subscribe<AfterResourcesCreatedEvent>((@event, ct) =>
+        {
+            logger.LogInformation("3. AfterResourcesCreatedEvent");
+            return Task.CompletedTask;
+        });
+
+        return Task.CompletedTask;
+    }
 }
 ```
 
