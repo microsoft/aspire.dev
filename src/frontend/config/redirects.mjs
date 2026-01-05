@@ -4,6 +4,7 @@ export const redirects = {
   // '/original/path/': '/new/path'
   '/get-started/welcome/': '/docs/',
   '/integrations/postgres/': '/integrations/databases/postgres/postgres-getting-started/',
+  '/integrations/mysql/': '/integrations/databases/mysql/mysql-getting-started/',
   '/integrations/rabbitmq/': '/integrations/messaging/rabbitmq/',
   '/integrations/eventstore/': '/integrations/databases/kurrentdb/',
 };

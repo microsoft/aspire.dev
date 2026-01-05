@@ -1,0 +1,468 @@
+---
+title: Certificate configuration
+description: Learn how to configure HTTPS endpoints and certificate trust for resources in Aspire to enable secure communication.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Why HTTPS matters
+
+HTTPS is essential for protecting the security and privacy of data transmitted between services. It encrypts traffic to prevent eavesdropping, tampering, and man-in-the-middle attacks. For production environments, HTTPS is a fundamental security requirement.
+
+However, enabling HTTPS during local development to match the production configuration presents unique challenges. Development environments typically use self-signed certificates that browsers and applications don't trust by default. Managing these certificates across multiple services, containers, and different language runtimes can be complex and time-consuming, often creating friction in the development workflow.
+
+Aspire simplifies HTTPS configuration for local development by providing APIs to:
+
+- Configure HTTPS endpoints with appropriate certificates for server authentication
+- Manage certificate trust so resources can communicate with services using self-signed certificates
+- Automatically handle the .NET provided ASP.NET Core development certificate (a per-user self-signed certificate valid only for local domains) across different resource types
+
+## Overview
+
+Aspire provides two complementary sets of certificate APIs:
+
+1. **HTTPS endpoint APIs**: Configure the certificates that resources use for their own HTTPS endpoints (server authentication)
+2. **Certificate trust APIs**: Configure which certificates resources trust when making outbound HTTPS connections (client authentication)
+
+Both sets of APIs work together to enable secure HTTPS communication during local development. For example, a Vite frontend might use `WithHttpsDeveloperCertificate` to serve HTTPS traffic, while also using `WithDeveloperCertificateTrust` to trust the dashboard's OTLP endpoint certificate.
+
+<Aside type="caution">
+  Certificate customization only applies at run time. Custom certificates aren't
+  included in publish or deployment artifacts.
+</Aside>
+
+## HTTPS endpoint configuration
+
+HTTPS endpoint configuration determines which certificate a resource presents when serving HTTPS traffic. This is server-side certificate configuration for resources that host HTTPS/TLS endpoints.
+
+### Default behavior
+
+For resources that have a certificate configuration defined with `WithHttpsCertificateConfiguration`, Aspire attempts to configure it to use the ASP.NET Core development certificate if available. This automatic configuration works for many common resource types including YARP, Redis, and Keycloak containers; Vite based JavaScript apps; and Python apps using Uvicorn.
+
+You can control this behavior using the HTTPS endpoint APIs described below.
+
+### Use the development certificate
+
+To explicitly configure a resource to use the ASP.NET Core development certificate for its HTTPS endpoints:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Explicitly use the developer certificate
+var nodeApp = builder.AddViteApp("frontend", "../frontend")
+    .WithHttpsDeveloperCertificate();
+
+// Use developer certificate with an encrypted private key
+var certPassword = builder.AddParameter("cert-password", secret: true);
+var pythonApp = builder.AddUvicornApp("api", "../api", "app:main")
+    .WithHttpsDeveloperCertificate(certPassword);
+
+builder.Build().Run();
+```
+
+The `WithHttpsDeveloperCertificate` method:
+
+- Configures the resource to use the ASP.NET Core development certificate
+- Only applies in run mode (local development)
+- Optionally accepts a password parameter for encrypted certificate private keys
+- Works with containers, Node.js, Python, and other resource types
+
+### Use a custom certificate
+
+To configure a resource to use a specific X.509 certificate for HTTPS endpoints:
+
+```csharp title="AppHost.cs"
+using System.Security.Cryptography.X509Certificates;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Load your certificate
+var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
+
+// Use the certificate for HTTPS endpoints
+builder.AddContainer("api", "my-api:latest")
+    .WithHttpsCertificate(certificate);
+
+// Use certificate with a password parameter
+var certPassword = builder.AddParameter("cert-password", secret: true);
+builder.AddNpmApp("frontend", "../frontend")
+    .WithHttpsCertificate(certificate, certPassword);
+
+builder.Build().Run();
+```
+
+The certificate must:
+
+- Include a private key
+- Be a valid X.509 certificate
+- Be appropriate for server authentication
+
+### Disable HTTPS certificate configuration
+
+To prevent Aspire from configuring any HTTPS certificate for a resource:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Disable automatic HTTPS certificate configuration
+var redis = builder.AddRedis("cache")
+    .WithoutHttpsCertificate();
+
+builder.Build().Run();
+```
+
+Use `WithoutHttpsCertificate` when:
+
+- The resource doesn't support HTTPS
+- You want to manually configure certificates
+- The resource has its own certificate management
+
+### Customize certificate configuration
+
+For resources that need custom certificate configuration logic, use `WithHttpsCertificateConfiguration` to specify how certificate files should be passed to the resource:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("api", "my-api:latest")
+    .WithHttpsCertificateConfiguration(ctx =>
+    {
+        // Pass certificate paths as command line arguments
+        ctx.Arguments.Add("--tls-cert");
+        ctx.Arguments.Add(ctx.CertificatePath);
+        ctx.Arguments.Add("--tls-key");
+        ctx.Arguments.Add(ctx.KeyPath);
+
+        // Or set environment variables
+        ctx.EnvironmentVariables["TLS_CERT_FILE"] = ctx.CertificatePath;
+        ctx.EnvironmentVariables["TLS_KEY_FILE"] = ctx.KeyPath;
+
+        // Use PFX format if the resource requires it
+        ctx.EnvironmentVariables["TLS_PFX_FILE"] = ctx.PfxPath;
+
+        // Include password if needed
+        if (ctx.Password is not null)
+        {
+            ctx.EnvironmentVariables["TLS_KEY_PASSWORD"] = ctx.Password;
+        }
+
+        return Task.CompletedTask;
+    });
+
+builder.Build().Run();
+```
+
+The callback receives an `HttpsCertificateConfigurationCallbackAnnotationContext` that provides:
+
+- `CertificatePath`: Path to the certificate file in PEM format
+- `KeyPath`: Path to the private key file in PEM format
+- `PfxPath`: Path to the certificate in PFX/PKCS#12 format
+- `Password`: The password for the private key, if configured
+- `Arguments`: Command line arguments list to modify
+- `EnvironmentVariables`: Environment variables dictionary to modify
+- `ExecutionContext`: The current execution context
+- `Resource`: The resource being configured
+
+## Certificate trust configuration
+
+Certificate trust configuration determines which certificates a resource trusts when making outbound HTTPS connections. This is client-side certificate configuration.
+
+### When to use certificate trust
+
+Certificate trust customization is valuable when:
+
+- Resources need to trust the ASP.NET Core development certificate for local HTTPS communication
+- Containerized services must communicate with the dashboard over HTTPS
+- Python or Node.js applications need to trust custom certificate authorities
+- You're working with services that have specific certificate trust requirements
+- Resources need to establish secure telemetry connections to the Aspire dashboard
+
+### Development certificate trust
+
+By default, Aspire attempts to add trust for the ASP.NET Core development certificate to resources that wouldn't otherwise trust it. This enables resources to communicate with the dashboard OTLP collector endpoint over HTTPS and any other HTTPS endpoints secured by the development certificate.
+
+You can control this behavior per resource using the `WithDeveloperCertificateTrust` API or through AppHost configuration settings.
+
+#### Configure development certificate trust per resource
+
+To explicitly enable or disable development certificate trust for a specific resource:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Explicitly enable development certificate trust
+var nodeApp = builder.AddNpmApp("frontend", "../frontend")
+    .WithDeveloperCertificateTrust(trust: true);
+
+// Disable development certificate trust
+var pythonApp = builder.AddPythonApp("api", "../api", "main.py")
+    .WithDeveloperCertificateTrust(trust: false);
+
+builder.Build().Run();
+```
+
+### Certificate authority collections
+
+Certificate authority collections allow you to bundle custom certificates and make them available to resources. You create a collection using the `AddCertificateAuthorityCollection` method and then reference it from resources that need to trust those certificates.
+
+#### Create and use a certificate authority collection
+
+```csharp title="AppHost.cs"
+using System.Security.Cryptography.X509Certificates;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Load your custom certificates
+var certificates = new X509Certificate2Collection();
+certificates.ImportFromPemFile("path/to/certificate.pem");
+
+// Create a certificate authority collection
+var certBundle = builder.AddCertificateAuthorityCollection("my-bundle")
+    .WithCertificates(certificates);
+
+// Apply the certificate bundle to resources
+builder.AddNpmApp("my-project", "../myapp")
+    .WithCertificateAuthorityCollection(certBundle);
+
+builder.Build().Run();
+```
+
+In the preceding example, the certificate bundle is created with custom certificates and then applied to a Node.js application, enabling it to trust those certificates.
+
+### Certificate trust scopes
+
+Certificate trust scopes control how custom certificates interact with a resource's default trusted certificates. Different scopes provide flexibility in managing certificate trust based on your application's requirements.
+
+The `WithCertificateTrustScope` API accepts a `CertificateTrustScope` value to specify the trust behavior.
+
+#### Available trust scopes
+
+Aspire supports the following certificate trust scopes:
+
+- **Append**: Appends custom certificates to the default trusted certificates
+- **Override**: Replaces the default trusted certificates with only the configured certificates
+- **System**: Combines custom certificates with system root certificates and uses them to override the defaults
+- **None**: Disables all custom certificate trust configuration
+
+#### Append mode
+
+Attempts to append the configured certificates to the default trusted certificates for a given resource. This mode is useful when you want to add trust for additional certificates while maintaining trust for the system's default certificates.
+
+This is the default scope for most resources. For Python resources, only OTEL trust configuration will be applied in this mode.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddNodeApp("api", "../api")
+    .WithCertificateTrustScope(CertificateTrustScope.Append);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+  Not all languages and runtimes support Append mode. For example, Python
+  doesn't natively support appending certificates to the default trust store.
+</Aside>
+
+#### Override mode
+
+Attempts to override a resource to only trust the configured certificates, replacing the default trusted certificates entirely. This mode is useful when you need strict control over which certificates are trusted.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var certBundle = builder.AddCertificateAuthorityCollection("custom-certs")
+    .WithCertificates(myCertificates);
+
+builder.AddPythonModule("api", "./api", "uvicorn")
+    .WithCertificateAuthorityCollection(certBundle)
+    .WithCertificateTrustScope(CertificateTrustScope.Override);
+
+builder.Build().Run();
+```
+
+#### System mode
+
+Attempts to combine the configured certificates with the default system root certificates and use them to override the default trusted certificates for a resource. This mode is intended to support Python or other languages that don't work well with Append mode.
+
+This is the default scope for Python projects because Python only has mechanisms to fully override certificate trust.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddPythonApp("worker", "../worker", "main.py")
+    .WithCertificateTrustScope(CertificateTrustScope.System);
+
+builder.Build().Run();
+```
+
+#### None mode
+
+Disables all custom certificate trust for the resource, causing it to rely solely on its default certificate trust behavior.
+
+This is the default scope for .NET projects on Windows, as there's no way to automatically change the default system store source.
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("service", "myimage")
+    .WithCertificateTrustScope(CertificateTrustScope.None);
+
+builder.Build().Run();
+```
+
+### Custom certificate trust configuration
+
+For advanced scenarios, you can specify custom certificate trust behavior using a callback API. This callback allows you to customize the command line arguments and environment variables required to configure certificate trust for different resource types.
+
+#### Configure certificate trust with a callback
+
+Use `WithCertificateTrustConfiguration` to customize how certificate trust is configured for a resource:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("api", "myimage")
+    .WithCertificateTrustConfiguration(ctx =>
+    {
+        // Add a command line argument
+        ctx.Arguments.Add("--use-system-ca");
+
+        // Set environment variables with certificate paths
+        // CertificateBundlePath resolves to the path of the custom certificate bundle file
+        ctx.EnvironmentVariables["MY_CUSTOM_CERT_VAR"] = ctx.CertificateBundlePath;
+
+        // CertificateDirectoriesPath resolves to paths containing individual certificates
+        ctx.EnvironmentVariables["CERTS_DIR"] = ctx.CertificateDirectoriesPath;
+
+        return Task.CompletedTask;
+    });
+
+builder.Build().Run();
+```
+
+The callback receives a `CertificateTrustConfigurationCallbackAnnotationContext` that provides:
+
+- `Scope`: The `CertificateTrustScope` for the resource.
+- `Arguments`: Command line arguments for the resource. Values can be strings or path providers like `CertificateBundlePath` or `CertificateDirectoriesPath`.
+- `EnvironmentVariables`: Environment variables for configuring certificate trust. The dictionary key is the environment variable name; values can be strings or path providers. By default, includes `SSL_CERT_DIR` and may include `SSL_CERT_FILE` if Override or System scope is configured.
+- `CertificateBundlePath`: A value provider that resolves to the path of a custom certificate bundle file.
+- `CertificateDirectoriesPath`: A value provider that resolves to paths containing individual certificates.
+
+Default implementations are provided for Node.js, Python, and container resources. Container resources rely on standard OpenSSL configuration options, with default values that support the majority of common Linux distributions.
+
+#### Configure container certificate paths
+
+For container resources, you can customize where certificates are stored and accessed using `WithContainerCertificatePaths`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("api", "myimage")
+    .WithContainerCertificatePaths(
+        customCertificatesDestination: "/custom/certs/path",
+        defaultCertificateBundlePaths: ["/etc/ssl/certs/ca-certificates.crt"],
+        defaultCertificateDirectoryPaths: ["/etc/ssl/certs"]);
+
+builder.Build().Run();
+```
+
+The `WithContainerCertificatePaths` API accepts three optional parameters:
+
+- `customCertificatesDestination`: Overrides the base path in the container where custom certificate files are placed. If not set or set to `null`, the default path of `/usr/lib/ssl/aspire` is used.
+- `defaultCertificateBundlePaths`: Overrides the path(s) in the container where a default certificate authority bundle file is located. When the `CertificateTrustScope` is Override or System, the custom certificate bundle is additionally written to these paths. If not set or set to `null`, a set of default certificate paths for common Linux distributions is used.
+- `defaultCertificateDirectoryPaths`: Overrides the path(s) in the container where individual trusted certificate files are found. When the `CertificateTrustScope` is Append, these paths are concatenated with the path to the uploaded certificate artifacts. If not set or set to `null`, a set of default certificate paths for common Linux distributions is used.
+
+<Aside type="note">
+  All desired paths must be configured in a single call to
+  `WithContainerCertificatePaths` as only the most recent call to the API is
+  honored.
+</Aside>
+
+## Common scenarios
+
+This section demonstrates common patterns for configuring HTTPS endpoints and certificate trust together.
+
+### Configure a service with HTTPS and enable dashboard telemetry
+
+A typical scenario is configuring a Node.js service to serve HTTPS traffic while also enabling it to send telemetry to the dashboard:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Configure the service to use developer certificate for HTTPS endpoints
+// and trust the developer certificate for outbound connections (like dashboard telemetry)
+var frontend = builder.AddNpmApp("frontend", "../frontend")
+    .WithHttpsDeveloperCertificate()      // Server cert for HTTPS endpoints
+    .WithDeveloperCertificateTrust(true); // Client trust for dashboard
+
+builder.Build().Run();
+```
+
+### Enable HTTPS with custom certificates
+
+When working with corporate or custom CA certificates, you can configure both server and client certificates:
+
+```csharp title="AppHost.cs"
+using System.Security.Cryptography.X509Certificates;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Load custom certificates
+var serverCert = new X509Certificate2("server-cert.pfx", "password");
+var customCA = new X509Certificate2Collection();
+customCA.Import("corporate-ca.pem");
+
+var caBundle = builder.AddCertificateAuthorityCollection("corporate-certs")
+    .WithCertificates(customCA);
+
+// Configure service with custom server cert and CA trust
+builder.AddContainer("api", "my-api:latest")
+    .WithHttpsCertificate(serverCert)           // Server cert for HTTPS
+    .WithCertificateAuthorityCollection(caBundle); // Trust corporate CA
+
+builder.Build().Run();
+```
+
+### Configure Redis with TLS
+
+Redis resources can be configured to use HTTPS (TLS) for secure connections:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Configure Redis to use the developer certificate for TLS
+var redis = builder.AddRedis("cache")
+    .WithHttpsDeveloperCertificate();
+
+// Or disable TLS entirely
+var redisNoTls = builder.AddRedis("cache-notls")
+    .WithoutHttpsCertificate();
+
+builder.Build().Run();
+```
+
+### Disable certificate configuration for specific resources
+
+To disable both HTTPS endpoint configuration and certificate trust for a resource that manages its own certificates:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Disable all automatic certificate configuration
+builder.AddPythonModule("api", "./api", "uvicorn")
+    .WithoutHttpsCertificate()                    // No server cert config
+    .WithCertificateTrustScope(CertificateTrustScope.None); // No client trust config
+
+builder.Build().Run();
+```
+
+## Limitations
+
+Certificate configuration has the following limitations:
+
+- Currently supported only in run mode, not in publish mode
+- Not all languages and runtimes support all trust scope modes
+- Python applications don't natively support Append mode for certificate trust
+- Custom certificate configuration requires appropriate runtime support within the resource
+- HTTPS endpoint APIs are marked as experimental (`ASPIRECERTIFICATES001`)

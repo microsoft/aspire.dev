@@ -1,0 +1,166 @@
+---
+title: Docker Compose to Aspire AppHost
+description: Quick reference for converting Docker Compose YAML syntax to Aspire C# API calls.
+---
+
+import LearnMore from '@components/LearnMore.astro';
+
+This reference provides systematic mappings from Docker Compose YAML syntax to equivalent Aspire C# API calls. Use these tables as a quick reference when converting your existing Docker Compose files to Aspire application host configurations.
+
+## Service definitions
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `services:` | `var builder = DistributedApplication.CreateBuilder(args)` | Root application builder used for adding and representing resources |
+| `service_name:` | `builder.Add*("service_name")` | Service name becomes resource name |
+
+<LearnMore>
+Learn more about [Docker Compose services](https://docs.docker.com/compose/compose-file/05-services/).
+</LearnMore>
+
+## Images and builds
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `image: nginx:latest` | `builder.AddContainer("name", "nginx", "latest")` | Direct image reference |
+| `build: .` | `builder.AddDockerfile("name", ".")` | Build from Dockerfile |
+| `build: ./path` | `builder.AddDockerfile("name", "./path")` | Build from specific path |
+| `build.context: ./app` | `builder.AddDockerfile("name", "./app")` | Build context |
+| `build.dockerfile: Custom.dockerfile` | `builder.Add*("name").WithDockerfile("Custom.dockerfile")` | Custom Dockerfile name |
+
+<LearnMore>
+Learn more about [Docker Compose build reference](https://docs.docker.com/compose/compose-file/build/) and [WithDockerfile](/app-host/withdockerfile/).
+</LearnMore>
+
+## .NET projects
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `build: ./MyApi` (for .NET) | `builder.AddProject<Projects.MyApi>("myapi")` | Direct .NET project reference |
+
+<LearnMore>
+Learn more about [adding .NET projects](/get-started/app-host/).
+</LearnMore>
+
+## Port mappings
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `ports: ["8080:80"]` | `.WithHttpEndpoint(port: 8080, targetPort: 80)` | HTTP endpoint mapping. Ports are optional; dynamic ports are used if omitted |
+| `ports: ["443:443"]` | `.WithHttpsEndpoint(port: 443, targetPort: 443)` | HTTPS endpoint mapping. Ports are optional; dynamic ports are used if omitted |
+| `expose: ["8080"]` | `.WithEndpoint(port: 8080)` | Internal port exposure. Ports are optional; dynamic ports are used if omitted |
+
+<LearnMore>
+Learn more about [Docker Compose ports](https://docs.docker.com/compose/compose-file/05-services/#ports) and [endpoint configuration](/fundamentals/networking-overview/).
+</LearnMore>
+
+## Environment variables
+
+| Docker Compose | Aspire / Notes |
+|----------------|-------------|
+| `environment: KEY=value` | `.WithEnvironment("KEY", "value")` <br/> Static environment variable |
+| `environment: KEY=${HOST_VAR}` | `.WithEnvironment(context => context.EnvironmentVariables["KEY"] = hostVar)` <br/> Environment variable with callback context |
+| `env_file: .env` | `.ConfigureEnvFile(env => { ... })` <br/> Environment file generation (available in 13.1+) |
+
+<LearnMore>
+Learn more about [Docker Compose environment](https://docs.docker.com/compose/compose-file/05-services/#environment) and [external parameters](/fundamentals/external-parameters/).
+</LearnMore>
+
+## Volumes and storage
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `volumes: ["data:/app/data"]` | `.WithVolume("data", "/app/data")` | Named volume |
+| `volumes: ["./host:/container"]` | `.WithBindMount("./host", "/container")` | Bind mount |
+| `volumes: ["./config:/app:ro"]` | `.WithBindMount("./config", "/app", isReadOnly: true)` | Read-only bind mount |
+
+<LearnMore>
+Learn more about [Docker Compose volumes](https://docs.docker.com/compose/compose-file/05-services/#volumes) and [persist container data](/fundamentals/persist-data-volumes/).
+</LearnMore>
+
+## Dependencies and ordering
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `depends_on: [db]` | `.WithReference(db)` | Service dependency with connection string injection |
+| `depends_on: db: condition: service_started` | `.WaitFor(db)` | Wait for service start |
+| `depends_on: db: condition: service_healthy` | `.WaitForCompletion(db)` | Wait for health check to pass |
+
+<LearnMore>
+Learn more about [Docker Compose depends_on](https://docs.docker.com/compose/compose-file/05-services/#depends_on) and [launch profiles](/fundamentals/launch-profiles/).
+</LearnMore>
+
+## Networks
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `networks: [backend]` | Automatic | Aspire handles networking automatically |
+| Custom networks | Not needed | Service discovery handles inter-service communication |
+
+<LearnMore>
+Learn more about [Docker Compose networks](https://docs.docker.com/compose/compose-file/05-services/#networks) and [service discovery](/fundamentals/service-discovery/).
+</LearnMore>
+
+## Resource limits
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `deploy.resources.limits.memory: 512m` | Not supported | Resource limits aren't supported in Aspire |
+| `deploy.resources.limits.cpus: 0.5` | Not supported | Resource limits aren't supported in Aspire |
+
+<LearnMore>
+Learn more about [Docker Compose deploy reference](https://docs.docker.com/compose/compose-file/deploy/).
+</LearnMore>
+
+## Health checks
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `healthcheck.test: ["CMD", "curl", "http://localhost/health"]` | Built-in for integrations | Aspire integrations include health checks |
+| `healthcheck.interval: 30s` | Configurable in integration | Health check configuration varies by resource type |
+
+<LearnMore>
+Learn more about [Docker Compose healthcheck](https://docs.docker.com/compose/compose-file/05-services/#healthcheck) and [health checks](/fundamentals/health-checks/).
+</LearnMore>
+
+## Restart policies
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `restart: unless-stopped` | Not supported | Restart policies aren't supported in Aspire |
+| `restart: always` | Not supported | Restart policies aren't supported in Aspire |
+| `restart: no` | Default | No restart policy |
+
+<LearnMore>
+Learn more about [Docker Compose restart](https://docs.docker.com/compose/compose-file/05-services/#restart).
+</LearnMore>
+
+## Logging
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `logging.driver: json-file` | Built-in | Aspire provides integrated logging |
+| `logging.options.max-size: 10m` | Dashboard configuration | Managed through Aspire dashboard |
+
+<LearnMore>
+Learn more about [Docker Compose logging](https://docs.docker.com/compose/compose-file/05-services/#logging) and [telemetry](/fundamentals/telemetry/).
+</LearnMore>
+
+## Database services
+
+| Docker Compose | Aspire | Notes |
+|----------------|-------------|-------|
+| `image: postgres:15` | `builder.AddPostgres("name")` | PostgreSQL with automatic configuration |
+| `image: mysql:8` | `builder.AddMySql("name")` | MySQL with automatic configuration |
+| `image: redis:7` | `builder.AddRedis("name")` | Redis with automatic configuration |
+| `image: mongo:latest` | `builder.AddMongoDB("name")` | MongoDB with automatic configuration |
+
+<LearnMore>
+Learn more about [Docker Compose services](https://docs.docker.com/compose/compose-file/05-services/) and [database integrations](/integrations/gallery/?search=database).
+</LearnMore>
+
+## See also
+
+- [Migrate from Docker Compose to Aspire](/app-host/migrate-from-docker-compose/)
+- [AppHost overview](/get-started/app-host/)
+- [WithDockerfile](/app-host/withdockerfile/)

@@ -8,6 +8,7 @@ export interface Props {
   width?: number;
   classOverride?: string;
   zoomable?: boolean;
+  href?: string;
 }
 
 const {
@@ -19,13 +20,28 @@ const {
   width,
   classOverride,
   zoomable = true,
+  href,
 } = Astro.props as Props;
 
 import { Zoom } from 'starlight-image-zoom/components';
 ---
 
 {
-  zoomable ? (
+  href ? (
+    <a href={href} title={href} class="theme-image-link">
+      <img
+        class:list={[classOverride, 'theme-image']}
+        src={dark.src}
+        alt={alt}
+        data-light={light.src}
+        data-dark={dark.src}
+        {...(height ? { height } : {})}
+        {...(width ? { width } : {})}
+        decoding="async"
+        loading="lazy"
+      />
+    </a>
+  ) : zoomable ? (
     <Zoom label={label ?? alt}>
       <img
         class:list={[classOverride, 'theme-image']}
@@ -80,5 +96,19 @@ import { Zoom } from 'starlight-image-zoom/components';
 <style>
   .theme-image {
     margin-top: 0rem;
+  }
+
+  .theme-image.inline {
+    display: inline;
+    vertical-align: middle;
+  }
+
+  .theme-image.borderless {
+    border: none;
+    box-shadow: none;
+  }
+
+  a.theme-image-link.external-link {
+    background-color: initial !important;
   }
 </style>

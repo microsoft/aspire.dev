@@ -1,86 +1,54 @@
-using HealthChecks.ApplicationStatus.DependencyInjection;
-using OpenTelemetry.Exporter;
-using OpenTelemetry.Logs;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 namespace Microsoft.Extensions.Hosting;
 
-// Adds common Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
-// This project should be referenced by each service project in your solution.
-// To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
 {
-  public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
-  {
-    builder.ConfigureOpenTelemetry();
-
-    builder.AddDefaultHealthChecks();
-
-    builder.Services.AddServiceDiscovery();
-
-    return builder;
-  }
-
-  public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
-  {
-    var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-
-    if (useOtlpExporter)
+    public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
-      builder.Logging.AddOpenTelemetry(logging =>
-      {
-        logging.IncludeFormattedMessage = true;
-        logging.IncludeScopes = true;
-      });
+        builder.ConfigureOpenTelemetry();
 
-      var telemetryBuilder = builder.Services.AddOpenTelemetry();
-
-      telemetryBuilder
-          .WithLogging(logging => logging.AddOtlpExporter())
-          .WithMetrics(metrics =>
-          {
-            metrics.AddAspNetCoreInstrumentation()
-                      .AddHttpClientInstrumentation()
-                      .AddRuntimeInstrumentation()
-                      .SetExemplarFilter(ExemplarFilterType.TraceBased)
-                      .AddOtlpExporter();
-          })
-          .WithTracing(tracing =>
-          {
-            tracing.AddAspNetCoreInstrumentation()
-                      .AddHttpClientInstrumentation()
-                      .AddOtlpExporter();
-          });
-
-      if (string.Equals(Environment.GetEnvironmentVariable("YARP_UNSAFE_OLTP_CERT_ACCEPT_ANY_SERVER_CERTIFICATE"), "true", StringComparison.InvariantCultureIgnoreCase))
-      {
-        // We cannot use UseOtlpExporter() since it doesn't support configuration via OtlpExporterOptions
-        // https://github.com/open-telemetry/opentelemetry-dotnet/issues/5802
-        builder.Services.Configure<OtlpExporterOptions>(ConfigureOtlpExporterOptions);
-      }
+        return builder;
     }
 
-    static void ConfigureOtlpExporterOptions(OtlpExporterOptions options)
+    private static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
-      options.HttpClientFactory = () =>
-      {
-        var handler = new HttpClientHandler();
-        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        var httpClient = new HttpClient(handler);
-        return httpClient;
-      };
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+        });
+
+        builder.Services.AddOpenTelemetry()
+            .WithMetrics(metrics =>
+            {
+                metrics.AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation();
+            })
+            .WithTracing(tracing =>
+            {
+                tracing.AddSource(builder.Environment.ApplicationName)
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation();
+            });
+
+        builder.AddOpenTelemetryExporters();
+
+        return builder;
     }
 
-    return builder;
-  }
+    private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
 
-  public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
-  {
-    builder.Services.AddHealthChecks()
-        // Add a default liveness check on application status.
-        .AddApplicationStatus(tags: ["live"]);
+        if (useOtlpExporter)
+        {
+            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        }
 
-    return builder;
-  }
+        return builder;
+    }
 }

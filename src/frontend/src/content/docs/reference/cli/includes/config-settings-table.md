@@ -11,6 +11,7 @@ title: Config Settings Table
 | `features.minimumSdkCheckEnabled`              | Enforce minimum SDK version.                    |
 | `features.orphanDetectionWithTimestampEnabled` | Use timestamp-based orphan detection.           |
 | `features.packageSearchDiskCachingEnabled`     | Cache package search results on disk.           |
+| `features.runningInstanceDetectionEnabled`     | Enable detection of already running instances.  |
 | `features.showAllTemplates`                    | Show all templates including experimental ones. |
 | `features.showDeprecatedPackages`              | Show deprecated packages.                       |
 | `features.stagingChannelEnabled`               | Use staging channel packages.                   |
