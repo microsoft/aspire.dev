@@ -1,0 +1,183 @@
+---
+title: Compiler Warning ASPIREPROBES001
+description: Learn more about compiler Warning ASPIREPROBES001. Probe-related types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 9.5"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Probe-related types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using experimental health probe APIs in Aspire, including:
+
+- `IResourceWithProbes` interface
+- `ProbeAnnotation` class and derived types
+- `ProbeType` enumeration
+- `WithHttpProbe` extension methods
+- `EndpointProbeAnnotation` class
+
+These APIs enable configuring HTTP health probes for resources to monitor startup, readiness, and liveness states, similar to Kubernetes health check concepts.
+
+## Example
+
+The following code generates `ASPIREPROBES001`:
+
+```csharp title="C# — Using HTTP probes"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add readiness probe to ensure service is ready before routing traffic
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpProbe(ProbeType.Readiness, "/health/ready");
+
+// Add liveness probe to detect if service needs restart
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithHttpProbe(ProbeType.Liveness, "/health/live");
+
+// Multiple probe types on one resource
+var service = builder.AddProject<Projects.Service>("service")
+    .WithHttpProbe(ProbeType.Startup, "/health/startup",
+        initialDelaySeconds: 15, failureThreshold: 10)
+    .WithHttpProbe(ProbeType.Readiness, "/health/ready",
+        periodSeconds: 5, timeoutSeconds: 3)
+    .WithHttpProbe(ProbeType.Liveness, "/health/live",
+        periodSeconds: 30, failureThreshold: 3);
+
+builder.Build().Run();
+```
+
+## Understanding health probes
+
+Health probes allow you to configure monitoring for your resources' health state. Aspire supports three types of probes that align with Kubernetes health check concepts:
+
+### Probe types
+
+**`ProbeType.Startup`**
+
+- Determines when the application has started successfully
+- Runs during container startup before readiness or liveness probes begin
+- Useful for applications with long initialization times
+- Typically has higher failure thresholds to allow for startup time
+
+**`ProbeType.Readiness`**
+
+- Determines when the resource is ready to receive traffic
+- If the probe fails, traffic is not routed to the resource
+- Useful for checking dependencies like database connectivity
+- Can temporarily fail without restarting the container
+
+**`ProbeType.Liveness`**
+
+- Detects if the service is still functioning properly
+- If the probe fails repeatedly, the resource may be restarted
+- Useful for detecting deadlocks or unrecoverable errors
+- Should check core application health
+
+### Probe configuration
+
+**`path`** — The HTTP path to probe (default: "/")
+
+**`initialDelaySeconds`** — Delay before the first probe execution (default: 5)
+
+**`periodSeconds`** — Interval between probe executions (default: 5)
+
+**`timeoutSeconds`** — Seconds after which the probe times out (default: 1)
+
+**`failureThreshold`** — Consecutive failures before marking as failed (default: 3)
+
+**`successThreshold`** — Consecutive successes needed to mark as successful after failure (default: 1)
+
+**`endpointName`** — Specific endpoint to probe (optional)
+
+### Custom endpoint targeting
+
+```csharp title="C# — Probe specific endpoint"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Probe specific endpoint by name
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpEndpoint(8080, name: "management")
+    .WithHttpProbe(ProbeType.Readiness, "/actuator/health",
+        endpointName: "management");
+
+// Probe with endpoint selector function
+var service = builder.AddProject<Projects.Service>("service")
+    .WithHttpProbe(ProbeType.Liveness, "/status",
+        endpointSelector: () => service.GetEndpoint("https"));
+
+builder.Build().Run();
+```
+
+### Integration with resource dependencies
+
+Probes work seamlessly with resource wait dependencies:
+
+```csharp title="C# — Probes with dependencies"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var database = builder.AddPostgres("postgres");
+var cache = builder.AddRedis("redis");
+
+// API with probes that check dependencies
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpProbe(ProbeType.Readiness, "/health/ready")
+    .WaitFor(database)
+    .WaitFor(cache)
+    .WithReference(database)
+    .WithReference(cache);
+
+// Frontend waits for API to be ready (not just started)
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+    .WaitFor(api)  // Waits for API readiness probe to pass
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+## Deployment integration
+
+Probes are automatically configured when deploying to supported compute environments:
+
+- **Azure Container Apps** — Probes are translated to Container Apps health probes
+- **Kubernetes** — Probes are mapped to Kubernetes liveness, readiness, and startup probes
+- **Docker Compose** — Health checks are configured based on probe settings
+
+## To suppress this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPROBES001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPROBES001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPROBES001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  #pragma warning disable ASPIREPROBES001
+  var api = builder.AddProject<Projects.Api>("api")
+      .WithHttpProbe(ProbeType.Readiness, "/health/ready")
+      .WithHttpProbe(ProbeType.Liveness, "/health/live");
+  #pragma warning restore ASPIREPROBES001
+
+  builder.Build().Run();
+  ```

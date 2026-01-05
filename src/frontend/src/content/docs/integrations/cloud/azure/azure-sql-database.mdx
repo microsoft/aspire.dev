@@ -95,6 +95,39 @@ The preceding code configures an Azure SQL Database resource to run locally in a
 > [!TIP]
 > The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.
 
+### Connection properties
+
+When you reference Azure SQL Server resources using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### Azure SQL Server resource
+
+The Azure SQL Server resource exposes the following connection properties:
+
+| Property Name          | Description                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Host`                 | The fully qualified domain name of the Azure SQL Server                                                           |
+| `Port`                 | The SQL Server port (`1433` for Azure)                                                                            |
+| `Uri`                  | The connection URI, with the format `mssql://{Host}:{Port}`                                                       |
+| `JdbcConnectionString` | JDBC connection string with the format `jdbc:sqlserver://{Host}:{Port};encrypt=true;trustServerCertificate=false` |
+
+#### Azure SQL database resource
+
+The Azure SQL database resource inherits all properties from its parent Azure SQL Server resource and adds:
+
+| Property Name          | Description                                                                                                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `DatabaseName`         | The name of the database                                                                                                                  |
+| `Uri`                  | The connection URI, with the format `mssql://{Host}:{Port}/{DatabaseName}`                                                                |
+| `JdbcConnectionString` | JDBC connection string with the format `jdbc:sqlserver://{Host}:{Port};database={DatabaseName};encrypt=true;trustServerCertificate=false` |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `db1` becomes `DB1_URI`. The client should add a valid authentication property
+  for the JDBC connection string like `authentication=ActiveDirectoryDefault` or
+  `authentication=ActiveDirectoryManagedIdentity`.
+</Aside>
+
 ## Client integration
 
 The Aspire Azure SQL Database client integration is used to connect to an Azure SQL database using Microsoft.Data.SqlClient. To get started with the Aspire Azure SQL Database client integration, install the [📦 Aspire.Microsoft.Data.SqlClient](https://www.nuget.org/packages/Aspire.Microsoft.Data.SqlClient) NuGet package.

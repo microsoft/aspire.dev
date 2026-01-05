@@ -12,8 +12,8 @@ import jsIcon from '@assets/icons/javascript.svg';
 <Image
   src={jsIcon}
   alt="JavaScript logo"
-  width={100}
-  height={100}
+  width={80}
+  height={80}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -252,6 +252,42 @@ Common environment variables for JavaScript frameworks:
 - **PORT**: Generic port configuration used by many frameworks (Express, Vite, Next.js)
 - **VITE_PORT**: For Vite applications
 - **HOST**: Some frameworks also use this to bind to specific interfaces
+
+## Customize Vite configuration
+
+For Vite applications, you can specify a custom configuration file if you need to override the default Vite configuration resolution behavior:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var viteApp = builder.AddViteApp("vite-app", "./vite-app")
+    // Path is relative to the Vite service project root
+    .WithViteConfig("./vite.production.config.js");
+
+// After adding all resources, run the app...
+```
+
+The `WithViteConfig` method accepts:
+
+- **configPath**: The path to the Vite configuration file, relative to the Vite service project root.
+
+This is useful when you have multiple Vite configuration files for different scenarios (development, staging, production).
+
+### HTTPS configuration
+
+Aspire automatically augments existing Vite configurations to enable HTTPS endpoints at runtime, eliminating manual certificate configuration for development. When you configure HTTPS endpoints on a Vite resource, Aspire dynamically injects the necessary HTTPS configuration:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var viteApp = builder.AddViteApp("vite-app", "./vite-app")
+    .WithHttpsEndpoint(env: "PORT")
+    .WithHttpsDeveloperCertificate();
+
+// After adding all resources, run the app...
+```
+
+The HTTPS configuration is automatically applied without modifying your `vite.config.js` file. For more information about certificate configuration, see [Certificate configuration](/app-host/certificate-configuration/).
 
 ## Production builds
 

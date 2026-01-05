@@ -1,0 +1,588 @@
+---
+title: Aspire 13.1 の新機能
+description: Aspire 13.1 では、AI コーディングエージェント向けの包括的な MCP サポート、チャネル永続化を含む CLI の強化、ダッシュボードの改善、Azure Managed Redis、コンテナー レジストリ サポート、そして多数のバグ修正が提供されます。
+sidebar:
+  label: Aspire 13.1
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import { Code, Tabs, Steps, TabItem, Aside, Icon } from '@astrojs/starlight/components';
+import resourcesParametersView from '@assets/whats-new/resources-parameters-view.png';
+import genaiVisualizerTooldefinitions from '@assets/whats-new/genai-visualizer-tooldefinitions.png';
+
+Aspire 13.1 は、Aspire 13 で確立されたポリグロット基盤をさらに発展させ、CLI 体験の大幅な改善、AI コーディングエージェント向けの MCP（Model Context Protocol）サポートの強化、ダッシュボードの改良、Azure へのデプロイの簡素化を提供します。本リリースは、開発者の生産性向上と、最新の AI 支援開発ワークフローとのシームレスな統合に重点を置いています。
+
+このリリースで導入される内容は次のとおりです:
+
+- **AI コーディングエージェント向け MCP**: 新しい `aspire mcp init` コマンドと、AI アシスタントが統合を発見し Aspire アプリケーションと連携するための MCP ツール。
+- **CLI の強化**: チャネルの永続化、自動インスタンス検出、インストールパスのオプション。
+- **ダッシュボードの改善**: 専用の Parameters タブと生成 AI ビジュアライザーの強化。
+- **Azure マネージド Redis**: `AddAzureRedisEnterprise` から `AddAzureManagedRedis` へ名称変更し、検証を改善。
+- **コンテナー レジストリ サポート**: 汎用コンテナー レジストリ向けの新しい `ContainerRegistryResource`。
+- **JavaScript の改善**: 新しいフロントエンド スターター テンプレート、Vite の HTTPS 設定、pnpm の修正。
+- **DevTunnels の安定化**: [📦 Aspire.Hosting.DevTunnels](https://www.nuget.org/packages/Aspire.Hosting.DevTunnels) が安定版パッケージになりました。
+- **TLS 終端サポート**: コンテナーやリソースに HTTPS 証明書を設定するための新しい API。
+- **Azure リソースの接続プロパティ**: Azure リソースの接続文字列に対するポリグロット対応。
+
+**要件:**
+
+- [.NET 10 SDK 以降](https://dotnet.microsoft.com/download/dotnet/10.0)
+
+フィードバックやご質問、Aspire への貢献にご興味がある場合は [<Icon name="github" class='d-inline' /> GitHub](https://github.com/dotnet/aspire) でコラボレーションするか [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) に参加して、チームやコミュニティメンバーと交流してください。
+
+## 🆙 Aspire 13.1 へのアップグレード
+
+<Aside type="caution">
+Aspire 13.1 には Azure Redis API に関する破壊的変更が含まれています。アップグレード前に必ず [破壊的変更](#%EF%B8%8F-破壊的変更) セクションを確認してください。
+</Aside>
+
+Aspire 13.1 へアップグレードする最も簡単な方法は、`aspire update` コマンドを使用することです:
+
+1. [`aspire update` コマンド](/ja/reference/cli/commands/aspire-update/) を使用して Aspire プロジェクトを更新します:
+
+    ```bash title="Aspire CLI — すべての Aspire パッケージを更新"
+    aspire update
+    ```
+
+2. Aspire CLI 自体を更新します:
+
+    ```bash title="Aspire CLI — CLI を更新"
+    aspire update --self
+    ```
+
+<Aside type="note">
+`aspire update --self` を実行してチャネルを選択すると、その選択はグローバルに保存されます。以後の `aspire new` や `aspire init` コマンドでは、このチャネルが既定で使用されます。
+</Aside>
+
+## 🤖 AI コーディングエージェント向け MCP
+
+Aspire 13.1 では、MCP（Model Context Protocol）との統合により、AI コーディングエージェントを包括的にサポートします。お好みの AI コーディングツールを設定することで、Aspire アプリケーションを理解し、操作できるようになります。
+
+### プロジェクト用に MCP を初期化する
+
+新しい `aspire mcp init` コマンドは、開発環境を検出し、対応する AI コーディングエージェント向けに MCP サーバーを設定します:
+
+```bash title="Bash — MCP 構成を初期化"
+aspire mcp init
+```
+
+<LearnMore>
+コマンド リファレンス: [`aspire mcp init`](/ja/reference/cli/commands/aspire-mcp-init/).
+</LearnMore>
+
+このコマンドでは、簡潔な 2 ステップの選択プロセスが表示されます:
+
+```bash
+構成するエージェント環境を選択してください:
+[ ] Aspire MCP サーバーを使用するようにVS Codeを構成する
+[ ] Aspire MCP サーバーを使用するようにGitHub Copilot CLIを構成します
+[ ] Aspire MCP サーバーを使用するように Claude Code を構成する
+[ ] OpenCode を Aspire MCP サーバーを使用するように構成する
+
+Which additional options do you want to enable?
+[ ] Create an agent instructions file (AGENTS.md)
+[ ] Configure Playwright MCP server
+```
+
+### AI エージェント向け MCP ツール
+
+MCP 経由で接続された AI コーディングエージェントは、Aspire の統合機能を直接検出して利用できるようになります:
+
+- **`list_integrations`** — 利用可能な Aspire Hosting の統合（Redis、PostgreSQL、Azure サービスなど）を返します。
+- **`get_integration_docs`** — 特定の統合パッケージに関する詳細なドキュメントを取得します。
+- **`list_apphosts`** — ワークスペース内で検出されたすべての AppHost プロジェクトを一覧表示します。
+- **`select_apphost`** — 複数の AppHost が存在する場合に、対象の AppHost にコンテキストを切り替えます。
+
+### ダッシュボードの MCP 統合
+
+AppHost に接続されている場合、ダッシュボードは MCP エンドポイントを公開し、AI エージェントが実行中のアプリケーションから直接、リソースの状態確認、ログの参照、トレースの調査を行えるようになります。
+
+<LearnMore>
+詳細については、 [MCP サーバー統合](/ja/dashboard/mcp-server/) をご参照ください。
+</LearnMore>
+
+## 🛠️ CLI の機能強化
+
+### チャネル選択と永続化
+
+`aspire new` および `aspire init` コマンドで `--channel` オプションが利用可能になり、使用する Aspire のバージョンチャネルを明示的に選択できるようになりました:
+
+```bash title="Bash — チャネルの選択"
+aspire new aspire-starter --channel preview
+aspire init --channel stable
+```
+
+<LearnMore>
+コマンド リファレンス: [`aspire init`](/ja/reference/cli/commands/aspire-init/#options).
+</LearnMore>
+
+`aspire update --self` で CLI を更新すると、選択したチャネルは `~/.aspire/globalsettings.json` に保存され、以後のプロジェクト作成時の既定値として使用されます。
+
+### 自動インスタンス検出
+
+すでにインスタンスが起動している状態で `aspire run` を実行した場合でも、Aspire 13.1 は実行中のインスタンスを自動的に検出し、終了させます。
+
+### インストールパス オプション
+
+インストール スクリプトで `--skip-path` がサポートされ、PATH を変更せずに CLI をインストールできるようになりました:
+
+<OsAwareTabs syncKey="terminal">
+  <Code
+    slot='unix'
+    lang="bash"
+    code="curl -fsSL https://aspire.dev/install.sh | bash -s -- --skip-path"
+  />
+  <Code
+    slot='windows'
+    lang="powershell"
+    code='iex "& { $(irm https://aspire.dev/install.ps1) } -SkipPath"'
+  />
+</OsAwareTabs>
+
+<LearnMore>
+詳細については [Aspire CLI インストールオプション](/ja/reference/cli/install-script/#options) をご確認ください。
+</LearnMore>
+
+## 📊 ダッシュボードの改善
+
+### 専用の Parameters タブ
+
+リソースページに専用の **Parameters** タブが追加され、リソースの詳細画面から離れることなく、設定パラメーターをより簡単に確認・管理できるようになりました。
+
+<Image src={resourcesParametersView} alt="リソースのパラメーター表示" title="リソースのパラメーター表示" />
+
+### 生成 AI ビジュアライザーの強化
+
+生成 AI ビジュアライザーには、次のような改善が加えられています:
+
+- **ツール定義と評価** — 生成 AI スパンに関連付けられたツール定義および評価がビジュアライザーに表示されます。
+- **動画・音声のプレビュー** — 生成 AI ビジュアライザー上で動画および音声コンテンツをプレビューできます。
+- **ログ エントリのリンク** — 生成 AI スパンに関連付けられたログ エントリに、生成 AI ビジュアライザーへの直接リンクが追加されました。
+- **コンテンツ解析の改善** — さまざまな AI モデルの応答形式をより適切に処理できるようになりました。
+
+<Image src={genaiVisualizerTooldefinitions} alt="生成 AI ビジュアライザーのツール定義" title="生成 AI ビジュアライザーのツール定義" />
+
+### バグ修正
+
+- トレースの継続時間が `int.MaxValue` を超えた場合に、Traces ページで発生していた `OverflowException` を修正しました。
+- 検索条件に一致する項目がない場合のコンボボックス フィルターの挙動を修正しました。
+- 非表示のリソースが存在する場合に、表示オプション メニューが正しく表示されない問題を修正しました。
+
+## ☁️ Azure の改善
+
+### Azure マネージド Redis
+
+<Aside type="caution">
+**破壊的変更**: Azure サービスの名称に合わせるため、`AddAzureRedisEnterprise` メソッドは `AddAzureManagedRedis` に名称変更されました。
+</Aside>
+
+```csharp title="C# — Azure マネージド Redis (これまで)" data-disable-copy
+// Before (Aspire 13.0)
+var redis = builder.AddAzureRedisEnterprise("cache");
+```
+
+```csharp title="C# — Azure マネージド Redis (これから)"
+// After (Aspire 13.1)
+var redis = builder.AddAzureManagedRedis("cache");
+```
+
+<Aside type="note">
+`AddAzureRedis` は非推奨になりました。新しいプロジェクトでは `AddAzureManagedRedis` へ移行してください。
+</Aside>
+
+### Azure リソースの接続プロパティ
+
+Azure リソースは、すべての対応言語で利用できる標準化された形式で接続プロパティを公開するようになりました。これにより、Java、JavaScript、Python SDK を使用するポリグロットなアプリケーションでも、一貫した構成パターンで Azure リソースへ接続できます。
+
+対象となるリソースでは、`HostName`、`Port`、`JdbcConnectionString` などの追加プロパティが公開され、.NET の接続文字列形式を使用しない言語でも、クライアント設定が容易になりました。
+
+### Azure App Service のデプロイ スロット
+
+Azure App Service のデプロイ スロットを構成するための、新しい `WithDeploymentSlot` 拡張メソッドが追加されました:
+
+```csharp title="C# — デプロイ スロットの構成"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("appservice")
+    .WithDeploymentSlot("staging");
+```
+
+### 既定のロール割り当てのクリア
+
+権限を細かく制御したい場合に、Azure リソースへの自動的なロール割り当てを無効化できる、新しい `ClearDefaultRoleAssignments` 拡張メソッドが追加されました。
+
+### バグ修正
+
+- Azure デプロイ時に、必要なコンピューティング環境が存在するかを事前に検証するようになり、インフラ不足時により早く、分かりやすいエラーが表示されるようになりました。
+- 複数テナントをまたいで作業する際の Azure 認証に関する問題を修正しました。
+
+## 🐳 コンテナーと Docker Compose
+
+### コンテナー レジストリ リソース
+
+<Aside type="caution">
+この API は実験的機能であり、将来のリリースで変更される可能性があります。実験的警告を抑制するには、診断コード `ASPIRECOMPUTE003` を使用してください。詳細については [ASPIRECOMPUTE003](/ja/diagnostics/aspirecompute003/) をご参照ください。
+</Aside>
+
+新しい `ContainerRegistryResource` により、Azure Container Registry 以外の汎用コンテナー レジストリとの統合が可能になりました:
+
+```csharp title="C# — コンテナー レジストリ リソース"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+デプロイ パイプラインには、コンテナー レジストリ操作のための `push` ステップが新たに含まれるようになりました。
+
+```
+$ aspire do push
+16:03:38 (pipeline-execution) → Starting pipeline-execution...
+16:03:38 (push-prereq) → Starting push-prereq...
+16:03:38 (process-parameters) → Starting process-parameters...
+16:03:38 (push-prereq) ✓ push-prereq completed successfully
+16:03:38 (process-parameters) i [INF] 3 parameter values saved to deployment state.
+16:03:38 (process-parameters) ✓ process-parameters completed successfully
+16:03:38 (build-prereq) → Starting build-prereq...
+16:03:38 (build-prereq) ✓ build-prereq completed successfully
+16:03:38 (build-go-app) → Starting build-go-app...
+16:03:38 (build-pythonapp-standalone) → Starting build-pythonapp-standalone...
+16:03:38 (build-api) → Starting build-api...
+16:03:38 (build-viteapp) → Starting build-viteapp...
+...
+16:03:43 (push-api) → Starting push-api...
+16:03:43 (push-api) → Pushing api to container-registry
+16:03:44 (push-api) i [INF] Docker tag for api -> docker.io/captainsafia/api:latest succeeded.
+16:03:44 (push-pythonapp) i [INF] Docker tag for pythonapp:d5325602e04758397792c8332c5882846516b35c -> docker.io/captainsafia/pythonapp:latest succeeded.
+16:03:48 (push-go-app) i [INF] Docker push for docker.io/captainsafia/go-app:latest succeeded.
+16:03:48 (push-go-app) ✓ Successfully pushed go-app to docker.io/captainsafia/go-app:latest (5.1s)
+16:03:48 (push-go-app) ✓ push-go-app completed successfully
+16:03:48 (push-pythonapp-standalone) i [INF] Docker push for docker.io/captainsafia/pythonapp-standalone:latest succeeded.
+16:03:48 (push-pythonapp-standalone) ✓ Successfully pushed pythonapp-standalone to docker.io/captainsafia/pythonapp-standalone:latest (5.4s)
+16:03:48 (push-pythonapp-standalone) ✓ push-pythonapp-standalone completed successfully
+16:03:49 (push-pythonapp) i [INF] Docker push for docker.io/captainsafia/pythonapp:latest succeeded.
+16:03:49 (push-pythonapp) ✓ Successfully pushed pythonapp to docker.io/captainsafia/pythonapp:latest (5.7s)
+16:03:49 (push-pythonapp) ✓ push-pythonapp completed successfully
+16:04:05 (push-api) i [INF] Docker push for docker.io/captainsafia/api:latest succeeded.
+16:04:05 (push-api) ✓ Successfully pushed api to docker.io/captainsafia/api:latest (21.3s)
+16:04:05 (push-api) ✓ push-api completed successfully
+16:04:05 (push) → Starting push...
+16:04:05 (push) ✓ push completed successfully
+16:04:05 (pipeline-execution) ✓ Completed successfully
+------------------------------------------------------------
+✓ 14/14 steps succeeded • Total time: 26.41s
+```
+
+### Azure デプロイにおける明示的なコンテナー レジストリ サポート
+
+Aspire 13.1 以前では、`AddAzureContainerAppEnvironment` を使用して Azure Container Apps にデプロイする際、Azure Container Registry（ACR）は環境の一部として暗黙的にプロビジョニングされていました。この自動プロビジョニングにより、デプロイの遅延が発生したり、どのレジストリが使用されているのかを開発者が把握しにくいという課題がありました。
+
+Aspire 13.1 では、この点を改善するために、コンテナー レジストリを明示的に構成する方向へと変更され、イメージが「どこに」「いつ」プッシュされるのかについて、開発者がより高い制御性と可視性を得られるようになりました。以下の構成では、「myenv」環境に関連付けられた ACR が環境と並行してプロビジョニングされ、レジストリのプロビジョニングが完了し次第、イメージのプッシュが開始されます。
+
+```csharp title="C# — 明示的な Azure Container Registry"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var acr = builder.AddAzureContainerAppEnvironment("myenv");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(acr);
+```
+
+<LearnMore>
+コンテナー レジストリの改善点や、それが Azure デプロイに与える影響について詳しく知りたい場合は、 [Safia Abdalla's blog post on fixing Aspire's image problem](https://blog.safia.rocks/2025/12/15/aspire-image-push/) をご覧ください。
+</LearnMore>
+
+### Docker Compose の改善
+
+- 可搬性向上のため、バインド マウントのソースが環境プレースホルダーに置き換えられました。
+- Docker Compose デプロイ後に、リソースのエンドポイントが表示されるようになりました。
+- パイプラインを並列実行した際に発生していた、Dockerfile のマテリアライズ処理における競合状態を修正しました。
+
+高度なシナリオでは、`ConfigureEnvFile` を使用して生成される `.env` ファイルをカスタマイズできます:
+
+```csharp title="C# — Docker Compose の .env file をカスタマイズ"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose")
+    .ConfigureEnvFile(env =>
+    {
+        env["CUSTOM_VAR"] = new CapturedEnvironmentVariable
+        {
+            Name = "CUSTOM_VAR",
+            DefaultValue = "my-value"
+        };
+    });
+```
+
+<LearnMore>
+詳細については [Docker Compose 統合](/ja/integrations/compute/docker/) をご参照ください。
+</LearnMore>
+
+## 🌐 JavaScript とフロントエンド サポート
+
+### JavaScript フロントエンド スターター テンプレート
+
+新しい `aspire-ts-cs-starter` テンプレートにより、すぐに使える JavaScript フロントエンド環境を構築できます:
+
+```bash title="Aspire CLI — ASP.NET Core/React アプリ スターター テンプレート"
+aspire new aspire-ts-cs-starter
+```
+
+このテンプレートには、次の内容が含まれています:
+
+- `Server` という名前の ASP.NET Core Minimal API バックエンド
+- `frontend` という名前の、Vite ベースの React クライアント
+- これらを統合・オーケストレーションする AppHost プロジェクト
+
+:::note
+このテンプレートでは既定で `npm` が使用されます。プロジェクト作成後に `yarn` や `pnpm` へ切り替えることも可能です。
+:::
+
+<LearnMore>
+詳細については [JavaScript frontend 統合](/ja/integrations/frameworks/javascript/) をご参照ください。
+</LearnMore>
+
+### Vite の HTTPS 設定
+
+Aspire は、既存の Vite 設定を実行時に動的に拡張し、HTTPS エンドポイントを有効化できるようになりました。これにより、開発時に証明書を手動で設定する必要がなくなります。
+
+### バグ修正
+
+- pnpm を使用するプロジェクトにおける Dockerfile 生成を修正し、corepack が正しく有効化されるようになりました。corepack について詳しくない場合は [corepack のドキュメント](https://nodejs.org/api/corepack.html) をご確認ください。また、pnpm との組み合わせについては [こちら](https://pnpm.io/docker) も参考になります。
+
+## 🔒 証明書とセキュリティ
+
+Aspire 13.1 では、ローカル開発用証明書の設定および信頼の手順が、より分かりやすくなりました。詳細については [証明書の構成](/ja/app-host/certificate-configuration/) をご参照ください。
+
+### TLS 終端サポート
+
+<Aside type="caution">
+これらの API は実験的機能であり、将来のリリースで変更される可能性があります。実験的警告を抑制するには、診断コード `ASPIRECERTIFICATES001` を使用してください。診断警告の詳細は [ASPIRECERTIFICATES001](/ja/diagnostics/aspirecertificates001/) に記載されています。
+</Aside>
+
+新しい API により、TLS 接続を終端する必要があるリソースに対して、HTTPS 証明書を構成できるようになりました。
+
+以下のコンテナーは、TLS 終端を標準でサポートしています:
+
+| コンテナー | 既定 |
+|-----------|---------|
+| YARP | 有効 |
+| Redis | 有効 |
+| Keycloak | 有効 |
+| Uvicorn (Python) | 有効 |
+| Vite (JavaScript) | 明示的に有効化が必要 |
+
+TLS が既定で有効な場合、ASP.NET Core の開発者証明書が利用可能かつ信頼されていれば、自動的に使用されます。
+
+特定のリソースで開発者証明書を明示的に有効化するには（例: Vite）:
+
+```csharp title="C# — 開発者証明書を有効化"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddViteApp("frontend")
+    .WithHttpsDeveloperCertificate();
+```
+
+カスタム証明書を使用する場合は、次のように設定します:
+
+```csharp title="C# — カスタム証明書による TLS 終端"
+var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
+
+builder.AddYarp("gateway")
+    .WithHttpsCertificate(certificate);
+```
+
+YARP では、HTTPS ポートを明示的に指定することもできます:
+
+```csharp title="C# — カスタム HTTPS ポートを使用する YARP"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddYarp("gateway")
+    .WithHostHttpsPort(8443);
+```
+
+特定のリソースで HTTPS 証明書の構成を無効化するには、次のようにします:
+
+```csharp title="C# — HTTPS 証明書を無効化"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache")
+    .WithoutHttpsCertificate();
+```
+
+組み込みの TLS 終端サポートを持たないリソースに対しては、構成コールバックを使用して、カスタム引数や環境変数を渡すことで TLS 終端を構成できます:
+
+```csharp title="C# — 構成コールバックによる TLS 終端"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("my-service", "my-image")
+    .WithHttpsCertificateConfiguration(ctx =>
+    {
+        // PFX 形式の証明書パスを引数として渡す
+        ctx.Arguments.Add("--https-certificate-path");
+        ctx.Arguments.Add(ctx.PfxPath);
+
+        // 公開鍵・秘密鍵（PEM 形式）の証明書パスを環境変数として設定
+        ctx.EnvironmentVariables["HTTPS_CERT"] = ctx.CertificatePath;
+        ctx.EnvironmentVariables["HTTPS_CERT_KEY"] = ctx.KeyPath;
+
+        return Task.CompletedTask;
+    });
+```
+
+<LearnMore>
+詳細については [証明書の構成](/ja/app-host/certificate-configuration/) をご参照ください。
+</LearnMore>
+
+## 🧩 アプリモデルの更新
+
+### エンドポイント参照の解決
+
+エンドポイント参照の評価時に、エンドポイントの割り当てが完了するまで正しく待機するようになりました。これにより、複雑なオーケストレーション シナリオで発生していた競合状態が解消されます。
+
+### コンテナー ネットワーク コンテキスト
+
+エンドポイント参照が、それぞれ固有のネットワーク コンテキストを正しく考慮して解決されるようになりました。これにより、複数ネットワークを使用するコンテナー デプロイにおいても、正しいネットワーク構成が保証されます。
+
+### システム ログの書式
+
+DCP から出力されるシステム レベルのログは、冗長な JSON オブジェクトではなく、`[sys]` プレフィックス付きの人間に読みやすい形式で表示されるようになりました:
+
+```plaintext data-disable-copy
+[sys] Starting process: Cmd = dotnet, Args = [run]
+[sys] Failed to start Container: Error = container start failed (exit code 1)
+```
+
+これにより、システム ログとアプリケーションの出力を容易に区別でき、コンソール上での可読性が向上します。
+
+## 📦 統合機能の更新
+
+### DevTunnels の安定化
+
+[📦 Aspire.Hosting.DevTunnels](https://www.nuget.org/packages/Aspire.Hosting.DevTunnels) パッケージは正式版となり、プレビューではなくなりました。Dev Tunnels を使用することで、ローカルの Aspire アプリケーションをインターネットに公開し、Webhook のテストやモバイル アプリ、外部サービスとの連携を行えます。
+
+<LearnMore>
+詳細については [Dev Tunnels 統合](/ja/integrations/devtools/dev-tunnels/) をご参照ください。
+</LearnMore>
+
+### エンドポイント プロキシ サポートの安定化
+
+`WithEndpointProxySupport` API は正式版となり、実験的属性を付与する必要がなくなりました。
+
+### Keycloak の改善
+
+Keycloak コンテナーが、OTLP コレクターへテレメトリをエクスポートできるようになりました:
+
+```csharp title="C# — OTLP エクスポートを有効化した Keycloak"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddKeycloak("keycloak")
+    .WithOtlpExporter();
+```
+
+<LearnMore>
+詳細については [Keycloak 統合](/ja/integrations/security/keycloak/) をご参照ください。
+</LearnMore>
+
+### OpenTelemetry の更新
+
+OpenTelemetry 依存関係は、コードベース全体で最新の安定版へ更新されました。
+
+### Azure Functions
+
+Aspire 13.1 では、Azure Functions 統合が正式版となり、プレビューを脱しました。Azure Functions は Aspire を利用したローカル開発に対応し、さらに KEDA ベースの自動スケーリング ルールをサポートした ACA Native Functions へのデプロイも可能になりました。
+
+- ローカル環境に Azure Functions Core Tools がインストールされていない場合、Aspire ダッシュボードが通知します。
+- ジェネリック型パラメーターなしで Functions プロジェクトを追加できる新しいオーバーロード `AddAzureFunctionsProject(name, projectPath)` が追加されました:
+
+```csharp title="C# — ジェネリック型なしの Azure Functions"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureFunctionsProject("myfunc", "../MyFunctions/MyFunctions.csproj");
+```
+
+<LearnMore>
+詳細については [Azure Functions 統合](/ja/integrations/cloud/azure/azure-functions/) または [Aspire と Azure Functions の使い方](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration) をご参照ください。
+</LearnMore>
+
+## 🏗️ テンプレート
+
+すべての Aspire テンプレートは 13.1 向けに更新され、以下のように一貫したパターンが採用されています:
+
+- 以前の Aspire バージョンのサポートを終了しました
+- スターター テンプレート間でプロジェクト構成を統一しました
+
+<Aside type="note">
+テンプレートの変更により、古いテンプレートから作成された既存プロジェクトでは更新が必要になる場合があります。
+</Aside>
+
+## 🐛 バグ修正
+
+- Windows の VS Code ターミナルで `aspire mcp init` がハングする問題を修正しました。
+- Windows における AppHost パスの正規化を修正しました。
+- PATHEXT を正しく考慮することで、Windows での CLI ツール検出を修正しました。
+- カスタム構成キーを使用したパラメーター保存の問題を修正しました。
+- 名前にハイフンを含むリソースのコンテナー イメージ ビルドを修正しました。
+- 相対エンドポイント URL の取り扱いを修正しました。
+- Linux におけるデプロイ状態ファイルの大文字・小文字の区別に関する問題を修正しました。
+
+## 🙏 コミュニティからの貢献
+
+Aspire 13.1 の実現に貢献してくださった、すべてのコミュニティ コントリビューターの皆さまに感謝いたします:
+
+- 適応型の力学モデルを用いたリソース グラフ レイアウトの改善
+- Playground アプリ全体にわたる npm 依存関係の更新
+- ドキュメント リンクの更新
+- その他、さまざまなバグ修正と改善
+
+私たちは常に [コミュニティからの貢献](/ja/community/contributors/) を楽しみにしています。ご参加いただける方は、ぜひ [コントリビューション ガイド](/ja/community/contributor-guide/) をご覧ください。
+
+## ⚠️ 破壊的変更
+
+<span id='-breaking-changes'></span>
+
+### Azure Redis API の名称変更
+
+| 変更内容 | 移行方法 |
+|--------|-----------|
+| `AddAzureRedisEnterprise` の名称変更 | `AddAzureManagedRedis` を使用 |
+| `AddAzureRedis` の非推奨化 | `AddAzureManagedRedis` へ移行 |
+
+### Aspire 13.0 から 13.1 への移行
+
+<Steps>
+
+1. **CLI を更新**: `aspire update --self` を実行します。
+2. **プロジェクトを更新**: プロジェクト ディレクトリで `aspire update` を実行します。
+3. **Azure Redis の名称変更**: `AddAzureRedisEnterprise` を `AddAzureManagedRedis` に置き換えます。
+4. **MCP 構成の確認**: `aspire mcp init` を実行して、AI コーディングエージェントのサポートを設定します。
+
+</Steps>
+
+### 接続プロパティの名称変更
+
+リソース間で一貫性を保つため、一部の接続プロパティが名称変更されました:
+
+| リソース | 旧プロパティ | 新プロパティ |
+|---|---|---|
+| GitHub Models リソース | `Model` | `ModelName` |
+| OpenAI model リソース | `Model` | `ModelName` |
+| Milvus database リソース | `Database` | `DatabaseName` |
+| MongoDB database リソース | `Database` | `DatabaseName` |
+| MySQL database リソース | `Database` | `DatabaseName` |
+| Oracle database リソース | `Database` | `DatabaseName` |
+---
+
+これらのプロパティを使用しているクライアント アプリケーションがある場合は、新しい名称へ更新してください。
+たとえば、`chat` という名前の GitHub Models リソースでは、モデル名の環境変数は `CHAT_MODEL` から `CHAT_MODELNAME` に変更されます。
+
+**フィードバックと貢献**: Aspire 13.1 のご利用体験について、ぜひお聞かせください！ [GitHub](https://github.com/dotnet/aspire/issues) でフィードバックを共有するか、 [Discord](https://aka.ms/aspire-discord) でディスカッションにご参加ください。

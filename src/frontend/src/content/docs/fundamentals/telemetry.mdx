@@ -1,0 +1,90 @@
+---
+title: Telemetry
+description: Learn about essential telemetry concepts for Aspire including logging, tracing, and metrics.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+One of the primary objectives of Aspire is to ensure that apps are straightforward to debug and diagnose. Aspire integrations automatically set up logging, tracing, and metrics configurations—sometimes known as the pillars of observability—using the [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet).
+
+## The three pillars of observability
+
+- **[Logging](https://learn.microsoft.com/dotnet/core/diagnostics/logging-tracing)** — Log events describe what's happening as an app runs. A baseline set is enabled for Aspire integrations by default and more extensive logging can be enabled on-demand to diagnose particular problems.
+
+- **[Tracing](https://learn.microsoft.com/dotnet/core/diagnostics/distributed-tracing)** — Traces correlate log events that are part of the same logical activity (for example, the handling of a single request), even if they're spread across multiple machines or processes.
+
+- **[Metrics](https://learn.microsoft.com/dotnet/core/diagnostics/metrics)** — Metrics expose the performance and health characteristics of an app as simple numerical values. As a result, they have low performance overhead and many services configure them as always-on telemetry. This also makes them suitable for triggering alerts when potential problems are detected.
+
+Together, these types of telemetry allow you to gain insights into your application's behavior and performance using various monitoring and analysis tools. Depending on the backing service, some integrations may only support some of these features.
+
+## Aspire OpenTelemetry integration
+
+The [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet) includes features for gathering data from several .NET APIs, including `ILogger`, `Activity`, `Meter`, and `Instrument<T>`. These APIs correspond to telemetry features like logging, tracing, and metrics.
+
+Aspire projects define OpenTelemetry SDK configurations in the service defaults project. By default, the `ConfigureOpenTelemetry` method enables logging, tracing, and metrics for the app. It also adds exporters for these data points so they can be collected by other monitoring tools.
+
+<LearnMore>
+For more information, see [Service defaults](/fundamentals/service-defaults/).
+</LearnMore>
+
+## Export OpenTelemetry data for monitoring
+
+Aspire enables export of telemetry data to a data store or reporting tool. The telemetry export mechanism relies on the [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otel/protocol), which serves as a standardized approach for transmitting telemetry data through REST or gRPC.
+
+The `ConfigureOpenTelemetry` method registers exporters to provide your telemetry data to other monitoring tools, such as Prometheus or Azure Monitor.
+
+<LearnMore>
+For more information, see [OpenTelemetry configuration](/fundamentals/service-defaults/#opentelemetry-configuration).
+</LearnMore>
+
+## OpenTelemetry environment variables
+
+OpenTelemetry has a [list of known environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) that configure the most important behavior for collecting and exporting telemetry. OpenTelemetry SDKs, including the .NET SDK, support reading these variables.
+
+Aspire projects launch with environment variables that configure the name and ID of the app in exported telemetry and set the address endpoint of the OTLP server to export data. For example:
+
+- `OTEL_SERVICE_NAME=myfrontend`
+- `OTEL_RESOURCE_ATTRIBUTES=service.instance.id=1a5f9c1e-e5ba-451b-95ee-ced1ee89c168`
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+
+These environment variables are automatically set in local development.
+
+## Local development workflow
+
+When you create an Aspire project, the Aspire dashboard provides a UI for viewing app telemetry by default. Telemetry data is sent to the dashboard using OTLP, and the dashboard implements an OTLP server to receive telemetry data and store it in memory.
+
+### Telemetry flow in local development
+
+When you start an Aspire project with debugging (pressing <kbd>F5</kbd>), the following workflow occurs:
+
+1. **Dashboard and DCP start** — The Aspire dashboard and developer control plane (DCP) start
+2. **App configuration runs** — The AppHost project runs its configuration:
+   - OpenTelemetry environment variables are automatically added to .NET projects
+   - DCP provides the service name (`OTEL_SERVICE_NAME`) and ID (`OTEL_RESOURCE_ATTRIBUTES`) for exported telemetry
+   - The OTLP endpoint is an HTTP/2 port started by the dashboard, set in `OTEL_EXPORTER_OTLP_ENDPOINT`
+   - Small export intervals (`OTEL_BSP_SCHEDULE_DELAY`, `OTEL_BLRP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`) ensure data is quickly available in the dashboard
+3. **Resources start** — The DCP starts configured projects, containers, and executables
+4. **Telemetry flows** — Once started, apps send telemetry to the dashboard
+5. **Dashboard displays** — The dashboard displays near real-time telemetry of all Aspire projects
+
+All of these steps happen internally, so in most cases you simply need to run the app to see this process in action.
+
+## Deployment
+
+Aspire deployment environments should configure OpenTelemetry environment variables that make sense for their environment. For example, `OTEL_EXPORTER_OTLP_ENDPOINT` should be configured to the environment's local OTLP collector or monitoring service.
+
+<Aside type="note">
+Aspire telemetry works best in environments that support OTLP. OTLP exporting is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` isn't configured.
+</Aside>
+
+<LearnMore>
+For more information, see [Aspire deployments](/deployment/overview/).
+</LearnMore>
+
+## See also
+
+- [Service defaults](/fundamentals/service-defaults/)
+- [Dashboard overview](/dashboard/overview/)
+- [OpenTelemetry Protocol specification](https://opentelemetry.io/docs/specs/otel/protocol)
+- [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet)
