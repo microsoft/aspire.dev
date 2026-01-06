@@ -437,7 +437,20 @@ try {
                 return;
             }
 
-            const namespaceCount = data.apiItems.length;
+            // Filter out items with invalid URLs
+            const validItems = data.apiItems.map((item) => this.renderNamespaceItem(item)).filter(html => html !== '');
+            
+            if (validItems.length === 0) {
+                this.resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>No valid namespaces found</p>
+                    </div>
+                `;
+                this.statusElement.textContent = "No valid namespaces found";
+                return;
+            }
+
+            const namespaceCount = validItems.length;
             this.statusElement.textContent = `Showing ${namespaceCount} namespace${namespaceCount !== 1 ? "s" : ""}`;
 
             const listHtml = `
@@ -445,7 +458,7 @@ try {
                     <span class="results-count">Namespaces</span>
                 </div>
                 <div class="api-results-list">
-                    ${data.apiItems.map((item) => this.renderNamespaceItem(item)).join("")}
+                    ${validItems.join("")}
                 </div>
             `;
 
@@ -490,7 +503,21 @@ try {
                 this.currentSkip = 0;
             }
 
-            const resultCount = this.currentResults.length;
+            // Filter out items with invalid URLs
+            const validResultsHtml = this.currentResults.map((result) => this.renderResultItem(result)).filter(html => html !== '');
+            const resultCount = validResultsHtml.length;
+            
+            if (resultCount === 0) {
+                this.resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>No valid results found for "<strong>${this.escapeHtml(searchTerm)}</strong>"</p>
+                        <p class="no-results-hint">Try adjusting your search terms or check the spelling.</p>
+                    </div>
+                `;
+                this.statusElement.textContent = `No valid results found for ${searchTerm}`;
+                return;
+            }
+            
             // Check if there's a next link to determine if more results exist
             this.hasMoreResults = !!data["@nextLink"];
             
@@ -501,7 +528,7 @@ try {
                     <span class="results-count">${resultCount} result${resultCount !== 1 ? "s" : ""}</span>
                 </div>
                 <div class="api-results-list">
-                    ${this.currentResults.map((result) => this.renderResultItem(result)).join("")}
+                    ${validResultsHtml.join("")}
                     ${this.hasMoreResults ? this.renderLoadMoreButton() : ""}
                 </div>
             `;
@@ -654,11 +681,35 @@ try {
 
         private validateAndBuildUrl(apiUrl: string): string | null {
             // Validate that the URL from the API is a relative URL starting with /
+            // and doesn't contain path traversal attempts
             if (!apiUrl || !apiUrl.startsWith('/')) {
-                console.warn('Invalid API URL received:', apiUrl);
+                console.warn('Invalid API URL received: URL must start with /', apiUrl);
                 return null;
             }
-            return `${this.BASE_API_URL}${apiUrl}`;
+            
+            // Check for path traversal attempts
+            if (apiUrl.includes('..')) {
+                console.warn('Invalid API URL received: URL contains path traversal', apiUrl);
+                return null;
+            }
+            
+            try {
+                // Validate the constructed URL is valid
+                const fullUrl = `${this.BASE_API_URL}${apiUrl}`;
+                const url = new URL(fullUrl);
+                
+                // Ensure the URL's origin matches our base URL
+                const baseOrigin = new URL(this.BASE_API_URL).origin;
+                if (url.origin !== baseOrigin) {
+                    console.warn('Invalid API URL received: URL origin does not match base URL', apiUrl);
+                    return null;
+                }
+                
+                return fullUrl;
+            } catch (error) {
+                console.warn('Invalid API URL received: URL parsing failed', apiUrl, error);
+                return null;
+            }
         }
     }
 
