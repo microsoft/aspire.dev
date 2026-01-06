@@ -2,6 +2,90 @@
 // AspireApiReferenceSearch.astro
 // A search component for the .NET API Browser, styled similar to Starlight's Search component
 import { Icon } from '@astrojs/starlight/components';
+
+interface PackageMoniker {
+    platform: string;
+    monikerName: string;
+    monikerDisplayName: string;
+    versionDisplayName: string;
+    order: number;
+    isPrerelease: boolean;
+    isDeprecated: boolean;
+    isDefault: boolean;
+}
+
+interface Product {
+    productName: string;
+    packages: PackageMoniker[];
+}
+
+interface ProductFamily {
+    familyName: string;
+    products: Product[];
+}
+
+// Fallback data in case API is unavailable
+const fallbackMonikers: PackageMoniker[] = [
+    {
+        platform: "dotnet",
+        monikerName: "dotnet-aspire-13.0",
+        monikerDisplayName: "Aspire 13",
+        versionDisplayName: "13.1.0",
+        order: 130100,
+        isPrerelease: false,
+        isDeprecated: false,
+        isDefault: true
+    },
+    {
+        platform: "dotnet",
+        monikerName: "dotnet-aspire-9.0",
+        monikerDisplayName: "Aspire 9",
+        versionDisplayName: "9.5.0",
+        order: 90500,
+        isPrerelease: false,
+        isDeprecated: false,
+        isDefault: false
+    },
+    {
+        platform: "dotnet",
+        monikerName: "dotnet-aspire-8.0",
+        monikerDisplayName: "Aspire 8",
+        versionDisplayName: "8.0.0",
+        order: 8000,
+        isPrerelease: false,
+        isDeprecated: false,
+        isDefault: false
+    }
+];
+
+let availableMonikers = fallbackMonikers;
+
+try {
+    const url = "https://learn.microsoft.com/_api/familyTrees/byPlatform/dotnet";
+    const response = await fetch(url, {
+        headers: {
+            Accept: "application/json",
+        },
+    });
+
+    if (response.ok) {
+        const families: ProductFamily[] = await response.json();
+        const aspireFamily = families.find(f => f.familyName === "Aspire");
+        
+        if (aspireFamily && aspireFamily.products.length > 0) {
+            const allMonikers: PackageMoniker[] = [];
+            aspireFamily.products.forEach(product => {
+                allMonikers.push(...product.packages);
+            });
+            
+            if (allMonikers.length > 0) {
+                availableMonikers = allMonikers.sort((a, b) => b.order - a.order);
+            }
+        }
+    }
+} catch (error) {
+    console.debug("Failed to load versions from API at build time, using fallback data:", error);
+}
 ---
 
 <div class="not-content api-search-container">
@@ -39,7 +123,11 @@ import { Icon } from '@astrojs/starlight/components';
             <label for="api-version-select">Version:</label>
             <div class="select-wrapper">
                 <select id="api-version-select" class="version-dropdown">
-                    <option value="dotnet-aspire-13.0">Aspire 13.0</option>
+                    {availableMonikers.map(moniker => (
+                        <option value={moniker.monikerName} selected={moniker.isDefault}>
+                            {moniker.monikerDisplayName}
+                        </option>
+                    ))}
                 </select>
                 <Icon name="down-caret" class="select-icon" />
             </div>
@@ -73,27 +161,6 @@ import { Icon } from '@astrojs/starlight/components';
 
     interface ApiNamespaceResponse {
         apiItems: ApiNamespaceItem[];
-    }
-
-    interface PackageMoniker {
-        platform: string;
-        monikerName: string;
-        monikerDisplayName: string;
-        versionDisplayName: string;
-        order: number;
-        isPrerelease: boolean;
-        isDeprecated: boolean;
-        isDefault: boolean;
-    }
-
-    interface Product {
-        productName: string;
-        packages: PackageMoniker[];
-    }
-
-    interface ProductFamily {
-        familyName: string;
-        products: Product[];
     }
 
     class ApiSearchController {
@@ -134,7 +201,10 @@ import { Icon } from '@astrojs/starlight/components';
             this.versionSelect.addEventListener("change", () => this.handleVersionChange());
             this.versionSelect.addEventListener("mousedown", () => this.selectIcon.classList.add("rotated"));
             this.versionSelect.addEventListener("blur", () => this.selectIcon.classList.remove("rotated"));
-            this.loadAvailableMonikers();
+            
+            // Set the apiVersion to the selected value from the pre-populated dropdown
+            this.apiVersion = this.versionSelect.value;
+            
             this.loadInitialNamespaces();
             this.input.focus();
         }
@@ -144,96 +214,6 @@ import { Icon } from '@astrojs/starlight/components';
             this.clearResults();
             this.loadInitialNamespaces();
             this.input.focus();
-        }
-
-        private async loadAvailableMonikers(): Promise<void> {
-            // Fallback data in case API is unavailable (CORS, etc.)
-            const fallbackAspireFamily: ProductFamily = {
-                familyName: "Aspire",
-                products: [
-                    {
-                        productName: "Aspire",
-                        packages: [
-                            {
-                                platform: "dotnet",
-                                monikerName: "dotnet-aspire-13.0",
-                                monikerDisplayName: "Aspire 13",
-                                versionDisplayName: "13.1.0",
-                                order: 130100,
-                                isPrerelease: false,
-                                isDeprecated: false,
-                                isDefault: true
-                            },
-                            {
-                                platform: "dotnet",
-                                monikerName: "dotnet-aspire-8.0",
-                                monikerDisplayName: "Aspire 8",
-                                versionDisplayName: "8.0.0",
-                                order: 8000,
-                                isPrerelease: false,
-                                isDeprecated: false,
-                                isDefault: false
-                            },
-                            {
-                                platform: "dotnet",
-                                monikerName: "dotnet-aspire-9.0",
-                                monikerDisplayName: "Aspire 9",
-                                versionDisplayName: "9.5.0",
-                                order: 90500,
-                                isPrerelease: false,
-                                isDeprecated: false,
-                                isDefault: false
-                            }
-                        ]
-                    }
-                ]
-            };
-
-            let aspireFamily: ProductFamily | undefined;
-
-            try {
-                const url = "https://learn.microsoft.com/_api/familyTrees/byPlatform/dotnet";
-                const response = await fetch(url, {
-                    headers: {
-                        Accept: "application/json",
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API request failed with status ${response.status}`);
-                }
-
-                const families: ProductFamily[] = await response.json();
-                
-                // Filter to only Aspire family
-                aspireFamily = families.find(f => f.familyName === "Aspire");
-            } catch (error) {
-                console.debug("Failed to load versions from API, using fallback data:", error);
-            }
-
-            // Use fallback if API failed or no Aspire family found
-            if (!aspireFamily || !aspireFamily.products.length) {
-                aspireFamily = fallbackAspireFamily;
-            }
-
-            // Collect all packages from all products
-            const allMonikers: PackageMoniker[] = [];
-            aspireFamily.products.forEach(product => {
-                allMonikers.push(...product.packages);
-            });
-
-            // Sort by order descending (newest first)
-            allMonikers.sort((a, b) => b.order - a.order);
-
-            // Populate dropdown
-            this.versionSelect.innerHTML = allMonikers.map(moniker => 
-                `<option value="${this.escapeHtml(moniker.monikerName)}" ${moniker.isDefault ? 'selected' : ''}>
-                    ${this.escapeHtml(moniker.monikerDisplayName)}
-                </option>`
-            ).join("");
-
-            // Set the apiVersion to the selected value
-            this.apiVersion = this.versionSelect.value;
         }
 
         private handleVersionChange(): void {
