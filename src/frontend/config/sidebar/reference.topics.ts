@@ -67,7 +67,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Довідник API',
         'zh-CN': 'API参考',
       },
-      collapsed: true,
+      collapsed: false,
       items: [
         {
           label: 'Browse APIs',
@@ -115,7 +115,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         tr: 'CLI referansı',
         uk: 'CLI Довідник',
       },
-      collapsed: true,
+      collapsed: false,
       items: [
         {
           label: 'Overview',
@@ -207,6 +207,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Команди',
             'zh-CN': '命令',
           },
+          collapsed: true,
           items: [
             { label: 'aspire', slug: 'reference/cli/commands/aspire' },
             { label: 'aspire add', slug: 'reference/cli/commands/aspire-add' },
