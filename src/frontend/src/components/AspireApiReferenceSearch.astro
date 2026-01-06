@@ -166,6 +166,7 @@ try {
     class ApiSearchController {
         // Constants
         private readonly BASE_API_URL = 'https://learn.microsoft.com';
+        private readonly BASE_API_ORIGIN = 'https://learn.microsoft.com';
         private readonly LEARN_API_VERSION = '0.2';
         private readonly DEFAULT_LOCALE = 'en-us';
         private readonly PAGE_SIZE = 25;
@@ -437,8 +438,13 @@ try {
                 return;
             }
 
-            // Filter out items with invalid URLs
-            const validItems = data.apiItems.map((item) => this.renderNamespaceItem(item)).filter(html => html !== '');
+            // Filter items with valid URLs and render
+            const validItems: string[] = [];
+            for (const item of data.apiItems) {
+                if (this.validateAndBuildUrl(item.url)) {
+                    validItems.push(this.renderNamespaceItem(item));
+                }
+            }
             
             if (validItems.length === 0) {
                 this.resultsContainer.innerHTML = `
@@ -468,7 +474,9 @@ try {
         private renderNamespaceItem(item: ApiNamespaceItem): string {
             const fullUrl = this.validateAndBuildUrl(item.url);
             if (!fullUrl) {
-                return ''; // Skip invalid URLs
+                // This shouldn't happen as we validate before calling this method
+                console.error('renderNamespaceItem called with invalid URL:', item.url);
+                return '';
             }
             return `
                 <div class="api-result-item">
@@ -503,8 +511,14 @@ try {
                 this.currentSkip = 0;
             }
 
-            // Filter out items with invalid URLs
-            const validResultsHtml = this.currentResults.map((result) => this.renderResultItem(result)).filter(html => html !== '');
+            // Filter results with valid URLs and render
+            const validResultsHtml: string[] = [];
+            for (const result of this.currentResults) {
+                if (this.validateAndBuildUrl(result.url)) {
+                    validResultsHtml.push(this.renderResultItem(result));
+                }
+            }
+            
             const resultCount = validResultsHtml.length;
             
             if (resultCount === 0) {
@@ -557,7 +571,9 @@ try {
         private renderResultItem(result: ApiSearchResult): string {
             const fullUrl = this.validateAndBuildUrl(result.url);
             if (!fullUrl) {
-                return ''; // Skip invalid URLs
+                // This shouldn't happen as we validate before calling this method
+                console.error('renderResultItem called with invalid URL:', result.url);
+                return '';
             }
 
             const formattedDisplayName = this.formatDisplayName(result.displayName, result.itemType);
@@ -699,8 +715,7 @@ try {
                 const url = new URL(fullUrl);
                 
                 // Ensure the URL's origin matches our base URL
-                const baseOrigin = new URL(this.BASE_API_URL).origin;
-                if (url.origin !== baseOrigin) {
+                if (url.origin !== this.BASE_API_ORIGIN) {
                     console.warn('Invalid API URL received: URL origin does not match base URL', apiUrl);
                     return null;
                 }
