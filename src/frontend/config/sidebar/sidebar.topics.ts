@@ -14,19 +14,6 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
   dashboardTopics,
   deploymentTopics,
   referenceTopics,
-  // {
-  //     label: 'API Reference',
-  //     id: 'reference-api',
-  //     link: '/api',
-  //     icon: 'document',
-  //     items: [
-  //         {
-  //             label: 'API Reference',
-  //             collapsed: false,
-  //             autogenerate: { directory: '/reference/api', collapsed: true }
-  //         },
-  //     ]
-  // },
   communityTopics,
   diagnosticTopics,
 ];
