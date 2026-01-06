@@ -39,5 +39,5 @@ export const socialConfig: SocialLink[] = [
     icon: 'document',
     label: 'Blog',
     href: 'https://devblogs.microsoft.com/aspire',
-  },
+  }
 ];
