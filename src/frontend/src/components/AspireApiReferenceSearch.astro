@@ -294,8 +294,7 @@ try {
 
         private handleKeydown(e: KeyboardEvent): void {
             if (e.key === "Escape") {
-                this.clearResults();
-                this.input.value = "";
+                this.clearSearch();
             }
         }
 
@@ -352,9 +351,11 @@ try {
             }
         }
 
+        private readonly minimumLoadingTimeMs = 500;
+
         private async ensureMinimumLoadingTime(): Promise<void> {
             const elapsed = Date.now() - this.loadingStartTime;
-            const remaining = Math.max(0, 500 - elapsed);
+            const remaining = Math.max(0, this.minimumLoadingTimeMs - elapsed);
             if (remaining > 0) {
                 await new Promise((resolve) => setTimeout(resolve, remaining));
             }
@@ -528,7 +529,8 @@ try {
             
             // Check if first line of display name is too long (80 chars)
             const firstLine = result.displayName.split('(')[0];
-            const isLongName = firstLine.length > 80;
+            const DISPLAY_NAME_LONG_THRESHOLD = 80;
+            const isLongName = firstLine.length > DISPLAY_NAME_LONG_THRESHOLD;
             const longNameClass = isLongName ? ' long-name' : '';
             
             return `
@@ -626,9 +628,15 @@ try {
         }
 
         private escapeHtml(text: string): string {
-            const div = document.createElement("div");
-            div.textContent = text;
-            return div.innerHTML;
+            const map: { [key: string]: string } = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+            };
+
+            return text.replace(/[&<>"']/g, (ch) => map[ch]);
         }
     }
 
@@ -1004,12 +1012,6 @@ try {
 
     .search-results-container :global(.api-result-item.long-name a .short-name) {
         display: -webkit-box;
-    }
-
-    .search-results-container :global(.result-description) {
-        color: var(--sl-color-text);
-        line-height: 1.5;
-        max-width: 85%;
     }
 
     .search-results-container :global(.no-results),
