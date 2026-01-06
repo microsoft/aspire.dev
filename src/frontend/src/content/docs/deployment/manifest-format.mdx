@@ -131,8 +131,6 @@ Publishing the manifest from the default starter template for Aspire produces th
         "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES": "true",
         "OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES": "true",
         "ConnectionStrings__cache": "{cache.connectionString}",
-        "APISERVICE_HTTP": "{apiservice.bindings.http.url}",
-        "APISERVICE_HTTPS": "{apiservice.bindings.https.url}",
         "services__apiservice__http__0": "{apiservice.bindings.http.url}",
         "services__apiservice__https__0": "{apiservice.bindings.https.url}"
       },
@@ -165,8 +163,6 @@ This dependency is known because the environment variables for the _webfrontend_
 "env": {
   // ... other environment variables omitted for clarity
   "ConnectionStrings__cache": "{cache.connectionString}",
-  "APISERVICE_HTTP": "{apiservice.bindings.http.url}",
-  "APISERVICE_HTTPS": "{apiservice.bindings.https.url}",
   "services__apiservice__http__0": "{apiservice.bindings.http.url}",
   "services__apiservice__https__0": "{apiservice.bindings.https.url}"
 },
@@ -253,6 +249,25 @@ The connection string placeholder references the `password` input parameter from
 ```
 
 The preceding JSON snippet shows the `inputs` field for a resource that has a `connectionString` field. The `password` input parameter is a string type and is marked as a secret. The `default` field is used to specify a default value for the input parameter. In this case, the default value is generated using the `generate` field, with random string of a minimum length.
+
+When a parameter is using a filter (for example `uri`), the manifest contains an additional resource that represents the filtered projection.
+
+- The resource type is `"annotated.string"`.
+- `value` references the raw parameter value (`{parameter-name.value}`).
+- `filter` names the formatter (e.g., `"uri"`, ...).
+- The resource name is derived from the parameter name and format (`{parameter}-{format}-encoded`). Names are deduplicated if multiple projections share the same base.
+
+Example projection generated for a URI-encoded password:
+
+```json
+"redis-password-uri-encoded": {
+  "type": "annotated.string",
+  "value": "{redis-password.value}",
+  "filter": "uri"
+}
+```
+
+The original parameter remains in the manifest, preserving its secret metadata. Tools should apply the indicated `filter` when materializing the value.
 
 ## Built-in resources
 
