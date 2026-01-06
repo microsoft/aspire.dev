@@ -1,6 +1,6 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
-import { cliReferenceTopics } from './cli-reference.topics.js';
+import { referenceTopics } from './reference.topics.js';
 import { communityTopics } from './community.topics.js';
 import { dashboardTopics } from './dashboard.topics.js';
 import { deploymentTopics } from './deployment.topics.js';
@@ -13,7 +13,7 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
   integrationTopics,
   dashboardTopics,
   deploymentTopics,
-  cliReferenceTopics,
+  referenceTopics,
   // {
   //     label: 'API Reference',
   //     id: 'reference-api',
