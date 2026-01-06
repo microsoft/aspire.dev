@@ -164,6 +164,16 @@ try {
     }
 
     class ApiSearchController {
+        // Constants
+        private readonly BASE_API_URL = 'https://learn.microsoft.com';
+        private readonly LEARN_API_VERSION = '0.2';
+        private readonly DEFAULT_LOCALE = 'en-us';
+        private readonly PAGE_SIZE = 25;
+        private readonly DEBOUNCE_DELAY_MS = 250;
+        private readonly MINIMUM_LOADING_TIME_MS = 500;
+        private readonly DISPLAY_NAME_LONG_THRESHOLD = 80;
+        private readonly DEFAULT_MONIKER = 'dotnet-aspire-13.0';
+
         private container: HTMLElement;
         private input: HTMLInputElement;
         private resultsContainer: HTMLElement;
@@ -175,7 +185,7 @@ try {
         private debounceTimer: number | null = null;
         private abortController: AbortController | null = null;
         private loadingStartTime: number = 0;
-        private apiVersion = 'dotnet-aspire-13.0';
+        private apiVersion = this.DEFAULT_MONIKER;
         private hasMoreResults: boolean = false;
         private currentSearchTerm: string = '';
         private currentResults: ApiSearchResult[] = [];
@@ -246,10 +256,10 @@ try {
             try {
                 const params = new URLSearchParams({
                     'moniker': this.apiVersion,
-                    'api-version': '0.2',
-                    'locale': 'en-us'
+                    'api-version': this.LEARN_API_VERSION,
+                    'locale': this.DEFAULT_LOCALE
                 });
-                const url = `https://learn.microsoft.com/api/apibrowser/dotnet/namespaces?${params.toString()}`;
+                const url = `${this.BASE_API_URL}/api/apibrowser/dotnet/namespaces?${params.toString()}`;
 
                 const response = await fetch(url, {
                     headers: {
@@ -289,7 +299,7 @@ try {
 
             this.debounceTimer = window.setTimeout(() => {
                 this.performSearch(searchTerm);
-            }, 250);
+            }, this.DEBOUNCE_DELAY_MS);
         }
 
         private handleKeydown(e: KeyboardEvent): void {
@@ -319,12 +329,12 @@ try {
             try {
                 const params = new URLSearchParams({
                     'search': searchTerm,
-                    'api-version': '0.2',
-                    'locale': 'en-us',
-                    'top': '25',
+                    'api-version': this.LEARN_API_VERSION,
+                    'locale': this.DEFAULT_LOCALE,
+                    'top': String(this.PAGE_SIZE),
                     '$filter': `monikers/any(t: t eq '${this.apiVersion}')`
                 });
-                const url = `https://learn.microsoft.com/api/apibrowser/dotnet/search?${params.toString()}`;
+                const url = `${this.BASE_API_URL}/api/apibrowser/dotnet/search?${params.toString()}`;
 
                 const response = await fetch(url, {
                     signal: this.abortController.signal,
@@ -351,11 +361,9 @@ try {
             }
         }
 
-        private readonly minimumLoadingTimeMs = 500;
-
         private async ensureMinimumLoadingTime(): Promise<void> {
             const elapsed = Date.now() - this.loadingStartTime;
-            const remaining = Math.max(0, this.minimumLoadingTimeMs - elapsed);
+            const remaining = Math.max(0, this.MINIMUM_LOADING_TIME_MS - elapsed);
             if (remaining > 0) {
                 await new Promise((resolve) => setTimeout(resolve, remaining));
             }
@@ -385,16 +393,16 @@ try {
             }
 
             try {
-                this.currentSkip += 25;
+                this.currentSkip += this.PAGE_SIZE;
                 const params = new URLSearchParams({
                     'search': this.currentSearchTerm,
-                    'api-version': '0.2',
-                    'locale': 'en-us',
-                    'top': '25',
+                    'api-version': this.LEARN_API_VERSION,
+                    'locale': this.DEFAULT_LOCALE,
+                    'top': String(this.PAGE_SIZE),
                     '$skip': String(this.currentSkip),
                     '$filter': `monikers/any(t: t eq '${this.apiVersion}')`
                 });
-                const url = `https://learn.microsoft.com/api/apibrowser/dotnet/search?${params.toString()}`;
+                const url = `${this.BASE_API_URL}/api/apibrowser/dotnet/search?${params.toString()}`;
 
                 const response = await fetch(url, {
                     headers: {
@@ -410,7 +418,7 @@ try {
                 this.renderResults(data, this.currentSearchTerm, true);
             } catch (error) {
                 console.error("Failed to load more results:", error);
-                this.currentSkip -= 25; // Rollback skip on error
+                this.currentSkip -= this.PAGE_SIZE; // Rollback skip on error
                 if (loadMoreBtn) {
                     loadMoreBtn.disabled = false;
                     loadMoreBtn.textContent = "Load more results";
@@ -445,16 +453,15 @@ try {
         }
 
         private renderNamespaceItem(item: ApiNamespaceItem): string {
-            const fullUrl = `https://learn.microsoft.com${item.url}`;
+            const fullUrl = this.validateAndBuildUrl(item.url);
+            if (!fullUrl) {
+                return ''; // Skip invalid URLs
+            }
             return `
                 <div class="api-result-item">
-                    <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer">
+                    <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escapeHtml(item.displayName)} (opens in new tab)">
                         <code>${this.escapeHtml(item.displayName)}</code>
-                        <svg class="external-link-icon" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
+                        ${this.getExternalLinkIcon()}
                     </a>
                 </div>
             `;
@@ -521,29 +528,27 @@ try {
         }
 
         private renderResultItem(result: ApiSearchResult): string {
-            const fullUrl = `https://learn.microsoft.com${result.url}`;
+            const fullUrl = this.validateAndBuildUrl(result.url);
+            if (!fullUrl) {
+                return ''; // Skip invalid URLs
+            }
 
             const formattedDisplayName = this.formatDisplayName(result.displayName, result.itemType);
             const shortDisplayName = this.getShortDisplayName(result.displayName);
             const formattedShortDisplayName = this.formatDisplayName(shortDisplayName, result.itemType);
             
-            // Check if first line of display name is too long (80 chars)
+            // Check if first line of display name is too long
             const firstLine = result.displayName.split('(')[0];
-            const DISPLAY_NAME_LONG_THRESHOLD = 80;
-            const isLongName = firstLine.length > DISPLAY_NAME_LONG_THRESHOLD;
+            const isLongName = firstLine.length > this.DISPLAY_NAME_LONG_THRESHOLD;
             const longNameClass = isLongName ? ' long-name' : '';
             
             return `
                 <div class="api-result-item${longNameClass}">
                     <div class="result-main">
-                        <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer">
+                        <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escapeHtml(result.displayName)} ${this.escapeHtml(result.itemType)} (opens in new tab)">
                             <code class="full-name">${formattedDisplayName}</code>
                             <code class="short-name">${formattedShortDisplayName}</code>
-                            <svg class="external-link-icon" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                <polyline points="15 3 21 3 21 9"></polyline>
-                                <line x1="10" y1="14" x2="21" y2="3"></line>
-                            </svg>
+                            ${this.getExternalLinkIcon()}
                         </a>
                         <span class="item-type-badge item-type-${result.itemType.toLowerCase()}">${this.escapeHtml(result.itemType)}</span>
                     </div>
@@ -637,6 +642,23 @@ try {
             };
 
             return text.replace(/[&<>"']/g, (ch) => map[ch]);
+        }
+
+        private getExternalLinkIcon(): string {
+            return `<svg class="external-link-icon" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>`;
+        }
+
+        private validateAndBuildUrl(apiUrl: string): string | null {
+            // Validate that the URL from the API is a relative URL starting with /
+            if (!apiUrl || !apiUrl.startsWith('/')) {
+                console.warn('Invalid API URL received:', apiUrl);
+                return null;
+            }
+            return `${this.BASE_API_URL}${apiUrl}`;
         }
     }
 
