@@ -240,6 +240,17 @@ import { Icon } from '@astrojs/starlight/components';
             this.apiVersion = this.versionSelect.value;
             this.selectIcon.classList.remove("rotated");
             
+            // Cancel any pending searches
+            if (this.debounceTimer) {
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = null;
+            }
+            
+            if (this.abortController) {
+                this.abortController.abort();
+                this.abortController = null;
+            }
+            
             // Reload data with new version
             if (this.input.value.trim()) {
                 this.performSearch(this.input.value.trim());
@@ -530,7 +541,7 @@ import { Icon } from '@astrojs/starlight/components';
 
         private renderResultItem(result: ApiSearchResult): string {
             const fullUrl = `https://learn.microsoft.com${result.url}`;
-            const titleAttr = result.description ? ` title="${this.escapeHtml(result.description)}"` : '';
+
             const formattedDisplayName = this.formatDisplayName(result.displayName, result.itemType);
             const shortDisplayName = this.getShortDisplayName(result.displayName);
             const formattedShortDisplayName = this.formatDisplayName(shortDisplayName, result.itemType);
@@ -541,17 +552,20 @@ import { Icon } from '@astrojs/starlight/components';
             const longNameClass = isLongName ? ' long-name' : '';
             
             return `
-                <div class="api-result-item${longNameClass}"${titleAttr}>
-                    <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer">
-                        <code class="full-name">${formattedDisplayName}</code>
-                        <code class="short-name">${formattedShortDisplayName}</code>
-                        <svg class="external-link-icon" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                    </a>
-                    <span class="item-type-badge item-type-${result.itemType.toLowerCase()}">${this.escapeHtml(result.itemType)}</span>
+                <div class="api-result-item${longNameClass}">
+                    <div class="result-main">
+                        <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer">
+                            <code class="full-name">${formattedDisplayName}</code>
+                            <code class="short-name">${formattedShortDisplayName}</code>
+                            <svg class="external-link-icon" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                        </a>
+                        <span class="item-type-badge item-type-${result.itemType.toLowerCase()}">${this.escapeHtml(result.itemType)}</span>
+                    </div>
+                    ${result.description ? `<div class="result-description">${this.escapeHtml(result.description)}</div>` : ''}
                 </div>
             `;
         }
@@ -914,12 +928,18 @@ import { Icon } from '@astrojs/starlight/components';
 
     .search-results-container :global(.api-result-item) {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 0.5rem;
         padding: 0.75rem;
         border: 1px solid var(--sl-color-gray-5);
         border-radius: 0.5rem;
         background-color: var(--sl-color-bg);
+    }
+
+    .search-results-container :global(.result-main) {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .search-results-container :global(.api-result-item a) {
@@ -931,6 +951,10 @@ import { Icon } from '@astrojs/starlight/components';
         word-break: break-word;
         flex-grow: 1;
         min-width: 0;
+    }
+
+    .search-results-container :global(.result-description) {
+        color: var(--sl-color-text);
     }
 
     .search-results-container :global(.api-result-item a code) {
@@ -1003,8 +1027,9 @@ import { Icon } from '@astrojs/starlight/components';
     }
 
     .search-results-container :global(.result-description) {
-        color: var(--sl-color-gray-5);
+        color: var(--sl-color-text);
         line-height: 1.5;
+        max-width: 85%;
     }
 
     .search-results-container :global(.no-results),
