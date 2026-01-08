@@ -1,0 +1,695 @@
+---
+title: Aspire 9.0
+description: Learn what's new in Aspire 9.0.
+tableOfContents:
+  maxHeadingLevel: 2
+---
+
+import { Image } from 'astro:assets';
+import { Aside } from '@astrojs/starlight/components';
+import consoleLogsAnsiTextFormat from '@assets/whats-new/aspire-9/console-logs-ansi-text-format.png';
+import dashboardBrowserTelemetry from '@assets/whats-new/aspire-9/dashboard-browser-telemetry.png';
+import waitingForUnhealthyResource from '@assets/whats-new/aspire-9/waiting-for-unhealthy-resource.png';
+import healthCheckDetails from '@assets/whats-new/aspire-9/health-check-details.png';
+import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
+import persistentContainerDockerDesktop from '@assets/whats-new/aspire-9/persistent-container-docker-desktop.png';
+import redisInsight from '@assets/whats-new/aspire-9/redis-insight.png';
+import functionsStep1 from '@assets/whats-new/aspire-9/functions-step-1.gif';
+import functionsDashboardScreenshot from '@assets/whats-new/aspire-9/functions-dashboard-screenshot.png';
+import functionsDebugScreenshot from '@assets/whats-new/aspire-9/functions-debug-screenshot.png';
+
+📢 Aspire 9.0 is the next major general availability (GA) release of Aspire; it supports _both_:
+
+- .NET 8.0 Long Term Support (LTS) _or_
+- .NET 9.0 Standard Term Support (STS).
+
+<Aside type="note">
+You're able to use Aspire 9.0 with either .NET 8 or .NET 9!
+</Aside>
+
+This release addresses some of the most highly requested features and pain points from the community. The best features are community-driven! To join the community on, visit us on [Discord](https://discord.com/invite/h87kDAHQgJ) to chat with team members and collaborate with us on [GitHub](https://github.com/dotnet/aspire).
+
+For more information on the official .NET version and Aspire version support, see:
+
+- [.NET support policy](https://dotnet.microsoft.com/platform/support/policy): Definitions for LTS and STS.
+- [Aspire support policy](https://dotnet.microsoft.com/platform/support/policy/aspire): Important unique product life cycle details.
+
+## Upgrade to Aspire 9
+
+To upgrade from earlier versions of Aspire to Aspire 9, follow the instructions in the official upgrade guide. The guide provides detailed instructions on how to upgrade your existing Aspire solutions to Aspire 9. Regardless of you're doing it manually, or using the Upgrade Assistant, the guide makes short work of the process.
+
+### Tooling improvements
+
+Aspire 9 makes it simpler to configure your environment to develop Aspire applications. You no longer need a .NET workload. Instead, you install the new [Aspire SDK](/fundamentals/sdk/) into the AppHost project of your Aspire solutions. For more information, see [Aspire setup and tooling](/get-started/set-up-environment/).
+
+### Templates have moved
+
+Aspire 9 is moving the contents that used to be installed via the workload into separate NuGet packages. This includes the templates for creating new Aspire projects and solutions. These templates are installed using the `dotnet new install` command. These can be installed by running the following command:
+
+```bash
+dotnet new install Aspire.ProjectTemplates::9.0.0
+```
+
+For more information, see [Aspire templates](/fundamentals/templates/).
+
+## Dashboard UX enhancements and new interactivity features
+
+The [Aspire dashboard](/dashboard/overview/) continues to improve with each release.
+
+### Manage resource lifecycle
+
+The most requested feature for the dashboard is to manage the lifecycles of your orchestrated named resources. Specifically, the ability to stop, start, and restart resources. This feature works for projects, containers, and executables. It enables restarting individual resources without having to restart the entire AppHost. For project resources, when the debugger is attached, it's reattached on restart. For more information, see [Aspire dashboard: Stop or Start a resource](/dashboard/explore/#stop-or-start-a-resource).
+
+### Mobile and responsive support
+
+The Aspire dashboard is now mobile-friendly, responsively adapting to a wide range of screen sizes and enabling on-the-go management of deployed Aspire applications. Other accessibility improvements were made, including the display of settings and content overflow on mobile.
+
+### Sensitive properties, volumes, and health checks in resource details
+
+The display of resource details contains several improvements:
+
+- Properties can be marked as sensitive, automatically masking them in the dashboard UI. This security feature helps to avoid accidentally disclosing keys or passwords when screen sharing the dashboard with other people. For example, container arguments could pass sensitive information and so are masked by default.
+- Configured container volumes are listed in resource details.
+- Aspire 9 adds support for health checks. Detailed information about these checks can now be viewed in the resource details pane, showing why a resource might be marked as unhealthy or degraded. For more information, see [Resource health check](#resource-health-checks).
+
+### Colorful console log
+
+[ANSI escape codes](https://wikipedia.org/wiki/ANSI_escape_code) format text in terminals by controlling colors (foreground and background) and styles like bold, underline, and italics. Previously, the dashboard's console logs page could only render one ANSI escape code at a time, failing when multiple codes were combined. For example, it could display red text, but not text that was both red and bold.
+
+A community contribution from [@mangeg](https://github.com/mangeg) improved support for ANSI escape codes and removed this limitation.
+
+<Image src={consoleLogsAnsiTextFormat} alt="Colorful console logs" />
+
+Another improvement to console logs is hiding unsupported escape codes. Codes that aren't related to displaying text, such as positioning the cursor or communicating with the operating system don't make sense in this UI, and are hidden.
+
+## Telemetry user-centric additions
+
+[Telemetry](/fundamentals/telemetry/) remains a vital aspect of Aspire. In Aspire 9, many new features were introduced to the Telemetry service.
+
+### Improved telemetry filtering
+
+Traces can be filtered with attribute values. For example, if you only want to view traces for one endpoint in your app, the `http.route` attribute on HTTP requests can be filtered to a specified value.
+
+Telemetry filtering also supports autocomplete of existing values. The **Add filter** dialog provides a combo box for selecting from values that dashboard has available. This feature makes it much easier to filter to real data and helps avoid typos by entered a value yourself.
+
+For more information, see [Aspire dashboard: Filter traces](/dashboard/explore/#filter-traces).
+
+### Combine telemetry from multiple resources
+
+When a resource has multiple replicas, you can now filter telemetry to view data from all instances at once. Select the parent resource, labeled `(application)`. For more information, see [Aspire dashboard: Combine telemetry from multiple resources](/dashboard/explore/#combine-telemetry-from-multiple-resources).
+
+### Browser telemetry support
+
+The dashboard supports OpenTelemetry Protocol (OTLP) over HTTP and cross-origin resource sharing (CORS). These features unlock the ability to send OpenTelemetry from browser apps to the Aspire dashboard.
+
+For example, a browser-based single page app (SPA) can configure the [JavaScript OpenTelemetry SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) to send structured logs, traces, and metrics created in the browser to the dashboard. Browser telemetry is displayed alongside server telemetry.
+
+<Image src={dashboardBrowserTelemetry} alt="Trace detail page with browser telemetry" />
+
+For more information on configuring browser telemetry, see [Enable browser telemetry](/dashboard/enable-browser-telemetry/) documentation.
+
+## AppHost (Orchestration)
+
+The [Aspire AppHost](/get-started/app-host/) is one of the **most important** features of Aspire. In Aspire 9, several new features were added specific to the AppHost.
+
+### Waiting for dependencies
+
+If you've been following along with Aspire, you already know that your AppHost project is where you define your app model. You create a distributed application builder, add and configure resources, and express their dependencies. Now, you can specify that a resource should _wait_ for another resource before starting. This can help avoid connection errors during startup by only starting resources when their dependencies are "ready."
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rabbit = builder.AddRabbitMQ("rabbit");
+
+builder.AddProject<Projects.WebApplication1>("api")
+       .WithReference(rabbit)
+       .WaitFor(rabbit); // Don't start "api" until "rabbit" is ready...
+
+builder.Build().Run();
+```
+
+When the AppHost starts, it waits for the `rabbit` resource to be ready before starting the `api` resource.
+
+There are two methods exposed to wait for a resource:
+
+- `WaitFor`: Wait for a resource to be ready before starting another resource.
+- `WaitForCompletion`: Wait for a resource to complete before starting another resource.
+
+For more information, see [Aspire AppHost: Waiting for resources](/fundamentals/app-host-overview/#waiting-for-resources).
+
+#### Resource health checks
+
+The `WaitFor` API uses standard [.NET health checks](/fundamentals/health-checks/) to determine if a resource is ready. But what does "a resource being ready" mean? The best part is, that's configurable by the consumer beyond their default values.
+
+When a resource doesn't expose any health checks (no health checks registered in the app), the AppHost waits for the resource to be in the running state before starting the dependent resource.
+
+For resources that expose HTTP endpoints, you can easily add a health check that polls a specific path for an HTTP 200 response.
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
+                        .WithHttpEndpoint(targetPort: 8080)
+                        .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.WebApplication1>("store")
+       .WithReference(catalogApi.GetEndpoint("http"))
+       .WaitFor(catalogApi);
+
+builder.Build().Run();
+```
+
+The preceding example adds a health check to the `catalog-api` resource. The AppHost waits for the health check to return a healthy status before starting the `store` resource. It determines that the resource is ready when the `/health` endpoint returns an HTTP 200 status code.
+
+While `store` is waiting for `catalog-api` to become healthy, the resources in the dashboard appear as:
+
+<Image src={waitingForUnhealthyResource} alt="Waiting for an unhealthy resource before starting" />
+
+The AppHost's health check mechanism builds upon the `IHealthChecksBuilder` implementation from the health checks namespace.
+
+Health checks report data, which is displayed in the dashboard:
+
+<Image src={healthCheckDetails} alt="Health check details in the dashboard's resource details view" />
+
+Creating a custom health check is straightforward. Start by defining the health check, then associate its name with any resources it applies to.
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var healthyAfter = DateTime.Now.AddSeconds(20);
+
+builder.Services.AddHealthChecks().AddCheck(
+    "delay20secs",
+    () => DateTime.Now > healthyAfter
+        ? HealthCheckResult.Healthy()
+        : HealthCheckResult.Unhealthy()
+    );
+
+var cache = builder.AddRedis("cache")
+                   .WithHealthCheck("delay20secs");
+
+builder.AddProject<Projects.MyApp>("myapp")
+       .WithReference(cache)
+       .WaitFor(cache);
+```
+
+The preceding example adds a health check to the `cache` resource, which reports it as unhealthy for the first 20 seconds after the AppHost starts. So, the `myapp` resource waits for 20 seconds before starting, ensuring the `cache` resource is healthy.
+
+The health check methods provide a simple mechanism to create health checks and associate them with specific resources.
+
+### Persistent containers
+
+The AppHost now supports _persistent_ containers. Persistent containers deviate from the typical container life cycle of Aspire orchestrated apps. While they're _created_ and _started_ (when not already available) by the Aspire orchestrator, they're not destroyed by Aspire.
+
+This is useful when you want to keep the container running even after the AppHost has stopped.
+
+<Aside type="caution">
+To delete these containers, you must manually stop them using the container runtime.
+</Aside>
+
+To define an `IResourceBuilder<ContainerResource>` with a persistent lifetime, call the `WithLifetime` method and pass in persistent container lifetime:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var queue = builder.AddRabbitMQ("rabbit")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+builder.AddProject<Projects.WebApplication1>("api")
+       .WithReference(queue)
+       .WaitFor(queue);
+
+builder.Build().Run();
+```
+
+The dashboard shows persistent containers with a pin icon:
+
+<Image src={persistentContainer} alt="Persistent containers" />
+
+After the AppHost is stopped, the container will continue to run:
+
+<Image src={persistentContainerDockerDesktop} alt="Docker desktop showing RabbitMQ" />
+
+The container persistence mechanism attempts to identify when you might wish to recreate the container. For example, if the environment for the container changes, then the container is restarted so that you don't need to manually stop the container if the input configuration for the resource has changed.
+
+### Resource commands
+
+The AppHost supports adding custom commands to resources. This is useful when you want to add custom functionality that is not natively supported by the AppHost. There's likely many opportunities where exposing custom extension methods on resources will be useful. The [Aspire Community Toolkit](/integrations/overview/) might be a good place to share these extensions.
+
+When you define a custom command, it's available in the dashboard as a user experience feature.
+
+<Aside type="caution">
+These Aspire dashboard commands are only available when running the dashboard locally. They're not available when running the dashboard in Azure Container Apps.
+</Aside>
+
+For more information on creating custom resource commands, see [How-to: Create custom resource commands in Aspire](/fundamentals/custom-resource-commands/).
+
+### Container networking
+
+The AppHost now adds all containers to a common network named `default-aspire-network`. This is useful when you want to communicate between containers without going through the host network. This also makes it easier to migrate from docker compose to the AppHost, as containers can communicate with each other using the container name.
+
+### Eventing model
+
+The eventing model allows developers to hook into the lifecycle of the application and resources. This is useful for running custom code at specific points in the application lifecycle. There are various ways to subscribe to events, including global events and per-resource events.
+
+**Global events:**
+
+- `BeforeStartEvent`: An event that is triggered before the application starts. This is the last place that changes to the app model are observed. This runs in both "Run" and "Publish" modes. This is a blocking event, meaning that the application doesn't start until all handlers have completed.
+- `AfterResourcesCreatedEvent`: An event that is triggered after the resources are created. This runs in Run mode only.
+- `AfterEndpointsAllocatedEvent`: An event that is triggered after the endpoints are allocated for all resources. This runs in Run mode only.
+
+The global events are analogous to the AppHost life cycle events. For more information, see [AppHost life cycles](/app-host/eventing/#apphost-life-cycle-events).
+
+**Per-resource events:**
+
+- `BeforeResourceStartedEvent`: An event that is triggered before a single resource starts. This runs in Run mode only. This is a blocking event, meaning that the resource doesn't start until all handlers complete.
+- `ConnectionStringAvailableEvent`: An event that is triggered when a connection string is available for a resource. This runs in Run mode only.
+- `ResourceReadyEvent`: An event that is triggered when a resource is ready to be used. This runs in Run mode only.
+
+For more information, see [Eventing in Aspire](/app-host/eventing/).
+
+## Integrations
+
+Aspire continues to add integrations that make it easy to get started with your favorite services and tools. For more information, see [Aspire integrations overview](/integrations/overview/).
+
+### Redis Insight
+
+Support for [Redis Insights](https://redis.io/insight/) is available on a Redis resource:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("redis")
+       .WithRedisInsight(); // Starts a Redis Insight container image
+                            // that is pre-configured to work with the
+                            // Redis instance.
+```
+
+The `WithRedisInsight` extension method can be applied to multiple Redis resources and they'll each be visible on the Redis Insight dashboard.
+
+<Image src={redisInsight} alt="Redis Insight dashboard showing multiple Redis instances" />
+
+For more information, see [Add Redis resource with Redis Insights](/integrations/caching/redis/#add-redis-resource-with-redis-insights).
+
+### OpenAI (Preview)
+
+Starting with Aspire 9, an additional OpenAI integration is available which allows to use the latest official OpenAI dotnet library directly. The client integration registers the OpenAIClient as a singleton service in the service collection. The client can be used to interact with the OpenAI REST API.
+
+- [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI/9.0.0)
+
+Moreover, the already available Aspire Azure OpenAI integration was improved to provide a flexible way to configure an `OpenAIClient` for either an Azure AI OpenAI service or a dedicated OpenAI REST API one with the new builder method. The following example detects if the connection string is for an Azure AI OpenAI service and registers the most appropriate `OpenAIClient` instance automatically.
+
+```csharp
+builder.AddOpenAIClientFromConfiguration("openai");
+```
+
+For instance, if the `openai` connection looked like `Endpoint=https://{account}.azure.com;Key={key};` it would guess it can register an Azure AI OpenAI client because of the domain name. Otherwise a common `OpenAIClient` would be used.
+
+Read [Azure-agnostic client resolution](https://github.com/dotnet/aspire/blob/release/9.0/src/Components/Aspire.Azure.AI.OpenAI/README.md#azure-agnostic-client-resolution) for more details.
+
+### MongoDB
+
+Added support for specifying the MongoDB username and password when using the `AddMongoDB` extension method. If not specified, a random username and password is generated but can be manually specified using parameter resources.
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("mongousername");
+var password = builder.AddParameter("mongopassword", secret: true);
+
+var db = builder.AddMongo("db", username, password);
+```
+
+### Important Azure improvements
+
+The following sections describe Azure improvements added in Aspire 9. For a complete listing of all the breaking changes, see Breaking changes in Aspire 9.
+
+#### Azure resource customization
+
+In Aspire 8, customizing Azure resources were marked experimental because the underlying `Azure.Provisioning` libraries were new and gathering feedback before they could be marked stable. In Aspire 9 these APIs were updated and removes the experimental attribute.
+
+**Azure Resource naming breaking change**
+
+As part of the update to the provisioning libraries, the default naming scheme for Azure resources was updated with better support for various naming policies. However, this update resulted in a change to how resources are named. The new naming policy might result in the existing Azure resources being abandoned and new Azure resources being created, after updating your Aspire application from 8 to 9. To keep using the same naming policies from Aspire 8, you can add the following code to your AppHost _Program.cs_:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Services.Configure<AzureProvisioningOptions>(options =>
+{
+    options.ProvisioningBuildOptions.InfrastructureResolvers.Insert(0, new AspireV8ResourceNamePropertyResolver());
+});
+```
+
+#### Azure SQL, PostgreSQL, and Redis Update
+
+Azure SQL, PostgreSQL, and Redis resources are different than other Azure resources because there are local container resources for these technologies. In Aspire 8, in order to create these Azure resources you needed to start with a local container resource and then either "As" or "PublishAs" it to an Azure resource. This design introduced problems and didn't fit with other APIs.
+
+For example, you might have this code in Aspire 8:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddSqlServer("sql")
+                 .PublishAsAzureSqlDatabase();
+
+var pgsql = builder.AddPostgres("pgsql")
+                   .PublishAsAzurePostgresFlexibleServer();
+
+var cache = builder.AddRedis("cache")
+                   .PublishAsAzureSqlDatabase();
+```
+
+In Aspire 9 these APIs were marked as obsolete and a new API pattern implemented:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddAzureSqlServer("sql")
+                 .RunAsContainer();
+
+var pgsql = builder.AddAzurePostgresFlexibleServer("pgsql")
+                   .RunAsContainer();
+
+var cache = builder.AddAzureRedis("cache")
+                   .RunAsContainer();
+```
+
+##### Microsoft Entra ID by default
+
+In order to make Aspire applications more secure, Azure Database for PostgreSQL and Azure Cache for Redis resources were updated to use Microsoft Entra ID by default. This requires changes to applications that need to connect to these resources. See the following for updating applications to use Microsoft Entra ID to connect to these resources:
+
+- [Azure Database for PostgreSQL](https://devblogs.microsoft.com/dotnet/using-postgre-sql-with-dotnet-and-entra-id/)
+- [Azure Cache for Redis](https://github.com/Azure/Microsoft.Azure.StackExchangeRedis)
+
+The following examples demonstrate how to configure your application to connect to the Azure resources using Microsoft Entra ID:
+
+- [Aspire: Azure PostgreSQL hosting integration](/integrations/cloud/azure/azure-postgresql/).
+- [Aspire: Azure Redis hosting integration](/integrations/cloud/azure/azure-cache-redis/#hosting-integration).
+
+If you need to use password or access key authentication (not recommended), you can opt-in with the following code:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var pgsql = builder.AddAzurePostgresFlexibleServer("pgsql")
+                   .WithPasswordAuthentication();
+
+var cache = builder.AddAzureRedis("cache")
+                   .WithAccessKeyAuthentication();
+```
+
+#### Support for Azure Functions (Preview)
+
+Support for Azure Functions is one of the most widely requested features on the Aspire issue tracker and we're excited to introduce preview support for it in this release. To demonstrate this support, let's use Aspire to create and deploy a webhook.
+
+To get started, create a new Azure Functions project using the **Visual Studio New Project** dialog. When prompted, select the **Enlist in Aspire orchestration** checkbox when creating the project.
+
+<Image src={functionsStep1} alt="Create new Aspire Azure Functions project" />
+
+In the AppHost project, observe that there's a `PackageReference` to the new [📦 Aspire.Hosting.Azure.Functions](https://www.nuget.org/packages/Aspire.Hosting.Azure.Functions) NuGet package:
+
+```xml
+<ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.0.0" />
+    <PackageReference Include="Aspire.Hosting.Azure.Functions" Version="9.0.0" />
+</ItemGroup>
+```
+
+This package provides an `AddAzureFunctionsProject` API that can be invoked in the AppHost to configure Azure Functions projects within an Aspire host:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureFunctionsProject<Projects.PigLatinApp>("piglatinapp");
+
+builder.Build().Run();
+```
+
+In this example, the webhook is responsible for translating an input string into Pig Latin. Update the contents of our trigger with the following code:
+
+```csharp
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
+using System.Text;
+using FromBodyAttribute = Microsoft.Azure.Functions.Worker.Http.FromBodyAttribute;
+
+namespace PigLatinApp;
+
+public class Function1(ILogger<Function1> logger)
+{
+    public record InputText(string Value);
+    public record PigLatinText(string Value);
+
+    [Function("Function1")]
+    public IActionResult Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req,
+        [FromBody] InputText inputText)
+    {
+        logger.LogInformation("C# HTTP trigger function processed a request.");
+
+        var result = TranslateToPigLatin(inputText.Value);
+
+        return new OkObjectResult(new PigLatinText(result));
+    }
+
+    private static string TranslateToPigLatin(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
+        var words = input.Split(' ');
+        StringBuilder pigLatin = new();
+
+        foreach (string word in words)
+        {
+            if (IsVowel(word[0]))
+            {
+                pigLatin.Append(word + "yay ");
+            }
+            else
+            {
+                int vowelIndex = FindFirstVowelIndex(word);
+                if (vowelIndex is -1)
+                {
+                    pigLatin.Append(word + "ay ");
+                }
+                else
+                {
+                    pigLatin.Append(
+                        word.Substring(vowelIndex) + word.Substring(0, vowelIndex) + "ay ");
+                }
+            }
+        }
+
+        return pigLatin.ToString().Trim();
+    }
+
+    private static int FindFirstVowelIndex(string word)
+    {
+        for (var i = 0; i < word.Length; i++)
+        {
+            if (IsVowel(word[i]))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static bool IsVowel(char c) =>
+        char.ToLower(c) is 'a' or 'e' or 'i' or 'o' or 'u';
+}
+```
+
+Set a breakpoint on the first `logger.LogInformation` line of the `Run` method and press <kbd>F5</kbd> to start the Functions host. Once the Aspire dashboard launches, you observe the following:
+
+<Image src={functionsDashboardScreenshot} alt="Screenshot of the Aspire running with an Azure Function app" />
+
+Aspire has:
+
+- Configured an emulated Azure Storage resource to be used for bookkeeping by the host.
+- Launched the Functions host locally with the target as the Functions project registered.
+- Wired the port defined in _launchSettings.json_ of the functions project for listening.
+
+Use your favorite HTTP client of choice to send a request to the trigger and observe the inputs bound from the request body in the debugger.
+
+**Unix:**
+
+```bash
+curl --request POST \
+  --url http://localhost:7282/api/Function1 \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "value": "Welcome to Azure Functions"
+}'
+```
+
+**Windows:**
+
+```powershell
+curl --request POST `
+  --url http://localhost:7282/api/Function1 `
+  --header 'Content-Type: application/json' `
+  --data '{
+  "value": "Welcome to Azure Functions"
+}'
+```
+
+<Image src={functionsDebugScreenshot} alt="Screenshot of the Aspire dashboard: Debugging an Azure Function app" />
+
+Now you're ready to deploy our application to Azure Container Apps (ACA). Deployment currently depends on preview builds of Azure Functions Worker and Worker SDK packages. If necessary, upgrade the versions referenced in the Functions project:
+
+```xml
+<ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.0.0-preview2" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.0-preview2" />
+</ItemGroup>
+```
+
+You also need to expose a public endpoint for our Azure Functions project so that requests can be sent to our HTTP trigger:
+
+```csharp
+builder.AddAzureFunctionsProject<Projects.PigLatinApp>("piglatinapp")
+       .WithExternalHttpEndpoints();
+```
+
+To deploy the application with the `azd` CLI, you need get the latest version first. To install the latest version, you see a warning if your version is out of date. Follow the instructions to update to the latest version.
+
+After it's installed, navigate to the folder containing the AppHost project and run `azd init`:
+
+```bash
+$ azd init
+
+Initializing an app to run on Azure (azd init)
+
+? How do you want to initialize your app? Use code in the current directory
+  (✓) Done: Scanning app code in current directory
+
+Detected services:
+
+  .NET (Aspire)
+  Detected in: ./PigLatinApp/PigLatinApp.AppHost/PigLatinApp.AppHost.csproj
+
+azd will generate the files necessary to host your app on Azure using Azure Container Apps.
+
+? Select an option Confirm and continue initializing my app
+? Enter a new environment name: azfunc-piglatin
+
+Generating files to run your app on Azure:
+
+  (✓) Done: Generating ./azure.yaml
+  (✓) Done: Generating ./next-steps.md
+
+SUCCESS: Your app is ready for the cloud!
+```
+
+Then, deploy the application by running `azd up`:
+
+```bash
+$ azd up
+? Select an Azure Subscription to use: 130. [redacted]
+? Select an Azure location to use: 50. (US) West US 2 (westus2)
+
+Packaging services (azd package)
+
+Provisioning Azure resources (azd provision)
+Provisioning Azure resources can take some time.
+
+Subscription: [redacted]
+Location: West US 2
+
+  You can view detailed progress in the Azure Portal:
+  [redacted]
+
+  (✓) Done: Resource group: rg-azfunc-piglatin (967ms)
+  (✓) Done: Container Registry: [redacted] (13.316s)
+  (✓) Done: Log Analytics workspace: [redacted] (16.467s)
+  (✓) Done: Container Apps Environment: [redacted] (1m35.531s)
+  (✓) Done: Storage account: [redacted] (21.37s)
+
+Deploying services (azd deploy)
+
+  (✓) Done: Deploying service piglatinapp
+  - Endpoint: {{endpoint-url}}
+
+  Aspire Dashboard: {{dashboard-url}}
+```
+
+Finally, test your deployed Functions application using your favorite HTTP client:
+
+**Unix:**
+
+```bash
+curl --request POST \
+  --url {{endpoint-url}}/api/Function1 \
+  --header 'Content-Type: application/json' \
+  --data '{
+  "value": "Welcome to Azure Functions"
+}'
+```
+
+**Windows:**
+
+```powershell
+curl --request POST `
+  --url {{endpoint-url}}/api/Function1 `
+  --header 'Content-Type: application/json' `
+  --data '{
+  "value": "Welcome to Azure Functions"
+}'
+```
+
+Support for Azure Functions in Aspire is still in preview with support for a limited set of triggers including:
+
+- [HTTP triggers](https://learn.microsoft.com/azure/azure-functions/functions-triggers-bindings?pivots=programming-language-csharp#supported-bindings)
+- [Azure Storage Queue triggers](https://learn.microsoft.com/azure/azure-functions/functions-bindings-storage-queue?pivots=programming-language-csharp)
+- [Azure Storage Blob triggers](https://learn.microsoft.com/azure/azure-functions/functions-bindings-storage-blob?pivots=programming-language-csharp)
+- [Azure Service Bus triggers](https://learn.microsoft.com/azure/azure-functions/functions-bindings-service-bus?pivots=programming-language-csharp)
+- [Azure Event Hubs triggers](https://learn.microsoft.com/azure/azure-functions/functions-bindings-event-hubs?pivots=programming-language-csharp)
+
+For more information, see the official [Aspire Azure Functions integration (Preview)](/integrations/cloud/azure/azure-functions/).
+
+#### Customization of Azure Container Apps
+
+One of the most requested features is the ability to customize the Azure Container Apps that the AppHost creates without touching Bicep. This is possible by using the `PublishAsAzureContainerApp` APIs in the `Aspire.Hosting.Azure.AppContainers` namespace. These methods customizes the Azure Container App definition that the AppHost creates.
+
+Add the package reference to your project file:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Aspire.Hosting.Azure.AppContainers"
+                    Version="9.0.0" />
+</ItemGroup>
+```
+
+The following example demonstrates how to scale an Azure Container App to zero (`0`) replicas:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddAzurePostgresFlexibleServer("pg")
+                .RunAsContainer()
+                .AddDatabase("db");
+
+// Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+#pragma warning disable AZPROVISION001
+
+builder.AddProject<Projects.WebApplication1>("api")
+       .WithReference(db)
+       .PublishAsAzureContainerApp((module, containerApp) =>
+       {
+           // Scale to 0
+           containerApp.Template.Value!.Scale.Value!.MinReplicas = 0;
+       });
+
+#pragma warning restore AZPROVISION001
+
+builder.Build().Run();
+```
+
+The preceding code example defers generation of the Azure Container App definition to the AppHost. This allows you to customize the Azure Container App definition without needing to run `azd infra synth` and unsafely modifying the generated bicep files.

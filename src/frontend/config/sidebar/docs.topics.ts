@@ -47,7 +47,64 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
     {
       label: "What's new",
       collapsed: true,
-      autogenerate: { directory: 'whats-new' },
+      items: [
+        {
+          label: 'Aspire 13.1',
+          slug: 'whats-new/aspire-13-1'
+        },
+        {
+          label: 'Aspire 13.0',
+          slug: 'whats-new/aspire-13'
+        },
+        {
+          label: 'Previous versions',
+          collapsed: true,
+          translations: {
+            da: 'Tidligere versioner',
+            de: 'Frühere Versionen',
+            en: 'Previous versions',
+            es: 'Versiones anteriores',
+            fr: 'Versions précédentes',
+            hi: 'पिछले संस्करण',
+            id: 'Versi sebelumnya',
+            it: 'Versioni precedenti',
+            ja: '以前のバージョン',
+            ko: '이전 버전',
+            'pt-BR': 'Versões anteriores',
+            'pt-PT': 'Versões anteriores',
+            ru: 'Предыдущие версии',
+            tr: 'Önceki sürümler',
+            uk: 'Попередні версії',
+            'zh-CN': '以前的版本',
+          },
+          items: [
+            {
+              label: 'Aspire 9.5',
+              slug: 'whats-new/aspire-9-5'
+            },
+            {
+              label: 'Aspire 9.4',
+              slug: 'whats-new/aspire-9-4'
+            },
+            {
+              label: 'Aspire 9.3',
+              slug: 'whats-new/aspire-9-3'
+            },
+            {
+              label: 'Aspire 9.2',
+              slug: 'whats-new/aspire-9-2'
+            },
+            {
+              label: 'Aspire 9.1',
+              slug: 'whats-new/aspire-9-1'
+            },
+            {
+              label: 'Aspire 9.0',
+              slug: 'whats-new/aspire-9'
+            },
+          ],
+        },
+      ],
       translations: {
         da: 'Hvad er nyt',
         de: 'Was gibt es Neues',
