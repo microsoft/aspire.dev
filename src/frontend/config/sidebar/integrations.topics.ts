@@ -558,12 +558,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           collapsed: true,
           items: [
             {
-              label: 'Integration overview',
-              slug: 'integrations/databases/mongodb',
+              label: 'Get started',
+              slug: 'integrations/databases/mongodb/mongodb-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/mongodb/mongodb-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/mongodb/mongodb-client',
             },
             {
               label: 'Community extensions',
-              slug: 'integrations/databases/mongodb-extensions',
+              slug: 'integrations/databases/mongodb/mongodb-extensions',
             },
           ],
         },

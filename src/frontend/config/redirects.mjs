@@ -12,4 +12,6 @@ export const redirects = {
   '/integrations/mysql/': '/integrations/databases/mysql/mysql-get-started/',
   '/integrations/rabbitmq/': '/integrations/messaging/rabbitmq/',
   '/integrations/eventstore/': '/integrations/databases/kurrentdb/',
-}
+  '/integrations/databases/mongodb/': '/integrations/databases/mongodb/mongodb-get-started/',
+  '/integrations/databases/mongodb-extensions/': '/integrations/databases/mongodb/mongodb-extensions/',
+};
