@@ -618,7 +618,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'SQLite', slug: 'integrations/databases/sqlite' },
+        { 
+          label: 'SQLite',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/sqlite/sqlite-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/sqlite/sqlite-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/sqlite/sqlite-client',
+            },
+          ],
+        },
         { label: 'SurrealDB', slug: 'integrations/databases/surrealdb' },
       ],
     },
