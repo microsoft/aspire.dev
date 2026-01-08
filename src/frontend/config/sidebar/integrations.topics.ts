@@ -505,7 +505,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               label: 'MySQL Pomelo',
               slug: 'integrations/databases/efcore/mysql',
             },
-            { label: 'Oracle', slug: 'integrations/databases/efcore/oracle' },
+            {
+              label: 'Oracle',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/oracle/oracle-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/databases/efcore/oracle/oracle-host',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/oracle/oracle-client',
+                },
+              ],
+            },
             {
               label: 'PostgreSQL',
               slug: 'integrations/databases/efcore/postgresql',
@@ -518,7 +535,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         { label: 'KurrentDB', slug: 'integrations/databases/kurrentdb' },
         { label: 'Meilisearch', slug: 'integrations/databases/meilisearch' },
-        { label: 'Milvus', slug: 'integrations/databases/milvus' },
+        {
+          label: 'Milvus',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/milvus/milvus-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/milvus/milvus-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/milvus/milvus-client',
+            },
+          ],
+        },
         {
           label: 'MongoDB',
           collapsed: true,
@@ -563,7 +597,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Oracle', slug: 'integrations/databases/oracle' },
         {
           label: 'PostgreSQL',
           collapsed: true,
@@ -586,23 +619,65 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Qdrant', slug: 'integrations/databases/qdrant' },
+        {
+          label: 'Qdrant',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/qdrant/qdrant-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/qdrant/qdrant-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/qdrant/qdrant-client',
+            },
+          ],
+        },
         { label: 'RavenDB', slug: 'integrations/databases/ravendb' },
         {
           label: 'SQL Server',
           collapsed: true,
           items: [
             {
-              label: 'Integration overview',
-              slug: 'integrations/databases/sql-server',
+              label: 'Get started',
+              slug: 'integrations/databases/sql-server/sql-server-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/sql-server/sql-server-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/sql-server/sql-server-client',
             },
             {
               label: 'Community extensions',
-              slug: 'integrations/databases/sql-server-extensions',
+              slug: 'integrations/databases/sql-server/sql-server-extensions',
             },
           ],
         },
-        { label: 'SQLite', slug: 'integrations/databases/sqlite' },
+        { 
+          label: 'SQLite',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/sqlite/sqlite-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/sqlite/sqlite-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/sqlite/sqlite-client',
+            },
+          ],
+        },
         { label: 'SurrealDB', slug: 'integrations/databases/surrealdb' },
       ],
     },

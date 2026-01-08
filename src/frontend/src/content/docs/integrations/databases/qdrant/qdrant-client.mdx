@@ -1,0 +1,197 @@
+---
+title: Qdrant Client integration reference
+description: Learn how to use the Aspire Qdrant Client integration to interact with Qdrant vector databases from your Aspire projects.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import qdrantIcon from '@assets/icons/qdrant-icon.svg';
+
+<Image
+  src={qdrantIcon}
+  alt="Qdrant logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Qdrant integrations, follow the [Get started with Qdrant integrations](../qdrant-get-started/) guide.
+
+This article includes full details about the Aspire Qdrant Client integration, which allows you to connect to and interact with Qdrant vector databases from your Aspire consuming projects.
+
+## Installation
+
+You need a Qdrant server and connection information for accessing the server. To get started with the Aspire Qdrant client integration, install the [📦 Aspire.Qdrant.Client](https://www.nuget.org/packages/Aspire.Qdrant.Client) NuGet package in the client-consuming project, that is, the project for the application that uses the Qdrant client. The Qdrant client integration registers a `QdrantClient` instance that you can use to interact with Qdrant.
+
+<InstallDotNetPackage packageName="Aspire.Qdrant.Client" />
+
+## Add Qdrant client
+
+In the `Program.cs` file of your client-consuming project, call the `AddQdrantClient` extension method on any `IHostApplicationBuilder` to register a `QdrantClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient(connectionName: "qdrant");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the Qdrant resource in the AppHost project. For more information, see [Add Qdrant resource](../qdrant-host/#add-qdrant-resource).
+</Aside>
+
+You can then retrieve the `QdrantClient` instance using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(QdrantClient client)
+{
+    // Use Qdrant client...
+}
+```
+
+For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
+
+## Add keyed Qdrant client
+
+There might be situations where you want to register multiple `QdrantClient` instances with different connection strings. To register keyed Qdrant clients, call the `AddKeyedQdrantClient` method:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedQdrantClient(name: "mainQdrant");
+builder.AddKeyedQdrantClient(name: "loggingQdrant");
+```
+
+Then retrieve the instances using dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("mainQdrant")] QdrantClient mainQdrantClient,
+    [FromKeyedServices("loggingQdrant")] QdrantClient loggingQdrantClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Properties of the Qdrant resources
+
+When you use the `WithReference` method to pass a Qdrant server resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `qdrant` becomes `QDRANT_URI`.
+
+### Qdrant server
+
+The Qdrant server resource exposes the following connection properties:
+
+| Property Name | Description                                                             |
+| ------------- | ----------------------------------------------------------------------- |
+| `GrpcHost`    | The gRPC hostname of the Qdrant server                                  |
+| `GrpcPort`    | The gRPC port of the Qdrant server                                      |
+| `HttpHost`    | The HTTP hostname of the Qdrant server                                  |
+| `HttpPort`    | The HTTP port of the Qdrant server                                      |
+| `ApiKey`      | The API key for authentication                                          |
+| `Uri`         | The gRPC connection URI, with the format `http://{GrpcHost}:{GrpcPort}` |
+| `HttpUri`     | The HTTP connection URI, with the format `http://{HttpHost}:{HttpPort}` |
+
+**Example connection strings:**
+
+```
+Uri: http://localhost:6334
+HttpUri: http://localhost:6333
+```
+
+## Configuration
+
+The Aspire Qdrant client integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `builder.AddQdrantClient()`:
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient("qdrant");
+```
+
+The connection string is retrieved from the `ConnectionStrings` configuration section. By default the `QdrantClient` uses the gRPC API endpoint:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "qdrant": "Endpoint=http://localhost:6334;Key=123456!@#$%"
+  }
+}
+```
+
+For more information about the Qdrant connection string format, see the [Qdrant documentation](https://qdrant.tech/).
+
+### Use configuration providers
+
+The Aspire Qdrant client integration supports `Microsoft.Extensions.Configuration` from configuration files such as `appsettings.json` by using the `Aspire:Qdrant:Client` key. If you have set up your configurations in the `Aspire:Qdrant:Client` section you can just call the method without passing any parameter.
+
+The following is an example of an `appsettings.json` that configures some of the available options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Qdrant": {
+      "Client": {
+        "Endpoint": "http://localhost:6334/",
+        "Key": "123456!@#$%"
+      }
+    }
+  }
+}
+```
+
+### Use inline delegates
+
+You can also pass the `Action<QdrantSettings>` delegate to set up some or all the options inline, for example to set the API key from code:
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient(
+    "qdrant",
+    settings => settings.Key = "12345!@#$%");
+```
+
+### Configuration options
+
+Here are the configurable options with corresponding default values:
+
+| Name | Description |
+|--|--|
+| `Endpoint` | The endpoint URI of the Qdrant server to connect to. |
+| `Key` | The API key used for authentication. |
+| `DisableHealthChecks` | A boolean value that indicates whether the health check is disabled or not. |
+| `DisableTracing` | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not. |
+
+## Client integration health checks
+
+By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
+
+By default, the Aspire Qdrant client integration handles the following:
+
+- Checks if the `QdrantSettings.DisableHealthChecks` is `true`.
+- If not disabled, adds a health check that verifies the Qdrant server is reachable.
+
+## Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+### Logging
+
+The Aspire Qdrant client integration uses the following log categories:
+
+- `Qdrant.Client`
+
+### Tracing and Metrics
+
+The Qdrant integration doesn't currently emit tracing activities or metrics because they are not supported by the `Qdrant.Client` library.
+
+## See also
+
+- [Qdrant](https://qdrant.tech/)
+- [Qdrant Documentation](https://qdrant.tech/documentation/)
+- [.NET Qdrant Client](https://github.com/qdrant/qdrant-dotnet/)
+- [Aspire integrations](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)
