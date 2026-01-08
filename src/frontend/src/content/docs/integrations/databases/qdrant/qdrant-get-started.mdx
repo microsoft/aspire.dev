@@ -1,0 +1,284 @@
+---
+title: Get started with the Qdrant integrations
+description: Learn how to set up the Aspire Qdrant Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import qdrantIcon from '@assets/icons/qdrant-icon.svg';
+
+<Image
+  src={qdrantIcon}
+  alt="Qdrant logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Qdrant](https://qdrant.tech/) is an open-source vector similarity search engine that efficiently stores, indexes, and searches large-scale vector data. It's commonly used in machine learning, artificial intelligence, and data science applications. The Aspire Qdrant integration enables you to connect to existing Qdrant servers or create new servers from Aspire with the [`qdrant/qdrant` container image](https://hub.docker.com/r/qdrant/qdrant).
+
+In this introduction, you'll see how to install and use the Aspire Qdrant integrations in a simple configuration. If you already have this knowledge, see [Qdrant Hosting integration](../qdrant-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Qdrant Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Qdrant vector database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Qdrant" shortName="qdrant" />
+
+Next, in the AppHost project, create instances of Qdrant server resources, then pass the server to the consuming client projects:
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript" },
+    ]}
+/>
+
+<Pivot id="csharp">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var qdrant = builder.AddQdrant("qdrant")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(qdrant)
+                            .WithReference(qdrant);
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var qdrant = builder.AddQdrant("qdrant")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(qdrant)
+                            .WithReference(qdrant);
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var qdrant = builder.AddQdrant("qdrant")
+                    .WithLifetime(ContainerLifetime.Persistent);
+
+var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+                 .WithExternalHttpEndpoints()
+                 .WaitFor(qdrant)
+                 .WithReference(qdrant);
+```
+
+</Pivot>
+
+<Aside type="tip">
+    This is the simplest implementation of Qdrant resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Qdrant Hosting integration](../qdrant-host/).
+</Aside>
+
+<Aside type="tip">
+  The `qdrant/qdrant` container image includes a web UI that you can use to explore your vectors and administer the database. To access this tool, start your Aspire solution and then, in the Aspire dashboard, select the endpoint for the Qdrant resource. In your browser's address bar, append **/dashboard** and press Enter.
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+<Pivot id="csharp">
+
+In each of these consuming client projects, install the Aspire Qdrant client integration:
+
+<InstallDotNetPackage packageName="Aspire.Qdrant.Client" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddQdrantClient` extension method on any `IHostApplicationBuilder` to register a `QdrantClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient(connectionName: "qdrant");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the Qdrant resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
+
+<Pivot id="python">
+
+To interact with Qdrant vector databases in your Python consuming projects, you need to include a Qdrant client library. The official option is `qdrant-client`, which is Qdrant's Python SDK. You can install this library using pip:
+
+```bash
+pip install qdrant-client
+```
+
+Ensure that you import the `QdrantClient` in code files that interact with the vector database. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import qdrant-client"
+from qdrant_client import QdrantClient
+import os
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+To interact with Qdrant vector databases in your JavaScript consuming projects, you need to include a Qdrant client library. The official option is `@qdrant/js-client-rest`, which is Qdrant's JavaScript/TypeScript SDK. You can install this library using npm:
+
+```bash
+npm install @qdrant/js-client-rest
+```
+
+Ensure that you import the `QdrantClient` in code files that interact with the vector database:
+
+```javascript title="JavaScript - Import @qdrant/js-client-rest"
+const { QdrantClient } = require('@qdrant/js-client-rest');
+```
+
+</Pivot>
+
+### Use injected Qdrant properties
+
+In the AppHost, when you used the `WithReference` method to pass a Qdrant resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `qdrant` becomes `QDRANT_URI`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string connectionString = builder.Configuration.GetValue<string>("ConnectionStrings__qdrant");
+string apiKey = builder.Configuration.GetValue<string>("QDRANT_APIKEY");
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the `os.getenv()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+connection_string = os.getenv("ConnectionStrings__qdrant")
+api_key = os.getenv("QDRANT_APIKEY")
+grpc_host = os.getenv("QDRANT_GRPCHOST")
+grpc_port = os.getenv("QDRANT_GRPCPORT")
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the `process.env` property to obtain these environment variables in consuming projects:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const connectionString = process.env.ConnectionStrings__qdrant;
+const apiKey = process.env.QDRANT_APIKEY;
+const grpcHost = process.env.QDRANT_GRPCHOST;
+const grpcPort = process.env.QDRANT_GRPCPORT;
+```
+
+</Pivot>
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on the Qdrant resource configuration. For more information, see [Properties of the Qdrant resources](../qdrant-client/#properties-of-the-qdrant-resources).
+</Aside>
+
+### Use Qdrant resources in client code
+
+<Pivot id="csharp">
+
+Now that you've added the `QdrantClient` to the builder in the consuming project, you can use the Qdrant vector database to store and search vector data. Get the `QdrantClient` instance using dependency injection. For example, to retrieve your client object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(QdrantClient client)
+{
+    // Use Qdrant client...
+}
+```
+
+Having obtained the client, you can work with the Qdrant vector database as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the information you have obtained about the Qdrant resource to connect to the vector database. Here is an example of how to connect using `qdrant-client`:
+
+```python title="Python - Connect to Qdrant"
+# Create Qdrant client
+client = QdrantClient(
+    host=grpc_host,
+    port=int(grpc_port),
+    api_key=api_key,
+    prefer_grpc=True
+)
+
+# Verify connection
+print(client.get_collections())
+```
+
+Having obtained the client, you can work with the Qdrant vector database as you would in any other Python application.
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the information you have obtained about the Qdrant resource to connect to the vector database. Here is an example of how to connect using `@qdrant/js-client-rest`:
+
+```javascript title="JavaScript - Connect to Qdrant"
+// Create Qdrant client
+const client = new QdrantClient({
+  url: `http://${httpHost}:${httpPort}`,
+  apiKey: apiKey
+});
+
+// Verify connection
+const collections = await client.getCollections();
+console.log('Collections:', collections);
+```
+
+Having obtained the client, you can work with the Qdrant vector database as you would in any other JavaScript application.
+
+</Pivot>
+
+## Next steps
+
+Now that you have an Aspire app with Qdrant integrations up and running, you can use the following reference documents to learn how to configure and interact with the Qdrant resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the Qdrant hosting integration"
+    description="Discover how to configure data volumes, API keys, and more."
+    href="/integrations/databases/qdrant/qdrant-host/"
+  />
+  <LinkCard
+    title="Understand the Qdrant client integration"
+    description="Learn about the Qdrant client integration, including connection strings and observability."
+    href="/integrations/databases/qdrant/qdrant-client/"
+  />
+</CardGrid>
