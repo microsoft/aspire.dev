@@ -5,6 +5,7 @@ export const redirects = {
   '/get-started/welcome/': '/docs/',
   '/integrations/postgres/': '/integrations/databases/postgres/postgres-get-started/',
   '/integrations/databases/qdrant/': '/integrations/databases/qdrant/qdrant-get-started/',
+  '/integrations/mysql/': '/integrations/databases/mysql/mysql-get-started/',
   '/integrations/rabbitmq/': '/integrations/messaging/rabbitmq/',
   '/integrations/eventstore/': '/integrations/databases/kurrentdb/',
 };
