@@ -1,0 +1,1178 @@
+---
+// AspireApiReferenceSearch.astro
+// A search component for the .NET API Browser, styled similar to Starlight's Search component
+import { Icon } from '@astrojs/starlight/components';
+
+interface PackageMoniker {
+    platform: string;
+    monikerName: string;
+    monikerDisplayName: string;
+    versionDisplayName: string;
+    order: number;
+    isPrerelease: boolean;
+    isDeprecated: boolean;
+    isDefault: boolean;
+}
+
+interface Product {
+    productName: string;
+    packages: PackageMoniker[];
+}
+
+interface ProductFamily {
+    familyName: string;
+    products: Product[];
+}
+
+// Fallback data in case API is unavailable
+const fallbackMonikers: PackageMoniker[] = [
+    {
+        platform: "dotnet",
+        monikerName: "dotnet-aspire-13.0",
+        monikerDisplayName: "Aspire 13",
+        versionDisplayName: "13.1.0",
+        order: 130100,
+        isPrerelease: false,
+        isDeprecated: false,
+        isDefault: true
+    },
+    {
+        platform: "dotnet",
+        monikerName: "dotnet-aspire-9.0",
+        monikerDisplayName: "Aspire 9",
+        versionDisplayName: "9.5.0",
+        order: 90500,
+        isPrerelease: false,
+        isDeprecated: false,
+        isDefault: false
+    },
+    {
+        platform: "dotnet",
+        monikerName: "dotnet-aspire-8.0",
+        monikerDisplayName: "Aspire 8",
+        versionDisplayName: "8.0.0",
+        order: 8000,
+        isPrerelease: false,
+        isDeprecated: false,
+        isDefault: false
+    }
+];
+
+let availableMonikers = fallbackMonikers;
+
+try {
+    const url = "https://learn.microsoft.com/_api/familyTrees/byPlatform/dotnet";
+    const response = await fetch(url, {
+        headers: {
+            Accept: "application/json",
+        },
+    });
+
+    if (response.ok) {
+        const families: ProductFamily[] = await response.json();
+        const aspireFamily = families.find(f => f.familyName === "Aspire");
+        
+        if (aspireFamily && aspireFamily.products.length > 0) {
+            const allMonikers: PackageMoniker[] = [];
+            aspireFamily.products.forEach(product => {
+                allMonikers.push(...product.packages);
+            });
+            
+            if (allMonikers.length > 0) {
+                availableMonikers = allMonikers.sort((a, b) => b.order - a.order);
+            }
+        }
+    }
+} catch (error) {
+    console.debug("Failed to load versions from API at build time, using fallback data:", error);
+}
+---
+
+<div class="not-content api-search-container">
+    <div class="search-wrapper">
+        <div class="search-input-wrapper">
+            <label class="sr-only" for="api-search-input">Search Aspire APIs</label>
+            <input
+                type="search"
+                id="api-search-input"
+                placeholder="Search Aspire APIs..."
+                autocomplete="off"
+                aria-describedby="search-status"
+            />
+            <svg
+                class="search-icon"
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <div class="loading-spinner" aria-hidden="true"></div>
+        </div>
+        <button class="clear-button" aria-label="Clear search" type="button">
+            {Astro.locals.t('integrations.clear')}
+        </button>
+        <div class="version-selector">
+            <label for="api-version-select">Version:</label>
+            <div class="select-wrapper">
+                <select id="api-version-select" class="version-dropdown">
+                    {availableMonikers.map(moniker => (
+                        <option value={moniker.monikerName} selected={moniker.isDefault}>
+                            {moniker.monikerDisplayName}
+                        </option>
+                    ))}
+                </select>
+                <Icon name="down-caret" class="select-icon" />
+            </div>
+        </div>
+    </div>
+    <div id="search-status" class="sr-only" aria-live="polite"></div>
+    <div class="search-results-container">
+        <div id="search-results" class="search-results"></div>
+    </div>
+</div>
+
+<script>
+    interface ApiSearchResult {
+        displayName: string;
+        url: string;
+        itemType: string;
+        description: string;
+    }
+
+    interface ApiSearchResponse {
+        results: ApiSearchResult[];
+        count: number;
+        "@nextLink"?: string;
+    }
+
+    interface ApiNamespaceItem {
+        displayName: string;
+        url: string;
+        description: string | null;
+    }
+
+    interface ApiNamespaceResponse {
+        apiItems: ApiNamespaceItem[];
+    }
+
+    class ApiSearchController {
+        // Constants
+        private readonly BASE_API_URL = 'https://learn.microsoft.com';
+        private readonly BASE_API_ORIGIN = 'https://learn.microsoft.com';
+        private readonly LEARN_API_VERSION = '0.2';
+        private readonly DEFAULT_LOCALE = 'en-us';
+        private readonly PAGE_SIZE = 25;
+        private readonly DEBOUNCE_DELAY_MS = 250;
+        private readonly MINIMUM_LOADING_TIME_MS = 500;
+        private readonly DISPLAY_NAME_LONG_THRESHOLD = 80;
+        private readonly DEFAULT_MONIKER = 'dotnet-aspire-13.0';
+
+        private container: HTMLElement;
+        private input: HTMLInputElement;
+        private resultsContainer: HTMLElement;
+        private statusElement: HTMLElement;
+        private loadingSpinner: HTMLElement;
+        private clearButton: HTMLButtonElement;
+        private versionSelect: HTMLSelectElement;
+        private selectIcon: HTMLElement;
+        private debounceTimer: number | null = null;
+        private abortController: AbortController | null = null;
+        private loadingStartTime: number = 0;
+        private apiVersion = this.DEFAULT_MONIKER;
+        private hasMoreResults: boolean = false;
+        private currentSearchTerm: string = '';
+        private currentResults: ApiSearchResult[] = [];
+        private currentSkip: number = 0;
+
+        constructor() {
+            this.container = document.querySelector(".api-search-container") as HTMLElement;
+            this.input = document.getElementById("api-search-input") as HTMLInputElement;
+            this.resultsContainer = document.getElementById("search-results") as HTMLElement;
+            this.statusElement = document.getElementById("search-status") as HTMLElement;
+            this.loadingSpinner = this.container.querySelector(".loading-spinner") as HTMLElement;
+            this.clearButton = this.container.querySelector(".clear-button") as HTMLButtonElement;
+            this.versionSelect = document.getElementById("api-version-select") as HTMLSelectElement;
+            this.selectIcon = this.container.querySelector(".select-icon") as HTMLElement;
+
+            this.init();
+        }
+
+        private init(): void {
+            this.input.addEventListener("input", () => this.handleInput());
+            this.input.addEventListener("keydown", (e) => this.handleKeydown(e));
+            this.clearButton.addEventListener("click", () => this.clearSearch());
+            this.versionSelect.addEventListener("change", () => this.handleVersionChange());
+            this.versionSelect.addEventListener("mousedown", () => this.selectIcon.classList.add("rotated"));
+            this.versionSelect.addEventListener("blur", () => this.selectIcon.classList.remove("rotated"));
+            
+            // Set the apiVersion to the selected value from the pre-populated dropdown
+            this.apiVersion = this.versionSelect.value;
+            
+            this.loadInitialNamespaces();
+            this.input.focus();
+        }
+
+        private clearSearch(): void {
+            this.input.value = "";
+            this.clearResults();
+            this.loadInitialNamespaces();
+            this.input.focus();
+        }
+
+        private handleVersionChange(): void {
+            this.apiVersion = this.versionSelect.value;
+            this.selectIcon.classList.remove("rotated");
+            
+            // Cancel any pending searches
+            if (this.debounceTimer) {
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = null;
+            }
+            
+            if (this.abortController) {
+                this.abortController.abort();
+                this.abortController = null;
+            }
+            
+            // Reload data with new version
+            if (this.input.value.trim()) {
+                this.performSearch(this.input.value.trim());
+            } else {
+                this.loadInitialNamespaces();
+            }
+        }
+
+        private async loadInitialNamespaces(): Promise<void> {
+            this.setLoading(true);
+            this.loadingStartTime = Date.now();
+
+            try {
+                const params = new URLSearchParams({
+                    'moniker': this.apiVersion,
+                    'api-version': this.LEARN_API_VERSION,
+                    'locale': this.DEFAULT_LOCALE
+                });
+                const url = `${this.BASE_API_URL}/api/apibrowser/dotnet/namespaces?${params.toString()}`;
+
+                const response = await fetch(url, {
+                    headers: {
+                        Accept: "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const data: ApiNamespaceResponse = await response.json();
+                this.renderNamespaces(data);
+            } catch (error) {
+                this.renderError(error instanceof Error ? error.message : "An unknown error occurred");
+            } finally {
+                this.setLoading(false);
+            }
+        }
+
+        private handleInput(): void {
+            const searchTerm = this.input.value.trim();
+
+            if (this.debounceTimer) {
+                clearTimeout(this.debounceTimer);
+            }
+
+            if (this.abortController) {
+                this.abortController.abort();
+                this.abortController = null;
+            }
+
+            if (!searchTerm) {
+                this.clearResults();
+                return;
+            }
+
+            this.debounceTimer = window.setTimeout(() => {
+                this.performSearch(searchTerm);
+            }, this.DEBOUNCE_DELAY_MS);
+        }
+
+        private handleKeydown(e: KeyboardEvent): void {
+            if (e.key === "Escape") {
+                this.clearSearch();
+            }
+        }
+
+        private async performSearch(searchTerm: string): Promise<void> {
+            // Validate search term format
+            const validSearchPattern = /^[_A-Za-z][_A-Za-z0-9\.<>,]+$/;
+            if (!validSearchPattern.test(searchTerm)) {
+                this.resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>Invalid search term</p>
+                        <p class="no-results-hint">Search must start with a letter or underscore and contain only letters, numbers, underscores, dots, angle brackets, and commas.</p>
+                    </div>
+                `;
+                this.statusElement.textContent = "Invalid search term";
+                return;
+            }
+
+            this.setLoading(true);
+            this.loadingStartTime = Date.now();
+            this.abortController = new AbortController();
+
+            try {
+                const params = new URLSearchParams({
+                    'search': searchTerm,
+                    'api-version': this.LEARN_API_VERSION,
+                    'locale': this.DEFAULT_LOCALE,
+                    'top': String(this.PAGE_SIZE),
+                    '$filter': `monikers/any(t: t eq '${this.apiVersion}')`
+                });
+                const url = `${this.BASE_API_URL}/api/apibrowser/dotnet/search?${params.toString()}`;
+
+                const response = await fetch(url, {
+                    signal: this.abortController.signal,
+                    headers: {
+                        Accept: "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const data: ApiSearchResponse = await response.json();
+                await this.ensureMinimumLoadingTime();
+                this.renderResults(data, searchTerm);
+            } catch (error) {
+                if (error instanceof Error && error.name === "AbortError") {
+                    return;
+                }
+                await this.ensureMinimumLoadingTime();
+                this.renderError(error instanceof Error ? error.message : "An unknown error occurred");
+            } finally {
+                this.setLoading(false);
+            }
+        }
+
+        private async ensureMinimumLoadingTime(): Promise<void> {
+            const elapsed = Date.now() - this.loadingStartTime;
+            const remaining = Math.max(0, this.MINIMUM_LOADING_TIME_MS - elapsed);
+            if (remaining > 0) {
+                await new Promise((resolve) => setTimeout(resolve, remaining));
+            }
+        }
+
+        private setLoading(loading: boolean): void {
+            this.loadingSpinner.classList.toggle("visible", loading);
+            this.input.setAttribute("aria-busy", String(loading));
+        }
+
+        private clearResults(): void {
+            this.resultsContainer.innerHTML = "";
+            this.statusElement.textContent = "";
+            this.hasMoreResults = false;
+            this.currentResults = [];
+            this.currentSearchTerm = '';
+            this.currentSkip = 0;
+        }
+
+        private async loadMoreResults(): Promise<void> {
+            if (!this.hasMoreResults) return;
+
+            const loadMoreBtn = this.resultsContainer.querySelector(".load-more-button") as HTMLButtonElement;
+            if (loadMoreBtn) {
+                loadMoreBtn.disabled = true;
+                loadMoreBtn.textContent = "Loading...";
+            }
+
+            try {
+                this.currentSkip += this.PAGE_SIZE;
+                const params = new URLSearchParams({
+                    'search': this.currentSearchTerm,
+                    'api-version': this.LEARN_API_VERSION,
+                    'locale': this.DEFAULT_LOCALE,
+                    'top': String(this.PAGE_SIZE),
+                    '$skip': String(this.currentSkip),
+                    '$filter': `monikers/any(t: t eq '${this.apiVersion}')`
+                });
+                const url = `${this.BASE_API_URL}/api/apibrowser/dotnet/search?${params.toString()}`;
+
+                const response = await fetch(url, {
+                    headers: {
+                        Accept: "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const data: ApiSearchResponse = await response.json();
+                this.renderResults(data, this.currentSearchTerm, true);
+            } catch (error) {
+                console.error("Failed to load more results:", error);
+                this.currentSkip -= this.PAGE_SIZE; // Rollback skip on error
+                if (loadMoreBtn) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.textContent = "Load more results";
+                }
+            }
+        }
+
+        private renderNamespaces(data: ApiNamespaceResponse): void {
+            if (!data.apiItems || data.apiItems.length === 0) {
+                this.resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>No namespaces found</p>
+                    </div>
+                `;
+                this.statusElement.textContent = "No namespaces found";
+                return;
+            }
+
+            // Filter items with valid URLs and render
+            const validItems: string[] = [];
+            for (const item of data.apiItems) {
+                if (this.validateAndBuildUrl(item.url)) {
+                    validItems.push(this.renderNamespaceItem(item));
+                }
+            }
+            
+            if (validItems.length === 0) {
+                this.resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>No valid namespaces found</p>
+                    </div>
+                `;
+                this.statusElement.textContent = "No valid namespaces found";
+                return;
+            }
+
+            const namespaceCount = validItems.length;
+            this.statusElement.textContent = `Showing ${namespaceCount} namespace${namespaceCount !== 1 ? "s" : ""}`;
+
+            const listHtml = `
+                <div class="results-header">
+                    <span class="results-count">Namespaces</span>
+                </div>
+                <div class="api-results-list">
+                    ${validItems.join("")}
+                </div>
+            `;
+
+            this.resultsContainer.innerHTML = listHtml;
+        }
+
+        private renderNamespaceItem(item: ApiNamespaceItem): string {
+            const fullUrl = this.validateAndBuildUrl(item.url);
+            if (!fullUrl) {
+                // This shouldn't happen as we validate before calling this method
+                console.error('renderNamespaceItem called with invalid URL:', item.url);
+                return '';
+            }
+            return `
+                <div class="api-result-item">
+                    <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escapeHtml(item.displayName)} (opens in new tab)">
+                        <code>${this.escapeHtml(item.displayName)}</code>
+                        ${this.getExternalLinkIcon()}
+                    </a>
+                </div>
+            `;
+        }
+
+        private renderResults(data: ApiSearchResponse, searchTerm: string, append: boolean = false): void {
+            if (!data.results || data.results.length === 0) {
+                if (!append) {
+                    this.resultsContainer.innerHTML = `
+                        <div class="no-results">
+                            <p>No results found for "<strong>${this.escapeHtml(searchTerm)}</strong>"</p>
+                            <p class="no-results-hint">Try adjusting your search terms or check the spelling.</p>
+                        </div>
+                    `;
+                    this.statusElement.textContent = `No results found for ${searchTerm}`;
+                }
+                return;
+            }
+
+            this.currentSearchTerm = searchTerm;
+
+            if (append) {
+                this.currentResults.push(...data.results);
+            } else {
+                this.currentResults = [...data.results];
+                this.currentSkip = 0;
+            }
+
+            // Filter results with valid URLs and render
+            const validResultsHtml: string[] = [];
+            for (const result of this.currentResults) {
+                if (this.validateAndBuildUrl(result.url)) {
+                    validResultsHtml.push(this.renderResultItem(result));
+                }
+            }
+            
+            const resultCount = validResultsHtml.length;
+            
+            if (resultCount === 0) {
+                this.resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>No valid results found for "<strong>${this.escapeHtml(searchTerm)}</strong>"</p>
+                        <p class="no-results-hint">Try adjusting your search terms or check the spelling.</p>
+                    </div>
+                `;
+                this.statusElement.textContent = `No valid results found for ${searchTerm}`;
+                return;
+            }
+            
+            // Check if there's a next link to determine if more results exist
+            this.hasMoreResults = !!data["@nextLink"];
+            
+            this.statusElement.textContent = `Showing ${resultCount} result${resultCount !== 1 ? "s" : ""} for ${searchTerm}${this.hasMoreResults ? " (more available)" : ""}.`;
+
+            const listHtml = `
+                <div class="results-header">
+                    <span class="results-count">${resultCount} result${resultCount !== 1 ? "s" : ""}</span>
+                </div>
+                <div class="api-results-list">
+                    ${validResultsHtml.join("")}
+                    ${this.hasMoreResults ? this.renderLoadMoreButton() : ""}
+                </div>
+            `;
+
+            this.resultsContainer.innerHTML = listHtml;
+
+            // Attach load more button event listener if it exists
+            if (this.hasMoreResults) {
+                const loadMoreBtn = this.resultsContainer.querySelector(".load-more-button") as HTMLButtonElement;
+                if (loadMoreBtn) {
+                    loadMoreBtn.addEventListener("click", () => this.loadMoreResults());
+                }
+            }
+        }
+
+        private renderLoadMoreButton(): string {
+            return `
+                <div class="load-more-container">
+                    <button class="load-more-button" type="button">
+                        Load more results
+                    </button>
+                </div>
+            `;
+        }
+
+        private renderResultItem(result: ApiSearchResult): string {
+            const fullUrl = this.validateAndBuildUrl(result.url);
+            if (!fullUrl) {
+                // This shouldn't happen as we validate before calling this method
+                console.error('renderResultItem called with invalid URL:', result.url);
+                return '';
+            }
+
+            const formattedDisplayName = this.formatDisplayName(result.displayName, result.itemType);
+            const shortDisplayName = this.getShortDisplayName(result.displayName);
+            const formattedShortDisplayName = this.formatDisplayName(shortDisplayName, result.itemType);
+            
+            // Check if first line of display name is too long
+            const firstLine = result.displayName.split('(')[0];
+            const isLongName = firstLine.length > this.DISPLAY_NAME_LONG_THRESHOLD;
+            const longNameClass = isLongName ? ' long-name' : '';
+            
+            return `
+                <div class="api-result-item${longNameClass}">
+                    <div class="result-main">
+                        <a href="${this.escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escapeHtml(result.displayName)} ${this.escapeHtml(result.itemType)} (opens in new tab)">
+                            <code class="full-name">${formattedDisplayName}</code>
+                            <code class="short-name">${formattedShortDisplayName}</code>
+                            ${this.getExternalLinkIcon()}
+                        </a>
+                        <span class="item-type-badge item-type-${result.itemType.toLowerCase()}">${this.escapeHtml(result.itemType)}</span>
+                    </div>
+                    ${result.description ? `<div class="result-description">${this.escapeHtml(result.description)}</div>` : ''}
+                </div>
+            `;
+        }
+
+        private formatDisplayName(displayName: string, itemType: string): string {
+            // Only format methods and constructors that have parameters
+            if (itemType !== 'Method' && itemType !== 'Constructor') {
+                return this.escapeHtml(displayName);
+            }
+
+            // Check if there are parameters (contains parentheses with content)
+            const paramMatch = displayName.match(/^([^(]+)\((.+)\)$/);
+            if (!paramMatch) {
+                return this.escapeHtml(displayName);
+            }
+
+            const [, methodName, paramsStr] = paramMatch;
+            
+            // Skip formatting if params string is empty or only whitespace
+            if (!paramsStr.trim()) {
+                return this.escapeHtml(displayName);
+            }
+
+            // Split parameters by comma, but respect nested generics
+            const params: string[] = [];
+            let current = '';
+            let depth = 0;
+            
+            for (let i = 0; i < paramsStr.length; i++) {
+                const char = paramsStr[i];
+                if (char === '<' || char === '[') {
+                    depth++;
+                    current += char;
+                } else if (char === '>' || char === ']') {
+                    depth--;
+                    current += char;
+                } else if (char === ',' && depth === 0) {
+                    params.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            if (current.trim()) {
+                params.push(current.trim());
+            }
+
+            // Format with parameters on new lines
+            const escapedMethodName = this.escapeHtml(methodName);
+            const formattedParams = params.map(p => `\n    ${this.escapeHtml(p)}`).join(',');
+            return `${escapedMethodName}(${formattedParams}\n)`;
+        }
+
+        private getShortDisplayName(displayName: string): string {
+            // Extract the last two segments (type.member), removing namespace prefix
+            // For example: "Aspire.Hosting.Docker.Resources.ServiceNodes.Build" -> "ServiceNodes.Build"
+            const lastDotIndex = displayName.lastIndexOf('.');
+            if (lastDotIndex === -1) {
+                return displayName;
+            }
+            
+            const secondLastDotIndex = displayName.lastIndexOf('.', lastDotIndex - 1);
+            if (secondLastDotIndex === -1) {
+                return displayName;
+            }
+            
+            return displayName.substring(secondLastDotIndex + 1);
+        }
+
+        private renderError(message: string): void {
+            this.resultsContainer.innerHTML = `
+                <div class="error-message">
+                    <p>Error: ${this.escapeHtml(message)}</p>
+                    <p class="error-hint">Please try again later.</p>
+                </div>
+            `;
+            this.statusElement.textContent = `Error occurred: ${message}`;
+        }
+
+        private escapeHtml(text: string): string {
+            const map: { [key: string]: string } = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+            };
+
+            return text.replace(/[&<>"']/g, (ch) => map[ch]);
+        }
+
+        private getExternalLinkIcon(): string {
+            return `<svg class="external-link-icon" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>`;
+        }
+
+        private validateAndBuildUrl(apiUrl: string): string | null {
+            // Validate that the URL from the API is a relative URL starting with /
+            // and doesn't contain path traversal attempts
+            if (!apiUrl || !apiUrl.startsWith('/')) {
+                console.warn('Invalid API URL received: URL must start with /', apiUrl);
+                return null;
+            }
+            
+            // Check for path traversal attempts
+            if (apiUrl.includes('..')) {
+                console.warn('Invalid API URL received: URL contains path traversal', apiUrl);
+                return null;
+            }
+            
+            try {
+                // Validate the constructed URL is valid
+                const fullUrl = `${this.BASE_API_URL}${apiUrl}`;
+                const url = new URL(fullUrl);
+                
+                // Ensure the URL's origin matches our base URL
+                if (url.origin !== this.BASE_API_ORIGIN) {
+                    console.warn('Invalid API URL received: URL origin does not match base URL', apiUrl);
+                    return null;
+                }
+                
+                return fullUrl;
+            } catch (error) {
+                console.warn('Invalid API URL received: URL parsing failed', apiUrl, error);
+                return null;
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        new ApiSearchController();
+    });
+</script>
+
+<style>
+        #search-results > div.api-results-list > a > code,
+    .sl-markdown-content a > code {
+        white-space: pre-wrap !important;
+    }
+
+    .api-search-container {
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+        padding-top: 1rem;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .search-wrapper {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        width: 100%;
+    }
+
+    .search-input-wrapper {
+        flex-grow: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    #api-search-input {
+        width: 100%;
+        padding: 0.75rem 2.5rem;
+        background-color: var(--sl-color-black);
+        color: var(--sl-color-text);
+        font-size: var(--sl-text);
+        height: 2.5rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        box-sizing: border-box;
+    }
+
+    #api-search-input::placeholder {
+        color: var(--sl-color-gray-4);
+    }
+
+    /* Hide native search input clear button */
+    #api-search-input::-webkit-search-cancel-button {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        color: var(--sl-color-gray-4);
+        pointer-events: none;
+    }
+
+    .loading-spinner {
+        position: absolute;
+        right: 0.75rem;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid var(--sl-color-gray-2);
+        border-top-color: var(--sl-color-accent);
+        border-radius: 50%;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .loading-spinner.visible {
+        opacity: 1;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .clear-button {
+        background-color: var(--sl-color-gray-6);
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.375rem;
+        color: var(--sl-color-white);
+        cursor: pointer;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        height: 2.5rem;
+        transition: background-color 0.2s ease;
+    }
+
+    .clear-button:hover {
+        background-color: var(--sl-color-gray-5);
+    }
+
+    .version-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        position: relative;
+    }
+
+    .version-selector label {
+        font-size: var(--sl-text-sm);
+        font-weight: 500;
+        color: var(--sl-color-text);
+    }
+
+    .select-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .version-dropdown {
+        padding: 0.375rem 2rem 0.375rem 0.75rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.375rem;
+        background-color: var(--sl-color-bg);
+        color: var(--sl-color-text);
+        font-size: var(--sl-text-sm);
+        cursor: pointer;
+        transition: border-color 0.2s;
+        appearance: none;
+        height: 2.5rem;
+    }
+
+    .select-icon {
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: var(--sl-color-text);
+        width: 1rem;
+        height: 1rem;
+        transition: transform 0.2s ease;
+    }
+
+    .select-icon.rotated {
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+    .version-dropdown:hover {
+        border-color: var(--sl-color-text-accent);
+    }
+
+    .version-dropdown:focus {
+        outline: 2px solid var(--sl-color-text-accent);
+        outline-offset: 2px;
+        border-color: var(--sl-color-text-accent);
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .search-results-container {
+        margin-top: 1rem;
+    }
+
+    .search-results-container :global(.results-header) {
+        padding: 0.5rem 0;
+        margin-bottom: 0.5rem;
+        color: var(--sl-color-text);
+    }
+
+    .search-results-container :global(.results-count) {
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .search-results-container :global(.results-table) {
+        font-size: 0.875rem;
+    }
+
+    .search-results-container :global(.name-content) {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .search-results-container :global(.result-name a) {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        text-decoration: none;
+        font-weight: 500;
+        word-break: break-word;
+    }
+
+    .search-results-container :global(.external-link-icon) {
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+
+    .search-results-container :global(.result-type) {
+        white-space: nowrap;
+    }
+
+    .search-results-container :global(.item-type-badge) {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border-radius: 0.25rem;
+        background-color: var(--sl-color-gray-2);
+        color: var(--sl-color-gray-6);
+    }
+
+    .search-results-container :global(.item-type-class) {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+
+    .search-results-container :global(.item-type-method) {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+
+    .search-results-container :global(.item-type-property) {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    .search-results-container :global(.item-type-constructor) {
+        background-color: #f3e8ff;
+        color: #7c3aed;
+    }
+
+    .search-results-container :global(.item-type-enum) {
+        background-color: #ffe4e6;
+        color: #be123c;
+    }
+
+    .search-results-container :global(.item-type-interface) {
+        background-color: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .search-results-container :global(.item-type-struct) {
+        background-color: #fce7f3;
+        color: #be185d;
+    }
+
+    .search-results-container :global(.item-type-namespace) {
+        background-color: #e0e7ff;
+        color: #4338ca;
+    }
+
+    .search-results-container :global(.item-type-field) {
+        background-color: #ccfbf1;
+        color: #115e59;
+    }
+
+    .search-results-container :global(.api-results-list) {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .search-results-container :global(.api-result-item) {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        background-color: var(--sl-color-bg);
+    }
+
+    .search-results-container :global(.result-main) {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .search-results-container :global(.api-result-item a) {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        text-decoration: none;
+        font-weight: 500;
+        word-break: break-word;
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    .search-results-container :global(.result-description) {
+        color: var(--sl-color-text);
+    }
+
+    .search-results-container :global(.api-result-item a code) {
+        overflow-wrap: break-word;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 8;
+        -webkit-box-orient: vertical;
+        line-height: 1.4;
+    }
+
+    .search-results-container :global(.api-result-item a .full-name) {
+        display: -webkit-box;
+    }
+
+    .search-results-container :global(.api-result-item a .short-name) {
+        display: none;
+    }
+
+    .search-results-container :global(.load-more-container) {
+        display: flex;
+        justify-content: center;
+        padding: 1rem 0.75rem 0.5rem;
+        margin-top: 0.5rem;
+        border-top: 1px solid var(--sl-color-gray-5);
+    }
+
+    .search-results-container :global(.load-more-button) {
+        background-color: var(--sl-color-bg);
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.375rem;
+        color: var(--sl-color-text);
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 400;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .search-results-container :global(.load-more-button:hover:not(:disabled)) {
+        background-color: var(--sl-color-gray-6);
+        border-color: var(--sl-color-text);
+    }
+
+    .search-results-container :global(.load-more-button:disabled) {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Show short name on smaller screens or when name is too long */
+    @media (max-width: 72rem) {
+        .search-results-container :global(.api-result-item a .full-name) {
+            display: none;
+        }
+
+        .search-results-container :global(.api-result-item a .short-name) {
+            display: -webkit-box;
+        }
+    }
+
+    /* Show short name for long names regardless of screen size */
+    .search-results-container :global(.api-result-item.long-name a .full-name) {
+        display: none;
+    }
+
+    .search-results-container :global(.api-result-item.long-name a .short-name) {
+        display: -webkit-box;
+    }
+
+    .search-results-container :global(.no-results),
+    .search-results-container :global(.error-message) {
+        padding: 2rem;
+        text-align: center;
+        background-color: var(--sl-color-gray-6);
+        border-radius: .5rem;
+        box-shadow: var(--sl-shadow-sm);
+    }
+
+    .search-results-container :global(.no-results-hint),
+    .search-results-container :global(.error-hint) {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-class) {
+        background-color: #1e3a5f;
+        color: #93c5fd;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-method) {
+        background-color: #14532d;
+        color: #86efac;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-property) {
+        background-color: #78350f;
+        color: #fcd34d;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-constructor) {
+        background-color: #4c1d95;
+        color: #c4b5fd;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-enum) {
+        background-color: #881337;
+        color: #fda4af;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-interface) {
+        background-color: #0c4a6e;
+        color: #7dd3fc;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-struct) {
+        background-color: #831843;
+        color: #f9a8d4;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-namespace) {
+        background-color: #312e81;
+        color: #a5b4fc;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.item-type-field) {
+        background-color: #134e4a;
+        color: #5eead4;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.error-message) {
+        background-color: #450a0a;
+        color: #fca5a5;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.error-icon) {
+        color: #f87171;
+    }
+
+    :global([data-theme="dark"]) .search-results-container :global(.no-results) {
+        background-color: var(--sl-color-gray-5);
+        border-radius: .5rem;
+    }
+</style>

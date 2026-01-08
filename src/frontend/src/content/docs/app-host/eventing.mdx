@@ -23,8 +23,6 @@ The following events are available in the AppHost and occur in the following ord
 
 </Steps>
 
-All of the preceding events are analogous to the AppHost life cycles. That is, an implementation of the `IDistributedApplicationLifecycleHook` could handle these events just the same. With the eventing API, however, you can run arbitrary code when these events are raised and event define custom events—any event that implements the `IDistributedApplicationEvent` interface.
-
 ### Subscribe to AppHost events
 
 To subscribe to the built-in AppHost events, use the eventing API. After you have a distributed application builder instance, walk up to the `IDistributedApplicationBuilder.Eventing` property and call the `Subscribe` API. Consider the following sample AppHost _AppHost.cs_ file:
@@ -250,85 +248,56 @@ When events are dispatched, you can control how the events are dispatched to sub
 
 The default behavior is `EventDispatchBehavior.BlockingSequential`. To override this behavior, when calling a publishing API such as `PublishAsync`, provide the desired behavior as an argument.
 
-## AppHost life cycle events
+## Eventing subscribers
 
-Eventing offers the most flexibility. However, this section explains the alternative: life cycle events.
-
-The Aspire AppHost exposes several life cycles that you can hook into by implementing the `IDistributedApplicationLifecycleHook` interface. The following lifecycle methods are available:
-
-| Order | Method | Description |
-|-------|--------|-------------|
-| **1** | `BeforeStartAsync` | Runs before the distributed application starts. |
-| **2** | `AfterEndpointsAllocatedAsync` | Runs after the orchestrator allocates endpoints for resources in the application model. |
-| **3** | `AfterResourcesCreatedAsync` | Runs after the resource was created by the orchestrator. |
-
-### Register a life cycle hook
-
-To register a life cycle hook, implement the `IDistributedApplicationLifecycleHook` interface and register the hook with the AppHost using the `AddLifecycleHook` API:
+In some cases, such as extension libraries, you may need to access lifecycle events from a service rather than directly from the Aspire application model. You can implement `IDistributedApplicationEventingSubscriber` and register the service with `AddEventingSubscriber` (or `TryAddEventingSubscriber` if you want to avoid duplicate registrations).
 
 ```csharp title="AppHost.cs"
-using Aspire.Hosting.Lifecycle;
+using Aspire.Hosting.Eventing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.Services.AddLifecycleHook<LifecycleLogger>();
+builder.Services.AddEventingSubscriber<LifecycleLoggerSubscriber>();
 
 builder.Build().Run();
 
-internal sealed class LifecycleLogger(ILogger<LifecycleLogger> logger)
-    : IDistributedApplicationLifecycleHook
+internal sealed class LifecycleLoggerSubscriber(ILogger<LifecycleLoggerSubscriber> logger)
+    : IDistributedApplicationEventingSubscriber
 {
-    public Task BeforeStartAsync(
-        DistributedApplicationModel appModel, CancellationToken cancellationToken = default)
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext executionContext,
+        CancellationToken cancellationToken)
     {
-        logger.LogInformation("1. BeforeStartAsync");
-        return Task.CompletedTask;
-    }
+        eventing.Subscribe<BeforeStartEvent>((@event, ct) =>
+        {
+            logger.LogInformation("1. BeforeStartEvent");
+            return Task.CompletedTask;
+        });
 
-    public Task AfterEndpointsAllocatedAsync(
-        DistributedApplicationModel appModel, CancellationToken cancellationToken = default)
-    {
-        logger.LogInformation("2. AfterEndpointsAllocatedAsync");
-        return Task.CompletedTask;
-    }
+        eventing.Subscribe<ResourceEndpointsAllocatedEvent>((@event, ct) =>
+        {
+            logger.LogInformation("2. {Resource} ResourceEndpointsAllocatedEvent", @event.Resource.Name);
+            return Task.CompletedTask;
+        });
 
-    public Task AfterResourcesCreatedAsync(
-        DistributedApplicationModel appModel, CancellationToken cancellationToken = default)
-    {
-        logger.LogInformation("3. AfterResourcesCreatedAsync");
+        eventing.Subscribe<AfterResourcesCreatedEvent>((@event, ct) =>
+        {
+            logger.LogInformation("3. AfterResourcesCreatedEvent");
+            return Task.CompletedTask;
+        });
+
         return Task.CompletedTask;
     }
 }
 ```
 
-The preceding code:
+The subscriber approach keeps builder code minimal while still letting you respond to the same lifecycle moments as inline subscriptions:
 
-- Implements the `IDistributedApplicationLifecycleHook` interface as a `LifecycleLogger`.
-- Registers the life cycle hook with the AppHost using the `AddLifecycleHook` API.
-- Logs a message for all the events.
+- `AddEventingSubscriber<T>()` (or `TryAddEventingSubscriber()`) ensures the subscriber participates whenever the AppHost starts.
+- `SubscribeAsync` is called once per AppHost execution, giving you access to `IDistributedApplicationEventing` and the `DistributedApplicationExecutionContext` should you need model- or environment-specific data.
+- You can register handlers for any built-in event (AppHost or resource) or for your own custom `IDistributedApplicationEvent` types.
 
-When this AppHost is run, the life cycle hook is executed for each event. The following output is generated:
-
-```plaintext {2,10,16} data-disable-copy
-info: LifecycleLogger[0]
-      1. BeforeStartAsync
-info: Aspire.Hosting.DistributedApplication[0]
-      Aspire version: 13.1.0
-info: Aspire.Hosting.DistributedApplication[0]
-      Distributed application starting.
-info: Aspire.Hosting.DistributedApplication[0]
-      Application host directory is: ../AspireApp/AspireApp.AppHost
-info: LifecycleLogger[0]
-      2. AfterEndpointsAllocatedAsync
-info: Aspire.Hosting.DistributedApplication[0]
-      Now listening on: https://localhost:17043
-info: Aspire.Hosting.DistributedApplication[0]
-      Login to the dashboard at https://localhost:17043/login?t=<YOUR_TOKEN>
-info: LifecycleLogger[0]
-      3. AfterResourcesCreatedAsync
-info: Aspire.Hosting.DistributedApplication[0]
-      Distributed application started. Press Ctrl+C to shut down.
-```
-
-The preferred way to hook into the AppHost life cycle is to use the eventing API. For more information, see [AppHost eventing](#apphost-eventing).
+Use this pattern whenever you previously relied on `IDistributedApplicationLifecycleHook`. The lifecycle hook APIs remain only for backward compatibility and will be removed in a future release.
