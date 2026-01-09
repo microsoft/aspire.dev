@@ -14,6 +14,8 @@ Aspire's AppHost is the code-first place where you declare your application's se
 
 Consider a simple three-tier architecture where the front end talks to an API, and the API talks to a database:
 
+<Tabs syncKey="apphost-lang">
+  <TabItem label=".NET API" icon="seti:c-sharp">
 ```mermaid
 architecture-beta
 
@@ -24,6 +26,32 @@ architecture-beta
   api:R --> L:db
   frontend:R --> L:api
 ```
+  </TabItem>
+  <TabItem label="Python API" icon="seti:python">
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:python)[API service]
+  service frontend(logos:react)[React front end]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+  </TabItem>
+  <TabItem label="Node.js API" icon="seti:javascript">
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:nodejs-icon)[API service]
+  service frontend(logos:react)[React front end]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+  </TabItem>
+</Tabs>
 
 You can represent that architecture in an AppHost like this:
 
@@ -102,6 +130,8 @@ In short: define the backend first (DB → API), then point the UI at the API. T
 
 These dependencies and connections are automatically managed by Aspire. The AppHost generates configuration values like connection strings and endpoints, injecting them into services as needed. in the AppHost when you add resources, you name them (e.g., `db`, `api`, `front end`); Aspire uses these names for DNS resolution, so services can communicate using predictable addresses. Consuming services also rely on these names for configuration injection.
 
+<Tabs syncKey="apphost-lang">
+  <TabItem label=".NET API" icon="seti:c-sharp">
 ```mermaid
 architecture-beta
 
@@ -116,6 +146,40 @@ architecture-beta
   api:L <-- R:epr
   epr:L <-- R:frontend
 ```
+  </TabItem>
+  <TabItem label="Python API" icon="seti:python">
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:python)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[front end]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+  </TabItem>
+  <TabItem label="Node.js API" icon="seti:javascript">
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:nodejs-icon)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[front end]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+  </TabItem>
+</Tabs>
 
 **How these resources communicate**
 
