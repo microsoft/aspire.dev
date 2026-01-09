@@ -356,7 +356,7 @@ Based on initial repository analysis, these areas likely need attention:
 
 ### Community Toolkit
 
-1. **CommunityToolkit.Aspire.*** packages need documentation mapping
+1. **CommunityToolkit.Aspire.\*** packages need documentation mapping
 2. Many community integrations have limited documentation
 
 ## Appendix D: Automation Opportunities
