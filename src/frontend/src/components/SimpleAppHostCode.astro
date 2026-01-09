@@ -1,5 +1,5 @@
 ---
-import { Code } from '@astrojs/starlight/components';
+import { Code, Tabs, TabItem } from '@astrojs/starlight/components';
 import type { MarkerDefinition } from '@astrojs/starlight/expressive-code';
 
 export type MarkerValueType = MarkerDefinition | MarkerDefinition[] | undefined;
@@ -12,7 +12,7 @@ interface CodeProps {
 
 const { mark, collapse } = Astro.props as CodeProps;
 
-const cs = `
+const csharp = `
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add database resource
@@ -32,13 +32,79 @@ builder.AddViteApp("frontend", "../frontend")
 
 builder.Build().Run();
 `;
+
+const python = `
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+    .AddDatabase("appdata")
+    .WithDataVolume();
+
+// Add API service and reference the database
+var api = builder.AddUvicornApp("api", "../api", "main:app")
+    .WithUv().WithReference(postgres)
+    .WaitFor(postgres);
+
+// Add frontend service and reference the API
+builder.AddUvicornApp("frontend", "../frontend", "app:app")
+    .WithUv().WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
+
+builder.Build().Run();
+`;
+
+const javascript = `
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+    .AddDatabase("appdata")
+    .WithDataVolume();
+
+// Add API service and reference the database
+var api = builder.AddNodeApp("api", "../api", "server.js")
+    .WithNpm().WithReference(postgres)
+    .WaitFor(postgres);
+
+// Add frontend service and reference the API
+builder.AddViteApp("frontend", "../frontend")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
+
+builder.Build().Run();
+`;
 ---
 
-<Code
-  code={cs}
-  lang="cs"
-  title="C# — AppHost.cs"
-  mark={mark}
-  collapse={collapse}
-  collapseStyle={'collapsible-auto'}
-/>
+<Tabs syncKey="apphost-lang">
+  <TabItem label="C# app" icon="seti:c-sharp">
+    <Code
+      code={csharp}
+      lang="cs"
+      title="AppHost.cs"
+      mark={mark}
+      collapse={collapse}
+      collapseStyle={'collapsible-auto'}
+    />
+  </TabItem>
+  <TabItem label="Python app" icon="seti:python">
+    <Code
+      code={python}
+      lang="cs"
+      title="AppHost.cs"
+      mark={mark}
+      collapse={collapse}
+      collapseStyle={'collapsible-auto'}
+    />
+  </TabItem>
+  <TabItem label="JavaScript app" icon="seti:javascript">
+    <Code
+      code={javascript}
+      lang="cs"
+      title="AppHost.cs"
+      mark={mark}
+      collapse={collapse}
+      collapseStyle={'collapsible-auto'}
+    />
+  </TabItem>
+</Tabs>
