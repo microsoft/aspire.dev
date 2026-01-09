@@ -1,5 +1,7 @@
 ---
 import { Image } from 'astro:assets';
+import PauseIcon from '@assets/icons/pause.svg';
+import PlayIcon from '@assets/icons/play.svg';
 
 import adminerIcon from '@assets/icons/adminer-icon.png';
 import activeMqIcon from '@assets/icons/activemq-icon.png';
@@ -274,7 +276,7 @@ const infiniteIconsRow2 = [...row2, ...row2];
 const infiniteIconsRow3 = [...row3, ...row3];
 ---
 
-<div class="infinite-scroll-container">
+<div class="infinite-scroll-container" data-integration-grid>
   <!-- Row 1: Right to Left -->
   <div class="scroll-row scroll-rtl">
     <div class="scroll-content">
@@ -355,7 +357,106 @@ const infiniteIconsRow3 = [...row3, ...row3];
       }
     </div>
   </div>
+  <div class="integration-controls">
+    <button
+      type="button"
+      class="control-btn pause-btn"
+      aria-label="Pause animation"
+      aria-pressed="false"
+      data-pause-btn
+    >
+      <span class="icon-pause" aria-hidden="true"><PauseIcon width="24" height="24" /></span>
+      <span class="icon-play" aria-hidden="true"><PlayIcon width="24" height="24" /></span>
+    </button>
+  </div>
 </div>
+
+<script is:inline>
+  (function() {
+    const container = document.querySelector('[data-integration-grid]');
+    if (!container) return;
+
+    const pauseBtn = container.querySelector('[data-pause-btn]');
+    if (!pauseBtn) return;
+
+    const scrollContents = container.querySelectorAll('.scroll-content');
+    const scrollRows = container.querySelectorAll('.scroll-row');
+    const links = container.querySelectorAll('.scroll-row a.img');
+
+    let isPaused = false;
+
+    function updateState() {
+      // Update button state (CSS handles icon visibility via aria-pressed)
+      pauseBtn.setAttribute('aria-pressed', isPaused.toString());
+      pauseBtn.setAttribute('aria-label', isPaused ? 'Play animation' : 'Pause animation');
+
+      // Toggle container class for CSS-based pausing and scrolling
+      container.classList.toggle('is-paused', isPaused);
+
+      // Reset scroll positions when resuming playback
+      if (!isPaused) {
+        scrollRows.forEach((row) => {
+          row.scrollLeft = 0;
+        });
+      }
+
+      // Toggle animation - only set inline style when paused, 
+      // otherwise remove it to let CSS hover rules work
+      scrollContents.forEach((content) => {
+        if (isPaused) {
+          content.style.animationPlayState = 'paused';
+        } else {
+          content.style.removeProperty('animation-play-state');
+        }
+      });
+
+      // Update tabindex for links - when paused, make all links tabbable
+      // When playing, only first few are tabbable to reduce tab stops
+      links.forEach((link, index) => {
+        if (isPaused) {
+          link.setAttribute('tabindex', '0');
+        } else {
+          // When animating, limit tab stops to reduce confusion
+          link.setAttribute('tabindex', index < 6 ? '0' : '-1');
+        }
+      });
+    }
+
+    // Scroll focused link into view when paused, and auto-pause on focus
+    links.forEach((link) => {
+      link.addEventListener('focus', () => {
+        // Auto-pause when user tabs into integrations (helps screen reader & keyboard users)
+        if (!isPaused) {
+          isPaused = true;
+          updateState();
+        }
+        link.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      });
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      updateState();
+    });
+
+    // Respect prefers-reduced-motion
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (prefersReducedMotion.matches) {
+      isPaused = true;
+    }
+
+    // Listen for changes to reduced motion preference
+    prefersReducedMotion.addEventListener('change', (e) => {
+      if (e.matches) {
+        isPaused = true;
+        updateState();
+      }
+    });
+
+    // Initialize state
+    updateState();
+  })();
+</script>
 
 <style>
   .infinite-scroll-container {
@@ -365,6 +466,59 @@ const infiniteIconsRow3 = [...row3, ...row3];
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .integration-controls {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .control-btn {
+    --carousel-primary: var(--aspire-color-primary);
+    background: var(--carousel-primary);
+    color: #fff;
+    border: none;
+    border-radius: 0.5rem;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      background 0.25s ease,
+      transform 0.25s ease;
+  }
+
+  .control-btn:hover {
+    transform: scale(1.06);
+  }
+
+  .control-btn:focus-visible {
+    outline: 0.1875rem solid var(--carousel-primary);
+    outline-offset: 0.125rem;
+  }
+
+  .icon-pause,
+  .icon-play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  /* Hide play icon by default (showing pause) */
+  .icon-play {
+    display: none;
+  }
+
+  /* When paused, show play and hide pause */
+  .control-btn[aria-pressed='true'] .icon-pause {
+    display: none;
+  }
+
+  .control-btn[aria-pressed='true'] .icon-play {
+    display: flex;
   }
 
   .scroll-row {
@@ -487,5 +641,33 @@ const infiniteIconsRow3 = [...row3, ...row3];
     .scroll-content {
       gap: 0.5rem;
     }
+  }
+
+  /* Respect user preference for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-content {
+      animation: none !important;
+      transform: none !important;
+    }
+
+    .scroll-row {
+      overflow-x: auto;
+      scrollbar-width: thin;
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+  }
+
+  /* When paused via button, allow scrolling */
+  .infinite-scroll-container.is-paused .scroll-row {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
+  .infinite-scroll-container.is-paused .scroll-content {
+    animation: none !important;
+    transform: none !important;
   }
 </style>
