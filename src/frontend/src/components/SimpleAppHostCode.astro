@@ -1,17 +1,18 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import type { MarkerDefinition } from '@astrojs/starlight/expressive-code';
-import Pivot from '@components/Pivot.astro';
 
 export type MarkerValueType = MarkerDefinition | MarkerDefinition[] | undefined;
 export type CollapseValueType = string | string[] | undefined;
+export type LangType = 'csharp' | 'python' | 'nodejs' | 'go' | 'java';
 
 interface CodeProps {
+  lang?: LangType;
   mark?: MarkerValueType;
   collapse?: CollapseValueType;
 }
 
-const { mark, collapse } = Astro.props as CodeProps;
+const { lang = 'csharp', mark, collapse } = Astro.props as CodeProps;
 
 const csharp = `
 var builder = DistributedApplication.CreateBuilder(args);
@@ -121,55 +122,23 @@ builder.AddViteApp("frontend", "../frontend")
 
 builder.Build().Run();
 `;
+
+const codeMap: Record<LangType, string> = {
+  csharp,
+  python,
+  nodejs: javascript,
+  go: golang,
+  java,
+};
+
+const code = codeMap[lang];
 ---
 
-<Pivot id="csharp">
-  <Code
-    code={csharp}
-    lang="cs"
-    title="AppHost.cs"
-    mark={mark}
-    collapse={collapse}
-    collapseStyle={'collapsible-auto'}
-  />
-</Pivot>
-<Pivot id="python">
-  <Code
-    code={python}
-    lang="cs"
-    title="AppHost.cs"
-    mark={mark}
-    collapse={collapse}
-    collapseStyle={'collapsible-auto'}
-  />
-</Pivot>
-<Pivot id="nodejs">
-  <Code
-    code={javascript}
-    lang="cs"
-    title="AppHost.cs"
-    mark={mark}
-    collapse={collapse}
-    collapseStyle={'collapsible-auto'}
-  />
-</Pivot>
-<Pivot id="go">
-  <Code
-    code={golang}
-    lang="cs"
-    title="AppHost.cs"
-    mark={mark}
-    collapse={collapse}
-    collapseStyle={'collapsible-auto'}
-  />
-</Pivot>
-<Pivot id="java">
-  <Code
-    code={java}
-    lang="cs"
-    title="AppHost.cs"
-    mark={mark}
-    collapse={collapse}
-    collapseStyle={'collapsible-auto'}
-  />
-</Pivot>
+<Code
+  code={code}
+  lang="cs"
+  title="AppHost.cs"
+  mark={mark}
+  collapse={collapse}
+  collapseStyle={'collapsible-auto'}
+/>
