@@ -75,6 +75,50 @@ builder.AddViteApp("frontend", "../frontend")
 
 builder.Build().Run();
 `;
+
+const golang = `
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+    .AddDatabase("appdata")
+    .WithDataVolume();
+
+// Add API service and reference the database
+var api = builder.AddGolangApp("api", "../api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(postgres)
+    .WaitFor(postgres);
+
+// Add frontend service and reference the API
+builder.AddViteApp("frontend", "../frontend")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
+
+builder.Build().Run();
+`;
+
+const java = `
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+    .AddDatabase("appdata")
+    .WithDataVolume();
+
+// Add API service and reference the database
+var api = builder.AddSpringApp("api", "../api", "../agents/opentelemetry-javaagent.jar")
+    .WithHttpEndpoint(port: 8080)
+    .WithReference(postgres)
+    .WaitFor(postgres);
+
+// Add frontend service and reference the API
+builder.AddViteApp("frontend", "../frontend")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
+
+builder.Build().Run();
+`;
 ---
 
 <Pivot id="csharp">
@@ -100,6 +144,26 @@ builder.Build().Run();
 <Pivot id="nodejs">
   <Code
     code={javascript}
+    lang="cs"
+    title="AppHost.cs"
+    mark={mark}
+    collapse={collapse}
+    collapseStyle={'collapsible-auto'}
+  />
+</Pivot>
+<Pivot id="go">
+  <Code
+    code={golang}
+    lang="cs"
+    title="AppHost.cs"
+    mark={mark}
+    collapse={collapse}
+    collapseStyle={'collapsible-auto'}
+  />
+</Pivot>
+<Pivot id="java">
+  <Code
+    code={java}
     lang="cs"
     title="AppHost.cs"
     mark={mark}

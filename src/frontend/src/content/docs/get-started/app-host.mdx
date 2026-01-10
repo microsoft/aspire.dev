@@ -19,6 +19,8 @@ Aspire's AppHost is the code-first place where you declare your application's se
         { id: "csharp", title: "C#" },
         { id: "python", title: "Python" },
         { id: "nodejs", title: "Node.js" },
+        { id: "go", title: "Go" },
+        { id: "java", title: "Java" },
     ]}
 />
 
@@ -61,6 +63,10 @@ This architecture demonstrates a **Python API** (using FastAPI/Uvicorn) connecti
 
 To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=python) quickstart.
 
+<Aside type="tip">
+The Python integration is provided by the [CommunityToolkit.Aspire.Hosting.Python.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Python.Extensions) NuGet package. Learn more in the [Python integration](/integrations/frameworks/python/) documentation.
+</Aside>
+
 </Pivot>
 <Pivot id="nodejs">
 
@@ -77,6 +83,50 @@ architecture-beta
 
 This architecture demonstrates a **Node.js API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Node.js API uses frameworks like Express or Fastify and connects to PostgreSQL using libraries like pg or Prisma. The React front end is built with Vite and communicates with the API over HTTP.
 
+<Aside type="tip">
+The JavaScript/Node.js integration is provided by the [Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package. Learn more in the [JavaScript integration](/integrations/frameworks/javascript/) documentation.
+</Aside>
+
+</Pivot>
+<Pivot id="go">
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:go)[API service]
+  service frontend(logos:react)[React front end]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Go API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Go API uses the standard library's `net/http` package or frameworks like Gin or Echo and connects to PostgreSQL using libraries like pgx or database/sql. The React front end is built with Vite and communicates with the API over HTTP.
+
+<Aside type="tip">
+The Go integration is provided by the [CommunityToolkit.Aspire.Hosting.Golang](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Golang) NuGet package. Learn more in the [Go integration](/integrations/frameworks/go-apps/) documentation.
+</Aside>
+
+</Pivot>
+<Pivot id="java">
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:java)[API service]
+  service frontend(logos:react)[React front end]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Java API** (using Spring Boot) connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Java API uses Spring Boot with Spring Data JPA and connects to PostgreSQL using JDBC or Spring Data. The React front end is built with Vite and communicates with the API over HTTP.
+
+<Aside type="tip">
+The Java integration is provided by the [CommunityToolkit.Aspire.Hosting.Java](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Java) NuGet package. Learn more in the [Java integration](/integrations/frameworks/java/) documentation.
+</Aside>
+
 </Pivot>
 
 You can represent that architecture in an AppHost like this:
@@ -88,6 +138,8 @@ The AppHost models your distributed application declaratively. Each tab above sh
 - **.NET API**: Uses `AddProject<Projects.Api>()` to reference a .NET project
 - **Python API**: Uses `AddUvicornApp()` with `WithUv()` for ASGI apps like FastAPI
 - **Node.js API**: Uses `AddNodeApp()` with `WithNpm()` for Node.js applications
+- **Go API**: Uses `AddGolangApp()` for Go applications
+- **Java API**: Uses `AddSpringApp()` for Spring Boot applications
 
 In all cases, the PostgreSQL database and React front end remain identical. Aspire's `WithReference()` method establishes dependencies between resources, and `WaitFor()` ensures services start in the correct order.
 
@@ -155,6 +207,22 @@ What this does:
 
 - `AddNodeApp("api", "../api", "server.js")` registers a Node.js app as a service named `api`, with `server.js` as the entry point.
 - `WithNpm()` configures the app to use npm for dependency installation.
+- `WithReference(postgres)` injects connection details into the API configuration.
+- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
+
+</Pivot>
+<Pivot id="go">
+
+- `AddGolangApp("api", "../api")` registers a Go app as a service named `api`.
+- `WithHttpEndpoint(env: "PORT")` configures the port and sets the PORT environment variable.
+- `WithReference(postgres)` injects connection details into the API configuration.
+- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
+
+</Pivot>
+<Pivot id="java">
+
+- `AddSpringApp("api", "../api", "../agents/opentelemetry-javaagent.jar")` registers a Spring Boot app as a service named `api`, specifying the OpenTelemetry agent path.
+- `WithHttpEndpoint(port: 8080)` exposes the Spring Boot app on port 8080.
 - `WithReference(postgres)` injects connection details into the API configuration.
 - `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
 
@@ -242,6 +310,46 @@ architecture-beta
 ```
 
 The Node.js API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Node.js API → React front end`.
+
+</Pivot>
+<Pivot id="go">
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:go)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[front end]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Go API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Go API → React front end`.
+
+</Pivot>
+<Pivot id="java">
+
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:java)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[front end]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Java API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Java API → React front end`.
 
 </Pivot>
 
