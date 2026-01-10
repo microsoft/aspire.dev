@@ -136,9 +136,29 @@ Next, register the API service and wire it to the PostgreSQL resource:
 
 What this does:
 
+<Pivot id="csharp">
+
 - `AddProject<Projects.Api>("api")` registers the API project as a service named `api`.
 - `WithReference(postgres)` injects connection details (host, port, credentials, connection string) into the API configuration.
 - `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy, avoiding brittle startup timing issues.
+
+</Pivot>
+<Pivot id="python">
+
+- `AddUvicornApp("api", "../api", "main:app")` registers a Uvicorn-based Python app as a service named `api`, pointing to the `main:app` entry point.
+- `WithUv()` configures the app to use the [uv](https://docs.astral.sh/uv/) package manager for dependency installation.
+- `WithReference(postgres)` injects connection details into the API configuration.
+- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
+
+</Pivot>
+<Pivot id="nodejs">
+
+- `AddNodeApp("api", "../api", "server.js")` registers a Node.js app as a service named `api`, with `server.js` as the entry point.
+- `WithNpm()` configures the app to use npm for dependency installation.
+- `WithReference(postgres)` injects connection details into the API configuration.
+- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
+
+</Pivot>
 
 Now that the `api` service is defined, you can attach the front end.
 
