@@ -53,6 +53,27 @@ builder.AddViteApp("frontend", "../frontend")
 
 builder.Build().Run();
 `;
+
+const javascript = `
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add database resource
+var postgres = builder.AddPostgres("db")
+    .AddDatabase("appdata")
+    .WithDataVolume();
+
+// Add API service and reference the database
+var api = builder.AddNodeApp("api", "../api", "server.js")
+    .WithNpm().WithReference(postgres)
+    .WaitFor(postgres);
+
+// Add frontend service and reference the API
+builder.AddViteApp("frontend", "../frontend")
+    .WithHttpEndpoint(env: "PORT")
+    .WithReference(api);
+
+builder.Build().Run();
+`;
 ---
 
 <Tabs syncKey="apphost-lang">
@@ -69,6 +90,16 @@ builder.Build().Run();
   <TabItem label="Python API" icon="seti:python">
     <Code
       code={python}
+      lang="cs"
+      title="AppHost.cs"
+      mark={mark}
+      collapse={collapse}
+      collapseStyle={'collapsible-auto'}
+    />
+  </TabItem>
+  <TabItem label="Node.js API" icon="seti:javascript">
+    <Code
+      code={javascript}
       lang="cs"
       title="AppHost.cs"
       mark={mark}

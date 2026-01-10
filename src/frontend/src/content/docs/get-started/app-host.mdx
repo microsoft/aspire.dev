@@ -47,6 +47,20 @@ This architecture demonstrates a **Python API** (using FastAPI/Uvicorn) connecti
 
 To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=python) quickstart.
   </TabItem>
+  <TabItem label="Node.js API" icon="seti:javascript">
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[PostgreSQL]
+  service api(logos:nodejs-icon)[API service]
+  service frontend(logos:react)[React front end]
+
+  api:R --> L:db
+  frontend:R --> L:api
+```
+
+This architecture demonstrates a **Node.js API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Node.js API uses frameworks like Express or Fastify and connects to PostgreSQL using libraries like pg or Prisma. The React front end is built with Vite and communicates with the API over HTTP.
+  </TabItem>
 </Tabs>
 
 You can represent that architecture in an AppHost like this:
@@ -57,8 +71,9 @@ The AppHost models your distributed application declaratively. Each tab above sh
 
 - **.NET API**: Uses `AddProject<Projects.Api>()` to reference a .NET project
 - **Python API**: Uses `AddUvicornApp()` with `WithUv()` for ASGI apps like FastAPI
+- **Node.js API**: Uses `AddNodeApp()` with `WithNpm()` for Node.js applications
 
-In both cases, the PostgreSQL database and React front end remain identical. Aspire's `WithReference()` method establishes dependencies between resources, and `WaitFor()` ensures services start in the correct order.
+In all cases, the PostgreSQL database and React front end remain identical. Aspire's `WithReference()` method establishes dependencies between resources, and `WaitFor()` ensures services start in the correct order.
 
 Aspire presents the same, consistent model regardless of the language or framework used: services, resources, and the connections between them.
 
@@ -169,6 +184,24 @@ architecture-beta
 ```
 
 The Python API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Python API → React front end`.
+  </TabItem>
+  <TabItem label="Node.js API" icon="seti:javascript">
+```mermaid
+architecture-beta
+
+  service db(logos:postgresql)[pg]
+  service epr(iconoir:server-connection)[Endpoint Reference]
+  service api(logos:nodejs-icon)[api]
+  service ctr(iconoir:server-connection)[Connection String Reference]
+  service frontend(logos:react)[front end]
+
+  db:L <-- R:ctr
+  ctr:L <-- R:api
+  api:L <-- R:epr
+  epr:L <-- R:frontend
+```
+
+The Node.js API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Node.js API → React front end`.
   </TabItem>
 </Tabs>
 
