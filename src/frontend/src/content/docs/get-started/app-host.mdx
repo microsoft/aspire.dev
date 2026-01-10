@@ -7,15 +7,27 @@ lastUpdated: true
 import { Aside, Code, FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 Aspire's AppHost is the code-first place where you declare your application's services and their relationships. Instead of managing scattered configuration files, you describe the architecture in code. Aspire then handles local orchestration so you can focus on building features.
+
+<PivotSelector
+    title="Select your programming language"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "nodejs", title: "Node.js" },
+    ]}
+/>
 
 ## Defining your architecture
 
 Consider a simple three-tier architecture where the front end talks to an API, and the API talks to a database:
 
-<Tabs syncKey="apphost-lang">
-  <TabItem label=".NET API" icon="seti:c-sharp">
+<Pivot id="csharp">
+
 ```mermaid
 architecture-beta
 
@@ -30,8 +42,10 @@ architecture-beta
 This architecture demonstrates a **.NET API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The .NET API uses ASP.NET Core and connects to PostgreSQL using Entity Framework or a connection string. The React front end is built with Vite and communicates with the API over HTTP.
 
 To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=csharp) quickstart.
-  </TabItem>
-  <TabItem label="Python API" icon="seti:python">
+
+</Pivot>
+<Pivot id="python">
+
 ```mermaid
 architecture-beta
 
@@ -46,8 +60,10 @@ architecture-beta
 This architecture demonstrates a **Python API** (using FastAPI/Uvicorn) connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Python API uses frameworks like FastAPI or Flask and connects to PostgreSQL using libraries like psycopg2 or SQLAlchemy. The React front end is built with Vite and communicates with the API over HTTP.
 
 To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=python) quickstart.
-  </TabItem>
-  <TabItem label="Node.js API" icon="seti:javascript">
+
+</Pivot>
+<Pivot id="nodejs">
+
 ```mermaid
 architecture-beta
 
@@ -60,8 +76,8 @@ architecture-beta
 ```
 
 This architecture demonstrates a **Node.js API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Node.js API uses frameworks like Express or Fastify and connects to PostgreSQL using libraries like pg or Prisma. The React front end is built with Vite and communicates with the API over HTTP.
-  </TabItem>
-</Tabs>
+
+</Pivot>
 
 You can represent that architecture in an AppHost like this:
 
@@ -148,8 +164,8 @@ In short: define the backend first (DB → API), then point the UI at the API. T
 
 These dependencies and connections are automatically managed by Aspire. The AppHost generates configuration values like connection strings and endpoints, injecting them into services as needed. in the AppHost when you add resources, you name them (e.g., `db`, `api`, `front end`); Aspire uses these names for DNS resolution, so services can communicate using predictable addresses. Consuming services also rely on these names for configuration injection.
 
-<Tabs syncKey="apphost-lang">
-  <TabItem label=".NET API" icon="seti:c-sharp">
+<Pivot id="csharp">
+
 ```mermaid
 architecture-beta
 
@@ -166,8 +182,10 @@ architecture-beta
 ```
 
 The .NET API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → .NET API → React front end`.
-  </TabItem>
-  <TabItem label="Python API" icon="seti:python">
+
+</Pivot>
+<Pivot id="python">
+
 ```mermaid
 architecture-beta
 
@@ -184,8 +202,10 @@ architecture-beta
 ```
 
 The Python API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Python API → React front end`.
-  </TabItem>
-  <TabItem label="Node.js API" icon="seti:javascript">
+
+</Pivot>
+<Pivot id="nodejs">
+
 ```mermaid
 architecture-beta
 
@@ -202,8 +222,8 @@ architecture-beta
 ```
 
 The Node.js API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Node.js API → React front end`.
-  </TabItem>
-</Tabs>
+
+</Pivot>
 
 **How these resources communicate**
 
