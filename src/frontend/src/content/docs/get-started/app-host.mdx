@@ -26,6 +26,10 @@ architecture-beta
   api:R --> L:db
   frontend:R --> L:api
 ```
+
+This architecture demonstrates a **.NET API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The .NET API uses ASP.NET Core and connects to PostgreSQL using Entity Framework or a connection string. The React front end is built with Vite and communicates with the API over HTTP.
+
+To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=csharp) quickstart.
   </TabItem>
   <TabItem label="Python API" icon="seti:python">
 ```mermaid
@@ -38,24 +42,23 @@ architecture-beta
   api:R --> L:db
   frontend:R --> L:api
 ```
-  </TabItem>
-  <TabItem label="Node.js API" icon="seti:javascript">
-```mermaid
-architecture-beta
 
-  service db(logos:postgresql)[PostgreSQL]
-  service api(logos:nodejs-icon)[API service]
-  service frontend(logos:react)[React front end]
+This architecture demonstrates a **Python API** (using FastAPI/Uvicorn) connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Python API uses frameworks like FastAPI or Flask and connects to PostgreSQL using libraries like psycopg2 or SQLAlchemy. The React front end is built with Vite and communicates with the API over HTTP.
 
-  api:R --> L:db
-  frontend:R --> L:api
-```
+To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=python) quickstart.
   </TabItem>
 </Tabs>
 
 You can represent that architecture in an AppHost like this:
 
 <SimpleAppHostCode />
+
+The AppHost models your distributed application declaratively. Each tab above shows the same three-tier architecture—**PostgreSQL database**, **API service**, and **React front end**—but with different API implementations. Switching tabs changes only the API resource type:
+
+- **.NET API**: Uses `AddProject<Projects.Api>()` to reference a .NET project
+- **Python API**: Uses `AddUvicornApp()` with `WithUv()` for ASGI apps like FastAPI
+
+In both cases, the PostgreSQL database and React front end remain identical. Aspire's `WithReference()` method establishes dependencies between resources, and `WaitFor()` ensures services start in the correct order.
 
 Aspire presents the same, consistent model regardless of the language or framework used: services, resources, and the connections between them.
 
@@ -146,6 +149,8 @@ architecture-beta
   api:L <-- R:epr
   epr:L <-- R:frontend
 ```
+
+The .NET API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → .NET API → React front end`.
   </TabItem>
   <TabItem label="Python API" icon="seti:python">
 ```mermaid
@@ -162,22 +167,8 @@ architecture-beta
   api:L <-- R:epr
   epr:L <-- R:frontend
 ```
-  </TabItem>
-  <TabItem label="Node.js API" icon="seti:javascript">
-```mermaid
-architecture-beta
 
-  service db(logos:postgresql)[pg]
-  service epr(iconoir:server-connection)[Endpoint Reference]
-  service api(logos:nodejs-icon)[api]
-  service ctr(iconoir:server-connection)[Connection String Reference]
-  service frontend(logos:react)[front end]
-
-  db:L <-- R:ctr
-  ctr:L <-- R:api
-  api:L <-- R:epr
-  epr:L <-- R:frontend
-```
+The Python API receives a **ConnectionStringReference** from PostgreSQL and publishes an **EndpointReference** that the React front end consumes. This creates a clear dependency chain: `PostgreSQL → Python API → React front end`.
   </TabItem>
 </Tabs>
 
