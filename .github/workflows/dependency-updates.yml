@@ -1,9 +1,9 @@
-name: Update Integration Data
+name: Update GitHub stats & Integrations
 
 on:
   schedule:
-    # Run weekly on Sundays at 6 AM UTC
-    - cron: "0 6 * * 0"
+    # Run daily at 6 AM UTC
+    - cron: "0 6 * * *"
   workflow_dispatch: # Allow manual triggering
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   pull-requests: write
 
 env:
-  NODE_VERSION: "22.x"
+  NODE_VERSION: "24.x"
 
 jobs:
   update-integration-data:
@@ -44,27 +44,22 @@ jobs:
       - name: Update integration data
         run: pnpm update:all
 
-      - name: Check for changes
-        id: verify-changed-files
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "## Changes detected:" >> $GITHUB_STEP_SUMMARY
-            git status --porcelain >> $GITHUB_STEP_SUMMARY
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "No changes detected in integration data" >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%d/%m/%y' | sed 's/0\([1-9]\)/\1/g')" >> $GITHUB_OUTPUT
 
-      - name: Create Pull Request
-        if: steps.verify-changed-files.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+      - name: Create or update pull request
+        uses: dotnet/actions-create-pull-request@e8d799aa1f8b17f324f9513832811b0a62f1e0b1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update integration data and GitHub stats"
-          title: "chore: Update integration data and GitHub stats"
+          branch: update/integration-data-${{ github.run_number }}
+          base: main
+          commit-message: "chore: update integration data and GitHub stats (${{ steps.date.outputs.date }})"
+          labels: |
+            :octocat: auto-merge
+          title: "chore: Update integration data and GitHub stats (${{ steps.date.outputs.date }})"
           body: |
-            ## 🔄 Automated Integration Data Update
+            ## 🔄 Automated Integration Data Update - ${{ steps.date.outputs.date }}
 
             This PR contains automated updates to:
             - **Integration data** from NuGet API
@@ -80,8 +75,5 @@ jobs:
             - [ ] Ensure package counts and versions are updated appropriately
 
             ### 🤖 Automation
-            This PR was created automatically by the weekly integration data update workflow.
+            This PR was created automatically by the daily integration data update workflow on **${{ steps.date.outputs.date }}**.
             Review the changes and merge when ready.
-          branch: update/integration-data-${{ github.run_number }}
-          delete-branch: true
-          draft: false
