@@ -48,11 +48,15 @@ jobs:
         id: date
         run: echo "date=$(date +'%d/%m/%y' | sed 's/0\([1-9]\)/\1/g')" >> $GITHUB_OUTPUT
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+      - name: Create or update pull request
+        uses: dotnet/actions-create-pull-request@e8d799aa1f8b17f324f9513832811b0a62f1e0b1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          branch: update/integration-data-${{ github.run_number }}
+          base: main
           commit-message: "chore: update integration data and GitHub stats (${{ steps.date.outputs.date }})"
+          labels: |
+            :octocat: auto-merge
           title: "chore: Update integration data and GitHub stats (${{ steps.date.outputs.date }})"
           body: |
             ## 🔄 Automated Integration Data Update - ${{ steps.date.outputs.date }}
@@ -73,7 +77,3 @@ jobs:
             ### 🤖 Automation
             This PR was created automatically by the daily integration data update workflow on **${{ steps.date.outputs.date }}**.
             Review the changes and merge when ready.
-          branch: update/integration-data-${{ github.run_number }}
-          delete-branch: true
-          draft: false
-          labels: ':octocat: auto-merge'
