@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allow manual triggering
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 env:
@@ -46,13 +46,15 @@ jobs:
 
       - name: Get current date
         id: date
-        run: echo "date=$(date +'%d/%m/%y' | sed 's/0\([1-9]\)/\1/g')" >> $GITHUB_OUTPUT
+        run: |
+          echo "date=$(date +'%m/%d/%y' | sed 's/0\([1-9]\)/\1/g')" >> $GITHUB_OUTPUT
+          echo "date-hyphen=$(date +'%m-%d-%y' | sed 's/0\([1-9]\)/\1/g')" >> $GITHUB_OUTPUT
 
       - name: Create or update pull request
         uses: dotnet/actions-create-pull-request@e8d799aa1f8b17f324f9513832811b0a62f1e0b1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update/integration-data-${{ github.run_number }}
+          branch: update/integration-data-${{ steps.date.outputs.date-hyphen }}
           base: main
           commit-message: "chore: update integration data and GitHub stats (${{ steps.date.outputs.date }})"
           labels: |
