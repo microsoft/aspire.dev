@@ -955,7 +955,7 @@ Go applications can send telemetry using OpenTelemetry:
        "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
        "go.opentelemetry.io/otel/sdk/resource"
        "go.opentelemetry.io/otel/sdk/trace"
-       semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+       semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
    )
 
    func initTracer() func() {
@@ -1043,11 +1043,14 @@ Java applications can send telemetry using OpenTelemetry:
         -jar your-app.jar
    ```
 
-3. In the AppHost, specify the agent path when adding your Spring application:
+3. In the AppHost, specify environment variables to configure the OpenTelemetry agent:
 
    ```csharp title="apphost.cs — Configure Spring Boot with OTel agent"
-   var api = builder.AddSpringApp("api", "./api", "opentelemetry-javaagent.jar")
-       .WithHttpEndpoint(port: 8080);
+   var api = builder.AddSpringApp("api", "./api")
+       .WithHttpEndpoint(port: 8080)
+       .WithEnvironment("JAVA_TOOL_OPTIONS", 
+           "-javaagent:path/to/opentelemetry-javaagent.jar " +
+           "-Dotel.service.name=api");
    ```
 
 </Steps>
@@ -1165,7 +1168,6 @@ When you add a hosting integration (like Redis) to your AppHost and reference it
    import (
        "context"
        "os"
-       "strconv"
        
        "github.com/redis/go-redis/v9"
    )
