@@ -35,7 +35,16 @@ import { isHomepage } from "@utils/helpers";
 }
 
 <script>
+    // Store the AbortController to manage scroll listener lifecycle
+    let scrollController: AbortController | null = null;
+
     function initHomepageHeader() {
+        // Abort any existing scroll listener before setting up a new one
+        if (scrollController) {
+            scrollController.abort();
+        }
+        scrollController = new AbortController();
+
         const searchWrapper = document.querySelector('[data-homepage-search]');
         const titleWrapper = document.querySelector('[data-homepage-title]');
         const siteTitleText = titleWrapper?.querySelector('.site-title .sr-only');
@@ -76,7 +85,11 @@ import { isHomepage } from "@utils/helpers";
         checkScroll();
 
         // Check on scroll (throttled with requestAnimationFrame)
-        window.addEventListener('scroll', onScroll, { passive: true });
+        // Use AbortController signal to automatically remove listener when aborted
+        window.addEventListener('scroll', onScroll, {
+            passive: true,
+            signal: scrollController!.signal,
+        });
     }
 
     // Run on initial load
