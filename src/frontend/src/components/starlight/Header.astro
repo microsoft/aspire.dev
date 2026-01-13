@@ -50,7 +50,7 @@ import { isHomepage } from "@utils/helpers";
         }
 
         function checkScroll() {
-            const heroRect = hero!.getBoundingClientRect();
+            const heroRect = hero.getBoundingClientRect();
             // Show elements when the bottom of the hero is at or above the top of the viewport
             if (heroRect.bottom <= 0) {
                 searchWrapper?.classList.add('visible');
@@ -61,11 +61,22 @@ import { isHomepage } from "@utils/helpers";
             }
         }
 
+        let ticking = false;
+        function onScroll() {
+            if (!ticking) {
+                ticking = true;
+                window.requestAnimationFrame(() => {
+                    checkScroll();
+                    ticking = false;
+                });
+            }
+        }
+
         // Check on initial load
         checkScroll();
 
-        // Check on scroll
-        window.addEventListener('scroll', checkScroll, { passive: true });
+        // Check on scroll (throttled with requestAnimationFrame)
+        window.addEventListener('scroll', onScroll, { passive: true });
     }
 
     // Run on initial load
