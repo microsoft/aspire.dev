@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 
 function getCommit() {
   try {
-    return execSync('git rev-parse HEAD').toString().trim();
+    return execSync('git merge-base main HEAD').toString().trim();
   } catch {
     return '';
   }
