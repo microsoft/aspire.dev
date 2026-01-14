@@ -85,6 +85,10 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
           link: '/diagnostics/aspirecosmosdb001',
         },
         {
+          label: 'ASPIRECSHARPAPPS001',
+          link: '/diagnostics/aspirecsharpapps001',
+        },
+        {
           label: 'ASPIREHOSTINGPYTHON001',
           link: '/diagnostics/aspirehostingpython001',
         },
