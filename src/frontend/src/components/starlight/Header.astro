@@ -5,6 +5,7 @@ import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
 import SocialIcons from "@components/starlight/SocialIcons.astro";
 import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
 import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
+import Search from "@astrojs/starlight/components/Search.astro";
 
 import { isHomepage } from "@utils/helpers";
 ---
@@ -12,30 +13,12 @@ import { isHomepage } from "@utils/helpers";
 {
     isHomepage(Astro) ? (
         <div class="header">
-            <div class="title-wrapper sl-flex">
+            <div class="title-wrapper sl-flex" data-homepage-title>
                 <SiteTitle />
-                <div class="sl-hidden">
-                    <time id="local-datetime" class="sl-text-xs" />
-                    <script>
-                        (function () {
-                            const el = document.getElementById('local-datetime');
-                            if (!el) return;
-                            const now = new Date();
-                            el.dateTime = now.toISOString();
-                            el.textContent = now.toLocaleString(undefined, {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit'
-                            });
-                        })();
-                    </script>
-                </div>
             </div>
-            <div class="sl-flex print:hidden" />
+            <div class="sl-flex print:hidden homepage-search" data-homepage-search>
+                <Search />
+            </div>
             <div class="sl-hidden md:sl-flex print:hidden right-group">
                 <div class="sl-flex social-icons">
                     <SocialIcons />
@@ -51,16 +34,94 @@ import { isHomepage } from "@utils/helpers";
     )
 }
 
-<style>
-    :root:not([data-has-hero]) {
-        a.site-title .sr-only {
-            position: initial;
-            width: auto;
-            height: auto;
-            margin: initial;
-            padding: initial;
-            clip: initial;
+<script>
+    // Store the AbortController to manage scroll listener lifecycle
+    let scrollController: AbortController | null = null;
+
+    function initHomepageHeader() {
+        // Abort any existing scroll listener before setting up a new one
+        if (scrollController) {
+            scrollController.abort();
         }
+        scrollController = new AbortController();
+
+        const searchWrapper = document.querySelector('[data-homepage-search]');
+        const titleWrapper = document.querySelector('[data-homepage-title]');
+        const siteTitleText = titleWrapper?.querySelector('.site-title .sr-only');
+        if (!searchWrapper && !siteTitleText) return;
+
+        const hero = document.querySelector('.hero');
+        if (!hero) {
+            // If no hero found, show elements immediately
+            searchWrapper?.classList.add('visible');
+            siteTitleText?.classList.add('visible');
+            return;
+        }
+
+        function checkScroll() {
+            const heroRect = hero.getBoundingClientRect();
+            // Show elements when the bottom of the hero is at or above the top of the viewport
+            if (heroRect.bottom <= 0) {
+                searchWrapper?.classList.add('visible');
+                siteTitleText?.classList.add('visible');
+            } else {
+                searchWrapper?.classList.remove('visible');
+                siteTitleText?.classList.remove('visible');
+            }
+        }
+
+        let ticking = false;
+        function onScroll() {
+            if (!ticking) {
+                ticking = true;
+                window.requestAnimationFrame(() => {
+                    checkScroll();
+                    ticking = false;
+                });
+            }
+        }
+
+        // Check on initial load
+        checkScroll();
+
+        // Check on scroll (throttled with requestAnimationFrame)
+        // Use AbortController signal to automatically remove listener when aborted
+        window.addEventListener('scroll', onScroll, {
+            passive: true,
+            signal: scrollController!.signal,
+        });
+    }
+
+    // Run on initial load
+    initHomepageHeader();
+
+    // Re-run on Astro page transitions (View Transitions)
+    document.addEventListener('astro:after-swap', initHomepageHeader);
+</script>
+
+<style>
+    .homepage-search {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .homepage-search.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* Site title text - hidden by default on homepage, shown when scrolling */
+    /* Use :global() to escape Astro's scoped CSS since .sr-only is in SiteTitle component */
+    [data-homepage-title] :global(a.site-title .sr-only.visible) {
+        position: initial !important;
+        width: auto !important;
+        height: auto !important;
+        margin: initial !important;
+        padding: initial !important;
+        clip: auto !important;
+        overflow: visible !important;
+        white-space: normal !important;
     }
 
     @layer starlight.core {
@@ -70,8 +131,6 @@ import { isHomepage } from "@utils/helpers";
             justify-content: space-between;
             align-items: center;
             height: 100%;
-            /* max-width: var(--sl-content-width);
-            margin: auto; */
         }
 
         .title-wrapper {
