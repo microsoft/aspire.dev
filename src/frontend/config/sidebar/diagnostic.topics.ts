@@ -56,6 +56,10 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
           link: '/diagnostics/aspirefilesystem001',
         },
         {
+          label: 'ASPIREINTERACTION001',
+          link: '/diagnostics/aspireinteraction001',
+        },
+        {
           label: 'ASPIREPIPELINES004',
           link: '/diagnostics/aspirepipelines004',
         },
