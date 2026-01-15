@@ -1,0 +1,88 @@
+---
+title: ASPIREINTERACTION001
+description: Diagnostic for experimental interaction service APIs
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge text="Version introduced: 13.0" variant="note" size="large" class:list={'mb-1'} />
+
+> Type is for evaluation purposes only and is subject to change or removal in future updates
+
+This diagnostic warns when using the experimental `IInteractionService` interface and related interaction APIs. These APIs provide the ability to prompt users for input, request confirmation, and display messages in the Aspire dashboard or CLI during publish and deploy operations.
+
+### Example generating diagnostic
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IInteractionService
+var interactionService = builder.Services.BuildServiceProvider().GetRequiredService<IInteractionService>();
+if (interactionService.IsAvailable)
+{
+    var result = await interactionService.PromptConfirmationAsync(
+        title: "Confirmation",
+        message: "Are you sure you want to proceed?");
+}
+```
+
+The diagnostic is triggered because `IInteractionService` is marked with the `[Experimental("ASPIREINTERACTION001")]` attribute.
+
+## Understanding the diagnostic
+
+The `IInteractionService` interface provides user interaction functionality for Aspire applications:
+
+- **Message display**: Show dialogs and notifications in the dashboard
+- **User confirmation**: Request confirmation before destructive operations
+- **Input collection**: Prompt users for single or multiple input values
+- **Context awareness**: Works in both dashboard UI and CLI contexts
+
+This API is experimental because the interaction patterns and API surface may evolve based on usage patterns and feedback from deployment scenarios.
+
+### Related types
+
+- **`IInteractionService`**: Interface for prompting users and displaying messages
+- **`InteractionInput`**: Defines input fields for user prompts
+- **`InputType`**: Enum for input field types (Text, SecretText, Choice, Boolean, Number)
+- **`InputLoadOptions`**: Configuration for dynamic input loading
+- **`MessageBoxInteractionOptions`**: Options for message box dialogs
+- **`NotificationInteractionOptions`**: Options for notification messages
+- **`PromptMessageBoxAsync()`**: Displays a modal dialog box
+- **`PromptNotificationAsync()`**: Displays a non-modal notification
+- **`PromptConfirmationAsync()`**: Prompts for user confirmation
+- **`PromptInputAsync()`**: Prompts for a single input value
+- **`PromptInputsAsync()`**: Prompts for multiple input values
+
+## Suppressing the diagnostic
+
+The diagnostic can be suppressed using one of several methods:
+
+### Suppressing in .editorconfig
+
+```ini title=".editorconfig"
+[*.cs]
+dotnet_diagnostic.ASPIREINTERACTION001.severity = none
+```
+
+### Suppressing in a project file
+
+```xml title="YourProject.csproj"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIREINTERACTION001</NoWarn>
+</PropertyGroup>
+```
+
+### Suppressing in source code
+
+```csharp
+#pragma warning disable ASPIREINTERACTION001
+var interactionService = builder.Services.BuildServiceProvider().GetRequiredService<IInteractionService>();
+var result = await interactionService.PromptConfirmationAsync(
+    title: "Confirmation",
+    message: "Are you sure?");
+#pragma warning restore ASPIREINTERACTION001
+```
+
+## See also
+
+- [Interaction service (Preview)](/extensibility/interaction-service/)
