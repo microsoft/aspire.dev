@@ -76,6 +76,8 @@ The React (Vite) & FastAPI starter template consists of two resources that are d
 
 ## Prerequisites
 
+Depending on where you want to deploy your Aspire app, ensure you have the following prerequisites installed and configured:
+
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
         <div class="sl-flex sl-gap-4 sl-items-center sl-mb-4">
@@ -128,17 +130,18 @@ In the root directory of your Aspire solution that you created in the previous q
     <LearnMore>
     Learn more about the `aspire add` command in the [reference docs](/reference/cli/commands/aspire-add/).
     </LearnMore>
+
 </Tabs>
 
 ## Update your AppHost
 
-In the AppHost, be sure to add the appropriate environment API.
+In the AppHost, chain a call to the appropriate environment API method to configure the deployment environment for your target.
 
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
 
         <Pivot id="csharp">
-            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
             var builder = DistributedApplication.CreateBuilder(args);
 
             // Add the following line to configure the Docker Compose environment
@@ -157,7 +160,7 @@ In the AppHost, be sure to add the appropriate environment API.
             ```
         </Pivot>
         <Pivot id="python">
-            ```csharp title="C# — apphost.cs file-based orchestrator" {4,8-9} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — apphost.cs file-based orchestrator" {8-9}
             #:sdk Aspire.AppHost.Sdk@13.1.0
             #:package Aspire.Hosting.JavaScript@13.1.0
             #:package Aspire.Hosting.Python@13.1.0
@@ -190,7 +193,7 @@ In the AppHost, be sure to add the appropriate environment API.
     <TabItem id="azure" label="Azure">
 
         <Pivot id="csharp">
-            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
             var builder = DistributedApplication.CreateBuilder(args);
 
             // Add the following line to configure the Azure App Container environment
@@ -209,7 +212,7 @@ In the AppHost, be sure to add the appropriate environment API.
             ```
         </Pivot>
         <Pivot id="python">
-            ```csharp title="C# — apphost.cs file-based orchestrator" {4,8-9} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — apphost.cs file-based orchestrator" {8-9}
             #:sdk Aspire.AppHost.Sdk@13.1.0
             #:package Aspire.Hosting.JavaScript@13.1.0
             #:package Aspire.Hosting.Python@13.1.0
@@ -249,37 +252,17 @@ After installing a new deployment package, you can run `aspire do diagnostics` i
 
 Now that you've added the deployment package and updated your AppHost, you can deploy your Aspire app.
 
-```bash title="Aspire CLI — Deploy your app"
-aspire deploy
-```
-
-When you call `aspire deploy`, the Aspire CLI builds the container images for your resources, pushes them to the target environment (if applicable), and deploys the resources according to the configuration in your AppHost.
-
-<Aside type="note" title="Common pitfall..." icon="seti:todo">
-If you call `aspire deploy` and you see output similar to the following, be sure that you've actually [updated your AppHost](#update-your-apphost) to include the appropriate environment API for your target. This output indicates that there are no deploy steps configured for your target environment.
-
-```bash title="Aspire CLI - Empty deployment output"
-14:17:26 (pipeline execution) → Starting pipeline execution...
-14:17:26 (deploy) → Starting deploy...
-14:17:26 (deploy) ✓ deploy completed successfully
-14:17:26 (pipeline execution) ✓ Completed successfully
-------------------------------------------------------------
-✓ 2/2 steps succeeded • Total time: 0.0s
-
-Steps Summary:
-   0.0 s  ✓ pipeline execution
-   0.0 s  ✓ deploy
-
-✓ PIPELINE SUCCEEDED
-------------------------------------------------------------
-```
-</Aside>
-
 <Tabs syncKey="deploy-target">
 
     <TabItem id="docker-compose" label="Docker Compose">
 
-    Deploying to Docker Compose builds the container images and starts the services locally using Docker Compose. Consider the following example output:
+    Deploying to Docker Compose builds the container images and starts the services locally using Docker Compose.
+    
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+    
+    Consider the following example output:
 
     <Pivot id="csharp">
     
@@ -437,7 +420,13 @@ Steps Summary:
     - `Azure__Location`: Azure region (for example, eastus).
     - `Azure__ResourceGroup`: Resource group name to create or reuse.
 
-    Deploying to Azure App Containers builds the container images and deploys the services to Azure App Containers. Consider the following example output:
+    Deploying to Azure App Containers builds the container images and deploys the services to Azure App Containers.
+    
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+    
+    Consider the following example output:
 
     <Pivot id="csharp">
 
@@ -647,6 +636,28 @@ Steps Summary:
 
     </TabItem>
 </Tabs>
+
+When you call `aspire deploy`, the Aspire CLI builds the container images for your resources, pushes them to the target environment (if applicable), and deploys the resources according to the configuration in your AppHost.
+
+<Aside type="note" title="Common pitfall..." icon="seti:todo">
+If you call `aspire deploy` and you see output similar to the following, be sure that you've actually [updated your AppHost](#update-your-apphost) to include the appropriate environment API for your target. This output indicates that there are no deploy steps configured for your target environment.
+
+```bash title="Aspire CLI - Empty deployment output"
+14:17:26 (pipeline execution) → Starting pipeline execution...
+14:17:26 (deploy) → Starting deploy...
+14:17:26 (deploy) ✓ deploy completed successfully
+14:17:26 (pipeline execution) ✓ Completed successfully
+------------------------------------------------------------
+✓ 2/2 steps succeeded • Total time: 0.0s
+
+Steps Summary:
+0.0 s  ✓ pipeline execution
+0.0 s  ✓ deploy
+
+✓ PIPELINE SUCCEEDED
+------------------------------------------------------------
+```
+</Aside>
 
 <LearnMore>
 Additional information about this command can be found in the [`aspire deploy`](/reference/cli/commands/aspire-deploy/) reference docs.
