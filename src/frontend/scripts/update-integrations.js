@@ -15,7 +15,6 @@ const EXCLUDED_PACKAGES = [
   'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
-const OUTPUT_NAME_PATH = './src/data/aspire-integration-names.json';
 
 // According to documentation, nuget.org limits:
 // - 'take' parameter to 1,000
@@ -264,14 +263,6 @@ async function getPreferredNonDeprecatedVersion(regBase, id) {
     const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
     const output = filterAndTransform(nonDeprecated);
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
-    fs.writeFileSync(
-      OUTPUT_NAME_PATH,
-      JSON.stringify(
-        output.map((p) => p.title),
-        null,
-        2
-      )
-    );
     console.log(`✅ Saved ${output.length} packages to ${OUTPUT_PATH}`);
   } catch (err) {
     console.error('❌ Error:', err);

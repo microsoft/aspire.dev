@@ -71,7 +71,10 @@ export default defineConfig({
         }),
         catppuccin(),
         starlightSidebarTopics(sidebarTopics, {
-          exclude: ['**/includes/**/*'],
+          exclude: [
+            '**/includes/**/*',
+            '/support'
+          ],
         }),
         ...(process.env.CHECK_LINKS
           ? [

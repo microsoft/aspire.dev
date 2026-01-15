@@ -13,12 +13,12 @@ Update the integration documentation links by synchronizing package names from t
     ```
 
 2. **Read the updated package data**
-    - Load `src/frontend/src/data/aspire-integration-names.json`
-    - Extract all package names from the JSON array
+    - Load `src/frontend/src/data/aspire-integrations.json`
+    - Extract all package names from the `title` field of each entry in the JSON array
 
 3. **Update integration documentation mappings**
     - Load `src/frontend/src/data/integration-docs.json`
-    - For each package name in `src/frontend/src/data/aspire-integration-names.json`:
+    - For each package name (from `title` field) in `src/frontend/src/data/aspire-integrations.json`:
       - Check if a matching entry exists in `integration-docs.json` (where `match` equals the package name)
       - If an entry exists, verify the `href` is correct
       - If no entry exists, determine the appropriate documentation URL based on:
