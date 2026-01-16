@@ -56,7 +56,7 @@ app.MapGet("/install.ps1", (HttpContext context, OneDSTelemetryService telemetry
 
 app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry) =>
 {
-    telemetry.TrackDownload(context,"install.sh");
+    telemetry.TrackDownload(context, "install.sh");
 
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
