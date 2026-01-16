@@ -64,7 +64,7 @@ internal sealed class OneDSTelemetryService : IDisposable
         {
             _logger.LogSkippingTracking(origin);
 
-            //return;
+            return;
         }
 
         try
