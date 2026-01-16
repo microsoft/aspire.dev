@@ -4,7 +4,7 @@ namespace StaticHost;
 /// Service for tracking events to 1DS/Application Insights.
 /// Uses the same instrumentation key as the client-side 1ds.js.
 /// </summary>
-internal sealed class OneDSTelemetryService : IDisposable
+internal sealed class OneDSTelemetryService : IAsyncDisposable
 {
     private readonly TelemetryClient _telemetryClient;
     private readonly TelemetryConfiguration _configuration;
@@ -13,6 +13,8 @@ internal sealed class OneDSTelemetryService : IDisposable
 
     // This key is intended to be public, same as in 1ds.js
     private const string InstrumentationKey = "1c6ad99c3e274af7881b9c3c78eed459-573e6b44-ab25-4e60-97ad-7b7f38f0243a-6923";
+
+    private const string AspireDotDev = "https://aspire.dev";
 
     public OneDSTelemetryService(
         ILogger<OneDSTelemetryService> logger,
@@ -59,8 +61,8 @@ internal sealed class OneDSTelemetryService : IDisposable
         var origin = $"{context.Request.Scheme}://{context.Request.Host}";
 
         // Skip tracking for non-production origins (matching 1ds.js behavior)
-        if (_environment is not "PROD" &&
-            !origin.Equals("https://aspire.dev", StringComparison.OrdinalIgnoreCase))
+        if (_environment is not "PROD" ||
+            !origin.Equals(AspireDotDev, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogSkippingTracking(origin);
 
@@ -106,9 +108,10 @@ internal sealed class OneDSTelemetryService : IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _telemetryClient.Flush();
+        await _telemetryClient.FlushAsync(CancellationToken.None);
+
         _configuration.Dispose();
     }
 }
