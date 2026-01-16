@@ -1,7 +1,3 @@
-using OpenTelemetry;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
-
 namespace Microsoft.Extensions.Hosting;
 
 public static class Extensions
@@ -9,6 +5,9 @@ public static class Extensions
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
+
+        // Register 1DS analytics for downloads...
+        builder.Services.AddSingleton<OneDSTelemetryService>();
 
         return builder;
     }
