@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Writes current git commit and repo URL into a .env.local file so Astro (Vite) exposes them.
+ * Writes the git commit and repo URL into a .env.local file so Astro (Vite) exposes them.
  * PUBLIC_ prefix ensures they are available in client code.
  */
 import { execSync } from 'child_process';
@@ -14,6 +14,11 @@ const __dirname = dirname(__filename);
 
 function getCommit() {
   try {
+    /**
+     * We need to get the commit hash from the public repo's main branch.
+     * In CI/CD, there may be other intermediary commits from the deploy branch.
+     * This ensures we always get the correct commit hash.
+     */
     return execSync('git merge-base main HEAD').toString().trim();
   } catch {
     return '';
