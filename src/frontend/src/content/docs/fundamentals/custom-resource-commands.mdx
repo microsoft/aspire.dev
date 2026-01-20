@@ -207,3 +207,105 @@ Select the **Clear cache** command to clear the cache of the Redis resource. The
   src={customClearCacheCommandSucceeded}
   alt="Aspire dashboard: Redis cache resource with custom command executed."
 />
+
+## Programmatically execute commands
+
+In addition to executing commands through the [Aspire dashboard](/dashboard/overview/), you can also execute commands programmatically using the `ResourceCommandService`. This service is useful when you need to:
+
+- Execute commands from within your application code
+- Automate command execution as part of a workflow
+- Build custom tooling that needs to control resources
+
+### Access the ResourceCommandService
+
+The `ResourceCommandService` is registered in the dependency injection container and can be accessed through the `IServiceProvider`. To use it, inject the service where needed:
+
+```csharp
+using Aspire.Hosting.ApplicationModel;
+
+// Get the service from the service provider
+var commandService = serviceProvider.GetRequiredService<ResourceCommandService>();
+```
+
+### Execute a command by resource ID
+
+You can execute a command using the resource ID or resource name. The resource ID is the unique identifier for a resource instance, while the resource name is the display name (which must be unique to use this approach):
+
+```csharp
+using Aspire.Hosting.ApplicationModel;
+
+// Execute a command using resource ID or name
+var result = await commandService.ExecuteCommandAsync(
+    resourceId: "cache", 
+    commandName: "clear-cache",
+    cancellationToken: cancellationToken);
+
+if (result.Success)
+{
+    Console.WriteLine("Command executed successfully");
+}
+else if (result.Canceled)
+{
+    Console.WriteLine("Command was canceled");
+}
+else
+{
+    Console.WriteLine($"Command failed: {result.ErrorMessage}");
+}
+```
+
+The `resourceId` parameter can be either:
+- The unique ID of the resource (e.g., `cache-abcdwxyz` for a resource with replicas)
+- The display name (e.g., `cache`) if there are no duplicate names
+
+### Execute a command on a resource
+
+Alternatively, you can execute a command directly on an `IResource` instance. This is particularly useful when working with resources that have multiple instances (replicas), as the command will be executed on all instances:
+
+```csharp
+using Aspire.Hosting.ApplicationModel;
+
+// Get the resource from the builder
+IResource cacheResource = builder.Resources.Single(r => r.Name == "cache");
+
+// Execute the command on the resource
+var result = await commandService.ExecuteCommandAsync(
+    resource: cacheResource,
+    commandName: "clear-cache",
+    cancellationToken: cancellationToken);
+
+if (result.Success)
+{
+    Console.WriteLine("Command executed successfully on all instances");
+}
+else
+{
+    Console.WriteLine($"Command failed: {result.ErrorMessage}");
+}
+```
+
+When executing a command on a resource with multiple replicas:
+- The command runs in parallel on all instances
+- If all commands succeed, the result indicates success
+- If any commands fail, the result includes details about the failures
+- If all non-successful commands were canceled, the result indicates cancellation
+
+### Handle command execution results
+
+The `ExecuteCommandResult` provides information about the command execution:
+
+```csharp
+public class ExecuteCommandResult
+{
+    // Indicates whether the command executed successfully
+    public bool Success { get; init; }
+    
+    // Error message if the command failed
+    public string? ErrorMessage { get; init; }
+    
+    // Indicates whether the command was canceled
+    public bool Canceled { get; init; }
+}
+```
+
+You can use these properties to handle different execution outcomes in your application logic.
