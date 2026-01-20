@@ -1,0 +1,286 @@
+---
+title: MongoDB Hosting integration reference
+description: Learn how to use the Aspire MongoDB Hosting integration to orchestrate and configure MongoDB databases in your Aspire projects.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import mongodbIcon from '@assets/icons/mongodb-icon.png';
+
+<Image
+  src={mongodbIcon}
+  alt="MongoDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire MongoDB integrations, follow the [Get started with MongoDB integrations](/integrations/databases/mongodb/mongodb-get-started/) guide.
+
+This article includes full details about the Aspire MongoDB Hosting integration, which models MongoDB server and database resources as the `MongoDBServerResource` and `MongoDBDatabaseResource` types. To access these types and APIs, you need to install the MongoDB Hosting integration in your AppHost project.
+
+## Installation
+
+The Aspire MongoDB hosting integration models the MongoDB database server as the following types:
+
+- `MongoDBServerResource`
+- `MongoDBDatabaseResource`
+
+To access these types and APIs for expressing them as resources in your AppHost project, install the [📦 Aspire.Hosting.MongoDB](https://www.nuget.org/packages/Aspire.Hosting.MongoDB) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.MongoDB" />
+
+## Add MongoDB server and database resources
+
+In the AppHost project, call `AddMongoDB` to add and return a MongoDB server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add a MongoDB database to the server resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mongodb)
+       .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+The MongoDB container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+</Aside>
+
+When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/mongo` image, it creates a new MongoDB server on your local machine. A reference to your MongoDB resource builder (the `mongo` variable) is used to add a database. The database is named `mongodb` and then added to the `ExampleProject`.
+
+The MongoDB server resource includes default credentials:
+
+- `MONGO_INITDB_ROOT_USERNAME`: A value of `admin`
+- `MONGO_INITDB_ROOT_PASSWORD`: Random password generated using the default password parameter
+
+The password is stored in the AppHost's secret store in the `Parameters` section:
+
+```json
+{
+  "Parameters:mongo-password": "<THE_GENERATED_PASSWORD>"
+}
+```
+
+The `WithReference` method configures a connection in the `ExampleProject` named `"mongodb"`. For more information, see [Container resource lifecycle](/architecture/resource-model/#built-in-resources-and-lifecycle).
+
+<Aside type="tip">
+If you'd rather connect to an existing MongoDB server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+</Aside>
+
+## Add MongoDB server resource with parameters
+
+When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("username");
+var password = builder.AddParameter("password", secret: true);
+
+var mongo = builder.AddMongoDB("mongo", username, password);
+var mongodb = mongo.AddDatabase("mongodb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(mongodb)
+                       .WaitFor(mongodb);
+```
+
+The username and password parameters are usually specified as user secrets:
+
+```json title="JSON — secrets.json"
+{
+  "Parameters": {
+    "username": "admin",
+    "password": "your-secure-password"
+  }
+}
+```
+
+For more information, see [External parameters](/get-started/resources/).
+
+## Add MongoDB server resource with data volume
+
+To add a data volume to the MongoDB server resource, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithDataVolume()
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mongodb)
+       .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+
+The data volume is used to persist the MongoDB server data outside the lifecycle of its container. The data volume is mounted at the `/data/db` path in the MongoDB server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-mongodb-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+<Aside type="caution">
+The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
+</Aside>
+
+<Aside type="danger">
+Some database integrations, including the MongoDB integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
+
+You can resolve the problem by deploying to a Kubernetes cluster, such as Azure Kubernetes Services (AKS). For more information, see [Deploy your first Aspire app](/get-started/deploy-first-app/).
+</Aside>
+
+## Add MongoDB server resource with data bind mount
+
+To add a data bind mount to the MongoDB server resource, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithDataBindMount(source: @"C:\MongoDB\Data")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mongodb)
+       .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+
+<Aside>
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+
+Data bind mounts rely on the host machine's filesystem to persist the MongoDB server data across container restarts. The data bind mount is mounted at the `C:\MongoDB\Data` on Windows (or `/MongoDB/Data` on Unix) path on the host machine in the MongoDB server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+</Aside>
+
+## Add MongoDB server resource with initialization data bind mount
+
+To add an initialization folder data bind mount to the MongoDB server resource, call the `WithInitBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithInitBindMount(source: @"C:\MongoDB\Init")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(mongodb)
+       .WaitFor(mongodb);
+
+// After adding all resources, run the app...
+```
+
+The initialization data bind mount is used to initialize the MongoDB server with data. MongoDB executes the scripts found in this folder, which is useful for loading data into the database.
+
+## Create a MongoDB Express resource
+
+[MongoDB Express](https://github.com/mongo-express/mongo-express) is a web-based MongoDB admin user interface. To add a MongoDB Express resource that corresponds to the `docker.io/library/mongo-express` container image, call the `WithMongoExpress` method on the MongoDB server resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mongo = builder.AddMongoDB("mongo")
+                   .WithMongoExpress()
+                   .WithLifetime(ContainerLifetime.Persistent);
+
+var mongodb = mongo.AddDatabase("mongodb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(mongodb)
+                       .WaitFor(mongodb);
+```
+
+<Aside type="tip">
+To configure the host port for the MongoDB Express resource, chain a call to the `WithHostPort` API and provide the desired port number.
+</Aside>
+
+When you debug the Aspire solution, you'll see a MongoDB Express container listed in the resources. Select the resource's endpoint to open the GUI.
+
+The MongoDB Express resource is configured to connect to the MongoDB server resource. The default credentials are:
+
+- `ME_CONFIG_MONGODB_SERVER`: The name assigned to the parent `MongoDBServerResource`
+- `ME_CONFIG_BASICAUTH`: A value of `false`
+- `ME_CONFIG_MONGODB_PORT`: Assigned from the primary endpoint's target port
+- `ME_CONFIG_MONGODB_ADMINUSERNAME`: The same username as configured in the parent
+- `ME_CONFIG_MONGODB_ADMINPASSWORD`: The same password as configured in the parent
+
+Additionally, the `WithMongoExpress` API exposes an optional `configureContainer` parameter that you use to configure the MongoDB Express container resource.
+
+## Using with non-.NET applications
+
+When you use the `WithReference` method to pass a MongoDB database resource to a non-.NET application (such as Python or JavaScript), Aspire automatically injects environment variables that describe the connection information.
+
+For example, if you reference a MongoDB database resource named `mongodb`:
+
+```csharp title="C# — AppHost.cs"
+var mongo = builder.AddMongoDB("mongo");
+var mongodb = mongo.AddDatabase("mongodb");
+
+var pythonApp = builder.AddUvicornApp("api", "./api", "main.app")
+    .WithReference(mongodb);
+```
+
+The following environment variables are available in the Python application:
+
+- `ConnectionStrings__mongodb` - The connection string for the MongoDB database
+- `MONGODB_HOST` - The hostname of the MongoDB server
+- `MONGODB_PORT` - The port number
+- `MONGODB_USERNAME` - The username for authentication
+- `MONGODB_PASSWORD` - The password for authentication
+- `MONGODB_AUTHENTICATIONDATABASE` - The authentication database
+- `MONGODB_AUTHENTICATIONMECHANISM` - The authentication mechanism
+- `MONGODB_URI` - The full connection URI
+- `MONGODB_DATABASENAME` - The database name
+
+You can access these environment variables in your application code:
+
+```python title="Python example"
+from pymongo import MongoClient
+import os
+
+# Get connection properties
+connection_uri = os.getenv("ConnectionStrings__mongodb")
+database_name = os.getenv("MONGODB_DATABASENAME")
+
+# Create MongoDB client
+client = MongoClient(connection_uri)
+
+# Get database
+db = client[database_name]
+```
+
+```javascript title="JavaScript example"
+const { MongoClient } = require('mongodb');
+
+// Get connection properties
+const connectionUri = process.env.ConnectionStrings__mongodb;
+const databaseName = process.env.MONGODB_DATABASENAME;
+
+// Create MongoDB client
+const client = new MongoClient(connectionUri);
+
+// Connect and get database
+await client.connect();
+const db = client.db(databaseName);
+```
+
+## Hosting integration health checks
+
+The MongoDB hosting integration automatically adds a health check for the MongoDB server resource. The health check verifies that the MongoDB server resource is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.MongoDb](https://www.nuget.org/packages/AspNetCore.HealthChecks.MongoDb) NuGet package.
