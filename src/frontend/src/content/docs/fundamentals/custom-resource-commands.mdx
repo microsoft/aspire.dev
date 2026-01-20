@@ -266,6 +266,7 @@ Alternatively, you can execute a command directly on an `IResource` instance. Th
 using Aspire.Hosting.ApplicationModel;
 
 // Get the resource from the builder
+// Note: Resource names should be unique in your application
 var cacheResource = builder.Resources.SingleOrDefault(r => r.Name == "cache");
 if (cacheResource is null)
 {
@@ -296,20 +297,19 @@ When executing a command on a resource with multiple replicas:
 
 ### Handle command execution results
 
-The `ExecuteCommandResult` provides information about the command execution:
+The `ExecuteCommandResult` class provides information about the command execution:
+
+- **`Success`**: A boolean indicating whether the command was successful.
+- **`ErrorMessage`**: An optional string property with an error message if the command was unsuccessful.
+- **`Canceled`**: A boolean indicating whether the command was canceled by the user.
+
+You can use these properties to handle different execution outcomes in your application logic. The `CommandResults` helper class provides factory methods to create result instances:
 
 ```csharp
-public class ExecuteCommandResult
-{
-    // Indicates whether the command executed successfully
-    public bool Success { get; init; }
-    
-    // Error message if the command failed
-    public string? ErrorMessage { get; init; }
-    
-    // Indicates whether the command was canceled
-    public bool Canceled { get; init; }
-}
+// In your command implementation
+return CommandResults.Success();
+// or
+return CommandResults.Failure("Error occurred during execution");
+// or
+return CommandResults.Canceled();
 ```
-
-You can use these properties to handle different execution outcomes in your application logic.
