@@ -43,7 +43,7 @@ internal sealed class OneDSTelemetryService(
         {
             _logger.LogSkippingTracking(origin);
 
-            // return;
+            return;
         }
 
         try
