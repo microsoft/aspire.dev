@@ -6,9 +6,9 @@ namespace StaticHost.Telemetry;
 internal static class TelemetryConstants
 {
     /// <summary>
-    /// The activity source name for Aspire Dev CLI download events.
+    /// The activity source name for <c>aspire.dev</c> events.
     /// </summary>
-    public const string AspireDotDevCliDownload = "Aspire.Dev.Cli.Download";
+    public const string AspireDotDevSource = "Aspire.Dev";
 
     /// <summary>
     /// The Azure Monitor connection string used for 1DS/Application Insights telemetry.
@@ -32,37 +32,37 @@ internal static class TelemetryConstants
         /// <summary>
         /// Tag indicating the behavior associated with the event.
         /// </summary>
-        public const string Behavior = "aspire.dev.behavior";
+        public const string Behavior = "behavior";
 
         /// <summary>
         /// Tag indicating the name of the script being downloaded.
         /// </summary>
-        public const string ScriptName = "aspire.dev.script_name";
+        public const string ScriptName = "script_name";
 
         /// <summary>
         /// Tag indicating the deployment environment.
         /// </summary>
-        public const string Environment = "aspire.dev.env";
+        public const string Environment = "env";
 
         /// <summary>
         /// Tag indicating the user agent of the request.
         /// </summary>
-        public const string UserAgent = "aspire.dev.request_user_agent";
+        public const string UserAgent = "request_user_agent";
 
         /// <summary>
         /// Tag indicating the referer of the request.
         /// </summary>
-        public const string Referer = "aspire.dev.request_referer";
+        public const string Referer = "request_referer";
 
         /// <summary>
         /// Tag indicating the origin of the request.
         /// </summary>
-        public const string Origin = "aspire.dev.request_origin";
+        public const string Origin = "request_origin";
 
         /// <summary>
         /// Tag indicating the client IP address of the request.
         /// </summary>
-        public const string ClientIp = "aspire.dev.request_client_ip";
+        public const string ClientIp = "request_client_ip";
     }
 
     /// <summary>

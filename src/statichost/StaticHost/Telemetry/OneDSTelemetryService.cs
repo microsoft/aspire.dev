@@ -10,7 +10,7 @@ internal sealed class OneDSTelemetryService(
 {
     private const string AspireDotDev = "https://aspire.dev";
 
-    private static readonly ActivitySource s_downloadActivitySource = new(TelemetryConstants.AspireDotDevCliDownload);
+    private static readonly ActivitySource s_downloadActivitySource = new(TelemetryConstants.AspireDotDevSource);
 
     private readonly ILogger<OneDSTelemetryService> _logger = logger;
 

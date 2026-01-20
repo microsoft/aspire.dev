@@ -6,16 +6,6 @@ public static class Extensions
     {
         builder.ConfigureOpenTelemetry();
 
-        // Register 1DS analytics for downloads...
-        builder.Services.AddOpenTelemetry().UseAzureMonitor(static options =>
-        {
-            options.ConnectionString = TelemetryConstants.AzureMonitorConnectionString;
-        });
-        builder.Services.ConfigureOpenTelemetryTracerProvider(static (_, builder) =>
-        {
-            builder.AddSource(TelemetryConstants.AspireDotDevCliDownload);
-        });
-
         builder.Services.AddSingleton<OneDSTelemetryService>();
 
         return builder;
@@ -30,6 +20,12 @@ public static class Extensions
         });
 
         builder.Services.AddOpenTelemetry()
+            .UseAzureMonitor(static options =>
+            {
+                options.ConnectionString = TelemetryConstants.AzureMonitorConnectionString;
+            });
+
+        builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()
@@ -38,7 +34,10 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName)
+                tracing.AddSource(
+                        builder.Environment.ApplicationName,
+                        TelemetryConstants.AspireDotDevSource
+                    )
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation();
             });
