@@ -39,18 +39,6 @@ To begin, install the Aspire MySQL Hosting integration in your Aspire AppHost pr
 
 Next, in the AppHost project, create instances of MySQL server and database resources, then pass the database to the consuming client projects:
 
-<PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript" },
-    ]}
-/>
-
-<Pivot id="csharp">
-
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -64,44 +52,6 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
                             .WithReference(mysqldb);
 ```
 
-</Pivot>
-
-<Pivot id="python">
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var mysql = builder.AddMySql("mysql")
-                   .WithLifetime(ContainerLifetime.Persistent);
-
-var mysqldb = mysql.AddDatabase("mysqldb");
-
-var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
-                            .WithExternalHttpEndpoints()
-                            .WaitFor(mysqldb)
-                            .WithReference(mysqldb);
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var mysql = builder.AddMySql("mysql")
-                   .WithLifetime(ContainerLifetime.Persistent);
-
-var mysqldb = mysql.AddDatabase("mysqldb");
-
-var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
-                 .WithExternalHttpEndpoints()
-                 .WaitFor(mysqldb)
-                 .WithReference(mysqldb);
-```
-
-</Pivot>
-
 <Aside type="tip">
     This is the simplest implementation of MySQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [MySQL Hosting integration](/integrations/databases/efcore/mysql/mysql-host/).
 </Aside>
@@ -111,8 +61,6 @@ var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
 Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
 
 ### Set up client projects
-
-<Pivot id="csharp">
 
 In each of these consuming client projects, install the Aspire MySQL Pomelo EF Core client integration:
 
@@ -128,48 +76,11 @@ builder.AddMySqlDbContext<MyDbContext>("mysqldb");
     The `connectionName` parameter must match the name used when adding the MySQL database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
 </Aside>
 
-</Pivot>
-
-<Pivot id="python">
-
-To interact with MySQL databases in your Python consuming projects, you need to include a MySQL client library. The popular option is `mysql-connector-python`, which is MySQL's official Python driver. You can install this library using pip:
-
-```bash
-pip install mysql-connector-python
-```
-
-Ensure that you import the MySQL connector in code files that interact with the database. You should also import the `os` module to access environment variables:
-
-```python title="Python - Import mysql.connector"
-import mysql.connector
-import os
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-To interact with MySQL databases in your JavaScript consuming projects, you need to include a MySQL client library. The popular option is `mysql2`, which is a fast MySQL driver for Node.js. You can install this library using npm:
-
-```bash
-npm install mysql2
-```
-
-Ensure that you import the MySQL client in code files that interact with the database:
-
-```javascript title="JavaScript - Import mysql2"
-const mysql = require('mysql2/promise');
-```
-
-</Pivot>
-
 ### Use injected MySQL properties
 
 In the AppHost, when you used the `WithReference` method to pass a MySQL database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
 
 Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `mysqldb` becomes `MYSQLDB_URI`.
-
-<Pivot id="csharp">
 
 Use the `GetValue()` method to obtain these environment variables in consuming projects:
 
@@ -179,45 +90,11 @@ string host = builder.Configuration.GetValue<string>("MYSQLDB_HOST");
 string databaseName = builder.Configuration.GetValue<string>("MYSQLDB_DATABASENAME");
 ```
 
-</Pivot>
-
-<Pivot id="python">
-
-Use the `os.getenv()` method to obtain these environment variables in consuming projects:
-
-```python title="Python - Obtain configuration properties"
-connection_string = os.getenv("ConnectionStrings__mysqldb")
-host = os.getenv("MYSQLDB_HOST")
-port = os.getenv("MYSQLDB_PORT")
-username = os.getenv("MYSQLDB_USERNAME")
-password = os.getenv("MYSQLDB_PASSWORD")
-database_name = os.getenv("MYSQLDB_DATABASENAME")
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the `process.env` method to obtain these environment variables in consuming projects:
-
-```javascript title="JavaScript - Obtain configuration properties"
-const connectionString = process.env.ConnectionStrings__mysqldb;
-const host = process.env.MYSQLDB_HOST;
-const port = process.env.MYSQLDB_PORT;
-const username = process.env.MYSQLDB_USERNAME;
-const password = process.env.MYSQLDB_PASSWORD;
-const databaseName = process.env.MYSQLDB_DATABASENAME;
-```
-
-</Pivot>
-
 <Aside type="tip">
     The full set of properties that Aspire injects depends on the MySQL resource configuration. For more information, see [Properties of the MySQL resources](/integrations/databases/efcore/mysql/mysql-client/#properties-of-the-mysql-resources).
 </Aside>
 
 ### Use MySQL resources in client code
-
-<Pivot id="csharp">
 
 Now that you've added the `DbContext` to the builder in the consuming project, you can use the MySQL database. Get the `DbContext` instance using dependency injection. For example, to retrieve your data source object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
 
@@ -229,55 +106,6 @@ public class ExampleService(MyDbContext context)
 ```
 
 Having obtained the data context, you can work with the MySQL database as you would in any other C# application using EF Core.
-
-</Pivot>
-
-<Pivot id="python">
-
-Use the information you have obtained about the MySQL resource to connect to the database. Here is an example of how to connect using `mysql-connector-python`:
-
-```python title="Python - Connect to MySQL"
-# Create MySQL connection
-connection = mysql.connector.connect(
-    host=host,
-    port=int(port),
-    user=username,
-    password=password,
-    database=database_name
-)
-
-# Create cursor
-cursor = connection.cursor()
-
-# Verify connection
-print(f"Connected to MySQL database: {database_name}")
-```
-
-Having obtained the connection, you can work with the MySQL database as you would in any other Python application.
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the information you have obtained about the MySQL resource to connect to the database. Here is an example of how to connect using `mysql2`:
-
-```javascript title="JavaScript - Connect to MySQL"
-// Create MySQL connection
-const connection = await mysql.createConnection({
-  host: host,
-  port: port,
-  user: username,
-  password: password,
-  database: databaseName
-});
-
-// Verify connection
-console.log(`Connected to MySQL database: ${databaseName}`);
-```
-
-Having obtained the connection, you can work with the MySQL database as you would in any other JavaScript application.
-
-</Pivot>
 
 ## Next steps
 
