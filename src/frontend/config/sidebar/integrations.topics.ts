@@ -510,10 +510,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/mysql/mysql-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
-                  slug: 'integrations/databases/efcore/mysql/mysql-host',
-                },
-                {
                   label: 'Client integration (Your app)',
                   slug: 'integrations/databases/efcore/mysql/mysql-client',
                 },
