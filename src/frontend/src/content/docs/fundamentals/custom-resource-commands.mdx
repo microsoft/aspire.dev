@@ -266,7 +266,11 @@ Alternatively, you can execute a command directly on an `IResource` instance. Th
 using Aspire.Hosting.ApplicationModel;
 
 // Get the resource from the builder
-IResource cacheResource = builder.Resources.Single(r => r.Name == "cache");
+var cacheResource = builder.Resources.SingleOrDefault(r => r.Name == "cache");
+if (cacheResource is null)
+{
+    throw new InvalidOperationException("Cache resource not found.");
+}
 
 // Execute the command on the resource
 var result = await commandService.ExecuteCommandAsync(
