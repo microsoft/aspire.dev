@@ -66,7 +66,16 @@ export default defineConfig({
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },
       plugins: [
-        starlightPageActions(),
+        starlightPageActions({
+          actions: {
+            custom: {
+              copilot: {
+                label: 'Open in GitHub Copilot',
+                href: 'https://github.com/copilot/?prompt='
+              }
+            }
+          }
+        }),
         lunaria({
           route: '/i18n',
           sync: false,
