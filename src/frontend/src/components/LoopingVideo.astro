@@ -29,6 +29,7 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
     loop
     muted
     playsinline
+    tabindex="0"
     {controls}
     title={title}
     data-sources={sourcesJson}
@@ -160,6 +161,29 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
         video.addEventListener('click', togglePlayback);
       }
 
+      // Keyboard accessibility: toggle playback on Enter/Space when video is focused
+      video.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          togglePlayback();
+        }
+      });
+
+      // Show native controls when video receives keyboard focus (for a11y)
+      const hasExplicitControls = video.hasAttribute('controls');
+      video.addEventListener('focus', (e) => {
+        // Only show controls if focus came from keyboard (not mouse click)
+        if (e.target === video && !video.matches(':hover')) {
+          video.setAttribute('controls', '');
+        }
+      });
+      video.addEventListener('blur', () => {
+        // Restore original controls state when focus leaves
+        if (!hasExplicitControls) {
+          video.removeAttribute('controls');
+        }
+      });
+
       video.addEventListener('play', syncButton);
       video.addEventListener('pause', syncButton);
       syncButton();
@@ -252,6 +276,18 @@ const uid = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slic
       opacity: 1;
       pointer-events: auto;
     }
+  }
+
+  /* Show controls when video or toggle button is keyboard focused */
+  .looping-video-wrapper:focus-within .looping-video-toggle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Visual focus indicator on the video itself */
+  video.looping-video:focus-visible {
+    outline: 2px solid var(--aspire-color-primary, #6d4aff);
+    outline-offset: 2px;
   }
 
   /* Mobile / touch: smaller, only when force-visible (after interaction) */
