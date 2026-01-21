@@ -3,7 +3,15 @@ title: Local Azure provisioning
 description: Learn how to automatically provision Azure resources during local development with Aspire.
 ---
 
-import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import {
+  Aside,
+  FileTree,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 Local Azure provisioning enables Aspire to automatically create and configure Azure resources during local development. When you add Azure resources to your AppHost and run your application, Aspire can provision those resources in your Azure subscription without manual intervention.
 
@@ -59,29 +67,41 @@ Alternatively, configure in `appsettings.Development.json`:
 ```
 
 <Aside type="caution">
-Don't commit subscription IDs to source control in appsettings.json. Use user secrets or environment variables instead.
+  Don't commit subscription IDs to source control in appsettings.json. Use user
+  secrets or environment variables instead.
 </Aside>
 
 ### Environment variables
 
 You can also use environment variables:
 
-TODO
-```bash
-$env:Azure__SubscriptionId = "your-subscription-id"
-$env:Azure__Location = "eastus"
-```
+<OsAwareTabs>
+  <Fragment slot="unix">
+    
+    ```bash export Azure__SubscriptionId="your-subscription-id" export
+    Azure__Location="eastus"
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+    
+    ```powershell $env:Azure__SubscriptionId = "your-subscription-id"
+    $env:Azure__Location = "eastus"
+    ```
+
+  </Fragment>
+</OsAwareTabs>
 
 ## Configuration options
 
 The following configuration options are available:
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `Azure:SubscriptionId` | Your Azure subscription ID | (required) |
-| `Azure:Location` | Azure region for resources | (required) |
-| `Azure:CredentialSource` | Authentication method | `AzureCli` |
-| `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true` |
+| Setting                            | Description                    | Default    |
+| ---------------------------------- | ------------------------------ | ---------- |
+| `Azure:SubscriptionId`             | Your Azure subscription ID     | (required) |
+| `Azure:Location`                   | Azure region for resources     | (required) |
+| `Azure:CredentialSource`           | Authentication method          | `AzureCli` |
+| `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true`     |
 
 ## Resource group management
 
@@ -122,38 +142,38 @@ To prevent Aspire from creating resource groups:
 
 1. **Add Azure resources to your AppHost**
 
-    ```csharp
-    var builder = DistributedApplication.CreateBuilder(args);
-    
-    var storage = builder.AddAzureStorage("storage");
-    var blobs = storage.AddBlobs("blobs");
-    
-    builder.AddProject<Projects.WebApp>("webapp")
-           .WithReference(blobs);
-    ```
+   ```csharp
+   var builder = DistributedApplication.CreateBuilder(args);
+
+   var storage = builder.AddAzureStorage("storage");
+   var blobs = storage.AddBlobs("blobs");
+
+   builder.AddProject<Projects.WebApp>("webapp")
+          .WithReference(blobs);
+   ```
 
 2. **Configure Azure subscription** (if not already done)
 
-    ```bash
-    dotnet user-secrets set "Azure:SubscriptionId" "your-sub-id" --project ./AppHost
-    dotnet user-secrets set "Azure:Location" "eastus" --project ./AppHost
-    ```
+   ```bash
+   dotnet user-secrets set "Azure:SubscriptionId" "your-sub-id" --project ./AppHost
+   dotnet user-secrets set "Azure:Location" "eastus" --project ./AppHost
+   ```
 
 3. **Run your application**
 
-    ```bash
-    aspire run
-    ```
+   ```bash
+   aspire run
+   ```
 
 4. **Automatic provisioning**
 
-    Aspire detects the Azure resources and provisions them automatically. You'll see output like:
+   Aspire detects the Azure resources and provisions them automatically. You'll see output like:
 
-    ```
-    [Azure Provisioning] Creating resource group: rg-myapp
-    [Azure Provisioning] Deploying storage account: stmyapp
-    [Azure Provisioning] Deployment complete
-    ```
+   ```txt data-disable-copy
+   [Azure Provisioning] Creating resource group: rg-myapp
+   [Azure Provisioning] Deploying storage account: stmyapp
+   [Azure Provisioning] Deployment complete
+   ```
 
 </Steps>
 
@@ -227,12 +247,12 @@ Example generated structure:
 
 <FileTree>
 
-- AppHost/
-  ─ infra
-    ─ main.bicep
-    ─ storage.bicep
-    ─ servicebus.bicep
-  ─ Program.cs
+- AppHost
+  - infra Bicep files
+    - main.bicep
+    - storage.bicep
+    - servicebus.bicep
+  - Program.cs
 
 </FileTree>
 
@@ -246,7 +266,9 @@ Local provisioning has some limitations:
 - **Cost considerations**: Provisioned resources incur Azure charges
 
 <Aside type="tip">
-Use emulators (like Azurite for Storage) during development to avoid provisioning costs. Switch to local provisioning when you need to test with real Azure services.
+  Use emulators (like Azurite for Storage) during development to avoid
+  provisioning costs. Switch to local provisioning when you need to test with
+  real Azure services.
 </Aside>
 
 ## Troubleshooting
@@ -292,15 +314,15 @@ Enable detailed logging:
 
 ## Comparison with manual provisioning
 
-| Aspect | Local Provisioning | Manual Provisioning |
-|--------|-------------------|-------------------|
-| **Setup time** | Automatic | Manual Azure Portal/CLI |
-| **Configuration** | Automatic | Manual connection strings |
-| **Infrastructure as Code** | Auto-generated Bicep | Manual Bicep/ARM |
-| **Development speed** | Fast | Slower |
-| **Learning curve** | Lower | Higher |
-| **Control** | Good (via ConfigureInfrastructure) | Full |
-| **Cost** | Pay for provisioned resources | Pay for provisioned resources |
+| Aspect                     | Local Provisioning                 | Manual Provisioning           |
+| -------------------------- | ---------------------------------- | ----------------------------- |
+| **Setup time**             | Automatic                          | Manual Azure Portal/CLI       |
+| **Configuration**          | Automatic                          | Manual connection strings     |
+| **Infrastructure as Code** | Auto-generated Bicep               | Manual Bicep/ARM              |
+| **Development speed**      | Fast                               | Slower                        |
+| **Learning curve**         | Lower                              | Higher                        |
+| **Control**                | Good (via ConfigureInfrastructure) | Full                          |
+| **Cost**                   | Pay for provisioned resources      | Pay for provisioned resources |
 
 ## See also
 
