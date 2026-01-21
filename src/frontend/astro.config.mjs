@@ -71,10 +71,10 @@ export default defineConfig({
             custom: {
               copilot: {
                 label: 'Open in GitHub Copilot',
-                href: 'https://github.com/copilot/?prompt='
-              }
-            }
-          }
+                href: 'https://github.com/copilot/?prompt=',
+              },
+            },
+          },
         }),
         lunaria({
           route: '/i18n',
@@ -82,10 +82,7 @@ export default defineConfig({
         }),
         catppuccin(),
         starlightSidebarTopics(sidebarTopics, {
-          exclude: [
-            '**/includes/**/*',
-            '/support'
-          ],
+          exclude: ['**/includes/**/*', '/support'],
         }),
         ...(process.env.CHECK_LINKS
           ? [
@@ -125,7 +122,34 @@ export default defineConfig({
           projectName: 'Aspire',
           description:
             'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
-          exclude: ['reference/api/**', '/reference/api/**', '**/api/**'],
+          // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
+          exclude: [
+            'includes/**',
+            'index',
+            '404',
+            'docs',
+            'integrations/gallery',
+            'reference/overview',
+            'reference/api/browser',
+            'community/contributors',
+            'community/posts',
+            'community/videos',
+            'da/**',
+            'de/**',
+            'es/**',
+            'fr/**',
+            'hi/**',
+            'id/**',
+            'it/**',
+            'ja/**',
+            'ko/**',
+            'pt-br/**',
+            'pt-pt/**',
+            'ru/**',
+            'tr/**',
+            'uk/**',
+            'zh-cn/**',
+          ],
         }),
         starlightImageZoom({
           showCaptions: true,
