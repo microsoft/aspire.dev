@@ -223,13 +223,21 @@ The most common scenario is to call commands from within other custom command im
 The following example shows how to create a custom command that executes other commands. In this case, a "reset-all" command clears the cache and restarts a database:
 
 ```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("cache")
     .WithClearCommand(); // Assumes this defines a "clear-cache" command
 
 var database = builder.AddPostgres("postgres")
-    .WithCommand("restart", "Restart Database", /* implementation */);
+    .WithCommand("restart", "Restart Database", async (context, ct) =>
+    {
+        // Restart database implementation
+        return CommandResults.Success();
+    });
 
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(cache)
