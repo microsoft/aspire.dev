@@ -14,4 +14,5 @@ export const redirects = {
   '/integrations/eventstore/': '/integrations/databases/kurrentdb/',
   '/integrations/databases/mongodb/': '/integrations/databases/mongodb/mongodb-get-started/',
   '/integrations/databases/mongodb-extensions/': '/integrations/databases/mongodb/mongodb-extensions/',
+  '/integrations/databases/oracle-ef/': '/integrations/databases/efcore/oracle/oracle-get-started/',
 };
