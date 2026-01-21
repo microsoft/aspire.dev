@@ -18,6 +18,7 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
+import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 
 // https://astro.build/config
@@ -65,6 +66,7 @@ export default defineConfig({
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },
       plugins: [
+        starlightPageActions(),
         lunaria({
           route: '/i18n',
           sync: false,
