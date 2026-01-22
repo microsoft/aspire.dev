@@ -15,6 +15,7 @@ export const collections = {
           category: z
             .enum(['conceptual', 'quickstart', 'tutorial', 'blog', 'reference', 'sample'])
             .optional(),
+          pageActions: z.boolean().optional().default(true),
         }),
     }),
   }),

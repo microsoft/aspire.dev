@@ -472,7 +472,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Elasticsearch',
-          slug: 'integrations/databases/elasticsearch',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-client',
+            },
+          ],
         },
         {
           label: 'Entity Framework Core',

@@ -1,0 +1,177 @@
+---
+title: Elasticsearch client integration
+description: Learn how to use the Elasticsearch client integration to interact with Elasticsearch instances.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import elasticIcon from '@assets/icons/elastic-icon.png';
+
+<Image
+  src={elasticIcon}
+  alt="Elasticsearch logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Elasticsearch client integration, install the [📦 Aspire.Elastic.Clients.Elasticsearch](https://www.nuget.org/packages/Aspire.Elastic.Clients.Elasticsearch) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Elastic.Clients.Elasticsearch" />
+
+The Elasticsearch client integration registers an [ElasticsearchClient](https://github.com/elastic/elasticsearch-net) instance that you can use to interact with Elasticsearch.
+
+For an introduction to the Elasticsearch integration, see [Get started with the Elasticsearch integrations](/integrations/databases/elasticsearch/elasticsearch-get-started/).
+
+## Add Elasticsearch client
+
+In the `Program.cs` file of your client-consuming project, call the `AddElasticsearchClient` extension method to register an `ElasticsearchClient` for use via the dependency injection container:
+
+```csharp
+builder.AddElasticsearchClient(connectionName: "elasticsearch");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the
+  Elasticsearch resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `ElasticsearchClient` instance using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp
+public class ExampleService(ElasticsearchClient client)
+{
+    // Use client...
+}
+```
+
+## Add keyed Elasticsearch client
+
+There might be situations where you want to register multiple `ElasticsearchClient` instances with different connection names. To register keyed Elasticsearch clients, call the `AddKeyedElasticsearchClient` method:
+
+```csharp
+builder.AddKeyedElasticsearchClient(name: "products");
+builder.AddKeyedElasticsearchClient(name: "orders");
+```
+
+Then you can retrieve the `ElasticsearchClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("products")] ElasticsearchClient productsClient,
+    [FromKeyedServices("orders")] ElasticsearchClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configuration
+
+The Elasticsearch integration provides multiple options to configure the server connection based on the requirements and conventions of your project.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddElasticsearchClient`:
+
+```csharp
+builder.AddElasticsearchClient("elasticsearch");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "elasticsearch": "http://elastic:password@localhost:27011"
+  }
+}
+```
+
+### Use configuration providers
+
+The Elasticsearch integration supports `Microsoft.Extensions.Configuration`. It loads the `ElasticClientsElasticsearchSettings` from configuration using the `Aspire:Elastic:Clients:Elasticsearch` key. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Elastic": {
+      "Clients": {
+        "Elasticsearch": {
+          "DisableHealthChecks": false,
+          "DisableTracing": false,
+          "HealthCheckTimeout": "00:00:03",
+          "ApiKey": "<Valid ApiKey>",
+          "Endpoint": "http://elastic:password@localhost:27011",
+          "CloudId": "<Valid CloudId>"
+        }
+      }
+    }
+  }
+}
+```
+
+### Use inline delegates
+
+You can pass the `Action<ElasticClientsElasticsearchSettings>` delegate to set up options inline:
+
+```csharp
+builder.AddElasticsearchClient(
+    "elasticsearch",
+    static settings =>
+        settings.Endpoint = new Uri("http://elastic:password@localhost:27011"));
+```
+
+### Use CloudId and ApiKey with configuration providers
+
+When using [Elastic Cloud](https://www.elastic.co/cloud), you can provide the `CloudId` and `ApiKey` in the configuration:
+
+```csharp
+builder.AddElasticsearchClient("elasticsearch");
+```
+
+Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Elastic": {
+      "Clients": {
+        "Elasticsearch": {
+          "ApiKey": "<Valid ApiKey>",
+          "CloudId": "<Valid CloudId>"
+        }
+      }
+    }
+  }
+}
+```
+
+### Use CloudId and ApiKey with inline delegates
+
+```csharp
+builder.AddElasticsearchClient(
+    "elasticsearch",
+    static settings =>
+    {
+        settings.ApiKey = "<Valid ApiKey>";
+        settings.CloudId = "<Valid CloudId>";
+    });
+```
+
+## Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Elasticsearch integration uses the configured client to perform a `PingAsync`. If the result is an HTTP 200 OK, the health check is considered healthy, otherwise it's unhealthy.
+
+## Observability and telemetry
+
+### Tracing
+
+The Elasticsearch integration will emit the following tracing activities using OpenTelemetry:
+
+- `Elastic.Transport`

@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.StaticFiles;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -49,16 +47,18 @@ app.UseStatusCodePages(async context =>
 
 app.MapGet("/healthz", () => Results.Ok());
 
-app.MapGet("/install.ps1", async context =>
+app.MapGet("/install.ps1", (HttpContext context, OneDSTelemetryService telemetry) =>
 {
-    await Task.CompletedTask;
-    context.Response.Redirect("https://aka.ms/aspire/get/install.ps1");
+    telemetry.TrackDownload(context, "install.ps1");
+
+    return Results.Redirect("https://aka.ms/aspire/get/install.ps1");
 });
 
-app.MapGet("/install.sh", async context =>
+app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry) =>
 {
-    await Task.CompletedTask;
-    context.Response.Redirect("https://aka.ms/aspire/get/install.sh");
+    telemetry.TrackDownload(context, "install.sh");
+
+    return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
 app.MapStaticAssets();

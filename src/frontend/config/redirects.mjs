@@ -15,4 +15,5 @@ export const redirects = {
   '/integrations/databases/mongodb/': '/integrations/databases/mongodb/mongodb-get-started/',
   '/integrations/databases/mongodb-extensions/': '/integrations/databases/mongodb/mongodb-extensions/',
   '/integrations/databases/efcore/azure-cosmos-db/': '/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/',
+  '/integrations/databases/elasticsearch/': '/integrations/databases/elasticsearch/elasticsearch-get-started/',
 };
