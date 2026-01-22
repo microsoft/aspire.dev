@@ -1,7 +1,3 @@
-using OpenTelemetry;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
-
 namespace Microsoft.Extensions.Hosting;
 
 public static class Extensions
@@ -9,6 +5,8 @@ public static class Extensions
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
+
+        builder.Services.AddSingleton<OneDSTelemetryService>();
 
         return builder;
     }
@@ -22,6 +20,12 @@ public static class Extensions
         });
 
         builder.Services.AddOpenTelemetry()
+            .UseAzureMonitor(static options =>
+            {
+                options.ConnectionString = TelemetryConstants.AzureMonitorConnectionString;
+            });
+
+        builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()
@@ -30,7 +34,10 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName)
+                tracing.AddSource(
+                        builder.Environment.ApplicationName,
+                        TelemetryConstants.AspireDotDevSource
+                    )
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation();
             });
