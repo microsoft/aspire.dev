@@ -15,4 +15,5 @@ export const redirects = {
   '/integrations/databases/mongodb/': '/integrations/databases/mongodb/mongodb-get-started/',
   '/integrations/databases/mongodb-extensions/': '/integrations/databases/mongodb/mongodb-extensions/',
   '/integrations/databases/elasticsearch/': '/integrations/databases/elasticsearch/elasticsearch-get-started/',
+  '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
 };
