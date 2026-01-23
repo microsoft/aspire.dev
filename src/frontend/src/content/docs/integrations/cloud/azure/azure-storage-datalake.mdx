@@ -1,0 +1,251 @@
+---
+title: Azure Data Lake Storage
+description: Learn how to use the Azure Data Lake Storage client integration to connect to Azure Data Lake Storage Gen2.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import storageIcon from '@assets/icons/azure-storagecontainer-icon.png';
+
+<Image
+  src={storageIcon}
+  alt="Azure Data Lake Storage logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Data Lake Storage Gen2](https://azure.microsoft.com/services/storage/data-lake-storage/) is a set of capabilities built on Azure Blob Storage for big data analytics. The Aspire Azure Data Lake Storage integration enables you to connect to existing Azure Data Lake Storage instances from your applications.
+
+## Hosting integration
+
+The Azure Data Lake Storage integration uses the Azure Storage hosting integration. To add an Azure Data Lake Storage resource, use the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package in your [AppHost](/get-started/app-host/) project:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Storage" />
+
+### Add Azure Data Lake resource
+
+In your AppHost project, register the Azure Storage integration and add a Data Lake resource by chaining a call to `AddDataLake` on the `IResourceBuilder<IAzureStorageResource>` instance returned by `AddAzureStorage`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("azure-storage");
+var dataLake = builder.ExecutionContext.IsPublishMode
+    ? storage.AddDataLake("datalake")
+    : builder.AddConnectionString("datalake");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(dataLake);
+
+// After adding all resources, run the app...
+```
+
+The preceding code:
+
+- Adds an Azure Storage resource named `azure-storage`.
+- Adds a Data Lake resource named `datalake` when in publish mode, or uses a connection string for local development.
+- Adds the `datalake` resource reference to the `ExampleProject`.
+
+### Add Azure Data Lake File System resource
+
+You can also add a Data Lake File System resource for accessing specific file systems:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("azure-storage");
+var fileSystem = builder.ExecutionContext.IsPublishMode
+    ? storage.AddDataLakeFileSystem("datalake-fs")
+    : builder.AddConnectionString("datalake-fs");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(fileSystem);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="caution">
+When you call `AddAzureStorage`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Client integration
+
+To get started with the Aspire Azure Data Lake Storage client integration, install the [📦 Aspire.Azure.Storage.Files.DataLake](https://www.nuget.org/packages/Aspire.Azure.Storage.Files.DataLake) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Storage.Files.DataLake" />
+
+### Add Azure Data Lake Storage client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureDataLakeServiceClient` extension method to register a `DataLakeServiceClient` for dependency injection. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureDataLakeServiceClient("datalake");
+```
+
+You can then retrieve the `DataLakeServiceClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(DataLakeServiceClient client)
+{
+    // Use client...
+}
+```
+
+### Add Azure Data Lake File System client
+
+You can also register a `DataLakeFileSystemClient` for accessing a specific file system:
+
+```csharp
+builder.AddAzureDataLakeFileSystemClient("datalake-fs");
+```
+
+You can then retrieve the `DataLakeFileSystemClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(DataLakeFileSystemClient client)
+{
+    // Use client...
+}
+```
+
+### Configuration
+
+The Azure Data Lake Storage integration provides multiple options to configure the connection.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name when calling `AddAzureDataLakeServiceClient`:
+
+```csharp
+builder.AddAzureDataLakeServiceClient("datalake");
+```
+
+Two connection formats are supported:
+
+##### Service URI
+
+The recommended approach is to use a `ServiceUri`, which works with the `Credential` property. If no credential is configured, the `DefaultAzureCredential` is used:
+
+```json
+{
+  "ConnectionStrings": {
+    "datalake": "https://{account_name}.dfs.core.windows.net/"
+  }
+}
+```
+
+For the file system client, you can include the file system name in the connection string:
+
+```json
+{
+  "ConnectionStrings": {
+    "datalake-fs": "https://{account_name}.dfs.core.windows.net/;FileSystemName={fileSystemName};"
+  }
+}
+```
+
+##### Connection string
+
+Alternatively, an [Azure Storage connection string](https://learn.microsoft.com/azure/storage/common/storage-configure-connection-string) can be used:
+
+```json
+{
+  "ConnectionStrings": {
+    "datalake": "AccountName=myaccount;AccountKey=myaccountkey"
+  }
+}
+```
+
+For the file system client:
+
+```json
+{
+  "ConnectionStrings": {
+    "datalake-fs": "AccountName=myaccount;AccountKey=myaccountkey;FileSystemName={fileSystemName};"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Azure Data Lake Storage integration supports `Microsoft.Extensions.Configuration`. It loads the `AzureDataLakeSettings` and `DataLakeClientOptions` from configuration using the `Aspire:Azure:Storage:Files:DataLake` key. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Storage": {
+        "Files": {
+          "DataLake": {
+            "ServiceUri": "https://{account_name}.dfs.core.windows.net/",
+            "DisableHealthChecks": true,
+            "DisableTracing": false,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can also pass the `Action<AzureDataLakeSettings>` delegate to set up options inline:
+
+```csharp
+builder.AddAzureDataLakeServiceClient(
+    "datalake",
+    settings => settings.DisableHealthChecks = true);
+```
+
+You can also configure the `DataLakeClientOptions`:
+
+```csharp
+builder.AddAzureDataLakeServiceClient(
+    "datalake",
+    configureClientBuilder: clientBuilder =>
+        clientBuilder.ConfigureOptions(
+            options => options.Diagnostics.ApplicationId = "myapp"));
+```
+
+### Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Azure Data Lake Storage integration:
+
+- Adds the health check when `DisableHealthChecks` is `false`, which attempts to connect to the Azure Data Lake Storage.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
+
+### Observability and telemetry
+
+#### Logging
+
+The Azure Data Lake Storage integration uses the following log categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+#### Tracing
+
+The Azure Data Lake Storage integration emits the following tracing activities using OpenTelemetry:
+
+- `Azure.Storage.Files.DataLake.DataLakeServiceClient`
+- `Azure.Storage.Files.DataLake.DataLakeFileSystemClient`
+
+#### Metrics
+
+The Azure Data Lake Storage integration currently doesn't support metrics by default due to limitations with the Azure SDK.
+
+## See also
+
+- [Azure.Storage.Files.DataLake documentation](https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/storage/Azure.Storage.Files.DataLake/README.md)
+- [Azure Data Lake Storage Gen2](https://learn.microsoft.com/azure/storage/blobs/data-lake-storage-introduction)
+- [Azure Storage Blobs integration](/integrations/cloud/azure/azure-storage-blobs/)
