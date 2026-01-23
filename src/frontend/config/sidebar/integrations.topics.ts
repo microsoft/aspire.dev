@@ -698,7 +698,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { 
+        {
           label: 'SQLite',
           collapsed: true,
           items: [

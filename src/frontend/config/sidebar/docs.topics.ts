@@ -50,11 +50,11 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Aspire 13.1',
-          slug: 'whats-new/aspire-13-1'
+          slug: 'whats-new/aspire-13-1',
         },
         {
           label: 'Aspire 13.0',
-          slug: 'whats-new/aspire-13'
+          slug: 'whats-new/aspire-13',
         },
         {
           label: 'Previous versions',
@@ -80,27 +80,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           items: [
             {
               label: 'Aspire 9.5',
-              slug: 'whats-new/aspire-9-5'
+              slug: 'whats-new/aspire-9-5',
             },
             {
               label: 'Aspire 9.4',
-              slug: 'whats-new/aspire-9-4'
+              slug: 'whats-new/aspire-9-4',
             },
             {
               label: 'Aspire 9.3',
-              slug: 'whats-new/aspire-9-3'
+              slug: 'whats-new/aspire-9-3',
             },
             {
               label: 'Aspire 9.2',
-              slug: 'whats-new/aspire-9-2'
+              slug: 'whats-new/aspire-9-2',
             },
             {
               label: 'Aspire 9.1',
-              slug: 'whats-new/aspire-9-1'
+              slug: 'whats-new/aspire-9-1',
             },
             {
               label: 'Aspire 9.0',
-              slug: 'whats-new/aspire-9'
+              slug: 'whats-new/aspire-9',
             },
           ],
         },
