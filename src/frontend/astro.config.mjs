@@ -68,11 +68,21 @@ export default defineConfig({
       plugins: [
         starlightPageActions({
           actions: {
+            chatgpt: false,
+            claude: false,
             custom: {
               copilot: {
                 label: 'Open in GitHub Copilot',
                 href: 'https://github.com/copilot/?prompt=',
               },
+              chatGpt: {
+                label: 'Open in ChatGPT',
+                href: 'https://chatgpt.com/?q=',
+              },
+              claude: {
+                label: 'Open in Claude',
+                href: 'https://claude.ai/new?q=',
+              }
             },
           },
         }),
