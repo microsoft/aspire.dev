@@ -19,7 +19,7 @@ function getCommit() {
      * In CI/CD, there may be other intermediary commits from the deploy branch.
      * This ensures we always get the correct commit hash.
      */
-    return execSync('git merge-base main HEAD').toString().trim();
+    return execSync('git merge-base origin/main HEAD').toString().trim();
   } catch {
     return '';
   }
