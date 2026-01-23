@@ -185,21 +185,19 @@ All Aspire Azure resources are subclasses of the `AzureProvisioningResource` typ
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddAzureRedis("redis")
+builder.AddAzureManagedRedis("redis")
     .WithAccessKeyAuthentication()
     .ConfigureInfrastructure(infra =>
     {
-        var redis = infra.GetProvisionableResources()
-                          .OfType<RedisResource>()
-                          .Single();
+        var cluster = infra.GetProvisionableResources()
+                           .OfType<RedisEnterpriseCluster>()
+                           .Single();
 
-        redis.Sku = new()
+        cluster.Sku = new RedisEnterpriseSku
         {
-            Family = RedisSkuFamily.BasicOrStandard,
-            Name = RedisSkuName.Standard,
-            Capacity = 1,
+            Name = RedisEnterpriseSkuName.BalancedB0,
         };
-        redis.Tags.Add("ExampleKey", "Example value");
+        cluster.Tags.Add("ExampleKey", "Example value");
     });
 ```
 
@@ -208,8 +206,8 @@ The preceding code:
 - Chains a call to the `ConfigureInfrastructure` API:
   - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
   - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
-  - The single `RedisResource` is retrieved.
-  - The `Sku` is set with a family of `BasicOrStandard`, a name of `Standard`, and a capacity of `1`.
+  - The single `RedisEnterpriseCluster` is retrieved.
+  - The `Sku` is set with a name of `BalancedB0`.
   - A tag is added to the Redis resource with a key of `ExampleKey` and a value of `Example value`.
 
 There are many more configuration options available to customize the Redis resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).

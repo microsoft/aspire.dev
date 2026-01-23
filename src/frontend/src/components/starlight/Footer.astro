@@ -1,84 +1,189 @@
 ---
-import DefaultFooter from "@astrojs/starlight/components/Footer.astro";
-import FooterLinks from "@components/FooterLinks.astro";
-import MicrosoftFooter from "@components/MicrosoftFooter.astro";
-import AspireMap from "@components/AspireMap.astro";
-import Expand from "@components/Expand.astro";
+import DefaultFooter from '@astrojs/starlight/components/Footer.astro';
+import FooterLinks from '@components/FooterLinks.astro';
+import FooterLegal from '@components/FooterLegal.astro';
+import FooterResources from '@components/FooterResources.astro';
+import AspireMap from '@components/AspireMap.astro';
+import Expand from '@components/Expand.astro';
 
-import { isHomepage } from "@utils/helpers";
+import { isHomepage } from '@utils/helpers';
+
+const showMap = isHomepage(Astro);
 ---
 
-{
-    isHomepage(Astro) ? (
-        <DefaultFooter><slot /></DefaultFooter>
-        <FooterLinks />
+<div class="footer-wrapper">
+  <div class="footer-container">
+    <DefaultFooter><slot /></DefaultFooter>
+
+    <!-- Top row: Made with love, centered, full width -->
+    {showMap && (
+      <div class="footer-brand">
         <Expand summary={Astro.locals.t('footer.madeWithLove' as any)}>
-            <AspireMap />
+          <AspireMap />
         </Expand>
-        <MicrosoftFooter />
-    ) : (
-        <DefaultFooter><slot /></DefaultFooter>
-        <FooterLinks />
-        <MicrosoftFooter />
-    )
-}
+      </div>
+    )}
+
+    <!-- Middle row: 3 columns (Legal, Community, Resources) -->
+    <div class="footer-columns">
+      <FooterLegal />
+      <FooterLinks />
+      <FooterResources />
+    </div>
+
+    <!-- Bottom row: SHA and copyright -->
+    <div class="footer-bottom">
+      <a
+        class="commit-link"
+        href={`${import.meta.env.PUBLIC_REPO_URL}/commit/${import.meta.env.PUBLIC_GIT_COMMIT_ID || ''}`}
+        target="_blank"
+        title={`Built on commit SHA: ${(import.meta.env.PUBLIC_GIT_COMMIT_ID || '').slice(0, 7)}`}
+        rel="noopener noreferrer"
+        >SHA — {
+          (import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMIT_ID || '').slice(0, 7)
+        }</a
+      >
+      <span class="copyright"
+        >© Microsoft <script is:inline>
+          document.currentScript.parentElement.textContent = `© Microsoft ${new Date().getFullYear()}`;
+        </script></span
+      >
+    </div>
+  </div>
+</div>
+
+<style>
+  .footer-wrapper {
+    padding: 0;
+  }
+
+  .footer-container {
+    padding: 1.5rem 0rem;
+  }
+
+  .footer-brand {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .footer-brand > :global(*) {
+    width: 100%;
+  }
+
+  .footer-tagline {
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    margin: 0;
+    text-align: center;
+  }
+
+  .footer-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2rem;
+    padding-top: 2rem;
+  }
+
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    margin-top: 1.5rem;
+  }
+
+  .commit-link {
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: color 0.15s ease;
+  }
+
+  .commit-link:hover {
+    color: var(--sl-color-white);
+  }
+
+  .copyright {
+    color: var(--sl-color-gray-2);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 768px) {
+    .footer-columns {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+  }
+
+  @media (max-width: 500px) {
+    .footer-container {
+      padding: 1rem;
+    }
+
+    .footer-brand {
+      padding: 0.75rem 0 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .footer-columns {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    .footer-bottom {
+      padding-top: 1rem;
+      margin-top: 1rem;
+    }
+  }
+</style>
 
 <script is:inline>
-    (() => {
-        const base = window.location.hostname.replace(/^www\./, "");
-        const treatSubdomainsAsInternal = true; // flip to false to treat subdomains as external
+  (() => {
+    const base = window.location.hostname.replace(/^www\./, '');
+    const treatSubdomainsAsInternal = true; // flip to false to treat subdomains as external
 
-        const sameSite = (host) => {
-            const h = host.replace(/^www\./, "");
-            if (treatSubdomainsAsInternal) {
-                return h === base || h.endsWith("." + base);
+    const sameSite = (host) => {
+      const h = host.replace(/^www\./, '');
+      if (treatSubdomainsAsInternal) {
+        return h === base || h.endsWith('.' + base);
+      }
+      return h === base;
+    };
+
+    const applyExternalLinkAttrs = () => {
+      document.querySelectorAll('a[href]').forEach((a) => {
+        try {
+          const url = new URL(a.getAttribute('href'), window.location.origin);
+          // Only handle http/https
+          if (!/^https?:$/.test(url.protocol)) return;
+
+          if (!sameSite(url.hostname)) {
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
+            a.classList.add('external-link');
+
+            // (Optional a11y) announce new tab without clobbering existing label
+            const label = a.getAttribute('aria-label');
+            const translatedLabel = Astro.locals.t('footer.opensInNewTab');
+            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const translatedLabelPattern = new RegExp(`\\(${escapeRegex(translatedLabel)}\\)`, 'i');
+
+            if (!label || !translatedLabelPattern.test(label)) {
+              a.setAttribute('aria-label', (label ? label + ' ' : '') + `(${translatedLabel})`);
             }
-            return h === base;
-        };
-
-        const applyExternalLinkAttrs = () => {
-            document.querySelectorAll("a[href]").forEach((a) => {
-                try {
-                    const url = new URL(
-                        a.getAttribute("href"),
-                        window.location.origin,
-                    );
-                    // Only handle http/https
-                    if (!/^https?:$/.test(url.protocol)) return;
-
-                    if (!sameSite(url.hostname)) {
-                        a.setAttribute("target", "_blank");
-                        a.setAttribute("rel", "noopener noreferrer");
-                        a.classList.add("external-link");
-
-                        // (Optional a11y) announce new tab without clobbering existing label
-                        const label = a.getAttribute("aria-label");
-                        const translatedLabel = Astro.locals.t("footer.opensInNewTab");
-                        const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                        const translatedLabelPattern = new RegExp(`\\(${escapeRegex(translatedLabel)}\\)`, "i");
-
-                        if (!label || !translatedLabelPattern.test(label)) {
-                            a.setAttribute(
-                                "aria-label",
-                                (label ? label + " " : "") +
-                                    `(${translatedLabel})`,
-                            );
-                        }
-                    }
-                } catch {
-                    /* ignore invalid/relative oddities */
-                }
-            });
-        };
-
-        if (document.readyState === "loading") {
-            document.addEventListener(
-                "DOMContentLoaded",
-                applyExternalLinkAttrs,
-                { once: true },
-            );
-        } else {
-            applyExternalLinkAttrs();
+          }
+        } catch {
+          /* ignore invalid/relative oddities */
         }
-    })();
+      });
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyExternalLinkAttrs, { once: true });
+    } else {
+      applyExternalLinkAttrs();
+    }
+  })();
 </script>

@@ -9,8 +9,6 @@ import { Kbd } from 'starlight-kbd/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import oracleIcon from '@assets/icons/oracle-icon.svg';
 
@@ -39,18 +37,6 @@ To begin, install the Aspire Oracle Hosting integration in your Aspire AppHost p
 
 Next, in the AppHost project, create instances of Oracle server and database resources, then pass the database to the consuming client projects:
 
-<PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript" },
-    ]}
-/>
-
-<Pivot id="csharp">
-
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -64,44 +50,6 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
                             .WithReference(oracledb);
 ```
 
-</Pivot>
-
-<Pivot id="python">
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var oracle = builder.AddOracle("oracle")
-                    .WithLifetime(ContainerLifetime.Persistent);
-
-var oracledb = oracle.AddDatabase("oracledb");
-
-var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
-                            .WithExternalHttpEndpoints()
-                            .WaitFor(oracledb)
-                            .WithReference(oracledb);
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var oracle = builder.AddOracle("oracle")
-                    .WithLifetime(ContainerLifetime.Persistent);
-
-var oracledb = oracle.AddDatabase("oracledb");
-
-var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
-                 .WithExternalHttpEndpoints()
-                 .WaitFor(oracledb)
-                 .WithReference(oracledb);
-```
-
-</Pivot>
-
 <Aside type="tip">
     This is the simplest implementation of Oracle resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Oracle Hosting integration](../oracle-host/).
 </Aside>
@@ -111,8 +59,6 @@ var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
 Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
 
 ### Set up client projects
-
-<Pivot id="csharp">
 
 In each of these consuming client projects, install the Aspire Oracle Entity Framework Core client integration:
 
@@ -128,48 +74,11 @@ builder.AddOracleDatabaseDbContext<ExampleDbContext>(connectionName: "oracledb")
     The `connectionName` parameter must match the name used when adding the Oracle database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
 </Aside>
 
-</Pivot>
-
-<Pivot id="python">
-
-To interact with Oracle databases in your Python consuming projects, you need to include an Oracle database driver. The most popular option is `oracledb` (formerly known as cx_Oracle), which is Oracle's official Python driver. You can install this library using pip:
-
-```bash
-pip install oracledb
-```
-
-Ensure that you `import oracledb` in code files that interact with the database. You should also import the `os` module to access environment variables:
-
-```python title="Python - Import oracledb"
-import oracledb
-import os
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-To interact with Oracle databases in your JavaScript consuming projects, you need to include an Oracle database driver. The official option is `oracledb`, which is Oracle's Node.js driver. You can install this library using npm:
-
-```bash
-npm install oracledb
-```
-
-Ensure that you `import oracledb` in code files that interact with the database:
-
-```javascript title="JavaScript - Import oracledb"
-const oracledb = require('oracledb');
-```
-
-</Pivot>
-
 ### Use injected Oracle properties
 
 In the AppHost, when you used the `WithReference` method to pass an Oracle database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
 
 Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `oracledb` becomes `ORACLEDB_URI`.
-
-<Pivot id="csharp">
 
 Use the `GetValue()` method to obtain these environment variables in consuming projects:
 
@@ -179,41 +88,11 @@ string oraclePort = builder.Configuration.GetValue<string>("ORACLEDB_PORT");
 string oracleJDBCConnectionString = builder.Configuration.GetValue<string>("ORACLEDB_JDBCCONNECTIONSTRING");
 ```
 
-</Pivot>
-
-<Pivot id="python">
-
-Use the `os.getenv()` method to obtain these environment variables in consuming projects:
-
-```python title="Python - Obtain configuration properties"
-oracle_host = os.getenv("ORACLEDB_HOST")
-oracle_port = os.getenv("ORACLEDB_PORT")
-oracle_jdbc_connection_string = os.getenv("ORACLEDB_JDBCCONNECTIONSTRING")
-oracle_uri = os.getenv("ORACLEDB_URI")
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the `process.env` method to obtain these environment variables in consuming projects:
-
-```javascript title="JavaScript - Obtain configuration properties"
-const oracleHost = process.env.ORACLEDB_HOST;
-const oraclePort = process.env.ORACLEDB_PORT;
-const oracleJDBCConnectionString = process.env.ORACLEDB_JDBCCONNECTIONSTRING;
-const oracleUri = process.env.ORACLEDB_URI;
-```
-
-</Pivot>
-
 <Aside type="tip">
     The full set of properties that Aspire injects depends on the Oracle resource configuration. For more information, see [Properties of the Oracle resources](../oracle-client/#properties-of-the-oracle-resources).
 </Aside>
 
 ### Use Oracle resources in client code
-
-<Pivot id="csharp">
 
 Now that you've added `DbContext` to the builder in the consuming project, you can use the Oracle database to get and store data. Get the `DbContext` instance using dependency injection. For example, to retrieve your context object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
 
@@ -225,72 +104,6 @@ public class ExampleService(ExampleDbContext context)
 ```
 
 Having obtained the context, you can work with the Oracle database using Entity Framework Core as you would in any other C# application.
-
-</Pivot>
-
-<Pivot id="python">
-
-Use the information you have obtained about the Oracle resource to connect to the database. Here is an example of how to connect using `oracledb`:
-
-```python title="Python - Connect to Oracle"
-# Parse the connection URI
-# Format: oracle://username:password@host:port/service_name
-import re
-match = re.match(r'oracle://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', oracle_uri)
-if match:
-    username = match.group(1)
-    password = match.group(2)
-    host = match.group(3)
-    port = int(match.group(4))
-    service_name = match.group(5)
-    
-    # Create connection
-    connection = oracledb.connect(
-        user=username,
-        password=password,
-        dsn=f"{host}:{port}/{service_name}"
-    )
-    cursor = connection.cursor()
-```
-
-Having obtained the connection, you can work with the Oracle database as you would in any other Python application.
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the information you have obtained about the Oracle resource to connect to the database. Here is an example of how to connect using `oracledb`:
-
-```javascript title="JavaScript - Connect to Oracle"
-// Parse the connection URI
-// Format: oracle://username:password@host:port/service_name
-const url = require('url');
-const parsedUri = new url.URL(oracleUri);
-
-const config = {
-  user: parsedUri.username,
-  password: parsedUri.password,
-  connectString: `${parsedUri.hostname}:${parsedUri.port}${parsedUri.pathname}`
-};
-
-// Create connection
-let connection;
-try {
-  connection = await oracledb.getConnection(config);
-  console.log('Successfully connected to Oracle Database');
-  // Use connection...
-} catch (err) {
-  console.error(err);
-} finally {
-  if (connection) {
-    await connection.close();
-  }
-}
-```
-
-Having obtained the connection, you can work with the Oracle database as you would in any other JavaScript application.
-
-</Pivot>
 
 ## Next steps
 

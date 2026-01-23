@@ -517,7 +517,17 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'MySQL Pomelo',
-              slug: 'integrations/databases/efcore/mysql',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/mysql/mysql-get-started',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/mysql/mysql-client',
+                },
+              ],
             },
             {
               label: 'Oracle',
