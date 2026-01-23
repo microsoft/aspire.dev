@@ -18,7 +18,7 @@ import postgresIcon from '@assets/icons/postgresql-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire PostgreSQL Entity Framework Core client integration, install the [📦 Aspire.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuget.org/packages/Aspire.Npgsql.EntityFrameworkCore.PostgreSQL) NuGet package in the client-consuming project, that is, the project for the application that uses the PostgreSQL client. The Aspire PostgreSQL Entity Framework Core client integration registers your desired `DbContext` subclass instances that you can use to interact with PostgreSQL.
+To get started with the Aspire PostgreSQL Entity Framework Core (EF Core) client integration, install the [📦 Aspire.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuget.org/packages/Aspire.Npgsql.EntityFrameworkCore.PostgreSQL) NuGet package in the client-consuming project, that is, the project for the application that uses the PostgreSQL client. The Aspire PostgreSQL EF Core client integration registers your desired `DbContext` subclass instances that you can use to interact with PostgreSQL.
 
 <InstallDotNetPackage packageName='Aspire.Npgsql.EntityFrameworkCore.PostgreSQL' />
 
@@ -34,10 +34,10 @@ builder.AddNpgsqlDbContext<YourDbContext>(
 ```
 
 <Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](/integrations/databases/efcore/postgres/postgresql-host/#add-postgresql-server-resource).
+  The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](/integrations/databases/postgres/postgresql-host/#add-postgresql-server-resource).
 </Aside>
 
-After adding `YourDbContext` to the builder, you can get the `YourDbContext` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+After adding `YourDbContext` to the builder, you can get the `YourDbContext` instance using dependency injection. For example, to retrieve your data source object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
 
 ```csharp
 public class ExampleService(YourDbContext context)
@@ -94,7 +94,7 @@ In this example, the `ExampleProject` will have access to environment variables 
 
 ## Enrich an Npgsql database context
 
-You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
+You may prefer to use the standard EF Core method to obtain a database context and add it to the dependency injection container:
 
 ```csharp title="C# — Program.cs"
 builder.Services.AddDbContext<YourDbContext>(options =>
@@ -103,7 +103,7 @@ builder.Services.AddDbContext<YourDbContext>(options =>
 ```
 
 <Aside type="note">
-  The connection string name that you pass to the `GetConnectionString` method must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](/integrations/databases/efcore/postgres/postgresql-host/#add-postgresql-server-resource).
+  The connection string name that you pass to the `GetConnectionString` method must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add PostgreSQL server resource](/integrations/databases/postgres/postgresql-host/#add-postgresql-server-resource).
 </Aside>
 
 You have more flexibility when you create the database context in this way, for example:
@@ -127,7 +127,7 @@ The `settings` parameter is an instance of the `NpgsqlEntityFrameworkCorePostgre
 
 ## Configuration
 
-The Aspire PostgreSQL Entity Framework Core integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
+The Aspire PostgreSQL EF Core integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
 
 ### Use a connection string
 
@@ -153,7 +153,7 @@ For more information, see the [ConnectionString](https://www.npgsql.org/doc/conn
 
 ### Use configuration providers
 
-The Aspire PostgreSQL Entity Framework Core integration supports `Microsoft.Extensions.Configuration`. It loads the `NpgsqlEntityFrameworkCorePostgreSQLSettings` from configuration files such as `appsettings.json` by using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key. If you have set up your configurations in the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` section you can just call the method without passing any parameter.
+The Aspire PostgreSQL EF Core integration supports `Microsoft.Extensions.Configuration`. It loads the `NpgsqlEntityFrameworkCorePostgreSQLSettings` from configuration files such as `appsettings.json` by using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key. If you have set up your configurations in the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` section you can just call the method without passing any parameter.
 
 The following example shows an `appsettings.json` file that configures some of the available options:
 
@@ -173,7 +173,7 @@ The following example shows an `appsettings.json` file that configures some of t
 }
 ```
 
-For the complete PostgreSQL Entity Framework Core client integration JSON schema, see [Aspire.Npgsql.EntityFrameworkCore.PostgreSQL/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Npgsql.EntityFrameworkCore.PostgreSQL/ConfigurationSchema.json).
+For the complete PostgreSQL EF Core client integration JSON schema, see [Aspire.Npgsql.EntityFrameworkCore.PostgreSQL/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Npgsql.EntityFrameworkCore.PostgreSQL/ConfigurationSchema.json).
 
 ### Use inline delegates
 
@@ -215,7 +215,7 @@ Then calling the `AddNpgsqlDbContext` method with `AnotherDbContext` type parame
 builder.AddNpgsqlDbContext<AnotherDbContext>();
 ```
 
-By default, the Aspire PostgreSQL Entity Framework Core integrations handles the following:
+By default, the Aspire PostgreSQL EF Core integrations handles the following:
 
 - Adds the [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
 - Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
@@ -242,13 +242,13 @@ The Aspire PostgreSQL Entity Framework Core integration uses the following Log c
 
 ### Tracing
 
-The Aspire PostgreSQL Entity Framework Core integration will emit the following tracing activities using OpenTelemetry:
+The Aspire PostgreSQL EF Core integration will emit the following tracing activities using OpenTelemetry:
 
 - `Npgsql`
 
 ### Metrics
 
-The Aspire PostgreSQL Entity Framework Core integration will emit the following metrics using OpenTelemetry:
+The Aspire PostgreSQL EF Core integration will emit the following metrics using OpenTelemetry:
 
 - Microsoft.EntityFrameworkCore:
   - `ec_Microsoft_EntityFrameworkCore_active_db_contexts`
