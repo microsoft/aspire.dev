@@ -246,24 +246,24 @@ var api = builder.AddProject<Projects.Api>("api")
     {
         var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
         var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
-
+        
         logger.LogInformation("Starting full system reset...");
-
+        
         var clearResult = await commandService.ExecuteCommandAsync(
             resource: cache.Resource,
             commandName: "clear-cache",
             cancellationToken: ct);
-
+            
         var restartResult = await commandService.ExecuteCommandAsync(
             resource: database.Resource,
             commandName: "restart",
             cancellationToken: ct);
-
+        
         if (!clearResult.Success || !restartResult.Success)
         {
             return CommandResults.Failure("System reset failed");
         }
-
+        
         logger.LogInformation("System reset completed successfully");
         return CommandResults.Success();
     });
@@ -284,7 +284,7 @@ You can also execute a command using the resource ID or resource name. The resou
 
 ```csharp
 var result = await commandService.ExecuteCommandAsync(
-    resourceId: "cache",
+    resourceId: "cache", 
     commandName: "clear-cache",
     cancellationToken: cancellationToken);
 
@@ -303,7 +303,6 @@ else
 ```
 
 The `resourceId` parameter can be either:
-
 - The unique ID of the resource (e.g., `cache-abcdwxyz` for a resource with replicas)
 - The display name (e.g., `cache`) if there are no duplicate names
 
@@ -320,7 +319,6 @@ var result = await commandService.ExecuteCommandAsync(
 ```
 
 The behavior when executing on multiple replicas:
-
 - The command runs in parallel on all instances
 - If all commands succeed, the result indicates success
 - If any commands fail, the result includes details about the failures
