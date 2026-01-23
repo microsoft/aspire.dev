@@ -1,65 +1,75 @@
 ---
 title: Compiler Error ASPIRE008
-description: Learn more about compiler Error ASPIRE008. The installed Aspire workload is deprecated. It is recommended to migrate to the new format.
+description: Learn more about compiler Error ASPIRE008. The project requires GenerateAssemblyInfo to be enabled for the AppHost to function correctly.
 ---
 
-import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import { Aside, Badge } from '@astrojs/starlight/components';
 
-<Badge text="Version introduced: 8.2.3" variant='note' size='large' class:list={'mb-1'} />
+<Badge text="Version introduced: 9.2.0" variant='note' size='large' class:list={'mb-1'} />
 
-> The Aspire workload that this project depends on is now deprecated.
+> '[ProjectName]' project requires GenerateAssemblyInfo to be enabled. The Aspire AppHost relies on assembly metadata attributes to locate required dependencies.
 
-This error appears when a project uses a version of Aspire that relies on the SDK workload, which is now deprecated. The error guides you to migrate your project to a supported version of Aspire that uses the SDK approach instead of the workload.
+This error appears when an Aspire AppHost project has `GenerateAssemblyInfo` set to `false`. The Aspire AppHost relies on `AssemblyMetadataAttribute` to embed DCP (Developer Control Plane) and Dashboard paths during compilation. When `GenerateAssemblyInfo` is disabled, these attributes aren't generated, causing runtime failures about missing orchestration dependencies.
 
 ## Example
 
-The following AppHost project file uses the deprecated Aspire workload:
+The following AppHost project file has `GenerateAssemblyInfo` disabled, which causes `ASPIRE008`:
 
 ```xml title="C# project file"
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.2.0" />
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsAspireHost>true</IsAspireHost>
-    <UserSecretsId>98048c9c-bf28-46ba-a98e-63767ee5e3a8</UserSecretsId>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.0" />
   </ItemGroup>
 
 </Project>
 ```
 
-For more information on the Aspire SDK, see [Aspire SDK](https://learn.microsoft.com/dotnet/aspire/fundamentals/dotnet-aspire-sdk/).
-
 ## To correct this error
 
-Follow the migration guide at [https://aka.ms/aspire/update-to-sdk](https://aka.ms/aspire/update-to-sdk) to upgrade your project to a supported version of Aspire that uses the SDK approach.
+Remove the `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` line from your project file, or set it to `true`:
 
-The migration typically involves:
+```xml title="C# project file"
+<Project Sdk="Microsoft.NET.Sdk">
 
-<Steps>
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.2.0" />
 
-1. Updating your AppHost project file to use the `Aspire.AppHost.Sdk`.
-1. Removing references to the deprecated workload.
-1. Updating package references to supported versions.
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsAspireHost>true</IsAspireHost>
+  </PropertyGroup>
 
-</Steps>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.0" />
+  </ItemGroup>
+
+</Project>
+```
 
 ## Suppress the error
 
 <Aside type="danger">
-Suppressing this error isn't recommended, as it leaves your project depending on an unsupported version of Aspire.
+Suppressing this error isn't recommended, as it will cause runtime failures when the AppHost attempts to locate orchestration dependencies.
 </Aside>
 
-If you need to temporarily suppress this error, add the following property to your project file:
+If you must temporarily suppress this error, add the following property to your project file:
 
 ```xml title="C# project file"
 <PropertyGroup>
-  <SuppressAspireWorkloadDeprecationError>true</SuppressAspireWorkloadDeprecationError>
+  <NoWarn>$(NoWarn);ASPIRE008</NoWarn>
 </PropertyGroup>
 ```
