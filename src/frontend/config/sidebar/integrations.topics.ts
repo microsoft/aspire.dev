@@ -342,6 +342,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-blobs',
                 },
                 {
+                  label: 'Azure Data Lake Storage',
+                  slug: 'integrations/cloud/azure/azure-storage-datalake',
+                },
+                {
                   label: 'Azure Storage Queues',
                   slug: 'integrations/cloud/azure/azure-storage-queues',
                 },
