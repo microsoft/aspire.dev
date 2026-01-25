@@ -294,6 +294,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-app-service',
             },
             {
+              label: 'Azure Application Insights',
+              slug: 'integrations/cloud/azure/azure-application-insights',
+            },
+            {
               label: 'Azure Cache for Redis',
               slug: 'integrations/cloud/azure/azure-cache-redis',
             },
@@ -306,6 +310,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-cosmos-db',
             },
             {
+              label: 'Azure Data Explorer',
+              slug: 'integrations/cloud/azure/azure-data-explorer',
+            },
+            {
               label: 'Azure Event Hubs',
               slug: 'integrations/cloud/azure/azure-event-hubs',
             },
@@ -316,6 +324,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Azure Key Vault',
               slug: 'integrations/cloud/azure/azure-key-vault',
+            },
+            {
+              label: 'Azure Log Analytics',
+              slug: 'integrations/cloud/azure/azure-log-analytics',
             },
             {
               label: 'Azure PostgreSQL',
@@ -354,6 +366,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                 {
                   label: 'Azure Storage Blobs',
                   slug: 'integrations/cloud/azure/azure-storage-blobs',
+                },
+                {
+                  label: 'Azure Data Lake Storage',
+                  slug: 'integrations/cloud/azure/azure-storage-datalake',
                 },
                 {
                   label: 'Azure Storage Queues',
