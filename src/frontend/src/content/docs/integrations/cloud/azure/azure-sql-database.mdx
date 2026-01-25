@@ -95,6 +95,111 @@ The preceding code configures an Azure SQL Database resource to run locally in a
 > [!TIP]
 > The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.
 
+### Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand—the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure SQL Server resource, the following Bicep is generated:
+
+```bicep title="Generated Bicep — azuresql.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param principalId string
+
+param principalName string
+
+resource sqlServerAdminManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: take('azuresql-admin-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+}
+
+resource azuresql 'Microsoft.Sql/servers@2024-05-01-preview' = {
+  name: take('azuresql-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    administrators: {
+      administratorType: 'ActiveDirectory'
+      login: sqlServerAdminManagedIdentity.name
+      sid: sqlServerAdminManagedIdentity.properties.principalId
+      tenantId: subscription().tenantId
+      azureADOnlyAuthentication: true
+    }
+    minimalTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
+    version: '12.0'
+  }
+  tags: {
+    'aspire-resource-name': 'azuresql'
+  }
+}
+
+resource sqlFirewallRule_AllowAllAzureIps 'Microsoft.Sql/servers/firewallRules@2024-05-01-preview' = {
+  name: 'AllowAllAzureIps'
+  properties: {
+    endIpAddress: '0.0.0.0'
+    startIpAddress: '0.0.0.0'
+  }
+  parent: azuresql
+}
+
+resource database 'Microsoft.Sql/servers/databases@2024-05-01-preview' = {
+  name: 'database'
+  location: location
+  properties: {
+    freeLimitExhaustionBehavior: 'AutoPause'
+    useFreeLimit: true
+  }
+  sku: {
+    name: 'GP_S_Gen5_2'
+  }
+  parent: azuresql
+}
+
+output sqlServerFqdn string = azuresql.properties.fullyQualifiedDomainName
+
+output name string = azuresql.name
+
+output sqlServerAdminName string = azuresql.properties.administrators.login
+```
+
+The preceding Bicep provisions an Azure SQL Server with a managed identity administrator, TLS 1.2 minimum, and a General Purpose Serverless database with the Azure free offer enabled.
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+#### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API. For example, you can configure the `sku`, `version`, and more. The following example demonstrates how to customize the Azure SQL Database resource:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddAzureSqlServer("sql")
+    .ConfigureInfrastructure(infra =>
+    {
+        var sqlServer = infra.GetProvisionableResources()
+            .OfType<SqlServer>()
+            .Single();
+
+        sqlServer.MinTlsVersion = SqlMinimalTlsVersion.Tls1_3;
+
+        var database = infra.GetProvisionableResources()
+            .OfType<SqlDatabase>()
+            .Single();
+
+        database.Sku = new SqlSku { Name = "HS_Gen5_2" }; // Hyperscale
+    })
+    .AddDatabase("db");
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling `GetProvisionableResources`.
+  - The `SqlServer` is configured with TLS 1.3 minimum.
+  - The `SqlDatabase` is configured with a Hyperscale SKU instead of the default serverless.
+
+For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.Sql](https://learn.microsoft.com/dotnet/api/azure.provisioning.sql) API documentation.
+
 ### Connection properties
 
 When you reference Azure SQL Server resources using `WithReference`, the following connection properties are made available to the consuming project:

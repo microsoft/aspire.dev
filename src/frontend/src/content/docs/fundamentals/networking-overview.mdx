@@ -14,6 +14,38 @@ import proxyWithDockerPortMapping from '@assets/fundamentals/networking/proxy-wi
 
 One of the advantages of developing with Aspire is that it enables you to develop, test, and debug cloud-native apps locally. Inner-loop networking is a key aspect of Aspire that allows your apps to communicate with each other in your development environment. In this article, you learn how Aspire handles various networking scenarios with proxies, endpoints, endpoint configurations, and launch profiles.
 
+## The proxy mental model
+
+Think of Aspire's networking like a hotel front desk:
+
+- **Clients** (your code calling APIs) always talk to the **front desk** (proxy) at a known, stable address
+- The front desk routes requests to the **actual room** (your service) wherever it happens to be
+- If you have **multiple rooms** (replicas), the front desk handles which one to connect to
+
+This design solves several problems:
+
+| Problem | How the proxy helps |
+|---------|---------------------|
+| **Port conflicts** | Two services can't both use port 5000—but the proxy can allocate different ports for each |
+| **Replicas** | Multiple instances of a service need load balancing—the proxy handles this automatically |
+| **Service restarts** | When a service restarts on a new port, the proxy's address stays the same |
+
+```mermaid
+flowchart LR
+    Client["Your Code"]
+    Proxy["Proxy :5000"]
+    App1["Service :52847"]
+    App2["Service :52848"]
+    
+    Client --> Proxy
+    Proxy --> App1
+    Proxy --> App2
+```
+
+<Aside type="tip" title="Key insight">
+You never need to know the actual port your service runs on. Just use the proxy address, and Aspire handles the rest.
+</Aside>
+
 ## Networking in the inner loop
 
 The inner loop is the process of developing and testing your app locally before deploying it to a target environment. Aspire provides several tools and features to simplify and enhance the networking experience in the inner loop, such as:
@@ -63,6 +95,29 @@ Containers register themselves on the network using their resource name. Aspire 
   networks. They rely on exposed container ports for service discovery and
   communication with containers. For more details on service discovery, see
   [service discovery](/fundamentals/service-discovery/).
+</Aside>
+
+### Container network aliases
+
+By default, containers are accessible on the container network using their **resource name** as a DNS alias. For example, a container added with `AddContainer("mydb", ...)` is reachable at `mydb:5432` from other containers.
+
+Sometimes you need additional aliases—for example, when a third-party tool expects a specific hostname, or when migrating from an existing Docker Compose setup. Use `WithContainerNetworkAlias` to add custom DNS names:
+
+```csharp title="AppHost.cs"
+var redis = builder.AddRedis("cache")
+    .WithContainerNetworkAlias("redis-primary")
+    .WithContainerNetworkAlias("session-store");
+```
+
+Now other containers can connect to Redis using any of these names:
+- `cache:6379` (default resource name)
+- `redis-primary:6379` (custom alias)
+- `session-store:6379` (custom alias)
+
+<Aside type="tip" title="When to use network aliases">
+- **Third-party integrations**: Some tools hardcode hostnames like `redis` or `postgres`
+- **Migration from Docker Compose**: Match existing service names your apps expect
+- **Multi-purpose containers**: One Redis instance serving as both cache and session store
 </Aside>
 
 ## Launch profiles
@@ -353,3 +408,61 @@ builder.AddProject<Projects.Networking_ApiService>("apiservice")
 ```
 
 The preceding code adds a default HTTPS endpoint, as well as an `admin` endpoint on port 19227. However, the `admin` endpoint is excluded from the environment variables. This is useful when you want to expose an endpoint for internal use only.
+
+## Troubleshooting
+
+### Port already in use
+
+**Symptom**: Error message like `Address already in use` or `Failed to bind to port`
+
+**Common causes**:
+- Another instance of your app is still running
+- A previous Aspire session didn't shut down cleanly
+- Another application is using the same port
+
+**Solutions**:
+1. Stop any running Aspire sessions with `Ctrl+C` or close the dashboard
+2. Check for processes using the port: `netstat -ano | findstr :5000` (Windows) or `lsof -i :5000` (macOS/Linux)
+3. Let Aspire assign random ports by removing explicit port numbers from `WithEndpoint`
+
+### Can't connect to container
+
+**Symptom**: Timeouts or connection refused when connecting to a container resource
+
+**Common causes**:
+- The container hasn't finished starting
+- Missing `WaitFor()` dependency
+- Container is on the container network but you're connecting from the host
+
+**Solutions**:
+1. Add `.WaitFor(container)` to ensure the container is ready before dependent services start
+2. Add `.WithHttpHealthCheck()` or `.WithHealthCheck()` to the container resource
+3. Ensure host services use the **exposed port** (not the container's internal port):
+
+```csharp
+// Container exposes port 5432 to host
+var db = builder.AddPostgres("db");
+
+// Host service connects via exposed port (handled by WithReference)
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db); // ✅ Correct - uses exposed port
+```
+
+### Service not discoverable
+
+**Symptom**: Service discovery fails with "service not found" or DNS resolution errors
+
+**Solutions**:
+1. Verify `WithReference()` is set up between producer and consumer
+2. Check the endpoint name in the URI matches exactly (case-sensitive)
+3. Review [service discovery troubleshooting](/fundamentals/service-discovery#troubleshooting)
+
+### HTTPS certificate errors
+
+**Symptom**: Certificate validation fails in development
+
+**Solution**: Trust the ASP.NET Core development certificate:
+
+```bash
+dotnet dev-certs https --trust
+```
