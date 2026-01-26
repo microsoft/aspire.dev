@@ -1,0 +1,121 @@
+---
+title: Get started with the Azure Cosmos DB Entity Framework Core integrations
+description: Learn how to set up the Aspire Azure Cosmos DB Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
+
+<Image
+  src={cosmosDbIcon}
+  alt="Azure Cosmos DB logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Cosmos DB](https://azure.microsoft.com/services/cosmos-db/) is a fully managed NoSQL database service for modern app development. The Aspire Cosmos DB Entity Framework Core integration enables you to connect to existing Cosmos DB instances or create new instances from .NET with the Azure Cosmos DB emulator.
+
+In this introduction, you'll see how to install and use the Aspire Azure Cosmos DB integrations in a simple configuration. If you already have this knowledge, see [Azure Cosmos DB Hosting integration](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Azure Cosmos DB Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure Cosmos DB resources from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.CosmosDB" shortName="cosmosdb" />
+
+Next, in the AppHost project, create instances of Azure Cosmos DB resources, including a database and container, then pass the container to the consuming client projects:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db")
+                    .RunAsEmulator();
+
+var database = cosmos.AddCosmosDatabase("mydb");
+var container = database.AddContainer("mycontainer", "/id");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(container)
+                            .WithReference(container);
+```
+
+<Aside type="tip">
+    This is the simplest implementation of Azure Cosmos DB resources in the AppHost using the emulator. There are many more options you can choose from to address your requirements. For full details, see [Azure Cosmos DB Hosting integration](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host/).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+In each of these consuming client projects, install the Aspire Microsoft Entity Framework Core Cosmos DB integration:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.Cosmos" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddCosmosDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddCosmosDbContext<MyDbContext>(connectionName: "mycontainer");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the Azure Cosmos DB container resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+### Use injected Cosmos DB properties
+
+In the AppHost, when you used the `WithReference` method to pass an Azure Cosmos DB resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `ConnectionString` property of a resource called `mycontainer` becomes `MYCONTAINER_CONNECTIONSTRING`.
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string connectionString = builder.Configuration.GetValue<string>("MYCONTAINER_CONNECTIONSTRING");
+string databaseName = builder.Configuration.GetValue<string>("MYCONTAINER_DATABASENAME");
+```
+
+<Aside type="tip">
+    For the full set of properties that Aspire injects, see [Properties of the Cosmos DB resources](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-client/#properties-of-the-cosmos-db-resources).
+</Aside>
+
+### Use Cosmos DB resources in client code
+
+Now that you've added the `DbContext` to the builder in the consuming project, you can use the Azure Cosmos DB resource to get and store data. Get the `DbContext` instance using dependency injection. For example, to retrieve your database context object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(MyDbContext context)
+{
+    // Use context to interact with Cosmos DB...
+}
+```
+
+Having obtained the database context, you can work with Azure Cosmos DB as you would in any other C# application using Entity Framework Core.
+
+## Next steps
+
+Now that you have an Aspire app with Azure Cosmos DB integrations up and running, you can use the following reference documents to learn how to configure and interact with the Azure Cosmos DB resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the Azure Cosmos DB hosting integration"
+    description="Discover how to configure emulator settings, databases, containers, and more."
+    href="/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host/"
+  />
+  <LinkCard
+    title="Understand the Azure Cosmos DB client integration"
+    description="Discover how to configure the DbContext, client integration health checks, and more."
+    href="/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-client/"
+  />
+</CardGrid>

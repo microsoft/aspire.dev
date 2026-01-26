@@ -1,0 +1,124 @@
+---
+title: Compiler Warning ASPIREINTERACTION001
+description: Learn more about compiler Warning ASPIREINTERACTION001. Interaction service types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge text="Version introduced: 13.0" variant="note" size="large" class:list={'mb-1'} />
+
+> Interaction service types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warns when using the experimental `IInteractionService` interface and related interaction APIs. These APIs provide the ability to prompt users for input, request confirmation, and display messages in the Aspire dashboard or CLI during publish and deploy operations.
+
+### Example generating diagnostic
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IInteractionService from an IServiceProvider instance
+var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
+if (interactionService.IsAvailable)
+{
+    var result = await interactionService.PromptConfirmationAsync(
+        title: "Confirmation",
+        message: "Are you sure you want to proceed?");
+}
+```
+
+The diagnostic is triggered because `IInteractionService` is marked with the `[Experimental("ASPIREINTERACTION001")]` attribute.
+
+## Understanding the diagnostic
+
+The `IInteractionService` interface provides user interaction functionality for Aspire applications:
+
+- **Message display**: Show dialogs and notifications in the dashboard
+- **User confirmation**: Request confirmation before destructive operations
+- **Input collection**: Prompt users for single or multiple input values
+- **Context awareness**: Works in both dashboard UI and CLI contexts
+
+This API is experimental because the interaction patterns and API surface may evolve based on usage patterns and feedback from deployment scenarios.
+
+### Related types
+
+- **`IInteractionService`**: Interface for prompting users and displaying messages
+- **`InteractionInput`**: Defines input fields for user prompts
+- **`InputType`**: Enum for input field types (Text, SecretText, Choice, Boolean, Number)
+- **`InputLoadOptions`**: Configuration for dynamic input loading
+- **`MessageBoxInteractionOptions`**: Options for message box dialogs
+- **`NotificationInteractionOptions`**: Options for notification messages
+- **`PromptMessageBoxAsync()`**: Displays a modal dialog box
+- **`PromptNotificationAsync()`**: Displays a non-modal notification
+- **`PromptConfirmationAsync()`**: Prompts for user confirmation
+- **`PromptInputAsync()`**: Prompts for a single input value
+- **`PromptInputsAsync()`**: Prompts for multiple input values
+
+## Suppressing the diagnostic
+
+The diagnostic can be suppressed using one of several methods:
+
+### Suppressing in .editorconfig
+
+```ini title=".editorconfig"
+[*.{cs,vb}]
+dotnet_diagnostic.ASPIREINTERACTION001.severity = none
+```
+
+### Suppressing in a project file
+
+```xml title="YourProject.csproj"
+title: ASPIREINTERACTION001
+description: The interaction service APIs are experimental and subject to change.
+---
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Diagnostic ID** | ASPIREINTERACTION001 |
+| **Severity** | Warning |
+| **Category** | Usage |
+
+The `IInteractionService` and related APIs are experimental features that enable interactive prompts and confirmations during AppHost execution. These APIs may change or be removed in future versions.
+
+## Cause
+
+This warning appears when you use the interaction service APIs such as:
+
+- `IInteractionService.PromptAsync`
+- `IInteractionService.ConfirmAsync`
+- `IInteractionService.SelectAsync`
+- `InputGeneratorAnnotation`
+
+## How to suppress
+
+If you understand the experimental nature of these APIs and want to use them, suppress the warning:
+
+```csharp title="Suppress in code"
+#pragma warning disable ASPIREINTERACTION001
+var result = await interactionService.PromptAsync("Enter value:", cancellationToken);
+#pragma warning restore ASPIREINTERACTION001
+```
+
+Or in your project file:
+
+```xml title="Suppress in project file"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIREINTERACTION001</NoWarn>
+</PropertyGroup>
+```
+
+### Suppressing in source code
+
+```csharp
+#pragma warning disable ASPIREINTERACTION001
+var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
+var result = await interactionService.PromptConfirmationAsync(
+    title: "Confirmation",
+    message: "Are you sure?");
+#pragma warning restore ASPIREINTERACTION001
+```
+
+## See also
+
+- [Interaction service](/extensibility/interaction-service/) - Learn how to use the interaction service

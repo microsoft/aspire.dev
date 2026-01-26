@@ -294,6 +294,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-app-service',
             },
             {
+              label: 'Azure Application Insights',
+              slug: 'integrations/cloud/azure/azure-application-insights',
+            },
+            {
               label: 'Azure Cache for Redis',
               slug: 'integrations/cloud/azure/azure-cache-redis',
             },
@@ -306,6 +310,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/azure-cosmos-db',
             },
             {
+              label: 'Azure Data Explorer',
+              slug: 'integrations/cloud/azure/azure-data-explorer',
+            },
+            {
               label: 'Azure Event Hubs',
               slug: 'integrations/cloud/azure/azure-event-hubs',
             },
@@ -316,6 +324,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'Azure Key Vault',
               slug: 'integrations/cloud/azure/azure-key-vault',
+            },
+            {
+              label: 'Azure Log Analytics',
+              slug: 'integrations/cloud/azure/azure-log-analytics',
             },
             {
               label: 'Azure PostgreSQL',
@@ -340,6 +352,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                 {
                   label: 'Azure Storage Blobs',
                   slug: 'integrations/cloud/azure/azure-storage-blobs',
+                },
+                {
+                  label: 'Azure Data Lake Storage',
+                  slug: 'integrations/cloud/azure/azure-storage-datalake',
                 },
                 {
                   label: 'Azure Storage Queues',
@@ -472,7 +488,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Elasticsearch',
-          slug: 'integrations/databases/elasticsearch',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/elasticsearch/elasticsearch-client',
+            },
+          ],
         },
         {
           label: 'Entity Framework Core',
@@ -491,7 +521,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Cosmos DB',
-              slug: 'integrations/databases/efcore/azure-cosmos-db',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-client',
+                },
+              ],
             },
             {
               label: 'Azure PostgreSQL',
@@ -503,7 +547,17 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'MySQL Pomelo',
-              slug: 'integrations/databases/efcore/mysql',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/mysql/mysql-get-started',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/mysql/mysql-client',
+                },
+              ],
             },
             {
               label: 'Oracle',

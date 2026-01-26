@@ -18,6 +18,7 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
+import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 
 // https://astro.build/config
@@ -65,16 +66,33 @@ export default defineConfig({
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },
       plugins: [
+        starlightPageActions({
+          actions: {
+            chatgpt: false,
+            claude: false,
+            custom: {
+              copilot: {
+                label: 'Open in GitHub Copilot',
+                href: 'https://github.com/copilot/?prompt=',
+              },
+              chatGpt: {
+                label: 'Open in ChatGPT',
+                href: 'https://chatgpt.com/?q=',
+              },
+              claude: {
+                label: 'Open in Claude',
+                href: 'https://claude.ai/new?q=',
+              }
+            },
+          },
+        }),
         lunaria({
           route: '/i18n',
           sync: false,
         }),
         catppuccin(),
         starlightSidebarTopics(sidebarTopics, {
-          exclude: [
-            '**/includes/**/*',
-            '/support'
-          ],
+          exclude: ['**/includes/**/*', '/support'],
         }),
         ...(process.env.CHECK_LINKS
           ? [
@@ -114,7 +132,34 @@ export default defineConfig({
           projectName: 'Aspire',
           description:
             'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
-          exclude: ['reference/api/**', '/reference/api/**', '**/api/**'],
+          // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
+          exclude: [
+            'includes/**',
+            'index',
+            '404',
+            'docs',
+            'integrations/gallery',
+            'reference/overview',
+            'reference/api/browser',
+            'community/contributors',
+            'community/posts',
+            'community/videos',
+            'da/**',
+            'de/**',
+            'es/**',
+            'fr/**',
+            'hi/**',
+            'id/**',
+            'it/**',
+            'ja/**',
+            'ko/**',
+            'pt-br/**',
+            'pt-pt/**',
+            'ru/**',
+            'tr/**',
+            'uk/**',
+            'zh-cn/**',
+          ],
         }),
         starlightImageZoom({
           showCaptions: true,

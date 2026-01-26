@@ -26,6 +26,7 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
     { label: 'Overview', link: '/diagnostics/overview' },
     {
       label: 'Warnings',
+      collapsed: true,
       items: [
         { label: 'ASPIRE001', link: '/diagnostics/aspire001' },
         { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
@@ -48,12 +49,28 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
           link: '/diagnostics/aspirecontainerruntime001',
         },
         {
+          label: 'ASPIRECONTAINERSHELLEXECUTION001',
+          link: '/diagnostics/aspirecontainershellexecution001',
+        },
+        {
           label: 'ASPIREDOCKERFILEBUILDER001',
           link: '/diagnostics/aspiredockerfilebuilder001',
         },
         {
+          label: 'ASPIREDOTNETTOOL',
+          link: '/diagnostics/aspiredotnettool',
+        },
+        {
+          label: 'ASPIREEXTENSION001',
+          link: '/diagnostics/aspireextension001',
+        },
+        {
           label: 'ASPIREFILESYSTEM001',
           link: '/diagnostics/aspirefilesystem001',
+        },
+        {
+          label: 'ASPIREINTERACTION001',
+          link: '/diagnostics/aspireinteraction001',
         },
         {
           label: 'ASPIREPIPELINES004',
@@ -62,6 +79,10 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
         {
           label: 'ASPIREPROBES001',
           link: '/diagnostics/aspireprobes001',
+        },
+        {
+          label: 'ASPIREPOSTGRES001',
+          link: '/diagnostics/aspirepostgres001',
         },
         {
           label: 'ASPIREUSERSECRETS001',

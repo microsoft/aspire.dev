@@ -1,0 +1,249 @@
+---
+title: Get started with the Elasticsearch integrations
+description: Learn how to set up the Aspire Elasticsearch Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import elasticIcon from '@assets/icons/elastic-icon.png';
+
+<Image
+  src={elasticIcon}
+  alt="Elasticsearch logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Elasticsearch](https://www.elastic.co/elasticsearch) is a distributed, RESTful search and analytics engine, scalable data store, and vector database capable of addressing a growing number of use cases. The Aspire Elasticsearch integration provides a way to connect to existing Elasticsearch instances, or create new instances from the [`docker.io/library/elasticsearch` container image](https://hub.docker.com/_/elasticsearch).
+
+In this introduction, you'll see how to install and use the Aspire Elasticsearch integrations in a simple configuration. If you already have this knowledge, see [Elasticsearch Hosting integration](/integrations/databases/elasticsearch/elasticsearch-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Elasticsearch Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Elasticsearch instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Elasticsearch" shortName="elasticsearch" />
+
+Next, in the AppHost project, create an instance of an Elasticsearch resource, then pass it to the consuming client projects:
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript" },
+    ]}
+/>
+
+<Pivot id="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var elasticsearch = builder.AddElasticsearch("elasticsearch");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(elasticsearch)
+                            .WithReference(elasticsearch);
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var elasticsearch = builder.AddElasticsearch("elasticsearch");
+
+var exampleProject = builder.AddUvicornApp("api", "./api", "main.app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(elasticsearch)
+                            .WithReference(elasticsearch);
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var elasticsearch = builder.AddElasticsearch("elasticsearch");
+
+var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+                 .WithExternalHttpEndpoints()
+                 .WaitFor(elasticsearch)
+                 .WithReference(elasticsearch);
+```
+
+</Pivot>
+
+<Aside type="tip">
+    This is the simplest implementation of Elasticsearch resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Elasticsearch Hosting integration](/integrations/databases/elasticsearch/elasticsearch-host/).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+<Pivot id="csharp">
+
+In each of these consuming client projects, install the Aspire Elasticsearch client integration:
+
+<InstallDotNetPackage packageName="Aspire.Elastic.Clients.Elasticsearch" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddElasticsearchClient` extension method on any `IHostApplicationBuilder` to register an `ElasticsearchClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddElasticsearchClient(connectionName: "elasticsearch");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the Elasticsearch resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
+
+<Pivot id="python">
+
+To interact with Elasticsearch in your Python consuming projects, you need to include the official Elasticsearch Python client library. You can install this library using pip:
+
+```bash
+pip install elasticsearch
+```
+
+Ensure that you `import` the Elasticsearch client in code files that interact with Elasticsearch. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import elasticsearch"
+from elasticsearch import Elasticsearch
+import os
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+To interact with Elasticsearch in your JavaScript consuming projects, you need to include the official Elasticsearch JavaScript client library. You can install this library using npm:
+
+```bash
+npm install @elastic/elasticsearch
+```
+
+Ensure that you import the Elasticsearch client in code files that interact with Elasticsearch:
+
+```javascript title="JavaScript - Import @elastic/elasticsearch"
+import { Client } from '@elastic/elasticsearch';
+```
+
+</Pivot>
+
+### Use injected Elasticsearch properties
+
+In the AppHost, when you used the `WithReference` method to pass an Elasticsearch resource to a consuming client project, Aspire injects a connection string property that you can use in the consuming project. Aspire exposes the connection string as an environment variable named `ConnectionStrings__elasticsearch`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain this environment variable in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string endpoint = builder.Configuration.GetValue<string>("ConnectionStrings__elasticsearch");
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the `os.getenv()` method to obtain this environment variable in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+elasticsearch_endpoint = os.getenv("ConnectionStrings__elasticsearch")
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the `process.env` method to obtain this environment variable in consuming projects:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const elasticsearchEndpoint = process.env.ConnectionStrings__elasticsearch;
+```
+
+</Pivot>
+
+### Use Elasticsearch resources in client code
+
+<Pivot id="csharp">
+
+Now that you've added `ElasticsearchClient` to the builder in the consuming project, you can use the Elasticsearch resource to interact with the search engine. Get the `ElasticsearchClient` instance using dependency injection. For example, to retrieve your client object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ElasticsearchClient client)
+{
+    // Use client to interact with Elasticsearch...
+}
+```
+
+Having obtained the client, you can work with Elasticsearch as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the information you have obtained about the Elasticsearch resource to connect to the search engine. Here is an example of how to connect using the official Python client:
+
+```python title="Python - Connect to Elasticsearch"
+es = Elasticsearch(elasticsearch_endpoint)
+```
+
+Having obtained the client, you can work with Elasticsearch as you would in any other Python application.
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the information you have obtained about the Elasticsearch resource to connect to the search engine. Here is an example of how to connect using the official JavaScript client:
+
+```javascript title="JavaScript - Connect to Elasticsearch"
+const client = new Client({
+  node: elasticsearchEndpoint
+});
+```
+
+Having obtained the client, you can work with Elasticsearch as you would in any other JavaScript application.
+
+</Pivot>
+
+## Next steps
+
+Now, that you have an Aspire app with Elasticsearch integrations up and running, you can use the following reference documents to learn how to configure and interact with the Elasticsearch resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the Elasticsearch hosting integration"
+    description="Discover how to configure persistence, passwords, and more."
+    href="/integrations/databases/elasticsearch/elasticsearch-host/"
+  />
+  <LinkCard
+    title="Understand the Elasticsearch client integration"
+    description="Discover how to configure keyed clients, client integration health checks, and more."
+    href="/integrations/databases/elasticsearch/elasticsearch-client/"
+  />
+</CardGrid>
