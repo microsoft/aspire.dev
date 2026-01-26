@@ -3,10 +3,10 @@ title: Aspire troubleshooting guide
 description: Solutions to common problems when getting started with .NET Aspire, including Docker issues, port conflicts, and service discovery errors.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
-import Expand from '@components/Expand.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 Having issues getting started with Aspire? This page covers solutions to the most common problems developers encounter.
 
@@ -17,44 +17,56 @@ Having issues getting started with Aspire? This page covers solutions to the mos
 **Solution**: Start Docker Desktop (or Podman) before running `aspire run`. Check your system tray to confirm Docker is running with a green status indicator.
 
 <Aside type="caution">
-Aspire uses containers for databases, caches, and other resources. Without a container runtime, these resources can't start.
+  Aspire uses containers for databases, caches, and other resources. Without a
+  container runtime, these resources can't start.
 </Aside>
 
 ## Port already in use
 
 **Symptoms**: Error message like "Address already in use" or "Port 5000 is already bound."
 
-**Solution**: 
+**Solution**:
+
 - Stop any other applications using the same ports
 - If you have another Aspire app running, stop it first with <Kbd windows="Ctrl+C" mac="⌘+C" />
 
-<Expand summary="How to find processes using a port">
+### How to find processes using a port
 
-**Windows:**
-```powershell
-netstat -ano | findstr :5000
-# Find the PID in the last column, then:
-taskkill /PID <pid> /F
-```
+<OsAwareTabs syncKey="terminal">
+    <div slot="windows">
+    
+    ```powershell
+    netstat -ano | findstr :5000
+    # Find the PID in the last column, then:
+    taskkill /PID <pid> /F
+    ```
 
-**macOS/Linux:**
-```bash
-lsof -i :5000
-# Then kill the process:
-kill -9 <pid>
-```
+    </div>
+    <div slot="unix">
 
-</Expand>
+    ```bash
+    lsof -i :5000
+    # Then kill the process:
+    kill -9 <pid>
+    ```
+    </div>
+
+</OsAwareTabs>
 
 ## Service shows "Unhealthy" in dashboard
 
 **Symptoms**: A service has a red status or shows "Unhealthy" in the Aspire dashboard.
 
 **Solution**:
+
+<Steps>
+
 1. Click on the service name in the dashboard to view its logs
 2. Look for startup errors or exceptions
 3. Verify the health check endpoint exists (e.g., `/health` returns a 200 OK)
 4. Check that all dependencies started successfully
+
+</Steps>
 
 ## "Connection refused" errors
 
@@ -74,7 +86,7 @@ builder.AddProject<Projects.WebFrontend>("frontend")
 
 **Solution**: Verify you're using `WithReference()` to connect resources.
 
-<Expand summary="Example: Connecting a database to your service">
+### Example: Connecting a database to your service
 
 In your AppHost:
 
@@ -92,18 +104,17 @@ var connectionString = builder.Configuration.GetConnectionString("db");
 
 The connection string is injected as an environment variable named `ConnectionStrings__db`.
 
-</Expand>
-
 ## Container image pull failures
 
 **Symptoms**: Error messages about failing to pull container images, or "image not found" errors.
 
 **Solution**:
+
 - Check your internet connection
 - Verify Docker Hub or your container registry is accessible
 - If using a corporate network, check proxy settings in Docker Desktop
 
-<Expand summary="How to manually pull and verify an image">
+### How to manually pull and verify an image
 
 ```bash
 # Try pulling the image manually
@@ -113,17 +124,20 @@ docker pull redis:latest
 # Settings > Resources > Proxies > Manual proxy configuration
 ```
 
-</Expand>
-
 ## Dashboard not loading
 
 **Symptoms**: The Aspire dashboard URL doesn't respond or shows a blank page.
 
 **Solution**:
+
+<Steps>
+
 1. Check the console output for the correct dashboard URL (it may use a different port)
 2. Ensure no browser extensions are blocking the page
 3. Try a different browser or incognito mode
 4. Check if antivirus or firewall is blocking the connection
+
+</Steps>
 
 ## Service discovery not working
 
@@ -131,7 +145,7 @@ docker pull redis:latest
 
 **Solution**: Ensure you're using the service name exactly as defined in your AppHost.
 
-<Expand summary="Example: Correct service discovery setup">
+### Example: Correct service discovery setup
 
 ```csharp title="AppHost.cs"
 // In AppHost
@@ -144,17 +158,13 @@ var client = new HttpClient { BaseAddress = new Uri("http://apiservice") };
 ```
 
 Also verify:
+
 - Both services have `AddServiceDefaults()` called
 - The consuming service has `.WithReference(api)` in the AppHost
 
-</Expand>
-
 <LearnMore>
-For a deeper understanding of how service discovery works in Aspire, see [Service discovery](/fundamentals/service-discovery/).
-</LearnMore>
-
-<LearnMore>
-For more help, see [Aspire Support](/support/) or check the [GitHub Discussions](https://github.com/dotnet/aspire/discussions).
+  For a deeper understanding of how service discovery works in Aspire, see
+  [Service discovery](/fundamentals/service-discovery/).
 </LearnMore>
 
 ## See also
