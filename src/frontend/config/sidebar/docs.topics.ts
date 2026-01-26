@@ -747,6 +747,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/configuration',
         },
         {
+          label: 'Polyglot AppHost',
+          slug: 'app-host/polyglot-apphost',
+        },
+        {
           label: 'Certificate configuration',
           slug: 'app-host/certificate-configuration',
         },
