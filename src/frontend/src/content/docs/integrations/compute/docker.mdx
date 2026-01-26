@@ -8,6 +8,7 @@ import InstallPackage from '@components/InstallPackage.astro';
 import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dockerIcon from '@assets/icons/docker.svg';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 <Image
   src={dockerIcon}
@@ -306,14 +307,14 @@ For GitHub Container Registry, the registry endpoint is `ghcr.io` and the reposi
 
 ### Using parameters for registry configuration
 
-For more flexible configuration, especially in CI/CD pipelines, you can use parameters:
+For more flexible configuration, especially in CI/CD pipelines, you can use parameters with environment variables:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Define parameters for registry configuration
-var registryEndpoint = builder.AddParameter("registry-endpoint");
-var registryRepository = builder.AddParameter("registry-repository");
+// Define parameters from configuration (reads from environment variables)
+var registryEndpoint = builder.AddParameterFromConfiguration("REGISTRY_ENDPOINT");
+var registryRepository = builder.AddParameterFromConfiguration("REGISTRY_REPOSITORY");
 
 // Add registry with parameters
 var registry = builder.AddContainerRegistry(
@@ -327,12 +328,26 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 ```
 
-You can then provide parameter values via environment variables or command-line arguments:
+You can then provide parameter values via environment variables:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
-export Parameters__registry_endpoint=ghcr.io
-export Parameters__registry_repository=your-github-username/your-repo
+export REGISTRY_ENDPOINT=ghcr.io
+export REGISTRY_REPOSITORY=your-github-username/your-repo
 ```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:REGISTRY_ENDPOINT = "ghcr.io"
+$env:REGISTRY_REPOSITORY = "your-github-username/your-repo"
+```
+
+</div>
+</OsAwareTabs>
 
 ### Push images with the Aspire CLI
 
@@ -397,8 +412,8 @@ jobs:
 
       - name: Build and push images
         env:
-          Parameters__registry_endpoint: ghcr.io
-          Parameters__registry_repository: ${{ github.repository }}
+          REGISTRY_ENDPOINT: ghcr.io
+          REGISTRY_REPOSITORY: ${{ github.repository }}
         run: aspire do push
 ```
 
