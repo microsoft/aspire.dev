@@ -26,6 +26,7 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
     { label: 'Overview', link: '/diagnostics/overview' },
     {
       label: 'Warnings',
+      collapsed: true,
       items: [
         { label: 'ASPIRE001', link: '/diagnostics/aspire001' },
         { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
