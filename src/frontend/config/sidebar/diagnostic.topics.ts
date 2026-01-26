@@ -48,6 +48,10 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
           link: '/diagnostics/aspirecontainerruntime001',
         },
         {
+          label: 'ASPIRECONTAINERSHELLEXECUTION001',
+          link: '/diagnostics/aspirecontainershellexecution001',
+        },
+        {
           label: 'ASPIREDOCKERFILEBUILDER001',
           link: '/diagnostics/aspiredockerfilebuilder001',
         },
