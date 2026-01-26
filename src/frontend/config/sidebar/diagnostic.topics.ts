@@ -56,6 +56,14 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
           link: '/diagnostics/aspiredockerfilebuilder001',
         },
         {
+          label: 'ASPIREDOTNETTOOL',
+          link: '/diagnostics/aspiredotnettool',
+        },
+        {
+          label: 'ASPIREEXTENSION001',
+          link: '/diagnostics/aspireextension001',
+        },
+        {
           label: 'ASPIREFILESYSTEM001',
           link: '/diagnostics/aspirefilesystem001',
         },
@@ -70,6 +78,10 @@ export const diagnosticTopics: StarlightSidebarTopicsUserConfig = {
         {
           label: 'ASPIREPROBES001',
           link: '/diagnostics/aspireprobes001',
+        },
+        {
+          label: 'ASPIREPOSTGRES001',
+          link: '/diagnostics/aspirepostgres001',
         },
         {
           label: 'ASPIREUSERSECRETS001',
