@@ -45,6 +45,23 @@ app.UseStatusCodePages(async context =>
     }
 });
 
+// Ensure text/plain responses include UTF-8 charset to fix encoding issues with .txt files
+app.Use(async (context, next) =>
+{
+    // Fixes https://github.com/microsoft/aspire.dev/issues/300
+    context.Response.OnStarting(() =>
+    {
+        if (context.Response.ContentType is "text/plain")
+        {
+            context.Response.ContentType = "text/plain; charset=utf-8";
+        }
+        
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 app.MapGet("/healthz", () => Results.Ok());
 
 app.MapGet("/install.ps1", (HttpContext context, OneDSTelemetryService telemetry) =>
