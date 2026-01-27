@@ -1,129 +1,46 @@
 ---
-import DefaultHeader from "@astrojs/starlight/components/Header.astro";
-
 import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
-import SocialIcons from "@components/starlight/SocialIcons.astro";
-import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
-import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
 import Search from "@astrojs/starlight/components/Search.astro";
-
-import { isHomepage } from "@utils/helpers";
+import { Icon } from "@astrojs/starlight/components";
+import InstallCliModal from "@components/InstallCliModal.astro";
+import CookiesSvg from "@assets/icons/cookies.svg";
 ---
 
-{
-    isHomepage(Astro) ? (
-        <div class="header">
-            <div class="title-wrapper sl-flex" data-homepage-title>
-                <SiteTitle />
-            </div>
-            <div class="sl-flex print:hidden homepage-search" data-homepage-search>
-                <Search />
-            </div>
-            <div class="sl-hidden md:sl-flex print:hidden right-group">
-                <div class="sl-flex social-icons">
-                    <SocialIcons />
-                </div>
-                <ThemeSelect />
-                <LanguageSelect />
-            </div>
-        </div>
-    ) : (
-        <DefaultHeader>
-            <slot />
-        </DefaultHeader>
-    )
-}
-
-<script>
-    // Store the AbortController to manage scroll listener lifecycle
-    let scrollController: AbortController | null = null;
-
-    function initHomepageHeader() {
-        // Abort any existing scroll listener before setting up a new one
-        if (scrollController) {
-            scrollController.abort();
-        }
-        scrollController = new AbortController();
-
-        const searchWrapper = document.querySelector('[data-homepage-search]');
-        const titleWrapper = document.querySelector('[data-homepage-title]');
-        const siteTitleText = titleWrapper?.querySelector('.site-title .sr-only');
-        if (!searchWrapper && !siteTitleText) return;
-
-        const hero = document.querySelector('.hero');
-        if (!hero) {
-            // If no hero found, show elements immediately
-            searchWrapper?.classList.add('visible');
-            siteTitleText?.classList.add('visible');
-            return;
-        }
-
-        function checkScroll() {
-            const heroRect = hero.getBoundingClientRect();
-            // Show elements when the bottom of the hero is at or above the top of the viewport
-            if (heroRect.bottom <= 0) {
-                searchWrapper?.classList.add('visible');
-                siteTitleText?.classList.add('visible');
-            } else {
-                searchWrapper?.classList.remove('visible');
-                siteTitleText?.classList.remove('visible');
-            }
-        }
-
-        let ticking = false;
-        function onScroll() {
-            if (!ticking) {
-                ticking = true;
-                window.requestAnimationFrame(() => {
-                    checkScroll();
-                    ticking = false;
-                });
-            }
-        }
-
-        // Check on initial load
-        checkScroll();
-
-        // Check on scroll (throttled with requestAnimationFrame)
-        // Use AbortController signal to automatically remove listener when aborted
-        window.addEventListener('scroll', onScroll, {
-            passive: true,
-            signal: scrollController!.signal,
-        });
-    }
-
-    // Run on initial load
-    initHomepageHeader();
-
-    // Re-run on Astro page transitions (View Transitions)
-    document.addEventListener('astro:after-swap', initHomepageHeader);
-</script>
+<div class="header">
+    <div class="title-wrapper sl-flex">
+        <SiteTitle />
+    </div>
+    <div class="sl-flex print:hidden">
+        <Search />
+    </div>
+    <div class="sl-hidden md:sl-flex print:hidden right-group">
+        <button
+            type="button"
+            class="header-icon-btn cookie-consent-btn"
+            data-cc="show-preferencesModal"
+            title="Cookie preferences"
+            data-placement="top"
+            aria-label="Open cookie preferences dialog"
+        >
+            <span class="sr-only">Cookie Preferences</span>
+            <CookiesSvg />
+        </button>
+        <button
+            class="header-icon-btn install-cli-btn"
+            data-open-install-modal
+            title="Install Aspire CLI"
+            data-placement="top"
+            aria-label="Open install Aspire CLI dialog"
+        >
+            <span class="sr-only">Install Aspire CLI</span>
+            <Icon name="download" />
+        </button>
+        <a href="/get-started/first-app/" class="try-aspire-btn">Try Aspire</a>
+    </div>
+</div>
+<InstallCliModal />
 
 <style>
-    .homepage-search {
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s ease;
-    }
-
-    .homepage-search.visible {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    /* Site title text - hidden by default on homepage, shown when scrolling */
-    /* Use :global() to escape Astro's scoped CSS since .sr-only is in SiteTitle component */
-    [data-homepage-title] :global(a.site-title .sr-only.visible) {
-        position: initial !important;
-        width: auto !important;
-        height: auto !important;
-        margin: initial !important;
-        padding: initial !important;
-        clip: auto !important;
-        overflow: visible !important;
-        white-space: normal !important;
-    }
-
     @layer starlight.core {
         .header {
             display: flex;
@@ -152,6 +69,57 @@ import { isHomepage } from "@utils/helpers";
             content: "";
             height: 2rem;
             border-inline-end: 1px solid var(--sl-color-gray-5);
+        }
+
+        .header-icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            color: var(--sl-color-text-accent);
+            transition: opacity 0.2s ease, transform 0.15s ease;
+        }
+
+        .header-icon-btn:hover {
+            opacity: 0.7;
+            transform: scale(1.05);
+        }
+
+        .header-icon-btn :global(svg) {
+            --sl-icon-size: 1.25rem !important;
+        }
+
+        .install-cli-btn :global(svg) {
+            --sl-icon-size: 1.5rem !important;
+        }
+
+        .try-aspire-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1.25rem;
+            background: var(--aspire-color-light, #dcd5f6);
+            color: var(--aspire-color-black, #1f1e33);
+            font-weight: 600;
+            font-size: var(--sl-text-sm);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .try-aspire-btn:hover {
+            background: var(--aspire-color-primary, #7455dd);
+            color: var(--aspire-color-white, #fff);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(116, 85, 221, 0.4);
+        }
+
+        .try-aspire-btn:active {
+            transform: translateY(0);
         }
 
         @media (max-width: 1200px)  {

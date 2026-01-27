@@ -39,7 +39,7 @@ export default defineConfig({
       locales,
       logo: {
         src: './src/assets/aspire-logo-32.svg',
-        replacesTitle: true,
+        replacesTitle: false,
       },
       editLink: {
         baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
@@ -165,6 +165,7 @@ export default defineConfig({
           showCaptions: true,
         }),
         starlightKbd({
+          globalPicker: false, // We manually place the picker in the footer preferences
           types: [
             { id: 'mac', label: 'macOS', detector: 'apple' },
             { id: 'windows', label: 'Windows', detector: 'windows', default: true },
