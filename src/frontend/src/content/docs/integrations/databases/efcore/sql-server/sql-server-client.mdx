@@ -1,6 +1,7 @@
 ---
 title: SQL Server Entity Framework Core client integration
 description: Learn how to use the Aspire SQL Server EF Core client integration to connect to SQL Server databases.
+next: false
 ---
 
 import { Image } from 'astro:assets';
@@ -17,11 +18,15 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire SQL Server Entity Framework Core integration, install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project, that is, the project for the application that uses the SQL Server Entity Framework Core client.
+To get started with the Aspire SQL Server Entity Framework Core (EF Core) integration, install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project, that is, the project for the application that uses the SQL Server EF Core client.
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
 
-For an introduction to working with the SQL Server Entity Framework Core client integration, see [Get started with the SQL Server EF Core integrations](../sql-server-get-started/).
+For an introduction to working with the SQL Server EF Core client integration, see [Get started with the SQL Server EF Core integrations](/integrations/databases/efcore/sql-server/sql-server-get-started/).
+
+<Aside type="note">
+Before using the Aspire SQL Server EF Core client integration in a project, ensure that the Aspire SQL Server Hosting integration is set up in the AppHost project. For more information, see [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/).
+</Aside>
 
 ## Add SQL Server database context
 
@@ -32,7 +37,7 @@ builder.AddSqlServerDbContext<ExampleDbContext>(connectionName: "database");
 ```
 
 <Aside type="tip">
-The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerDbContext`. For more information, see [Add SQL Server resource and database resource](../sql-server-host/#add-sql-server-resource-and-database-resource).
+The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerDbContext`. For more information, see [Add SQL Server resource and database resource](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-and-database-resource).
 </Aside>
 
 To retrieve `ExampleDbContext` object from a service:
@@ -83,7 +88,7 @@ For example, if you reference a database resource named `sqldb` in your AppHost 
 
 ## Enrich a SQL Server database context
 
-You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
+You may prefer to use the standard EF Core method to obtain a database context and add it to the dependency injection container:
 
 ```csharp title="C# — Program.cs"
 builder.Services.AddDbContext<ExampleDbContext>(options =>
@@ -92,14 +97,14 @@ builder.Services.AddDbContext<ExampleDbContext>(options =>
 ```
 
 <Aside type="note">
-The connection string name that you pass to the `Microsoft.Extensions.Configuration.ConfigurationExtensions.GetConnectionString` method must match the name used when adding the SQL server resource in the AppHost project. For more information, see [Add SQL Server resource and database resource](../sql-server-host/#add-sql-server-resource-and-database-resource).
+The connection string name that you pass to the `Microsoft.Extensions.Configuration.ConfigurationExtensions.GetConnectionString` method must match the name used when adding the SQL server resource in the AppHost project. For more information, see [Add SQL Server resource and database resource](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-and-database-resource).
 </Aside>
 
 You have more flexibility when you create the database context in this way, for example:
 
 - You can reuse existing configuration code for the database context without rewriting it for Aspire.
-- You can use Entity Framework Core interceptors to modify database operations.
-- You can choose not to use Entity Framework Core context pooling, which may perform better in some circumstances.
+- You can use EF Core interceptors to modify database operations.
+- You can choose not to use EF Core context pooling, which may perform better in some circumstances.
 
 If you use this method, you can enhance the database context with Aspire-style retries, health checks, logging, and telemetry features by calling the `EnrichSqlServerDbContext` method:
 
@@ -142,7 +147,7 @@ For more information, see the [ConnectionString](https://learn.microsoft.com/dot
 
 ### Use configuration providers
 
-The Aspire SQL Server Entity Framework Core integration supports [Microsoft.Extensions.Configuration](https://learn.microsoft.com/dotnet/api/microsoft.extensions.configuration). It loads the `MicrosoftEntityFrameworkCoreSqlServerSettings` from configuration files such as `appsettings.json` by using the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` key. If you have set up your configurations in the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` section you can just call the method without passing any parameter.
+The Aspire SQL Server EF Core integration supports [Microsoft.Extensions.Configuration](https://learn.microsoft.com/dotnet/api/microsoft.extensions.configuration). It loads the `MicrosoftEntityFrameworkCoreSqlServerSettings` from configuration files such as `appsettings.json` by using the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` key. If you have set up your configurations in the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` section you can just call the method without passing any parameter.
 
 The following is an example of an `appsettings.json` file that configures some of the available options:
 

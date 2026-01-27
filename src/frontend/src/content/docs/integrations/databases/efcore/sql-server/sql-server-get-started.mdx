@@ -19,12 +19,12 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server Entity Framework Core integration enables you to connect to existing SQL Server instances or create new instances from .NET with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
+[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server Entity Framework Core (EF Core) integration enables you to connect to existing SQL Server instances or create new instances from .NET with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
 
-In this introduction, you'll see how to install and use the Aspire SQL Server Entity Framework Core integrations in a simple configuration. If you already have this knowledge, see the links below for full reference details.
+In this introduction, you'll see how to install and use the Aspire SQL Server EF Core integrations in a simple configuration. If you already have this knowledge, see the links below for full reference details.
 
 <Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../../get-started/first-app/).
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
 </Aside>
 
 ## Set up hosting integration
@@ -32,6 +32,10 @@ In this introduction, you'll see how to install and use the Aspire SQL Server En
 To begin, install the Aspire SQL Server Hosting integration in your Aspire AppHost project. This integration allows you to create and manage SQL Server database instances from your Aspire hosting projects:
 
 <InstallPackage packageName="Aspire.Hosting.SqlServer" shortName="sql-server" />
+
+<Aside type="note">
+    The [Aspire SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/) is used in the App Host with both the EF Core and non-EF Core client integrations.
+</Aside>
 
 Next, in the AppHost project, create instances of SQL Server server and database resources, then pass the database to the consuming client projects:
 
@@ -49,16 +53,16 @@ builder.Build().Run();
 ```
 
 <Aside type="tip">
-    This is the simplest implementation of SQL Server resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [SQL Server Hosting integration](../sql-server-host/).
+    This is the simplest implementation of SQL Server resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/).
 </Aside>
 
 ## Use the integration in client projects
 
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+Now that the hosting integration is ready, the next step is to install and configure the Aspire SQL Server EF Coreclient integration in any projects that need to use it.
 
 ### Set up client projects
 
-In each of these consuming client projects, install the Aspire SQL Server Entity Framework Core client integration:
+In each of these consuming client projects, install the Aspire SQL Server EF Core client integration:
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
 
@@ -83,73 +87,13 @@ public class ExampleService(ExampleDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-## Complete example code
-
-The following code shows a complete example of a basic Aspire application that uses the SQL Server Entity Framework Core integration. This example creates a simple Web API that retrieves and adds todo items from a SQL Server database.
-
-### AppHost project
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var sql = builder.AddSqlServer("sql");
-var sqldb = sql.AddDatabase("sqldb");
-
-builder.AddProject<Projects.ExampleProject>("exampleproject")
-       .WithReference(sqldb)
-       .WaitFor(sqldb);
-
-builder.Build().Run();
-```
-
-### Client project
-
-```csharp title="C# — Program.cs"
-var builder = WebApplication.CreateBuilder(args);
-
-builder.AddServiceDefaults();
-builder.AddSqlServerDbContext<TodoDbContext>(connectionName: "sqldb");
-
-var app = builder.Build();
-
-app.MapDefaultEndpoints();
-
-app.MapGet("/todos", async (TodoDbContext context) =>
-{
-    return await context.Todos.ToListAsync();
-});
-
-app.MapPost("/todos", async (TodoDbContext context, Todo todo) =>
-{
-    context.Todos.Add(todo);
-    await context.SaveChangesAsync();
-    return Results.Created($"/todos/{todo.Id}", todo);
-});
-
-app.Run();
-```
-
-```csharp title="C# — TodoDbContext.cs"
-public class TodoDbContext(DbContextOptions<TodoDbContext> options) : DbContext(options)
-{
-    public DbSet<Todo> Todos => Set<Todo>();
-}
-
-public class Todo
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public bool IsCompleted { get; set; }
-}
-```
-
 ## Next steps
 
 <CardGrid>
     <LinkCard 
         title="SQL Server Hosting integration"
         description="Learn about the SQL Server hosting integration features and capabilities."
-        href="/integrations/databases/efcore/sql-server/sql-server-host/"
+        href="/integrations/databases/sql-server/sql-server-host/"
     />
     <LinkCard 
         title="SQL Server Client integration"
