@@ -3,7 +3,7 @@ title: External parameters
 description: Learn how to express parameters such as secrets, connection strings, and other configuration values that might vary between environments.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved-parameters-message.png';
 import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.png';
@@ -36,9 +36,9 @@ Consider the following AppHost configuration file _appsettings.json_:
 
 ```json title="appsettings.json"
 {
-    "Parameters": {
-        "example-parameter-name": "local-value"
-    }
+  "Parameters": {
+    "example-parameter-name": "local-value"
+  }
 }
 ```
 
@@ -52,14 +52,82 @@ var value = builder.Configuration[key]; // value = "local-value"
 ```
 
 <Aside type="caution">
-However, you don't need to access this configuration value yourself in the AppHost. Instead, the `ParameterResource` is used to pass the parameter value to dependent resources. Most often as an environment variable.
+  However, you don't need to access this configuration value yourself in the
+  AppHost. Instead, the `ParameterResource` is used to pass the parameter value
+  to dependent resources. Most often as an environment variable.
 </Aside>
+
+### Set parameter values using environment variables
+
+Parameters can be set using environment variables, which is particularly useful in CI/CD pipelines and deployment scenarios. The environment variable name follows the pattern `Parameters__{parameter_name}`, using double underscores (`__`) to separate the configuration section from the parameter name and a single underscore to represent dashes.
+
+<Aside type="note">
+  The double underscore (`__`) syntax is a standard .NET configuration
+  convention for representing nested configuration keys in environment
+  variables, where colons (`:`) in configuration paths are replaced with double
+  underscores.
+</Aside>
+
+Consider the following example AppHost _AppHost.cs_ file:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Define container registry parameters
+var endpoint = builder.AddParameter("registry-endpoint");
+var repository = builder.AddParameter("registry-repository");
+
+builder.AddContainerRegistry("container-registry", endpoint, repository);
+
+builder.Build().Run();
+```
+
+These parameters can be provided via environment variables:
+
+- `Parameters__registry_endpoint` - Registry URL (e.g., `ghcr.io`)
+- `Parameters__registry_repository` - Repository path (e.g., `username/reponame`)
+
+#### Example: GitHub Actions workflow
+
+The following example shows how to set parameters as environment variables in a GitHub Actions workflow:
+
+```yaml title=".github/workflows/deploy.yml"
+- name: Login to GHCR
+  uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Push images with Aspire
+  env:
+    Parameters__registry_endpoint: ghcr.io
+    Parameters__registry_repository: your-org/your-repo
+  run: aspire do push
+```
+
+#### How parameters are resolved
+
+Aspire resolves parameter values in the following order:
+
+<Steps>
+
+1. **Environment variables** - Values set using the `Parameters__*` syntax
+2. **Configuration files** - Values from _appsettings.json_, user secrets, or other configuration sources
+3. **User prompts** - If no value is found, the dashboard or CLI prompts for the value
+
+</Steps>
+
+This resolution order allows you to override configuration file values with environment variables, making it easy to adapt your application to different environments without modifying configuration files.
 
 ### Prompt for parameter values in the dashboard
 
 If your code adds parameters but doesn't set them, you'll see a prompt to configure their values in the Aspire dashboard. The **Unresolved parameters** message appears, and you can select **Enter values** to resolve the problem:
 
-<Image src={dashboardUnresolvedParams} alt="Screenshot of the Aspire dashboard warning that appears when there are unresolved parameters." />
+<Image
+  src={dashboardUnresolvedParams}
+  alt="Screenshot of the Aspire dashboard warning that appears when there are unresolved parameters."
+/>
 
 When you select **Enter values**, Aspire displays a form that you can use to configure values for each of the missing parameters.
 
@@ -92,10 +160,16 @@ builder.Build().Run();
 
 The code renders this control in the dashboard:
 
-<Image src={customizedParameterUi} alt="Screenshot of the Aspire dashboard parameter completion dialog with customizations." />
+<Image
+  src={customizedParameterUi}
+  alt="Screenshot of the Aspire dashboard parameter completion dialog with customizations."
+/>
 
 <Aside type="note">
-The dashboard parameter dialog includes a **Save to user secret** checkbox. Select this option to store sensitive values in your AppHost's user secrets for extra protection. For more information about secret parameter values, see [Secret values](#secret-values).
+  The dashboard parameter dialog includes a **Save to user secret** checkbox.
+  Select this option to store sensitive values in your AppHost's user secrets
+  for extra protection. For more information about secret parameter values, see
+  [Secret values](#secret-values).
 </Aside>
 
 ### Parameter representation in the manifest
@@ -140,9 +214,9 @@ Now consider the following AppHost configuration file _appsettings.json_:
 
 ```json title="appsettings.json"
 {
-    "Parameters": {
-        "secret": "local-secret"
-    }
+  "Parameters": {
+    "secret": "local-secret"
+  }
 }
 ```
 
@@ -165,6 +239,64 @@ The manifest representation is as follows:
 }
 ```
 
+## Add parameters from configuration
+
+In some scenarios, you might want to read parameter values directly from a specific configuration key rather than following the standard `Parameters:*` pattern. The `AddParameterFromConfiguration` method allows you to specify a custom configuration key for a parameter.
+
+### API signature
+
+```csharp
+public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
+    this IDistributedApplicationBuilder builder,
+    string name,
+    string configurationKey,
+    bool secret = false
+);
+```
+
+### Parameters
+
+- `name` - The name of the parameter resource
+- `configurationKey` - The configuration key to read the value from
+- `secret` - Optional flag indicating whether the parameter should be treated as a secret (default: `false`)
+
+### Example usage
+
+Consider a scenario where you have configuration values stored in a custom section:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Read from a custom configuration key
+var dbPassword = builder.AddParameterFromConfiguration(
+    "db-password",
+    "CustomConfig:Database:Password",
+    secret: true);
+
+builder.AddProject<Projects.ApiService>("api")
+       .WithEnvironment("DB_PASSWORD", dbPassword);
+
+builder.Build().Run();
+```
+
+The corresponding configuration file would look like:
+
+```json title="appsettings.json"
+{
+  "CustomConfig": {
+    "Database": {
+      "Password": "your-secure-password"
+    }
+  }
+}
+```
+
+This method is useful when:
+
+- You need to integrate with existing configuration structures
+- Your configuration follows a different pattern than the standard `Parameters:*` convention
+- You want to read values from specific configuration sections
+
 ## Connection string values
 
 Parameters can be used to model connection strings. When you publish the app, the value is prompted for and stored in a secure location. When you run the app locally, the value is read from the `ConnectionStrings` section of the AppHost configuration.
@@ -173,6 +305,7 @@ Parameters can be used to model connection strings. When you publish the app, th
 Always use `AddParameter` to pass secrets to resources. Never include passwords or other sensitive data like connection strings in source code.
 
 If you're connecting to a local database, and want to use Integrated Security or passwordless authentication, you don't need to worry about securing your connection strings. If you're using a password, store the connection string securely using app secrets.
+
 </Aside>
 
 Consider the following example AppHost _AppHost.cs_ file:
@@ -190,16 +323,17 @@ builder.Build().Run();
 ```
 
 <Aside type="note">
-Using `WaitFor` with a connection string will implicitly wait for the resource that the connection string connects to.
+  Using `WaitFor` with a connection string will implicitly wait for the resource
+  that the connection string connects to.
 </Aside>
 
 Now consider the following AppHost configuration file _appsettings.json_:
 
 ```json title="appsettings.json"
 {
-    "ConnectionStrings": {
-        "redis": "local-connection-string"
-    }
+  "ConnectionStrings": {
+    "redis": "local-connection-string"
+  }
 }
 ```
 
@@ -258,12 +392,16 @@ builder.Build().Run();
 
 The following steps are performed:
 
-- Adds a SQL Server resource named `sql` and publishes it as a connection string.
-- Adds a database named `db`.
-- Adds a parameter named `insertionRows`.
-- Adds a project named `api` and associates it with the `Projects.Parameters_ApiService` project resource type-parameter.
-- Passes the `insertionRows` parameter to the `api` project.
-- References the `db` database.
+<Steps>
+
+1. Adds a SQL Server resource named `sql` and publishes it as a connection string.
+2. Adds a database named `db`.
+3. Adds a parameter named `insertionRows`.
+4. Adds a project named `api` and associates it with the `Projects.Parameters_ApiService` project resource type-parameter.
+5. Passes the `insertionRows` parameter to the `api` project.
+6. References the `db` database.
+
+</Steps>
 
 The value for the `insertionRows` parameter is read from the `Parameters` section of the AppHost configuration file _appsettings.json_:
 

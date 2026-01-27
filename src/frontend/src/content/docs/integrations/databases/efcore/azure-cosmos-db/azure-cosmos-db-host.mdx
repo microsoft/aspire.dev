@@ -1,11 +1,10 @@
 ---
-title: Azure Cosmos DB Entity Framework Core integration
-description: Learn how to use the Aspire Azure Cosmos DB Entity Framework Core integration to connect your Aspire applications to Azure Cosmos DB databases.
+title: Azure Cosmos DB hosting integration
+description: Learn how to use the Azure Cosmos DB hosting integration to create and manage Azure Cosmos DB instances.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import { Image } from 'astro:assets';
 import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
@@ -21,10 +20,6 @@ import cosmosResourceRelationshipsLight from '@assets/integrations/cloud/azure/c
   data-zoom-off
 />
 
-[Azure Cosmos DB](https://azure.microsoft.com/services/cosmos-db/) is a fully managed NoSQL database service for modern app development. The Aspire Cosmos DB Entity Framework Core integration enables you to connect to existing Cosmos DB instances or create new instances from .NET with the Azure Cosmos DB emulator.
-
-## Hosting integration
-
 The Aspire Azure Cosmos DB hosting integration models Cosmos DB resources as the following types:
 
 - `AzureCosmosDBResource`: Represents an Azure Cosmos DB resource.
@@ -36,7 +31,9 @@ To access these types and APIs, add the [📦 Aspire.Hosting.Azure.CosmosDB](htt
 
 <InstallPackage packageName="Aspire.Hosting.Azure.CosmosDB" />
 
-### Add Azure Cosmos DB resource
+For an introduction to the Azure Cosmos DB integration, see [Get started with the Azure Cosmos DB integrations](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/).
+
+## Add Azure Cosmos DB resource
 
 In your AppHost project, call `AddAzureCosmosDB` to add and return an Azure Cosmos DB resource builder:
 
@@ -58,7 +55,7 @@ When you add an `AzureCosmosDBResource` to the AppHost, it exposes other useful 
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
-### Connect to an existing Azure Cosmos DB account
+## Connect to an existing Azure Cosmos DB account
 
 You might have an existing Azure Cosmos DB account that you want to connect to. Chain a call to annotate that your resource is an existing resource:
 
@@ -85,7 +82,7 @@ For more information on treating Azure Cosmos DB resources as existing resources
   and doesn't work with role assignments or infrastructure customizations.
 </Aside>
 
-### Add Azure Cosmos DB database and container resources
+## Add Azure Cosmos DB database and container resources
 
 Aspire models parent child relationships between Azure Cosmos DB resources. For example, an Azure Cosmos DB account (`AzureCosmosDBResource`) can have multiple databases (`AzureCosmosDBDatabaseResource`), and each database can have multiple containers (`AzureCosmosDBContainerResource`). When you add a database or container resource, you do so on a parent resource.
 
@@ -118,7 +115,7 @@ var container = db.AddContainer("entries", "/id");
 
 The container is created in the database that's represented by the `AzureCosmosDBDatabaseResource` that you added earlier. For more information, see [Databases, containers, and items in Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/resource-model).
 
-#### Parent child resource relationship example
+### Parent child resource relationship example
 
 To better understand the parent-child relationship between Azure Cosmos DB resources, consider the following example, which demonstrates adding an Azure Cosmos DB resource along with a database and container:
 
@@ -155,7 +152,7 @@ The following diagram illustrates the parent child relationship between the Azur
 
 When your AppHost code expresses parent-child relationships, the client can deep-link to these resources by name. For example, the `customers` database can be referenced by name in the client project, registering a `Microsoft.Azure.Cosmos.Database` instance that connects to the `customers` database. The same applies to named containers, for example, the `details` container can be referenced by name in the client project, registering a `Microsoft.Azure.Cosmos.Container` instance that connects to the `details` container.
 
-### Add Azure Cosmos DB emulator resource
+## Add Azure Cosmos DB emulator resource
 
 To add an Azure Cosmos DB emulator resource, chain a call on an `IResourceBuilder<AzureCosmosDBResource>` to the `RunAsEmulator` API:
 
@@ -170,11 +167,11 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 
 When you call `RunAsEmulator`, it configures your Cosmos DB resources to run locally using an emulator. The emulator in this case is the [Azure Cosmos DB Emulator](https://learn.microsoft.com/azure/cosmos-db/local-emulator). The Azure Cosmos DB Emulator provides a free local environment for testing your Azure Cosmos DB apps and it's a perfect companion to the Aspire Azure hosting integration. The emulator isn't installed, instead, it's accessible to Aspire as a container. When you add a container to the AppHost, as shown in the preceding example with the `mcr.microsoft.com/cosmosdb/emulator` image, it creates and starts the container when the AppHost starts.
 
-#### Configure Cosmos DB emulator container
+### Configure Cosmos DB emulator container
 
 There are various configurations available to container resources, for example, you can configure the container's ports, environment variables, it's lifetime, and more.
 
-##### Configure Cosmos DB emulator container gateway port
+#### Configure Cosmos DB emulator container gateway port
 
 By default, the Cosmos DB emulator container when configured by Aspire, exposes the following endpoints:
 
@@ -202,7 +199,7 @@ The preceding code configures the Cosmos DB emulator container's existing `https
 | ------------: | ------------------------------- |
 |       `https` | `8081:7777`                     |
 
-##### Configure Cosmos DB emulator container with persistent lifetime
+#### Configure Cosmos DB emulator container with persistent lifetime
 
 To configure the Cosmos DB emulator container with a persistent lifetime, call the `WithLifetime` method on the Cosmos DB emulator container resource and pass `ContainerLifetime.Persistent`:
 
@@ -218,7 +215,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 // After adding all resources, run the app...
 ```
 
-##### Configure Cosmos DB emulator container with data volume
+#### Configure Cosmos DB emulator container with data volume
 
 To add a data volume to the Azure Cosmos DB emulator resource, call the `WithDataVolume` method on the Azure Cosmos DB emulator resource:
 
@@ -236,7 +233,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 
 The data volume is used to persist the Cosmos DB emulator data outside the lifecycle of its container. The data volume is mounted at the `/tmp/cosmos/appdata` path in the Cosmos DB emulator container and when a `name` parameter isn't provided, the name is generated. The emulator has its `AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE` environment variable set to `true`. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
-#### Configure Cosmos DB emulator container partition count
+### Configure Cosmos DB emulator container partition count
 
 To configure the partition count of the Cosmos DB emulator container, call the `WithPartitionCount` method:
 
@@ -254,7 +251,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 
 The preceding code configures the Cosmos DB emulator container to have a partition count of `100`. This is a shorthand for setting the `AZURE_COSMOS_EMULATOR_PARTITION_COUNT` environment variable.
 
-#### Use Linux-based emulator (preview)
+### Use Linux-based emulator (preview)
 
 The [next generation of the Azure Cosmos DB emulator](https://learn.microsoft.com/azure/cosmos-db/emulator-linux) is entirely Linux-based and is available as a Docker container. It supports running on a wide variety of processors and operating systems.
 
@@ -278,7 +275,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos-db")
 
 The preceding code configures the Linux-based preview Cosmos DB emulator container, with the Data Explorer endpoint, to use at run time.
 
-### Provisioning-generated Bicep
+## Provisioning-generated Bicep
 
 If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Cosmos DB resource, the following Bicep is generated:
 
@@ -350,7 +347,7 @@ resource cosmos_roleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAss
 
 The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
 
-#### Customize provisioning infrastructure
+### Customize provisioning infrastructure
 
 All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the `ConfigureInfrastructure` API. For example, you can configure the `kind`, `consistencyPolicy`, `locations`, and more. The following example demonstrates how to customize the Azure Cosmos DB resource:
 
@@ -382,133 +379,8 @@ The preceding code:
   - The `CosmosDBAccount.ConsistencyPolicy` is assigned to a `DefaultConsistencyLevel.Strong`.
   - A tag is added to the Cosmos DB account with a key of `ExampleKey` and a value of `Example value`.
 
-### Hosting integration health checks
+## Hosting integration health checks
 
 The Azure Cosmos DB hosting integration automatically adds a health check for the Cosmos DB resource. The health check verifies that the Cosmos DB is running and that a connection can be established to it.
 
 The hosting integration relies on the [📦 AspNetCore.HealthChecks.CosmosDb](https://www.nuget.org/packages/AspNetCore.HealthChecks.CosmosDb) NuGet package.
-
-## Client integration
-
-To get started with the Aspire Microsoft Entity Framework Core Cosmos DB integration, install the [📦 Aspire.Microsoft.EntityFrameworkCore.Cosmos](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.Cosmos) NuGet package in the client-consuming project, i.e., the project for the application that uses the Microsoft Entity Framework Core Cosmos DB client.
-
-<InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.Cosmos" />
-
-### Add Cosmos DB context
-
-In the `Program.cs` file of your client-consuming project, call the `AddCosmosDbContext` extension method to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter and a database name parameter.
-
-```csharp csharp title="C# — Program.cs"
-builder.AddCosmosDbContext<MyDbContext>("cosmosdb", "databaseName");
-```
-
-Alternatively, the database name can be inferred from the connection when there's a single database in the connection string. In this case, you can omit the database name parameter:
-
-```csharp csharp title="C# — Program.cs"
-builder.AddCosmosDbContext<MyDbContext>("cosmosdb");
-```
-
-> [!TIP]
-> The `connectionName` parameter must match the name used when adding the Cosmos DB resource in the AppHost project. In other words, when you call `AddAzureCosmosDB` and provide a name of `cosmosdb` that same name should be used when calling `AddCosmosDbContext`. For more information, see [Add Azure Cosmos DB resource](#add-azure-cosmos-db-resource).
-
-You can then retrieve the `DbContext` instance using dependency injection. For example, to retrieve the client from a service:
-
-```csharp
-public class ExampleService(MyDbContext context)
-{
-    // Use context...
-}
-```
-
-For more information on using Entity Framework Core with Azure Cosmos DB, see the [Examples for Azure Cosmos DB for NoSQL SDK for .NET](https://learn.microsoft.com/ef/core/providers/cosmos/?tabs=dotnet-core-cli).
-
-### Configuration
-
-The Aspire Microsoft Entity Framework Core Cosmos DB integration provides multiple options to configure the Azure Cosmos DB connection based on the requirements and conventions of your project.
-
-#### Use a connection string
-
-When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `builder.AddCosmosDbContext`:
-
-```csharp title="C# — Program.cs"
-builder.AddCosmosDbContext<MyDbContext>("CosmosConnection");
-```
-
-And then the connection string will be retrieved from the `ConnectionStrings` configuration section:
-
-```json title="appsettings.json"
-{
-  "ConnectionStrings": {
-    "CosmosConnection": "AccountEndpoint=https://{account_name}.documents.azure.com:443/;AccountKey={account_key};"
-  }
-}
-```
-
-For more information, see the [ConnectionString documentation](https://learn.microsoft.com/azure/cosmos-db/nosql/how-to-dotnet-get-started#connect-with-a-connection-string).
-
-#### Use configuration providers
-
-The Aspire Microsoft Entity Framework Core Cosmos DB integration supports `Microsoft.Extensions.Configuration`. It loads the `EntityFrameworkCoreCosmosSettings` from configuration files such as `appsettings.json`. Example `appsettings.json` that configures some of the options:
-
-```json title="appsettings.json"
-{
-  "Aspire": {
-    "Microsoft": {
-      "EntityFrameworkCore": {
-        "Cosmos": {
-          "DisableTracing": true
-        }
-      }
-    }
-  }
-}
-```
-
-For the complete Cosmos DB client integration JSON schema, see [Aspire.Microsoft.EntityFrameworkCore.Cosmos/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Microsoft.EntityFrameworkCore.Cosmos/ConfigurationSchema.json).
-
-#### Use inline delegates
-
-You can also pass the `Action<EntityFrameworkCoreCosmosSettings> configureSettings` delegate to set up some or all the `EntityFrameworkCoreCosmosSettings` options inline, for example to disable tracing from code:
-
-```csharp
-builder.AddCosmosDbContext<MyDbContext>(
-    "cosmosdb",
-    settings => settings.DisableTracing = true);
-```
-
-### Client integration health checks
-
-The Aspire Microsoft Entity Framework Core Cosmos DB integration currently doesn't implement health checks, though this may change in future releases.
-
-#### Logging
-
-The Aspire Microsoft Entity Framework Core Cosmos DB integration uses the following log categories:
-
-- `Azure-Cosmos-Operation-Request-Diagnostics`
-- `Microsoft.EntityFrameworkCore.ChangeTracking`
-- `Microsoft.EntityFrameworkCore.Database.Command`
-- `Microsoft.EntityFrameworkCore.Infrastructure`
-- `Microsoft.EntityFrameworkCore.Query`
-
-#### Tracing
-
-The Aspire Microsoft Entity Framework Core Cosmos DB integration will emit the following tracing activities using OpenTelemetry:
-
-- `Azure.Cosmos.Operation`
-- `OpenTelemetry.Instrumentation.EntityFrameworkCore`
-
-#### Metrics
-
-The Aspire Microsoft Entity Framework Core Cosmos DB integration currently supports the following metrics:
-
-- `Microsoft.EntityFrameworkCore`
-  - `ec_Microsoft_EntityFrameworkCore_active_db_contexts`
-  - `ec_Microsoft_EntityFrameworkCore_total_queries`
-  - `ec_Microsoft_EntityFrameworkCore_queries_per_second`
-  - `ec_Microsoft_EntityFrameworkCore_total_save_changes`
-  - `ec_Microsoft_EntityFrameworkCore_save_changes_per_second`
-  - `ec_Microsoft_EntityFrameworkCore_compiled_query_cache_hit_rate`
-  - `ec_Microsoft_Entity_total_execution_strategy_operation_failures`
-  - `ec_Microsoft_E_execution_strategy_operation_failures_per_second`
-  - `ec_Microsoft_EntityFramew_total_optimistic_concurrency_failures`
-  - `ec_Microsoft_EntityF_optimistic_concurrency_failures_per_second`

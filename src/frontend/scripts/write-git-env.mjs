@@ -12,17 +12,26 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-function getCommit() {
+function tryExec(cmd) {
   try {
-    /**
-     * We need to get the commit hash from the public repo's main branch.
-     * In CI/CD, there may be other intermediary commits from the deploy branch.
-     * This ensures we always get the correct commit hash.
-     */
-    return execSync('git merge-base origin/main HEAD').toString().trim();
+    return execSync(cmd).toString().trim();
   } catch {
-    return '';
+    return null;
   }
+}
+
+function getCommit() {
+  /**
+   * We need to get the commit hash from the public repo's main branch.
+   * In CI/CD, there may be other intermediary commits from the deploy branch.
+   * This ensures we always get the correct commit hash.
+   * Try origin/main first, then fall back to upstream/main for fork workflows.
+   */
+  return (
+    tryExec('git merge-base origin/main HEAD') ??
+    tryExec('git merge-base upstream/main HEAD') ??
+    ''
+  );
 }
 
 function getRepoUrl() {

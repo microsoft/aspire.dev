@@ -6,6 +6,7 @@ const REPOS = [
   'dotnet/aspire-samples',
   'CommunityToolkit/Aspire',
   'microsoft/aspire.dev',
+  'microsoft/dcp'
 ];
 const OUTPUT_PATH = './src/data/github-stats.json';
 

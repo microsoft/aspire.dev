@@ -43,3 +43,36 @@ const { href, title, description, tags } = Astro.props;
     line-height: 1.5;
   }
 </style>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('lite-youtube').forEach((player) => {
+      const videoId = player.getAttribute('videoid');
+      
+      const openYouTube = (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        
+        if (videoId) {
+          window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank', 'noopener,noreferrer');
+        }
+      };
+      
+      const handleKeydown = (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          openYouTube(event);
+        }
+      };
+      
+      const playBtn = player.querySelector('.lyt-playbtn');
+      if (playBtn) {
+        playBtn.addEventListener('click', openYouTube, { capture: true });
+        playBtn.addEventListener('keydown', handleKeydown, { capture: true });
+      }
+      
+      // Also intercept clicks/keyboard on the player itself (thumbnail area)
+      player.addEventListener('click', openYouTube, { capture: true });
+      player.addEventListener('keydown', handleKeydown, { capture: true });
+    });
+  });
+</script>

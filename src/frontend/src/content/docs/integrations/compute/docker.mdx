@@ -8,6 +8,7 @@ import InstallPackage from '@components/InstallPackage.astro';
 import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dockerIcon from '@assets/icons/docker.svg';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 <Image
   src={dockerIcon}
@@ -77,11 +78,11 @@ You can configure various properties of the Docker Compose environment using the
 builder.AddDockerComposeEnvironment("compose")
        .WithProperties(env =>
        {
-           env.DefaultContainerRegistry = "myregistry.azurecr.io";
-           env.DefaultNetworkName = "my-network";
-           env.BuildContainerImages = true;
+           env.DashboardEnabled = true;
        });
 ```
+
+The `DashboardEnabled` property determines whether to include an Aspire dashboard for telemetry visualization in this environment.
 
 ### Add Docker Compose environment resource with compose file
 
@@ -272,7 +273,162 @@ var api = builder.AddProject<Projects.Api>("api")
 
 Multiple callbacks can be registered on the same resource, and they will be invoked in the order they were added.
 
+## Push images to container registries
+
+You can configure your Aspire application to push container images to registries like GitHub Container Registry (GHCR), Docker Hub, or private registries using the `AddContainerRegistry` method.
+
+<Aside type="caution">
+  The `AddContainerRegistry` API is experimental and may change in future releases. Use diagnostic code `ASPIRECOMPUTE003` to suppress the experimental warning. For more information, see [ASPIRECOMPUTE003](/diagnostics/aspirecompute003/).
+</Aside>
+
+### Configure a container registry
+
+Use the `AddContainerRegistry` method to define a container registry and the `WithContainerRegistry` method to associate resources with that registry:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add a container registry
+var registry = builder.AddContainerRegistry(
+    "ghcr",                              // Registry name
+    "ghcr.io",                           // Registry endpoint
+    "your-github-username/your-repo"     // Repository path
+);
+
+// Associate resources with the registry
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService()
+    .WithContainerRegistry(registry);
+
+// After adding all resources, run the app...
+```
+
+For GitHub Container Registry, the registry endpoint is `ghcr.io` and the repository path typically follows the pattern `owner/repository`.
+
+### Using parameters for registry configuration
+
+For more flexible configuration, especially in CI/CD pipelines, you can use parameters with environment variables:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Define parameters from configuration (reads from environment variables)
+var registryEndpoint = builder.AddParameterFromConfiguration("REGISTRY_ENDPOINT");
+var registryRepository = builder.AddParameterFromConfiguration("REGISTRY_REPOSITORY");
+
+// Add registry with parameters
+var registry = builder.AddContainerRegistry(
+    "my-registry",
+    registryEndpoint,
+    registryRepository
+);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService()
+    .WithContainerRegistry(registry);
+```
+
+You can then provide parameter values via environment variables:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+export REGISTRY_ENDPOINT=ghcr.io
+export REGISTRY_REPOSITORY=your-github-username/your-repo
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:REGISTRY_ENDPOINT = "ghcr.io"
+$env:REGISTRY_REPOSITORY = "your-github-username/your-repo"
+```
+
+</div>
+</OsAwareTabs>
+
+### Push images with the Aspire CLI
+
+After configuring your container registry, use the `aspire do push` command to build and push your container images:
+
+```bash
+aspire do push
+```
+
+This command:
+
+- Builds container images for all resources configured with a container registry
+- Tags the images with the appropriate registry path
+- Pushes the images to the specified registry
+
+Before running this command, ensure you are authenticated to your container registry. For GitHub Container Registry:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u your-github-username --password-stdin
+```
+
+### GitHub Actions workflow example
+
+Here's an example GitHub Actions workflow that builds and pushes images to GHCR:
+
+```yaml title="YAML — .github/workflows/build-and-push.yml"
+name: Build and Push Images
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Aspire CLI
+        run: |
+          curl -sSL https://aspire.dev/install.sh | bash
+          echo "$HOME/.aspire/bin" >> $GITHUB_PATH
+
+      - name: Output Aspire CLI version
+        run: aspire --version
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images
+        env:
+          REGISTRY_ENDPOINT: ghcr.io
+          REGISTRY_REPOSITORY: ${{ github.repository }}
+        run: aspire do push
+```
+
+This workflow:
+
+- Checks out your code
+- Sets up .NET and installs the Aspire CLI
+- Authenticates to GHCR using the built-in `GITHUB_TOKEN`
+- Builds and pushes container images using `aspire do push`
+
 ## See also
 
+- [`Aspire.Hosting.Docker` API reference](https://learn.microsoft.com/dotnet/api/aspire.hosting.docker?view=dotnet-aspire-13.0)
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
+- [ASPIRECOMPUTE003 - Container registry resource](/diagnostics/aspirecompute003/)
+- [What's new in Aspire 13.1 - Container registry support](/whats-new/aspire-13-1/#container-registry-resource)
 - [Aspire GitHub repo](https://github.com/dotnet/aspire)
+- [Working with GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)

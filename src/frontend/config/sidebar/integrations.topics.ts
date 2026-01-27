@@ -505,7 +505,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Cosmos DB',
-              slug: 'integrations/databases/efcore/azure-cosmos-db',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-host',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-client',
+                },
+              ],
             },
             {
               label: 'Azure PostgreSQL',

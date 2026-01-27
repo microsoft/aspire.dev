@@ -256,6 +256,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'reference/cli/commands/aspire-deploy',
             },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
+            {
+              label: 'aspire doctor',
+              slug: 'reference/cli/commands/aspire-doctor',
+            },
             { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
             {
