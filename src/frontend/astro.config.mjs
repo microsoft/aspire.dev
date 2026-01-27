@@ -82,7 +82,7 @@ export default defineConfig({
               claude: {
                 label: 'Open in Claude',
                 href: 'https://claude.ai/new?q=',
-              }
+              },
             },
           },
         }),
