@@ -55,7 +55,6 @@ app.Use(async (context, next) =>
         {
             context.Response.ContentType = "text/plain; charset=utf-8";
         }
-        
         return Task.CompletedTask;
     });
 
