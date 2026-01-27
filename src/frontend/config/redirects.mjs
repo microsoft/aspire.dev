@@ -18,5 +18,5 @@ export const redirects = {
   '/integrations/databases/efcore/azure-cosmos-db/': '/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/',
   '/integrations/databases/oracle-ef/': '/integrations/databases/efcore/oracle/oracle-get-started/',
   '/integrations/databases/elasticsearch/': '/integrations/databases/elasticsearch/elasticsearch-get-started/',
-  '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
+  '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
 };
