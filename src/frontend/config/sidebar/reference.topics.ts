@@ -281,11 +281,13 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             { label: 'aspire new', slug: 'reference/cli/commands/aspire-new' },
+            { label: 'aspire ps', slug: 'reference/cli/commands/aspire-ps' },
             {
               label: 'aspire publish',
               slug: 'reference/cli/commands/aspire-publish',
             },
             { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
+            { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',

@@ -5,7 +5,22 @@ description: Understand essential service discovery concepts in Aspire.
 
 import { Aside } from '@astrojs/starlight/components';
 
-In this article, you learn how service discovery works within an Aspire project. Aspire includes functionality for configuring service discovery at development and testing time. Service discovery functionality works by providing configuration in the format expected by the _configuration-based endpoint resolver_ from the Aspire AppHost project to the individual service projects added to the application model. For more information, see [Service discovery in .NET](https://learn.microsoft.com/dotnet/core/extensions/service-discovery).
+Service discovery is how your services find each other. Instead of hardcoding URLs like `http://localhost:5001`, your frontend can simply reference the `catalog` service by name—and Aspire handles resolving the actual address.
+
+## How service discovery works
+
+When you connect services using `WithReference()`, Aspire sets up automatic service discovery:
+
+1. **AppHost declares resources** and allocates endpoints
+2. **Configuration is injected** into each service via environment variables
+3. **Your code uses logical names** like `https+http://catalog`
+4. **Aspire's resolver** translates names to actual addresses at runtime
+
+**The key insight**: Your code uses logical service names (like `catalog`), and Aspire's configuration-based endpoint resolver translates those to actual addresses at runtime.
+
+<Aside type="tip" title="Why this matters">
+Service discovery eliminates "works on my machine" problems. The same code works locally (where `catalog` might be `localhost:5001`) and in production (where it might be `catalog.internal.cloudapp.net:443`)—without any code changes.
+</Aside>
 
 ## Implicit service discovery by reference
 
@@ -22,7 +37,14 @@ var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
                       .WithReference(catalog);
 ```
 
-In the preceding example, the _frontend_ project references the _catalog_ project and the _basket_ project. The two `WithReference` calls instruct the Aspire project to pass service discovery information for the referenced projects (_catalog_, and _basket_) into the _frontend_ project.
+In the preceding example, the _frontend_ project references the _catalog_ project and the _basket_ project. The two `WithReference` calls instruct Aspire to:
+
+1. **Inject configuration** - Pass service discovery information for `catalog` and `basket` into `frontend`
+2. **Enable resolution** - Allow `frontend` to use URIs like `https+http://catalog` in HttpClient
+
+<Aside type="note">
+If you don't call `WithReference()`, the frontend won't have the configuration needed to discover that service. This is intentional—services only know about their explicit dependencies.
+</Aside>
 
 ## Named endpoints
 
@@ -111,3 +133,54 @@ Similarly, the "dashboard" endpoint can be targeted as follows:
 builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https://_dashboard.basket"));
 ```
+
+## Troubleshooting
+
+### Service not found or "No endpoints resolved"
+
+**Symptoms**: HttpClient throws an exception like "No endpoints resolved for service 'myservice'" or connection is refused.
+
+**Common causes**:
+1. **Missing `WithReference()`** - The calling service wasn't connected to the target service in AppHost
+2. **Wrong service name** - The name in your URI doesn't match the name in `AddProject()` or `AddContainer()`
+3. **Service not started** - The target service failed to start or is still starting
+
+**Solution**: Verify your AppHost connects the services:
+
+```csharp
+var api = builder.AddProject<Projects.Api>("api");
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(api);  // ← This is required!
+```
+
+### Named endpoint doesn't resolve
+
+**Symptoms**: Using `https://_endpointName.serviceName` returns an error.
+
+**Solution**: Verify the endpoint is named in your AppHost:
+
+```csharp
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← Name must match
+```
+
+Then use the exact name with underscore prefix:
+
+```csharp
+client.BaseAddress = new("https://_dashboard.api");
+```
+
+### Understanding the URI format
+
+The `https+http://` prefix means "prefer HTTPS, fall back to HTTP". Here's the breakdown:
+
+| URI Format | Meaning |
+|------------|---------|
+| `https://catalog` | HTTPS only to default endpoint |
+| `http://catalog` | HTTP only to default endpoint |
+| `https+http://catalog` | Prefer HTTPS, fall back to HTTP |
+| `https://_admin.catalog` | HTTPS to named "admin" endpoint |
+
+<Aside type="note" title="The underscore prefix">
+The `_` prefix before an endpoint name is not arbitrary—it's required syntax that tells the resolver you're specifying a named endpoint rather than a subdomain.
+</Aside>
