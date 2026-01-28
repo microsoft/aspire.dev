@@ -886,6 +886,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/executable-resources',
         },
         {
+          label: '.NET tool resources',
+          slug: 'app-host/dotnet-tool-resources',
+        },
+        {
           label: 'Migrate from Docker Compose',
           translations: {
             da: 'Migrer fra Docker Compose',
