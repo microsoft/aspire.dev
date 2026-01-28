@@ -31,7 +31,7 @@ In this introduction, you'll see how to install and use the Aspire SQL Server EF
 
 To begin, install the Aspire SQL Server Hosting integration in your Aspire AppHost project. This integration allows you to create and manage SQL Server database instances from your Aspire hosting projects:
 
-<InstallPackage packageName="Aspire.Hosting.SqlServer" shortName="sql-server" />
+<InstallPackage packageName="Aspire.Hosting.SqlServer" shortName="sqlserver" />
 
 <Aside type="note">
     The [Aspire SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/) is used in the App Host with both the EF Core and non-EF Core client integrations.
@@ -75,6 +75,26 @@ builder.AddSqlServerDbContext<ExampleDbContext>(connectionName: "sqldb");
 <Aside type="tip">
     The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
 </Aside>
+
+### Use injected SQL Server properties
+
+In the AppHost, when you used the `WithReference` method to pass a SQL Server database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `sqldb` becomes `SQLDB_URI`.
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string sqlHost = builder.Configuration.GetValue<string>("SQLDB_HOST");
+string sqlPort = builder.Configuration.GetValue<string>("SQLDB_PORT");
+string sqlJDBCConnectionString = builder.Configuration.GetValue<string>("SQLDB_JDBCCONNECTIONSTRING");
+```
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on the SQL Server resource configuration. For more information, see [Properties of the SQL Server resources](/integrations/databases/efcore/sql-server/sql-server-client/#properties-of-the-sql-server-resources).
+</Aside>
+
+### Use SQL Server resources in client code
 
 You can now retrieve the `ExampleDbContext` instance using dependency injection. For example, to retrieve the context from a service:
 
