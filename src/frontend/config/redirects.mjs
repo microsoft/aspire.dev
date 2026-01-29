@@ -19,4 +19,5 @@ export const redirects = {
   '/integrations/databases/oracle-ef/': '/integrations/databases/efcore/oracle/oracle-get-started/',
   '/integrations/databases/elasticsearch/': '/integrations/databases/elasticsearch/elasticsearch-get-started/',
   '/integrations/cloud/azure/azure-postgresql/': '/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/',
+  '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
 };
