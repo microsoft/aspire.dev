@@ -591,7 +591,17 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'SQL Server',
-              slug: 'integrations/databases/efcore/sql-server',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/sql-server/sql-server-get-started',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/sql-server/sql-server-client',
+                },
+              ],
             },
           ],
         },
