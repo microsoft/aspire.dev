@@ -1,0 +1,207 @@
+---
+title: Host .NET tools in Aspire
+description: Learn how to use DotnetToolResource and AddDotnetTool to run .NET CLI tools as resources in your Aspire AppHost.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+In Aspire, you can host .NET CLI tools as resources in your application using the `AddDotnetTool` method. This feature enables you to run tools like `dotnet-ef`, `dotnet-dump`, `dotnet-trace`, and other NuGet-distributed CLI tools as part of your distributed application.
+
+<Aside type="caution" title="Experimental feature">
+The `DotnetToolResource` and related APIs are experimental and may change in future versions. This feature requires the .NET 10 SDK. To use these APIs, you'll need to suppress the `ASPIREDOTNETTOOL` warning.
+
+For more information, see the [ASPIREDOTNETTOOL diagnostic](/diagnostics/aspiredotnettool/).
+</Aside>
+
+## When to use dotnet tool resources
+
+Use dotnet tool resources when you need to:
+
+- Run .NET CLI tools that are distributed as NuGet packages.
+- Integrate database migration tools like Entity Framework Core CLI (`dotnet-ef`).
+- Execute diagnostic tools such as `dotnet-dump`, `dotnet-trace`, or `dotnet-counters`.
+- Run code generators or analysis tools as part of your development workflow.
+
+## Prerequisites
+
+Before using dotnet tool resources, ensure you have:
+
+- **.NET 10 SDK** or later installed.
+- The tool's working directory must **not** be in the context of a `global.json` file that forces an older SDK version.
+
+## Basic usage
+
+The `AddDotnetTool` method requires a resource name and the NuGet package ID of the tool:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREDOTNETTOOL
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add Entity Framework Core CLI tool
+var efTool = builder.AddDotnetTool("ef", "dotnet-ef");
+
+builder.Build().Run();
+#pragma warning restore ASPIREDOTNETTOOL
+```
+
+This example adds the Entity Framework Core CLI tool as a resource. When the AppHost runs, Aspire executes `dotnet tool exec dotnet-ef` to run the tool.
+
+## Passing arguments to tools
+
+Use the `WithArgs` method to pass command-line arguments to the tool:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREDOTNETTOOL
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Run dotnet-ef with migrations list command
+var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
+    .WithArgs("migrations", "list");
+
+builder.Build().Run();
+#pragma warning restore ASPIREDOTNETTOOL
+```
+
+## Configure tool versions
+
+By default, the latest stable version of the tool is used. You can specify a particular version or allow prerelease versions.
+
+### Specify a version
+
+Use `WithToolVersion` to pin to a specific version:
+
+```csharp title="AppHost.cs"
+var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
+    .WithToolVersion("9.0.1");
+```
+
+You can also use wildcard versions to get the latest patch:
+
+```csharp title="AppHost.cs"
+var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
+    .WithToolVersion("10.0.*");
+```
+
+### Allow prerelease versions
+
+Use `WithToolPrerelease` to allow prerelease versions of the tool:
+
+```csharp title="AppHost.cs"
+var efTool = builder.AddDotnetTool("ef", "dotnet-ef")
+    .WithToolPrerelease();
+```
+
+## Configure package sources
+
+By default, tools are acquired from configured NuGet feeds. You can add additional sources or configure the tool to use only specific sources.
+
+### Add a package source
+
+Use `WithToolSource` to add a NuGet package source:
+
+```csharp title="AppHost.cs"
+var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
+    .WithToolSource("https://my-private-feed.example.com/nuget/v3/index.json");
+```
+
+### Use only specified sources
+
+Use `WithToolIgnoreExistingFeeds` to ignore the existing NuGet configuration and use only the sources you specify:
+
+```csharp title="AppHost.cs"
+var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
+    .WithToolSource("./local-packages")
+    .WithToolIgnoreExistingFeeds();
+```
+
+### Ignore failed sources
+
+Use `WithToolIgnoreFailedSources` to treat package source failures as warnings rather than errors:
+
+```csharp title="AppHost.cs"
+var tool = builder.AddDotnetTool("my-tool", "my-custom-tool")
+    .WithToolIgnoreFailedSources();
+```
+
+## Practical example: Database migrations
+
+Here's a complete example using Entity Framework Core CLI to run database migrations:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREDOTNETTOOL
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add PostgreSQL database
+var postgres = builder.AddPostgres("postgres")
+    .AddDatabase("appdb");
+
+// Add the API project that contains the DbContext
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(postgres);
+
+// Add EF Core tool for migrations
+var efMigrations = builder.AddDotnetTool("ef-migrate", "dotnet-ef")
+    .WithArgs("database", "update", "--project", "../Api")
+    .WithReference(postgres)
+    .WaitFor(postgres);
+
+builder.Build().Run();
+
+#pragma warning restore ASPIREDOTNETTOOL
+```
+
+## Dashboard integration
+
+Dotnet tool resources appear in the Aspire Dashboard with a dedicated resource type, allowing you to filter and view tools separately from other resources. The dashboard displays tool-specific properties including:
+
+- **Package**: The NuGet package ID of the tool.
+- **Version**: The version of the tool being used (if specified).
+- **Source**: The package source from which the tool was acquired.
+
+## Extension methods reference
+
+| Method | Description |
+|--------|-------------|
+| `AddDotnetTool(name, packageId)` | Adds a .NET tool resource with the specified name and NuGet package ID. |
+| `WithToolVersion(version)` | Sets the package version for the tool. Supports wildcards like `10.0.*`. |
+| `WithToolPrerelease()` | Allows prerelease versions of the tool to be used. |
+| `WithToolSource(source)` | Adds a NuGet package source for tool acquisition. |
+| `WithToolIgnoreExistingFeeds()` | Configures the tool to use only specified package sources. |
+| `WithToolIgnoreFailedSources()` | Treats package source failures as warnings. |
+
+## Known limitations
+
+<Aside type="note" title="Known issues">
+Be aware of the following limitations when using dotnet tool resources:
+
+- **Requires .NET 10 SDK**: The tool execution feature requires the .NET 10 SDK to be installed.
+- **Concurrency issues**: Running multiple instances of the same tool concurrently can cause issues in the .NET SDK. See [dotnet/sdk#51831](https://github.com/dotnet/sdk/issues/51831) for details.
+- **Offline scenarios**: There are known issues with tool availability when you don't have access to upstream feeds, even if the tool is in your local cache. See [dotnet/sdk#50579](https://github.com/dotnet/sdk/issues/50579).
+
+</Aside>
+
+## Suppress the experimental warning
+
+Since the dotnet tool APIs are experimental, you need to suppress the `ASPIREDOTNETTOOL` warning to use them.
+
+### Suppress in code
+
+```csharp title="Suppress in code"
+#pragma warning disable ASPIREDOTNETTOOL
+var tool = builder.AddDotnetTool("my-tool", "dotnet-tool-package");
+#pragma warning restore ASPIREDOTNETTOOL
+```
+
+### Suppress in project file
+
+```xml title="AppHost.csproj"
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ASPIREDOTNETTOOL</NoWarn>
+</PropertyGroup>
+```
+
+## See also
+
+- [ASPIREDOTNETTOOL diagnostic](/diagnostics/aspiredotnettool/)
+- [Executable resources](/app-host/executable-resources/)
