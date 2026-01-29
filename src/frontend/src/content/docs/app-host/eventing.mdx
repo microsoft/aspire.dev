@@ -26,7 +26,7 @@ The following events are available in the AppHost and occur in the following ord
 
 ### Subscribe to AppHost events
 
-To subscribe to the built-in AppHost events, use the eventing API. After you have a distributed application builder instance, walk up to the `IDistributedApplicationBuilder.Eventing` property and call the `Subscribe` API. Consider the following sample AppHost _AppHost.cs_ file:
+To subscribe to the built-in AppHost events, use the helper methods available on the `IDistributedApplicationBuilder`. For common AppHost lifecycle events, you can use convenience methods like `OnBeforeStart`, `OnAfterResourcesCreated`, `OnBeforePublish`, and `OnAfterPublish`. For other events, you can use the `Eventing.Subscribe` API. Consider the following sample AppHost _AppHost.cs_ file:
 
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -53,7 +53,7 @@ builder.Eventing.Subscribe<ResourceEndpointsAllocatedEvent>(
         return Task.CompletedTask;
     });
 
-builder.Eventing.Subscribe<BeforeStartEvent>(
+builder.OnBeforeStart(
     static (@event, cancellationToken) =>
     {
         var logger = @event.Services.GetRequiredService<ILogger<Program>>();
@@ -62,7 +62,7 @@ builder.Eventing.Subscribe<BeforeStartEvent>(
         return Task.CompletedTask;
     });
 
-builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
+builder.OnAfterResourcesCreated(
     static (@event, cancellationToken) =>
     {
         var logger = @event.Services.GetRequiredService<ILogger<Program>>();
@@ -74,7 +74,7 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
 builder.Build().Run();
 ```
 
-The preceding code is based on the starter template with the addition of the calls to the `Subscribe` API. The `Subscribe<T>` API returns a `DistributedApplicationEventSubscription` instance that you can use to unsubscribe from the event. It's common to discard the returned subscriptions, as you don't usually need to unsubscribe from events as the entire app is torn down when the AppHost is shut down.
+The preceding code is based on the starter template with the addition of calls to helper methods and the `Subscribe` API. The helper methods (`OnBeforeStart`, `OnAfterResourcesCreated`, etc.) provide a convenient way to subscribe to common AppHost lifecycle events. For events that don't have a helper method, such as `ResourceEndpointsAllocatedEvent`, you can use the `Eventing.Subscribe<T>` API. The `Subscribe<T>` API returns a `DistributedApplicationEventSubscription` instance that you can use to unsubscribe from the event. It's common to discard the returned subscriptions, as you don't usually need to unsubscribe from events as the entire app is torn down when the AppHost is shut down.
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
 
@@ -309,9 +309,9 @@ If you're migrating from the deprecated `IDistributedApplicationLifecycleHook` i
 
 | Old pattern (deprecated) | New pattern |
 |--------------------------|-------------|
-| `BeforeStartAsync()` | Subscribe to `BeforeStartEvent` |
+| `BeforeStartAsync()` | Use `builder.OnBeforeStart(...)` or subscribe to `BeforeStartEvent` |
 | `AfterEndpointsAllocatedAsync()` | Subscribe to `ResourceEndpointsAllocatedEvent` |
-| `AfterResourcesCreatedAsync()` | Subscribe to `AfterResourcesCreatedEvent` |
+| `AfterResourcesCreatedAsync()` | Use `builder.OnAfterResourcesCreated(...)` or subscribe to `AfterResourcesCreatedEvent` |
 | `TryAddLifecycleHook<T>()` | `TryAddEventingSubscriber<T>()` |
 
 **Before (deprecated):**
@@ -374,13 +374,13 @@ When publishing your application (generating deployment manifests), these events
 | `AfterPublishEvent` | After publishing completes | Perform cleanup or post-publish actions |
 
 ```csharp title="AppHost.cs"
-builder.Eventing.Subscribe<BeforePublishEvent>((@event, ct) =>
+builder.OnBeforePublish((@event, ct) =>
 {
     // Validate resources before publishing
     return Task.CompletedTask;
 });
 
-builder.Eventing.Subscribe<AfterPublishEvent>((@event, ct) =>
+builder.OnAfterPublish((@event, ct) =>
 {
     // Post-publish actions
     return Task.CompletedTask;
