@@ -1,47 +1,59 @@
 ---
-title: ASPIREEXTENSION001
-description: The extension debugging support APIs are experimental and subject to change.
+title: Compiler Warning ASPIREEXTENSION001
+description: Learn more about compiler Warning ASPIREEXTENSION001. Extension debugging support APIs are for evaluation purposes only and are subject to change or removal in future updates.
 ---
 
-## Overview
+import { Badge } from '@astrojs/starlight/components';
 
-| Property | Value |
-|----------|-------|
-| **Diagnostic ID** | ASPIREEXTENSION001 |
-| **Severity** | Warning |
-| **Category** | Usage |
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
 
-The `WithDebugSupport` extension method and related APIs for enabling debugging support in IDE extensions are experimental features. These APIs may change or be removed in future versions.
+> Extension debugging support APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-## Cause
-
-This warning appears when you use APIs for adding debug support to resources:
+This diagnostic warning is reported when using experimental extension debugging support APIs in Aspire, including:
 
 - `WithDebugSupport<T, TLaunchConfiguration>` extension method
 - `SupportsDebuggingAnnotation`
 
 These APIs are primarily used by integration authors to enable F5 debugging for custom resource types in Visual Studio and other IDEs.
 
-## How to suppress
+## Example
 
-If you understand the experimental nature of these APIs and want to use them, suppress the warning:
+The following code generates `ASPIREEXTENSION001`:
 
-```csharp title="Suppress in code"
-#pragma warning disable ASPIREEXTENSION001
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddMyResource("resource")
     .WithDebugSupport(
         processId => new MyLaunchConfiguration { ProcessId = processId },
         "myResourceType");
-#pragma warning restore ASPIREEXTENSION001
 ```
 
-Or in your project file:
+## To correct this warning
 
-```xml title="Suppress in project file"
-<PropertyGroup>
-  <NoWarn>$(NoWarn);ASPIREEXTENSION001</NoWarn>
-</PropertyGroup>
-```
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXTENSION001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXTENSION001</NoWarn>
+  </PropertyGroup>
+  ```
 
 ## See also
 
