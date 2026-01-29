@@ -1,45 +1,60 @@
 ---
-title: ASPIRECONTAINERSHELLEXECUTION001
-description: The container shell execution property is experimental and subject to change.
+title: Compiler Warning ASPIRECONTAINERSHELLEXECUTION001
+description: Learn more about compiler Warning ASPIRECONTAINERSHELLEXECUTION001. The container shell execution property is experimental and subject to change.
 ---
 
-## Overview
+import { Badge } from '@astrojs/starlight/components';
 
-| Property | Value |
-|----------|-------|
-| **Diagnostic ID** | ASPIRECONTAINERSHELLEXECUTION001 |
-| **Severity** | Warning |
-| **Category** | Usage |
+<Badge
+  text="Version introduced: 9.3"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
 
-The `ShellExecution` property on `ContainerResource` is an experimental feature that controls whether custom arguments should be wrapped for shell execution. This API may change or be removed in future versions.
+> The container shell execution property is experimental and subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-## Cause
+The `ShellExecution` property on `ContainerResource` is an experimental feature that controls whether custom arguments should be wrapped for shell execution. When enabled, custom arguments are wrapped in `-c "values"` format for shell execution.
 
-This warning appears when you set the `ShellExecution` property on a container resource:
+## Example
 
-```csharp
+The following code generates `ASPIRECONTAINERSHELLEXECUTION001`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var container = builder.AddContainer("mycontainer", "myimage");
 container.ShellExecution = true;
 ```
 
-When enabled, custom arguments are wrapped in `-c "values"` format for shell execution.
+## To correct this warning
 
-## How to suppress
+Suppress the warning with either of the following methods:
 
-If you understand the experimental nature of this API and want to use it, suppress the warning:
+- Set the severity of the rule in the _.editorconfig_ file.
 
-```csharp title="Suppress in code"
-#pragma warning disable ASPIRECONTAINERSHELLEXECUTION001
-container.ShellExecution = true;
-#pragma warning restore ASPIRECONTAINERSHELLEXECUTION001
-```
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIRECONTAINERSHELLEXECUTION001.severity = none
+  ```
 
-Or in your project file:
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
 
-```xml title="Suppress in project file"
-<PropertyGroup>
-  <NoWarn>$(NoWarn);ASPIRECONTAINERSHELLEXECUTION001</NoWarn>
-</PropertyGroup>
-```
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIRECONTAINERSHELLEXECUTION001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIRECONTAINERSHELLEXECUTION001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIRECONTAINERSHELLEXECUTION001
+  container.ShellExecution = true;
+  #pragma warning restore ASPIRECONTAINERSHELLEXECUTION001
+  ```
 
 ## See also
 
