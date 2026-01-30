@@ -99,6 +99,9 @@ export default defineConfig({
               starlightLinksValidator({
                 errorOnRelativeLinks: false,
                 errorOnFallbackPages: false,
+                exclude: [
+                  '/i18n/'
+                ]
               }),
             ]
           : []),
