@@ -174,6 +174,46 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 // After adding all resources, run the app...
 ```
 
+## Package management
+
+The Python hosting integration supports multiple package managers and allows you to choose which one to use:
+
+### Using uv package manager
+
+Use the `WithUv()` method to explicitly use the [uv package manager](https://docs.astral.sh/uv/) for faster dependency installation:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithUv()
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+The `WithUv()` method configures the Python app to use uv for package management, which is significantly faster than pip and recommended for new projects.
+
+### Using pip package manager
+
+Use the `WithPip()` method to explicitly use pip for package management:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
+    .WithPip()
+    .WithHttpEndpoint(port: 8000, env: "PORT");
+
+// After adding all resources, run the app...
+```
+
+<Aside type="tip">
+
+If neither `WithUv()` nor `WithPip()` is specified, Aspire will automatically detect the appropriate package manager based on your project configuration (`pyproject.toml` for uv, `requirements.txt` for pip).
+
+</Aside>
+
 ## Configure endpoints
 
 Python applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the environment variable:

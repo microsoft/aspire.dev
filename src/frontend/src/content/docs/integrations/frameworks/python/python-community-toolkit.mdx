@@ -1,6 +1,6 @@
 ---
 title: Python Community extensions
-description: Learn how to use the Aspire Community Toolkit Python hosting extensions to run Python applications with Uvicorn and uv package manager.
+description: Learn about the Community Toolkit Python hosting extensions (deprecated in favor of official Aspire.Hosting.Python).
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -10,6 +10,7 @@ import { Image } from 'astro:assets';
 import pythonIcon from '@assets/icons/python.svg';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+<Badge text="⚠️ Deprecated" variant="caution" size="large" />
 
 <Image
   src={pythonIcon}
@@ -20,100 +21,84 @@ import pythonIcon from '@assets/icons/python.svg';
   data-zoom-off
 />
 
-The Aspire Community Toolkit Python hosting extensions provide additional functionality to the official [Aspire.Hosting.Python](/integrations/frameworks/python/python-host) hosting integration. This package adds support for [Uvicorn](https://www.uvicorn.org/) applications with additional configuration options and [uv](https://docs.astral.sh/uv/) package manager applications.
+<Aside type="caution" title="Deprecated Package">
 
-<Aside type="tip">
+As of Aspire 13, the functionality from **CommunityToolkit.Aspire.Hosting.Python.Extensions** has been incorporated into the official [Aspire.Hosting.Python](/integrations/frameworks/python/python-host) package. This Community Toolkit package is now deprecated.
 
-For general Python hosting capabilities, see the [Python Hosting integration](/integrations/frameworks/python/python-host) article which covers the official `Aspire.Hosting.Python` package.
-
-</Aside>
-
-## Hosting integration
-
-To get started with the Aspire Python hosting integration, install the [CommunityToolkit.Aspire.Hosting.Python.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Python.Extensions) NuGet package in the app host project.
-
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Python.Extensions" />
-
-### Add Uvicorn app
-
-To add a Uvicorn application to your app host, use the `AddUvicornApp` extension method:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var python = builder.AddUvicornApp(
-    name: "python-api",
-    projectDirectory: "../python-app",
-    appName: "main:app")
-    .WithHttpEndpoint(port: 8000, env: "PORT");
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(python);
-
-// After adding all resources, run the app...
-```
-
-The `AddUvicornApp` method requires:
-- **name**: The name of the resource in the Aspire dashboard
-- **projectDirectory**: The path to the directory containing your Python application
-- **appName**: The Python module and ASGI application instance (e.g., `main:app` for an `app` instance in `main.py`)
-
-<Aside type="note">
-
-The Python application requires a virtual environment. Make sure you have created and activated a virtual environment in your Python project directory before running the app host.
+**Please use the official [Python Hosting integration](/integrations/frameworks/python/python-host) for all new development.**
 
 </Aside>
 
-### Add uv app
+The Aspire Community Toolkit Python hosting extensions package was a community-driven effort that provided Python hosting capabilities before official support was available in Aspire. With Aspire 13, Python became a first-class workload with all these features now built into the official package.
 
-To add an application using the [uv package manager](https://docs.astral.sh/uv/), use the `AddUvApp` extension method:
+## Migration Guide
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+If you're currently using `CommunityToolkit.Aspire.Hosting.Python.Extensions`, follow these steps to migrate:
 
-var python = builder.AddUvApp(
-    name: "python-api",
-    projectDirectory: "../python-app",
-    scriptPath: "main.py")
-    .WithHttpEndpoint(port: 8000, env: "PORT");
+### 1. Update Package References
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(python);
+Remove the Community Toolkit package and install the official package:
 
-// After adding all resources, run the app...
+```xml title="AppHost.csproj"
+<!-- Remove this -->
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Python.Extensions" Version="*" />
+
+<!-- Add this -->
+<PackageReference Include="Aspire.Hosting.Python" Version="13.0.0" />
 ```
 
-The `AddUvApp` method requires:
-- **name**: The name of the resource in the Aspire dashboard
-- **projectDirectory**: The path to the directory containing your Python application
-- **scriptPath**: The path to the Python script to run (relative to the project directory)
+<InstallPackage packageName="Aspire.Hosting.Python" />
 
-### Configure endpoints
+### 2. Update Using Statements
 
-Python applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the environment variable:
+Replace Community Toolkit imports with official package imports:
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+```csharp
+// Remove this
+using CommunityToolkit.Aspire.Hosting.Python.Extensions;
 
+// Add this (if not already present)
+using Aspire.Hosting;
+```
+
+### 3. Update Method Calls
+
+The API is largely the same, but resource types have changed:
+
+**AddUvicornApp:**
+```csharp
+// Before (Community Toolkit)
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app");
+
+// After (Official - same API)
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app");
+```
+
+**AddUvApp:**
+```csharp
+// Before (Community Toolkit)  
+var python = builder.AddUvApp("python-api", "../python-app", "main.py");
+
+// After (Official - use WithUv() method)
 var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
-    .WithHttpEndpoint(port: 8000, env: "UVICORN_PORT");
-
-// After adding all resources, run the app...
+    .WithUv();
 ```
 
-Common environment variables for Python web frameworks:
-- **UVICORN_PORT**: For Uvicorn applications
-- **PORT**: Generic port configuration used by many frameworks
+### Benefits of Migration
 
-### Working directory
+The official package provides:
 
-By default, the working directory is set to the `projectDirectory` specified when adding the Python app. The integration will look for the Python virtual environment and dependencies in this directory.
+- ✅ **Better Integration**: Full support in Visual Studio and VS Code
+- ✅ **Automatic Virtual Environments**: Smarter venv detection and management  
+- ✅ **More Features**: Additional methods like `AddPythonApp`, `AddPythonModule`, `AddPythonExecutable`
+- ✅ **Active Maintenance**: Regular updates and bug fixes from the Aspire team
+- ✅ **Unified Experience**: Consistent API with other Aspire hosting packages
+- ✅ **Debugging Support**: Zero-config debugging in VS Code
+- ✅ **Automatic Dockerization**: Production-ready Dockerfile generation
 
 ## See also
 
-- [Python Hosting integration](/integrations/frameworks/python/python-host)
-- [Uvicorn documentation](https://www.uvicorn.org/)
-- [uv documentation](https://docs.astral.sh/uv/)
-- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [Python Hosting integration](/integrations/frameworks/python/python-host) - Official Python support in Aspire
+- [Aspire 13 Python announcement](https://devblogs.microsoft.com/aspire/python-is-first-class-in-aspire-13/)
+- [Aspire Community Toolkit GitHub](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/dotnet/aspire)
