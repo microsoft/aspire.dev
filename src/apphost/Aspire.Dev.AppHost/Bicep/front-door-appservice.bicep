@@ -101,8 +101,9 @@ resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01' = {
 output endpointUrl string = 'https://${frontDoorEndpoint.properties.hostName}'
 
 // WAF Policy for DDoS compliance
+// Note: WAF policy names must be alphanumeric only (no hyphens)
 resource wafPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2025-03-01' = {
-  name: take('${frontDoorName}-waf-AppDDoS${uniqueString(resourceGroup().id)}', 128)
+  name: take('${replace(frontDoorName, '-', '')}wafDDoS${uniqueString(resourceGroup().id)}', 128)
   location: 'Global'
   sku: {
     name: 'Premium_AzureFrontDoor'
