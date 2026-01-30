@@ -114,7 +114,23 @@ Now that the hosting integration is ready, the next step is to install and confi
 
 <Pivot id="csharp">
 
-In each of these consuming client projects, install the Aspire MongoDB client integration:
+In each of these consuming client projects, you can choose between two MongoDB client integrations:
+
+- **MongoDB Driver**: Use the native MongoDB driver (`IMongoClient`) for direct database access
+- **MongoDB Entity Framework Core**: Use Entity Framework Core (`DbContext`) for object-relational mapping
+
+<PivotSelector
+    title="Select your MongoDB client integration"
+    key="mongo-client"
+    options={[
+        { id: "driver", title: "MongoDB Driver" },
+        { id: "efcore", title: "MongoDB EF Core" },
+    ]}
+/>
+
+<Pivot id="driver" key="mongo-client">
+
+Install the Aspire MongoDB Driver client integration:
 
 <InstallDotNetPackage packageName="Aspire.MongoDB.Driver" />
 
@@ -131,6 +147,26 @@ builder.AddMongoDBClient(connectionName: "mongodb");
 <Aside type="tip">
     The `connectionName` parameter must match the name used when adding the MongoDB database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
 </Aside>
+
+</Pivot>
+
+<Pivot id="efcore" key="mongo-client">
+
+Install the Aspire MongoDB Entity Framework Core client integration:
+
+<InstallDotNetPackage packageName="Aspire.MongoDB.EntityFrameworkCore" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddMongoDbContext` extension method on any `IHostApplicationBuilder` to register your `DbContext` subclass for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDbContext<MyDbContext>(connectionName: "mongodb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the MongoDB database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
 
 </Pivot>
 
@@ -223,6 +259,8 @@ const databaseName = process.env.MONGODB_DATABASENAME;
 
 <Pivot id="csharp">
 
+<Pivot id="driver" key="mongo-client">
+
 Now that you've added the `IMongoClient` to the builder in the consuming project, you can use the MongoDB database. Get the `IMongoClient` instance using dependency injection. For example, to retrieve your client object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
 
 ```csharp title="C# — ExampleService.cs"
@@ -242,6 +280,23 @@ public class ExampleService(IMongoDatabase database)
 ```
 
 Having obtained the client or database, you can work with the MongoDB database as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="efcore" key="mongo-client">
+
+Now that you've added the `DbContext` to the builder in the consuming project, you can use the MongoDB database. Get the `DbContext` instance using dependency injection. For example, to retrieve your database context object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(MyDbContext context)
+{
+    // Use context to interact with the database...
+}
+```
+
+Having obtained the database context, you can work with the MongoDB database as you would in any other C# application using Entity Framework Core.
+
+</Pivot>
 
 </Pivot>
 
@@ -298,8 +353,13 @@ Now, that you have an Aspire app with MongoDB integrations up and running, you c
   />
   <LinkCard
     title="Understand the MongoDB client integration"
-    description="Learn about the MongoDB client integration, including connection strings and observability."
+    description="Learn about the MongoDB Driver client integration, including connection strings and observability."
     href="/integrations/databases/mongodb/mongodb-client/"
+  />
+  <LinkCard
+    title="Understand the MongoDB EF Core integration"
+    description="Learn about the MongoDB Entity Framework Core integration for object-relational mapping."
+    href="/integrations/databases/mongodb/mongodb-efcore-client/"
   />
   <LinkCard
     title="Community extensions"
