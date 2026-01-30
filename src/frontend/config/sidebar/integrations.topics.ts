@@ -658,6 +658,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/mongodb/mongodb-client',
             },
             {
+              label: 'EF Core integration',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/mongodb/mongodb-efcore-get-started',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/databases/mongodb/mongodb-efcore-client',
+                },
+              ],
+            },
+            {
               label: 'Community extensions',
               slug: 'integrations/databases/mongodb/mongodb-extensions',
             },
