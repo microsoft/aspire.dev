@@ -1,9 +1,10 @@
 ---
 title: AppHost eventing APIs
-description: Learn how to use the Aspire AppHost eventing features.
+description: Learn how to use the .NET Aspire AppHost eventing features for lifecycle events, custom event publishing, and event-driven resource orchestration.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
 In Aspire, eventing allows you to publish and subscribe to events during various AppHost life cycles. Eventing is more flexible than life cycle events. Both let you run arbitrary code during event callbacks, but eventing offers finer control of event timing, publishing, and provides supports for custom events.
 
@@ -301,3 +302,114 @@ The subscriber approach keeps builder code minimal while still letting you respo
 - You can register handlers for any built-in event (AppHost or resource) or for your own custom `IDistributedApplicationEvent` types.
 
 Use this pattern whenever you previously relied on `IDistributedApplicationLifecycleHook`. The lifecycle hook APIs remain only for backward compatibility and will be removed in a future release.
+
+### Migrating from lifecycle hooks
+
+If you're migrating from the deprecated `IDistributedApplicationLifecycleHook` interface, use the following mapping:
+
+| Old pattern (deprecated) | New pattern |
+|--------------------------|-------------|
+| `BeforeStartAsync()` | Subscribe to `BeforeStartEvent` |
+| `AfterEndpointsAllocatedAsync()` | Subscribe to `ResourceEndpointsAllocatedEvent` |
+| `AfterResourcesCreatedAsync()` | Subscribe to `AfterResourcesCreatedEvent` |
+| `TryAddLifecycleHook<T>()` | `TryAddEventingSubscriber<T>()` |
+
+**Before (deprecated):**
+
+```csharp title="OldLifecycleHook.cs"
+public class MyHook : IDistributedApplicationLifecycleHook
+{
+    public Task AfterResourcesCreatedAsync(
+        DistributedApplicationModel model,
+        CancellationToken cancellationToken)
+    {
+        // Handle event
+        return Task.CompletedTask;
+    }
+}
+
+// Registration
+builder.Services.TryAddLifecycleHook<MyHook>();
+```
+
+**After (recommended):**
+
+```csharp title="NewEventingSubscriber.cs"
+public class MySubscriber : IDistributedApplicationEventingSubscriber
+{
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        eventing.Subscribe<AfterResourcesCreatedEvent>((@event, ct) =>
+        {
+            // Handle event using context.Model
+            return Task.CompletedTask;
+        });
+
+        return Task.CompletedTask;
+    }
+}
+
+// Registration
+builder.Services.TryAddEventingSubscriber<MySubscriber>();
+```
+
+<Aside type="caution">
+  The `IDistributedApplicationLifecycleHook` interface is deprecated as of Aspire 9.0 and will be removed in a future release. Migrate to `IDistributedApplicationEventingSubscriber` for new code.
+</Aside>
+
+## Additional events
+
+Beyond the core lifecycle events, Aspire provides additional events for specific scenarios:
+
+### Publishing events
+
+When publishing your application (generating deployment manifests), these events are raised:
+
+| Event | When raised | Purpose |
+|-------|-------------|---------|
+| `BeforePublishEvent` | Before publishing begins | Validate or modify resources before manifest generation |
+| `AfterPublishEvent` | After publishing completes | Perform cleanup or post-publish actions |
+
+```csharp title="AppHost.cs"
+builder.Eventing.Subscribe<BeforePublishEvent>((@event, ct) =>
+{
+    // Validate resources before publishing
+    return Task.CompletedTask;
+});
+
+builder.Eventing.Subscribe<AfterPublishEvent>((@event, ct) =>
+{
+    // Post-publish actions
+    return Task.CompletedTask;
+});
+```
+
+<LearnMore>
+For details on what happens during publishing, see [Publishing and deployment overview](/deployment/overview/).
+</LearnMore>
+
+### Resource stopped event
+
+The `ResourceStoppedEvent` is raised when a resource stops execution:
+
+```csharp title="AppHost.cs"
+builder.Eventing.Subscribe<ResourceStoppedEvent>(
+    cache,
+    (@event, ct) =>
+    {
+        logger.LogInformation("Resource {Name} stopped", @event.Resource.Name);
+        return Task.CompletedTask;
+    });
+```
+
+<Aside type="note">
+  Event publishing is **synchronous and blocking** — event handlers can delay further execution. Keep handlers lightweight and avoid long-running operations.
+</Aside>
+
+## See also
+
+- [Custom resources](/extensibility/custom-resources/)
+- [Resource annotations](/fundamentals/annotations-overview/)

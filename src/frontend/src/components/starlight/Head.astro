@@ -34,13 +34,77 @@ function computeSourceUrl() {
 
 <DefaultHead {...Astro.props} />
 
+<!-- Auto-detect language for first-time visitors -->
+<script is:inline>
+  (function () {
+    // Only run on first visit (check if user has a language preference stored)
+    const hasVisited = localStorage.getItem('aspire-visited');
+    if (hasVisited) return;
+
+    // Mark as visited
+    localStorage.setItem('aspire-visited', 'true');
+
+    // Get browser language
+    const browserLang = navigator.language || navigator.languages?.[0] || 'en';
+    const langCode = browserLang.split('-')[0].toLowerCase();
+
+    // Supported languages (matching the site's locales)
+    const supportedLangs = [
+      'en',
+      'de',
+      'es',
+      'ja',
+      'fr',
+      'it',
+      'id',
+      'zh',
+      'pt',
+      'ko',
+      'tr',
+      'ru',
+      'hi',
+      'da',
+      'uk',
+    ];
+
+    // Check if current path already has a language prefix
+    const currentPath = window.location.pathname;
+    const hasLangPrefix = /^\/[a-z]{2}(?:-[A-Z]{2})?\//.test(currentPath);
+
+    // If user is on English version (no prefix) and their browser prefers another supported language
+    if (!hasLangPrefix && langCode !== 'en' && supportedLangs.includes(langCode)) {
+      // Redirect to their preferred language
+      const newPath = '/' + langCode + currentPath;
+      window.location.href = newPath;
+    }
+  })();
+</script>
+
 <Tooltips
   interactive={false}
   allowHTML={true}
   delay={[0, 0]}
   duration={[0, 0]}
   hideOnClick={true}
-  animation="scale"
+  animation="scale",
+  onClickOutside={function (instance, event) {
+    if (instance) {
+      instance.hide();
+    }
+  }}
 />
+  
+<script is:inline>
+  (function () {
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement._tippy) {
+          activeElement._tippy.hide();
+        }
+      }
+    });
+  })();
+</script>
 
 <AccessibleCodeButtons />

@@ -56,7 +56,7 @@ export const headAttrs: HeadAttr[] = [
     attrs: {
       name: 'twitter:description',
       content:
-        'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability.',
+        'Aspire streamlines your development workflow with code-first control, modularity, and observability.',
     },
   },
   { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://aspire.dev/og-image.png' } },

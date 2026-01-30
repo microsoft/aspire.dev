@@ -4,6 +4,7 @@ description: Learn about annotations in Aspire, how they work, and how to create
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
 Annotations are a key extensibility mechanism in Aspire that allow you to attach metadata and behavior to resources. They provide a way to customize how resources are configured, deployed, and managed throughout the application lifecycle. This article explains how annotations work and how to use them effectively in your Aspire applications.
 
@@ -39,6 +40,38 @@ In this example:
 
 - `WithCommand` adds a `ResourceCommandAnnotation` that defines a custom command.
 - `WithUrl` adds a `ResourceUrlAnnotation` that defines a custom URL.
+
+## Adding and managing annotations
+
+The `WithAnnotation` extension method is the primary way to add annotations to resources. It supports different behaviors when an annotation of the same type already exists:
+
+```csharp title="AppHost.cs"
+// Add only if no annotation of this type exists (default)
+builder.AddContainer("mycontainer", "myimage")
+    .WithAnnotation(new MyAnnotation(), ResourceAnnotationMutationBehavior.None);
+
+// Replace any existing annotation of this type
+builder.AddContainer("mycontainer", "myimage")
+    .WithAnnotation(new MyAnnotation(), ResourceAnnotationMutationBehavior.Replace);
+```
+
+### Reading annotations
+
+To read annotations from a resource, use the `Annotations` collection or helper methods:
+
+```csharp title="Reading annotations"
+// Get all annotations of a type
+var endpoints = resource.Annotations.OfType<EndpointAnnotation>();
+
+// Try to get the last annotation of a type (most recently added)
+if (resource.TryGetLastAnnotation<EndpointAnnotation>(out var endpoint))
+{
+    Console.WriteLine($"Endpoint: {endpoint.Name}");
+}
+
+// Check if an annotation exists
+bool hasEndpoints = resource.Annotations.OfType<EndpointAnnotation>().Any();
+```
 
 ## Built-in annotation types
 
@@ -119,6 +152,70 @@ api.Resource.Annotations.Add(
 ```
 
 For more information about publishing and deploying Aspire apps, see [publishing and deploying](/deployment/overview/).
+
+### `HealthCheckAnnotation`
+
+The `HealthCheckAnnotation` associates health checks with a resource, used by `WaitFor()` to determine when a resource is ready:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpHealthCheck("/health");  // Adds HealthCheckAnnotation
+```
+
+<LearnMore>
+Learn more about how Aspire uses health checks for orchestration in the [Health checks guide](/fundamentals/health-checks/).
+</LearnMore>
+
+### `WaitAnnotation`
+
+The `WaitAnnotation` declares a dependency on another resource and controls startup order. The `WaitFor`, `WaitForStart`, and `WaitForCompletion` methods add this annotation:
+
+```csharp title="AppHost.cs"
+var cache = builder.AddRedis("cache");
+
+// Wait for cache to be healthy before starting web
+var web = builder.AddProject<Projects.Web>("web")
+    .WaitFor(cache);  // Adds WaitAnnotation with WaitType.WaitForHealthy
+```
+
+The `WaitType` enum specifies what condition to wait for:
+
+| Wait type | Description |
+|----------|-------------|
+| `WaitForStart` | Wait for resource to start (not necessarily healthy) |
+| `WaitForHealthy` | Wait for resource to be healthy (default for `WaitFor`) |
+| `WaitForCompletion` | Wait for resource to exit (for one-time tasks) |
+
+### `ReplicaAnnotation`
+
+The `ReplicaAnnotation` specifies how many instances of a resource should run:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReplicas(3);  // Adds ReplicaAnnotation
+```
+
+### `ContainerLifetimeAnnotation`
+
+The `ContainerLifetimeAnnotation` controls whether a container persists across app runs:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres")
+    .WithLifetime(ContainerLifetime.Persistent);  // Container survives restarts
+```
+
+<LearnMore>
+For details on persistent containers and their use cases, see [Persistent containers](/app-host/persistent-containers/).
+</LearnMore>
+
+### `ExplicitStartupAnnotation`
+
+The `ExplicitStartupAnnotation` prevents a resource from starting automatically. Users must manually start it from the dashboard:
+
+```csharp title="AppHost.cs"
+var worker = builder.AddProject<Projects.BatchJob>("batch")
+    .WithExplicitStart();  // Adds ExplicitStartupAnnotation
+```
 
 ## Creating custom annotations
 
@@ -294,3 +391,9 @@ public sealed class ConfigAnnotation : IResourceAnnotation
     public SecuritySettings Security { get; set; }
 }
 ```
+
+## See also
+
+- [Custom resources](/extensibility/custom-resources/) - Creating custom resource types that use annotations
+- [Resource API patterns](/architecture/resource-api-patterns/) - Advanced API patterns for resources
+- [AppHost eventing](/app-host/eventing/) - Handling lifecycle events in resources
