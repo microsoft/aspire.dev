@@ -19,7 +19,6 @@ The following events are available in the AppHost and occur in the following ord
 <Steps>
 
 1. `BeforeStartEvent`: This event is raised before the AppHost starts.
-1. `ResourceEndpointsAllocatedEvent`: This event is raised per resource after its endpoints are allocated.
 1. `AfterResourcesCreatedEvent`: This event is raised after the AppHost created resources.
 
 </Steps>
@@ -45,14 +44,6 @@ builder.AddProject<Projects.AspireApp_Web>("webfrontend")
     .WithReference(apiService)
     .WaitFor(apiService);
 
-builder.Eventing.Subscribe<ResourceEndpointsAllocatedEvent>(
-    static (@event, cancellationToken) =>
-    {
-        var logger = @event.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("2. \"{ResourceName}\" ResourceEndpointsAllocatedEvent", @event.Resource.Name);
-        return Task.CompletedTask;
-    });
-
 builder.OnBeforeStart(
     static (@event, cancellationToken) =>
     {
@@ -66,7 +57,7 @@ builder.OnAfterResourcesCreated(
     static (@event, cancellationToken) =>
     {
         var logger = @event.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogInformation("3. AfterResourcesCreatedEvent");
+        logger.LogInformation("2. AfterResourcesCreatedEvent");
 
         return Task.CompletedTask;
     });
@@ -74,11 +65,11 @@ builder.OnAfterResourcesCreated(
 builder.Build().Run();
 ```
 
-The preceding code is based on the starter template with the addition of calls to helper methods and the `Subscribe` API. The helper methods (`OnBeforeStart`, `OnAfterResourcesCreated`, etc.) provide a convenient way to subscribe to common AppHost lifecycle events. For events that don't have a helper method, such as `ResourceEndpointsAllocatedEvent`, you can use the `Eventing.Subscribe<T>` API. The `Subscribe<T>` API returns a `DistributedApplicationEventSubscription` instance that you can use to unsubscribe from the event. It's common to discard the returned subscriptions, as you don't usually need to unsubscribe from events as the entire app is torn down when the AppHost is shut down.
+The preceding code is based on the starter template with the addition of calls to helper methods. The helper methods (`OnBeforeStart`, `OnAfterResourcesCreated`, `OnBeforePublish`, `OnAfterPublish`) provide a convenient way to subscribe to common AppHost lifecycle events. These methods return a `DistributedApplicationEventSubscription` instance that you can use to unsubscribe from the event. It's common to discard the returned subscriptions, as you don't usually need to unsubscribe from events as the entire app is torn down when the AppHost is shut down.
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
 
-```plaintext {2,10,12,14,16,22} data-disable-copy
+```plaintext {2,10} data-disable-copy
 info: Program[0]
       1. BeforeStartEvent
 info: Aspire.Hosting.DistributedApplication[0]
@@ -88,24 +79,16 @@ info: Aspire.Hosting.DistributedApplication[0]
 info: Aspire.Hosting.DistributedApplication[0]
       Application host directory is: ../AspireApp/AspireApp.AppHost
 info: Program[0]
-      2. "cache" ResourceEndpointsAllocatedEvent
-info: Program[0]
-      2. "apiservice" ResourceEndpointsAllocatedEvent
-info: Program[0]
-      2. "webfrontend" ResourceEndpointsAllocatedEvent
-info: Program[0]
-      2. "aspire-dashboard" ResourceEndpointsAllocatedEvent
+      2. AfterResourcesCreatedEvent
 info: Aspire.Hosting.DistributedApplication[0]
       Now listening on: https://localhost:17178
 info: Aspire.Hosting.DistributedApplication[0]
       Login to the dashboard at https://localhost:17178/login?t=<YOUR_TOKEN>
-info: Program[0]
-      3. AfterResourcesCreatedEvent
 info: Aspire.Hosting.DistributedApplication[0]
       Distributed application started. Press Ctrl+C to shut down.
 ```
 
-The log output confirms that event handlers are executed in the order of the AppHost life cycle events. The subscription order doesn't affect execution order. The `BeforeStartEvent` is triggered first, followed by each resource's `ResourceEndpointsAllocatedEvent`, and finally `AfterResourcesCreatedEvent`.
+The log output confirms that event handlers are executed in the order of the AppHost life cycle events. The subscription order doesn't affect execution order. The `BeforeStartEvent` is triggered first, followed by `AfterResourcesCreatedEvent`.
 
 ## Resource eventing
 
@@ -310,7 +293,7 @@ If you're migrating from the deprecated `IDistributedApplicationLifecycleHook` i
 | Old pattern (deprecated) | New pattern |
 |--------------------------|-------------|
 | `BeforeStartAsync()` | Use `builder.OnBeforeStart(...)` or subscribe to `BeforeStartEvent` |
-| `AfterEndpointsAllocatedAsync()` | Subscribe to `ResourceEndpointsAllocatedEvent` |
+| `AfterEndpointsAllocatedAsync()` | Use resource-level `OnResourceEndpointsAllocated(...)` (not a drop-in replacement; requires per-resource subscription) |
 | `AfterResourcesCreatedAsync()` | Use `builder.OnAfterResourcesCreated(...)` or subscribe to `AfterResourcesCreatedEvent` |
 | `TryAddLifecycleHook<T>()` | `TryAddEventingSubscriber<T>()` |
 
