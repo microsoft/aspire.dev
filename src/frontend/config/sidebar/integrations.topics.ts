@@ -786,7 +786,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
         { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
-        { label: 'Python', slug: 'integrations/frameworks/python' },
+        {
+          label: 'Python',
+          collapsed: true,
+          items: [
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/frameworks/python/python-host',
+            },
+            {
+              label: 'Community extensions',
+              slug: 'integrations/frameworks/python/python-community-toolkit',
+            },
+          ],
+        },
         { label: 'Rust', slug: 'integrations/frameworks/rust' },
       ],
     },
