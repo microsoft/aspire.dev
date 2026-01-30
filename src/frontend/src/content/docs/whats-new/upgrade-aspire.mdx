@@ -1,364 +1,117 @@
 ---
 title: Upgrade Aspire
 description: Learn how to upgrade your Aspire projects to the latest version.
-sidebar:
-  label: Upgrade Aspire
-  order: 100
-tableOfContents:
-  minHeadingLevel: 2
-  maxHeadingLevel: 3
 ---
 
-import { Aside, Steps, Tabs, TabItem, Code } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
-In this article, you learn the steps involved in updating your existing Aspire projects to the latest version. The easiest way to upgrade Aspire is using the **Aspire CLI** with the `aspire update` command.
+Upgrading Aspire is simple using the **Aspire CLI**. Run `aspire update` and you're done.
 
 <Aside type="tip">
-If you're new to Aspire, there's no reason to upgrade anything. For more information, see [Setup and tooling](/get-started/setup-and-tooling/).
+If you're new to Aspire, there's no reason to upgrade anything. See [Setup and tooling](/get-started/setup-and-tooling/) to get started.
 </Aside>
 
-<Aside type="note">
-If you're upgrading from Aspire 8.x, you should first upgrade to Aspire 9.x using the Upgrade Assistant or manually, then upgrade to the latest version. Be sure to [remove the legacy Aspire workload](#remove-the-aspire-workload-first-time-upgrades-from-version-8-only) if upgrading from version 8.
-</Aside>
-
-## Prerequisites
-
-Before you upgrade your projects, ensure that you have the following prerequisites:
-
-- [Install the latest tooling](/get-started/setup-and-tooling/)
-- [Use the Aspire SDK](/fundamentals/dotnet-aspire-sdk/)
-- If you have a version of Aspire older than 9.0, [remove the legacy workload](#remove-the-aspire-workload-first-time-upgrades-from-version-8-only)
-
-## Upgrade using the Aspire CLI
-
-The recommended way to upgrade Aspire is using the Aspire CLI. This method handles all the necessary updates automatically.
-
-### Update the Aspire CLI
-
-First, update the Aspire CLI to the latest version:
-
-<OsAwareTabs syncKey="terminal">
-
-```bash title="Bash"
-curl -sSL https://aspire.dev/install.sh | bash
-```
-
-```powershell title="PowerShell"
-Invoke-RestMethod -Uri "https://aspire.dev/install.ps1" | Invoke-Expression
-```
-
-</OsAwareTabs>
-
-### Update your Aspire project
-
-Update your Aspire project using the `aspire update` command:
-
-```bash
-aspire update
-```
-
-This command will:
-
-- Update the `Aspire.AppHost.Sdk` version in your AppHost project
-- Update all Aspire NuGet packages to the latest version
-- Handle dependency resolution automatically
-- Support both regular projects and Central Package Management (CPM)
-
-### Update your Aspire templates
-
-Install the latest Aspire project templates by running this command:
-
-```bash
-dotnet new install Aspire.ProjectTemplates
-```
-
-<Aside type="tip">
-If you have the legacy Aspire workload installed, you need to pass the `--force` flag to overwrite the existing templates. For instructions on uninstalling the legacy workload, see [Remove the Aspire workload](#remove-the-aspire-workload-first-time-upgrades-from-version-8-only).
-</Aside>
-
-## AppHost template updates
-
-Recent versions of Aspire have introduced a simplified AppHost project template structure. The SDK now encapsulates the `Aspire.Hosting.AppHost` package, resulting in cleaner project files.
-
-### Before (9.x and earlier)
-
-```xml
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <UserSecretsId>1bf2ca25-7be4-4963-8782-c53a74e10ad9</UserSecretsId>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MyApp.ApiService\MyApp.ApiService.csproj" />
-    <ProjectReference Include="..\MyApp.Web\MyApp.Web.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="9.5.2" />
-  </ItemGroup>
-
-</Project>
-```
-
-### After (13.0 and later)
-
-```xml
-<Project Sdk="Aspire.AppHost.Sdk/13.0.0">
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <UserSecretsId>1bf2ca25-7be4-4963-8782-c53a74e10ad9</UserSecretsId>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MyApp.ApiService\MyApp.ApiService.csproj" />
-    <ProjectReference Include="..\MyApp.Web\MyApp.Web.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Redis" Version="13.0.0" />
-  </ItemGroup>
-
-</Project>
-```
-
-### Key changes
-
-- **Simplified SDK declaration**: The SDK is now specified directly in the `<Project>` tag with its version: `Sdk="Aspire.AppHost.Sdk/13.0.0"`
-- **No explicit Aspire.Hosting.AppHost reference**: The SDK now automatically includes this package, reducing boilerplate
-- **Cleaner structure**: Removed the separate `<Sdk Name="..." />` element and the `Microsoft.NET.Sdk` base SDK
-- **Target framework**: Updated to the latest .NET version (e.g., from `net9.0` to `net10.0`)
-
-The `aspire update` command automatically handles this migration when upgrading.
-
-## Single-file AppHosts
-
-<Aside type="tip">
-For an even simpler setup, recent versions of Aspire also support single-file AppHosts that don't require a project file at all. Single-file AppHosts are perfect for quick prototypes and learning scenarios.
-</Aside>
-
-The same project as a file-based AppHost:
-
-```csharp title="apphost.cs"
-#:sdk Aspire.AppHost.Sdk@13.0.0
-#:package Aspire.Hosting.Redis@13.0.0
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-var api = builder.AddProject("apiservice", "../MyApi")
-                 .WithReference(cache);
-
-builder.Build().Run();
-```
-
-No project file needed—just a single _.cs_ file with package references declared using `#:package` directives.
-
-<Aside type="note">
-Single-file AppHosts are not currently supported in Visual Studio. Use Visual Studio Code or the command line to work with single-file AppHosts.
-</Aside>
-
-## Manually upgrade a solution
-
-If you prefer to manually upgrade your projects, you can update your project files directly. The following steps guide you through the process:
-
-- Edit your [AppHost](/get-started/app-host/) project file to use the latest Aspire SDK
-- Update the NuGet packages in your project files to the latest versions
-- Adjust your code to address any breaking changes
-
-### Edit your AppHost project file
-
-To upgrade your AppHost project, update your project file to use the new SDK declaration and remove the explicit `Aspire.Hosting.AppHost` package reference:
-
-```diff
-- <Project Sdk="Microsoft.NET.Sdk">
-+ <Project Sdk="Aspire.AppHost.Sdk/13.0.0">
-
--  <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
--   <TargetFramework>net9.0</TargetFramework>
-+   <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
--   <IsAspireHost>true</IsAspireHost>
-    <UserSecretsId>0afc20a6-cd99-4bf7-aae1-1359b0d45189</UserSecretsId>
-  </PropertyGroup>
-
-  <ItemGroup>
--   <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2" />
-+   <!-- Aspire.Hosting.AppHost is now included automatically by the SDK -->
-  </ItemGroup>
-
-</Project>
-```
-
-<PivotSelector
-    title="Select your development environment"
-    key="dev-environment"
-    options={[
-        { id: "visual-studio", title: "Visual Studio" },
-        { id: "vscode", title: "Visual Studio Code" },
-        { id: "dotnet-cli", title: ".NET CLI" },
-    ]}
-/>
-
-### Update the NuGet packages
-
-To take advantage of the latest updates in your Aspire solution, update all NuGet packages to the latest version.
-
-<Pivot id="visual-studio">
-
-In Visual Studio, right-click on your solution in **Solution Explorer** and select **Manage NuGet Packages for Solution**. Navigate to the **Updates** tab and select all Aspire packages to update them to the latest version.
-
-</Pivot>
-
-<Pivot id="vscode">
-
-To update your project packages, use the following .NET CLI command to update Aspire packages to the latest version:
-
-```bash
-dotnet add package Aspire.Hosting.Redis --version 13.0.0
-```
-
-When a package reference already exists, the `dotnet add package` command updates the reference to the specified version.
-
-</Pivot>
-
-<Pivot id="dotnet-cli">
-
-To update your project packages, use the following .NET CLI command to update Aspire packages to the latest version:
-
-```bash
-dotnet add package Aspire.Hosting.Redis --version 13.0.0
-```
-
-When a package reference already exists, the `dotnet add package` command updates the reference to the specified version. For more information, see [dotnet add package](https://learn.microsoft.com/dotnet/core/tools/dotnet-add-package).
-
-</Pivot>
-
-<Aside type="tip">
-You'll want to also update the NuGet packages in your other projects to the latest versions.
-</Aside>
-
-## Breaking changes
-
-With each new version of Aspire, there may be breaking changes. You need to adjust your code to address these changes.
-
-For information about breaking changes in specific versions, see the release notes for each version in the [What's new](/whats-new/aspire-13-1/) section.
-
-<Aside type="caution">
-Be sure to review breaking changes for all versions of Aspire after the one you're upgrading from. For example, if you're upgrading from Aspire 9.0 to 13.1, you must address breaking changes for all versions between 9.0 and 13.1.
-</Aside>
-
-## Use the Upgrade Assistant
-
-The [Upgrade Assistant](https://learn.microsoft.com/dotnet/core/porting/upgrade-assistant-overview) is a tool that helps upgrade targeted projects to the latest version. If you're new to the Upgrade Assistant, there are two modalities to choose from:
-
-- [The Visual Studio extension version](https://learn.microsoft.com/dotnet/core/porting/upgrade-assistant-install#visual-studio-extension)
-- [The .NET CLI global tool version](https://learn.microsoft.com/dotnet/core/porting/upgrade-assistant-install#net-global-tool)
-
-Regardless of how you install the Upgrade Assistant, you can use it to upgrade your Aspire projects to the latest version.
-
-<PivotSelector
-    title="Select your development environment"
-    key="upgrade-assistant-env"
-    options={[
-        { id: "visual-studio-ua", title: "Visual Studio" },
-        { id: "dotnet-cli-ua", title: ".NET CLI" },
-    ]}
-/>
-
-<Pivot id="visual-studio-ua">
-
-To upgrade the Aspire AppHost project with Visual Studio, right-click the project in **Solution Explorer** and select **Upgrade**.
-
-<Aside type="caution">
-If the **Upgrade Assistant** isn't already installed, you'll be prompted to install it.
-</Aside>
-
-The Upgrade Assistant displays a welcome page. Select the **Aspire upgrades** option and follow the prompts to upgrade your project.
-
-</Pivot>
-
-<Pivot id="dotnet-cli-ua">
-
-To upgrade the Aspire AppHost project, ensure that you installed the Upgrade Assistant CLI. Open a terminal session at the root directory of the Aspire AppHost project file, and run the following command:
-
-```bash
-upgrade-assistant upgrade
-```
-
-The output is interactive, expecting you to select the upgrade type. Choose the **Aspire upgrades** option and follow the prompts to upgrade your project.
-
-</Pivot>
-
-## Remove the Aspire workload (first-time upgrades from version 8 only)
-
-If you're upgrading from Aspire 8 to Aspire 9 or later for the first time, you need to remove the legacy workload. This step is not needed for upgrades between Aspire 9 versions or later.
-
-Previously the **aspire workload** was required to create and run Aspire projects. But, with Aspire 9 and later the workload is no longer required and should be removed from your .NET environment.
-
-<Aside type="caution">
-You must remove Aspire 8 (the **aspire workload**) to enable the Aspire 9+ templates.
-</Aside>
+## Upgrade with the Aspire CLI
 
 <Steps>
 
-1. Find the installation source by opening a terminal and running the `dotnet workload list` command.
+1. **Update the Aspire CLI** to the latest version:
 
-    The preceding command lists the workloads installed in the .NET environment. The method used to install Aspire is listed under the **Installation Source** column of the output, and is either _VS_ for Visual Studio or _SDK_ for the .NET SDK. For example, the following snippet indicates that Visual Studio was used to install Aspire:
-
-    ```
-    Installed Workload Id      Manifest Version      Installation Source
-    --------------------------------------------------------------------
-    aspire                     8.2.2/8.0.100         VS 17.14.36109.1
+    ```bash
+    aspire update --self
     ```
 
-2. Remove Aspire 8 based on the installation source:
+    <Aside type="note" title="Don't have the Aspire CLI installed?">
+    If you haven't installed the Aspire CLI yet, see [Install the Aspire CLI](/reference/cli/) for installation instructions.
+    </Aside>
 
-    <Tabs syncKey="workload-removal">
-        <TabItem label="Visual Studio">
-            1. Open the **Visual Studio Installer** app
-            2. **Modify** the installation instance of Visual Studio
-            3. Select **Individual Components**
-            4. Search for `aspire`
-            5. Unselect **Aspire SDK**
-            6. Select the **Modify** button to apply the changes
-        </TabItem>
-        <TabItem label=".NET SDK">
-            Run `dotnet workload uninstall aspire` to remove Aspire.
-        </TabItem>
-    </Tabs>
+2. **Update your Aspire project** by running:
+
+    ```bash
+    aspire update
+    ```
+
+    This command automatically:
+
+    - Updates the `Aspire.AppHost.Sdk` version
+    - Updates all Aspire NuGet packages to the latest version
+    - Handles dependency resolution
+    - Supports both regular projects and Central Package Management (CPM)
 
 </Steps>
 
+<LearnMore>
+For more information, see [`aspire update` command reference](/reference/cli/commands/aspire-update/).
+</LearnMore>
+
+## Upgrade with the Upgrade Assistant CLI
+
+The [Upgrade Assistant](https://learn.microsoft.com/dotnet/core/porting/upgrade-assistant-overview) is another option for upgrading Aspire projects.
+
+<Steps>
+
+1. **Install the Upgrade Assistant** (if not already installed):
+
+    ```bash
+    dotnet tool install -g upgrade-assistant
+    ```
+
+2. **Run the upgrade** from your AppHost project directory:
+
+    ```bash
+    upgrade-assistant upgrade
+    ```
+
+3. **Select the Aspire upgrades** option when prompted and follow the interactive prompts.
+
+</Steps>
+
+## Update the VS Code extension (optional)
+
+If you have the Aspire extension installed, you can update it to get the latest tooling support:
+
+<Steps>
+
+1. Open VS Code
+2. Go to **Extensions** (<Kbd windows="Ctrl+Shift+X" mac="Cmd+Shift+X" />)
+3. Search for **.NET Aspire**
+4. Click **Update** if an update is available
+
+</Steps>
+
+<LearnMore>
+For more information, see [Aspire extension for VS Code](/get-started/aspire-vscode-extension/).
+</LearnMore>
+
+## Breaking changes
+
+Review breaking changes for all versions between your current version and the target version. See the release notes in the [What's new](/whats-new/aspire-13-1/) section.
+
+## Remove the legacy workload (Aspire 8 only)
+
+<Aside type="note">
+This step is only needed if you're upgrading from Aspire 8. Skip this if you're already on Aspire 9 or later.
+</Aside>
+
+The legacy **aspire workload** is no longer required and should be removed:
+
+```bash 
+dotnet workload uninstall aspire
+```
+
 ## Verify the upgrade
 
-As with any upgrade, ensure that the app runs as expected and that all tests pass. Build the solution and look for suggestions, warnings, or errors in the output window—address anything that wasn't an issue before.
+After upgrading, run your application to ensure everything works as expected:
 
-If you encounter any issues, let us know by [filing a GitHub issue](https://github.com/dotnet/aspire/issues/new/choose).
+```bash title="Run the Aspire application"
+aspire run
+```
 
-<LearnMore
-  title="Learn more about Aspire"
-  links={[
-    { title: "What's new", href: "/whats-new/aspire-13-1/" },
-    { title: "Setup and tooling", href: "/get-started/setup-and-tooling/" },
-  ]}
-/>
+## Need help?
+
+- 🆘 Stuck? [Join the Discord community](https://discord.com/invite/raNPcaaSj8) for real-time support
+- 🐛 Found a bug? [File a GitHub issue](https://github.com/dotnet/aspire/issues/new/choose)
+- 👀 Review [setup and tooling](/get-started/setup-and-tooling/) for configuration tips
