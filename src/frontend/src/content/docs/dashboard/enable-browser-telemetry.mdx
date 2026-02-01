@@ -210,7 +210,7 @@ import { ConsoleSpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-tra
 import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { ZoneContextManager } from '@opentelemetry/context-zone';
@@ -225,7 +225,7 @@ export function initializeTelemetry(otlpUrl, headers, resourceAttributes) {
     attributes[SemanticResourceAttributes.SERVICE_NAME] = 'browser';
 
     const provider = new WebTracerProvider({
-        resource: new Resource(attributes),
+        resource: resourceFromAttributes(attributes),
     });
     provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter()));
     provider.addSpanProcessor(new SimpleSpanProcessor(new OTLPTraceExporter(otlpOptions)));
