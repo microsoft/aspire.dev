@@ -8,7 +8,7 @@ Please see the full [Contributor guide](https://aspire.dev/community/contributor
 
 ## Help translate the docs
 
-We welcome translation contributions! Please see our [Translation guide](https://aspire.dev/community/translation-guide/) to learn how to help translate aspire.dev into other languages. You can check the [translation status dashboard](https://localization.aspire.dev) to see what needs to be translated or updated.
+We welcome translation contributions! Please see our [Translation guide](https://aspire.dev/community/translation-guide/) to learn how to help translate aspire.dev into other languages. You can check the [translation status dashboard](https://aspire.dev/i18n/) to see what needs to be translated or updated.
 
 ## 🏗️ Project structure
 
