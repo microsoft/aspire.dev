@@ -25,12 +25,14 @@ This skill provides guidelines for AI agents to systematically validate the aspi
 - Check implementation details in the dotnet/aspire repository
 - Look at test files to understand expected behavior
 - Use internal knowledge of the codebase
+- Silently fill gaps with your built-in knowledge - flag them instead
 
 ✅ **DO:**
 - Use Playwright MCP tools to navigate the documentation site
 - Read documentation content as displayed in the browser
 - Copy code examples and run them in test projects
 - Evaluate if explanations make sense without prior knowledge
+- Flag when you use intrinsic knowledge to fill documentation gaps
 
 ### When You Get Stuck
 
@@ -42,6 +44,62 @@ If documentation is insufficient to proceed:
 4. **Move on** - Continue testing other areas
 
 This is valuable feedback! Gaps in documentation are exactly what we're trying to find.
+
+### Knowledge Source Awareness
+
+**Be critical of the documentation by distinguishing between what you know and where that knowledge came from.**
+
+As an AI agent, you have built-in knowledge about programming concepts, frameworks, and common patterns. When testing documentation, constantly ask yourself:
+
+#### Documentation Takes Priority
+
+The aspire.dev documentation covers the full spectrum of the Aspire experience - from installation and project creation to advanced scenarios. **When the documentation you're testing provides instructions for a task, follow those instructions exactly, even if this skill provides different guidance.**
+
+For example:
+- If testing a "Getting Started" page that shows how to create a project, use the commands in that documentation - not the project creation steps in this skill
+- If an integration doc specifies how to add packages, follow those steps rather than the general guidance here
+- The skill's instructions are defaults; the documentation being tested overrides them
+
+This ensures you're actually testing whether the documentation works, not whether this skill's instructions work.
+
+#### Questions to Ask
+
+1. **"Did I learn this from the documentation, or did I already know it?"**
+   - If you already knew it, would a new user know it too?
+   - Is it reasonable to assume this knowledge, or should the docs explain it?
+
+2. **"Am I filling in gaps with my own knowledge?"**
+   - If you had to use prior knowledge to complete a step, the documentation may be incomplete
+   - Document these gaps even if you were able to proceed
+
+3. **"Would this make sense to someone unfamiliar with [concept]?"**
+   - Aspire users come from diverse backgrounds (different languages, experience levels)
+   - Don't assume familiarity with .NET, containers, cloud concepts, etc.
+
+#### Examples
+
+| Situation | Question to Ask | Documentation Gap? |
+|-----------|-----------------|-------------------|
+| You know what a connection string is | Would a Python developer know this? | Maybe - consider if it needs explanation |
+| You understand dependency injection | Does the doc explain DI or assume it? | If assumed, should link to prerequisites |
+| You know `aspire run` starts all resources | Did the doc say this, or did you just know? | If not stated, it should be |
+| You recognize a Redis configuration pattern | Is this explained or assumed knowledge? | New users may not recognize it |
+
+#### Reporting Knowledge Gaps
+
+When you identify that you used intrinsic knowledge to proceed, flag it in your report:
+
+```markdown
+### Knowledge Gap: [Topic]
+
+**What I needed to know:** [Description]
+**Source of my knowledge:** Built-in/prior knowledge (NOT from documentation)
+**User impact:** [Who might struggle without this knowledge?]
+**Recommendation:** 
+- [ ] Add explanation to this page
+- [ ] Link to prerequisite documentation
+- [ ] Reasonable to assume (explain why)
+```
 
 ## Testing Goals
 
@@ -65,6 +123,65 @@ Does the documentation match reality?
 - Are limitations and caveats documented?
 
 ## Environment Setup
+
+### Installing the Aspire CLI
+
+Before testing, ensure you have the appropriate version of the Aspire CLI installed. The version needed depends on what you're testing:
+
+#### GA/Stable Builds (Default)
+
+For testing documentation of released features, use the stable release:
+
+```bash
+# Linux/macOS
+curl -sSL https://aspire.dev/install.sh | bash
+
+# Windows (PowerShell)
+irm https://aspire.dev/install.ps1 | iex
+```
+
+For complete installation instructions, see the [Install Aspire CLI](/get-started/install-cli/) page on the documentation site.
+
+#### Nightly/Dev Builds
+
+For testing documentation of features being developed on the main branch, use the dev channel:
+
+```bash
+# Linux/macOS
+curl -sSL https://aspire.dev/install.sh | bash -s -- --quality dev
+
+# Windows (PowerShell)
+iex "& { $(irm https://aspire.dev/install.ps1) } -Quality 'dev'"
+```
+
+You can also find the dev channel option by clicking the download icon on the aspire.dev site and selecting "Dev" from the Channel dropdown.
+
+<Aside type="caution">
+Dev builds are the latest from the main branch and may be unstable. Only use for testing upcoming features.
+</Aside>
+
+#### PR Builds
+
+For testing documentation of features in specific pull requests (before they're merged), you need to install the CLI from the PR artifacts:
+
+1. Navigate to the PR in the [dotnet/aspire](https://github.com/dotnet/aspire) repository
+2. Find the "Checks" or "Actions" section of the PR
+3. Look for the build artifacts that contain the CLI
+4. Download and install the CLI from the PR-specific build artifacts
+
+PR builds are useful when writing documentation ahead of feature merges.
+
+#### Staging Builds
+
+For testing prerelease builds from the current release branch:
+
+```bash
+# Linux/macOS
+curl -sSL https://aspire.dev/install.sh | bash -s -- --quality staging
+
+# Windows (PowerShell)
+iex "& { $(irm https://aspire.dev/install.ps1) } -Quality 'staging'"
+```
 
 ### Aspire App Model
 
@@ -104,14 +221,12 @@ To test code examples accurately, create test projects using the Aspire CLI.
 mkdir -p .doc-tester-workspace
 cd .doc-tester-workspace
 
-# Create a new Aspire project
+# Create a new Aspire project using templates
 aspire new aspire-starter -n DocTest -o DocTest
 cd DocTest
-
-# Or create a minimal project for specific testing
-dotnet new console -n SimpleTest
-cd SimpleTest
 ```
+
+Use `aspire new --list` to see all available project templates. Choose a template that matches the documentation you're testing (e.g., Python, JavaScript, or .NET projects).
 
 ## Purpose
 
@@ -236,44 +351,49 @@ For each code example shown in the documentation:
 # Navigate to workspace
 cd /path/to/aspire.dev/.doc-tester-workspace
 
-# Create appropriate project type
+# Create a project using an appropriate Aspire template
 aspire new aspire-starter -n ExampleTest -o ExampleTest
-# OR
-dotnet new console -n SimpleTest -o SimpleTest
-
 cd ExampleTest
 ```
 
+Use `aspire new --list` to view available templates. Choose a template that matches the language or framework in the documentation you're testing.
+
 #### Step 2: Add Required Packages
 
-Based on the documentation being tested:
+Based on the documentation being tested, use the Aspire CLI to add integration packages:
 
 ```bash
-# Add hosting packages
-dotnet add reference path/to/AppHost.csproj
-dotnet add package Aspire.Hosting.Redis
+# Add hosting packages using Aspire CLI (preferred)
+aspire add Aspire.Hosting.Redis
 
 # Or add client packages
-dotnet add package Aspire.StackExchange.Redis
+aspire add Aspire.StackExchange.Redis
 ```
 
-#### Step 3: Paste and Build
+<Aside type="tip">
+The `aspire add` command automatically adds packages to the correct project and handles any additional configuration. Only fall back to `dotnet add package` if the Aspire CLI is not available.
+</Aside>
 
-```bash
-# Replace code in Program.cs with documentation example
-# Then build
-dotnet build
-```
+#### Step 3: Apply Code Examples
+
+Copy the code examples from the documentation into your test project exactly as shown. This may involve:
+- Updating source files (e.g., `Program.cs`, `app.py`, `server.js`)
+- Adding configuration files
+- Any other steps the documentation specifies
+
+<Aside type="note">
+Aspire is polyglot and supports multiple languages (C#, Python, JavaScript, etc.). Follow the documentation's instructions for your target language. The docs should include any language-specific build steps if required.
+</Aside>
 
 #### Step 4: Run and Verify
 
-```bash
-# Run with Aspire
-aspire run
+Use `aspire run` to build and run the application:
 
-# Or run directly
-dotnet run
+```bash
+aspire run
 ```
+
+Aspire handles building and orchestrating all resources. If the documentation specifies additional build or run commands for specific languages, follow those instructions and verify they work as documented.
 
 ### Phase 4: Test Integration Documentation
 
@@ -285,8 +405,8 @@ For integration documentation:
 4. **Check health checks** - Do documented health checks function?
 
 ```bash
-# Verify package exists
-dotnet add package Aspire.Hosting.Technology --version *
+# Verify package exists using Aspire CLI
+aspire add Aspire.Hosting.Technology
 
 # If package not found, document as error
 ```
@@ -492,11 +612,11 @@ Keep the workspace directory but remove contents to avoid cluttering the reposit
 1. Navigate to the integration page with Playwright
 2. Verify package names are correct
 3. Create a test AppHost project
-4. Add the hosting package
+4. Add the hosting package using `aspire add <package-name>`
 5. Copy the basic usage example
 6. Build and run with `aspire run`
 7. Verify the resource appears in the dashboard
-8. If client integration exists, test client registration
+8. If client integration exists, add using `aspire add` and test client registration
 
 ### Testing CLI Documentation
 
@@ -537,6 +657,49 @@ mcp_playwright_browser_click      # Click elements
 mcp_playwright_browser_type       # Type text
 mcp_playwright_browser_screenshot # Capture screenshot
 ```
+
+### Hex1b Terminal MCP Tools
+
+The Hex1b MCP server provides tools for interacting with terminal sessions and capturing terminal output. This is particularly useful for:
+
+- **Capturing terminal screenshots** for documentation evidence
+- **Recording asciinema sessions** (`.cast` files) for documentation
+
+#### Available Tools
+
+First, activate the terminal tools you need:
+
+```
+activate_terminal_session_creation_tools  # Start bash/powershell sessions
+activate_terminal_interaction_tools       # Screenshots, text capture, input
+```
+
+Then use the terminal tools:
+
+```
+mcp_hex1b_list_terminals          # List active terminal sessions
+mcp_hex1b_start_bash_terminal     # Start a new bash session
+mcp_hex1b_start_pwsh_terminal     # Start a new PowerShell session
+mcp_hex1b_send_terminal_input     # Send commands to terminal
+mcp_hex1b_wait_for_terminal_text  # Wait for specific output
+mcp_hex1b_capture_terminal_screenshot  # Capture terminal as SVG
+mcp_hex1b_capture_terminal_text   # Capture terminal text content
+mcp_hex1b_record_asciinema        # Record terminal session as .cast file
+```
+
+#### Asciinema Recordings
+
+The aspire.dev documentation uses asciinema recordings (`.cast` files) to show terminal interactions. These provide a better user experience than static screenshots.
+
+**Existing recordings location**: `src/frontend/public/casts/`
+
+**Examples of existing recordings**:
+- `aspire-version.cast` - Shows `aspire --version` command
+- `aspire-new.cast` - Shows project creation
+- `aspire-run.cast` - Shows running an Aspire app
+- `mcp-init.cast` - Shows MCP initialization
+
+When testing CLI documentation, consider whether an asciinema recording would better demonstrate the command output than a static code block.
 
 ## Reporting Guidelines
 

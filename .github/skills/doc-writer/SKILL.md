@@ -84,6 +84,7 @@ import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import Badge from '@astrojs/starlight/components/Badge.astro';
 import Image from 'astro:assets';
 ```
@@ -487,23 +488,151 @@ import ThemeImage from '@components/ThemeImage.astro';
 />
 ```
 
+### Terminal Recordings (Asciinema)
+
+For CLI demonstrations, use asciinema recordings (`.cast` files) instead of static code blocks. These provide an interactive, playable terminal experience that better demonstrates command output and timing.
+
+#### Existing Recordings
+
+Recordings are stored in `src/frontend/public/casts/`. Check for existing recordings before creating new ones:
+
+- `aspire-version.cast` - Shows `aspire --version` command
+- `aspire-new.cast` - Shows project creation with `aspire new`
+- `aspire-run.cast` - Shows running an Aspire app
+- `aspire-help.cast` - Shows CLI help output
+- `mcp-init.cast` - Shows MCP initialization
+
+#### Using AsciinemaPlayer
+
+```mdx
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+
+<AsciinemaPlayer
+  src="/casts/aspire-new.cast"
+  poster="npt:0:01"
+  rows={15}
+  autoPlay={false}
+/>
+```
+
+**Common props**:
+- `src`: Path to the `.cast` file (relative to `public/`)
+- `rows`: Terminal height in rows (default: 15)
+- `poster`: Frame to show before playback (e.g., `"npt:0:01"` = 1 second in)
+- `autoPlay`: Whether to auto-play (default: false)
+- `loop`: Whether to loop playback (default: true)
+- `speed`: Playback speed multiplier (default: 1.5)
+- `idleTimeLimit`: Max idle time between commands (default: 1.5s)
+
+#### Creating New Recordings with Hex1b MCP
+
+Use the Hex1b MCP server to create new terminal recordings:
+
+1. Activate the terminal tools:
+   ```
+   activate_terminal_session_creation_tools
+   activate_terminal_interaction_tools
+   ```
+
+2. Start a terminal session and record:
+   ```
+   mcp_hex1b_start_bash_terminal     # Start a new session
+   mcp_hex1b_send_terminal_input     # Send commands
+   mcp_hex1b_wait_for_terminal_text  # Wait for output
+   mcp_hex1b_record_asciinema        # Save as .cast file
+   ```
+
+3. For screenshots instead of recordings:
+   ```
+   mcp_hex1b_capture_terminal_screenshot  # Capture as SVG
+   mcp_hex1b_capture_terminal_text        # Capture as text
+   ```
+
+#### When to Use Recordings vs Code Blocks
+
+| Content Type | Recommendation |
+|--------------|----------------|
+| CLI command with dynamic output | Asciinema recording |
+| Simple one-liner command | Code block |
+| Interactive terminal session | Asciinema recording |
+| Configuration files | Code block |
+| Long-running process (aspire run) | Asciinema recording |
+
 ## Testing Your Documentation
 
 Before submitting documentation:
 
 1. **Build locally**: Run the site locally to verify rendering
 2. **Check links**: Ensure all internal and external links work
-3. **Validate code**: Test all code examples compile and run
+3. **Validate code**: Test all code examples compile and run using `aspire run`
 4. **Review formatting**: Verify components render correctly
 5. **Check navigation**: Confirm sidebar entries are correct
 
+### Installing the Aspire CLI
+
+Ensure you have the appropriate version of the Aspire CLI installed for testing. The version depends on what you're documenting:
+
+#### GA/Stable Builds (Default)
+
+For documenting released features:
+
+```bash
+# Linux/macOS
+curl -sSL https://aspire.dev/install.sh | bash
+
+# Windows (PowerShell)
+irm https://aspire.dev/install.ps1 | iex
+```
+
+For complete installation instructions, see [Install Aspire CLI](/get-started/install-cli/).
+
+#### Nightly/Dev Builds
+
+For documenting features on the main branch that haven't been released yet:
+
+```bash
+# Linux/macOS
+curl -sSL https://aspire.dev/install.sh | bash -s -- --quality dev
+
+# Windows (PowerShell)
+iex "& { $(irm https://aspire.dev/install.ps1) } -Quality 'dev'"
+```
+
+You can also access this via the download icon on aspire.dev and selecting "Dev" from the Channel selector.
+
+#### PR Builds
+
+For documenting features in specific pull requests before they merge:
+
+1. Go to the PR in [dotnet/aspire](https://github.com/dotnet/aspire)
+2. Find the build artifacts in the Checks/Actions section
+3. Download and install the CLI from the PR artifacts
+
+This is useful for getting an early start on documentation for upcoming features.
+
+#### Staging Builds
+
+For prerelease builds from the current release branch:
+
+```bash
+# Linux/macOS
+curl -sSL https://aspire.dev/install.sh | bash -s -- --quality staging
+
+# Windows (PowerShell)
+iex "& { $(irm https://aspire.dev/install.ps1) } -Quality 'staging'"
+```
+
 ### Running Locally
 
-The documentation site can be run locally using Aspire:
+The documentation site can be run locally using the Aspire CLI:
 
 ```bash
 aspire run
 ```
+
+<Aside type="tip">
+When testing code examples that add integration packages, use `aspire add <package-name>` rather than `dotnet add package`. The Aspire CLI automatically adds packages to the correct project.
+</Aside>
 
 Use the Aspire MCP tools to check the status of resources:
 
