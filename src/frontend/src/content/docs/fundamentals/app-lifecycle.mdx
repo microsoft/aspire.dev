@@ -97,7 +97,7 @@ The `aspire run` command starts your Aspire application in **development mode**.
 
 When you run `aspire run`:
 
-1. **Aspire dashboard launches** - A web-based dashboard starts (i.e. `http://localhost:18888`).
+1. **Aspire dashboard launches** - A web-based dashboard starts, and its URL (often an HTTPS login URL like `https://localhost:<port>/login?...`) is printed to the console.
 2. **Resources start** - All resources defined in your `AppHost.cs` are orchestrated. 
 3. **Live debugging** - You can attach debuggers, set breakpoints, and modify code with hot reload.
 4. **Telemetry & logs** - Dashboard provides real-time logs, metrics, and distributed traces.
@@ -133,6 +133,9 @@ In the example above, when resources start with the run command:
 
 The `aspire deploy` command creates a **fully containerized deployment** of your application in the [compute environment(s)](/deployment/overview/#compute-environments) you define. This simulates a production-like environment on your local machine. In this example, local containers and volumes are created on Docker Desktop using the [Docker Integration](/integrations/compute/docker/). It requires all parameters to be set.
 
+<Aside type="note">
+Aspire will prompt you for parameters the first time you deploy and save them for later use. For more info, see [External Parameters](https://aspire.dev/fundamentals/external-parameters).
+</Aside>
 When you run `aspire deploy` Aspire will:
 
 1. Build and push container images for projects
@@ -156,7 +159,7 @@ In this example, the following gets deployed:
 You will need a GitHub personal access token to access the GitHub Container Registry. See [Authenticating to the GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry) 
 </Aside>
 
-Login to your GitHub Container Registry before deploying.
+You can login to your GitHub Container Registry before deploying.
 
 ```bash
 export GITHUB_TOKEN=<YOUR PERSONAL ACCESS TOKEN>
@@ -173,7 +176,7 @@ aspire deploy
 
 You can create a workflow that automates the process of building and pushing the image, and publishing of deployment artifacts using the [Aspire CLI](/reference/cli/overview/) in a CI/CD pipeline. The Aspire CLI can be used to build your app, push images, and publish artifacts. This allows you to deploy the app later via standard Docker Compose. 
 
-In this example, the workflow runs on every push to `main` and performs these steps:
+In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/workflows/aspire-build-push.yml), the workflow runs on every push to `main`, does a checkout, and then performs these steps:
 
 1. **Setup Environment** - Install .NET
 2. **Install Aspire CLI** - Install the Aspire CLI
@@ -197,6 +200,7 @@ In this example, the workflow runs on every push to `main` and performs these st
   run: |
     echo "Installing Aspire CLI from install script..."
     curl -sSL https://aspire.dev/install.sh | bash
+    echo "$HOME/.aspire/bin" >> $GITHUB_PATH
 ```
 
 #### Step 3. Build App, Create & Push Image to GHCR
@@ -291,13 +295,13 @@ After the workflow completes, you have everything needed for production deployme
 
 3. **Deploy with Docker Compose**:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 4. **Verify Deployment**:
    ```bash
-   docker-compose ps
-   docker-compose logs -f
+   docker compose ps
+   docker compose logs -f
    ```
 
 ## Lifecycle Summary
