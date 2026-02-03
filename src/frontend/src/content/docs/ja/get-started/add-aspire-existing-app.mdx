@@ -677,13 +677,19 @@ JavaScript / Node.js アプリケーションも、OpenTelemetry を使用して
    const {
      PeriodicExportingMetricReader,
    } = require('@opentelemetry/sdk-metrics');
-   const { Resource } = require('@opentelemetry/resources');
+   const { resourceFromAttributes } = require('@opentelemetry/resources');
+   const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
 
    const otlpEndpoint =
      process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317';
 
+   // Create resource with service name
+   const resource = resourceFromAttributes({
+       [ATTR_SERVICE_NAME]: 'frontend',
+   });
+
    const sdk = new NodeSDK({
-     resource: new Resource({ 'service.name': 'frontend' }),
+     resource: resource,
      traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
      metricReader: new PeriodicExportingMetricReader({
        exporter: new OTLPMetricExporter({ url: otlpEndpoint }),
