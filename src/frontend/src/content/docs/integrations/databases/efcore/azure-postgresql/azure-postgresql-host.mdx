@@ -1,0 +1,251 @@
+---
+title: Azure PostgreSQL Hosting integration reference
+description: Learn how to use the Aspire Azure PostgreSQL Hosting integration to orchestrate and configure Azure PostgreSQL databases in your Aspire projects.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
+
+<Image
+  src={postgresqlIcon}
+  alt="Azure Database for PostgreSQL logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Azure PostgreSQL integrations, follow the [Get started with Azure PostgreSQL integrations](../azure-postgresql-get-started/) guide.
+
+This article includes full details about the Aspire Azure PostgreSQL Hosting integration, which models Azure PostgreSQL flexible server and database resources as the `AzurePostgresFlexibleServerResource` and `AzurePostgresFlexibleServerDatabaseResource` types. To access these types and APIs, you need to install the Azure PostgreSQL Hosting integration in your AppHost project.
+
+## Installation
+
+The Aspire Azure PostgreSQL hosting integration models a PostgreSQL flexible server and database as the `AzurePostgresFlexibleServerResource` and `AzurePostgresFlexibleServerDatabaseResource` types. Other types that are inherently available in the hosting integration are represented in the following resources:
+
+- `PostgresServerResource`
+- `PostgresDatabaseResource`
+- `PgAdminContainerResource`
+- `PgWebContainerResource`
+
+To access these types and APIs for expressing them as resources in your [AppHost](/get-started/app-host/) project, install the [📦 Aspire.Hosting.Azure.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.Azure.PostgreSQL) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.PostgreSQL" />
+
+## Add an Azure Database for PostgreSQL resource
+
+To add an Azure Database for PostgreSQL resource to your AppHost project, call the `AddAzurePostgres` method providing a name:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres");
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgresdb);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure PostgreSQL resource named `postgres` with a database named `database` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+  When you call `AddAzurePostgres`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+    When you call `WithReference` in the AppHost to pass Azure PostgreSQL resources to a consuming project, Aspire makes several properties available to that project, such as connection strings, URIs, and port numbers. For a complete list of these properties, see [Properties of the Azure PostgreSQL resources](../azure-postgresql-client/#properties-of-the-azure-postgresql-resources).
+</Aside>
+
+## Connect to an existing Azure PostgreSQL flexible server
+
+You might have an existing Azure Database for PostgreSQL service that you want to connect to. You can chain a call to annotate that your `AzurePostgresResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingPostgresName = builder.AddParameter("existingPostgresName");
+var existingPostgresResourceGroup = builder.AddParameter("existingPostgresResourceGroup");
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+    .AsExisting(existingPostgresName, existingPostgresResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgres);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure PostgreSQL resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+## Run Azure PostgreSQL resource as a container
+
+The Azure PostgreSQL hosting integration supports running the PostgreSQL server as a local container. This is beneficial for situations where you want to run the PostgreSQL server locally for development and testing purposes, avoiding the need to provision an Azure resource or connect to an existing Azure PostgreSQL server.
+
+To run the PostgreSQL server as a container, call the `RunAsContainer` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+    .RunAsContainer();
+
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgresdb);
+```
+
+The preceding code configures an Azure PostgreSQL Flexible Server resource to run locally in a container.
+
+> [!TIP]
+> The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `PostgresServerResource` configuration. For example, you can add **pgAdmin** and **pgWeb**, add a data volume or data bind mount, and add an init bind mount. For more information, see the [Aspire PostgreSQL hosting integration](/integrations/databases/postgres/postgres-host/#add-postgresql-server-resource) section.
+
+## Configure the Azure PostgreSQL server to use password authentication
+
+By default, the Azure PostgreSQL server is configured to use [Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication) authentication. If you want to use password authentication, you can configure the server to use password authentication by calling the `WithPasswordAuthentication` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("username", secret: true);
+var password = builder.AddParameter("password", secret: true);
+
+var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
+    .WithPasswordAuthentication(username, password);
+
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(postgresdb);
+```
+
+The preceding code configures the Azure PostgreSQL server to use password authentication. The `username` and `password` parameters are added to the AppHost as parameters, and the `WithPasswordAuthentication` method is called to configure the Azure PostgreSQL server to use password authentication.
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand, because the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure PostgreSQL resource, the following Bicep is generated:
+
+```bicep title="Generated Bicep — postgres.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource postgres_flexible 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
+  name: take('postgresflexible-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    authConfig: {
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Disabled'
+    }
+    availabilityZone: '1'
+    backup: {
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled'
+    }
+    highAvailability: {
+      mode: 'Disabled'
+    }
+    storage: {
+      storageSizeGB: 32
+    }
+    version: '16'
+  }
+  sku: {
+    name: 'Standard_B1ms'
+    tier: 'Burstable'
+  }
+  tags: {
+    'aspire-resource-name': 'postgres-flexible'
+  }
+}
+
+resource postgreSqlFirewallRule_AllowAllAzureIps 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
+  name: 'AllowAllAzureIps'
+  properties: {
+    endIpAddress: '0.0.0.0'
+    startIpAddress: '0.0.0.0'
+  }
+  parent: postgres_flexible
+}
+
+output connectionString string = 'Host=${postgres_flexible.properties.fullyQualifiedDomainName}'
+
+output name string = postgres_flexible.name
+```
+
+The preceding Bicep is a module that provisions an Azure PostgreSQL flexible server resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Generated Bicep — postgres-flexible-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param postgres_flexible_outputs_name string
+
+param principalType string
+
+param principalId string
+
+param principalName string
+
+resource postgres_flexible 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' existing = {
+  name: postgres_flexible_outputs_name
+}
+
+resource postgres_flexible_admin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2024-08-01' = {
+  name: principalId
+  properties: {
+    principalName: principalName
+    principalType: principalType
+  }
+  parent: postgres_flexible
+}
+```
+
+In addition to the PostgreSQL flexible server, it also provisions an Azure Firewall rule to allow all Azure IP addresses. Finally, an administrator is created for the PostgreSQL server, and the connection string is outputted as an output variable. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzurePostgresFlexibleServer("postgres")
+  .ConfigureInfrastructure(infra =>
+  {
+      var flexibleServer = infra.GetProvisionableResources()
+                                .OfType<PostgreSqlFlexibleServer>()
+                                .Single();
+
+      flexibleServer.Sku = new PostgreSqlFlexibleServerSku
+      {
+          Tier = PostgreSqlFlexibleServerSkuTier.Burstable,
+      };
+      flexibleServer.HighAvailability = new PostgreSqlFlexibleServerHighAvailability
+      {
+          Mode = PostgreSqlFlexibleServerHighAvailabilityMode.ZoneRedundant,
+          StandbyAvailabilityZone = "2",
+      };
+      flexibleServer.Tags.Add("ExampleKey", "Example value");
+  });
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `PostgreSqlFlexibleServer` is retrieved.
+  - The `sku` is set with `PostgreSqlFlexibleServerSkuTier.Burstable`.
+  - The high availability properties are set with `PostgreSqlFlexibleServerHighAvailabilityMode.ZoneRedundant` in standby availability zone `"2"`.
+  - A tag is added to the flexible server with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the PostgreSQL resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).

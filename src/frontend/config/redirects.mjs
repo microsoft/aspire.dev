@@ -21,4 +21,5 @@ export const redirects = {
   '/integrations/cloud/azure/azure-postgresql/': '/integrations/cloud/azure/azure-postgresql/azure-postgresql-get-started/',
   '/integrations/databases/efcore/sql-server/': '/integrations/databases/efcore/sql-server/sql-server-get-started/',
   '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
+  '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started/',
 };
