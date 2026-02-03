@@ -71,11 +71,12 @@ architecture-beta
   http:L --> R:api
 ```
 
-React（Vite）と FastAPI のスターターテンプレートは、2 つのリソースで構成されていますが、1 つのコンテナーとしてデプロイされます。
-FastAPI サーバーが、API と React によって生成された静的フロントエンドファイルの双方をホストします。
+React（Vite）と FastAPI のスターターテンプレートは、2 つのリソースで構成されていますが、1 つのコンテナーとしてデプロイされます。FastAPI サーバーが、API と React によって生成された静的フロントエンドファイルの双方をホストします。
 </Pivot>
 
 ## 事前準備
+
+Aspire アプリをデプロイする場所に応じて、次の前提条件がインストールされ、設定されていることを確認してください:
 
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
@@ -129,17 +130,18 @@ FastAPI サーバーが、API と React によって生成された静的フロ�
     <LearnMore>
     `aspire add` コマンドの詳細については、 [リファレンス ドキュメント](/reference/cli/commands/aspire-add/)をご覧ください。
     </LearnMore>
+
 </Tabs>
 
 ## AppHost を更新する
 
-AppHost では、対象環境に応じた適切な Environment API を必ず追加してください。
+AppHost では、ターゲットに合わせてデプロイ環境を構成するために、適切な環境 API メソッド呼び出しをチェーンしてください。
 
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
 
         <Pivot id="csharp">
-            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4} "
             var builder = DistributedApplication.CreateBuilder(args);
 
             // Add the following line to configure the Docker Compose environment
@@ -158,7 +160,7 @@ AppHost では、対象環境に応じた適切な Environment API を必ず追�
             ```
         </Pivot>
         <Pivot id="python">
-            ```csharp title="C# — apphost.cs file-based orchestrator" {4,8-9} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — apphost.cs file-based orchestrator" {8-9}
             #:sdk Aspire.AppHost.Sdk@13.0.0
             #:package Aspire.Hosting.JavaScript@13.0.0
             #:package Aspire.Hosting.Python@13.0.0
@@ -191,7 +193,7 @@ AppHost では、対象環境に応じた適切な Environment API を必ず追�
     <TabItem id="azure" label="Azure">
 
         <Pivot id="csharp">
-            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — AppHost.cs project-based orchestrator" {3-4}
             var builder = DistributedApplication.CreateBuilder(args);
 
             // Add the following line to configure the Azure App Container environment
@@ -210,7 +212,7 @@ AppHost では、対象環境に応じた適切な Environment API を必ず追�
             ```
         </Pivot>
         <Pivot id="python">
-            ```csharp title="C# — apphost.cs file-based orchestrator" {4,8-9} ".WithExternalHttpEndpoints()"
+            ```csharp title="C# — apphost.cs file-based orchestrator" {8-9}
             #:sdk Aspire.AppHost.Sdk@13.0.0
             #:package Aspire.Hosting.JavaScript@13.0.0
             #:package Aspire.Hosting.Python@13.0.0
@@ -250,41 +252,21 @@ AppHost では、対象環境に応じた適切な Environment API を必ず追�
 
 デプロイ パッケージを追加し、AppHost の更新も完了したら、いよいよ Aspire アプリをデプロイできます。
 
-```bash title="Aspire CLI — アプリをデプロイする"
-aspire deploy
-```
-
-`aspire deploy` を実行すると、Aspire CLI は各リソースのコンテナーイメージをビルドし、その結果を（必要に応じて）ターゲット環境へイメージをプッシュし、そしてAppHost の構成に従ってリソースをデプロイします。
-
-<Aside type="note" title="よくある落とし穴..." icon="seti:todo">
-を実行した際に次のような出力が表示される場合は、対象環境に適した Environment API を AppHost に追加するよう 「[AppHost を更新する](#apphost-を更新する) 」を実行したかどうかを確認してください。この出力は、対象環境向けのデプロイ手順が構成されていないことを示しています。
-
-```bash title="Aspire CLI - 空の デプロイメント結果"
-14:17:26 (pipeline execution) → Starting pipeline execution...
-14:17:26 (deploy) → Starting deploy...
-14:17:26 (deploy) ✓ deploy completed successfully
-14:17:26 (pipeline execution) ✓ Completed successfully
-------------------------------------------------------------
-✓ 2/2 steps succeeded • Total time: 0.0s
-
-Steps Summary:
-   0.0 s  ✓ pipeline execution
-   0.0 s  ✓ deploy
-
-✓ PIPELINE SUCCEEDED
-------------------------------------------------------------
-```
-</Aside>
-
 <Tabs syncKey="deploy-target">
 
     <TabItem id="docker-compose" label="Docker Compose">
 
-Docker Compose へのデプロイでは、コンテナーイメージがビルドされ、Docker Compose を使用してローカルでサービスが起動されます。次の出力例をご覧ください:
+    Docker Compose へのデプロイでは、コンテナー イメージをビルドし、Docker Compose を使用してローカルでサービスを起動します。
+    
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+    
+    次の出力例を確認してください:
 
     <Pivot id="csharp">
     
-    <Expand summary="ASP.NET Core／Blazor アプリを Docker Compose にデプロイした際の出力例"
+    <Expand summary="ASP.NET Core/Blazor アプリを Docker Compose にデプロイした際の出力例"
             backgroundColor="--sl-color-bg">
 
     ```bash title="Aspire CLI - ASP.NET Core/Blazor アプリを Docker Compose にデプロイ"
@@ -320,11 +302,17 @@ Docker Compose へのデプロイでは、コンテナーイメージがビル�
     14:28:32 (docker-compose-up-env) → Running docker compose up for env
     14:28:35 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (2.3s)
     14:28:35 (docker-compose-up-env) ✓ docker-compose-up-env completed successfully
+    14:28:35 (print-env-dashboard-summary) → Starting print-env-dashboard-summary...
+    14:28:35 (print-webfrontend-summary) → Starting print-webfrontend-summary...
+    14:28:35 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+    14:28:35 (print-webfrontend-summary) i [INF] Successfully deployed webfrontend to http://localhost:54463.
+    14:28:35 (print-env-dashboard-summary) ✓ print-env-dashboard-summary completed successfully
+    14:28:35 (print-webfrontend-summary) ✓ print-webfrontend-summary completed successfully
     14:28:35 (deploy) → Starting deploy...
     14:28:35 (deploy) ✓ deploy completed successfully
     14:28:35 (pipeline execution) ✓ Completed successfully
     ------------------------------------------------------------
-    ✓ 11/11 steps succeeded • Total time: 20.0s
+    ✓ 13/13 steps succeeded • Total time: 20.0s
 
     Steps Summary:
     19.9 s  ✓ pipeline execution
@@ -336,6 +324,8 @@ Docker Compose へのデプロイでは、コンテナーイメージがビル�
     0.0 s  ✓ build-prereq
     0.0 s  ✓ build
     0.0 s  ✓ prepare-env
+    0.0 s  ✓ print-env-dashboard-summary
+    0.0 s  ✓ print-webfrontend-summary
     0.0 s  ✓ deploy
     0.0 s  ✓ publish
 
@@ -386,11 +376,17 @@ Docker Compose へのデプロイでは、コンテナーイメージがビル�
     13:24:07 (docker-compose-up-env) → Running docker compose up for env
     13:24:13 (docker-compose-up-env) ✓ Service env is now running with Docker Compose locally (5.6s)
     13:24:13 (docker-compose-up-env) ✓ docker-compose-up-env completed successfully
+    13:24:13 (print-env-dashboard-summary) → Starting print-env-dashboard-summary...
+    13:24:13 (print-app-summary) → Starting print-app-summary...
+    13:24:13 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+    13:24:13 (print-app-summary) i [INF] Successfully deployed app to http://localhost:54463.
+    13:24:13 (print-env-dashboard-summary) ✓ print-env-dashboard-summary completed successfully
+    13:24:13 (print-app-summary) ✓ print-app-summary completed successfully
     13:24:13 (deploy) → Starting deploy...
     13:24:13 (deploy) ✓ deploy completed successfully
     13:24:13 (pipeline execution) ✓ Completed successfully
     ------------------------------------------------------------
-    ✓ 11/11 steps succeeded • Total time: 44.1s
+    ✓ 13/13 steps succeeded • Total time: 44.1s
 
     Steps Summary:
     44.0 s  ✓ pipeline execution
@@ -400,6 +396,8 @@ Docker Compose へのデプロイでは、コンテナーイメージがビル�
     0.0 s  ✓ publish-env
     0.0 s  ✓ deploy-prereq
     0.0 s  ✓ build-prereq
+    0.0 s  ✓ print-env-dashboard-summary
+    0.0 s  ✓ print-app-summary
     0.0 s  ✓ deploy
     0.0 s  ✓ build
     0.0 s  ✓ prepare-env
@@ -422,7 +420,13 @@ Docker Compose へのデプロイでは、コンテナーイメージがビル�
     - `Azure__Location`: Azure リージョン（例：eastus）。
     - `Azure__ResourceGroup`: 作成または再利用するリソースグループ名。
 
-    Azure Container Apps へのデプロイでは、コンテナーイメージがビルドされ、サービスが Azure Container Apps にデプロイされます。次の出力例をご覧ください:
+    Azure Container Apps へのデプロイでは、コンテナーイメージがビルドされ、サービスが Azure Container Apps にデプロイされます。
+
+    ```bash title="Aspire CLI — Deploy your app"
+    aspire deploy
+    ```
+
+    次の出力例をご覧ください:
 
     <Pivot id="csharp">
 
@@ -633,13 +637,36 @@ Docker Compose へのデプロイでは、コンテナーイメージがビル�
     </TabItem>
 </Tabs>
 
+`aspire deploy` を呼び出すと、Aspire CLI は各リソースのコンテナー イメージをビルドし（必要に応じて）ターゲット環境へプッシュしたうえで、AppHost に定義された構成に従ってリソースをデプロイします。
+
+<Aside type="note" title="よくある落とし穴…" icon="seti:todo">
+`aspire deploy` を実行した際に次のような出力が表示された場合は、ターゲットに対応する環境 API を含めるように、実際に [AppHost を更新](#apphost-を更新する) しているかを確認してください。この出力は、ターゲット環境向けのデプロイ手順が構成されていないことを示しています。
+
+```bash title="Aspire CLI - Empty deployment output"
+14:17:26 (pipeline execution) → Starting pipeline execution...
+14:17:26 (deploy) → Starting deploy...
+14:17:26 (deploy) ✓ deploy completed successfully
+14:17:26 (pipeline execution) ✓ Completed successfully
+------------------------------------------------------------
+✓ 2/2 steps succeeded • Total time: 0.0s
+
+Steps Summary:
+0.0 s  ✓ pipeline execution
+0.0 s  ✓ deploy
+
+✓ PIPELINE SUCCEEDED
+------------------------------------------------------------
+```
+</Aside>
+
 <LearnMore>
-このコマンドに関する追加情報は、 [`aspire deploy`](/reference/cli/commands/aspire-deploy/) のリファレンスドキュメントで確認できます。
+このコマンドに関する追加情報は、 [`aspire deploy`](/ja/reference/cli/commands/aspire-deploy/) のリファレンスドキュメントで確認できます。
 </LearnMore>
 
 ### デプロイ後の出力
 
 デプロイ後、Aspire CLI は指定された出力パス（指定がない場合は既定の出力パス）に、デプロイ対象に応じた一連のファイルを書き出します。これには、Docker Compose ファイル、Kubernetes マニフェスト、クラウドプロバイダー固有の構成ファイルなどが含まれる場合があります。
+
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
 
@@ -873,24 +900,18 @@ import pythonStarterLightPng from "@assets/get-started/python-starter-light.png"
 <Tabs syncKey="deploy-target">
     <TabItem id="docker-compose" label="Docker Compose">
 
-        Docker Compose へデプロイした場合は、Web ブラウザで `http://localhost:{PORT}` にアクセスしてアプリケーションが動作しているか確認します。ここで `{PORT}` は、Aspire アプリケーション内で Web フロントエンドのサービスに設定したポート番号です。
-
-        ```bash title="Docker CLI - List running containers"
-        docker ps
-        ```        
+        Docker Compose にデプロイすると、`aspire deploy` コマンドは各サービスが実行されている URL を表示します。デプロイ出力内の `print-*-summary` ステップを確認してください。ここには、`WithExternalHttpEndpoints` が構成されている各サービスの localhost URL が表示されます。
 
         <Pivot id="csharp">
 
-        上記のコマンドを実行した後、`webfrontend:latest` で始まる名前のイメージと、 `COMMAND` が `dotnet /app/AspireApp.W...` のようになっている項目を探してください。これは ASP.NET Core／Blazor アプリケーションが正常に実行されていることを示します。
+        デプロイ出力には、次のような行が表示されます:
         
-
-        ```bash title="Docker CLI - List running containers" "0.0.0.0:55445->80/tcp"
-        CONTAINER ID  IMAGE               COMMAND                CREATED         STATUS        PORTS                  NAMES
-        d4f1e8c3b6a1  webfrontend:latest  "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds  0.0.0.0:55445->80/tcp  aspire_app_webfrontend_1
-        a1b2c3d4e5f6  apiservice:latest   "dotnet /app/Aspire…"  10 seconds ago  Up 8 seconds                         aspire_app_apiservice_1
+        ```bash title="Aspire CLI - Deployment summary"
+        14:28:35 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+        14:28:35 (print-webfrontend-summary) i [INF] Successfully deployed webfrontend to http://localhost:54463.
         ```
 
-        `PORTS` 列に表示されているポート番号を確認してください。 `0.0.0.0:55445->80/tcp` のように表示されます。その後、Web ブラウザで `http://localhost:55445` (`55445` は実際のポート番号に置き換えてください) にアクセスすると、デプロイされたアプリケーションを確認できます。
+        Web ブラウザーを開き、Web フロントエンドとして表示されている URL（例: http://localhost:54463）にアクセスすると、デプロイされたアプリケーションを確認できます。
 
         <ThemeImage
             light={csharpStarterPng}
@@ -903,14 +924,14 @@ import pythonStarterLightPng from "@assets/get-started/python-starter-light.png"
         </Pivot>
         <Pivot id="python">
         
-        上記のコマンドを実行した後、 `app:` に続いて SHA ハッシュ (例： `app:1b50e6124ca45c2d2539808a72664d40cfeed109`) が付いた名前のイメージと、`COMMAND` が `uvicorn main:app...` となっている項目を探してください。これは Python／React アプリケーションが正常に実行されていることを示します。
+        デプロイ出力には、次のような行が表示されます:
         
-        ```bash title="Docker CLI - List running containers" "0.0.0.0:53588->80/tcp"
-        CONTAINER ID  IMAGE          COMMAND              CREATED         STATUS         PORTS                  NAMES
-        e7b8c9d0f1a2  app:1b50e6...  "uvicorn main:app…"  15 seconds ago  Up 12 seconds  0.0.0.0:53588->80/tcp  aspire_app_frontend_1
+        ```bash title="Aspire CLI - Deployment summary"
+        13:24:13 (print-env-dashboard-summary) i [INF] Successfully deployed env-dashboard to http://localhost:54633.
+        13:24:13 (print-app-summary) i [INF] Successfully deployed app to http://localhost:54463.
         ```
 
-        `PORTS` 列に表示されているポート番号を確認してください。 `0.0.0.0:53588->80/tcp` のように表示されます。その後、Web ブラウザで `http://localhost:53588` （`53588` は実際のポート番号に置き換えてください） にアクセスすると、デプロイされたアプリケーションを確認できます。
+        Web ブラウザーを開き、アプリとして表示されている URL（例: http://localhost:54463）にアクセスすると、デプロイされたアプリケーションを確認できます。
 
         <ThemeImage
             light={pythonStarterLightPng}
@@ -927,7 +948,7 @@ import pythonStarterLightPng from "@assets/get-started/python-starter-light.png"
     <TabItem id="azure" label="Azure">
 
         <Pivot id="csharp">
-        Azure Container Apps へデプロイした際は、デプロイ出力に表示される URL にアクセスすることで、ASP.NET Core／Blazor アプリケーションが動作しているか確認できます。出力の中に次のような行が含まれているはずです:
+        Azure Container Apps へデプロイした際は、デプロイ出力に表示される URL にアクセスすることで、ASP.NET Core/Blazor アプリケーションが動作しているか確認できます。出力の中に次のような行が含まれているはずです:
 
         ```bash title="Aspire CLI - Deployment summary"
         09:21:44 (print-webfrontend-summary) i [INF] Successfully deployed webfrontend to 
@@ -946,7 +967,7 @@ import pythonStarterLightPng from "@assets/get-started/python-starter-light.png"
 
         </Pivot>
         <Pivot id="python">
-        Azure Container Apps へデプロイした際は、デプロイ出力に表示される URL にアクセスすることで、Python／React アプリケーションが動作しているか確認できます。出力の中に次のような行が含まれているはずです:
+        Azure Container Apps へデプロイした際は、デプロイ出力に表示される URL にアクセスすることで、Python/React アプリケーションが動作しているか確認できます。出力の中に次のような行が含まれているはずです:
 
         ```bash title="Aspire CLI - Deployment summary"
         09:25:29 (print-app-summary) i [INF] Successfully deployed app to 
@@ -990,8 +1011,8 @@ After deploying your application, it's important to clean up resources to avoid 
 </Tabs>
 
 <LearnMore>
-関連する基礎概念を詳しく知るには、[Pipelines and app topology](/get-started/pipelines/)をご覧ください。
+関連する基礎概念を詳しく知るには、[Pipelines and app topology](/ja/get-started/pipelines/)をご覧ください。
 </LearnMore>
 
-初めての Aspire アプリを構築し、本番環境へデプロイしました。おめでとうございます！ 🎉 次に思うのはきっとこうでしょう: 「これらすべてのサービスが本当に正しく連携して動くことを、どうやって確認するの？」 そこで登場するのが 統合テスト です。Aspire なら、サービス間通信やリソース依存関係を含むアプリケーション全体のスタックを簡単にテストできます。さっそく始めてみませんか？ [最初のテストを書く](/testing/write-your-first-test/)
+初めての Aspire アプリを構築し、本番環境へデプロイしました。おめでとうございます！ 🎉 次に思うのはきっとこうでしょう: 「これらすべてのサービスが本当に正しく連携して動くことを、どうやって確認するの？」 そこで登場するのが 統合テスト です。Aspire なら、サービス間通信やリソース依存関係を含むアプリケーション全体のスタックを簡単にテストできます。さっそく始めてみませんか？ [最初のテストを書く](/ja/testing/write-your-first-test/)
 
