@@ -1,0 +1,129 @@
+---
+title: Get started with the Azure SQL EF Core integrations
+description: Learn how to set up the Aspire Azure SQL Hosting and EF Core Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
+
+<Image
+  src={sqlServerIcon}
+  alt="Azure SQL Database logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure SQL](https://azure.microsoft.com/products/azure-sql) is a family of relational database management systems that run in the Azure cloud. The database systems are Platform-as-a-Service (PaaS) products that enable database administrators to implement highly scalable and available databases without maintaining complex infrastructures themselves. The Aspire Azure SQL Server Hosting integration provides methods to create a new Azure Database server and databases from code in your Aspire AppHost project. The client integration uses Entity Framework Core (EF Core) to provide a robust, type-safe way to interact with your Azure SQL databases using .NET objects.
+
+In this introduction, you'll see how to install and use the Aspire Azure SQL integrations in a simple configuration. If you already have this knowledge, see [Azure SQL Hosting integration](/integrations/databases/efcore/azure-sql/azure-sql-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Azure SQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure SQL Database instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Sql" shortName="azure-sql" />
+
+Next, in the AppHost project, create instances of Azure SQL server and database resources, then pass the database to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var azureSql = builder.AddAzureSqlServer("azuresql")
+                      .AddDatabase("database");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(azureSql)
+                            .WithReference(azureSql);
+```
+
+<Aside type="tip">
+    This is the simplest implementation of Azure SQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Azure SQL Hosting integration](/integrations/databases/efcore/azure-sql/azure-sql-host/).
+</Aside>
+
+<Aside type="caution">
+  When you call `AddAzureSqlServer`, it implicitly calls
+  `AddAzureProvisioning`, which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+In each of these consuming client projects, install the Aspire SQL Server Entity Framework Core client integration:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddSqlServerDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerDbContext<ExampleDbContext>(connectionName: "database");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the Azure SQL database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+### Use injected Azure SQL properties
+
+In the AppHost, when you used the `WithReference` method to pass an Azure SQL database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `database` becomes `DATABASE_URI`.
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string sqlHost = builder.Configuration.GetValue<string>("DATABASE_HOST");
+string sqlPort = builder.Configuration.GetValue<string>("DATABASE_PORT");
+string sqlJDBCConnectionString = builder.Configuration.GetValue<string>("DATABASE_JDBCCONNECTIONSTRING");
+```
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on the Azure SQL resource configuration. For more information, see [Properties of the Azure SQL resources](/integrations/databases/efcore/azure-sql/azure-sql-client/#properties-of-the-azure-sql-resources).
+</Aside>
+
+### Use Azure SQL resources in client code
+
+Now that you've added `DbContext` to the builder in the consuming project, you can use the Azure SQL database to get and store data. Get the `DbContext` instance using dependency injection. For example, to retrieve your context object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ExampleDbContext context)
+{
+    // Use database context...
+}
+```
+
+Having obtained the context, you can work with the Azure SQL database using Entity Framework Core as you would in any other C# application.
+
+## Next steps
+
+Now that you have an Aspire app with Azure SQL integrations up and running, you can use the following reference documents to learn how to configure and interact with the Azure SQL resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the Azure SQL hosting integration"
+    description="Discover how to configure Azure resources, run as a container, and more."
+    href="/integrations/databases/efcore/azure-sql/azure-sql-host/"
+  />
+  <LinkCard
+    title="Understand the Azure SQL client integration"
+    description="Learn about the Azure SQL client integration, including connection strings and observability."
+    href="/integrations/databases/efcore/azure-sql/azure-sql-client/"
+  />
+</CardGrid>

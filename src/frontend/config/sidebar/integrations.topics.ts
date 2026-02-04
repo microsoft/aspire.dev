@@ -537,11 +537,39 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure PostgreSQL',
-              slug: 'integrations/databases/efcore/azure-postgresql',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-host',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-client',
+                },
+              ],
             },
             {
               label: 'Azure SQL',
-              slug: 'integrations/databases/efcore/azure-sql',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/azure-sql/azure-sql-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/databases/efcore/azure-sql/azure-sql-host',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/azure-sql/azure-sql-client',
+                },
+              ],
             },
             {
               label: 'MySQL Pomelo',

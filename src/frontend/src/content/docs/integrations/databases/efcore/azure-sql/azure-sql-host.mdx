@@ -1,0 +1,101 @@
+---
+title: Azure SQL Hosting integration reference
+description: Learn how to use the Aspire Azure SQL Hosting integration to orchestrate and configure Azure SQL databases in your Aspire projects.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
+
+<Image
+  src={sqlServerIcon}
+  alt="Azure SQL Database logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Azure SQL integrations, follow the [Get started with Azure SQL integrations](/integrations/databases/efcore/azure-sql/azure-sql-get-started/) guide.
+
+This article includes full details about the Aspire Azure SQL Hosting integration, which models Azure SQL server and database resources as the `AzureSqlServerResource` and `AzureSqlDatabaseResource` types. To access these types and APIs, you need to install the Azure SQL Hosting integration in your AppHost project.
+
+## Installation
+
+The Aspire Azure SQL Database hosting integration models the SQL Server as the `AzureSqlServerResource` type and SQL databases as the `AzureSqlDatabaseResource` type. To access these types and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Sql](https://www.nuget.org/packages/Aspire.Hosting.Azure.Sql) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Sql" />
+
+## Add Azure SQL server resource and database resource
+
+In your AppHost project, call `AddAzureSqlServer` to add and return an Azure SQL server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add an Azure SQL database resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var azureSql = builder.AddAzureSqlServer("azuresql")
+    .AddDatabase("database");
+
+var myService = builder.AddProject<Projects.MyService>()
+    .WithReference(azureSql);
+```
+
+The preceding call to `AddAzureSqlServer` configures the Azure SQL server resource to be deployed as an [Azure SQL Database server](https://learn.microsoft.com/azure/azure-sql/database/sql-database-paas-overview).
+
+<Aside type="caution">
+  When you call `AddAzureSqlServer`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+    When you call `WithReference` in the AppHost to pass Azure SQL resources to a consuming project, Aspire makes several properties available to that project, such as connection strings, URIs, and port numbers. For a complete list of these properties, see [Properties of the Azure SQL resources](/integrations/databases/efcore/azure-sql/azure-sql-client/#properties-of-the-azure-sql-resources).
+</Aside>
+
+## Connect to an existing Azure SQL server
+
+You might have an existing Azure SQL Database service that you want to connect to. You can chain a call to annotate that your `AzureSqlServerResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingSqlServerName = builder.AddParameter("existingSqlServerName");
+var existingSqlServerResourceGroup = builder.AddParameter("existingSqlServerResourceGroup");
+
+var sqlserver = builder.AddAzureSqlServer("sqlserver")
+    .AsExisting(existingSqlServerName, existingSqlServerResourceGroup)
+    .AddDatabase("database");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(sqlserver);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure SQL resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+## Run Azure SQL server resource as a container
+
+The Azure SQL Server hosting integration supports running the Azure SQL server as a local container. This is beneficial for situations where you want to run the Azure SQL server locally for development and testing purposes, avoiding the need to provision an Azure resource or connect to an existing Azure SQL server.
+
+To run the Azure SQL server as a container, call the `RunAsContainer` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var azureSql = builder.AddAzureSqlServer("azuresql")
+    .RunAsContainer();
+
+var azureSqlData = azureSql.AddDatabase("database");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(azureSqlData);
+```
+
+The preceding code configures an Azure SQL Database resource to run locally in a container.
+
+> [!TIP]
+> The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.

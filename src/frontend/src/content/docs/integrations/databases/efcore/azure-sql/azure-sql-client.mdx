@@ -1,10 +1,10 @@
 ---
-title: Azure SQL Entity Framework Core integration
-description: Learn how to use the Aspire Azure SQL Entity Framework Core integration to connect your Aspire applications to Azure SQL databases.
+title: Azure SQL EF Core Client integration reference
+description: Learn how to use the Aspire Azure SQL EF Core Client integration to interact with Azure SQL databases from your Aspire projects.
+next: false
 ---
 
 import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
 import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
@@ -18,90 +18,17 @@ import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
   data-zoom-off
 />
 
-[Azure SQL](https://azure.microsoft.com/products/azure-sql) is a family of relational database management systems that run in the Azure cloud. The database systems are Platform-as-a-Service (PaaS) products that enable database administrators to implement highly scalable and available databases without maintaining complex infrastructures themselves. The Aspire Azure SQL Server Hosting integration provides methods to create a new Azure Database server and databases from code in your Aspire AppHost project. In a consuming project, you can use the Aspire SQL Server client integration as you would for any other SQL Server instance.
+To get started with the Aspire Azure SQL EF Core integrations, follow the [Get started with Azure SQL integrations](/integrations/databases/efcore/azure-sql/azure-sql-get-started/) guide.
 
-## Hosting integration
+This article includes full details about the Aspire Azure SQL EF Core Client integration, which allows you to connect to and interact with Azure SQL databases from your Aspire consuming projects using Entity Framework Core.
 
-The Aspire Azure SQL Database hosting integration models the SQL Server as the `AzureSqlServerResource` type and SQL databases as the `AzureSqlDatabaseResource` type. To access these types and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Sql](https://www.nuget.org/packages/Aspire.Hosting.Azure.Sql) NuGet package:
+## Installation
 
-<InstallPackage packageName="Aspire.Hosting.Azure.Sql" />
-
-### Add Azure SQL server resource and database resource
-
-In your AppHost project, call `AddAzureSqlServer` to add and return an Azure SQL server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add an Azure SQL database resource:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var azureSql = builder.AddAzureSqlServer("azuresql")
-    .AddDatabase("database");
-
-var myService = builder.AddProject<Projects.MyService>()
-    .WithReference(azureSql);
-```
-
-The preceding call to `AddAzureSqlServer` configures the Azure SQL server resource to be deployed as an [Azure SQL Database server](https://learn.microsoft.com/azure/azure-sql/database/sql-database-paas-overview).
-
-<Aside type="caution">
-  When you call `AddAzureSqlServer`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
-
-### Connect to an existing Azure SQL server
-
-You might have an existing Azure SQL Database service that you want to connect to. You can chain a call to annotate that your `AzureSqlServerResource` is an existing resource:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var existingSqlServerName = builder.AddParameter("existingSqlServerName");
-var existingSqlServerResourceGroup = builder.AddParameter("existingSqlServerResourceGroup");
-
-var sqlserver = builder.AddAzureSqlServer("sqlserver")
-    .AsExisting(existingSqlServerName, existingSqlServerResourceGroup)
-    .AddDatabase("database");
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(sqlserver);
-
-// After adding all resources, run the app...
-```
-
-For more information on treating Azure SQL resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
-
-### Run Azure SQL server resource as a container
-
-The Azure SQL Server hosting integration supports running the Azure SQL server as a local container. This is beneficial for situations where you want to run the Azure SQL server locally for development and testing purposes, avoiding the need to provision an Azure resource or connect to an existing Azure SQL server.
-
-To run the Azure SQL server as a container, call the `RunAsContainer` method:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var azureSql = builder.AddAzureSqlServer("azuresql")
-    .RunAsContainer();
-
-var azureSqlData = azureSql.AddDatabase("database");
-
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-    .WithReference(azureSqlData);
-```
-
-The preceding code configures an Azure SQL Database resource to run locally in a container.
-
-> [!TIP]
-> The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.
-
-## Client integration
-
-To get started with the Aspire SQL Server Entity Framework Core integration, install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project, that is, the project for the application that uses the SQL Server Entity Framework Core client.
+To get started with the Aspire Azure SQL Server Entity Framework Core client integration, install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project, that is, the project for the application that uses the Azure SQL Server EF Core client.
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
 
-### Add SQL Server database context
+## Add SQL Server database context
 
 In the `Program.cs` file of your client-consuming project, call the `AddSqlServerDbContext` extension method on any `IHostApplicationBuilder` to register a `Microsoft.EntityFrameworkCore.DbContext` for use via the dependency injection container. The method takes a connection name parameter.
 
@@ -109,6 +36,10 @@ In the `Program.cs` file of your client-consuming project, call the `AddSqlServe
 builder.AddSqlServerDbContext<ExampleDbContext>(
     connectionName: "database");
 ```
+
+<Aside type="note">
+To use this code, you must create a `DbContext` class called `ExampleDbContext` in your project. This class defines your database schema using EF Core. For more information on creating and configuring a `DbContext`, see [DbContext Lifetime, Configuration, and Initialization](https://learn.microsoft.com/ef/core/dbcontext-configuration/) in the EF Core documentation.
+</Aside>
 
 > [!TIP]
 > The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. In other words, when you call `AddDatabase` and provide a name of `database` that same name should be used when calling `AddSqlServerDbContext`.
@@ -124,7 +55,50 @@ public class ExampleService(ExampleDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-### Enrich a SQL Server database context
+## Properties of the Azure SQL resources
+
+When you use the `WithReference` method to pass an Azure SQL server or database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `sqldb` becomes `SQLDB_URI`.
+
+### Azure SQL server resource
+
+The Azure SQL server resource exposes the following connection properties:
+
+| Property Name          | Description                                                                                                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Host`                 | The hostname or IP address of the Azure SQL Server                                                                                                                                                          |
+| `Port`                 | The port number the SQL Server is listening on                                                                                                                                                              |
+| `Username`             | The username for authentication                                                                                                                                                                             |
+| `Password`             | The password for authentication                                                                                                                                                                             |
+| `Uri`                  | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}`                                                                                                        |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+**Example connection strings:**
+
+```
+Uri: mssql://sa:p%40ssw0rd1@myserver.database.windows.net:1433
+JdbcConnectionString: jdbc:sqlserver://myserver.database.windows.net:1433;trustServerCertificate=true
+```
+
+### Azure SQL database resource
+
+The Azure SQL database resource inherits all properties from its parent `AzureSqlServerResource` and adds:
+
+| Property Name          | Description                                                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Uri`                  | The connection URI in mssql:// format, with the format `mssql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}`                                                                                                                              |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:sqlserver://{Host}:{Port};trustServerCertificate=true;databaseName={DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `DatabaseName`         | The name of the database                                                                                                                                                                                                                          |
+
+**Example connection strings:**
+
+```
+Uri: mssql://sa:p%40ssw0rd1@myserver.database.windows.net:1433/catalog
+JdbcConnectionString: jdbc:sqlserver://myserver.database.windows.net:1433;trustServerCertificate=true;databaseName=catalog
+```
+
+## Enrich a SQL Server database context
 
 You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
 
@@ -156,11 +130,11 @@ builder.EnrichSqlServerDbContext<ExampleDbContext>(
 
 The `settings` parameter is an instance of the `MicrosoftEntityFrameworkCoreSqlServerSettings` class.
 
-### Configuration
+## Configuration
 
 The Aspire SQL Server Entity Framework Core integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
 
-#### Use connection string
+### Use connection string
 
 When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `builder.AddSqlServerDbContext<TContext>()`:
 
@@ -182,7 +156,7 @@ The `EnrichSqlServerDbContext` won't make use of the `ConnectionStrings` configu
 
 For more information, see the [ConnectionString](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
 
-#### Use configuration providers
+### Use configuration providers
 
 The Aspire SQL Server Entity Framework Core integration supports `Microsoft.Extensions.Configuration`. It loads the `MicrosoftEntityFrameworkCoreSqlServerSettings` from configuration files such as `appsettings.json` by using the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` key. If you have set up your configurations in the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` section you can just call the method without passing any parameter.
 
@@ -206,7 +180,7 @@ The following is an example of an `appsettings.json` file that configures some o
 }
 ```
 
-#### Use inline configurations
+### Use inline configurations
 
 You can also pass the `Action<MicrosoftEntityFrameworkCoreSqlServerSettings>` delegate to set up some or all the options inline, for example to turn off the metrics:
 
@@ -217,7 +191,7 @@ builder.AddSqlServerDbContext<YourDbContext>(
         settings.DisableMetrics = true);
 ```
 
-#### Configure multiple DbContext connections
+### Configure multiple DbContext connections
 
 If you want to register more than one `DbContext` with different configuration, you can use `$"Aspire.Microsoft.EntityFrameworkCore.SqlServer:{typeof(TContext).Name}"` configuration section name. The json configuration would look like:
 
@@ -249,7 +223,7 @@ Then calling the `AddSqlServerDbContext` method with `AnotherDbContext` type par
 builder.AddSqlServerDbContext<AnotherDbContext>("another-sql");
 ```
 
-#### Configuration options
+### Configuration options
 
 Here are the configurable options with corresponding default values:
 
@@ -268,11 +242,11 @@ By default, the Aspire Sql Server Entity Framework Core integration handles the 
 - Adds the [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
 - Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
 
-### Observability and telemetry
+## Observability and telemetry
 
 Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
 
-#### Logging
+### Logging
 
 The Aspire SQL Server Entity Framework Core integration uses the following Log categories:
 
@@ -287,13 +261,13 @@ The Aspire SQL Server Entity Framework Core integration uses the following Log c
 - `Microsoft.EntityFrameworkCore.Query`
 - `Microsoft.EntityFrameworkCore.Update`
 
-#### Tracing
+### Tracing
 
 The Aspire SQL Server Entity Framework Core integration will emit the following Tracing activities using OpenTelemetry:
 
 - `OpenTelemetry.Instrumentation.EntityFrameworkCore`
 
-#### Metrics
+### Metrics
 
 The Aspire SQL Server Entity Framework Core integration will emit the following metrics using OpenTelemetry:
 
