@@ -544,10 +544,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started',
                 },
                 {
-                  label: 'Hosting integration (AppHost)',
-                  slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-host',
-                },
-                {
                   label: 'Client integration (Your app)',
                   slug: 'integrations/databases/efcore/azure-postgresql/azure-postgresql-client',
                 },
