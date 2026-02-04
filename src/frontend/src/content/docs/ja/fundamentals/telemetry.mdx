@@ -1,0 +1,90 @@
+---
+title: テレメトリ
+description: Aspire におけるロギング、トレーシング、メトリクスなどの重要なテレメトリの概念について学びます。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire の主要な目的の一つは、アプリケーションを簡単にデバッグおよび診断できるようにすることです。Aspire の統合機能では、[.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet) を使用して、ロギング、トレーシング、メトリクス（可観測性の 3 本柱とも呼ばれます）の構成が自動的に設定されます。
+
+## 可観測性の 3本柱
+
+- **[ログ](https://learn.microsoft.com/ja-jp/dotnet/core/diagnostics/logging-tracing)** — ログ イベントは、アプリの実行中に何が起きているかを記録します。Aspire の統合では、既定で基本的なログ セットが有効化されており、特定の問題を診断するために、必要に応じてより詳細なロギングを有効にできます。
+
+- **[トレーシング](https://learn.microsoft.com/dotnet/core/diagnostics/distributed-tracing)** — トレースは、同一の論理的なアクティビティ（たとえば 1 つのリクエストの処理）に属するログ イベントを関連付けます。これらが複数のマシンやプロセスにまたがっていても相関付けが可能です。
+
+- **[メトリクス](https://learn.microsoft.com/dotnet/core/diagnostics/metrics)** — メトリクスは、アプリのパフォーマンスや健全性の特性を単純な数値として公開します。そのためパフォーマンスへの影響が小さく、多くのサービスでは常時有効なテレメトリとして構成されています。また、潜在的な問題が検出された際にアラートを発報する用途にも適しています。
+
+これらのテレメトリを組み合わせることで、さまざまな監視および分析ツールを通じて、アプリケーションの動作やパフォーマンスに関する洞察を得ることができます。なお、バックエンド サービスによっては、これらの機能の一部のみをサポートする統合もあります。
+
+## Aspire OpenTelemetry 統合
+
+[.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet) には、`ILogger`、`Activity`、`Meter`、`Instrument<T>` など、複数の .NET API からデータを収集するための機能が含まれています。これらの API は、ロギング、トレーシング、メトリクスといったテレメトリ機能に対応しています。
+
+Aspire プロジェクトでは、OpenTelemetry SDK の構成をサービス既定（service defaults）プロジェクトで定義します。既定では、`ConfigureOpenTelemetry` メソッドにより、アプリケーションのロギング、トレーシング、メトリクスが有効化されます。また、これらのデータを他の監視ツールで収集できるように、各種エクスポーターも追加されます。
+
+<LearnMore>
+詳細については、 [サービスの既定（Service Defaults）](/ja/fundamentals/service-defaults/).
+</LearnMore>
+
+## OpenTelemetry データを監視のためにエクスポートする
+
+Aspire では、テレメトリ データをデータ ストアやレポート ツールにエクスポートできます。テレメトリのエクスポート メカニズムは、REST または gRPC を通じてテレメトリ データを送信するための標準化された手法である [OpenTelemetry Protocol（OTLP）](https://opentelemetry.io/docs/specs/otel/protocol) に基づいています。
+
+`ConfigureOpenTelemetry` メソッドは、Prometheus や Azure Monitor などの他の監視ツールにテレメトリ データを提供するためのエクスポーターを登録します。
+
+<LearnMore>
+詳細については、 [OpenTelemetry の構成](/ja/fundamentals/service-defaults/#opentelemetry-の構成) を参照してください。
+</LearnMore>
+
+## OpenTelemetry の環境変数
+
+OpenTelemetry には、テレメトリの収集やエクスポートにおける重要な挙動を構成するための、[既知の環境変数の一覧](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) があります。.NET SDK を含む OpenTelemetry SDK は、これらの環境変数の読み取りをサポートしています。
+
+Aspire プロジェクトは、エクスポートされるテレメトリにおけるアプリの名前や ID を構成し、データを送信する OTLP サーバーのエンドポイント アドレスを設定する環境変数を指定した状態で起動されます。たとえば、次のような環境変数が設定されます:
+
+- `OTEL_SERVICE_NAME=myfrontend`
+- `OTEL_RESOURCE_ATTRIBUTES=service.instance.id=1a5f9c1e-e5ba-451b-95ee-ced1ee89c168`
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+
+これらの環境変数は、ローカル開発時には自動的に設定されます。
+
+## ローカル開発ワークフロー
+
+Aspire プロジェクトを作成すると、既定でアプリケーションのテレメトリを表示するための UI が Aspire ダッシュボードとして提供されます。テレメトリ データは OTLP を使用してダッシュボードに送信され、ダッシュボードはテレメトリ データを受信してメモリ内に保存するための OTLP サーバーを実装しています。
+
+### ローカル開発におけるテレメトリの流れ
+
+Aspire プロジェクトをデバッグ付きで起動（<kbd>F5</kbd> を押下）すると、次のワークフローが実行されます:
+
+1. **ダッシュボードと DCP の起動** — Aspire ダッシュボードと Developer Control Plane（DCP）が起動します。
+2. **アプリ構成の実行** — AppHost プロジェクトが構成処理を実行します:
+   - OpenTelemetry の環境変数が .NET プロジェクトに自動的に追加されます
+   - DCP が、エクスポートされるテレメトリ用のサービス名 (`OTEL_SERVICE_NAME`) と ID (`OTEL_RESOURCE_ATTRIBUTES`) を提供します
+   - OTLP エンドポイントは、ダッシュボードによって起動される HTTP/2 ポートで、 `OTEL_EXPORTER_OTLP_ENDPOINT` に設定されます
+   - エクスポート間隔 (`OTEL_BSP_SCHEDULE_DELAY`, `OTEL_BLRP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`) が短く設定され、ダッシュボードですばやくデータを確認できるようになります
+3. **リソースの起動** — DCP が、構成されたプロジェクト、コンテナー、実行ファイルを起動します。
+4. **テレメトリの送信** — 起動後、各アプリケーションはダッシュボードにテレメトリを送信します。
+5. **ダッシュボードでの表示** — ダッシュボードには、すべての Aspire プロジェクトのテレメトリがほぼリアルタイムで表示されます。
+
+これらの処理はすべて内部的に行われるため、ほとんどの場合はアプリを実行するだけで、この一連の流れを確認できます。
+
+## デプロイ
+
+Aspire のデプロイ環境では、その環境に適した OpenTelemetry の環境変数を構成する必要があります。たとえば、`OTEL_EXPORTER_OTLP_ENDPOINT` には、環境内のローカルな OTLP コレクターや監視サービスのエンドポイントを設定します。
+
+<Aside type="note">
+Aspire のテレメトリは、OTLP をサポートする環境で最も効果を発揮します。`OTEL_EXPORTER_OTLP_ENDPOINT` が構成されていない場合、OTLP へのエクスポートは無効になります。
+</Aside>
+
+<LearnMore>
+詳細については、 [Aspire デプロイ](/ja/deployment/overview/) を参照してください。
+</LearnMore>
+
+## 関連項目
+
+- [サービスの既定値（Service Defaults）](/ja/fundamentals/service-defaults/)
+- [ダッシュボード概要](/ja/dashboard/overview/)
+- [OpenTelemetry Protocol 仕様](https://opentelemetry.io/docs/specs/otel/protocol)
+- [.NET OpenTelemetry SDK](https://github.com/open-telemetry/opentelemetry-dotnet)
