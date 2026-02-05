@@ -287,7 +287,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                 },
                 {
                   label: 'Azure AI Inference',
-                  slug: 'integrations/cloud/azure/azure-ai-inference',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started',
+                    },
+                    {
+                      label: 'Hosting integration (AppHost)',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-host',
+                    },
+                    {
+                      label: 'Client integration',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-client',
+                    },
+                  ],
                 },
                 {
                   label: 'Azure AI Search',

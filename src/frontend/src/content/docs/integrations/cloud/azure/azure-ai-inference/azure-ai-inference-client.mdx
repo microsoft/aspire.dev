@@ -1,10 +1,10 @@
 ---
-title: Azure AI Inference integration
-description: This article describes the Aspire Azure AI Inference integration features and capabilities.
+title: Azure AI Inference client integration
+description: Learn how to use the Aspire Azure AI Inference client integration to connect to Azure AI Inference services.
+next: false
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
 import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
@@ -20,44 +20,6 @@ import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-[Azure AI Inference](https://learn.microsoft.com/azure/ai-foundry/how-to/deploy-models-serverless?view=foundry-classic) provides serverless API endpoints for deploying and using AI models. The Aspire Azure AI Inference integration enables you to connect to Azure AI Inference services from your applications, making it easy to call models for chat, completions, embeddings, and more.
-
-## Hosting integration
-
-Although the Azure AI Inference library doesn't currently offer direct hosting integration, you can still integrate it into your AppHost project. Simply add a connection string to establish a reference to an existing Azure AI Foundry resource.
-
-### Connect to an existing Azure AI Foundry service
-
-If you already have an [Azure AI Foundry](https://ai.azure.com/) service, you can easily connect to it by adding a connection string to your AppHost. This approach uses a simple, string-based configuration. To establish the connection, use the `AddConnectionString` method:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var aiFoundry = builder.AddConnectionString("ai-foundry");
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(aiFoundry);
-
-// After adding all resources, run the app...
-```
-
-> [!NOTE]
-> Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In nomenclature, the term "connection string" is used to represent any kind of connection information.
-
-The connection string is configured in the AppHost's configuration, typically under User Secrets, under the `ConnectionStrings` section:
-
-```json
-{
-  "ConnectionStrings": {
-    "ai-foundry": "Endpoint=https://{endpoint}/;DeploymentId={deploymentName}"
-  }
-}
-```
-
-For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
-
-## Client integration
-
 Two kinds of clients are available in the Aspire Azure AI Inference integration:
 
 - `ChatCompletionsClient`: A client for interacting with a chat completions model.
@@ -69,10 +31,11 @@ The Aspire Azure AI Inference client integration is used to work with Azure AI m
 
 <InstallDotNetPackage packageName="Aspire.Azure.AI.Inference" />
 
+For an introduction to working with the Azure AI Inference client integration, see [Get started with the Azure AI Inference integrations](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/).
+
 > [!IMPORTANT]
 > Check the model inference tasks for both clients. Some models may only support chat completions, while others may only support embeddings. Ensure that the model you choose aligns with the client you intend to use.
 > This information is available in the [model catalog](https://ai.azure.com/resource/models/) and in the Quick facts section of each model's details page.
-
 ### Add an Azure AI Inference Chat Completions client
 
 In the _Program.cs_ file of your client-consuming project, use the `AddAzureChatCompletionsClient` method on any `IHostApplicationBuilder` to register a `ChatCompletionsClient` for dependency injection (DI).
