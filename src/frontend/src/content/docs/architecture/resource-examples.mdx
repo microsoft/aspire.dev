@@ -227,6 +227,8 @@ public sealed class TalkingClockResource(string name, ClockHandResource tickHand
     public ClockHandResource TockHand { get; } = tockHand; // The tock hand resource instance.
 }
 
+// Define a child resource type representing a clock hand (tick or tock).
+// This demonstrates how to create hierarchical resource relationships in Aspire.
 public sealed class ClockHandResource(string name) : Resource(name);
 ```
 
@@ -272,7 +274,7 @@ public static class TalkingClockExtensions
         clockBuilder.OnInitializeResource(static async (resource, @event, token) =>
         {
             // This event is published when the resource is initialized.
-            // You add custom logic here to establish the lifecycle for your custom resource.
+            // You can add custom logic here to establish the lifecycle for your custom resource.
 
             var log = @event.Logger; // Get the logger for this resource instance.
             var eventing = @event.Eventing; // Get the eventing service for publishing events.
@@ -344,7 +346,9 @@ public static class TalkingClockExtensions
         void AddHandResource(ClockHandResource clockHand)
         {
             builder.AddResource(clockHand)
-                .WithParentRelationship(clockBuilder) // Establish a parent-child relationship with the TalkingClockResource.
+                // Establish a parent-child relationship with the TalkingClockResource.
+                // This creates a hierarchical structure in the dashboard and coordinates lifecycle management.
+                .WithParentRelationship(clockBuilder)
                 .WithInitialState(new()
                 {
                     ResourceType = "ClockHand",
