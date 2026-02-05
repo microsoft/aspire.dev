@@ -613,7 +613,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Web PubSub',
-              slug: 'integrations/cloud/azure/azure-web-pubsub',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started',
+                },
+                {
+                  label: 'Hosting integration',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-client',
+                },
+              ],
             },
             {
               label: 'Azure Container App Jobs',
