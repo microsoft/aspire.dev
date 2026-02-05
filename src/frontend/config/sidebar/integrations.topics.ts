@@ -437,7 +437,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Functions',
-              slug: 'integrations/cloud/azure/azure-functions',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-client',
+                },
+              ],
             },
             {
               label: 'Azure Key Vault',
