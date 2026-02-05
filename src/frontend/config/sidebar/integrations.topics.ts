@@ -323,7 +323,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                 },
                 {
                   label: 'Azure OpenAI',
-                  slug: 'integrations/cloud/azure/azure-openai',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-get-started',
+                    },
+                    {
+                      label: 'Hosting integration (AppHost)',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-host',
+                    },
+                    {
+                      label: 'Client integration',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-client',
+                    },
+                  ],
                 },
               ],
             },
