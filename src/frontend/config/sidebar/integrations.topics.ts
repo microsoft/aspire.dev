@@ -455,7 +455,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Key Vault',
-              slug: 'integrations/cloud/azure/azure-key-vault',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-client',
+                },
+              ],
             },
             {
               label: 'Azure PostgreSQL',

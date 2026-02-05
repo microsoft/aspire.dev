@@ -1,0 +1,121 @@
+---
+title: Get started with the Azure Key Vault integration
+description: Learn how to set up the Aspire Azure Key Vault Hosting and Client integrations simply.
+prev: false
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import keyVaultIcon from '@assets/icons/azure-keyvault-icon.png';
+
+<Image
+  src={keyVaultIcon}
+  alt="Azure Key Vault logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Key Vault](https://learn.microsoft.com/azure/key-vault/general/overview) helps safeguard cryptographic keys and secrets used by cloud applications and services. The Aspire Azure Key Vault integration enables you to connect to existing Azure Key Vault instances.
+
+In this introduction, you'll see how to install and use the Aspire Azure Key Vault integrations in a simple configuration. If you already have this knowledge, see [Azure Key Vault Hosting integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Azure Key Vault Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure Key Vault resources from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.KeyVault" />
+
+Next, in the AppHost project, create an Azure Key Vault resource and pass it to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keyVault = builder.AddAzureKeyVault("key-vault");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(keyVault);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+The preceding code adds an Azure Key Vault resource named `key-vault` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+  When you call `AddAzureKeyVault`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="tip">
+    This is the simplest implementation of Azure Key Vault resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Azure Key Vault Hosting integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-host/).
+</Aside>
+
+## Set up client integration
+
+To use Azure Key Vault from your client applications, install the Aspire Azure Key Vault client integration in your client project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Security.KeyVault" />
+
+The client integration provides two ways to access secrets from Azure Key Vault:
+
+- Add secrets to app configuration, using either the `IConfiguration` or the `IOptions<T>` pattern.
+- Use a `SecretClient` to retrieve secrets on demand.
+
+### Add secrets to configuration
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureKeyVaultSecrets` extension method on the `IConfiguration` to add the secrets as part of your app's configuration:
+
+```csharp
+builder.Configuration.AddAzureKeyVaultSecrets(connectionName: "key-vault");
+```
+
+> [!TIP]
+> The `connectionName` parameter must match the name used when adding the Azure Key Vault resource in the AppHost project.
+
+You can then retrieve a secret-based configuration value through the normal `IConfiguration` APIs, or by binding to strongly-typed classes with the options pattern.
+
+### Add an Azure Secret client
+
+Alternatively, you can use the `SecretClient` directly to retrieve the secrets on demand:
+
+```csharp
+builder.AddAzureKeyVaultClient(connectionName: "key-vault");
+```
+
+After adding the `SecretClient` to the builder, you can get the `SecretClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(SecretClient client)
+{
+    // Use client...
+}
+```
+
+For full details on using the client integration, see [Azure Key Vault Client integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-client/).
+
+## Next steps
+
+<CardGrid>
+    <LinkCard
+        title="Azure Key Vault Hosting integration"
+        description="Learn more about the hosting integration features and capabilities"
+        href="/integrations/cloud/azure/azure-key-vault/azure-key-vault-host/"
+    />
+    <LinkCard
+        title="Azure Key Vault Client integration"
+        description="Learn how to use the Azure Key Vault client integration"
+        href="/integrations/cloud/azure/azure-key-vault/azure-key-vault-client/"
+    />
+</CardGrid>
