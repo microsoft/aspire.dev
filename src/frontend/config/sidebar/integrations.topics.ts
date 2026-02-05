@@ -401,7 +401,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Cosmos DB',
-              slug: 'integrations/cloud/azure/azure-cosmos-db',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-client',
+                },
+              ],
             },
             {
               label: 'Azure Event Hubs',

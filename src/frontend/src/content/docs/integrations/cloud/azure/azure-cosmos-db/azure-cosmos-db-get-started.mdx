@@ -1,0 +1,88 @@
+---
+title: Get started with the Azure Cosmos DB integrations
+description: Learn how to set up the Aspire Azure Cosmos DB Hosting and Client integrations simply.
+prev: false
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
+
+<Image
+  src={cosmosDbIcon}
+  alt="Azure Cosmos DB logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Cosmos DB](https://azure.microsoft.com/services/cosmos-db/) is a fully managed NoSQL database service for modern app development. The Aspire Azure Cosmos DB integration enables you to connect to existing Cosmos DB instances or create new instances with the Azure Cosmos DB emulator.
+
+In this introduction, you'll see how to install and use the Aspire Azure Cosmos DB integrations in a simple configuration. If you already have this knowledge, see [Azure Cosmos DB Hosting integration](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host/) and [Azure Cosmos DB Client integration](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-client/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Azure Cosmos DB Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure Cosmos DB resources from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.CosmosDB" />
+
+Next, in the AppHost project, create an Azure Cosmos DB resource and pass it to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cosmos = builder.AddAzureCosmosDB("cosmos-db");
+var db = cosmos.AddCosmosDatabase("db");
+
+builder.AddProject<Projects.ExampleProject>("api")
+    .WithReference(db);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+The preceding code adds an Azure Cosmos DB resource named `cosmos-db` with a database named `db`. The database is then referenced by the `api` project.
+
+## Set up client integration
+
+To get started with the Aspire Microsoft Entity Framework Core Cosmos DB client integration, install the client integration package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.Cosmos" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddCosmosDbContext` extension method to register a `DbContext` for use via the dependency injection container:
+
+```csharp title="C# — Program.cs"
+builder.AddCosmosDbContext<MyDbContext>("cosmos-db");
+```
+
+You can then retrieve the `DbContext` instance using dependency injection. For example, to retrieve the client from a service:
+
+```csharp
+public class ExampleService(MyDbContext context)
+{
+    // Use context...
+}
+```
+
+## Continue learning
+
+For more information on how the Azure Cosmos DB integrations work, see:
+
+<CardGrid>
+    <LinkCard
+        href="/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host/"
+        title="Hosting integration"
+        description="Learn more about the Hosting integration" />
+    <LinkCard
+        href="/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-client/"
+        title="Client integration"
+        description="Learn more about the Client integration" />
+</CardGrid>
