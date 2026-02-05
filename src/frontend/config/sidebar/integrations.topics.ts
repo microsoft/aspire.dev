@@ -383,7 +383,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Container Registry',
-              slug: 'integrations/cloud/azure/azure-container-registry',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-client',
+                },
+              ],
             },
             {
               label: 'Azure Cosmos DB',
