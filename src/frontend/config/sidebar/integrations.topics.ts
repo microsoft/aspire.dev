@@ -419,7 +419,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Event Hubs',
-              slug: 'integrations/cloud/azure/azure-event-hubs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client',
+                },
+              ],
             },
             {
               label: 'Azure Functions',
