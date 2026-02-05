@@ -505,7 +505,21 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Service Bus',
-              slug: 'integrations/cloud/azure/azure-service-bus',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-client',
+                },
+              ],
             },
             {
               label: 'Azure SignalR Service',
