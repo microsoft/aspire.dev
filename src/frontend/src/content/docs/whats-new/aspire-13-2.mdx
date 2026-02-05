@@ -321,6 +321,76 @@ New utility method to compute resource dependencies programmatically:
 var dependencies = await resource.GetResourceDependenciesAsync();
 ```
 
+### Contextual endpoint resolution
+
+Aspire 13.2 introduces enhanced contextual endpoint resolution APIs that allow you to resolve endpoints from the perspective of specific resources or networks. This enables you to get the correct URL for a resource depending on where you're accessing it from, whether it's from a container, a host service, or a specific network.
+
+The same resource can have different URLs depending on the context:
+- From localhost: `http://localhost:1234`
+- From a container on the host Docker network: `http://host.docker.internal:1234`
+- From a container on the Aspire container network: `http://resource.dev.internal:4567`
+
+#### Resolve from a specific resource (Caller)
+
+You can resolve an endpoint URL from the perspective of a specific calling resource using the `Caller` property on `ValueProviderContext`:
+
+```csharp title="C# — Resolve endpoint from a resource's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var containerApp = builder.AddContainer("worker", "myimage");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL from the container's perspective
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Caller = containerApp.Resource,
+});
+
+// The URL will be appropriate for container-to-container communication
+// e.g., "redis:6379" or "cache:6379"
+```
+
+This is particularly useful when you need to pass connection information between resources that may be running in different contexts (containers vs. host processes).
+
+#### Resolve from a specific network
+
+You can also resolve an endpoint URL from the perspective of a specific network using the `Network` property on `ValueProviderContext`:
+
+```csharp title="C# — Resolve endpoint from a network's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL for the default Aspire container network
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+});
+
+// The URL will be appropriate for the container network
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+The `KnownNetworkIdentifiers` class provides predefined network identifiers:
+- `LocalhostNetwork`: Resolves to localhost-based URLs
+- `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
+- `PublicInternet`: Resolves to externally accessible URLs
+
+<Aside type="note">
+These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire 13.2, they now correctly resolve endpoints based on the specified context.
+</Aside>
+
+<LearnMore>
+For more details, see:
+- [GitHub Issue #7153](https://github.com/dotnet/aspire/issues/7153)
+- [GitHub PR #14278](https://github.com/dotnet/aspire/pull/14278)
+- [Context-based endpoint resolution](/architecture/resource-hierarchies/#context-based-endpoint-resolution)
+</LearnMore>
+
 ### Event handling improvements
 
 - `BeforeResourceStartedEvent` now only fires when a resource is actually starting (not on restart or other state changes).

@@ -475,17 +475,113 @@ Aspire resolves endpoints differently based on the relationship between the sour
 | Executable / Project | Container            | Host network (`localhost:port`).            | `localhost:6379`            |
 | Container            | Executable / Project | Host network (`host.docker.internal:port`). | `host.docker.internal:5000` |
 
-#### Advanced Scenario: Dynamic Endpoint Resolution Across Contexts
+### Advanced Scenario: Overriding default endpoint resolution
 
-Aspire resolves endpoints differently based on the execution context (e.g., run mode vs. publish mode, container vs. executable). Sometimes you want to override that resolution behavior.
+Aspire resolves endpoints differently based on the execution context (e.g., run mode vs. publish mode, container vs. executable). Sometimes you need to override that resolution behavior to get an endpoint from a different perspective than the default.
 
-Consider the following scenario, where the example shows a project that is going to setup up grafana and keycloak. We need to give the project the address for container-to-container communication between grafana and keycloak even though the target resource is a project. The project isn't directly talking to keycloak or grafana, it's a mediator that is just setting URLs in the appropriate configuration of each container.
+Consider a scenario where a project resource needs to configure Grafana and Keycloak containers. The project must provide container-to-container URLs for these services to communicate with each other, even though the project itself would normally receive host-based URLs.
+
+### Explicit context resolution with ValueProviderContext
+
+Starting with Aspire 13.2, you can explicitly control endpoint resolution context using `ValueProviderContext`. This provides a cleaner alternative to manually constructing URLs when you need endpoints resolved from a specific resource's perspective or network context.
+
+#### Resolve from a specific resource (Caller)
+
+Use the `Caller` property to resolve an endpoint from the perspective of a specific calling resource:
+
+```csharp title="C# — Resolve endpoint from a resource's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var containerApp = builder.AddContainer("worker", "myimage");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL from the container's perspective
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Caller = containerApp.Resource,
+});
+
+// The URL will be appropriate for container-to-container communication
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+This is particularly useful when you need to pass connection information between resources that may be running in different contexts (containers vs. host processes).
+
+#### Resolve from a specific network
+
+Use the `Network` property to resolve an endpoint from the perspective of a specific network:
+
+```csharp title="C# — Resolve endpoint from a network's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL for the default Aspire container network
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+});
+
+// The URL will be appropriate for the container network
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+The `KnownNetworkIdentifiers` class provides predefined network identifiers:
+- `LocalhostNetwork`: Resolves to localhost-based URLs
+- `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
+- `PublicInternet`: Resolves to externally accessible URLs
+
+<Aside type="note">
+These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire 13.2, they now correctly resolve endpoints based on the specified context. For more details, see [What's new in Aspire 13.2](/whats-new/aspire-13-2/#contextual-endpoint-resolution).
+</Aside>
 
 ### Cross-Context Communication Example
 
 The following code demonstrates how to set environment variables for a project that needs to communicate with other resources like Grafana and Keycloak. It ensures that the URLs are correctly resolved based on the execution context (run mode vs. publish mode).
 
-```csharp title="C# — AppHost.cs"
+With Aspire 13.2, you can simplify this using `ValueProviderContext`:
+
+```csharp title="C# — Simplified with ValueProviderContext (Aspire 13.2+)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var keycloak = builder.AddKeycloak("keycloak", 8080);
+var grafana = builder.AddContainer("grafana", "grafana/grafana");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithEnvironment(async ctx =>
+    {
+        var keyCloakEndpoint = keycloak.GetEndpoint("http");
+        var grafanaEndpoint = grafana.GetEndpoint("http");
+
+        ctx.EnvironmentVariables["Grafana__Url"] = grafanaEndpoint;
+
+        if (ctx.ExecutionContext.IsRunMode)
+        {
+            // Resolve from container network perspective
+            var keycloakUrl = await keyCloakEndpoint.GetValueAsync(new ValueProviderContext
+            {
+                Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+            });
+            
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keycloakUrl;
+        }
+        else
+        {
+            // In publish mode let the endpoint resolver handle the URL
+            ctx.EnvironmentVariables["Keycloak__AuthServerUrl"] = keyCloakEndpoint;
+        }
+    });
+
+builder.Build().Run();
+```
+
+**Before Aspire 13.2**, you would need to manually construct the URL:
+
+```csharp title="C# — Manual URL construction (pre-13.2)"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var keycloak = builder.AddKeycloak("keycloak", 8080);
@@ -501,11 +597,7 @@ var api = builder.AddProject<Projects.Api>("api")
 
         if (ctx.ExecutionContext.IsRunMode)
         {
-            // The project needs to get the URL for keycloak in the context
-            // of the container network, but since this is a project, it'll
-            // resolve the url in the context of the host network. We get
-            // the runtime url and change the host and port to match the
-            // container network pattern (host = resource name, port = target port ?? port)
+            // Manual URL construction required in pre-13.2
             var keycloakUrl = new UriBuilder(keyCloakEndpoint.Url)
             {
                 Host = keycloak.Resource.Name,
