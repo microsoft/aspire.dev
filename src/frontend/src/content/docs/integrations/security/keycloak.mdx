@@ -159,6 +159,35 @@ var apiService = builder.AddProject<Projects.ApiService>("apiservice")
 
 The realm import files are mounted at `/opt/keycloak/data/import` in the Keycloak container. Realm import files are JSON files that represent the realm configuration.
 
+<Aside type="caution">
+  The `WithRealmImport` method is designed for local development only and **is
+  not supported in production deployments** (such as when using `aspire
+  deploy`). The method relies on mounting local directories as volumes, which
+  is not available in most production container orchestration environments.
+</Aside>
+
+#### Production alternatives for realm seeding
+
+For production environments, consider these alternatives to seed your Keycloak instance:
+
+- **Custom Keycloak image**: Build a custom container image that includes your realm configuration files. The realm JSON files can be baked into the image at build time and configured to import on first startup:
+
+  ```dockerfile title="Dockerfile"
+  FROM quay.io/keycloak/keycloak:latest
+  COPY ./realms/*.json /opt/keycloak/data/import/
+  ```
+
+  Then update your AppHost to use the custom image:
+
+  ```csharp title="C# — AppHost.cs"
+  var keycloak = builder.AddContainer("keycloak", "your-registry/keycloak-with-realms", "latest")
+                        .WithHttpEndpoint(port: 8080, targetPort: 8080);
+  ```
+
+- **Initialization service**: Create a separate initialization service or job that uses the [Keycloak Admin REST API](https://www.keycloak.org/docs-api/latest/rest-api/index.html) or [Keycloak Admin Client](https://www.nuget.org/packages/Keycloak.AuthServices.Sdk.Admin) to programmatically create and configure realms, clients, and users when the Keycloak instance first starts.
+
+- **Infrastructure as Code**: Use tools like Terraform with the [Keycloak provider](https://registry.terraform.io/providers/mrparkers/keycloak/latest/docs) to manage realm configuration as code, separate from your application deployment.
+
 ### Export telemetry to OTLP collector
 
 Keycloak containers can export telemetry to your OTLP collector using the `WithOtlpExporter` method:
