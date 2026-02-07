@@ -14,6 +14,7 @@ import Pivot from '@components/Pivot.astro';
         { id: "xunit", title: "xUnit.net" },
         { id: "mstest", title: "MSTest" },
         { id: "nunit", title: "NUnit" },
+        { id: "tunit", title: "TUnit" },
     ]}
 />
 
@@ -111,6 +112,36 @@ public class WebTests
 
     [OneTimeTearDown]
     public async Task OneTimeTearDown() => await _app.DisposeAsync();
+
+    [Test]
+    public async Task GetWebResourceRootReturnsOkStatusCode()
+    {
+        // test code here
+    }
+}
+```
+
+</Pivot>
+<Pivot id="tunit">
+
+With TUnit, you use the hooks [Before](https://tunit.dev/docs/test-lifecycle/setup) and [After](https://tunit.dev/docs/test-lifecycle/cleanup) attributes on methods of the test class to provide the setup and cleanup of the AppHost instance. The `Setup` method is used to create the AppHost instance before the tests are run and the `Cleanup` method disposes the AppHost instance once the tests are completed.
+
+```csharp
+public class WebTests
+{
+    private DistributedApplication _app;
+
+    [Before(Test)]
+    public async Task Setup()
+    {
+       var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.AspireApp_AppHost>();
+
+        _app = await appHost.BuildAsync();
+    }
+
+    [After(Test)]
+    public async Task Cleanup() => await _app.DisposeAsync();
 
     [Test]
     public async Task GetWebResourceRootReturnsOkStatusCode()
