@@ -103,7 +103,9 @@ function filterAndTransform(pkgs) {
     })
     .map((pkg) => ({
       title: pkg.id,
-      description: pkg.description,
+      description: pkg.description
+        ?.replace(/\bA \.NET Aspire\b/gi, 'An Aspire')
+        .replace(/\.NET Aspire/gi, 'Aspire'),
       icon: pkg.iconUrl || 'https://www.nuget.org/Content/gallery/img/default-package-icon.svg',
       href: `https://www.nuget.org/packages/${pkg.id}`,
       tags: pkg.tags?.map((t) => t.toLowerCase()) ?? [],

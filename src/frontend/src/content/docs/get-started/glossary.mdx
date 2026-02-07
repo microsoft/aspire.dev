@@ -1,0 +1,336 @@
+---
+title: Aspire glossary
+description: Key terms and concepts used throughout Aspire documentation, including AppHost, resources, service discovery, and orchestration terminology.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This glossary defines the key terms and concepts you'll encounter when working with Aspire. Bookmark this page as a quick reference.
+
+## Core concepts
+
+These are the foundational concepts you need to understand when working with Aspire.
+
+### AppHost
+
+The **AppHost** is the orchestration project where you define your entire application's architecture in C# code. It's a special Aspire project that:
+
+- Declares what services, databases, and containers make up your application
+- Defines how resources depend on each other
+- Configures how resources communicate
+- Orchestrates startup order during local development
+- Generates deployment manifests for production
+
+Think of it as the "control tower" for your distributed application.
+
+```csharp title="AppHost.cs"
+// This IS the AppHost - Program.cs in your AppHost project
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("db");
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);
+
+builder.Build().Run();
+```
+
+### Resource
+
+A **resource** is any component that your application depends on. Resources can be:
+
+| Resource type | Examples |
+|--------------|----------|
+| **Projects** | .NET applications, services, APIs |
+| **Containers** | Docker containers (databases, caches, message brokers) |
+| **Executables** | Node.js apps, Python scripts, any executable |
+| **Cloud services** | Azure Storage, AWS S3, managed databases |
+| **Parameters** | Configuration values, secrets |
+
+Resources are the building blocks you compose in your AppHost.
+
+### Distributed application
+
+A **distributed application**is an application split into multiple independent services that communicate over a network. Instead of one monolithic application, you have:
+
+- A frontend service
+- One or more API services  
+- Databases
+- Caches
+- Message queues
+- etc.
+
+Aspire helps you orchestrate all these pieces together.
+
+### Service defaults
+
+**Service defaults**are pre-configured settings that Aspire applies to your .NET projects automatically. They include:
+
+- **OpenTelemetry** - Automatic logging, tracing, and metrics
+- **Health checks** - Endpoints for monitoring (`/health`, `/alive`)
+- **Service discovery** - Automatic resolution of service URLs
+- **Resilience** - Retry policies for HTTP calls
+
+When you add `builder.AddServiceDefaults()` to a project, you get production-ready observability and resilience out of the box.
+
+---
+
+## APIs and patterns
+
+These are the key APIs and patterns you'll use when building Aspire applications.
+
+### WithReference
+
+`WithReference()` is how you connect resources together. When you call `.WithReference(otherResource)`, Aspire:
+
+1. Injects the connection information as environment variables
+2. Sets up service discovery so your code can find the other resource
+3. Creates a dependency relationship for startup ordering
+
+```csharp title="AppHost.cs"
+var db = builder.AddPostgres("db");
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);  // API now has DATABASE connection info injected
+```
+
+The API project will receive environment variables like:
+- `ConnectionStrings__db` - The database connection string
+- Service discovery configuration for the "db" resource
+
+### WaitFor
+
+`WaitFor()` tells Aspire to delay starting a resource until its dependency is ready:
+
+```csharp title="AppHost.cs"
+var db = builder.AddPostgres("db");
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db)
+    .WaitFor(db);  // Don't start API until database is healthy
+```
+
+<Aside type="tip">
+  Without `WaitFor()`, your API might start and immediately crash because the database isn't ready yet. This prevents race conditions during startup.
+</Aside>
+
+### WaitForCompletion
+
+`WaitForCompletion()` waits for a resource to finish and exit (not just start). Useful for setup scripts:
+
+```csharp title="AppHost.cs"
+var migrate = builder.AddProject<Projects.DbMigration>("migrate");
+var api = builder.AddProject<Projects.Api>("api")
+    .WaitForCompletion(migrate);  // Wait for migrations to complete
+```
+
+### WaitForStart
+
+`WaitForStart()` waits only for a resource to reach the running state, without waiting for health checks to pass:
+
+```csharp title="AppHost.cs"
+var db = builder.AddPostgres("db");
+var api = builder.AddProject<Projects.Api>("api")
+    .WaitForStart(db);  // Start as soon as db is running, don't wait for healthy
+```
+
+<Aside type="tip">
+  Use `WaitForStart()` when you need looser coupling—your service can handle initial connection failures via retry policies. Use `WaitFor()` when you need strict dependency on health.
+</Aside>
+
+---
+
+## Key terms
+
+These terms appear frequently throughout the documentation and in error messages.
+
+### Connection string
+
+A **connection string** is a formatted string containing the information needed to connect to a resource (database, cache, message broker, etc.). In Aspire, connection strings are:
+
+- Automatically generated by the AppHost based on resource configuration
+- Injected into your application as environment variables
+- Retrieved using `builder.Configuration.GetConnectionString("resource-name")`
+
+Example: `Host=localhost;Port=5432;Database=mydb;Username=postgres;Password=secret`
+
+### Service discovery
+
+**Service discovery**is the mechanism that allows your services to find and communicate with each other by name, without hardcoding addresses. In Aspire:
+
+- Resources are addressable by their resource name (e.g., `http://apiservice`)
+- The AppHost configures DNS/environment variables so services can resolve each other
+- Works automatically when you use `WithReference()`
+
+For details, see [Service Discovery](/fundamentals/service-discovery/).
+
+### Health check
+
+A **health check**is a mechanism to determine if a resource is ready and functioning. Aspire uses health checks in two ways:
+
+1. **AppHost level**: Determines when dependencies are ready (controls `WaitFor()` behavior)
+2. **Application level**: Exposes `/health` and `/alive` endpoints for load balancers
+
+For details, see [Health Checks](/fundamentals/health-checks/).
+
+### Environment variable
+
+Aspire uses **environment variables**to pass configuration from the AppHost to your services:
+
+- Connection strings: `ConnectionStrings__resourcename`
+- Service endpoints: `services__servicename__https__0`
+- Custom values via `WithEnvironment()`
+
+Your application reads these using standard .NET configuration (`IConfiguration`).
+
+---
+
+## Resource types
+
+Aspire uses two types of NuGet packages to work with resources.
+
+### Hosting integration
+
+A **hosting integration** is an Aspire package that helps you add and configure resources in your AppHost. Hosting integrations:
+
+- Add containers or cloud resources to your app model
+- Configure networking, health checks, and volumes
+- Handle connection string generation
+
+Example: `Aspire.Hosting.PostgreSQL` adds the `AddPostgres()` method.
+
+### Client integration
+
+A **client integration**is an Aspire package that helps your application code connect to resources. Client integrations:
+
+- Register SDK clients with dependency injection
+- Configure connection strings from environment variables
+- Add health checks and telemetry
+
+Example: `Aspire.Npgsql` registers `NpgsqlConnection` for PostgreSQL.
+
+### The relationship
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ AppHost (uses Hosting Integration)                          │
+│   Aspire.Hosting.PostgreSQL → AddPostgres("db")             │
+│                                   ↓                         │
+│                          Injects connection info            │
+└─────────────────────────────────────────────────────────────┘
+                                   ↓
+┌─────────────────────────────────────────────────────────────┐
+│ API Project (uses Client Integration)                       │
+│   Aspire.Npgsql → builder.AddNpgsqlDataSource("db")         │
+│                          ↓                                  │
+│                  Reads connection from env vars             │
+│                  Registers NpgsqlConnection in DI           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Execution modes
+
+Aspire operates in two distinct modes depending on what you're trying to accomplish.
+
+### Run mode
+
+**Run mode** is local development. When you execute `aspire run` or debug your AppHost:
+
+- Aspire starts all your resources locally
+- Containers run in Docker
+- The Aspire Dashboard shows logs and traces
+- Service discovery uses localhost addresses
+
+### Publish mode
+
+**Publish mode**generates deployment artifacts. When you execute `aspire publish`:
+
+- Aspire generates Kubernetes manifests, Docker Compose files, or cloud infrastructure
+- No containers are started locally
+- Connection strings reference production endpoints
+- Output is ready for CI/CD pipelines
+
+---
+
+## Dashboard and observability
+
+Aspire provides built-in tools for monitoring and debugging your applications.
+
+### Aspire dashboard
+
+The **Aspire Dashboard** is a web UI that automatically runs during local development. It shows:
+
+- All your resources and their status
+- Real-time logs from every service
+- Distributed traces across service calls
+- Metrics and performance data
+- Resource health checks
+
+Access it at the URL shown when you run `aspire run` (typically `http://localhost:15888`).
+
+### OpenTelemetry
+
+**OpenTelemetry** (OTEL) is the observability standard that Aspire uses for:
+
+- **Logs** - Structured logging with context
+- **Traces** - Following requests across services
+- **Metrics** - Performance measurements
+
+Aspire configures OpenTelemetry automatically through service defaults.
+
+---
+
+## Common patterns
+
+These patterns appear frequently in Aspire applications.
+
+### Emulator pattern
+
+Many hosting integrations support running as an **emulator** for local development:
+
+```csharp title="AppHost.cs"
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator();  // Uses Azurite container locally
+```
+
+This lets you develop against Azure, AWS, or other cloud services without needing actual cloud accounts during development.
+
+### Existing resource pattern
+
+Connect to resources that already exist (not managed by Aspire):
+
+```csharp title="AppHost.cs"
+var existingDb = builder.AddPostgres("db")
+    .AsExisting(name, resourceGroup);
+```
+
+Use this for production databases or shared team resources.
+
+---
+
+## API reference terms
+
+These terms appear frequently in API documentation and advanced usage:
+
+| Term | Description |
+|------|-------------|
+| `IResourceAnnotation` | Typed metadata object attached to resources. |
+| `WithAnnotation()` | Fluent method to attach typed annotations. |
+| `ReferenceExpression` | Structured formatter preserving value references. |
+| `ResourceNotificationService` | Publishes observable state updates. |
+
+| Concept | Definition |
+|---------|------------|
+| DAG | Directed acyclic graph—the structure of resource dependencies. |
+| Heterogeneous DAG | DAG containing varied resource types (projects, containers, cloud). |
+| Publisher | Component that emits deployment artifacts from the app model. |
+| Hoisting | Leaving a value unresolved for later substitution at runtime. |
+| Deferred evaluation | Computing a value only when needed. |
+| Lifecycle events | Time-based signals for resource transitions. |
+
+---
+
+## See also
+
+- [What is Aspire?](/get-started/what-is-aspire/)
+- [Create your first Aspire app](/get-started/first-app/)
+- [AppHost overview](/get-started/app-host/)
