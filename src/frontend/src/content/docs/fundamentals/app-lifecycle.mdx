@@ -3,7 +3,7 @@ title: Aspire app lifecycle guide
 description: Understand the lifecycle of Aspire applications from development to deployment.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 This guide provides a high-level overview of the lifecycle phases of an Aspire application, from development through local deployment to production release. By using the same `AppHost` configuration across all phases, you ensure consistency and reduce configuration drift between environments. 
@@ -13,9 +13,13 @@ The example in this guide demonstrates how Aspire orchestrates containerized app
 
 The Aspire application lifecycle consists of three main phases:
 
+<Steps>
+
 1. **Inner-Loop Development** - Local development and debugging with `aspire run`
 2. **Local Deployment** - Deployment to your defined compute environment(s) with `aspire deploy`. This example shows containerized deployment to Docker Desktop. 
 3. **Publish Release (CI/CD)** - Automated build & publish pipeline. This example shows using GitHub Actions to build and push images and publish release artifacts for deployment later. 
+
+</Steps>
 
 **Each phase uses the same `AppHost` configuration but serves different purposes in the development and deployment workflows.**
 
@@ -37,10 +41,10 @@ var compose = builder.AddDockerComposeEnvironment("volumemount-env")
      {
          // Add the blazor file volume to the top-level volumes section
          composeFile.AddVolume(new Volume
-                               {
-                                   Name = "volumemount-blazor-uploads",
-                                   Driver = "local"
-                               });
+         {
+             Name = "volumemount-blazor-uploads",
+            Driver = "local"
+         });
      });
 
 // Add container registry
@@ -97,10 +101,14 @@ The `aspire run` command starts your Aspire application in **development mode**.
 
 When you run `aspire run`:
 
+<Steps>
+
 1. **Aspire dashboard launches** - A web-based dashboard starts, and its URL (often an HTTPS login URL like `https://localhost:<port>/login?...`) is printed to the console.
 2. **Resources start** - All resources defined in your `AppHost.cs` are orchestrated. 
 3. **Live debugging** - You can attach debuggers, set breakpoints, and modify code with hot reload.
 4. **Telemetry & logs** - Dashboard provides real-time logs, metrics, and distributed traces.
+
+</Steps>
 
 This command searches the current directory structure for AppHost projects to build and run:
 
@@ -139,10 +147,14 @@ Aspire will prompt you for parameters the first time you deploy and save them fo
 
 When you run `aspire deploy` Aspire will:
 
+<Steps>
+
 1. Build and push container images for projects
 2. Generate `docker-compose.yaml` in `./aspire-output/` directory
 3. Start all containers using Docker Compose
 4. Create and mount persistent volumes
+
+</Steps>
 
 In this example, the following gets deployed:
 
@@ -179,11 +191,15 @@ You can create a workflow that automates the process of building and pushing the
 
 In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/workflows/aspire-build-push.yml), the workflow runs on every push to `main`, does a checkout, and then performs these steps:
 
+<Steps>
+
 1. **Setup Environment** - Install .NET
 2. **Install Aspire CLI** - Install the Aspire CLI
 3. **Build and Push Container Images** - Build app and push image to GitHub Container Registry with `aspire do push`
 4. **Publish Docker Compose Artifacts** - Generate deployment files with `aspire publish`
 5. **Upload Artifacts** - Store deployment files for download
+
+</Steps>
 
 #### Step 1: Setup Environment
 
@@ -255,11 +271,11 @@ The `aspire publish` command does the following:
 - Packages configuration needed for deployment
 - Outputs artifacts to `./aspire-output/` directory
 
-```
-aspire-output/
-├── docker-compose.yaml    # Service definitions for all containers
-└── .env                   # Template for required environment variables
-```
+<FileTree>
+- aspire-output/
+  - docker-compose.yaml  Service definitions for all containers
+  - .env  Template for required environment variables
+</FileTree>
 
 <LearnMore>
   [Command reference: `aspire publish`](/reference/cli/commands/aspire-publish/)
@@ -283,6 +299,8 @@ In this example, artifacts are available for download from the Actions workflow 
 
 After the workflow completes, you have everything needed for production deployment:
 
+<Steps>
+
 1. **Download Artifacts** from GitHub Actions workflow run:
    - `docker-compose.yaml` - Complete service definitions
    - `.env` - Environment variable template
@@ -304,6 +322,8 @@ After the workflow completes, you have everything needed for production deployme
    docker compose ps
    docker compose logs -f
    ```
+
+</Steps>
 
 ## Lifecycle Summary
 
