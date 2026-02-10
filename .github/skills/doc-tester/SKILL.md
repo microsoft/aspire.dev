@@ -686,7 +686,7 @@ dotnet hex1b keys <id> --key Enter                      # Send a keypress
 dotnet hex1b assert <id> --text-present "..."           # Wait for specific output
 dotnet hex1b capture screenshot <id> --format svg       # Capture terminal as SVG
 dotnet hex1b capture screenshot <id> --format text      # Capture terminal text content
-dotnet hex1b capture recording start <id>               # Start asciinema recording
+dotnet hex1b capture recording start <id> --output <file>.cast  # Start asciinema recording
 dotnet hex1b capture recording stop <id>                # Stop asciinema recording
 dotnet hex1b terminal stop <id>                         # Stop a terminal session
 ```

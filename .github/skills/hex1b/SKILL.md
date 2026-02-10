@@ -13,11 +13,13 @@ over screen capture, input injection, and content assertions.
 ## Installation
 
 ```bash
-# Install as a local tool (recommended for repos)
-dotnet tool install Hex1b.Tool
+# Install as a global tool
+dotnet tool install -g Hex1b.Tool
 
-# Or restore if already in the tool manifest
-dotnet tool restore
+# Or as a local tool (requires a tool manifest)
+dotnet new tool-manifest   # if no manifest exists yet
+dotnet tool install --local Hex1b.Tool
+dotnet tool restore        # to restore from an existing manifest
 ```
 
 ## Concepts
@@ -118,7 +120,7 @@ dotnet hex1b keys <id> --text "hello world"
 dotnet hex1b keys <id> --key Enter
 dotnet hex1b keys <id> --key Tab
 dotnet hex1b keys <id> --key Escape
-dotnet hex1b keys <id> --key ArrowUp
+dotnet hex1b keys <id> --key UpArrow
 
 # Send key with modifiers
 dotnet hex1b keys <id> --key C --ctrl          # Ctrl+C
@@ -127,9 +129,17 @@ dotnet hex1b keys <id> --key Tab --shift        # Shift+Tab
 dotnet hex1b keys <id> --key F --ctrl --shift   # Ctrl+Shift+F
 ```
 
-Available key names: `Enter`, `Tab`, `Escape`, `Backspace`, `Spacebar`, `UpArrow`,
-`DownArrow`, `LeftArrow`, `RightArrow`, `Home`, `End`, `PageUp`, `PageDown`, `Delete`,
-`Insert`, `F1`–`F12`, and single letters `A`–`Z`.
+Available key names (from the `Hex1bKey` enum, case-insensitive):
+
+- **Letters:** `A`–`Z`
+- **Digits:** `D0`–`D9`
+- **Function keys:** `F1`–`F12`
+- **Navigation:** `UpArrow`, `DownArrow`, `LeftArrow`, `RightArrow`, `Home`, `End`, `PageUp`, `PageDown`
+- **Editing:** `Backspace`, `Delete`, `Insert`
+- **Whitespace:** `Tab`, `Enter`, `Spacebar`
+- **Other:** `Escape`
+- **Punctuation:** `OemComma`, `OemPeriod`, `OemMinus`, `OemPlus`, `OemQuestion`, `Oem1`, `Oem4`, `Oem5`, `Oem6`, `Oem7`, `OemTilde`
+- **Numpad:** `NumPad0`–`NumPad9`, `Multiply`, `Add`, `Subtract`, `Decimal`, `Divide`
 
 ## How to Send Mouse Input
 
