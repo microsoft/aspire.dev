@@ -658,33 +658,37 @@ mcp_playwright_browser_type       # Type text
 mcp_playwright_browser_screenshot # Capture screenshot
 ```
 
-### Hex1b Terminal MCP Tools
+### Hex1b CLI Tools
 
-The Hex1b MCP server provides tools for interacting with terminal sessions and capturing terminal output. This is particularly useful for:
+The Hex1b CLI tool provides terminal automation for interacting with terminal sessions and capturing terminal output. This is particularly useful for:
 
 - **Capturing terminal screenshots** for documentation evidence
-- **Recording asciinema sessions** (`.cast` files) for documentation
+- **Recording terminal sessions** for documentation
 
-#### Available Tools
+#### Installation
 
-First, activate the terminal tools you need:
+Install Hex1b.Tool if not already available:
 
+```bash
+dotnet tool install -g Hex1b.Tool
 ```
-activate_terminal_session_creation_tools  # Start bash/powershell sessions
-activate_terminal_interaction_tools       # Screenshots, text capture, input
-```
 
-Then use the terminal tools:
+Refer to the **hex1b skill** for the full command reference.
 
-```
-mcp_hex1b_list_terminals          # List active terminal sessions
-mcp_hex1b_start_bash_terminal     # Start a new bash session
-mcp_hex1b_start_pwsh_terminal     # Start a new PowerShell session
-mcp_hex1b_send_terminal_input     # Send commands to terminal
-mcp_hex1b_wait_for_terminal_text  # Wait for specific output
-mcp_hex1b_capture_terminal_screenshot  # Capture terminal as SVG
-mcp_hex1b_capture_terminal_text   # Capture terminal text content
-mcp_hex1b_record_asciinema        # Record terminal session as .cast file
+#### Common Commands
+
+```bash
+dotnet hex1b terminal list                              # List active terminal sessions
+dotnet hex1b terminal start -- bash                     # Start a new bash session
+dotnet hex1b terminal start -- pwsh                     # Start a new PowerShell session
+dotnet hex1b keys <id> --text "command"                 # Send text to terminal
+dotnet hex1b keys <id> --key Enter                      # Send a keypress
+dotnet hex1b assert <id> --text-present "..."           # Wait for specific output
+dotnet hex1b capture screenshot <id> --format svg       # Capture terminal as SVG
+dotnet hex1b capture screenshot <id> --format text      # Capture terminal text content
+dotnet hex1b capture recording start <id> --output <file>.cast  # Start asciinema recording
+dotnet hex1b capture recording stop <id>                # Stop asciinema recording
+dotnet hex1b terminal stop <id>                         # Stop a terminal session
 ```
 
 #### Asciinema Recordings
