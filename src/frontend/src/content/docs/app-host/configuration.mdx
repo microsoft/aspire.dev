@@ -114,3 +114,45 @@ Internal settings are used by the AppHost and integrations. Internal settings ar
 | `AppHost:BrowserToken`             | Automatically generated 128-bit entropy token.                                                                          | The browser token used to authenticate browsing to the dashboard when it is launched by the AppHost. The browser token can be set by `ASPIRE_DASHBOARD_FRONTEND_BROWSERTOKEN`. The value is present if needed: the AppHost is in run mode, the dashboard isn't disabled, and the dashboard isn't configured to allow anonymous access with `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`. |
 | `AppHost:ResourceService:AuthMode` | `ApiKey`. If `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` is true then the value is `Unsecured`.                        | The authentication mode used to access the resource service. The value is present if needed: the AppHost is in run mode and the dashboard isn't disabled.                                                                                                                                                                                                                                |
 | `AppHost:ResourceService:ApiKey`   | Automatically generated 128-bit entropy token.                                                                          | The API key used to authenticate requests made to the AppHost's resource service. The API key can be set by `ASPIRE_DASHBOARD_RESOURCESERVICE_APIKEY`. The value is present if needed: the AppHost is in run mode, the dashboard isn't disabled, and the dashboard isn't configured to allow anonymous access with `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`.                         |
+
+## Advanced orchestration properties
+
+<Aside type="caution">
+The following MSBuild properties and command-line arguments are intended for internal use by the Aspire SDK and tooling. You should not need to set these manually under normal circumstances. Incorrectly configuring these values can break your AppHost.
+</Aside>
+
+### DcpCliPath
+
+The `DcpCliPath` property specifies the path to the **Developer Control Plane (DCP)** executable. The DCP is the core orchestration engine that Aspire uses to run and manage distributed application resources locally during development.
+
+#### How it works
+
+When you use the [Aspire SDK](/get-started/aspire-sdk/), the build system automatically:
+
+1. Imports the platform-specific `Aspire.Hosting.Orchestration` NuGet package (for example, `Aspire.Hosting.Orchestration.win-x64`).
+2. Sets `DcpCliPath` to point to the `dcp` executable within that package.
+3. Embeds this path as assembly metadata in your compiled AppHost.
+
+At runtime, the AppHost reads this metadata to locate and start the DCP process, which then orchestrates your application's resources.
+
+#### Override options
+
+In rare cases, you may need to override the default DCP path:
+
+| Method | Example |
+| ------ | ------- |
+| MSBuild property | `<DcpCliPath>C:\path\to\dcp.exe</DcpCliPath>` |
+| Command-line argument | `--dcp-cli-path /path/to/dcp` |
+| Configuration | `DcpPublisher:CliPath` |
+
+#### When to use
+
+You might override `DcpCliPath` in these scenarios:
+
+- **Aspire contributors**: Testing with a custom or debug build of DCP when developing Aspire itself.
+- **CI/CD pipelines**: Non-standard SDK layouts where automatic discovery doesn't work.
+- **Troubleshooting**: Temporarily pointing to a specific DCP version to diagnose issues.
+
+<Aside type="tip">
+If your AppHost fails to start with an error about missing DCP or orchestration dependencies, ensure you have the [Aspire SDK](/get-started/aspire-sdk/) properly configured rather than manually setting `DcpCliPath`.
+</Aside>
