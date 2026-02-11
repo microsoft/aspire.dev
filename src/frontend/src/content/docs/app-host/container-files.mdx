@@ -15,7 +15,7 @@ Aspire provides APIs to inject files and directories into containers, enabling y
 The `WithContainerFiles` extension method creates or updates files and directories inside a container at a specified destination path. It supports three approaches depending on your needs: inline entries for declarative file definitions, a source path for copying from the host file system, and an async callback for dynamic file generation.
 
 <Aside type="caution">
-    `WithContainerFiles` is primarily intended for development-time configuration and is not supported at publish time. To inject files into containers during publish, use [`PublishWithContainerFiles`](#inject-files-at-publish-time) instead.
+`WithContainerFiles` is primarily intended for development-time configuration and is not supported at publish time. To inject files into containers during publish, use [`PublishWithContainerFiles`](#inject-files-at-publish-time) instead.
 </Aside>
 
 ### Inline entries
@@ -193,11 +193,14 @@ new ContainerDirectory
 `ContainerOpenSSLCertificateFile` represents a PEM-encoded public certificate. In addition to placing the certificate file in the container, Aspire automatically creates an OpenSSL-compatible symlink (`[subject hash].[n]`) in the same directory — equivalent to running `openssl rehash`. This enables containers that use OpenSSL for certificate validation to discover the certificate automatically.
 
 ```csharp title="AppHost.cs"
-new ContainerOpenSSLCertificateFile
-{
-    Name = "ca-cert.pem",
-    Contents = pemCertificateString
-}
+builder.AddContainer("myapp", "myapp:latest")
+    .WithContainerFiles("/certs", [
+        new ContainerOpenSSLCertificateFile
+        {
+            Name = "ca-cert.pem",
+            Contents = pemCertificateString
+        }
+    ]);
 ```
 
 ## File permissions and ownership
@@ -292,17 +295,17 @@ In this example:
 2. During publish, Aspire copies those files from the frontend container into the `api` container at `./wwwroot`.
 3. The resulting `api` container includes both the API code and the frontend static assets, ready to serve the full application.
 
-### Serve a frontend from Nginx
+### Serve a frontend from YARP
 
-You can also embed frontend assets into a dedicated web server container:
+You can also embed frontend assets into a dedicated reverse proxy container:
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var frontend = builder.AddViteApp("frontend", "../frontend");
 
-var nginx = builder.AddContainer("webserver", "nginx:alpine")
-    .PublishWithContainerFiles(frontend, "/usr/share/nginx/html");
+var nginx = builder.AddYarp("gateway")
+    .PublishWithStaticFiles(frontend);
 
 builder.Build().Run();
 ```
