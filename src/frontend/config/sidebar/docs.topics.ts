@@ -763,26 +763,50 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         {
           label: 'Configuration',
           slug: 'app-host/configuration',
+          translations: {
+            en: 'Configuration',
+            ja: '構成',
+          },
         },
         {
           label: 'Certificate configuration',
           slug: 'app-host/certificate-configuration',
+          translations: {
+            en: 'Certificate configuration',
+            ja: '証明書の構成',
+          },
         },
         {
           label: 'Eventing',
           slug: 'app-host/eventing',
+          translations: {
+            en: 'Eventing',
+            ja: 'イベント処理',
+          },
         },
         {
           label: 'Persistent containers',
           slug: 'app-host/persistent-containers',
+          translations: {
+            en: 'Persistent containers',
+            ja: '永続コンテナー',
+          },
         },
         {
           label: 'Dockerfiles',
           slug: 'app-host/withdockerfile',
+          translations: {
+            en: 'Dockerfiles',
+            ja: 'Dockerfile',
+          },
         },
         {
           label: 'Executable resources',
           slug: 'app-host/executable-resources',
+          translations: {
+            en: 'Executable resources',
+            ja: '実行可能リソース',
+          },
         },
         {
           label: 'Migrate from Docker Compose',
@@ -833,22 +857,42 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
     {
       label: 'Extensibility',
       collapsed: true,
+      translations: {
+        en: 'Extensibility',
+        ja: '拡張性',
+      },
       items: [
         {
           label: 'Interaction service',
           slug: 'extensibility/interaction-service',
+          translations: {
+            en: 'Interaction service',
+            ja: '対話サービス',
+          },
         },
         {
           label: 'Custom resource commands',
           slug: 'fundamentals/custom-resource-commands',
+          translations: {
+            en: 'Custom resource commands',
+            ja: 'カスタム リソース コマンド',
+          },
         },
         {
           label: 'Custom HTTP commands',
           slug: 'fundamentals/http-commands',
+          translations: {
+            en: 'Custom HTTP commands',
+            ja: 'カスタム HTTP コマンド',
+          },
         },
         {
           label: 'Custom resource URLs',
           slug: 'fundamentals/custom-resource-urls',
+          translations: {
+            en: 'Custom resource URLs',
+            ja: 'カスタム リソース URL',
+          },
         },
       ],
     },
