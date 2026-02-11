@@ -781,6 +781,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/withdockerfile',
         },
         {
+          label: 'Container files',
+          slug: 'app-host/container-files',
+        },
+        {
           label: 'Executable resources',
           slug: 'app-host/executable-resources',
         },
