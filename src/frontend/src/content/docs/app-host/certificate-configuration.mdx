@@ -29,6 +29,63 @@ Aspire simplifies HTTPS configuration for local development by providing APIs to
 - Manage certificate trust so resources can communicate with services using self-signed certificates
 - Automatically handle the .NET provided ASP.NET Core development certificate (a per-user self-signed certificate valid only for local domains) across different resource types
 
+## Trusting the ASP.NET Core development certificate
+
+Many of the certificate features in Aspire rely on the ASP.NET Core development certificate. Before using these features, you need to ensure that a trusted development certificate is installed on your machine.
+
+### Using the Aspire CLI (recommended)
+
+The preferred way to manage the development certificate is to use the [Aspire CLI](/get-started/install-cli/). When you run `aspire run`, the CLI automatically runs the necessary commands to ensure the development certificate is created and trusted. No additional manual steps are required.
+
+### Using `dotnet dev-certs` manually
+
+If you're not using the Aspire CLI, you need to manage the development certificate manually using the `dotnet dev-certs` tool.
+
+#### Trust the development certificate for the first time
+
+To create and trust the ASP.NET Core development certificate, run the following command:
+
+```bash
+dotnet dev-certs https --trust
+```
+
+This generates a self-signed development certificate and adds it to your system's trusted certificate store. You may be prompted to confirm the trust action depending on your operating system.
+
+#### Refresh the development certificate
+
+When updating the installed .NET SDK or troubleshooting development certificate errors, it's recommended to refresh the development certificate. Newer SDK versions may include improvements or bug fixes in the generated certificate. Refreshing the certificate also avoids possible issues caused by redundant certificates being installed.
+
+To refresh the certificate, first clean the existing certificates and then re-trust:
+
+```bash
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+```
+
+<Aside type="tip">
+  If you encounter unexpected HTTPS or certificate trust errors during local
+  development, refreshing the development certificate with the commands above is
+  a good first troubleshooting step.
+</Aside>
+
+<Aside type="note" title="Linux certificate trust">
+  On Linux, `dotnet dev-certs https --trust` exports the development certificate to `~/.aspnet/dev-certs/trust`, but applications using OpenSSL won't discover it unless the `SSL_CERT_DIR` environment variable includes that path. You can set `SSL_CERT_DIR` in your shell profile (~/.bashrc, ~/.zshrc, ~/.profile, etc.):
+
+  ```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
+  # Confirm /usr/lib/ssl/certs is the correct certificate directory for
+  # your Linux distribution. Common alternatives include:
+  #   /etc/ssl/certs
+  #   /etc/pki/tls/certs
+  if [ -z "$SSL_CERT_DIR" ]; then
+      export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
+  else
+      export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
+  fi
+  ```
+
+  You may need to reload your profile or start a new terminal session for the change to take effect.
+</Aside>
+
 ## HTTPS endpoint configuration
 
 HTTPS endpoint configuration determines which certificate a resource presents when serving HTTPS traffic. This is server-side certificate configuration for resources that host HTTPS/TLS endpoints.
