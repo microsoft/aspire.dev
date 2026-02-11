@@ -131,7 +131,7 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Aspire',
           description:
-            'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+            'Aspire is a local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
           // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
           exclude: [
             'includes/**',
