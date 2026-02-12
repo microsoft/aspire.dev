@@ -41,6 +41,13 @@ To access these types and APIs, add the [📦 Aspire.Hosting.Azure.Network](http
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
+<Aside type="note">
+  The Azure Virtual Network integration is a **hosting** and **publish-only** integration. It
+  provisions Azure networking infrastructure (virtual networks, subnets, NSGs,
+  etc.) and has no corresponding client integration. During local development,
+  these resources are not provisioned in your Azure subscription.
+</Aside>
+
 ### Add a virtual network
 
 To add a virtual network, call `AddAzureVirtualNetwork` on the `builder` instance:
@@ -70,7 +77,7 @@ var vnet = builder.AddAzureVirtualNetwork("vnet");
 var subnet = vnet.AddSubnet("my-subnet", "10.0.1.0/24");
 ```
 
-You can add multiple subnets with different address ranges to a single virtual network.
+You can add multiple subnets with different address ranges to a single virtual network. Subnet address prefixes must fall within the virtual network's address space (for example, `10.0.1.0/24` is valid within a `10.0.0.0/16` network).
 
 ### Add NAT gateways
 
@@ -92,7 +99,7 @@ var natGateway = builder.AddNatGateway("nat")
     .WithPublicIPAddress(pip);
 ```
 
-For advanced settings like idle timeout or availability zones, use `ConfigureInfrastructure`.
+For advanced settings like idle timeout or availability zones, use [`ConfigureInfrastructure`](/integrations/cloud/azure/customize-resources/).
 
 ### Add network security groups
 
@@ -183,6 +190,15 @@ When you add a private endpoint, the following resources are automatically creat
 3. A **DNS Zone Group** on the private endpoint for automatic DNS registration.
 4. The target resource is automatically configured to **deny public network access**.
 
+The private DNS zone ensures that services within the virtual network automatically resolve the target resource's hostname to its private IP address. Resources that reference the target (for example, via `WithReference`) use the same connection information—DNS resolution handles routing traffic over the private network.
+
+<Aside type="caution">
+  Adding a private endpoint automatically disables public network access on the
+  target resource. This means any clients outside the virtual network won't be
+  able to reach the resource. See [Override public network access](#override-public-network-access)
+  if you need to keep public access enabled.
+</Aside>
+
 #### Override public network access
 
 To keep public access enabled on a resource that has a private endpoint, use `ConfigureInfrastructure` to override the automatic lockdown:
@@ -200,6 +216,12 @@ storage.ConfigureInfrastructure(infra =>
 ## Complete example
 
 The following example demonstrates a complete network topology with a virtual network, subnets, NSG rules, a NAT gateway, private endpoints, and an Azure Container Apps environment:
+
+<Aside type="note">
+  The `AZPROVISION001` warning suppressed below is required because the
+  Azure.Provisioning.Network APIs are in preview. When the APIs are marked stable,
+  the warning can be removed.
+</Aside>
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable AZPROVISION001
@@ -231,7 +253,10 @@ var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27")
         protocol: SecurityRuleProtocol.Tcp)
     .DenyInbound(from: "Internet");
 
-// Configure the Container App Environment to use the VNet
+// Configure the Container App Environment to use the VNet.
+// WithDelegatedSubnet assigns the subnet to the ACA environment,
+// enabling subnet delegation so ACA can inject its infrastructure.
+// For more information, see: https://learn.microsoft.com/azure/container-apps/custom-virtual-networks
 builder.AddAzureContainerAppEnvironment("env")
     .WithDelegatedSubnet(containerAppsSubnet);
 
