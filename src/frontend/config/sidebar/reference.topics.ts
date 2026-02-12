@@ -187,6 +187,29 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'reference/cli/configuration',
         },
         {
+          label: 'Microsoft telemetry',
+          translations: {
+            da: 'Microsoft telemetri',
+            de: 'Microsoft-Telemetrie',
+            en: 'Microsoft telemetry',
+            es: 'Telemetría de Microsoft',
+            fr: 'Télémétrie Microsoft',
+            hi: 'Microsoft टेलीमेट्री',
+            id: 'Telemetri Microsoft',
+            it: 'Telemetria Microsoft',
+            ja: 'Microsoft テレメトリ',
+            ko: 'Microsoft 원격 분석',
+            pt: 'Telemetria da Microsoft',
+            'pt-BR': 'Telemetria da Microsoft',
+            'pt-PT': 'Telemetria da Microsoft',
+            ru: 'Телеметрия Microsoft',
+            tr: 'Microsoft telemetrisi',
+            uk: 'Телеметрія Microsoft',
+            'zh-CN': 'Microsoft 遥测',
+          },
+          slug: 'reference/cli/microsoft-collected-cli-telemetry',
+        },
+        {
           label: 'Commands',
           translations: {
             da: 'Kommandoer',
@@ -281,11 +304,13 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             { label: 'aspire new', slug: 'reference/cli/commands/aspire-new' },
+            { label: 'aspire ps', slug: 'reference/cli/commands/aspire-ps' },
             {
               label: 'aspire publish',
               slug: 'reference/cli/commands/aspire-publish',
             },
             { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
+            { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
