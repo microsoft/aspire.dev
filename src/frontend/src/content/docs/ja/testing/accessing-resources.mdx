@@ -20,7 +20,9 @@ HTTP リソースへアクセスするには、`HttpClient` を使用してリ�
 Aspire 9 以降では、依存するリソースが利用可能になるまで待機する仕組みが（[正常性チェック](/ja/fundamentals/health-checks/) メカニズムを通じて）サポートされています。これは、リソースへアクセスする前に、そのリソースが利用可能であることを確認したいテストにおいて有用です。`ResourceNotificationService` クラスには、指定した名前のリソースが利用可能になるまで待機するための `WaitForResourceAsync` メソッドが用意されています。このメソッドは、リソース名と期待するリソースの状態をパラメーターとして受け取り、リソースが利用可能になった時点で完了する `Task` を返します。`ResourceNotificationService` には、次の例のように `app.ResourceNotifications` を通じてアクセスできます。
 
 <Aside type="note">
-  リソースの待機時には、リソースがいつまでも利用可能にならない状況でテストが無期限に停止してしまうのを防ぐため、タイムアウトを設定することが推奨されます。
+  リソースの待機時には、リソースがいつまでも利用可能にならない状況でテストが
+  無期限に停止してしまうのを防ぐため、
+  タイムアウトを設定することが推奨されます。
 </Aside>
 
 ```csharp
@@ -42,3 +44,25 @@ await app.ResourceNotifications.WaitForResourceHealthyAsync(
 ```
 
 このリソース通知パターンを利用することで、テスト実行前にリソースが確実に利用可能であることを保証でき、リソースの準備が整っていないことによるテスト失敗を防ぐことができます。
+
+## Start & Stop
+
+場合によっては、最初は起動されていないリソースを手動で開始したいことがあります。たとえば、そのリソースが `WithExplicitStart` によって作成された場合などです。
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceCommands.ExecuteCommandAsync(
+    "webfrontend",
+    KnownResourceCommands.StartCommand,
+    cts.Token);
+```
+
+また、特定のリソースが停止したときにアプリケーションが適切に耐障害性を発揮できるか確認するため、リソースを手動で停止したい場合もあります。
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await app.ResourceCommands.ExecuteCommandAsync(
+    "webfrontend",
+    KnownResourceCommands.StopCommand,
+    cts.Token);
+```
