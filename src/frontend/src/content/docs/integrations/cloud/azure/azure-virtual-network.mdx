@@ -1,0 +1,291 @@
+---
+title: Azure Virtual Network
+description: Learn how to use the Azure Virtual Network integration to configure virtual networks, subnets, NAT gateways, network security groups, and private endpoints.
+---
+
+import InstallPackage from '@components/InstallPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import azureIcon from '@assets/icons/azure-icon.png';
+
+<Image
+  src={azureIcon}
+  alt="Azure Virtual Network logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Virtual Network](https://learn.microsoft.com/azure/virtual-network/) enables Azure resources to securely communicate with each other, the internet, and on-premises networks. The Aspire Azure Virtual Network integration provides APIs to configure virtual networks, subnets, NAT gateways, network security groups (NSGs), and private endpoints directly in your AppHost.
+
+## Hosting integration
+
+The Azure Virtual Network hosting integration models network resources as the following types:
+
+- `AzureVirtualNetworkResource`: Represents an Azure Virtual Network.
+- `AzureSubnetResource`: Represents a subnet within a virtual network.
+- `AzureNetworkSecurityGroupResource`: Represents a network security group for traffic control.
+- `AzureNatGatewayResource`: Represents a NAT gateway for deterministic outbound IP addresses.
+- `AzurePublicIPAddressResource`: Represents a public IP address.
+
+To access these types and APIs, add the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) NuGet package in the [AppHost](/get-started/app-host/) project:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Network" />
+
+<Aside type="tip">
+  When you call any of the Azure Virtual Network APIs, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="note">
+  The Azure Virtual Network integration is a **hosting** and **publish-only** integration. It
+  provisions Azure networking infrastructure (virtual networks, subnets, NSGs,
+  etc.) and has no corresponding client integration. During local development,
+  these resources are not provisioned in your Azure subscription.
+</Aside>
+
+### Add a virtual network
+
+To add a virtual network, call `AddAzureVirtualNetwork` on the `builder` instance:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+By default, the virtual network uses the address prefix `10.0.0.0/16`. You can specify a custom address prefix:
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet", "10.1.0.0/16");
+```
+
+### Add subnets
+
+Call `AddSubnet` on the virtual network builder to add a subnet with a name and address prefix:
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+var subnet = vnet.AddSubnet("my-subnet", "10.0.1.0/24");
+```
+
+You can add multiple subnets with different address ranges to a single virtual network. Subnet address prefixes must fall within the virtual network's address space (for example, `10.0.1.0/24` is valid within a `10.0.0.0/16` network).
+
+### Add NAT gateways
+
+A [NAT gateway](https://learn.microsoft.com/azure/nat-gateway/) provides deterministic outbound public IP addresses for subnet resources. Call `AddNatGateway` to create a NAT gateway, then associate it with a subnet using `WithNatGateway`:
+
+```csharp title="C# — AppHost.cs"
+var natGateway = builder.AddNatGateway("nat");
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("aca-subnet", "10.0.0.0/23")
+    .WithNatGateway(natGateway);
+```
+
+By default, a public IP address is automatically created for the NAT gateway. To provide an explicit public IP address for full control, call `AddPublicIPAddress` and associate it with `WithPublicIPAddress`:
+
+```csharp title="C# — AppHost.cs"
+var pip = builder.AddPublicIPAddress("nat-pip");
+var natGateway = builder.AddNatGateway("nat")
+    .WithPublicIPAddress(pip);
+```
+
+For advanced settings like idle timeout or availability zones, use [`ConfigureInfrastructure`](/integrations/cloud/azure/customize-resources/).
+
+### Add network security groups
+
+[Network security groups (NSGs)](https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview) control inbound and outbound traffic flow on subnets. The integration provides two APIs for configuring NSGs: a **shorthand API** for common scenarios and an **explicit API** for full control.
+
+#### Shorthand API
+
+The shorthand API uses fluent methods on subnet builders that automatically create an NSG, auto-increment priority, and auto-generate rule names:
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+var subnet = vnet.AddSubnet("web", "10.0.1.0/24")
+    .AllowInbound(
+        port: "443",
+        from: "AzureLoadBalancer",
+        protocol: SecurityRuleProtocol.Tcp)
+    .DenyInbound(from: "Internet");
+```
+
+The available shorthand methods are:
+
+- `AllowInbound` — Allow inbound traffic.
+- `DenyInbound` — Deny inbound traffic.
+- `AllowOutbound` — Allow outbound traffic.
+- `DenyOutbound` — Deny outbound traffic.
+
+Priority auto-increments by 100 (100, 200, 300...) and rule names are auto-generated from the access, direction, port, and source (for example, `allow-inbound-443-AzureLoadBalancer`).
+
+<Aside type="note">
+  The `SecurityRuleProtocol`, `SecurityRuleDirection`, and
+  `SecurityRuleAccess` types require a `using` directive for the
+  `Azure.Provisioning.Network` namespace.
+</Aside>
+
+#### Explicit API
+
+For full control over security rules, create a standalone NSG with `AddNetworkSecurityGroup` on the `builder` and attach it to a subnet with `WithNetworkSecurityGroup`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+var nsg = builder.AddNetworkSecurityGroup("web-nsg")
+    .WithSecurityRule(new AzureSecurityRule
+    {
+        Name = "allow-https",
+        Priority = 100,
+        Direction = SecurityRuleDirection.Inbound,
+        Access = SecurityRuleAccess.Allow,
+        Protocol = SecurityRuleProtocol.Tcp,
+        DestinationPortRange = "443"
+    });
+
+var subnet = vnet.AddSubnet("web-subnet", "10.0.1.0/24")
+    .WithNetworkSecurityGroup(nsg);
+```
+
+The `AzureSecurityRule` type provides sensible defaults—`SourcePortRange`, `SourceAddressPrefix`, and `DestinationAddressPrefix` all default to `"*"`. The `Name`, `Priority`, `Direction`, `Access`, `Protocol`, and `DestinationPortRange` properties are required.
+
+A single NSG can be shared across multiple subnets.
+
+<Aside type="caution">
+  Don't mix the shorthand and explicit APIs on the same subnet. Calling
+  `WithNetworkSecurityGroup` after shorthand methods throws an
+  `InvalidOperationException` to prevent silent rule loss.
+</Aside>
+
+### Add private endpoints
+
+[Private endpoints](https://learn.microsoft.com/azure/private-link/) enable secure connectivity to Azure services over a private network. Call `AddPrivateEndpoint` on a subnet builder and pass the Azure resource to connect to:
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/24");
+
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+peSubnet.AddPrivateEndpoint(blobs);
+```
+
+When you add a private endpoint, the following resources are automatically created:
+
+1. A **Private DNS Zone** for the service (for example, `privatelink.blob.core.windows.net`).
+2. A **Virtual Network Link** connecting the DNS zone to your virtual network.
+3. A **DNS Zone Group** on the private endpoint for automatic DNS registration.
+4. The target resource is automatically configured to **deny public network access**.
+
+The private DNS zone ensures that services within the virtual network automatically resolve the target resource's hostname to its private IP address. Resources that reference the target (for example, via `WithReference`) use the same connection information—DNS resolution handles routing traffic over the private network.
+
+<Aside type="caution">
+  Adding a private endpoint automatically disables public network access on the
+  target resource. This means any clients outside the virtual network won't be
+  able to reach the resource. See [Override public network access](#override-public-network-access)
+  if you need to keep public access enabled.
+</Aside>
+
+#### Override public network access
+
+To keep public access enabled on a resource that has a private endpoint, use `ConfigureInfrastructure` to override the automatic lockdown:
+
+```csharp title="C# — AppHost.cs"
+storage.ConfigureInfrastructure(infra =>
+{
+    var storageAccount = infra.GetProvisionableResources()
+        .OfType<StorageAccount>()
+        .Single();
+    storageAccount.PublicNetworkAccess = StoragePublicNetworkAccess.Enabled;
+});
+```
+
+#### Service-specific requirements
+
+##### Azure Service Bus
+
+[Azure Service Bus](/integrations/cloud/azure/azure-service-bus/) requires the **Premium** tier to support private endpoints. When you add a private endpoint for a Service Bus resource, Aspire automatically sets the SKU to Premium.
+
+## Complete example
+
+The following example demonstrates a complete network topology with a virtual network, subnets, NSG rules, a NAT gateway, private endpoints, and an Azure Container Apps environment:
+
+<Aside type="note">
+  The `AZPROVISION001` warning suppressed below is required because the
+  Azure.Provisioning.Network APIs are in preview. When the APIs are marked stable,
+  the warning can be removed.
+</Aside>
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable AZPROVISION001
+
+using Azure.Provisioning.Network;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Create a virtual network with two subnets
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+// Container Apps subnet with NSG rules and NAT gateway
+var containerAppsSubnet = vnet.AddSubnet("container-apps", "10.0.0.0/23")
+    .AllowInbound(
+        port: "443",
+        from: "AzureLoadBalancer",
+        protocol: SecurityRuleProtocol.Tcp)
+    .DenyInbound(from: "VirtualNetwork")
+    .DenyInbound(from: "Internet");
+
+var natGateway = builder.AddNatGateway("nat");
+containerAppsSubnet.WithNatGateway(natGateway);
+
+// Private endpoints subnet
+var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27")
+    .AllowInbound(
+        port: "443",
+        from: "VirtualNetwork",
+        protocol: SecurityRuleProtocol.Tcp)
+    .DenyInbound(from: "Internet");
+
+// Configure the Container App Environment to use the VNet.
+// WithDelegatedSubnet assigns the subnet to the ACA environment,
+// enabling subnet delegation so ACA can inject its infrastructure.
+// For more information, see: https://learn.microsoft.com/azure/container-apps/custom-virtual-networks
+builder.AddAzureContainerAppEnvironment("env")
+    .WithDelegatedSubnet(containerAppsSubnet);
+
+// Add storage with private endpoints
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+var queues = storage.AddQueues("queues");
+
+peSubnet.AddPrivateEndpoint(blobs);
+peSubnet.AddPrivateEndpoint(queues);
+
+builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints()
+    .WithReference(blobs)
+    .WithReference(queues);
+
+builder.Build().Run();
+```
+
+## See also
+
+- [Azure Virtual Network documentation](https://learn.microsoft.com/azure/virtual-network/)
+- [Azure NAT Gateway documentation](https://learn.microsoft.com/azure/nat-gateway/)
+- [Azure Private Link documentation](https://learn.microsoft.com/azure/private-link/)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
