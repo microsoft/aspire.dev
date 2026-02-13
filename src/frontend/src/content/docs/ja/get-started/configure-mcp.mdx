@@ -1,0 +1,278 @@
+---
+title: MCP サーバーを構成する
+description: エージェント型開発のために、AI アシスタントと共に Aspire を使用する方法を学びます。
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+import LoopingVideo from '@components/LoopingVideo.astro';
+
+Aspire は、Model Context Protocol（MCP）を通じて AI アシスタントとの強力な統合機能を提供します。これにより、*エージェント型開発* が可能になります。これは、AI アシスタントが Aspire アプリケーションと直接やり取りしながら、分散アプリケーションの構築、デバッグ、監視を支援するワークフローを指します。
+
+## `aspire mcp init` を使用して開始する
+
+Aspire MCP サーバーを構成する最も簡単な方法は、Aspire CLI を使用することです。`aspire mcp init` コマンドは、AI 開発環境を自動的に検出し、必要な構成ファイルを作成します。
+
+<Steps>
+
+1. Aspire プロジェクト ディレクトリ（AppHost を含むフォルダー）でターミナルを開きます。
+
+1. 次のコマンドを実行します:
+
+   ```bash title="Aspire CLI"
+   aspire mcp init
+   ```
+
+1. このコマンドは、サポートされているエージェント環境（VS Code と GitHub Copilot の組み合わせや、その他の MCP 対応ツールなど）を検出し、適切な構成ファイルを作成します。
+
+</Steps>
+
+<AsciinemaPlayer 
+  src="/casts/mcp-init.cast" 
+  poster="npt:0:08" 
+  autoPlay={true}
+  cols={256}
+  rows={10} />
+
+以上で完了です！Aspire CLI が、MCP サーバー接続の設定や必要な認証の構成を含め、すべての構成作業を自動的に処理します。
+
+<Aside type="tip">
+プロジェクトに `AGENTS.md` ファイルがまだ存在しない場合は、自動的に作成されます。このファイルには、Aspire 対応コードベースで作業する際に AI コーディング エージェントのパフォーマンスを向上させるための指示が含まれています。
+</Aside>
+
+## 構成の理解
+
+`aspire mcp init` を実行すると、CLI は検出された環境に適した構成ファイルを作成します。以下は、さまざまな AI アシスタント向けに作成される構成ファイルの例です:
+
+<Tabs syncKey='ai-ide'>
+  <TabItem label="VS Code" id="vscode">
+    `.vscode/mcp.json` を作成または更新します:
+
+    ```json title=".vscode/mcp.json"
+    {
+      "servers": {
+        "aspire": {
+          "type": "stdio",
+          "command": "aspire",
+          "args": [
+            "mcp",
+            "start"
+          ]
+        },
+        "playwright": {
+          "type": "stdio",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp@latest"
+          ]
+        }
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Copilot CLI" id="copilot-cli">
+    `~/.copilot/mcp-config.json` を作成または更新します:
+
+    ```json title="~/.copilot/mcp-config.json"
+    {
+      "mcpServers": {
+        "aspire": {
+          "type": "local",
+          "command": "aspire",
+          "args": [
+            "mcp",
+            "start"
+          ]
+        },
+        "playwright": {
+          "type": "local",
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp@latest"
+          ],
+          "tools": [
+            "*"
+          ]
+        }
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Claude Code" id="claude">
+    `.mcp.json` を作成または更新します:
+
+    ```json title=".mcp.json"
+    {
+      "mcpServers": {
+        "aspire": {
+          "command": "aspire",
+          "args": [
+            "mcp",
+            "start"
+          ]
+        },
+        "playwright": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@playwright/mcp@latest"
+          ]
+        }
+      }
+    }
+    ```
+
+    <Aside type="note">
+    Windows では、`npx` のようなコマンドを正しく実行するために `cmd.exe /c` のプレフィックスが必要です。これは、MCP 構成のクロスプラットフォームでの可搬性に影響します。詳細については、[GitHub issue #14000](https://github.com/anthropics/claude-code/issues/14000) を参照してください。
+    </Aside>
+  </TabItem>
+  <TabItem label="OpenCode" id="opencode">
+    `opencode.jsonc` を作成または更新します:
+
+    ```jsonc title="opencode.jsonc"
+    {
+      "mcp": {
+        "aspire": {
+          "type": "local",
+          "command": [
+            "aspire",
+            "mcp",
+            "start"
+          ],
+          "enabled": true
+        },
+        "playwright": {
+          "type": "local",
+          "command": [
+            "npx",
+            "-y",
+            "@playwright/mcp@latest"
+          ],
+          "enabled": true
+        }
+      }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## 最初のプロンプト
+
+MCP サーバーを構成したら、お好みのエージェント型コーディング環境を起動します。Aspire MCP サーバーは自動的に起動して接続され、実行中の Aspire アプリケーションへのアクセスが AI アシスタントに提供されます。
+
+次のように AI アシスタントに尋ねてみてください:
+
+> 「すべてのリソースは実行中ですか？」
+
+> 「RESOURCE_NAME の HTTP リクエストのパフォーマンスを分析してください。」
+
+> 「正常でないリソースを再起動してください。」
+
+<Tabs>
+  <TabItem label="VS Code" id="demo-vscode">
+    <LoopingVideo
+      aria-label="Aspire MCP を使用してリソースを一覧表示する、GitHub Copilot 連携の VS Code"
+      controls={true}
+      sources={[
+        {
+          src: "/mcp-vscode-list-resources.mp4",
+          type: "video/mp4",
+          title: "GitHub Copilot との Aspire MCP 統合を示す VS Code"
+        }
+      ]}
+    />
+  </TabItem>
+  <TabItem label="Claude Code" id="demo-claude">
+    <AsciinemaPlayer 
+      src="/casts/mcp-claudecode-cli.cast"
+      poster="npt:0:27"
+      autoPlay={true}
+      cols={256}
+      rows={28} />
+  </TabItem>
+  <TabItem label="Copilot CLI" id="demo-copilot">
+    <AsciinemaPlayer 
+      src="/casts/mcp-copilot-cli.cast"
+      poster="npt:0:22"
+      autoPlay={true}
+      cols={256}
+      rows={28} />
+  </TabItem>
+  <TabItem label="OpenCode" id="demo-opencode">
+    <AsciinemaPlayer 
+      src="/casts/mcp-opencode-cli.cast"
+      poster="npt:0:14"
+      autoPlay={true}
+      cols={256}
+      rows={28} />
+  </TabItem>
+</Tabs>
+
+## ツール
+
+Aspire MCP サーバーは、次のツールを提供します:
+
+- `list_resources` - すべてのリソースを一覧表示します。状態、ヘルス ステータス、ソース、エンドポイント、コマンドを含みます。
+- `list_console_logs` - 指定したリソースのコンソール ログを一覧表示します。
+- `list_structured_logs` - 構造化ログを一覧表示します。オプションでリソース名によるフィルターが可能です。
+- `list_traces` - 分散トレースを一覧表示します。オプションのリソース名パラメーターでフィルターできます。
+- `list_trace_structured_logs` - 特定のトレースに関連する構造化ログを一覧表示します。
+- `execute_resource_command` - リソース コマンドを実行します。このツールは、リソース名とコマンド名のパラメーターを受け取ります。
+- `list_apphosts` - Aspire MCP サーバーによって現在検出されているすべての AppHost 接続を一覧表示します。作業ディレクトリのスコープ内にある AppHost と、スコープ外にあるものの両方を表示します。
+- `select_apphost` - 複数の AppHost が実行中の場合に、使用する AppHost を選択します。パスは完全修飾パス、またはワークスペース ルートからの相対パスを指定できます。
+- `list_integrations` - 利用可能な Aspire ホスティング統合を一覧表示します。これらは NuGet パッケージであり、Aspire AppHost プロジェクトに追加することで、データベース、メッセージ ブローカー、クラウド サービスなどの各種サービスと統合できます。
+- `get_integration_docs` - 特定の Aspire ホスティング統合パッケージのドキュメントを取得します。AppHost 内で統合をどのように使用するかについての詳細情報を取得するために使用します。
+
+既定では、すべてのリソース、コンソール ログ、およびテレメトリは Aspire MCP からアクセス可能です。リソースおよび関連するテレメトリを MCP の結果から除外するには、AppHost 内でそのリソースに `ExcludeFromMcp()` を注釈として指定します。
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiservice = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    .ExcludeFromMcp();
+
+builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(apiService);
+
+builder.Build().Run();
+```
+
+## サポートされている AI アシスタント
+
+`aspire mcp init` コマンドは、次の AI アシスタントをサポートしています:
+
+- [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)
+- [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli#add-an-mcp-server)
+- [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
+- [OpenCode](https://opencode.ai/docs/mcp-servers/)
+
+<Aside type="note">
+Aspire MCP サーバーは STDIO トランスポート プロトコルを使用しており、この MCP 通信プロトコルをサポートする他のエージェント型コーディング環境でも動作する可能性があります。
+</Aside>
+
+## トラブルシューティング
+
+Aspire MCP は AI アシスタントとシームレスに連携するよう設計されていますが、環境によってはセットアップ時に問題が発生する場合があります。問題が発生した場合は、既知の問題と解決策について [GitHub 上に公開中の MCP イシュー](https://github.com/dotnet/aspire/issues?q=is%3Aissue+is%3Aopen+label%3Aarea-mcp)  を確認してください。
+
+## 制限事項
+
+Aspire MCP は強力なツールですが、使用する際にはいくつか留意すべき点があります。
+
+### データ サイズ
+
+AI モデルには、一度に処理できるデータ量に制限があります。そのため、Aspire MCP は必要に応じてツールから返されるデータ量を制限する場合があります。
+
+- 大きなデータ フィールド（例：長い例外のスタック トレース）は切り詰められる場合があります。
+- 大量のテレメトリを含む要求では、古い項目を省略することで内容が短縮される場合があります。
+
+## 関連項目
+
+- [aspire mcp コマンド](/ja/reference/cli/commands/aspire-mcp/)
+- [aspire mcp init コマンド](/ja/reference/cli/commands/aspire-mcp-init/)
+- [aspire mcp start コマンド](/ja/reference/cli/commands/aspire-mcp-start/)
+- [ダッシュボードでの GitHub Copilot](/ja/dashboard/copilot/)
