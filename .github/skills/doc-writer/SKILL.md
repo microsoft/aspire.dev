@@ -500,7 +500,7 @@ Recordings are stored in `src/frontend/public/casts/`. Check for existing record
 - `aspire-new.cast` - Shows project creation with `aspire new`
 - `aspire-run.cast` - Shows running an Aspire app
 - `aspire-help.cast` - Shows CLI help output
-- `mcp-init.cast` - Shows MCP initialization
+- `agent-init.cast` - Shows agent init command
 
 #### Using AsciinemaPlayer
 
