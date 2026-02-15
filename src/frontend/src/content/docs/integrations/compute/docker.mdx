@@ -206,6 +206,52 @@ builder.AddDockerComposeEnvironment("compose")
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
 
+## Configure image pull policy
+
+Container resources support an `ImagePullPolicy` that controls when the container runtime pulls an image. The following policies are available:
+
+| Policy | Description |
+|--------|-------------|
+| `Default` | Uses the container runtime's default behavior. |
+| `Always` | Always pulls the image, even if it already exists locally. |
+| `Missing` | Pulls the image only if it doesn't already exist locally. |
+| `Never` | Never pulls the image from a registry. The image must already exist locally. |
+
+Use the `WithImagePullPolicy` extension method to set the policy on a container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("mycontainer", "myimage:latest")
+    .WithImagePullPolicy(ImagePullPolicy.Always);
+```
+
+### Use `Never` with locally-built images
+
+The `Never` policy is useful when working with locally-built images that shouldn't be pulled from a registry. For example, when using a Dockerfile-based resource that you build and tag locally:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "my-local-image:dev")
+    .WithImagePullPolicy(ImagePullPolicy.Never);
+```
+
+<Aside type="tip">
+  The `Never` policy was added in Aspire 13.2. If the image isn't available locally when using this policy, the container will fail to start.
+</Aside>
+
+### Image pull policy in Docker Compose
+
+When you publish resources to a Docker Compose environment, the `ImagePullPolicy` set with `WithImagePullPolicy` is automatically mapped to the Docker Compose [`pull_policy`](https://docs.docker.com/reference/compose-file/services/#pull_policy) field on the generated service:
+
+| `ImagePullPolicy` | Docker Compose `pull_policy` |
+|--------------------|------------------------------|
+| `Always` | `always` |
+| `Missing` | `missing` |
+| `Never` | `never` |
+| `Default` | _(omitted — uses runtime default)_ |
+
 ## Customize container image push options
 
 When deploying containers, you can customize how container images are named and tagged when pushed to a registry. This is useful when you need to:
