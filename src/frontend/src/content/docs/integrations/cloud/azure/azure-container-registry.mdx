@@ -109,6 +109,22 @@ The preceding code:
 - Uses parameters to allow for dynamic configuration of the registry name and resource group.
 - Optionally grants the `AcrPush` role to a project resource named `api`, allowing it to push images to the registry.
 
+### Access the registry from a compute environment
+
+Compute environments such as `AzureContainerAppEnvironment` and `AzureAppServiceEnvironment` automatically provision a default Azure Container Registry. You can also specify an explicit registry with `WithAzureContainerRegistry`. In either case, access the registry through the `ContainerRegistry` property:
+
+```csharp title="C# — Access the registry from the compute environment"
+var env = builder.AddAzureContainerAppEnvironment("env");
+
+// A default registry is auto-provisioned — no need to call
+// WithAzureContainerRegistry unless you want a specific one
+var registry = env.Resource.ContainerRegistry;
+```
+
+<Aside type="caution">
+  The `IAzureContainerRegistry` interface is obsolete as of Aspire 13.2. If your code casts a compute environment to `IAzureContainerRegistry`, migrate to the `ContainerRegistry` property on `IAzureComputeEnvironmentResource` instead. For more information, see [What's new in Aspire 13.2](/whats-new/aspire-13-2/#-breaking-changes).
+</Aside>
+
 ### Key features
 
 **Automatic credential flow**
