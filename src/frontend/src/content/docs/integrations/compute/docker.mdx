@@ -41,17 +41,14 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var compose = builder.AddDockerComposeEnvironment("compose");
 
-var cache = builder.AddRedis("cache")
-                   .PublishAsDockerComposeService((resource, service) => { });
+var cache = builder.AddRedis("cache");
 
 var api = builder.AddProject<Projects.Api>("api")
-                 .WithReference(cache)
-                 .PublishAsDockerComposeService((resource, service) => { });
+                 .WithReference(cache);
 
 var web = builder.AddProject<Projects.Web>("web")
                  .WithReference(cache)
-                 .WithReference(api)
-                 .PublishAsDockerComposeService((resource, service) => { });
+                 .WithReference(api);
 
 builder.Build().Run();
 ```
@@ -62,7 +59,8 @@ The preceding code:
 - Adds a Redis cache service that will be included in the Docker Compose deployment
 - Adds an API service project that will be containerized and included in the deployment
 - Adds a web application that references both the cache and API service
-- Configures all services to be published as Docker Compose services using `PublishAsDockerComposeService`
+
+When a Docker Compose environment is present, all resources are automatically published as Docker Compose services — no additional opt-in is required.
 
 <Aside type="tip">
   With the `compose` variable assigned, you can pass that to the
@@ -206,6 +204,27 @@ builder.AddDockerComposeEnvironment("compose")
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
 
+### Customize a Docker Compose service
+
+To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+builder.AddContainer("cache", "redis", "latest")
+    .PublishAsDockerComposeService((resource, service) =>
+    {
+        // Customize the generated Docker Compose service
+        service.Labels.Add("com.example.team", "backend");
+    });
+
+builder.Build().Run();
+```
+
+The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, or other Docker Compose service settings.
+
 ## Configure image pull policy
 
 Container resources support an `ImagePullPolicy` that controls when the container runtime pulls an image. The following policies are available:
@@ -268,7 +287,6 @@ Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image refere
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService((resource, service) => { })
     .WithRemoteImageName("myorg/myapi")
     .WithRemoteImageTag("v1.0.0");
 
@@ -283,7 +301,6 @@ For more complex scenarios, use `WithImagePushOptions` to register a callback th
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService((resource, service) => { })
     .WithImagePushOptions(context =>
     {
         // Customize the image name based on the resource
@@ -305,7 +322,6 @@ For asynchronous operations (such as retrieving configuration from external sour
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService((resource, service) => { })
     .WithImagePushOptions(async context =>
     {
         // Retrieve configuration asynchronously
@@ -343,7 +359,6 @@ var registry = builder.AddContainerRegistry(
 
 // Associate resources with the registry
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService((resource, service) => { })
     .WithContainerRegistry(registry);
 
 // After adding all resources, run the app...
@@ -370,7 +385,6 @@ var registry = builder.AddContainerRegistry(
 );
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService((resource, service) => { })
     .WithContainerRegistry(registry);
 ```
 
