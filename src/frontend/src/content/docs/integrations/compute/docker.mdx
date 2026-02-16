@@ -42,16 +42,16 @@ var builder = DistributedApplication.CreateBuilder(args);
 var compose = builder.AddDockerComposeEnvironment("compose");
 
 var cache = builder.AddRedis("cache")
-                   .PublishAsDockerComposeService();
+                   .PublishAsDockerComposeService((resource, service) => { });
 
 var api = builder.AddProject<Projects.Api>("api")
                  .WithReference(cache)
-                 .PublishAsDockerComposeService();
+                 .PublishAsDockerComposeService((resource, service) => { });
 
 var web = builder.AddProject<Projects.Web>("web")
                  .WithReference(cache)
                  .WithReference(api)
-                 .PublishAsDockerComposeService();
+                 .PublishAsDockerComposeService((resource, service) => { });
 
 builder.Build().Run();
 ```
@@ -268,7 +268,7 @@ Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image refere
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { })
     .WithRemoteImageName("myorg/myapi")
     .WithRemoteImageTag("v1.0.0");
 
@@ -283,7 +283,7 @@ For more complex scenarios, use `WithImagePushOptions` to register a callback th
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { })
     .WithImagePushOptions(context =>
     {
         // Customize the image name based on the resource
@@ -305,7 +305,7 @@ For asynchronous operations (such as retrieving configuration from external sour
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { })
     .WithImagePushOptions(async context =>
     {
         // Retrieve configuration asynchronously
@@ -343,7 +343,7 @@ var registry = builder.AddContainerRegistry(
 
 // Associate resources with the registry
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { })
     .WithContainerRegistry(registry);
 
 // After adding all resources, run the app...
@@ -370,7 +370,7 @@ var registry = builder.AddContainerRegistry(
 );
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { })
     .WithContainerRegistry(registry);
 ```
 
