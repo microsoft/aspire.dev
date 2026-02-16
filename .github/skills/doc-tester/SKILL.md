@@ -697,7 +697,7 @@ The aspire.dev documentation uses asciinema recordings (`.cast` files) to show t
 - `aspire-version.cast` - Shows `aspire --version` command
 - `aspire-new.cast` - Shows project creation
 - `aspire-run.cast` - Shows running an Aspire app
-- `mcp-init.cast` - Shows MCP initialization
+- `agent-init.cast` - Shows agent init command
 
 When testing CLI documentation, consider whether an asciinema recording would better demonstrate the command output than a static code block.
 
