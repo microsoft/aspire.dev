@@ -286,20 +286,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
             {
-              label: 'aspire mcp',
+              label: 'aspire agent',
               collapsed: true,
               items: [
                 {
-                  label: 'aspire mcp',
-                  slug: 'reference/cli/commands/aspire-mcp',
+                  label: 'aspire agent',
+                  slug: 'reference/cli/commands/aspire-agent',
                 },
                 {
-                  label: 'aspire mcp init',
-                  slug: 'reference/cli/commands/aspire-mcp-init',
+                  label: 'aspire agent init',
+                  slug: 'reference/cli/commands/aspire-agent-init',
                 },
                 {
-                  label: 'aspire mcp start',
-                  slug: 'reference/cli/commands/aspire-mcp-start',
+                  label: 'aspire agent mcp',
+                  slug: 'reference/cli/commands/aspire-agent-mcp',
                 },
               ],
             },
