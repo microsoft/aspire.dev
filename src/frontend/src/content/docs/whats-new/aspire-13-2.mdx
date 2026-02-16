@@ -444,17 +444,32 @@ Some connection properties have been updated for consistency. If your polyglot a
 
 ### IAzureContainerRegistry obsolete
 
-The `IAzureContainerRegistry` interface is now obsolete. Use the `ContainerRegistry` property on compute environments instead:
+The `IAzureContainerRegistry` interface is now obsolete. Previously, accessing container registry information from a compute environment required casting the environment to `IAzureContainerRegistry`. This mixed resource identity with deployment-target concerns. In Aspire 13.2, a new `IAzureContainerRegistryResource` interface models the registry as a proper resource, and you access it through the `ContainerRegistry` property on `IAzureComputeEnvironmentResource`.
 
-```csharp title="C# — Container registry access (before)" data-disable-copy
-// Before (Aspire 13.1)
+```csharp title="C# — Before: casting to IAzureContainerRegistry" data-disable-copy
+// Aspire 13.1 — cast the compute environment
 var registry = environment as IAzureContainerRegistry;
+if (registry is not null)
+{
+    var name = registry.Name;
+    var endpoint = registry.Endpoint;
+    var managedIdentityId = registry.ManagedIdentityId;
+}
 ```
 
-```csharp title="C# — Container registry access (after)"
-// After (Aspire 13.2)
+```csharp title="C# — After: using the ContainerRegistry property"
+// Aspire 13.2 — access directly from the compute environment
 var registry = environment.ContainerRegistry;
+if (registry is not null)
+{
+    var name = registry.Name;
+    var endpoint = registry.Endpoint;
+}
 ```
+
+<Aside type="note">
+  The `ManagedIdentityId` property is no longer on the container registry interface. Managed identity is now handled at the compute environment level.
+</Aside>
 
 ### Migration from Aspire 13.1 to 13.2
 
@@ -464,7 +479,7 @@ var registry = environment.ContainerRegistry;
 2. **Update your projects**: Run `aspire update` in your project directory.
 3. **Run aspire doctor**: Validate your environment with `aspire doctor`.
 4. **Review event handlers**: Check any `BeforeResourceStartedEvent` handlers for compatibility.
-5. **Update Azure container registry access**: Replace `IAzureContainerRegistry` casts with `ContainerRegistry` property access.
+5. **Update Azure container registry access**: Replace any `IAzureContainerRegistry` casts with the `ContainerRegistry` property on `IAzureComputeEnvironmentResource`. Remove any references to `ManagedIdentityId` on the registry interface.
 
 </Steps>
 
