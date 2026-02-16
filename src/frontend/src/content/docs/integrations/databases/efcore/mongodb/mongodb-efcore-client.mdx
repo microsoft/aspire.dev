@@ -1,0 +1,254 @@
+---
+title: MongoDB Entity Framework Core client integration
+description: Learn how to use the MongoDB Entity Framework Core client integration to interact with MongoDB instances.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import mongodbIcon from '@assets/icons/mongodb-icon.png';
+
+<Image
+  src={mongodbIcon}
+  alt="MongoDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire MongoDB Entity Framework Core (EF Core) client integration, install the [📦 Aspire.MongoDB.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.MongoDB.EntityFrameworkCore) NuGet package in the client-consuming project, that is, the project for the application that uses the MongoDB client. The Aspire MongoDB EF Core client integration registers your desired `DbContext` subclass instances that you can use to interact with MongoDB.
+
+<InstallDotNetPackage packageName='Aspire.MongoDB.EntityFrameworkCore' />
+
+For an introduction to the MongoDB EF Core integration, see [Get started with the MongoDB Entity Framework Core integrations](/integrations/databases/efcore/mongodb/mongodb-efcore-get-started/).
+
+## Add MongoDB database context
+
+In the `Program.cs` file of your client-consuming project, call the `AddMongoDbContext` extension method on any `IHostApplicationBuilder` to register your `Microsoft.EntityFrameworkCore.DbContext` subclass for use via the dependency injection container. The method takes a connection name parameter, and optionally a database name.
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDbContext<MyDbContext>(
+    connectionName: "mydb");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the MongoDB server resource in the AppHost project. For more information, see [Add MongoDB server and database resources](/integrations/databases/mongodb/mongodb-host/#add-mongodb-server-and-database-resources).
+</Aside>
+
+After adding `MyDbContext` to the builder, you can get the `MyDbContext` instance using dependency injection. For example, to retrieve your data source object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp
+public class ExampleService(MyDbContext context)
+{
+    // Use context...
+}
+```
+
+For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
+
+### Specify database name
+
+MongoDB connection strings don't always include a database name, so you may need to provide one. The database name is resolved in the following order:
+
+1. **Explicit parameter**: Pass `databaseName` as the second parameter to `AddMongoDbContext`.
+2. **Configuration**: Set the `DatabaseName` property in the `Aspire:MongoDB:EntityFrameworkCore` configuration section.
+3. **Connection string**: If the connection string includes a database name (e.g., `mongodb://server:port/mydb`), it's extracted automatically.
+
+```csharp title="C# — Explicit database name"
+builder.AddMongoDbContext<MyDbContext>("mongodb", "mydb");
+```
+
+<Aside type="note">
+  When using `AddDatabase` in the AppHost, the database name is included in the generated connection string, so you typically don't need to specify it separately.
+</Aside>
+
+## Enrich a MongoDB database context
+
+You may prefer to use the standard EF Core method to obtain a database context and add it to the dependency injection container:
+
+```csharp title="C# — Program.cs"
+builder.Services.AddDbContextPool<MyDbContext>(options =>
+    options.UseMongoDB(
+        builder.Configuration.GetConnectionString("mydb")!,
+        "mydb"));
+```
+
+<Aside type="note">
+  The connection string name that you pass to the `GetConnectionString` method must match the name used when adding the MongoDB server resource in the AppHost project. For more information, see [Add MongoDB server and database resources](/integrations/databases/mongodb/mongodb-host/#add-mongodb-server-and-database-resources).
+</Aside>
+
+You have more flexibility when you create the database context in this way, for example:
+
+- You can reuse existing configuration code for the database context without rewriting it for Aspire.
+- You can use Entity Framework Core interceptors to modify database operations.
+- You can choose not to use Entity Framework Core context pooling, which may perform better in some circumstances.
+
+If you use this method, you can enhance the database context with Aspire-style health checks, logging, and telemetry features by calling the `EnrichMongoDbContext` method:
+
+```csharp title="C# — Program.cs"
+builder.EnrichMongoDbContext<MyDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableHealthChecks = false;
+        settings.DisableTracing = false;
+    });
+```
+
+The `settings` parameter is an instance of the `MongoDBEntityFrameworkCoreSettings` class.
+
+## Configuration
+
+The Aspire MongoDB EF Core integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling the `AddMongoDbContext` method:
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDbContext<MyDbContext>("mydb");
+```
+
+The connection string is retrieved from the `ConnectionStrings` configuration section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "mydb": "mongodb://server:port/mydb"
+  }
+}
+```
+
+If your connection string doesn't include a database name, you can provide it as the second parameter:
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDbContext<MyDbContext>("mongodb", "mydb");
+```
+
+The `EnrichMongoDbContext` won't make use of the `ConnectionStrings` configuration section since it expects a `DbContext` to be registered at the point it's called.
+
+For more information, see the [MongoDB connection string documentation](https://www.mongodb.com/docs/v3.0/reference/connection-string/).
+
+### Use configuration providers
+
+The Aspire MongoDB EF Core integration supports `Microsoft.Extensions.Configuration`. It loads the `MongoDBEntityFrameworkCoreSettings` from configuration files such as `appsettings.json` by using the `Aspire:MongoDB:EntityFrameworkCore` key. If you have set up your configurations in the `Aspire:MongoDB:EntityFrameworkCore` section you can just call the method without passing any parameter.
+
+The following example shows an `appsettings.json` file that configures some of the available options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "MongoDB": {
+      "EntityFrameworkCore": {
+        "DatabaseName": "mydb",
+        "DisableHealthChecks": true,
+        "DisableTracing": false,
+        "HealthCheckTimeout": 5000
+      }
+    }
+  }
+}
+```
+
+For the complete MongoDB EF Core client integration JSON schema, see [Aspire.MongoDB.EntityFrameworkCore/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.MongoDB.EntityFrameworkCore/ConfigurationSchema.json).
+
+### Use inline delegates
+
+You can also pass the `Action<MongoDBEntityFrameworkCoreSettings>` delegate to set up some or all the options inline, for example to disable health checks from code:
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDbContext<MyDbContext>(
+    "mydb",
+    configureSettings: static settings =>
+        settings.DisableHealthChecks = true);
+```
+
+or
+
+```csharp title="C# — Program.cs"
+builder.EnrichMongoDbContext<MyDbContext>(
+    settings => settings.DisableHealthChecks = true);
+```
+
+### Configure multiple DbContext classes
+
+If you want to register more than one `DbContext` with different configuration, you can use `$"Aspire:MongoDB:EntityFrameworkCore:{typeof(TContext).Name}"` configuration section name. The json configuration would look like:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "MongoDB": {
+      "EntityFrameworkCore": {
+        "ConnectionString": "mongodb://server:port/mydb",
+        "DatabaseName": "mydb",
+        "DisableHealthChecks": true,
+        "AnotherDbContext": {
+          "ConnectionString": "mongodb://server:port/anotherdb",
+          "DatabaseName": "anotherdb",
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+Then calling the `AddMongoDbContext` method with `AnotherDbContext` type parameter would load the settings from `AnotherDbContext` section.
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDbContext<AnotherDbContext>("mongodb");
+```
+
+## MongoDB Driver integration vs. EF Core integration
+
+The Aspire MongoDB integration comes in two flavors:
+
+- **[Aspire.MongoDB.Driver](/integrations/databases/mongodb/mongodb-client/)**: Provides direct access to the MongoDB driver via `IMongoClient`. Use this when you want full control over MongoDB queries, need features not supported by EF Core (such as aggregation pipelines), or prefer the native MongoDB programming model.
+- **Aspire.MongoDB.EntityFrameworkCore** (this page): Provides an EF Core `DbContext` backed by MongoDB. Use this when you want to leverage EF Core's familiar patterns—change tracking, LINQ queries, and `DbSet<T>` abstractions—with MongoDB as the data store.
+
+Both integrations use the same hosting integration ([Aspire.Hosting.MongoDB](/integrations/databases/mongodb/mongodb-host/)) in the AppHost.
+
+## Health checks and observability
+
+By default, the Aspire MongoDB EF Core integration handles the following:
+
+- Adds the `DbContextHealthCheck`, which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
+
+### Logging
+
+The Aspire MongoDB Entity Framework Core integration uses the following log categories:
+
+- `Microsoft.EntityFrameworkCore.ChangeTracking`
+- `Microsoft.EntityFrameworkCore.Database.Command`
+- `Microsoft.EntityFrameworkCore.Database.Connection`
+- `Microsoft.EntityFrameworkCore.Database.Transaction`
+- `Microsoft.EntityFrameworkCore.Infrastructure`
+- `Microsoft.EntityFrameworkCore.Migrations`
+- `Microsoft.EntityFrameworkCore.Model`
+- `Microsoft.EntityFrameworkCore.Model.Validation`
+- `Microsoft.EntityFrameworkCore.Query`
+- `Microsoft.EntityFrameworkCore.Update`
+
+### Tracing
+
+The Aspire MongoDB EF Core integration will emit the following tracing activities using OpenTelemetry:
+
+- `MongoDB.Driver.Core.Extensions.DiagnosticSources`
+
+### Metrics
+
+The Aspire MongoDB EF Core integration will emit the following metrics using OpenTelemetry:
+
+- Microsoft.EntityFrameworkCore:
+  - `ec_Microsoft_EntityFrameworkCore_active_db_contexts`
+  - `ec_Microsoft_EntityFrameworkCore_total_queries`
+  - `ec_Microsoft_EntityFrameworkCore_queries_per_second`
+  - `ec_Microsoft_EntityFrameworkCore_total_save_changes`
+  - `ec_Microsoft_EntityFrameworkCore_save_changes_per_second`
+  - `ec_Microsoft_EntityFrameworkCore_compiled_query_cache_hit_rate`
+  - `ec_Microsoft_Entity_total_execution_strategy_operation_failures`
+  - `ec_Microsoft_E_execution_strategy_operation_failures_per_second`
+  - `ec_Microsoft_EntityFramew_total_optimistic_concurrency_failures`
+  - `ec_Microsoft_EntityF_optimistic_concurrency_failures_per_second`
