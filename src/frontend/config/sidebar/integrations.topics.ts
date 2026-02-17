@@ -135,7 +135,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         { label: 'Ollama', slug: 'integrations/ai/ollama' },
-        { label: 'OpenAI', slug: 'integrations/ai/openai' },
+        {
+          label: 'OpenAI',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/openai/openai-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/ai/openai/openai-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/ai/openai/openai-client',
+            },
+          ],
+        },
       ],
     },
     {
