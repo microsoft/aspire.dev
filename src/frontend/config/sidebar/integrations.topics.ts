@@ -1044,7 +1044,26 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Спостережуваність та ведення журналів',
         'zh-CN': '可观察性与日志记录',
       },
-      items: [{ label: 'Seq', slug: 'integrations/observability/seq' }],
+      items: [
+        {
+          label: 'Seq',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/observability/seq/seq-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/observability/seq/seq-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/observability/seq/seq-client',
+            },
+          ],
+        },
+      ],
     },
     {
       label: 'Reverse proxies & APIs',
