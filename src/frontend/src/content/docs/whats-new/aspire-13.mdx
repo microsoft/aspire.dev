@@ -1653,6 +1653,62 @@ var app = builder.AddNodeApp("frontend", "../frontend", "server.js")
     .WithRunScript("dev");
 ```
 
+#### DefaultAzureCredential behavior in Azure deployments
+
+Aspire 13.0 changes the default behavior of `DefaultAzureCredential` when deploying to Azure Container Apps and Azure App Service to use only `ManagedIdentityCredential`.
+
+**What changed:**
+
+When you deploy to Azure Container Apps or Azure App Service, Aspire now automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable to `managedidentity`. This forces `DefaultAzureCredential` to behave deterministically by only using `ManagedIdentityCredential`, instead of attempting other credential types like `EnvironmentCredential` or `WorkloadIdentityCredential` first.
+
+**Why this change:**
+
+- **Deterministic behavior**: Ensures `DefaultAzureCredential` always uses `ManagedIdentityCredential` in production.
+- **Optimized resilience**: Enables retry logic and disables probe requests for improved performance.
+- **Best practices**: Aligns with [Azure SDK authentication best practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
+
+**Previous behavior (9.x):**
+
+`DefaultAzureCredential` used the full chain of credential types, attempting `EnvironmentCredential` and `WorkloadIdentityCredential` before `ManagedIdentityCredential`.
+
+**New behavior (13.0):**
+
+`DefaultAzureCredential` only uses `ManagedIdentityCredential` when the `AZURE_TOKEN_CREDENTIALS` environment variable is set to `managedidentity`.
+
+**Affected APIs:**
+
+- `AddAzureContainerAppEnvironment`
+- `AddAzureAppServiceEnvironment`
+
+**Migration:**
+
+If you were relying on `EnvironmentCredential` or `WorkloadIdentityCredential` in your application, choose one of the following options:
+
+1. **Use explicit credentials**: Don't use `DefaultAzureCredential` in your application. Instead, explicitly use the specific credential type you need (e.g., `EnvironmentCredential` or `WorkloadIdentityCredential`).
+
+2. **Remove the environment variable**: Implement a callback to remove the `AZURE_TOKEN_CREDENTIALS` environment variable from the deployment:
+
+   ```csharp
+   // For Azure Container Apps
+   builder.AddProject<Projects.Frontend>("frontend")
+       .PublishAsAzureContainerApp((infra, app) =>
+       {
+           var containerAppContainer = app.Template.Containers[0].Value!;
+           var azureTokenCredentialEnv = containerAppContainer.Env
+               .Single(v => v.Value!.Name.Value == "AZURE_TOKEN_CREDENTIALS");
+           containerAppContainer.Env.Remove(azureTokenCredentialEnv);
+       });
+
+   // For Azure App Service
+   builder.AddProject<Projects.Frontend>("frontend")
+       .PublishAsAzureAppServiceWebsite((infra, website) =>
+       {
+           var azureTokenCredentialSetting = website.AppSettings
+               .Single(v => v.Value!.Name.Value == "AZURE_TOKEN_CREDENTIALS");
+           website.AppSettings.Remove(azureTokenCredentialSetting);
+       });
+   ```
+
 ### Migration guide
 
 #### Migrating from publishing callbacks to pipeline steps
