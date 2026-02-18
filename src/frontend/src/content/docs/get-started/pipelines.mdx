@@ -360,3 +360,430 @@ The pipeline system provides robust failure handling during parallel execution:
 </Steps>
 
 The system maintains comprehensive logging and state information to support efficient debugging and recovery, ensuring that developers can quickly identify and resolve issues while preserving all successful work.
+
+## Using the aspire do command
+
+The `aspire do` command is the primary interface for interacting with the pipeline system. It provides fine-grained control over pipeline execution, allowing you to run specific steps, debug issues, and optimize deployment workflows.
+
+### Basic usage
+
+The command automatically resolves dependencies and executes steps in the correct order:
+
+```bash title="Bash — Basic aspire do usage"
+# Run the default deployment pipeline
+aspire do deploy
+
+# Build all container images
+aspire do build
+
+# Push images to registry
+aspire do push
+
+# Generate deployment artifacts
+aspire do publish
+```
+
+### Command options
+
+The `aspire do` command supports several options for customizing execution:
+
+```bash title="Bash — aspire do with options"
+# Custom output path for artifacts
+aspire do publish --output-path ./artifacts
+
+# Target specific environment
+aspire do deploy --environment Production
+
+# Verbose logging for troubleshooting
+aspire do deploy --log-level debug
+
+# Include exception details in logs
+aspire do deploy --include-exception-details
+```
+
+<LearnMore>
+For complete command reference, see [aspire do command](/reference/cli/commands/aspire-do/).
+</LearnMore>
+
+### Discovering available steps
+
+Before executing pipeline steps, you can discover what steps are available using the `diagnostics` step:
+
+```bash title="Bash — Discover pipeline steps"
+aspire do diagnostics
+```
+
+This command displays:
+- All available steps and their dependencies
+- Execution order with parallelization indicators
+- Step dependencies and target resources
+- Configuration issues like orphaned steps or circular dependencies
+
+**Example diagnostics output:**
+
+```
+Pipeline Steps:
+  ✓ build-apiservice (parallel)
+  ✓ build-frontend (parallel)
+  ✓ provision-database (parallel)
+  → push-apiservice (depends on: build-apiservice, provision-registry)
+  → push-frontend (depends on: build-frontend, provision-registry)
+  → deploy-apiservice (depends on: push-apiservice, provision-database)
+  → deploy-frontend (depends on: push-frontend, deploy-apiservice)
+```
+
+## Custom pipeline steps
+
+The pipeline system allows you to add custom steps to handle application-specific deployment requirements. You can add steps at two levels: application-level steps and resource-level steps.
+
+### Application-level steps
+
+Use `builder.Pipeline.AddStep` to add custom steps that apply to your entire application:
+
+```csharp title="C# — Application-level custom step"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add a custom validation step
+builder.Pipeline.AddStep("validate", async (context) =>
+{
+    context.Logger.LogInformation("Running validation checks...");
+    
+    // Your custom validation logic
+    await ValidateApiEndpoints(context);
+    await CheckDatabaseConnection(context);
+    
+    context.Logger.LogInformation("Validation completed successfully");
+}, requiredBy: WellKnownPipelineSteps.Deploy);
+
+// Define resources
+var database = builder.AddPostgres("db");
+var api = builder.AddProject<Projects.Api>("api").WithReference(database);
+
+builder.Build().Run();
+```
+
+You can then run this custom step:
+
+```bash title="Bash — Run custom step"
+aspire do validate
+```
+
+### Resource-level steps
+
+Resources can contribute their own pipeline steps using `WithPipelineStepFactory`:
+
+```csharp title="C# — Resource-level custom step"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPipelineStepFactory(context =>
+    {
+        return new PipelineStep()
+        {
+            Name = "custom-api-deploy",
+            Action = async (pipelineContext, cancellationToken) =>
+            {
+                // Custom deployment logic for this resource
+                pipelineContext.Logger.LogInformation("Custom API deployment starting...");
+                
+                // Your deployment logic here
+                await DeployApiAsync(pipelineContext, cancellationToken);
+                
+                pipelineContext.Logger.LogInformation("Custom API deployment completed");
+            },
+            RequiredBySteps = [WellKnownPipelineSteps.Deploy]
+        };
+    });
+```
+
+### Step dependencies
+
+Control step execution order using dependencies:
+
+```csharp title="C# — Step with dependencies"
+// Step that depends on other steps
+builder.Pipeline.AddStep("database-migration", async (context) =>
+{
+    context.Logger.LogInformation("Running database migrations...");
+    await RunMigrations(context);
+}, 
+dependsOn: ["deploy-database"],
+requiredBy: ["deploy-apiservice"]);
+```
+
+**Dependency types:**
+
+- **`dependsOn`**: This step runs after the specified steps complete
+- **`requiredBy`**: This step must complete before the specified steps run
+
+### Pipeline configuration
+
+Resources can also customize how they participate in the pipeline using `WithPipelineConfiguration`:
+
+```csharp title="C# — Custom pipeline configuration"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPipelineConfiguration(config =>
+    {
+        // Skip this resource during certain pipeline steps
+        config.SkipStep(WellKnownPipelineSteps.Push);
+        
+        // Or add custom behavior
+        config.OnStepStarting = (step) =>
+        {
+            Console.WriteLine($"Starting step: {step.Name}");
+        };
+    });
+```
+
+## Common use cases
+
+### Multi-environment deployments
+
+Create environment-specific pipeline steps:
+
+```csharp title="C# — Multi-environment deployment"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add environment-specific validation
+builder.Pipeline.AddStep("validate-production", async (context) =>
+{
+    if (context.Environment == "Production")
+    {
+        context.Logger.LogInformation("Running production-specific validations...");
+        await ValidateProductionReadiness(context);
+    }
+}, requiredBy: WellKnownPipelineSteps.Deploy);
+
+// Add post-deployment smoke tests
+builder.Pipeline.AddStep("smoke-tests", async (context) =>
+{
+    context.Logger.LogInformation("Running smoke tests...");
+    await RunSmokeTests(context);
+}, 
+dependsOn: [WellKnownPipelineSteps.Deploy]);
+
+builder.Build().Run();
+```
+
+Deploy to different environments:
+
+```bash title="Bash — Deploy to specific environment"
+# Deploy to staging
+aspire do deploy --environment Staging
+
+# Deploy to production
+aspire do deploy --environment Production
+```
+
+### Custom build steps
+
+Add custom build logic that integrates with the pipeline:
+
+```csharp title="C# — Custom build step"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add custom pre-build step
+builder.Pipeline.AddStep("generate-assets", async (context) =>
+{
+    context.Logger.LogInformation("Generating static assets...");
+    await GenerateStaticAssets(context);
+}, requiredBy: WellKnownPipelineSteps.Build);
+
+// Add custom post-build step
+builder.Pipeline.AddStep("optimize-images", async (context) =>
+{
+    context.Logger.LogInformation("Optimizing container images...");
+    await OptimizeImages(context);
+}, 
+dependsOn: [WellKnownPipelineSteps.Build],
+requiredBy: [WellKnownPipelineSteps.Push]);
+
+builder.Build().Run();
+```
+
+### Database migrations
+
+Integrate database migrations into the deployment pipeline:
+
+```csharp title="C# — Database migrations step"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var database = builder.AddPostgres("db");
+
+// Add migration step that runs after database is provisioned
+builder.Pipeline.AddStep("migrate-database", async (context) =>
+{
+    context.Logger.LogInformation("Running database migrations...");
+    
+    // Get database connection string from context
+    var connectionString = await GetConnectionString(context, database);
+    
+    // Run migrations
+    await RunDatabaseMigrations(connectionString, context.Logger);
+    
+    context.Logger.LogInformation("Database migrations completed");
+}, 
+dependsOn: ["provision-database"],
+requiredBy: ["deploy-apiservice"]);
+
+var api = builder.AddProject<Projects.Api>("api").WithReference(database);
+
+builder.Build().Run();
+```
+
+## Migrating from publishing callbacks
+
+Aspire 13.0 replaces the publishing callback system with the more flexible pipeline system. If you're upgrading from Aspire 9.x, you'll need to migrate your code.
+
+### What changed
+
+The old publishing callback system has been removed and replaced with pipeline steps:
+
+**Removed APIs:**
+- `WithPublishingCallback` extension method
+- `PublishingContext` and `PublishingCallbackAnnotation`
+- `DeployingContext` and `DeployingCallbackAnnotation`
+- `IDistributedApplicationPublisher` interface
+
+**New APIs:**
+- `WithPipelineStepFactory` extension method
+- `PipelineStep` class
+- `builder.Pipeline.AddStep` method
+
+### Migration steps
+
+<Steps>
+
+1. **Identify publishing callbacks** in your code that use `WithPublishingCallback`
+2. **Convert to pipeline steps** using `WithPipelineStepFactory` or `builder.Pipeline.AddStep`
+3. **Update dependencies** using `DependsOn` and `RequiredBySteps` properties
+4. **Test the migration** using `aspire do diagnostics` and `aspire do deploy`
+
+</Steps>
+
+### Before and after examples
+
+#### Resource-level callback
+
+**Before (Aspire 9.x):**
+
+```csharp title="C# — Old publishing callback"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPublishingCallback(async (context, cancellationToken) =>
+    {
+        // Custom deployment logic
+        await CustomDeployAsync(context, cancellationToken);
+    });
+```
+
+**After (Aspire 13.0):**
+
+```csharp title="C# — New pipeline step"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPipelineStepFactory(context =>
+    {
+        return new PipelineStep()
+        {
+            Name = "custom-deploy-api",
+            Action = async (pipelineContext, cancellationToken) =>
+            {
+                // Custom deployment logic
+                await CustomDeployAsync(pipelineContext, cancellationToken);
+            },
+            RequiredBySteps = [WellKnownPipelineSteps.Deploy]
+        };
+    });
+```
+
+#### Application-level callback
+
+**Before (Aspire 9.x):**
+
+```csharp title="C# — Old application-level callback"
+builder.Services.AddLifecycleHook<CustomPublishingHook>();
+
+public class CustomPublishingHook : IDistributedApplicationLifecycleHook
+{
+    public async Task AfterEndpointsAllocatedAsync(
+        DistributedApplicationModel model,
+        CancellationToken cancellationToken)
+    {
+        // Custom logic
+        await SendDeploymentNotification();
+    }
+}
+```
+
+**After (Aspire 13.0):**
+
+```csharp title="C# — New pipeline step"
+builder.Pipeline.AddStep("notify-deployment", async (context) =>
+{
+    // Custom logic
+    await SendDeploymentNotification(context);
+}, 
+dependsOn: [WellKnownPipelineSteps.Deploy]);
+```
+
+#### Complex deployment workflow
+
+**Before (Aspire 9.x):**
+
+```csharp title="C# — Old complex callback"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPublishingCallback(async (context, cancellationToken) =>
+    {
+        // Multiple deployment steps
+        await ProvisionInfrastructure(context);
+        await BuildAndPushImages(context);
+        await RunDatabaseMigrations(context);
+        await DeployApplication(context);
+        await RunSmokeTests(context);
+    });
+```
+
+**After (Aspire 13.0):**
+
+```csharp title="C# — New pipeline steps with dependencies"
+// Break down into discrete steps with dependencies
+builder.Pipeline.AddStep("provision-infra", async (context) =>
+{
+    await ProvisionInfrastructure(context);
+}, requiredBy: [WellKnownPipelineSteps.Build]);
+
+builder.Pipeline.AddStep("migrate-database", async (context) =>
+{
+    await RunDatabaseMigrations(context);
+}, 
+dependsOn: ["provision-infra"],
+requiredBy: ["deploy-application"]);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPipelineStepFactory(context =>
+    {
+        return new PipelineStep()
+        {
+            Name = "deploy-application",
+            Action = async (ctx, ct) => await DeployApplication(ctx, ct),
+            DependsOn = [WellKnownPipelineSteps.Build, WellKnownPipelineSteps.Push]
+        };
+    });
+
+builder.Pipeline.AddStep("smoke-tests", async (context) =>
+{
+    await RunSmokeTests(context);
+}, dependsOn: ["deploy-application"]);
+```
+
+### Benefits of the new system
+
+The pipeline system provides several advantages over publishing callbacks:
+
+- **Better visibility**: Use `aspire do diagnostics` to see all steps and their dependencies
+- **Selective execution**: Run specific steps with `aspire do <step-name>`
+- **Parallel execution**: Independent steps run concurrently automatically
+- **Clearer dependencies**: Explicit dependency declaration with `DependsOn` and `RequiredBySteps`
+- **Better error handling**: Failed steps don't block unrelated operations
+- **Reusability**: Steps can be reused across different deployment scenarios
+
+<Aside type="tip">
+After migrating, use `aspire do diagnostics` to verify that your pipeline steps are correctly configured and that dependencies are properly declared.
+</Aside>
