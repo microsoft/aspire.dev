@@ -8,7 +8,7 @@ interface Feature {
   description: string;
   href: string;
   label?: string;
-  accent?: 'purple' | 'deep' | 'blue' | 'secondary';
+  accent?: 'purple' | 'blue' | 'green' | 'orange';
 }
 
 interface Props {
@@ -18,10 +18,10 @@ interface Props {
 const { features } = Astro.props;
 
 const accentMap: Record<string, string> = {
-  purple: 'var(--aspire-color-primary)',
-  deep: 'var(--aspire-color-purple)',
-  blue: 'var(--color-blue)',
-  secondary: 'var(--aspire-color-secondary)',
+  purple: 'var(--sl-color-purple)',
+  blue: 'var(--sl-color-blue)',
+  green: 'var(--sl-color-green)',
+  orange: 'var(--sl-color-orange)',
 };
 ---
 
@@ -31,7 +31,6 @@ const accentMap: Record<string, string> = {
       const accentColor = accentMap[f.accent ?? 'purple'];
       return (
         <a href={f.href} class="bento-card" style={`--card-accent: ${accentColor}`}>
-          <div class="card-glow" aria-hidden="true" />
           <div class="card-icon">
             <Icon name={f.icon} size="1.75rem" />
           </div>
@@ -74,32 +73,11 @@ const accentMap: Record<string, string> = {
     border-color: color-mix(in srgb, var(--card-accent) 50%, transparent);
     background: color-mix(in srgb, var(--card-accent) 12%, transparent);
     transform: translateY(-2px);
-    box-shadow: 0 6px 24px color-mix(in srgb, var(--card-accent) 18%, transparent);
   }
 
   .bento-card:focus-visible {
     outline: 2px solid var(--sl-color-text);
     outline-offset: 2px;
-  }
-
-  .card-glow {
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(
-      circle at center,
-      color-mix(in srgb, var(--card-accent) 10%, transparent),
-      transparent 70%
-    );
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    opacity: 0;
-  }
-
-  .bento-card:hover .card-glow {
-    opacity: 1;
   }
 
   .card-icon {
@@ -143,9 +121,13 @@ const accentMap: Record<string, string> = {
     gap: 0.35rem;
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--card-accent);
+    color: color-mix(in srgb, var(--card-accent) 70%, #fff);
     margin-top: auto;
     transition: gap 0.2s ease;
+  }
+
+  :global([data-theme='light']) .card-link {
+    color: color-mix(in srgb, var(--card-accent) 65%, black);
   }
 
   .bento-card:hover .card-link {
@@ -155,11 +137,13 @@ const accentMap: Record<string, string> = {
   @media (prefers-reduced-motion: reduce) {
     .bento-card,
     .card-icon,
-    .card-glow,
     .card-link {
       transition: none;
     }
     .bento-card:hover {
+      transform: none;
+    }
+    .bento-card:hover .card-icon {
       transform: none;
     }
   }
