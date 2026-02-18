@@ -19,9 +19,31 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
     uk: 'Розгортання',
     'zh-CN': '部署',
   },
-  link: 'deployment/overview',
+  link: '/deployment/',
   icon: 'rocket',
   items: [
+    {
+      label: 'Deployment',
+      translations: {
+        da: 'Udrulning',
+        de: 'Bereitstellung',
+        en: 'Deployment',
+        es: 'Despliegue',
+        fr: 'Déploiement',
+        hi: 'तैनाती',
+        id: 'Penyebaran',
+        it: 'Distribuzione',
+        ja: 'デプロイ',
+        ko: '배포',
+        'pt-BR': 'Implantação',
+        'pt-PT': 'Implementação',
+        ru: 'Развертывание',
+        tr: 'Dağıtım',
+        uk: 'Розгортання',
+        'zh-CN': '部署',
+      },
+      slug: 'deployment',
+    },
     {
       label: 'Overview',
       translations: {

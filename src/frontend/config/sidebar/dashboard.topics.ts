@@ -20,9 +20,32 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
     tr: 'Gösterge Paneli',
     uk: 'Панель керування',
   },
-  link: '/dashboard/overview',
+  link: '/dashboard/',
   icon: 'seti:happenings',
   items: [
+    {
+      label: 'Dashboard',
+      translations: {
+        da: 'Dashboard',
+        de: 'Dashboard',
+        en: 'Dashboard',
+        es: 'Panel',
+        fr: 'Tableau de bord',
+        hi: 'डैशबोर्ड',
+        id: 'Dasbor',
+        it: 'Dashboard',
+        ja: 'ダッシュボード',
+        ko: '대시보드',
+        pt: 'Painel',
+        'pt-BR': 'Painel',
+        'pt-PT': 'Painel',
+        ru: 'Панель управления',
+        tr: 'Gösterge Paneli',
+        uk: 'Панель керування',
+        'zh-CN': '仪表板',
+      },
+      slug: 'dashboard',
+    },
     {
       label: 'Overview',
       translations: {
