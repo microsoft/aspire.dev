@@ -1,0 +1,163 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+
+interface Props {
+  title: string;
+  description: string;
+  primaryCta?: { label: string; href: string };
+  secondaryCta?: { label: string; href: string };
+}
+
+const { title, description, primaryCta, secondaryCta } = Astro.props;
+---
+
+<section class="cta-banner not-content">
+  <div class="cta-bg" aria-hidden="true"></div>
+  <div class="cta-content">
+    <h2 class="cta-title">{title}</h2>
+    <p class="cta-desc">{description}</p>
+    {
+      (primaryCta || secondaryCta) && (
+        <div class="cta-actions">
+          {primaryCta && (
+            <a href={primaryCta.href} class="cta-btn cta-btn-primary">
+              {primaryCta.label}
+              <Icon name="right-arrow" size="1rem" />
+            </a>
+          )}
+          {secondaryCta && (
+            <a href={secondaryCta.href} class="cta-btn cta-btn-ghost">
+              {secondaryCta.label}
+            </a>
+          )}
+        </div>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .cta-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    padding: 2.5rem 2rem;
+    margin: 2.5rem 0 1rem;
+    text-align: center;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--aspire-color-purple) 22%, transparent) 0%,
+      color-mix(in srgb, var(--aspire-color-primary) 12%, transparent) 50%,
+      color-mix(in srgb, var(--aspire-color-secondary) 6%, transparent) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--aspire-color-primary) 25%, transparent);
+  }
+
+  .cta-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        circle at 20% 50%,
+        color-mix(in srgb, var(--aspire-color-primary) 10%, transparent),
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 80% 50%,
+        color-mix(in srgb, var(--aspire-color-secondary) 8%, transparent),
+        transparent 50%
+      );
+    pointer-events: none;
+  }
+
+  .cta-content {
+    position: relative;
+    z-index: 1;
+    max-width: 36rem;
+    margin: 0 auto;
+  }
+
+  .cta-title {
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    color: var(--sl-color-text);
+    line-height: 1.2;
+  }
+
+  .cta-desc {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 1.5rem;
+  }
+
+  :global([data-theme='light']) .cta-desc {
+    color: var(--sl-color-gray-2);
+  }
+
+  .cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1.4rem;
+    border-radius: 0.5rem;
+    font-family: var(--sl-font-system);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .cta-btn:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+
+  .cta-btn-primary {
+    background: var(--aspire-color-primary);
+    color: #ffffff;
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--aspire-color-primary) 25%, transparent);
+  }
+
+  .cta-btn-primary:hover {
+    background: var(--aspire-color-purple);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--aspire-color-primary) 40%, transparent);
+  }
+
+  .cta-btn-ghost {
+    color: var(--sl-color-text);
+    border: 1px solid color-mix(in srgb, var(--sl-color-text) 25%, transparent);
+    background: color-mix(in srgb, var(--sl-color-text) 5%, transparent);
+  }
+
+  .cta-btn-ghost:hover {
+    background: color-mix(in srgb, var(--sl-color-text) 12%, transparent);
+    border-color: color-mix(in srgb, var(--sl-color-text) 40%, transparent);
+  }
+
+  @media (max-width: 640px) {
+    .cta-banner {
+      padding: 2rem 1.25rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cta-btn {
+      transition: none;
+    }
+    .cta-btn-primary:hover {
+      transform: none;
+    }
+  }
+</style>
