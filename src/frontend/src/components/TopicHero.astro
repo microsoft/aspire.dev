@@ -1,0 +1,233 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+
+interface Props {
+  title: string;
+  highlight?: string;
+  subtitle: string;
+  accent?: 'purple' | 'blue' | 'green' | 'orange' | 'magenta' | 'cyan';
+  primaryCta?: { label: string; href: string };
+  secondaryCta?: { label: string; href: string };
+  icon?: StarlightIcon;
+}
+
+const { title, highlight, subtitle, accent = 'purple', primaryCta, secondaryCta, icon } =
+  Astro.props;
+
+const accentVarMap: Record<string, string> = {
+  purple: 'var(--aspire-color-primary)',
+  blue: '#006bc2',       /* WCAG AA 5.3:1 on white — was --color-blue #0078d7 (4.47:1) */
+  green: '#2a7e38',      /* WCAG AA 5.1:1 on white — was --sl-color-green-high (~1.5:1) */
+  orange: '#c25100',     /* WCAG AA 4.7:1 on white — was --sl-color-orange-high (~1.8:1) */
+  magenta: 'var(--color-magenta)',
+  cyan: '#0e7c86',       /* WCAG AA 4.6:1 on white — dark teal for technical/reference topics */
+};
+
+const accentColor = accentVarMap[accent];
+---
+
+<section class="topic-hero not-content" style={`--topic-accent: ${accentColor}`}>
+  <div class="topic-hero-grid" aria-hidden="true"></div>
+  <div class="topic-hero-content">
+    {
+      icon && (
+        <div class="topic-hero-icon">
+          <Icon name={icon} size="2.5rem" />
+        </div>
+      )
+    }
+    <h1 class="topic-hero-title">
+      {title}{' '}
+      {highlight && <span class="topic-hero-highlight">{highlight}</span>}
+    </h1>
+    <p class="topic-hero-subtitle">{subtitle}</p>
+    {
+      (primaryCta || secondaryCta) && (
+        <div class="topic-hero-actions">
+          {primaryCta && (
+            <a href={primaryCta.href} class="topic-btn topic-btn-primary">
+              {primaryCta.label}
+              <Icon name="right-arrow" size="1.25rem" />
+            </a>
+          )}
+          {secondaryCta && (
+            <a href={secondaryCta.href} class="topic-btn topic-btn-secondary">
+              {secondaryCta.label}
+            </a>
+          )}
+        </div>
+      )
+    }
+  </div>
+  <div class="topic-hero-glow" aria-hidden="true"></div>
+</section>
+
+<style>
+  .topic-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 3rem 2rem 2.5rem 2.5rem;
+    border-radius: 0.75rem;
+    margin-bottom: 2rem;
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--topic-accent) 8%, transparent),
+      color-mix(in srgb, var(--aspire-color-secondary) 4%, transparent),
+      transparent 70%
+    );
+    border: 1px solid color-mix(in srgb, var(--topic-accent) 25%, transparent);
+  }
+
+  .topic-hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+        color-mix(in srgb, var(--topic-accent) 6%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--topic-accent) 6%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .topic-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 44rem;
+    padding-left: 1rem;
+  }
+
+  .topic-hero-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--topic-accent) 18%, var(--sl-color-bg));
+    border: 2px solid color-mix(in srgb, var(--topic-accent) 35%, transparent);
+    color: var(--topic-accent);
+    margin-bottom: 1.25rem;
+  }
+
+  .topic-hero-title {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 1rem;
+    color: var(--sl-color-text);
+  }
+
+  .topic-hero-highlight {
+    background: linear-gradient(90deg, var(--topic-accent) 0%, var(--aspire-color-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  :global([data-theme='light']) .topic-hero-highlight {
+    background: linear-gradient(90deg, var(--topic-accent) 0%, var(--aspire-color-primary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .topic-hero-subtitle {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 1.75rem;
+    max-width: 38rem;
+  }
+
+  :global([data-theme='light']) .topic-hero-subtitle {
+    color: var(--sl-color-gray-2);
+  }
+
+  .topic-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .topic-btn {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.65rem 1.5rem;
+    border-radius: 0.5rem;
+    font-family: var(--sl-font-system);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .topic-btn:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+
+  .topic-btn-primary {
+    background: var(--topic-accent);
+    color: #ffffff;
+  }
+
+  .topic-btn-primary:hover {
+    filter: brightness(110%);
+    transform: translateY(-1px);
+  }
+
+  .topic-btn-secondary {
+    background: color-mix(in srgb, var(--topic-accent) 12%, transparent);
+    color: var(--sl-color-text);
+    border: 1px solid color-mix(in srgb, var(--topic-accent) 30%, transparent);
+  }
+
+  .topic-btn-secondary:hover {
+    background: color-mix(in srgb, var(--topic-accent) 20%, transparent);
+    border-color: color-mix(in srgb, var(--topic-accent) 50%, transparent);
+  }
+
+  .topic-hero-glow {
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 50%;
+    height: 160%;
+    background: radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--topic-accent) 6%, transparent),
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .topic-btn {
+      transition: none;
+    }
+    .topic-btn-primary:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .topic-hero {
+      padding: 2rem 1.25rem 2rem 1.5rem;
+    }
+    .topic-hero-content {
+      padding-left: 0.5rem;
+    }
+  }
+</style>
