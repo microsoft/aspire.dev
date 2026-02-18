@@ -1,0 +1,170 @@
+---
+title: Azure App Configuration Client integration
+description: Learn about the Aspire Azure App Configuration client integration including feature flags, configuration, and telemetry.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+To get started with the Aspire Azure App Configuration client integration, install the [📦 Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration](https://www.nuget.org/packages/Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration) NuGet package in the client-consuming project, that is, the project for the application that uses the App Configuration client. The App Configuration client integration registers an Azure configuration provider to populate the `IConfiguration` instance.
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureAppConfiguration` extension method on any `IHostApplicationBuilder` to register the required services to flow Azure App Configuration values into the `IConfiguration` instance for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(connectionName: "config");
+```
+
+> [!TIP]
+> The `connectionName` parameter must match the name used when adding the App Configuration resource in the AppHost project. In other words, when you call `AddAzureAppConfiguration` in the AppHost and provide a name of `config` that same name should be used when calling `AddAzureAppConfiguration` in the client-consuming project. For more information, see [Add an Azure App Configuration resource](/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-host/#add-an-azure-app-configuration-resource).
+
+You can then retrieve the `IConfiguration` instance using dependency injection. For example, to retrieve the client from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IConfiguration configuration)
+{
+    private readonly string _someValue = configuration["SomeKey"];
+}
+```
+
+## Configure the Azure App Configuration provider
+
+The `AddAzureAppConfiguration` method accepts an optional `Action<AzureAppConfigurationOptions> configureOptions` delegate that you use to configure the Azure App Configuration provider. This follows the same pattern as the non-Aspire `Microsoft.Extensions.Configuration.AzureAppConfiguration` package, but Aspire automatically handles the connection—you don't need to call `options.Connect`.
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options =>
+    {
+        // Select specific keys or labels
+        options.Select("MyApp:*");
+        options.Select("MyApp:*", "Production");
+
+        // Configure refresh options
+        options.ConfigureRefresh(refresh =>
+        {
+            refresh.Register("MyApp:Sentinel", refreshAll: true)
+                   .SetRefreshInterval(TimeSpan.FromSeconds(30));
+        });
+    });
+```
+
+For more information on available configuration options, see the [Azure App Configuration provider reference](https://learn.microsoft.com/azure/azure-app-configuration/reference-dotnet-provider).
+
+## Use feature flags
+
+To use feature flags, install the [📦 Microsoft.FeatureManagement](https://www.nuget.org/packages/Microsoft.FeatureManagement) NuGet package:
+
+<InstallDotNetPackage packageName="Microsoft.FeatureManagement" />
+
+App Configuration doesn't load feature flags by default. To load feature flags, use the `configureOptions` delegate (as shown in [Configure the Azure App Configuration provider](#configure-the-azure-app-configuration-provider)) to call `UseFeatureFlags()` when calling `builder.AddAzureAppConfiguration`.
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options => options.UseFeatureFlags());
+
+// Register feature management services
+builder.Services.AddFeatureManagement();
+```
+
+The `configureOptions` pattern is used to configure the Azure App Configuration provider. For more information, see [Azure App Configuration: .NET configuration provider](https://learn.microsoft.com/azure/azure-app-configuration/reference-dotnet-provider). You can then use `IFeatureManager` to evaluate feature flags in your app. Consider the following example ASP.NET Core Minimal API app:
+
+```csharp title="C# — Program.cs"
+using Microsoft.Extensions.Hosting;
+using Microsoft.FeatureManagement;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAzureAppConfiguration(
+    "config",
+    configureOptions: options => options.UseFeatureFlags());
+
+// Register feature management services
+builder.Services.AddFeatureManagement();
+
+var app = builder.Build();
+
+app.MapGet("/", async (IFeatureManager featureManager) =>
+{
+    if (await featureManager.IsEnabledAsync("NewFeature"))
+    {
+        return Results.Ok("New feature is enabled!");
+    }
+
+    return Results.Ok("Using standard implementation.");
+});
+
+app.Run();
+```
+
+For more information, see [.NET Feature Management](https://learn.microsoft.com/azure/azure-app-configuration/feature-management-dotnet-reference).
+
+## Configuration
+
+The Aspire Azure App Configuration library provides multiple options to configure the Azure App Configuration connection based on the requirements and conventions of your project. The App Config endpoint is required to be supplied, either in `AzureAppConfigurationSettings.Endpoint` or using a connection string.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `builder.AddAzureAppConfiguration()`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration("config");
+```
+
+Then the App Configuration endpoint is retrieved from the `ConnectionStrings` configuration section. The App Configuration store URI works with the `AzureAppConfigurationSettings.Credential` property to establish a connection. If no credential is configured, the `DefaultAzureCredential` is used.
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "config": "https://{store_name}.azconfig.io"
+  }
+}
+```
+
+### Use configuration providers
+
+The Aspire Azure App Configuration library supports `Microsoft.Extensions.Configuration`. It loads the `AzureAppConfigurationSettings` from configuration by using the `Aspire:Microsoft:Extensions:Configuration:AzureAppConfiguration` key. Example _appsettings.json_ that configures some of the options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Microsoft": {
+      "Extensions": {
+        "Configuration": {
+          "AzureAppConfiguration": {
+            "Endpoint": "YOUR_APPCONFIGURATION_ENDPOINT_URI"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete App Configuration client integration JSON schema, see [ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Microsoft.Extensions.Configuration.AzureAppConfiguration/ConfigurationSchema.json).
+
+### Use inline delegates
+
+You can also pass the `Action<AzureAppConfigurationSettings> configureSettings` delegate to set up some or all the options inline, for example to set App Configuration endpoint from code:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureAppConfiguration(
+    "config",
+    configureSettings: settings => settings.Endpoint = "https://YOUR_URI");
+```
+
+## Logging
+
+The Aspire Azure App Configuration integration uses the following log categories:
+
+- `Microsoft.Extensions.Configuration.AzureAppConfiguration.Refresh`
+
+## Tracing
+
+The Aspire Azure App Configuration integration doesn't make use of any activity sources thus no tracing is available.
+
+## Metrics
+
+The Aspire Azure App Configuration integration currently doesn't support metrics.

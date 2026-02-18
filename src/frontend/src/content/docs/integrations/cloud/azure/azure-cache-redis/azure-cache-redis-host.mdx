@@ -1,0 +1,214 @@
+---
+title: Azure Cache for Redis Hosting integration
+description: Learn about the Aspire Azure Cache for Redis hosting integration including provisioning, customization, and configuration.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+The Aspire Azure Cache for Redis hosting integration models the Redis cache as the `AzureRedisResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Redis](https://www.nuget.org/packages/Aspire.Hosting.Azure.Redis) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Redis" />
+
+## Add an Azure Cache for Redis resource
+
+To add an Azure Cache for Redis resource to your AppHost project, call the `AddAzureManagedRedis` method providing a name:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddAzureManagedRedis("redis");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(redis);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure Redis resource named `redis` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+  When you call `AddAzureManagedRedis`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Connect to an existing Azure Cache for Redis instance
+
+You might have an existing Azure Cache for Redis service that you want to connect to. You can chain a call to annotate that your `AzureRedisCacheResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingRedisName = builder.AddParameter("existingRedisName");
+var existingRedisResourceGroup = builder.AddParameter("existingRedisResourceGroup");
+
+var redis = builder.AddAzureManagedRedis("redis")
+    .AsExisting(existingRedisName, existingRedisResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(redis);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure Redis resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+## Run Azure Cache for Redis resource as a container
+
+The Azure Cache for Redis hosting integration supports running the Redis server as a local container. This is beneficial for situations where you want to run the Redis server locally for development and testing purposes, avoiding the need to provision an Azure resource or connect to an existing Azure Cache for Redis server.
+
+To make use of the [`docker.io/library/redis`](https://hub.docker.com/_/redis/) container image, and run the Azure Cache for Redis instance as a container locally, chain a call to `RunAsContainer`, as shown in the following example:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddAzureManagedRedis("azcache")
+    .RunAsContainer();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+
+The preceding code configures the Redis resource to run locally in a container.
+
+> [!TIP]
+> The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `RedisResource` configuration, such adding [Redis Insights](https://redis.io/insight/), [Redis Commander](https://joeferner.github.io/redis-commander/), adding a data volume or data bind mount. For more information, see the [Aspire Redis hosting integration](/integrations/caching/redis/#add-redis-resource-with-redis-insights).
+
+## Configure the Azure Cache for Redis resource to use access key authentication
+
+By default, the Azure Cache for Redis resource is configured to use [Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication) authentication. If you want to use password authentication (not recommended), you can configure the server to use password authentication by calling the `WithAccessKeyAuthentication` method:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddAzureManagedRedis("azcache")
+    .WithAccessKeyAuthentication();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+
+The preceding code configures the Azure Cache for Redis resource to use access key authentication. This alters the generated Bicep to use access key authentication instead of Microsoft Entra ID authentication. In other words, the connection string will contain a password, and will be added to an Azure Key Vault secret.
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Cache for Redis resource, the following Bicep is generated:
+
+```bicep title="Bicep — redis.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource redis 'Microsoft.Cache/redis@2024-11-01' = {
+  name: take('redis-${uniqueString(resourceGroup().id)}', 63)
+  location: location
+  properties: {
+    sku: {
+      name: 'Basic'
+      family: 'C'
+      capacity: 1
+    }
+    enableNonSslPort: false
+    disableAccessKeyAuthentication: true
+    minimumTlsVersion: '1.2'
+    redisConfiguration: {
+      'aad-enabled': 'true'
+    }
+  }
+  tags: {
+    'aspire-resource-name': 'redis'
+  }
+}
+
+output connectionString string = '${redis.properties.hostName},ssl=true'
+
+output name string = redis.name
+```
+
+The preceding Bicep is a module that provisions an Azure Cache for Redis resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Bicep — redis-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param redis_outputs_name string
+
+param principalId string
+
+param principalName string
+
+resource redis 'Microsoft.Cache/redis@2024-11-01' existing = {
+  name: redis_outputs_name
+}
+
+resource redis_contributor 'Microsoft.Cache/redis/accessPolicyAssignments@2024-11-01' = {
+  name: guid(redis.id, principalId, 'Data Contributor')
+  properties: {
+    accessPolicyName: 'Data Contributor'
+    objectId: principalId
+    objectIdAlias: principalName
+  }
+  parent: redis
+}
+```
+
+In addition to the Azure Cache for Redis, it also provisions an access policy assignment to the application access to the cache. The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+## Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureManagedRedis("redis")
+    .WithAccessKeyAuthentication()
+    .ConfigureInfrastructure(infra =>
+    {
+        var cluster = infra.GetProvisionableResources()
+                           .OfType<RedisEnterpriseCluster>()
+                           .Single();
+
+        cluster.Sku = new RedisEnterpriseSku
+        {
+            Name = RedisEnterpriseSkuName.BalancedB0,
+        };
+        cluster.Tags.Add("ExampleKey", "Example value");
+    });
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `RedisEnterpriseCluster` is retrieved.
+  - The `Sku` is set with a name of `BalancedB0`.
+  - A tag is added to the Redis resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the Redis resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Connection properties
+
+When you reference Azure Redis resources using `WithReference`, the following connection properties are made available to the consuming project:
+
+### Azure Redis Enterprise
+
+| Property Name | Description                                                                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Host`        | The hostname of the Azure Redis Enterprise database endpoint.                                                                                                  |
+| `Port`        | The port of the Azure Redis Enterprise database endpoint (10000 for Azure).                                                                                    |
+| `Uri`         | The Redis connection URI. In Azure mode this is `redis://{Host}`; when running via `RunAsContainer` it matches `redis://[:{Password}@]{Host}:{Port}`.          |
+| `Password`    | The access key for the Redis server. Empty when using Entra ID authentication; populated when using `WithAccessKeyAuthentication()` or running as a container. |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `cache` becomes `CACHE_URI`.
+</Aside>
