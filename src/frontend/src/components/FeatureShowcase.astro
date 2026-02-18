@@ -1,0 +1,150 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+
+interface Feature {
+  icon: StarlightIcon;
+  title: string;
+  description: string;
+  href: string;
+  label?: string;
+  accent?: 'purple' | 'blue' | 'green' | 'orange';
+}
+
+interface Props {
+  features: Feature[];
+}
+
+const { features } = Astro.props;
+
+const accentMap: Record<string, string> = {
+  purple: 'var(--sl-color-purple)',
+  blue: 'var(--sl-color-blue)',
+  green: 'var(--sl-color-green)',
+  orange: 'var(--sl-color-orange)',
+};
+---
+
+<div class="bento not-content">
+  {
+    features.map((f, i) => {
+      const accentColor = accentMap[f.accent ?? 'purple'];
+      return (
+        <a href={f.href} class="bento-card" style={`--card-accent: ${accentColor}`}>
+          <div class="card-icon">
+            <Icon name={f.icon} size="1.75rem" />
+          </div>
+          <h3 class="card-title">{f.title}</h3>
+          <p class="card-desc">{f.description}</p>
+          <span class="card-link">
+            {f.label ?? 'Explore'}
+            <Icon name="right-arrow" size="0.85rem" />
+          </span>
+        </a>
+      );
+    })
+  }
+</div>
+
+<style>
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .bento-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.75rem;
+    border-radius: 0.75rem;
+    text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--card-accent) 22%, transparent);
+    background: color-mix(in srgb, var(--card-accent) 6%, transparent);
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+
+  .bento-card:hover {
+    border-color: color-mix(in srgb, var(--card-accent) 50%, transparent);
+    background: color-mix(in srgb, var(--card-accent) 12%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .bento-card:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+
+  .card-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.625rem;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--card-accent) 24%, var(--sl-color-bg));
+    color: var(--card-accent);
+    transition: transform 0.25s ease;
+  }
+
+  .bento-card:hover .card-icon {
+    transform: scale(1.08);
+  }
+
+  .card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+    line-height: 1.3;
+  }
+
+  .card-desc {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+    flex: 1;
+  }
+
+  :global([data-theme='light']) .card-desc {
+    color: var(--sl-color-gray-2);
+  }
+
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--card-accent) 70%, #fff);
+    margin-top: auto;
+    transition: gap 0.2s ease;
+  }
+
+  :global([data-theme='light']) .card-link {
+    color: color-mix(in srgb, var(--card-accent) 65%, black);
+  }
+
+  .bento-card:hover .card-link {
+    gap: 0.6rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bento-card,
+    .card-icon,
+    .card-link {
+      transition: none;
+    }
+    .bento-card:hover {
+      transform: none;
+    }
+    .bento-card:hover .card-icon {
+      transform: none;
+    }
+  }
+</style>
