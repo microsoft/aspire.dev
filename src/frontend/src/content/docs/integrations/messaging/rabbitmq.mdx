@@ -289,6 +289,34 @@ builder.AddRabbitMQClient(
         static factory => factory.ClientProvidedName = "MyApp");
 ```
 
+### Auto activation
+
+Auto activation is a feature that helps prevent startup deadlocks in applications that use RabbitMQ. When auto activation is enabled, the RabbitMQ client connection is automatically opened when the application starts, rather than being lazily initialized on first use. This ensures that any connection issues are detected early during application startup, rather than during runtime operations.
+
+#### When to enable auto activation
+
+Auto activation is particularly useful in scenarios where:
+
+- Your application needs to verify RabbitMQ connectivity during startup
+- You want to fail fast if RabbitMQ is unavailable
+- Your application architecture requires connections to be established before accepting traffic
+- You're experiencing startup deadlocks or race conditions with lazy connection initialization
+
+#### Configuration
+
+Auto activation is **disabled by default** in Aspire 9.5 to maintain backward compatibility. To enable auto activation, set the `DisableAutoActivation` property to `false` in the `RabbitMQClientSettings`:
+
+```csharp title="C# — Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+// Enable auto activation
+builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
+```
+
+<Aside type="note">
+  In a future version of Aspire, auto activation is planned to be **enabled by default**. When this change occurs, you'll need to explicitly set `DisableAutoActivation = true` if you want to maintain the lazy initialization behavior.
+</Aside>
+
 ### Client integration health checks
 
 By default, Aspire integrations enable health checks for all services. The Aspire RabbitMQ integration:
