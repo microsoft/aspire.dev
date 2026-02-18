@@ -241,6 +241,58 @@ public class ExampleService(
 
 For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
 
+### Redis client builder pattern
+
+Aspire 9.5 introduces a new Redis client builder pattern that provides a fluent, type-safe approach to configuring Redis clients with integrated support for distributed caching, output caching, and Azure authentication.
+
+#### Basic usage
+
+Use `AddRedisClientBuilder` to configure Redis clients with a fluent API:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddRedisClientBuilder("redis")
+    .WithDistributedCache(options =>
+    {
+        options.InstanceName = "MyApp";
+    });
+```
+
+The client builder pattern simplifies the configuration of Redis-backed caching services by combining client setup with caching configuration in a single fluent chain.
+
+#### Azure authentication
+
+To enable Azure authentication for Redis, add a reference to the [📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Azure.StackExchangeRedis" />
+
+Then chain a call to `WithAzureAuthentication()`:
+
+```csharp
+builder.AddRedisClientBuilder("redis")
+    .WithAzureAuthentication()
+    .WithDistributedCache(options =>
+    {
+        options.InstanceName = "MyApp";
+    });
+```
+
+#### Auto activation
+
+Redis client connections support auto activation to prevent startup deadlocks and improve application reliability. Auto activation is disabled by default but can be enabled using the `DisableAutoActivation` option:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Enable auto activation by setting DisableAutoActivation to false
+builder.AddRedisClient("redis", c => c.DisableAutoActivation = false);
+```
+
+<Aside type="note">
+  Auto activation is planned to be enabled by default in a future release.
+</Aside>
+
 ### Configuration
 
 #### Use a connection string
