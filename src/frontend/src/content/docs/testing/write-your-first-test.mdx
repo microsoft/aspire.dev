@@ -415,8 +415,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // Act
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // Assert
         Assert.Contains(envVars, static (kvp) =>
