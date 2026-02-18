@@ -14,7 +14,9 @@ permissions:
 
 runtimes:
   dotnet:
-    version: "9.0"
+    version: "10.0"
+
+strict: false
 
 network:
   allowed:
@@ -35,7 +37,7 @@ safe-outputs:
     title-prefix: "[cli-casts] "
     labels: [automation, documentation]
 
-timeout-minutes: 30
+timeout-minutes: 60
 ---
 
 # Update CLI Cast Recordings
