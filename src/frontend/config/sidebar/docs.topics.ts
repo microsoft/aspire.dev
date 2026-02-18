@@ -777,6 +777,13 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
+          label: 'Container registry configuration',
+          slug: 'app-host/container-registry',
+          translations: {
+            en: 'Container registry configuration',
+          },
+        },
+        {
           label: 'Eventing',
           slug: 'app-host/eventing',
           translations: {
