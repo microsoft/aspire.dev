@@ -15,31 +15,117 @@ import OsAwareTabs from '@components/OsAwareTabs.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import { Code, Tabs, Steps, TabItem, Aside, Icon } from '@astrojs/starlight/components';
 
-Aspire 13.2 continues the polyglot journey with TypeScript AppHost support, introduces detached mode for running applications in the background, adds powerful new CLI commands for environment validation and process management, and delivers significant dashboard improvements for managing telemetry. This release focuses on developer productivity across all supported languages and improved operational visibility.
+Aspire 13.2 brings significant improvements to the developer experience with enhanced CLI capabilities, dashboard improvements, new AI agent integrations, and better polyglot support. This release focuses on making local development more streamlined while maintaining the robust cloud-native foundation that Aspire is known for.
 
-This release introduces:
+## 🛠️ Aspire CLI enhancements
 
-- **TypeScript AppHost support**: Write your AppHost in TypeScript with the new polyglot TypeScript SDK.
-- **Detached mode**: Run your Aspire applications in the background with `aspire run --detach` and manage them with `aspire stop`.
-- **New CLI commands**: `aspire ps` to list running AppHosts, `aspire doctor` for environment validation, and `aspire logs` for accessing resource logs.
-- **Dashboard telemetry management**: New dialog to manage telemetry and console log settings with export capabilities.
-- **Environment variable exports**: Export environment variables as `.env` files directly from the dashboard.
-- **Resource JSON export**: Export individual or all resource configurations as JSON from the dashboard.
-- **OTLP/JSON support**: Dashboard now accepts telemetry in OTLP/JSON format alongside protobuf.
-- **New integrations**: Azure Data Lake Storage, MongoDB Entity Framework Core, and embedding support for Azure AI.
-- **Bun support for Vite**: New `WithBun()` method for Vite applications.
-- **Improved resource graph**: Adaptive force-directed positioning for better visualization of complex applications.
+### Detached mode and process management
 
-**Requirements:**
+One of the most requested features lands in 13.2: **detached mode** for running Aspire applications. You can now run your AppHost in the background, freeing up your terminal for other tasks.
 
-- [.NET 10 SDK or later](https://dotnet.microsoft.com/download/dotnet/10.0)
+```bash title="Aspire CLI — Detached mode and process management"
+# Run in detached mode
+aspire run --detach
 
-If you have feedback, questions, or want to contribute to Aspire, collaborate with us on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/dotnet/aspire) or join us on our [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and other community members.
+# List all running AppHosts
+aspire ps
+
+# Stop a running AppHost
+aspire stop
+```
+
+The `aspire ps` command displays all currently running Aspire AppHosts, making it easy to manage multiple projects simultaneously. When combined with `aspire stop`, you have full control over your application lifecycle directly from the command line.
+
+<LearnMore>
+Command reference: [`aspire run`](/reference/cli/commands/aspire-run/), [`aspire ps`](/reference/cli/commands/aspire-ps/), and [`aspire stop`](/reference/cli/commands/aspire-stop/).
+</LearnMore>
+
+### Isolated mode for parallel development
+
+The new `--isolated` flag enables running multiple instances of the same AppHost simultaneously:
+
+```bash title="Aspire CLI — Isolated mode"
+aspire run --isolated
+```
+
+This mode uses randomized ports and isolated user secrets, which is particularly useful when you need to test different configurations side-by-side or run integration tests in parallel.
+
+### Environment diagnostics with `aspire doctor`
+
+The new `aspire doctor` command provides comprehensive diagnostics of your development environment:
+
+```bash title="Aspire CLI — Environment diagnostics"
+aspire doctor
+```
+
+This command checks:
+- .NET SDK installation and version
+- HTTPS development certificate status (including detection of multiple certificates)
+- Container runtime (Docker/Podman) availability and version
+- WSL2 environment configuration
+- Container tunnel requirements for Docker Engine
+
+The output provides actionable recommendations when issues are detected, making it easier to troubleshoot configuration problems.
+
+<LearnMore>
+Command reference: [`aspire doctor`](/reference/cli/commands/aspire-doctor/).
+</LearnMore>
+
+### Enhanced `aspire add` with fuzzy search
+
+Finding the right integration package is now easier with fuzzy search in the `aspire add` command. Simply start typing and the CLI will suggest matching packages, reducing the friction of discovering and adding new integrations to your project.
+
+<LearnMore>
+Command reference: [`aspire add`](/reference/cli/commands/aspire-add/).
+</LearnMore>
+
+### Agent integration (`aspire agent`)
+
+The `aspire mcp` command has been renamed to `aspire agent` to better reflect its purpose of managing AI agent integrations. The new command structure includes:
+
+```bash title="Aspire CLI — Agent integration"
+# Start the MCP (Model Context Protocol) server
+aspire agent mcp
+
+# Initialize agent environment configuration
+aspire agent init
+```
+
+This enables AI agents to interact with your Aspire applications through a standardized protocol, opening up new possibilities for AI-assisted development workflows.
+
+<LearnMore>
+Command reference: [`aspire agent`](/reference/cli/commands/aspire-agent/).
+</LearnMore>
+
+### Improved configuration management
+
+The `aspire config` command has been enhanced with better organization:
+
+```bash title="Aspire CLI — Configuration management"
+# List all configuration with organized sections and colors
+aspire config list
+
+# Get a specific setting
+aspire config get <key>
+
+# Set a configuration value
+aspire config set <key> <value>
+```
+
+Configuration is now clearly separated into local and global settings, with feature flags displayed in an organized manner.
+
+<LearnMore>
+Command reference: [`aspire config`](/reference/cli/commands/aspire-config/).
+</LearnMore>
+
+### CLI telemetry
+
+Aspire CLI now includes optional telemetry to help improve the developer experience. Telemetry data is version-consistent with the dashboard, providing a unified approach to usage analytics. All telemetry follows standard privacy practices and can be controlled through configuration.
 
 ## 🆙 Upgrade to Aspire 13.2
 
 <Aside type="caution">
-Aspire 13.2 includes breaking changes to event handling and connection properties. Please review the [Breaking changes](#️-breaking-changes) section before upgrading.
+  Aspire 13.2 includes breaking changes to event handling and connection properties. Please review the [Breaking changes](#breaking-changes) section before upgrading.
 </Aside>
 
 <Aside type="note">
@@ -60,437 +146,215 @@ The easiest way to upgrade to Aspire 13.2 is using the `aspire update` command:
     aspire update --self
     ```
 
-## 🚀 Detached mode and process management
+Or install the CLI from scratch:
 
-Aspire 13.2 introduces the ability to run your applications in the background, freeing up your terminal for other work.
-
-### Run in detached mode
-
-Use the new `--detach` flag to run your Aspire application in the background:
-
-```bash title="Aspire CLI — Run in detached mode"
-aspire run --detach
+```bash
+curl -sSL https://aspire.dev/install.sh | bash
 ```
-
-When running in detached mode, the dashboard URL is displayed and the CLI returns immediately, allowing you to continue using your terminal.
-
-### Stop running applications
-
-The new `aspire stop` command terminates running AppHost instances:
-
-```bash title="Aspire CLI — Stop running applications"
-aspire stop
-```
-
-The stop command uses socket-first discovery for optimal performance and can target specific AppHosts when multiple are running.
-
-<LearnMore>
-Command reference: [`aspire run`](/reference/cli/commands/aspire-run/) and [`aspire stop`](/reference/cli/commands/aspire-stop/).
-</LearnMore>
-
-### List running AppHosts
-
-The new `aspire ps` command displays all running Aspire AppHost instances:
-
-```bash title="Aspire CLI — List running AppHosts"
-aspire ps
-```
-
-This command provides visibility into which applications are currently active on your machine, including their process IDs and dashboard URLs.
-
-## 🩺 Environment validation with aspire doctor
-
-The new `aspire doctor` command validates your development environment and identifies potential issues:
-
-```bash title="Aspire CLI — Validate environment"
-aspire doctor
-```
-
-The command performs comprehensive checks including:
-
-- **Docker/Podman version verification**: Ensures your container runtime meets minimum requirements.
-- **Development certificate validation**: Detects and warns about multiple HTTPS development certificates.
-- **Deprecated workload detection**: Checks for the deprecated 'aspire' workload and recommends migration.
-- **Container runtime availability**: Validates that Docker or Podman is properly configured.
-
-```plaintext title="Example output" data-disable-copy
-✓ .NET SDK: 10.0.102
-✓ Docker: 27.5.0
-✓ Container runtime: Available
-⚠ Multiple HTTPS development certificates detected
-  Run 'dotnet dev-certs https --clean' to remove duplicates
-```
-
-The `aspire doctor` command is also exposed as an MCP tool, enabling AI coding agents to diagnose environment issues.
-
-## 📟 CLI telemetry and logging commands
-
-### Access resource logs
-
-The new `aspire logs` command retrieves logs from running resources:
-
-```bash title="Aspire CLI — View resource logs"
-aspire logs <resource-name>
-```
-
-This command provides a convenient way to access container and project logs without navigating to the dashboard.
-
-### View resources
-
-The new `aspire resources` command lists all resources in a running AppHost:
-
-```bash title="Aspire CLI — List resources"
-aspire resources
-```
-
-### CLI telemetry
-
-Aspire CLI now exports telemetry data for commands, helping the team understand usage patterns and improve the developer experience. Telemetry is opt-out and respects standard .NET telemetry environment variables.
-
-## 🔷 TypeScript AppHost support
-
-Aspire 13.2 extends polyglot support with the ability to write your AppHost in TypeScript. This enables JavaScript and TypeScript developers to define their distributed applications using familiar syntax and tooling.
-
-```typescript title="TypeScript — AppHost example"
-import { AppHost } from '@aspire/apphost';
-
-const builder = new AppHost();
-
-const redis = builder.addRedis('cache');
-const api = builder.addProject('api', '../Api/Api.csproj')
-    .withReference(redis);
-
-builder.addNpmApp('frontend', '../frontend')
-    .withReference(api)
-    .withExternalHttpEndpoints();
-
-await builder.run();
-```
-
-The TypeScript SDK provides:
-
-- Full type definitions for all Aspire resources and APIs.
-- Integration with popular Node.js package managers (npm, yarn, pnpm, bun).
-- Seamless interoperability with .NET projects and containers.
-- Support for all Aspire annotations and configuration options.
-
-<LearnMore>
-Learn more about [polyglot AppHost support](/app-host/polyglot-apphost/).
-</LearnMore>
 
 ## 📊 Dashboard improvements
 
-### Telemetry and console logs management
+### Enhanced data export
 
-A new dialog provides centralized control over telemetry and console log settings. Access it from the settings menu to:
+The dashboard now provides comprehensive export capabilities:
 
-- Configure log retention and filtering.
-- Export telemetry data in various formats.
-- Manage console log preferences per resource.
+- **Export All Button**: Quickly export all telemetry data with the new "Export selected" button in the Manage logs and telemetry dialog
+- **JSON Export for Resources**: Export resource snapshots as JSON for debugging or automation using the action buttons for each resource
+- **.env File Export**: Export environment variables directly to a `.env` file format from resource details
+- **View JSON with Copy**: Download or copy JSON directly from the visualizer
 
-### Environment variable export
+![Manage Logs and Telemetry Dialog](screenshots/feature-settings-panel.png)
+*The Settings panel showing theme options, language selection, and Resource logs and telemetry management*
 
-Export environment variables as `.env` files directly from the dashboard. This feature is particularly useful for:
+### Improved telemetry visualization
 
-- Sharing configuration with team members.
-- Debugging integration issues locally.
-- Migrating to containerized deployments.
+- **Download JSON for Traces, Spans, and Logs**: Each telemetry view now includes options to export data
+- **OTLP/JSON Support**: The dashboard now supports OTLP over JSON in addition to gRPC
+- **Environment Variable Highlighting**: Environment variables are now highlighted for better visibility
+- **Masked Query String Values**: Sensitive data in URLs is automatically masked for security
 
-### Resource JSON export
+![Aspire Dashboard Structured Logs](screenshots/final-structured-logs.png)
+*Structured logs view with message details and action buttons for View JSON feature*
 
-The dashboard now includes an **Export JSON** option for individual resources and an **Export All** button for the complete resource configuration. This enables:
+### Resource graph improvements
 
-- Documenting your application architecture.
-- Comparing configurations across environments.
-- Programmatic analysis of resource definitions.
+The resource graph layout has been significantly improved with adaptive force-directed positioning, providing a clearer visualization of your application topology.
 
-### OTLP/JSON support
+### Persistent UI state
 
-The dashboard now accepts OpenTelemetry Protocol data in JSON format alongside the existing protobuf format. This improves compatibility with:
+The dashboard now remembers:
+- Collapsed/expanded state of resources
+- Filter preferences across sessions
+- View options and settings
 
-- Browser-based telemetry exporters.
-- Custom instrumentation in JavaScript applications.
-- Debug scenarios where human-readable telemetry is preferred.
+### Security enhancements
 
-### Additional dashboard improvements
+- Dashboard icon and token-based authentication in URLs
+- Query string value masking to protect sensitive information
+- Copy button visibility improvements even when values are hidden
+- Toggle button for secret visibility in input dialogs
 
-- **Persist collapsed state**: Resource collapsed/expanded state is now persisted across page reloads.
-- **Improved graph layout**: Adaptive force-directed positioning provides cleaner visualization of complex dependency graphs.
-- **Secret visibility toggle**: New toggle button for secret visibility in interaction dialogs.
-- **Copy button improvements**: Copy button now appears even when values are hidden.
-- **Token masking**: Query string values in URLs are now masked in the UI.
-- **Dashboard icon**: New icon displayed in the browser tab.
+![Aspire Dashboard Console Logs](screenshots/final-console-logs.png)
+*Console logs view showing real-time output with color-coded resource labels and line numbers*
 
-## 🌐 JavaScript and frontend improvements
+![Aspire Dashboard Resources](screenshots/final-resources.png)
+*Resources page showing running services with their status, endpoints, and action buttons*
 
-### Bun support for Vite
+![Aspire MCP Server](screenshots/feature-mcp-server.png)
+*The MCP Server integration dialog, enabling AI assistants to connect to Aspire app data*
 
-Add Bun as a package manager for Vite applications with the new `WithBun()` method:
+## 🧩 App model and resource improvements
 
-```csharp title="C# — Vite with Bun"
-var builder = DistributedApplication.CreateBuilder(args);
+### Enhanced debugging experience
 
-builder.AddViteApp("frontend", "../frontend")
-    .WithBun();
-```
+Several types now include `DebuggerDisplayAttribute` for better debugging:
+- `DistributedApplication`
+- Resource types
+- `EndpointReferenceExpression`
+- `ReferenceExpression`
+- `PipelineStep`
 
-<LearnMore>
-Learn more about Bun support [with the JavaScript integration](/integrations/frameworks/javascript/#use-bun).
-</LearnMore>
+This makes it easier to inspect your Aspire application state during debugging sessions.
 
-### JavaScript fixes
+### Resource event improvements
 
-- Fixed `WithYarn` when used with `AddViteApp`.
-- Fixed backslash escaping in path strings for discovered Vite configurations.
-- Improved corepack handling for pnpm-based projects.
+- Added `Logger` property to `IDistributedApplicationResourceEvent` for better logging context
+- Improved `ResourceNotificationService.WaitFor` exception messages with more detailed information
+- `BeforeResourceStartedEvent` now only fires when actually starting a resource (breaking change)
 
-## ☁️ Azure improvements
+### Docker and container enhancements
 
-### Azure Data Lake Storage
+- **`WithBun()` Support for Vite Apps**: Use Bun as an alternative to npm for Vite applications
+- **`WithYarn` Fixes**: Improved reliability when using Yarn with `AddViteApp`
+- **'Never' Pull Policy**: Exposed image pull policy option for scenarios requiring local images
+- **PullPolicy for Docker Compose**: Added `PullPolicy` property to Docker Compose Service class
+- **PostgreSQL v18+ Compatibility**: Fixed data volume path for PostgreSQL version 18 and later
 
-<Aside type="caution">
-This integration is experimental and may change in future releases.
-</Aside>
+### Build improvements
 
-New integration for Azure Data Lake Storage Gen2:
+- Build error when `GenerateAssemblyInfo` is disabled in AppHost projects
+- Trailing commas now allowed in `launchSettings.json`
+- JSON comments and trailing commas parsed without errors
 
-```csharp title="C# — Azure Data Lake Storage"
-var builder = DistributedApplication.CreateBuilder(args);
+## 📦 Integrations updates
 
-var storage = builder.AddAzureDataLakeStorage("datalake");
+### Azure AI and embedding support
 
-builder.AddProject<Projects.DataProcessor>("processor")
-    .WithReference(storage);
-```
+The `Aspire.Azure.AI.Inference` integration now includes:
+- `EmbeddingClient` for accessing Azure AI embedding models
+- `EmbeddingGenerator` for generating embeddings
 
-### Azure AI embeddings
+### Azure App Service enhancements
 
-The Azure AI Inference integration now supports embedding models:
+- Deployment slot support with new extension methods
+- Sticky slot app settings fixes
+- Configuration naming improvements
 
-```csharp title="C# — Azure AI embeddings"
-var builder = DistributedApplication.CreateBuilder(args);
+### Database integrations
 
-var ai = builder.AddAzureAIInference("ai");
+- **MongoDB**: Connection string options now correctly prepend forward slash
+- **MongoDB Entity Framework Core**: New client integration `Aspire.MongoDB.EntityFrameworkCore`
+- **Oracle EF Core**: Multi-targeting support added
+- **SQL Server**: New `Aspire.Hosting.SqlServer` exports
+- **Azure Data Lake Storage**: Initial integration for data lake scenarios
 
-builder.AddProject<Projects.SearchService>("search")
-    .WithReference(ai.AddEmbeddingClient("text-embedding"));
-```
+### Emulator updates
 
-### Azure App Service updates
+- Azure ServiceBus emulator updated to 2.0.0
+- Azure App Configuration emulator updated to 1.0.2
+- CosmosDB preview emulator readiness check added
+- Azure Managed Redis now uses `rediss://` as the default scheme
 
-- Improved deployment slot support with `onlyIfNotExists` semantics.
-- Dashboard import functionality disabled for App Service configurations.
-- Better error messages when environment variables are normalized.
+### AI model updates
 
-### Azure Container Registry improvements
+- AI Foundry models automatically updated
+- GitHub models updated
+- AI model code generation now converts markdown to C# XML docs
 
-- `IAzureContainerRegistry` interface is now obsolete; use the new `ContainerRegistry` property on compute environments.
-- Improved registry validation for non-Docker image formats.
+## 🌐 Polyglot development
 
-### Azure ServiceBus emulator update
+### TypeScript AppHost support
 
-Updated to Azure ServiceBus emulator version 2.0.0 with improved performance and reliability.
+Aspire 13.2 continues to expand polyglot capabilities with improved TypeScript support:
+- AspireList support for TypeScript code generation
+- TypeScript AppHost testing infrastructure
+- Polyglot AppHost refactoring for better extensibility
 
-### Azure App Configuration emulator update
+### Code generation
 
-Updated to Azure App Configuration emulator version 1.0.2.
+- Go, Java, and Rust code generation test projects added
+- Common languages SDKs included for broader support
 
-## 📦 New integrations
+![Aspire Dashboard Metrics](screenshots/final-metrics.png)
+*Metrics view showing application performance data*
 
-### MongoDB Entity Framework Core
+## 🚀 Deployment and publishing
 
-New client integration for MongoDB with Entity Framework Core:
+### Kubernetes improvements
 
-```csharp title="C# — MongoDB EF Core integration"
-var builder = WebApplication.CreateBuilder(args);
+- YAML publishing fixes for Kubernetes deployments
+- Better handling of resources with `ExcludeFromManifest`
 
-builder.AddMongoDBEntityFramework("mongodb");
-```
+### Azure deployment
 
-### Oracle Entity Framework Core multi-targeting
+- Container Registry exposed from compute environments
+- Improved handling of environment normalization in Azure App Service
+- Better error messages for deployment failures
 
-The Oracle Entity Framework Core integration now supports multiple .NET target frameworks for broader compatibility.
+### Pipeline enhancements
 
-## 🧩 App model updates
-
-### Resource dependencies
-
-New utility method to compute resource dependencies programmatically:
-
-```csharp title="C# — Get resource dependencies"
-var dependencies = await resource.GetResourceDependenciesAsync();
-```
-
-### Event handling improvements
-
-- `BeforeResourceStartedEvent` now only fires when a resource is actually starting (not on restart or other state changes).
-- Added `Logger` property to `IDistributedApplicationResourceEvent` for better diagnostics.
-
-### Image pull policy
-
-The `Never` image pull policy is now properly exposed and validated:
-
-```csharp title="C# — Never pull policy"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddContainer("mycontainer", "myimage:latest")
-    .WithImagePullPolicy(ImagePullPolicy.Never);
-```
-
-<LearnMore>
-Learn more about [configuring image pull policy](/integrations/compute/docker/#configure-image-pull-policy).
-</LearnMore>
-
-### Docker Compose improvements
-
-- New `PullPolicy` property on Docker Compose Service class.
-- Improved annotation integration for container configuration.
-
-<LearnMore>
-Learn more about [image pull policy in Docker Compose](/integrations/compute/docker/#image-pull-policy-in-docker-compose) and the [Docker Compose to AppHost reference](/app-host/docker-compose-to-apphost-reference/#pull-policy).
-</LearnMore>
-
-### Debugger display attributes
-
-Added `DebuggerDisplayAttribute` to resource types, `DistributedApplication`, `EndpointReferenceExpression`, and `ReferenceExpression` for improved debugging experience in Visual Studio.
-
-### Wait for improvements
-
-Better exception handling in `ResourceNotificationService.WaitFor` with more descriptive error messages.
-
-## 🛠️ CLI enhancements
-
-### Fuzzy search in aspire add
-
-The `aspire add` command now supports fuzzy search for finding integrations:
-
-```bash title="Aspire CLI — Fuzzy search"
-aspire add reddis  # Will suggest "redis"
-```
-
-### Isolated run mode
-
-New `--isolated` flag for the run command to prevent automatic instance detection:
-
-```bash title="Aspire CLI — Isolated run"
-aspire run --isolated
-```
-
-### Configuration schema generation
-
-The CLI now generates JSON schemas for configuration files, enabling IntelliSense and validation in supported editors.
-
-### Additional CLI improvements
-
-- Improved search highlight contrast in interactive prompts for accessibility.
-- Retries added to NuGet search operations for reliability.
-- Fixed installation path handling with `aspire update --self`.
-- Better error messages for deprecated workload detection.
-
-## 🔒 Security and reliability
-
-### Deployment directory permissions
-
-Deployment state directories are now restricted to the current user only, preventing potential information disclosure.
-
-### Environment variable redaction
-
-Debug configuration logging now redacts environment variables by default to prevent accidental credential exposure.
-
-### Socket naming improvements
-
-- PID-based socket naming improves backchannel reliability.
-- Fixed Windows startup errors caused by reserved device names (AUX, CON, etc.) in socket paths.
-
-### Certificate improvements
-
-- Fixed certificate serial number generation.
-- Better filtering of development certificates without `X509SubjectKeyIdentifierExtension`.
+- Pipeline summary info displayed after successful completion
+- Environment name validation in deployment state manager
+- Deployment directory permissions restricted to current user
 
 ## 🐛 Bug fixes
 
-- Fixed app host returning incorrect `ResourceType` to the dashboard.
-- Fixed Parameters view to ignore resource type filter.
-- Fixed GenAI tool schema parsing for type arrays.
-- Fixed race condition in `RabbitMQEventSourceListener`.
-- Fixed showing URLs from other resources' endpoints.
-- Fixed MongoDB connection string options formatting (forward slash prepending).
-- Fixed deployment failure for resources with `ExcludeFromManifest`.
-- Fixed `WithHostHttpsPort` when chained inline.
-- Fixed exporting metrics data points from dashboard.
-- Fixed graph to always update after all filter changes.
-- Fixed tooltip for view options button in resource details panel.
-- Fixed noisy exception logging during cancellation.
-- Fixed flaky tests across CLI, dashboard, and deployment components.
+This release includes numerous bug fixes across all areas:
 
-## 🙏 Community contributions
+- Fixed DCP path creation for AppHostServer
+- Fixed dashboard URL port logging for randomized ports
+- Fixed Windows startup error with AUX reserved device name
+- Fixed race condition in RabbitMQEventSourceListener
+- Fixed certificate serial number generation
+- Fixed resource logger service disposal and memory leaks
+- Fixed various GenAI tool definition parsing issues
+- Improved search highlight contrast in CLI interactive prompts
+- Fixed tooltip for view options button in resource details panel
 
-Thank you to all community contributors who helped make Aspire 13.2 possible:
+## 🎯 Getting started
 
-- **TypeScript AppHost** — Initial implementation and polyglot SDK work.
-- **Bun support for Vite** — `WithBun()` extension method.
-- **Fuzzy search** — Improved `aspire add` discovery experience.
-- **Resource graph improvements** — Adaptive force-directed positioning.
-- **MongoDB Entity Framework Core** — New integration package.
-- **Azure Data Lake Storage** — New Azure integration.
-- **Kubernetes YAML fixes** — Publishing improvements.
-- **Multiple bug fixes** — Including certificate handling, connection strings, and GenAI parsing.
+To update to Aspire 13.2:
 
-We're always excited to [see community contributions](/community/contributors/)! If you'd like to get involved, check out our [contributing guide](/community/contributor-guide/).
+```bash title="Aspire CLI — Update to Aspire 13.2"
+# Update the Aspire CLI
+aspire update --self
 
-## ⚠️ Breaking changes
-
-<span id='-breaking-changes'></span>
-
-### BeforeResourceStartedEvent behavior change
-
-The `BeforeResourceStartedEvent` now only fires when a resource is actually starting for the first time. Previously, it could fire during restarts or other state transitions. Update any event handlers that relied on the previous behavior.
-
-### Connection property suffix changes
-
-Some connection properties have been updated for consistency. If your polyglot applications rely on specific environment variable names, please verify they still work correctly.
-
-### IAzureContainerRegistry obsolete
-
-The `IAzureContainerRegistry` interface is now obsolete. Previously, accessing container registry information from a compute environment required casting the environment to `IAzureContainerRegistry`. This mixed resource identity with deployment-target concerns. In Aspire 13.2, a new `IAzureContainerRegistryResource` interface models the registry as a proper resource, and you access it through the `ContainerRegistry` property on `IAzureComputeEnvironmentResource`.
-
-```csharp title="C# — Before: casting to IAzureContainerRegistry" data-disable-copy
-// Aspire 13.1 — cast the compute environment
-var registry = environment as IAzureContainerRegistry;
-if (registry is not null)
-{
-    var name = registry.Name;
-    var endpoint = registry.Endpoint;
-    var managedIdentityId = registry.ManagedIdentityId;
-}
+# Update integrations in your project
+aspire update
 ```
 
-```csharp title="C# — After: using the ContainerRegistry property"
-// Aspire 13.2 — access directly from the compute environment
-var registry = environment.ContainerRegistry;
-if (registry is not null)
-{
-    var name = registry.Name;
-    var endpoint = registry.Endpoint;
-}
+Or install the CLI from scratch:
+
+```bash title="Aspire CLI — Install Aspire CLI"
+curl -sSL https://aspire.dev/install.sh | bash
 ```
 
-<Aside type="note">
-  The `ManagedIdentityId` property is no longer on the container registry interface. Managed identity is now handled at the compute environment level.
-</Aside>
-
-### Migration from Aspire 13.1 to 13.2
-
-<Steps>
-
-1. **Update the CLI**: Run `aspire update --self`.
-2. **Update your projects**: Run `aspire update` in your project directory.
-3. **Run aspire doctor**: Validate your environment with `aspire doctor`.
-4. **Review event handlers**: Check any `BeforeResourceStartedEvent` handlers for compatibility.
-5. **Update Azure container registry access**: Replace any `IAzureContainerRegistry` casts with the `ContainerRegistry` property on `IAzureComputeEnvironmentResource`. Remove any references to `ManagedIdentityId` on the registry interface.
-
-</Steps>
+For more information, visit [aspire.dev](https://aspire.dev).
 
 ---
 
-**Feedback and contributions**: We'd love to hear about your experience with Aspire 13.2! Share feedback on [GitHub](https://github.com/dotnet/aspire/issues) or join the conversation on [Discord](https://aka.ms/aspire-discord).
+*This document covers the key changes in Aspire 13.2. For a complete list of changes, see the [GitHub milestone](https://github.com/dotnet/aspire/milestone/25).*
+
+## ⚠️ Breaking changes
+
+### `BeforeResourceStartedEvent` behavior
+
+The `BeforeResourceStartedEvent` now only fires when actually starting a resource, not on every state change. Update your event handlers if they rely on the previous behavior.
+
+### Connection property suffix
+
+A connection property suffix has been added which may require updates to code that accesses connection properties directly.
+
+### `IAzureContainerRegistry` obsolete
+
+The `IAzureContainerRegistry` interface has been marked as obsolete. Use the new `ContainerRegistry` property on compute environments instead.
