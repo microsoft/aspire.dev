@@ -1,0 +1,202 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+export interface Speaker {
+  name: string;
+  headshot: ImageMetadata;
+  jobTitle?: string;
+  company?: string;
+}
+
+export interface Props {
+  title: string;
+  speakers: Speaker[];
+  abstract: string;
+  timeslot?: string;
+  index?: number;
+}
+
+const { title, speakers, abstract, timeslot, index = 0 } = Astro.props;
+const reversed = index % 2 === 1;
+---
+
+<li class:list={['session-card', 'not-content', { reversed }]}>
+  <div class="speakers">
+    {
+      speakers.map((speaker) => (
+        <div class="speaker">
+          <Image
+            class="headshot"
+            src={speaker.headshot}
+            alt={speaker.name}
+            width={96}
+            height={96}
+          />
+          <span class="speaker-name">{speaker.name}</span>
+          {speaker.jobTitle && <span class="speaker-jobtitle">{speaker.jobTitle}</span>}
+          {speaker.company && <span class="speaker-company">{speaker.company}</span>}
+        </div>
+      ))
+    }
+  </div>
+  <div class="details">
+    {timeslot && <span class="timeslot">{timeslot}</span>}
+    <h3 class="title">{title}</h3>
+    <p class="abstract">{abstract}</p>
+  </div>
+</li>
+
+<style>
+  .session-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: var(--sl-shadow-sm);
+    list-style: none;
+    border-left: 4px solid var(--aspire-color-primary);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .session-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(116, 85, 221, 0.15);
+  }
+
+  .session-card.reversed {
+    grid-template-columns: 1fr auto;
+    border-left: 1px solid var(--sl-color-gray-5);
+    border-right: 4px solid var(--aspire-color-primary);
+  }
+
+  .session-card.reversed .speakers {
+    order: 2;
+  }
+
+  .session-card.reversed .details {
+    order: 1;
+    text-align: right;
+  }
+
+  .session-card.reversed .details .timeslot {
+    align-self: flex-end;
+  }
+
+  .speakers {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 1.5rem 2rem;
+    background: color-mix(in srgb, var(--aspire-color-primary) 10%, var(--sl-color-gray-6, var(--sl-color-gray-7)));
+    transition: background-color 0.4s ease;
+  }
+
+  .session-card:hover .speakers {
+    background: color-mix(in srgb, var(--aspire-color-primary) 22%, var(--sl-color-gray-6, var(--sl-color-gray-7)));
+  }
+
+  :global([data-theme='dark']) .speakers {
+    background: color-mix(in srgb, var(--aspire-color-primary) 20%, var(--sl-color-gray-6, var(--sl-color-gray-7)));
+  }
+
+  :global([data-theme='dark']) .session-card:hover .speakers {
+    background: color-mix(in srgb, var(--aspire-color-primary) 38%, var(--sl-color-gray-6, var(--sl-color-gray-7)));
+  }
+
+  .speaker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .headshot {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--aspire-color-primary);
+  }
+
+  .speaker-name {
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    color: var(--sl-color-white);
+    text-align: center;
+  }
+
+  .speaker-jobtitle,
+  .speaker-company {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .details {
+    padding: 1.75rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+
+  .timeslot {
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .title {
+    margin: 0;
+    font-size: var(--sl-text-xl, 1.25rem);
+    font-weight: 700;
+    line-height: var(--sl-line-height-headings);
+    color: var(--aspire-color-primary);
+  }
+
+  :global([data-theme='dark']) .title {
+    color: var(--aspire-color-secondary);
+  }
+
+  .abstract {
+    margin: 0;
+    font-size: var(--sl-text-body);
+    line-height: 1.7;
+    color: var(--sl-color-white);
+  }
+
+  @media (max-width: 600px) {
+    .session-card,
+    .session-card.reversed {
+      grid-template-columns: 1fr;
+      border-left: 1px solid var(--sl-color-gray-5);
+      border-right: 1px solid var(--sl-color-gray-5);
+      border-top: 4px solid var(--aspire-color-primary);
+    }
+
+    .session-card.reversed .speakers {
+      order: 0;
+    }
+
+    .session-card.reversed .details {
+      order: 0;
+      text-align: left;
+    }
+
+    .session-card.reversed .details .timeslot {
+      align-self: flex-start;
+    }
+
+    .speakers {
+      padding: 1.25rem 1rem;
+    }
+  }
+</style>
