@@ -419,18 +419,12 @@ This command displays:
 - Step dependencies and target resources
 - Configuration issues like orphaned steps or circular dependencies
 
-**Example diagnostics output:**
+The output includes several sections:
 
-```
-Pipeline Steps:
-  ✓ build-apiservice (parallel)
-  ✓ build-frontend (parallel)
-  ✓ provision-database (parallel)
-  → push-apiservice (depends on: build-apiservice, provision-registry)
-  → push-frontend (depends on: build-frontend, provision-registry)
-  → deploy-apiservice (depends on: push-apiservice, provision-database)
-  → deploy-frontend (depends on: push-frontend, deploy-apiservice)
-```
+- **Execution order**: A numbered list showing the order in which steps would execute
+- **Detailed step analysis**: Each step's dependencies, associated resources, tags, and descriptions (✓ = dependency exists, ? = dependency missing)
+- **Potential issues**: Identifies problems like orphaned steps or circular dependencies
+- **Execution simulation**: "What if" analysis showing what steps would run for each possible target step, with concurrency indicators for steps that can run in parallel
 
 ## Custom pipeline steps
 
@@ -516,22 +510,11 @@ requiredBy: ["deploy-apiservice"]);
 
 ### Pipeline configuration
 
-Resources can also customize how they participate in the pipeline using `WithPipelineConfiguration`:
+Resources can also customize how they participate in the pipeline using `WithPipelineConfiguration`, which provides control over step ordering and resource-specific pipeline behavior.
 
-```csharp title="C# — Custom pipeline configuration"
-var api = builder.AddProject<Projects.Api>("api")
-    .WithPipelineConfiguration(config =>
-    {
-        // Skip this resource during certain pipeline steps
-        config.SkipStep(WellKnownPipelineSteps.Push);
-        
-        // Or add custom behavior
-        config.OnStepStarting = (step) =>
-        {
-            Console.WriteLine($"Starting step: {step.Name}");
-        };
-    });
-```
+<Aside type="note">
+The `WithPipelineConfiguration` API is experimental and may change in future releases. Refer to the [aspire do command reference](/reference/cli/commands/aspire-do/) for the latest details on pipeline configuration.
+</Aside>
 
 ## Common use cases
 
