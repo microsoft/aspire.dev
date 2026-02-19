@@ -280,6 +280,28 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
             {
+              label: 'aspire docs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire docs',
+                  slug: 'reference/cli/commands/aspire-docs',
+                },
+                {
+                  label: 'aspire docs list',
+                  slug: 'reference/cli/commands/aspire-docs-list',
+                },
+                {
+                  label: 'aspire docs search',
+                  slug: 'reference/cli/commands/aspire-docs-search',
+                },
+                {
+                  label: 'aspire docs get',
+                  slug: 'reference/cli/commands/aspire-docs-get',
+                },
+              ],
+            },
+            {
               label: 'aspire doctor',
               slug: 'reference/cli/commands/aspire-doctor',
             },

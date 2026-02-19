@@ -9,12 +9,17 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
+import { Aside } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
-import { Code, Tabs, Steps, TabItem, Aside, Icon } from '@astrojs/starlight/components';
 
+import resourcesDark from '@assets/whats-new/aspire-13.2/resources-dark.png';
+import resourcesLight from '@assets/whats-new/aspire-13.2/resources-light.png';
+import consoleLogsDark from '@assets/whats-new/aspire-13.2/console-logs-dark.png';
+import consoleLogsLight from '@assets/whats-new/aspire-13.2/console-logs-light.png';
+import structuredLogsDark from '@assets/whats-new/aspire-13.2/structured-logs-dark.png';
+import structuredLogsLight from '@assets/whats-new/aspire-13.2/structured-logs-light.png';
 Aspire 13.2 brings significant improvements to the developer experience with enhanced CLI capabilities, dashboard improvements, new AI agent integrations, and better polyglot support. This release focuses on making local development more streamlined while maintaining the robust cloud-native foundation that Aspire is known for.
 
 ## 🛠️ Aspire CLI enhancements
@@ -64,6 +69,7 @@ This command checks:
 - Container runtime (Docker/Podman) availability and version
 - WSL2 environment configuration
 - Container tunnel requirements for Docker Engine
+- Agent configuration status (detecting deprecated settings)
 
 The output provides actionable recommendations when issues are detected, making it easier to troubleshoot configuration problems.
 
@@ -95,6 +101,30 @@ This enables AI agents to interact with your Aspire applications through a stand
 
 <LearnMore>
 Command reference: [`aspire agent`](/reference/cli/commands/aspire-agent/).
+</LearnMore>
+
+### Browse documentation from the CLI (`aspire docs`)
+
+The new `aspire docs` command brings the official [aspire.dev](https://aspire.dev) documentation directly into your terminal. Built on the same [MCP (Model Context Protocol) documentation tools](https://davidpine.dev/posts/aspire-docs-mcp-tools/) that power the Aspire agent integration, these commands let you browse, search, and read documentation without leaving your development workflow.
+
+```bash title="Aspire CLI — Browse and search documentation"
+# List all available documentation pages
+aspire docs list
+
+# Search for specific topics
+aspire docs search "redis"
+
+# Read a full documentation page by its slug
+aspire docs get redis-integration
+
+# Read a specific section of a page
+aspire docs get redis-integration --section "Add Redis resource"
+```
+
+Each command supports `--format Json` for machine-readable output, making them useful for scripting and automation. The `aspire docs search` command also accepts a `--limit` option to control the number of results returned.
+
+<LearnMore>
+Command reference: [`aspire docs`](/reference/cli/commands/aspire-docs/).
 </LearnMore>
 
 ### Improved configuration management
@@ -132,7 +162,13 @@ Aspire CLI now includes optional telemetry to help improve the developer experie
 If you are on a version of the Aspire CLI less than 13, please use the [installation instructions](/get-started/install-cli/) to install the latest stable version.
 </Aside>
 
+For comprehensive upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
+
 The easiest way to upgrade to Aspire 13.2 is using the `aspire update` command:
+
+<Aside type="tip">
+  The `aspire update` command is currently in preview.
+</Aside>
 
 1. Update your Aspire project using the [`aspire update` command](/reference/cli/commands/aspire-update/):
 
@@ -148,11 +184,26 @@ The easiest way to upgrade to Aspire 13.2 is using the `aspire update` command:
 
 Or install the CLI from scratch:
 
-```bash
-curl -sSL https://aspire.dev/install.sh | bash
-```
+<OsAwareTabs>
+  <Fragment slot="unix">
+    ```bash title="Aspire CLI — Install Aspire CLI"
+    curl -sSL https://aspire.dev/install.sh | bash
+    ```
+  </Fragment>
+  <Fragment slot="windows">
+    ```powershell title="Aspire CLI — Install Aspire CLI"
+    irm https://aspire.dev/install.ps1 | iex
+    ```
+  </Fragment>
+</OsAwareTabs>
 
 ## 📊 Dashboard improvements
+
+<ThemeImage
+    light={resourcesLight}
+    dark={resourcesDark}
+    alt="Aspire 13.2 dashboard resources page showing running resources with status indicators"
+/>
 
 ### Enhanced data export
 
@@ -163,24 +214,30 @@ The dashboard now provides comprehensive export capabilities:
 - **.env File Export**: Export environment variables directly to a `.env` file format from resource details
 - **View JSON with Copy**: Download or copy JSON directly from the visualizer
 
-![Manage Logs and Telemetry Dialog](screenshots/feature-settings-panel.png)
-*The Settings panel showing theme options, language selection, and Resource logs and telemetry management*
-
 ### Improved telemetry visualization
+
+<ThemeImage
+    light={structuredLogsLight}
+    dark={structuredLogsDark}
+    alt="Aspire 13.2 dashboard structured logs page with resource filtering and log level indicators"
+/>
 
 - **Download JSON for Traces, Spans, and Logs**: Each telemetry view now includes options to export data
 - **OTLP/JSON Support**: The dashboard now supports OTLP over JSON in addition to gRPC
 - **Environment Variable Highlighting**: Environment variables are now highlighted for better visibility
 - **Masked Query String Values**: Sensitive data in URLs is automatically masked for security
 
-![Aspire Dashboard Structured Logs](screenshots/final-structured-logs.png)
-*Structured logs view with message details and action buttons for View JSON feature*
-
 ### Resource graph improvements
 
 The resource graph layout has been significantly improved with adaptive force-directed positioning, providing a clearer visualization of your application topology.
 
 ### Persistent UI state
+
+<ThemeImage
+    light={consoleLogsLight}
+    dark={consoleLogsDark}
+    alt="Aspire 13.2 dashboard console logs page showing color-coded resource output"
+/>
 
 The dashboard now remembers:
 - Collapsed/expanded state of resources
@@ -193,15 +250,6 @@ The dashboard now remembers:
 - Query string value masking to protect sensitive information
 - Copy button visibility improvements even when values are hidden
 - Toggle button for secret visibility in input dialogs
-
-![Aspire Dashboard Console Logs](screenshots/final-console-logs.png)
-*Console logs view showing real-time output with color-coded resource labels and line numbers*
-
-![Aspire Dashboard Resources](screenshots/final-resources.png)
-*Resources page showing running services with their status, endpoints, and action buttons*
-
-![Aspire MCP Server](screenshots/feature-mcp-server.png)
-*The MCP Server integration dialog, enabling AI assistants to connect to Aspire app data*
 
 ## 🧩 App model and resource improvements
 
@@ -285,9 +333,6 @@ Aspire 13.2 continues to expand polyglot capabilities with improved TypeScript s
 - Go, Java, and Rust code generation test projects added
 - Common languages SDKs included for broader support
 
-![Aspire Dashboard Metrics](screenshots/final-metrics.png)
-*Metrics view showing application performance data*
-
 ## 🚀 Deployment and publishing
 
 ### Kubernetes improvements
@@ -335,9 +380,18 @@ aspire update
 
 Or install the CLI from scratch:
 
-```bash title="Aspire CLI — Install Aspire CLI"
-curl -sSL https://aspire.dev/install.sh | bash
-```
+<OsAwareTabs>
+  <Fragment slot="unix">
+    ```bash title="Aspire CLI — Install Aspire CLI"
+    curl -sSL https://aspire.dev/install.sh | bash
+    ```
+  </Fragment>
+  <Fragment slot="windows">
+    ```powershell title="Aspire CLI — Install Aspire CLI"
+    irm https://aspire.dev/install.ps1 | iex
+    ```
+  </Fragment>
+</OsAwareTabs>
 
 For more information, visit [aspire.dev](https://aspire.dev).
 
