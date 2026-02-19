@@ -67,6 +67,7 @@ export default defineConfig({
       },
       plugins: [
         starlightPageActions({
+          share: true,
           actions: {
             chatgpt: false,
             claude: false,
@@ -75,13 +76,13 @@ export default defineConfig({
                 label: 'Open in GitHub Copilot',
                 href: 'https://github.com/copilot/?prompt=',
               },
-              chatGpt: {
-                label: 'Open in ChatGPT',
-                href: 'https://chatgpt.com/?q=',
-              },
               claude: {
                 label: 'Open in Claude',
                 href: 'https://claude.ai/new?q=',
+              },
+              chatGpt: {
+                label: 'Open in ChatGPT',
+                href: 'https://chatgpt.com/?q=',
               },
             },
           },
@@ -99,9 +100,7 @@ export default defineConfig({
               starlightLinksValidator({
                 errorOnRelativeLinks: false,
                 errorOnFallbackPages: false,
-                exclude: [
-                  '/i18n/'
-                ]
+                exclude: ['/i18n/'],
               }),
             ]
           : []),
