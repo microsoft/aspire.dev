@@ -140,14 +140,6 @@ export const communityTopics: StarlightSidebarTopicsUserConfig = {
       ],
     },
     {
-      label: 'BlueSky',
-      slug: 'community/posts',
-      badge: {
-        text: '#aspire',
-        variant: 'note',
-      },
-    },
-    {
       label: 'Videos',
       translations: {
         da: 'Videoer',

@@ -319,5 +319,145 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         },
       ],
     },
+    {
+      label: 'Diagnostics',
+      translations: {
+        da: 'Diagnostik',
+        de: 'Diagnose',
+        en: 'Diagnostics',
+        es: 'Diagnósticos',
+        fr: 'Diagnostics',
+        hi: 'निदान',
+        id: 'Diagnostik',
+        it: 'Diagnostica',
+        ja: '診断',
+        ko: '진단',
+        pt: 'Diagnósticos',
+        'pt-BR': 'Diagnósticos',
+        'pt-PT': 'Diagnósticos',
+        ru: 'Диагностика',
+        tr: 'Tanılama',
+        uk: 'Діагностика',
+        'zh-CN': '诊断',
+      },
+      collapsed: false,
+      items: [
+        { label: 'Overview', link: '/diagnostics/overview' },
+        {
+          label: 'Warnings',
+          collapsed: true,
+          items: [
+            { label: 'ASPIRE001', link: '/diagnostics/aspire001' },
+            { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
+            { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
+            { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
+            {
+              label: 'ASPIRECERTIFICATES001',
+              link: '/diagnostics/aspirecertificates001',
+            },
+            {
+              label: 'ASPIRECOMPUTE002',
+              link: '/diagnostics/aspirecompute002',
+            },
+            {
+              label: 'ASPIRECOMPUTE003',
+              link: '/diagnostics/aspirecompute003',
+            },
+            {
+              label: 'ASPIRECONTAINERRUNTIME001',
+              link: '/diagnostics/aspirecontainerruntime001',
+            },
+            {
+              label: 'ASPIRECONTAINERSHELLEXECUTION001',
+              link: '/diagnostics/aspirecontainershellexecution001',
+            },
+            {
+              label: 'ASPIREDOCKERFILEBUILDER001',
+              link: '/diagnostics/aspiredockerfilebuilder001',
+            },
+            {
+              label: 'ASPIREDOTNETTOOL',
+              link: '/diagnostics/aspiredotnettool',
+            },
+            {
+              label: 'ASPIREEXTENSION001',
+              link: '/diagnostics/aspireextension001',
+            },
+            {
+              label: 'ASPIREFILESYSTEM001',
+              link: '/diagnostics/aspirefilesystem001',
+            },
+            {
+              label: 'ASPIREINTERACTION001',
+              link: '/diagnostics/aspireinteraction001',
+            },
+            {
+              label: 'ASPIREPIPELINES004',
+              link: '/diagnostics/aspirepipelines004',
+            },
+            {
+              label: 'ASPIREPROBES001',
+              link: '/diagnostics/aspireprobes001',
+            },
+            {
+              label: 'ASPIREPOSTGRES001',
+              link: '/diagnostics/aspirepostgres001',
+            },
+            {
+              label: 'ASPIREUSERSECRETS001',
+              link: '/diagnostics/aspireusersecrets001',
+            },
+          ],
+        },
+        {
+          label: 'Errors',
+          collapsed: true,
+          items: [
+            { label: 'ASPIRE006', link: '/diagnostics/aspire006' },
+            { label: 'ASPIRE007', link: '/diagnostics/aspire007' },
+            { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
+            {
+              label: 'ASPIREACADOMAIN001',
+              link: '/diagnostics/aspireacadomains001',
+            },
+            { label: 'ASPIRECOMPUTE001', link: '/diagnostics/aspirecompute001' },
+            {
+              label: 'ASPIRECSHARPAPPS001',
+              link: '/diagnostics/aspirecsharpapps001',
+            },
+            {
+              label: 'ASPIRECOSMOSDB001',
+              link: '/diagnostics/aspirecosmosdb001',
+            },
+            {
+              label: 'ASPIREHOSTINGPYTHON001',
+              link: '/diagnostics/aspirehostingpython001',
+            },
+            {
+              label: 'ASPIREPIPELINES001',
+              link: '/diagnostics/aspirepipelines001',
+            },
+            {
+              label: 'ASPIREPIPELINES002',
+              link: '/diagnostics/aspirepipelines002',
+            },
+            {
+              label: 'ASPIREPIPELINES003',
+              link: '/diagnostics/aspirepipelines003',
+            },
+            {
+              label: 'ASPIREPROXYENDPOINTS001',
+              link: '/diagnostics/aspireproxyendpoints001',
+            },
+            {
+              label: 'ASPIREPUBLISHERS001',
+              link: '/diagnostics/aspirepublishers001',
+            },
+            { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
+            { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
+          ],
+        },
+      ],
+    },
   ],
 };
