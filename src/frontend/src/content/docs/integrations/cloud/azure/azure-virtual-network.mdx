@@ -115,9 +115,9 @@ var vnet = builder.AddAzureVirtualNetwork("vnet");
 var subnet = vnet.AddSubnet("web", "10.0.1.0/24")
     .AllowInbound(
         port: "443",
-        from: "AzureLoadBalancer",
+        from: AzureServiceTags.AzureLoadBalancer,
         protocol: SecurityRuleProtocol.Tcp)
-    .DenyInbound(from: "Internet");
+    .DenyInbound(from: AzureServiceTags.Internet);
 ```
 
 The available shorthand methods are:
@@ -132,7 +132,8 @@ Priority auto-increments by 100 (100, 200, 300...) and rule names are auto-gener
 <Aside type="note">
   The `SecurityRuleProtocol`, `SecurityRuleDirection`, and
   `SecurityRuleAccess` types require a `using` directive for the
-  `Azure.Provisioning.Network` namespace.
+  `Azure.Provisioning.Network` namespace. The `AzureServiceTags` class is in
+  the `Aspire.Hosting.Azure` namespace.
 </Aside>
 
 #### Explicit API
@@ -232,6 +233,7 @@ The following example demonstrates a complete network topology with a virtual ne
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable AZPROVISION001
 
+using Aspire.Hosting.Azure;
 using Azure.Provisioning.Network;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -243,10 +245,10 @@ var vnet = builder.AddAzureVirtualNetwork("vnet");
 var containerAppsSubnet = vnet.AddSubnet("container-apps", "10.0.0.0/23")
     .AllowInbound(
         port: "443",
-        from: "AzureLoadBalancer",
+        from: AzureServiceTags.AzureLoadBalancer,
         protocol: SecurityRuleProtocol.Tcp)
-    .DenyInbound(from: "VirtualNetwork")
-    .DenyInbound(from: "Internet");
+    .DenyInbound(from: AzureServiceTags.VirtualNetwork)
+    .DenyInbound(from: AzureServiceTags.Internet);
 
 var natGateway = builder.AddNatGateway("nat");
 containerAppsSubnet.WithNatGateway(natGateway);
@@ -255,9 +257,9 @@ containerAppsSubnet.WithNatGateway(natGateway);
 var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27")
     .AllowInbound(
         port: "443",
-        from: "VirtualNetwork",
+        from: AzureServiceTags.VirtualNetwork,
         protocol: SecurityRuleProtocol.Tcp)
-    .DenyInbound(from: "Internet");
+    .DenyInbound(from: AzureServiceTags.Internet);
 
 // Configure the Container App Environment to use the VNet.
 // WithDelegatedSubnet assigns the subnet to the ACA environment,
