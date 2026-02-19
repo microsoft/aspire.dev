@@ -211,6 +211,10 @@ Another method you can use to customize Azure provisioning is to create an [`Inf
 A custom infrastructure resolver is a class that inherits from `InfrastructureResolver` and can override one or more of its virtual members to apply the desired customizations. In the following example, the `ResolveProperties` method is overridden to set the name of a Cosmos DB resource, but other members can also be overridden depending on your needs.
 
 ```csharp title="C# — AppHost.cs"
+using Azure.Provisioning;
+using Azure.Provisioning.CosmosDB;
+using Azure.Provisioning.Primitives;
+
 internal sealed class FixedNameInfrastructureResolver : InfrastructureResolver
 {
     public override void ResolveProperties(ProvisionableConstruct construct, ProvisioningBuildOptions options)
@@ -228,11 +232,14 @@ internal sealed class FixedNameInfrastructureResolver : InfrastructureResolver
 Having created that class, add it to the configuration options using code like this in the AppHost:
 
 ```csharp title="C# — AppHost.cs"
+using Aspire.Hosting.Azure;
+using Microsoft.Extensions.DependencyInjection;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.Services.Configure<AzureProvisioningOptions>(options =>
 {
-    options.ProvisioningBuildOptions.InfrastructureResolvers.Insert(0, new FixedNameInfrastructureResolver());
+    options.ProvisioningBuildOptions.InfrastructureResolvers.Add(new FixedNameInfrastructureResolver());
 });
 
 builder.Build().Run();
