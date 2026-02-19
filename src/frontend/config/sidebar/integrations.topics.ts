@@ -405,6 +405,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Virtual Network',
+              slug: 'integrations/cloud/azure/azure-virtual-network',
+            },
+            {
               label: 'Azure Web PubSub',
               slug: 'integrations/cloud/azure/azure-web-pubsub',
             },
