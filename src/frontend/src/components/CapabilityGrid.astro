@@ -1,0 +1,152 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+
+interface Capability {
+  icon: StarlightIcon;
+  title: string;
+  description: string;
+  href?: string;
+}
+
+interface Props {
+  capabilities: Capability[];
+  columns?: 2 | 3;
+}
+
+const { capabilities, columns = 3 } = Astro.props;
+---
+
+<div class="capability-grid not-content" style={`--cap-cols: ${columns}`}>
+  {
+    capabilities.map((cap) => {
+      const Tag = cap.href ? 'a' : 'div';
+      return (
+        <Tag href={cap.href} class:list={['capability-card', { linked: !!cap.href }]}>
+          <div class="cap-icon">
+            <Icon name={cap.icon} size="1.5rem" />
+          </div>
+          <div class="cap-body">
+            <h3 class="cap-title">{cap.title}</h3>
+            <p class="cap-desc">{cap.description}</p>
+            {cap.href && (
+              <span class="cap-link">
+                Learn more <Icon name="right-arrow" size="0.8rem" />
+              </span>
+            )}
+          </div>
+        </Tag>
+      );
+    })
+  }
+</div>
+
+<style>
+  .capability-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0;
+  }
+
+  @media (min-width: 64rem) {
+    .capability-grid {
+      grid-template-columns: repeat(var(--cap-cols, 3), 1fr);
+    }
+  }
+
+  .capability-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 40%, transparent);
+    background: color-mix(in srgb, var(--sl-color-gray-6) 50%, transparent);
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .capability-card.linked {
+    cursor: pointer;
+  }
+
+  .capability-card.linked:hover {
+    border-color: color-mix(in srgb, var(--aspire-color-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--aspire-color-primary) 6%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .capability-card:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+
+  .cap-icon {
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--aspire-color-primary) 16%, var(--sl-color-bg));
+    color: var(--aspire-color-primary);
+  }
+
+  :global([data-theme='light']) .cap-icon {
+    background: color-mix(in srgb, var(--aspire-color-primary) 12%, white);
+  }
+
+  .cap-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .cap-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+    line-height: 1.3;
+  }
+
+  .cap-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--sl-color-gray-3);
+  }
+
+  :global([data-theme='light']) .cap-desc {
+    color: var(--sl-color-gray-2);
+  }
+
+  .cap-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--aspire-color-secondary);
+    margin-top: 0.35rem;
+    transition: gap 0.2s ease;
+  }
+
+  :global([data-theme='light']) .cap-link {
+    color: var(--aspire-color-primary);
+  }
+
+  .capability-card:hover .cap-link {
+    gap: 0.55rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .capability-card,
+    .cap-link {
+      transition: none;
+    }
+    .capability-card.linked:hover {
+      transform: none;
+    }
+  }
+</style>

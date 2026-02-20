@@ -23,4 +23,7 @@ export const redirects = {
   '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
   '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started/',
   '/integrations/databases/efcore/azure-sql/': '/integrations/databases/efcore/azure-sql/azure-sql-get-started/',
+  '/reference/cli/commands/aspire-mcp/': '/reference/cli/commands/aspire-agent/',
+  '/reference/cli/commands/aspire-mcp-init/': '/reference/cli/commands/aspire-agent-init/',
+  '/reference/cli/commands/aspire-mcp-start/': '/reference/cli/commands/aspire-agent-mcp/',
 };
