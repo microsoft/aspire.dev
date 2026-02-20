@@ -1,0 +1,168 @@
+---
+title: Resource naming conventions
+description: Learn how Aspire resource names map to environment variables, including dash-to-underscore transformation rules, and best practices for naming resources.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When you define resources in an Aspire AppHost, their names play an important role in how configuration is surfaced to consuming services. This article explains how resource names map to environment variables, how special characters like dashes are handled, and naming best practices.
+
+## How resource names map to environment variables
+
+When a resource is referenced by another resource using `WithReference`, Aspire injects environment variables into the consuming resource. These environment variables follow the `ConnectionStrings__<resourceName>` pattern for connection strings, or `services__<resourceName>__<endpointName>__<index>` for service discovery endpoints.
+
+<Aside type="note">
+Dashes (`-`) in resource names are automatically transformed to underscores (`_`) in environment variable names. For example, a resource named `my-service` results in environment variables like `ConnectionStrings__my_service`. For more details, see [Dash-to-underscore transformation](#dash-to-underscore-transformation).
+</Aside>
+
+### Connection string environment variables
+
+For connection strings, Aspire uses the following pattern:
+
+```
+ConnectionStrings__<resourceName>
+```
+
+For example, if you define a Redis resource named `cache`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+The `api` project receives a `ConnectionStrings__cache` environment variable containing the Redis connection string.
+
+### Service discovery environment variables
+
+For service endpoints, Aspire injects variables following this pattern:
+
+```
+services__<resourceName>__<endpointName>__0
+```
+
+For example, a project named `catalog` with an `http` endpoint provides:
+
+```
+services__catalog__http__0=http://localhost:5123
+```
+
+Multiple endpoints are indexed starting from `0`:
+
+```
+services__catalog__http__0=http://localhost:5123
+services__catalog__https__0=https://localhost:7234
+```
+
+For more information, see [Service discovery](/fundamentals/service-discovery/).
+
+## Dash-to-underscore transformation
+
+Resource names containing dashes (`-`) are **automatically transformed to underscores (`_`)** when used in environment variable names. This transformation is necessary because dashes are not valid in many environment variable names across platforms.
+
+For example:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("my-database").AddDatabase("app-db");
+
+var api = builder.AddProject<Projects.Api>("my-api")
+    .WithReference(db);
+
+builder.Build().Run();
+```
+
+The environment variables injected into `my-api` use underscores:
+
+| Resource name | Environment variable |
+|---------------|---------------------|
+| `app-db` | `ConnectionStrings__app_db` |
+| `my-api` | `services__my_api__http__0` |
+
+<Aside type="note">
+Only dashes are transformed. Other characters such as dots or underscores are preserved as-is.
+</Aside>
+
+### Accessing the connection string in consuming services
+
+In your .NET application, the configuration system maps double underscores (`__`) to the colon (`:`) separator used by `IConfiguration`. This means `ConnectionStrings__app_db` is accessible as `ConnectionStrings:app-db` in the configuration API:
+
+```csharp title="C# — Program.cs"
+// This resolves ConnectionStrings__app_db (injected by Aspire)
+var connectionString = builder.Configuration.GetConnectionString("app-db");
+```
+
+<Aside type="tip">
+When using the typed configuration pattern (e.g., `AddNpgsqlDataSource("app-db")`), pass the original resource name with dashes — Aspire integrations handle the underscore mapping internally.
+</Aside>
+
+For Python and JavaScript services, the double-underscore format is used directly:
+
+```python title="Python — app.py"
+import os
+
+connection_string = os.environ.get("ConnectionStrings__app_db")
+```
+
+```javascript title="JavaScript — app.js"
+const connectionString = process.env["ConnectionStrings__app_db"];
+```
+
+## Naming best practices
+
+Follow these recommendations when naming resources in your AppHost:
+
+- **Use lowercase names**: Resource names are case-sensitive in service discovery. Use lowercase to avoid confusion.
+- **Use dashes as separators**: Dashes (`-`) are the conventional separator for multi-word resource names in Aspire, as they are commonly used in DNS names and container networking.
+- **Keep names short and descriptive**: Resource names appear in the Aspire dashboard, in environment variables, and in logs. Short names reduce visual noise.
+- **Avoid underscores in names**: While underscores work, they can cause confusion because dashes are transformed to underscores in environment variables.
+- **Be consistent with related names**: If you name a server resource `postgres`, name related databases `postgres-appdb` rather than something unrelated.
+
+**Examples of good resource names:**
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var appDb = postgres.AddDatabase("app-db");
+var cache = builder.AddRedis("cache");
+var messageBus = builder.AddRabbitMQ("message-bus");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(appDb)
+    .WithReference(cache)
+    .WithReference(messageBus);
+
+builder.Build().Run();
+```
+
+**Examples to avoid:**
+
+```csharp title="C# — AppHost.cs"
+// Avoid: uppercase letters, inconsistent naming
+var Postgres = builder.AddPostgres("PostgresServer");
+var db = Postgres.AddDatabase("MyApp_Database");
+```
+
+## Resource name validation
+
+Aspire validates resource names at startup. Valid resource names:
+
+- Must be non-empty
+- Must start with a lowercase letter
+- May only contain lowercase letters, digits, and dashes (`-`)
+- Must not contain consecutive dashes (`--`)
+
+If a resource name is invalid, Aspire reports a diagnostic error at build time. For more information, see [ASPIRE006](/diagnostics/aspire006/).
+
+## See also
+
+- [Service discovery](/fundamentals/service-discovery/)
+- [Inner-loop networking overview](/fundamentals/networking-overview/)
+- [External parameters](/fundamentals/external-parameters/)

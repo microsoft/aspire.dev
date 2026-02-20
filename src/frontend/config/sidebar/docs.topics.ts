@@ -809,6 +809,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
+          label: 'Console and worker apps',
+          slug: 'app-host/console-apps',
+          translations: {
+            en: 'Console and worker apps',
+          },
+        },
+        {
+          label: 'Resource naming',
+          slug: 'app-host/resource-naming',
+          translations: {
+            en: 'Resource naming',
+          },
+        },
+        {
+          label: 'CORS configuration',
+          slug: 'app-host/cors-configuration',
+          translations: {
+            en: 'CORS configuration',
+          },
+        },
+        {
           label: 'Migrate from Docker Compose',
           translations: {
             da: 'Migrer fra Docker Compose',

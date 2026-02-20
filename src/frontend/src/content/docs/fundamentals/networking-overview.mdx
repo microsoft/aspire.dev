@@ -353,3 +353,164 @@ builder.AddProject<Projects.Networking_ApiService>("apiservice")
 ```
 
 The preceding code adds a default HTTPS endpoint, as well as an `admin` endpoint on port 19227. However, the `admin` endpoint is excluded from the environment variables. This is useful when you want to expose an endpoint for internal use only.
+
+## Binding to all interfaces for LAN access
+
+By default, Aspire binds service endpoints to `localhost` (loopback), making them accessible only from the local machine. If you need to expose a service to other devices on your local network — for example, for testing on a mobile device or another machine — you need to configure the service to listen on all network interfaces (`0.0.0.0`).
+
+<Aside type="caution">
+Binding to `0.0.0.0` exposes your service on all network interfaces, including local network and any externally routable interfaces. Only do this in a trusted development environment. Never deploy with this configuration to production.
+</Aside>
+
+### For ASP.NET Core projects
+
+For ASP.NET Core projects, configure Kestrel to listen on all interfaces by updating the project's _appsettings.Development.json_:
+
+```json title="JSON — appsettings.Development.json"
+{
+  "Kestrel": {
+    "Endpoints": {
+      "Http": {
+        "Url": "http://0.0.0.0:5000"
+      }
+    }
+  }
+}
+```
+
+Alternatively, set the `ASPNETCORE_URLS` environment variable via the AppHost:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:5000");
+
+builder.Build().Run();
+```
+
+### For container resources
+
+For container resources, configure the binding when adding the endpoint. The `WithHttpEndpoint` host port is bound by the DCP proxy on the host, but you can control the container's internal binding address:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Bind the container to listen on all interfaces inside the container
+builder.AddContainer("myapp", "myregistry/myapp")
+    .WithHttpEndpoint(port: 8080, targetPort: 80);
+
+builder.Build().Run();
+```
+
+For containers that allow configuring the bind address via environment variable or argument, pass `0.0.0.0` explicitly:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("frontend", "npx", ".", "serve", "-l", "tcp://0.0.0.0:3000")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+builder.Build().Run();
+```
+
+### For executable resources
+
+For non-container executables, pass `0.0.0.0` as the bind address to the executable's arguments or via an environment variable:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("api", "uvicorn", ".", "main:app", "--host", "0.0.0.0", "--port", "8000")
+    .WithHttpEndpoint(port: 8000);
+
+builder.Build().Run();
+```
+
+## Container-to-host networking
+
+When containers need to communicate with services running directly on the host (not in containers), the standard `localhost` address doesn't work from inside a container. Docker and Podman provide a special hostname for this purpose.
+
+### The host gateway address
+
+| Platform | Special hostname |
+|----------|-----------------|
+| Docker Desktop (Mac/Windows) | `host.docker.internal` |
+| Docker on Linux | `host-gateway` (requires `--add-host`) |
+| Podman | `host.containers.internal` |
+
+Aspire's `WithReference` API automatically handles this for managed resources. When you reference a project (host-side resource) from a container, Aspire injects the appropriate address:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// The container can reach the host-side service via the correct gateway address
+var containerApp = builder.AddContainer("mycontainer", "myimage")
+    .WithEnvironment("HOST_URL", $"http://host.docker.internal:5000");
+
+builder.Build().Run();
+```
+
+### Connecting container resources to host services
+
+A common scenario is a containerized application that needs to reach a SQL Server or other database running directly on the developer's machine.
+
+When using `AddSqlServer` or similar, the resource runs as a container that Aspire manages. However, if you have an existing SQL Server on the host machine and want containers to reach it, use the host gateway address:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Reference an existing SQL Server running on the host machine
+var existingSqlServer = builder.AddConnectionString("sqlserver");
+
+var containerApp = builder.AddContainer("myapp", "myimage")
+    .WithReference(existingSqlServer);
+
+builder.Build().Run();
+```
+
+Then configure the connection string in the AppHost's _appsettings.json_ to use the host gateway:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "sqlserver": "Server=host.docker.internal,1433;Database=mydb;..."
+  }
+}
+```
+
+### Using KnownNetworkIdentifiers
+
+The `KnownNetworkIdentifiers` class provides constants for well-known network identifiers that work across container runtimes. Use it with the `GetEndpoint` API when you need to resolve an endpoint in a specific network context:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// Get the endpoint URL as it would appear from the host (localhost)
+var hostEndpoint = api.GetEndpoint("http", KnownNetworkIdentifiers.LocalhostNetwork);
+
+// Get the endpoint URL as it would appear from inside a container
+// (e.g., host.docker.internal:port on Docker Desktop)
+var containerEndpoint = api.GetEndpoint("http", KnownNetworkIdentifiers.DefaultAspireContainerNetwork);
+
+var containerApp = builder.AddContainer("mycontainer", "myimage")
+    .WithEnvironment("API_URL", containerEndpoint);
+
+builder.Build().Run();
+```
+
+The predefined identifiers are:
+
+| Identifier | Description |
+|------------|-------------|
+| `KnownNetworkIdentifiers.LocalhostNetwork` | Resolves to `localhost` — use for host-side access |
+| `KnownNetworkIdentifiers.DefaultAspireContainerNetwork` | Resolves to the container host gateway address (e.g., `host.docker.internal`) — use when a container needs to call a host-side service |
+| `KnownNetworkIdentifiers.PublicInternet` | Resolves to the publicly accessible address |
+
+<Aside type="note">
+When `WithReference` is used to reference a project or other host-side resource from a container, Aspire automatically injects the correct host gateway address (`host.docker.internal` on Docker Desktop) instead of `localhost`. You don't need to manually specify the host gateway for standard `WithReference` connections.
+</Aside>
+
+For more information, see [How container networks are managed](#how-container-networks-are-managed).
