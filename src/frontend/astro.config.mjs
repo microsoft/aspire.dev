@@ -42,7 +42,7 @@ export default defineConfig({
         replacesTitle: false,
       },
       editLink: {
-        baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
+        baseUrl: 'https://github.com/microsoft/aspire.dev/main/src/frontend/',
       },
       favicon: 'favicon.svg',
       head: headAttrs,

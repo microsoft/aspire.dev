@@ -481,5 +481,28 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         },
       ],
     },
+    {
+      label: 'Support',
+      translations: {
+        da: 'Support',
+        de: 'Support',
+        en: 'Support',
+        es: 'Soporte',
+        fr: 'Support',
+        hi: 'समर्थन',
+        id: 'Dukungan',
+        it: 'Supporto',
+        ja: 'サポート',
+        ko: '지원',
+        pt: 'Suporte',
+        'pt-BR': 'Suporte',
+        'pt-PT': 'Suporte',
+        ru: 'Поддержка',
+        tr: 'Destek',
+        uk: 'Підтримка',
+        'zh-CN': '支持',
+      },
+      link: '/support/',
+    }
   ],
 };
