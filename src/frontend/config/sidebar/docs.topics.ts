@@ -781,6 +781,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/container-registry',
           translations: {
             en: 'Container registry configuration',
+            ja: 'コンテナー レジストリの構成',
           },
         },
         {
