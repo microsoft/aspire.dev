@@ -337,6 +337,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
             },
+            {
+              label: 'aspire wait',
+              slug: 'reference/cli/commands/aspire-wait',
+            },
           ],
         },
       ],
