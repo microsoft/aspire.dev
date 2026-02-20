@@ -802,6 +802,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         { label: '.NET MAUI', slug: 'integrations/frameworks/maui' },
         { label: 'Bun apps', slug: 'integrations/frameworks/bun-apps' },
+        { label: 'C# file-based apps', slug: 'integrations/frameworks/csharp-file-based-apps', badge: { text: 'Experimental', variant: 'caution' } },
         { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
         { label: 'Deno apps', slug: 'integrations/frameworks/deno-apps' },
         { label: 'Go apps', slug: 'integrations/frameworks/go-apps' },
