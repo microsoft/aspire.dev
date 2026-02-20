@@ -1011,6 +1011,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
           slug: 'testing/accessing-resources',
         },
+        {
+          label: 'Advanced testing scenarios',
+          translations: {
+            en: 'Advanced testing scenarios',
+          },
+          slug: 'testing/advanced-scenarios',
+        },
+        {
+          label: 'Testing in CI/CD pipelines',
+          translations: {
+            en: 'Testing in CI/CD pipelines',
+          },
+          slug: 'testing/testing-in-ci',
+        },
       ],
     },
     {

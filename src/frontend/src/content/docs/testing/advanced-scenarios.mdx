@@ -1,0 +1,258 @@
+---
+title: Advanced testing scenarios
+description: Learn advanced patterns for using DistributedApplicationTestingBuilder, including selectively disabling resources, overriding environment variables, and customizing the test AppHost.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+This article covers advanced patterns for testing Aspire applications, including selectively disabling resources during tests, overriding environment variables, and customizing the AppHost for specific test scenarios.
+
+## Selectively disable resources in tests
+
+When running integration tests, you might want to exclude certain resources to reduce test complexity or cost—for example, disabling a monitoring dashboard or skipping a sidecar resource that isn't relevant to a particular test.
+
+### Use `WithExplicitStart` to control resource startup
+
+The recommended way to make a resource optional is to use `WithExplicitStart` in the AppHost, and then let tests choose whether to start that resource. Resources marked with `WithExplicitStart` are created but don't start automatically with the rest of the application.
+
+In your AppHost, mark the resource as explicitly started:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// This resource is optional and won't start automatically
+builder.AddContainer("monitoring", "grafana/grafana")
+    .WithExplicitStart();
+
+builder.Build().Run();
+```
+
+In your test, you can start the resource manually if needed, or leave it stopped:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task ApiWorksWithoutMonitoring()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>();
+
+    await using var app = await appHost.BuildAsync();
+    await app.StartAsync();
+
+    // The "monitoring" resource is not started—only "api" is running
+    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+    await app.ResourceNotifications.WaitForResourceHealthyAsync("api", cts.Token);
+
+    using var httpClient = app.CreateHttpClient("api");
+    using var response = await httpClient.GetAsync("/health");
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+}
+```
+
+### Conditionally add resources based on configuration
+
+Another approach is to use configuration in your AppHost to conditionally add resources. This gives tests control over which resources are included:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// Only add the database resource if not explicitly disabled
+if (builder.Configuration.GetValue("AddDatabase", true))
+{
+    var db = builder.AddPostgres("postgres").AddDatabase("mydb");
+    api.WithReference(db);
+}
+
+builder.Build().Run();
+```
+
+In tests, pass the configuration argument to skip the database:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task ApiStartsWithoutDatabase()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>(["AddDatabase=false"]);
+
+    await using var app = await appHost.BuildAsync();
+    await app.StartAsync();
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+    await app.ResourceNotifications.WaitForResourceAsync(
+        "api", KnownResourceStates.Running, cts.Token);
+
+    // Assert that the "postgres" resource doesn't exist
+    Assert.DoesNotContain(app.Resources, r => r.Name == "postgres");
+}
+```
+
+### Remove wait annotations in tests
+
+Resources in Aspire can have wait dependencies (via `WaitFor` or `WaitForCompletion`). In some tests, you may want to remove these wait annotations to speed up test startup or to test behavior when dependent resources are unavailable.
+
+You can remove `WaitAnnotation` instances after building the testing builder, before calling `BuildAsync`:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task ApiStartsWithoutWaitingForDatabase()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>();
+
+    // Remove wait annotations from all resources so they start immediately
+    foreach (var resource in appHost.Resources)
+    {
+        var waitAnnotations = resource.Annotations.OfType<WaitAnnotation>().ToList();
+        foreach (var annotation in waitAnnotations)
+        {
+            resource.Annotations.Remove(annotation);
+        }
+    }
+
+    await using var app = await appHost.BuildAsync();
+    await app.StartAsync();
+
+    // Resources start without waiting for dependencies
+}
+```
+
+<Aside type="note">
+Removing wait annotations means resources start immediately, even if their dependencies aren't ready. Use this technique carefully—only when you intentionally want to test behavior in the absence of proper startup ordering.
+</Aside>
+
+## Override environment variables in tests
+
+Because Aspire tests run services in separate processes, you can't inject services directly through dependency injection. However, you can influence application behavior through environment variables or configuration.
+
+### Override environment variables via the AppHost builder
+
+Use `WithEnvironment` on the resource builder after creating the testing builder to set environment variables for specific resources. You access the resource builder through the `CreateResourceBuilder` method:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task ApiUsesTestFeatureFlag()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>();
+
+    // Override an environment variable for the "api" resource
+    appHost.CreateResourceBuilder<ProjectResource>("api")
+        .WithEnvironment("FeatureFlags__NewCheckout", "true");
+
+    await using var app = await appHost.BuildAsync();
+    await app.StartAsync();
+
+    // The "api" service now runs with the overridden feature flag
+}
+```
+
+### Override configuration with AppHost arguments
+
+You can also pass arguments to the AppHost to override configuration values. Arguments are passed to the .NET configuration system, so they can override values from `appsettings.json`:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task TestWithCustomConfiguration()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>(
+        [
+            "--environment=Testing",
+            "MyApp:FeatureFlags:NewCheckout=true"
+        ]);
+
+    await using var app = await appHost.BuildAsync();
+    await app.StartAsync();
+}
+```
+
+### Override AppHost configuration using `DistributedApplicationFactory`
+
+For more control over the AppHost configuration before any resources are created, use the `DistributedApplicationFactory` class and override the `OnBuilderCreating` lifecycle method:
+
+```csharp title="C# — CustomAppHostFactory.cs"
+public class CustomAppHostFactory()
+    : DistributedApplicationFactory(typeof(Projects.MyAppHost))
+{
+    protected override void OnBuilderCreating(
+        DistributedApplicationOptions applicationOptions,
+        HostApplicationBuilderSettings hostOptions)
+    {
+        hostOptions.Configuration ??= new();
+
+        // Override configuration before the AppHost is created
+        hostOptions.Configuration["MyApp:ConnectionString"] = "Server=test-server;...";
+        hostOptions.Configuration["MyApp:FeatureFlags:NewCheckout"] = "true";
+    }
+}
+```
+
+Use the factory in your test:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task TestWithCustomFactory()
+{
+    await using var factory = new CustomAppHostFactory();
+    await using var app = await factory.BuildAsync();
+    await app.StartAsync();
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+    await app.ResourceNotifications.WaitForResourceHealthyAsync("api", cts.Token);
+
+    using var httpClient = app.CreateHttpClient("api");
+    using var response = await httpClient.GetAsync("/");
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+}
+```
+
+<LearnMore>
+For more information about the `DistributedApplicationFactory` and its lifecycle methods, see [Manage the AppHost in tests](/testing/manage-app-host/).
+</LearnMore>
+
+## Single-file and minimal AppHost considerations
+
+The `DistributedApplicationTestingBuilder.CreateAsync<T>()` method uses a project reference (from the `Projects` namespace) to locate and start your AppHost. This means your AppHost must be a **project** referenced in your test project.
+
+<Aside type="note">
+File-based or single-file AppHosts that aren't structured as .NET projects can't be directly targeted by `DistributedApplicationTestingBuilder.CreateAsync<T>()`. The generic type parameter `T` must be a type from the auto-generated `Projects` namespace, which is only available for project references.
+</Aside>
+
+If your AppHost uses top-level statements (a common pattern in minimal or single-file AppHosts), it works fine as long as it's a project. Top-level statement projects still produce the necessary project reference metadata:
+
+```csharp title="C# — AppHost.cs (top-level statements)"
+// Top-level statements work fine—this is still a project
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.Api>("api");
+
+builder.Build().Run();
+```
+
+This AppHost works with the testing builder the same as a class-based AppHost:
+
+```csharp title="C# — IntegrationTest.cs"
+// Works with top-level statement AppHosts
+var appHost = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyApp_AppHost>();
+```
+
+The `Projects` namespace entries are generated based on the `<ProjectReference>` elements in your test project file. Ensure your AppHost project is referenced:
+
+```xml title="XML — MyApp.Tests.csproj"
+<ItemGroup>
+    <ProjectReference Include="..\MyApp.AppHost\MyApp.AppHost.csproj" />
+</ItemGroup>
+```
+
+## See also
+
+- [Manage the AppHost in tests](/testing/manage-app-host/)
+- [Access resources in tests](/testing/accessing-resources/)
+- [Testing overview](/testing/overview/)
