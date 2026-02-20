@@ -403,17 +403,6 @@ builder.AddContainer("myapp", "myregistry/myapp")
 builder.Build().Run();
 ```
 
-For containers that allow configuring the bind address via environment variable or argument, pass `0.0.0.0` explicitly:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddExecutable("frontend", "npx", ".", "serve", "-l", "tcp://0.0.0.0:3000")
-    .WithHttpEndpoint(port: 3000, env: "PORT");
-
-builder.Build().Run();
-```
-
 ### For executable resources
 
 For non-container executables, pass `0.0.0.0` as the bind address to the executable's arguments or via an environment variable:
@@ -423,6 +412,17 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddExecutable("api", "uvicorn", ".", "main:app", "--host", "0.0.0.0", "--port", "8000")
     .WithHttpEndpoint(port: 8000);
+
+builder.Build().Run();
+```
+
+For executables that accept a listen address flag, you can pass `0.0.0.0` directly in the arguments:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddExecutable("frontend", "npx", ".", "serve", "-l", "tcp://0.0.0.0:3000")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
 
 builder.Build().Run();
 ```
