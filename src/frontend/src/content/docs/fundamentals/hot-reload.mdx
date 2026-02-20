@@ -1,0 +1,199 @@
+---
+title: Hot reload and watch mode
+description: Learn about hot reload and watch mode capabilities in Aspire, including current limitations and workarounds for a faster inner-loop experience.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Hot reload and watch mode let you see code changes reflected in a running application without a full restart. This guide explains what Aspire currently supports, where limitations exist, and how to get the fastest possible inner-loop experience.
+
+## What is hot reload?
+
+.NET hot reload lets you apply code changes to a running application without stopping and restarting it. It works by patching the running process in place. There are two related features:
+
+- **.NET Hot Reload** — applies C# code changes to a running .NET process during a debug session or via `dotnet watch`
+- **Browser hot reload (CSS/Razor)** — applies CSS and Razor component changes to the browser without a page refresh (supported in Blazor and ASP.NET Core)
+
+## Hot reload with Aspire
+
+### Supported scenarios
+
+Aspire supports hot reload for individual .NET service projects when they are started with `dotnet watch`. Hot reload works at the **service level**, meaning you enable it per service, not for the entire solution at once.
+
+**Blazor CSS and Razor hot reload** works automatically when Blazor projects are run with `dotnet watch run` or from Visual Studio with debugging enabled.
+
+### How to enable hot reload for a service
+
+The recommended way to use hot reload with Aspire is to configure the AppHost to launch a specific project using `dotnet watch`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Run the frontend with dotnet watch for hot reload
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+    .WithEnvironment("DOTNET_WATCH", "1");
+
+var api = builder.AddProject<Projects.ApiService>("api");
+
+builder.Build().Run();
+```
+
+<Aside type="tip">
+You can also open the individual service project in a separate terminal and run `dotnet watch run` there while Aspire manages the other services.
+</Aside>
+
+### Run a service with dotnet watch from the terminal
+
+You can start a specific service with watch mode while running Aspire for the other services:
+
+<Steps>
+
+1. Start the Aspire solution normally (without the service you want to watch):
+
+    ```bash title="Aspire CLI — Start Aspire"
+    aspire run
+    ```
+
+1. In a separate terminal, navigate to the service project you want to hot-reload:
+
+    ```bash title="Bash — Navigate to service"
+    cd src/MyApp.Frontend
+    ```
+
+1. Run the service with watch:
+
+    ```bash title="Bash — Start with hot reload"
+    dotnet watch run
+    ```
+
+</Steps>
+
+When `dotnet watch run` is running in the terminal, any `.cs`, `.razor`, or `.css` changes you make trigger an automatic reload of that service.
+
+## Current limitations
+
+### AppHost itself does not support hot reload
+
+The AppHost project **does not support hot reload**. Changes to `AppHost.cs` (for example, adding a new resource or changing a connection reference) require a full restart of the Aspire session.
+
+This is by design: the AppHost defines the topology and wiring of your application. Changing it requires re-creating resources and re-establishing references.
+
+**Workaround**: Keep AppHost changes small and batch them. Run `aspire run` again after making AppHost changes.
+
+### Hot reload is per-service, not solution-wide
+
+Aspire does not currently provide a single command to start all services in watch mode simultaneously. You must enable watch mode per service.
+
+**Workaround**: Enable watch mode only for the service(s) you are actively working on. For services you aren't changing, run them normally.
+
+### Container and executable resources don't support .NET hot reload
+
+Hot reload is a .NET-specific feature. Resources added as Docker containers or external executables don't participate in .NET hot reload.
+
+**Workaround**: Use the Aspire dashboard logs and restart the resource manually from the dashboard when you need to update it.
+
+### Hot reload does not work for all code changes
+
+.NET hot reload supports a subset of C# changes. The following changes require a restart rather than a hot reload:
+
+- Changes to application startup code (for example, `Program.cs`)
+- Adding or removing class hierarchies or interface implementations
+- Changes to struct layouts
+- Adding new generic type instantiations
+- Some attribute changes
+
+When `dotnet watch` detects an unsupported change, it automatically performs a full restart of that service.
+
+<Aside type="note">
+For a full list of supported and unsupported hot reload changes, see [Supported code changes (C# and Visual Basic)](https://learn.microsoft.com/visualstudio/debugger/supported-code-changes-csharp).
+</Aside>
+
+## Blazor hot reload
+
+Blazor applications benefit from both .NET hot reload (for C# code) and browser hot reload (for CSS and Razor markup):
+
+- **Razor component changes** (`.razor` files) — trigger a browser reload automatically
+- **CSS changes** — applied to the browser without a page reload (CSS hot reload)
+- **C# logic changes** — applied via .NET hot reload without restarting the process
+
+To get all three types of hot reload in a Blazor project within an Aspire solution:
+
+<Steps>
+
+1. Run the Aspire solution so containers and other services start.
+1. In a separate terminal, run the Blazor project with watch:
+
+    ```bash title="Bash — Blazor hot reload"
+    cd src/MyApp.Web
+    dotnet watch run
+    ```
+
+</Steps>
+
+## Improve inner-loop speed without hot reload
+
+When hot reload isn't available (for example, during AppHost changes), these practices minimize the restart overhead:
+
+### Use persistent containers
+
+Containers like Redis and PostgreSQL take time to start and initialize. Use persistent containers so they remain running between restarts:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var db = builder.AddPostgres("db")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .AddDatabase("appdb");
+
+builder.Build().Run();
+```
+
+<Aside type="caution">
+Persistent containers retain state between restarts. Reset them manually if you need a clean state.
+</Aside>
+
+<LearnMore>
+For more information, see [Persistent containers](/app-host/persistent-containers/).
+</LearnMore>
+
+### Minimize the number of services during development
+
+When working on a specific service, reduce the number of running services to only what you need:
+
+```csharp title="C# — AppHost.cs (development subset)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Only run the services needed for this feature
+var db = builder.AddPostgres("db").AddDatabase("appdb");
+var api = builder.AddProject<Projects.ApiService>("api")
+    .WithReference(db);
+
+// Comment out unrelated services
+// var worker = builder.AddProject<Projects.BackgroundWorker>("worker");
+// var reporting = builder.AddProject<Projects.Reporting>("reporting");
+
+builder.Build().Run();
+```
+
+### Pre-restore NuGet packages
+
+Each restart triggers a build, and builds can be slow if NuGet packages need to be restored. Keep packages restored by pre-running restore:
+
+```bash title="Bash — Pre-restore"
+dotnet restore
+```
+
+<LearnMore>
+For more tips on speeding up the build and restore process, see [Startup performance](/fundamentals/startup-performance/).
+</LearnMore>
+
+## See also
+
+- [Startup performance](/fundamentals/startup-performance/)
+- [Persistent containers](/app-host/persistent-containers/)
+- [Debug Aspire apps](/fundamentals/debug-aspire-apps/)
+- [Supported code changes (C# and Visual Basic)](https://learn.microsoft.com/visualstudio/debugger/supported-code-changes-csharp)
