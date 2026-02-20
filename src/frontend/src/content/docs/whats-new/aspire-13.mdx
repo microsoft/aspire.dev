@@ -1722,36 +1722,140 @@ If you were relying on `EnvironmentCredential` or `WorkloadIdentityCredential` i
 
 ### Migration guide
 
-#### Migrating from publishing callbacks to pipeline steps
+This comprehensive guide helps you migrate from Aspire 9.x to 13.x, covering all breaking changes across 13.0 and 13.1 releases.
 
-**Before (9.x)**:
-```csharp
-var api = builder.AddProject<Projects.Api>("api")
-    .WithPublishingCallback(async (context, cancellationToken) =>
-    {
-        await CustomDeployAsync(context, cancellationToken);
-    });
+#### Quick migration checklist
+
+Follow these steps to migrate your Aspire 9.x application to 13.x:
+
+<Steps>
+
+1. **Update the Aspire CLI** to version 13.x:
+   <OsAwareTabs syncKey="terminal">
+     <Code slot="unix" lang="bash" code="curl -sSL https://aspire.dev/install.sh | bash" />
+     <Code slot="windows" lang="powershell" code='irm https://aspire.dev/install.ps1 | iex' />
+   </OsAwareTabs>
+
+2. **Update your Aspire packages** using the CLI:
+   ```bash
+   aspire update
+   ```
+
+3. **Update package references** - rename `Aspire.Hosting.NodeJs` to `Aspire.Hosting.JavaScript`
+
+4. **Migrate JavaScript APIs** - replace `AddNpmApp()` with `AddJavaScriptApp()` and update `AddNodeApp()` signatures
+
+5. **Migrate lifecycle hooks** - replace `IDistributedApplicationLifecycleHook` with `IDistributedApplicationEventingSubscriber`
+
+6. **Migrate publishing callbacks** - replace `WithPublishingCallback()` with `WithPipelineStepFactory()`
+
+7. **Update connection properties** (13.1) - rename `Model` to `ModelName` and `Database` to `DatabaseName` where applicable
+
+8. **Update Azure Redis** (13.1) - replace `AddAzureRedisEnterprise()` with `AddAzureManagedRedis()`
+
+9. **Review behavioral changes** - check `EndpointReference.GetValueAsync()` usage for waiting behavior
+
+10. **Test your application** thoroughly to ensure all changes work as expected
+
+</Steps>
+
+#### Migrating package references
+
+The `Aspire.Hosting.NodeJs` package has been renamed to `Aspire.Hosting.JavaScript` to reflect broader JavaScript application support.
+
+**Update your project file:**
+
+```xml
+<!-- Before (9.x) -->
+<PackageReference Include="Aspire.Hosting.NodeJs" Version="9.x.x" />
+
+<!-- After (13.0) -->
+<PackageReference Include="Aspire.Hosting.JavaScript" Version="13.0.0" />
 ```
 
-**After (13.0)**:
-```csharp
-var api = builder.AddProject<Projects.Api>("api")
-    .WithPipelineStepFactory(context =>
-    {
-        return new PipelineStep()
-        {
-            Name = "CustomDeployStep",
-            Action = CustomDeployAsync,
-            RequiredBySteps = [WellKnownPipelineSteps.Publish]
-        };
-    });
+**Using the CLI:**
+
+```bash
+# Before (9.x)
+aspire add nodejs
+
+# After (13.0)
+aspire add javascript
 ```
 
-For more details, see [Deployment pipeline documentation](/get-started/pipelines/).
+The `aspire update` command automatically handles this migration.
 
-#### Migrating from lifecycle hooks to events
+#### Migrating JavaScript APIs
 
-**Before (9.x)**:
+##### AddNpmApp → AddJavaScriptApp
+
+The `AddNpmApp()` method has been removed. Use `AddJavaScriptApp()` with `WithRunScript()` instead:
+
+**Before (9.x):**
+```csharp
+builder.AddNpmApp("frontend", "../frontend", scriptName: "dev");
+```
+
+**After (13.0):**
+```csharp
+builder.AddJavaScriptApp("frontend", "../frontend")
+    .WithRunScript("dev");
+```
+
+<Aside type="note">
+  The `AddNpmApp` API supported an `args` parameter for passing command-line arguments to scripts. `AddJavaScriptApp` does not have this parameter. Instead, define custom scripts in your `package.json` with the required arguments. See [Passing arguments to scripts](#passing-arguments-to-scripts) for details.
+</Aside>
+
+##### AddNodeApp signature changes
+
+The `AddNodeApp()` API has been refactored with a new signature that uses `appDirectory` with a relative `scriptPath`:
+
+**Before (9.x):**
+```csharp
+// Absolute scriptPath with optional workingDirectory
+builder.AddNodeApp(
+    name: "frontend",
+    scriptPath: "/absolute/path/to/app.js",
+    workingDirectory: "/absolute/path/to",
+    args: ["--port", "3000"]);
+```
+
+**After (13.0):**
+```csharp
+// appDirectory with relative scriptPath
+builder.AddNodeApp(
+    name: "frontend",
+    appDirectory: "../frontend",
+    scriptPath: "app.js");
+```
+
+**Key changes:**
+
+- **First parameter changed**: `scriptPath` (absolute) → `appDirectory` (relative to AppHost)
+- **Second parameter changed**: `workingDirectory` (optional) → `scriptPath` (relative to appDirectory)
+- **Automatic npm integration**: If `package.json` exists in `appDirectory`, npm is automatically configured
+- **Package manager flexibility**: Use `WithNpm()`, `WithYarn()`, or `WithPnpm()` with `WithRunScript()` to execute scripts
+
+**Migration example:**
+
+```csharp
+// Before (9.x)
+var app = builder.AddNodeApp("frontend", "../frontend/server.js", "../frontend");
+
+// After (13.0) - Option 1: Direct script execution
+var app = builder.AddNodeApp("frontend", "../frontend", "server.js");
+
+// After (13.0) - Option 2: Using package.json script
+var app = builder.AddNodeApp("frontend", "../frontend", "server.js")
+    .WithNpm()
+    .WithRunScript("dev");
+```
+
+#### Migrating lifecycle hooks to events
+
+Lifecycle hooks have been replaced with an eventing system that provides more flexibility and better async support.
+
+**Before (9.x):**
 ```csharp
 public class MyLifecycleHook : IDistributedApplicationLifecycleHook
 {
@@ -1766,7 +1870,7 @@ public class MyLifecycleHook : IDistributedApplicationLifecycleHook
 builder.Services.TryAddLifecycleHook<MyLifecycleHook>();
 ```
 
-**After (13.0)**:
+**After (13.0):**
 ```csharp
 public class MyEventSubscriber : IDistributedApplicationEventingSubscriber
 {
@@ -1792,6 +1896,119 @@ public class MyEventSubscriber : IDistributedApplicationEventingSubscriber
 
 builder.Services.TryAddEventingSubscriber<MyEventSubscriber>();
 ```
+
+**Event equivalents for lifecycle hooks:**
+
+| 9.x Lifecycle Hook | 13.0 Event |
+|-------------------|-----------|
+| `BeforeStartAsync()` | `BeforeStartEvent` |
+| `AfterEndpointsAllocatedAsync()` | `AfterEndpointsAllocatedEvent` |
+| `AfterResourcesCreatedAsync()` | `AfterResourcesCreatedEvent` |
+
+#### Migrating publishing callbacks to pipeline steps
+
+Publishing callbacks have been replaced with a more powerful pipeline step system through the `aspire do` command.
+
+**Before (9.x):**
+```csharp
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPublishingCallback(async (context, cancellationToken) =>
+    {
+        await CustomDeployAsync(context, cancellationToken);
+    });
+```
+
+**After (13.0):**
+```csharp
+var api = builder.AddProject<Projects.Api>("api")
+    .WithPipelineStepFactory(context =>
+    {
+        return new PipelineStep()
+        {
+            Name = "CustomDeployStep",
+            Action = CustomDeployAsync,
+            RequiredBySteps = [WellKnownPipelineSteps.Publish]
+        };
+    });
+```
+
+For more details, see [Deployment pipeline documentation](/get-started/pipelines/).
+
+#### Migrating connection properties (13.1)
+
+Aspire 13.1 renamed several connection properties for consistency across resources. If your client applications reference these properties via environment variables, update them accordingly.
+
+| Resource | Old Property | New Property | Environment Variable Change |
+|----------|-------------|--------------|---------------------------|
+| GitHub Models | `Model` | `ModelName` | `{NAME}_MODEL` → `{NAME}_MODELNAME` |
+| OpenAI model | `Model` | `ModelName` | `{NAME}_MODEL` → `{NAME}_MODELNAME` |
+| Milvus database | `Database` | `DatabaseName` | `{NAME}_DATABASE` → `{NAME}_DATABASENAME` |
+| MongoDB database | `Database` | `DatabaseName` | `{NAME}_DATABASE` → `{NAME}_DATABASENAME` |
+| MySQL database | `Database` | `DatabaseName` | `{NAME}_DATABASE` → `{NAME}_DATABASENAME` |
+| Oracle database | `Database` | `DatabaseName` | `{NAME}_DATABASE` → `{NAME}_DATABASENAME` |
+
+**Example:**
+
+```csharp
+// Before (13.0) - Environment variable: CHAT_MODEL
+var chat = builder.AddGitHubModels("chat");
+
+// After (13.1) - Environment variable: CHAT_MODELNAME
+// No code change needed in AppHost, but client apps must update environment variable references
+var chat = builder.AddGitHubModels("chat");
+```
+
+In your client application:
+
+```csharp
+// Before (13.0)
+var modelName = configuration["CHAT_MODEL"];
+
+// After (13.1)
+var modelName = configuration["CHAT_MODELNAME"];
+```
+
+#### Migrating Azure Redis (13.1)
+
+The Azure Redis API has been renamed to align with Azure service naming conventions.
+
+**Before (13.0):**
+```csharp
+var cache = builder.AddAzureRedisEnterprise("cache");
+```
+
+**After (13.1):**
+```csharp
+var cache = builder.AddAzureManagedRedis("cache");
+```
+
+<Aside type="note">
+  `AddAzureRedis()` is now obsolete. Use `AddAzureManagedRedis()` for new projects.
+</Aside>
+
+#### Behavioral changes
+
+##### EndpointReference.GetValueAsync now waits for allocation
+
+In Aspire 9.x, `EndpointReference.GetValueAsync()` would throw immediately if the endpoint wasn't allocated. In 13.0, it waits for allocation to complete.
+
+**Before (9.x):**
+```csharp
+// Would throw immediately if not allocated
+var value = await endpointRef.GetValueAsync(cancellationToken);
+```
+
+**After (13.0):**
+```csharp
+// Now waits for allocation - check IsAllocated if you need immediate failure
+if (!endpointRef.IsAllocated)
+{
+    throw new InvalidOperationException("Endpoint not allocated");
+}
+var value = await endpointRef.GetValueAsync(cancellationToken);
+```
+
+This change enables more flexible async workflows where you can wait for resources to be ready rather than polling or handling exceptions.
 
 ### Experimental features
 
