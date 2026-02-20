@@ -1,0 +1,99 @@
+---
+title: Get started with the Redis integration
+description: Learn how to set up the Aspire Redis hosting and client integrations simply.
+prev: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import redisIcon from '@assets/icons/redis-icon.png';
+
+<Image
+  src={redisIcon}
+  alt="Redis logo"
+  width={80}
+  height={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Redis®](#registered-trademark) is the world's fastest data platform for caching, vector search, and NoSQL databases. The Aspire Redis integration enables you to connect to existing Redis instances, or create new instances from .NET with the [`docker.io/library/redis` container image](https://hub.docker.com/_/redis/).
+
+<Aside>
+  This page covers the Redis integration. For Garnet and Valkey
+  (Redis-compatible alternatives), see their respective pages.
+</Aside>
+
+In this introduction, you'll see how to install and use the Aspire Redis integrations in a simple configuration. If you already have this knowledge, see [Redis hosting integration](/integrations/caching/redis/redis-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Redis hosting integration in your Aspire AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Redis" />
+
+Next, in the AppHost project, create instances of Redis resources and pass them to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(cache);
+
+builder.Build().Run();
+```
+
+When Aspire adds a container image to the AppHost, it creates a new Redis instance on your local machine.
+
+<Aside type="tip">
+  If you'd rather connect to an existing Redis instance, call `AsExisting`
+  instead.
+</Aside>
+
+## Set up client integration
+
+To get started with the Aspire Redis client integration, install the package:
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddRedisClient` extension method to register an `IConnectionMultiplexer` for use via the dependency injection container:
+
+```csharp
+builder.AddRedisClient(connectionName: "cache");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Redis
+  resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `IConnectionMultiplexer` instance using dependency injection:
+
+```csharp
+public class ExampleService(IConnectionMultiplexer connectionMux)
+{
+    // Use connection multiplexer...
+}
+```
+
+## See also
+
+- [Redis hosting integration](/integrations/caching/redis/redis-host/)
+- [Redis client integration](/integrations/caching/redis/redis-client/)
+- [Redis documentation](https://redis.io/)
+
+:::tip[Registered trademark]{icon="information"}
+
+<span id="registered-trademark"></span>
+Redis is a registered trademark of Redis Ltd. Any rights therein are reserved to
+Redis Ltd. Any use by Microsoft is for referential purposes only and does not
+indicate any sponsorship, endorsement or affiliation between Redis and
+Microsoft. :::

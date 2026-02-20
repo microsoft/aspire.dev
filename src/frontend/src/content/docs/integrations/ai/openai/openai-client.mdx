@@ -1,0 +1,161 @@
+---
+title: OpenAI client integration
+description: Full reference for the Aspire OpenAI client integration.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+To get started with the Aspire OpenAI client integration, install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.OpenAI" />
+
+## Add an OpenAI client
+
+In the `Program.cs` file of your client-consuming project, use `AddOpenAIClient` to register an `OpenAIClient` for dependency injection. The method requires a connection name parameter:
+
+```csharp
+builder.AddOpenAIClient(connectionName: "chat");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the OpenAI
+  resource in the AppHost project.
+</Aside>
+
+After adding the `OpenAIClient`, you can retrieve the client instance using dependency injection:
+
+```csharp
+public class ExampleService(OpenAIClient client)
+{
+    // Use client...
+}
+```
+
+### Add OpenAI client with registered IChatClient
+
+```csharp
+builder.AddOpenAIClient("chat")
+       .AddChatClient(); // Model inferred from connection string (Model=...)
+```
+
+If only a parent resource was defined (no child model), provide the model name explicitly:
+
+```csharp
+builder.AddOpenAIClient("openai")
+       .AddChatClient("gpt-4o-mini");
+```
+
+`AddChatClient` optionally accepts a model/deployment name; if omitted it comes from the connection string's `Model` entry. Inject `OpenAIClient` or `IChatClient` as needed.
+
+## Connection properties
+
+When you reference an OpenAI resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+### OpenAI
+
+The OpenAI resource exposes the following connection properties:
+
+| Property Name | Description                                                                           |
+| ------------- | ------------------------------------------------------------------------------------- |
+| `Endpoint`    | The base endpoint URI for the OpenAI API, with the format `https://api.openai.com/v1` |
+| `Uri`         | The endpoint URI (same as Endpoint), with the format `https://api.openai.com/v1`      |
+| `Key`         | The API key for authentication                                                        |
+
+**Example properties:**
+
+```
+Uri: https://api.openai.com/v1
+Key: sk-proj-abc123...
+```
+
+### OpenAI model
+
+The OpenAI model resource combines the parent properties above and adds the following connection property:
+
+| Property Name | Description                                                             |
+| ------------- | ----------------------------------------------------------------------- |
+| `ModelName`   | The model identifier for inference requests, for instance `gpt-4o-mini` |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `chat` becomes `CHAT_URI`.
+</Aside>
+
+## Configuration
+
+The OpenAI library provides multiple options to configure the OpenAI connection. Either a `Endpoint` or a `ConnectionString` is required.
+
+### Use a connection string
+
+Resolved connection string shapes:
+
+Parent (no model):
+
+```
+Endpoint={endpoint};Key={api_key}
+```
+
+Model child:
+
+```
+Endpoint={endpoint};Key={api_key};Model={model_name}
+```
+
+### Use configuration providers
+
+Configure via `Aspire:OpenAI` keys (global) and `Aspire:OpenAI:{connectionName}` (per named client). Example `appsettings.json`:
+
+```json
+{
+  "ConnectionStrings": {
+    "chat": "Endpoint=https://api.openai.com/v1;Key=${OPENAI_API_KEY};Model=gpt-4o-mini"
+  },
+  "Aspire": {
+    "OpenAI": {
+      "DisableTracing": false,
+      "DisableMetrics": false,
+      "ClientOptions": {
+        "UserAgentApplicationId": "myapp",
+        "NetworkTimeout": "00:00:30"
+      }
+    }
+  }
+}
+```
+
+Inline configuration:
+
+```csharp
+builder.AddOpenAIClient("chat", settings => settings.DisableTracing = true);
+builder.AddOpenAIClient("chat", configureOptions: o => o.NetworkTimeout = TimeSpan.FromSeconds(30));
+```
+
+<Aside type="note">
+  Telemetry (traces + metrics) is experimental in the OpenAI .NET SDK. Enable
+  globally via the `OpenAI.Experimental.EnableOpenTelemetry` AppContext switch
+  or `OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY=true`. Use `DisableTracing` /
+  `DisableMetrics` to opt out when enabled.
+</Aside>
+
+## Observability and telemetry
+
+### Logging
+
+- `OpenAI.*`
+
+### Tracing
+
+- `OpenAI.*` (when telemetry enabled and not disabled)
+
+### Metrics
+
+- `OpenAI.*` meter (when telemetry enabled and not disabled)
+
+## See also
+
+- [Get started with the OpenAI integration](/integrations/ai/openai/openai-get-started/)
+- [OpenAI hosting integration](/integrations/ai/openai/openai-host/)
+- [OpenAI documentation](https://openai.com/)
