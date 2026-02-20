@@ -192,3 +192,36 @@ var gateway = builder.AddYarp("gateway")
                          // Static files are served for all other routes
                      });
 ```
+
+## HTTPS endpoints
+
+When both the YARP gateway and backend services use HTTPS, configure HTTPS endpoints using `WithHttpsEndpoint` and the developer certificate. YARP can proxy HTTPS-to-HTTPS when the backend service exposes an HTTPS endpoint:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Backend service with HTTPS
+var razorPages = builder.AddProject<Projects.RazorPagesApp>("razorpages")
+    .WithHttpsEndpoint();
+
+// YARP gateway proxying to the HTTPS backend
+var gateway = builder.AddYarp("gateway")
+                     .WithHttpsEndpoint()
+                     .WithHttpsDeveloperCertificate()
+                     .WithConfiguration(yarp =>
+                     {
+                         yarp.AddRoute("/{**catch-all}", razorPages);
+                     });
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+When using HTTPS with YARP, ensure that the developer certificate is trusted on your machine. Run `dotnet dev-certs https --trust` if you see certificate validation errors.
+</Aside>
+
+## See also
+
+- [YARP documentation](https://microsoft.github.io/reverse-proxy/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/dotnet/aspire)
