@@ -221,5 +221,9 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
       },
       slug: 'dashboard/microsoft-collected-dashboard-telemetry',
     },
+    {
+      label: 'Telemetry after deployment',
+      slug: 'dashboard/telemetry-after-deployment',
+    },
   ],
 };
