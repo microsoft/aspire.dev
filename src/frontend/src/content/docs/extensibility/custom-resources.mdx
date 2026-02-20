@@ -160,7 +160,7 @@ public static IResourceBuilder<MailDevResource> AddMailDev(
 
 ### Using inline event subscriptions
 
-For simpler cases, you can subscribe to events directly on the resource builder:
+For simpler cases, you can subscribe to events directly on the resource builder using convenience `On*` methods:
 
 ```csharp title="AppHost.cs"
 public static IResourceBuilder<MailDevResource> AddMailDev(
@@ -169,12 +169,11 @@ public static IResourceBuilder<MailDevResource> AddMailDev(
 {
     var resource = new MailDevResource(name);
     
-    builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(resource, async (@event, ct) =>
-    {
-        // Initialize mail server, create test mailboxes, etc.
-    });
-    
-    return builder.AddResource(resource);
+    return builder.AddResource(resource)
+        .OnResourceReady(async (resource, @event, ct) =>
+        {
+            // Initialize mail server, create test mailboxes, etc.
+        });
 }
 ```
 

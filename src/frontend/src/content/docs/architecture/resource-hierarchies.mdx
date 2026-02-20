@@ -306,9 +306,9 @@ Use the `IsAllocated` property on an `EndpointReference` to check whether an end
 
 ### Accessing Allocated Endpoints Safely
 
-Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. Aspire provides eventing APIs, such as `AfterEndpointsAllocatedEvent`, to access endpoints after allocation. These APIs ensure code executes only when endpoints are ready.
+Endpoint resolution happens during the startup sequence of the `DistributedApplication`. To safely access endpoint values (e.g., `Url`, `Host`, `Port`), you must wait until endpoints are allocated. You can access the `Url`, `Host`, and `Port` properties directly on the `EndpointReference` once the endpoint has been allocated.
 
-```csharp title="Example — Checking Allocation and Using Eventing"
+```csharp title="Example — Accessing Endpoint Values"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add a Redis container with a TCP endpoint
@@ -318,26 +318,13 @@ var redis = builder.AddContainer("redis", "redis")
 // Retrieve the EndpointReference
 var endpoint = redis.GetEndpoint("tcp");
 
-// Check allocation status and access Url
+// Check allocation status
 Console.WriteLine($"IsAllocated: {endpoint.IsAllocated}");
 
-try
-{
-    Console.WriteLine($"Url: {endpoint.Url}");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Error accessing Url: {ex.Message}");
-}
-
-// Subscribe to AfterEndpointsAllocatedEvent for resolved properties
-builder.Eventing.Subscribe<AfterEndpointsAllocatedEvent>(
-    (@event, cancellationToken) =>
-    {
-        Console.WriteLine($"Endpoint allocated: {endpoint.IsAllocated}");
-        Console.WriteLine($"Resolved Url: {endpoint.Url}");
-        return Task.CompletedTask;
-    });
+// Access endpoint properties directly (available after allocation in run mode)
+Console.WriteLine($"Resolved Url: {endpoint.Url}");
+Console.WriteLine($"Resolved Host: {endpoint.Host}");
+Console.WriteLine($"Resolved Port: {endpoint.Port}");
 
 // Start the application
 builder.Build().Run();
@@ -350,13 +337,17 @@ The preceding code will output different results depending on whether the applic
 ```bash title="Run Mode — Console Output"
 IsAllocated: True
 Resolved Url: http://localhost:6379
+Resolved Host: localhost
+Resolved Port: 6379
 ```
 
 **Publish Mode**:
 
 ```bash title="Publish Mode — Console Output"
 IsAllocated: False
-Error accessing Url: Endpoint has not been allocated.
+Resolved Url: {redis.bindings.tcp.url}
+Resolved Host: {redis.bindings.tcp.host}
+Resolved Port: {redis.bindings.tcp.port}
 ```
 
 <Aside type="tip">

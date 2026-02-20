@@ -9,9 +9,10 @@ Aspire's resource model allows you to define and configure resources in a struct
 
 ## API patterns
 
-Aspire separates **resource data models** from **behavior** using **fluent extension methods**.  
-- **Resource classes** define only constructors and properties.  
-- **Extension methods** implement resource creation, configuration, and runtime wiring.  
+Aspire separates **resource data models** from **behavior** using **fluent extension methods**.
+
+- **Resource classes** define only constructors and properties.
+- **Extension methods** implement resource creation, configuration, and runtime wiring.
 
 This guide describes each pattern and shows a **verbatim Redis example** at the end. It also covers how to publish manifests via custom resources.
 
@@ -21,9 +22,9 @@ An `AddX(...)` method executes:
 
 <Steps>
 
-1. **Validate inputs** (`builder`, `name`, required arguments).  
-1. **Instantiate** the data-only resource (`new TResource(...)`).  
-1. **Register** it with `builder.AddResource(resource)`.  
+1. **Validate inputs** (`builder`, `name`, required arguments).
+1. **Instantiate** the data-only resource (`new TResource(...)`).
+1. **Register** it with `builder.AddResource(resource)`.
 1. **Optional wiring** of endpoints, health checks, container settings, environment variables, command-line arguments, and event subscriptions.
 
 </Steps>
@@ -45,7 +46,8 @@ public static IResourceBuilder<TResource> AddX(
     //    .WithImage(...)
     //    .WithEnvironment(...)
     //    .WithArgs(...)
-    //    Eventing.Subscribe<...>(...)
+    //    .OnConnectionStringAvailable(...)
+    //    .OnResourceReady(...)
 }
 ```
 
@@ -86,17 +88,22 @@ public static IResourceBuilder<TResource> AddX(
 **Event subscriptions**:
 
 ```csharp
+// Resource-level convenience methods (preferred)
+resourceBuilder.OnConnectionStringAvailable((resource, @event, ct) => { /* ... */ });
+resourceBuilder.OnResourceReady((resource, @event, ct) => { /* ... */ });
+
+// Or via builder.Eventing.Subscribe for events without convenience methods
 builder.Eventing.Subscribe<EventType>(resource, handler);
 ```
 
 ### Summary table
 
-| Step | Call/Method | Purpose |
-|--|--|--|
-| Validate | `ArgumentNullException.ThrowIfNull(...)` | Ensure non-null builder, name, and args |
-| Instantiate | `new TResource(name, …)` | Create data-only instance |
-| Register | `builder.AddResource(resource)` | Add resource to the application model |
-| Optional wiring | `.WithEndpoint(…)`, `.WithHealthCheck(…)`, `.WithImage(…)`, `.WithEnvironment(…)`, `.WithArgs(…)`, `Eventing.Subscribe(…)` | Configure container details, wiring, and runtime hooks |
+| Step            | Call/Method                                                                                                                                                 | Purpose                                                |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Validate        | `ArgumentNullException.ThrowIfNull(...)`                                                                                                                    | Ensure non-null builder, name, and args                |
+| Instantiate     | `new TResource(name, …)`                                                                                                                                    | Create data-only instance                              |
+| Register        | `builder.AddResource(resource)`                                                                                                                             | Add resource to the application model                  |
+| Optional wiring | `.WithEndpoint(…)`, `.WithHealthCheck(…)`, `.WithImage(…)`, `.WithEnvironment(…)`, `.WithArgs(…)`, `.OnConnectionStringAvailable(…)`, `.OnResourceReady(…)` | Configure container details, wiring, and runtime hooks |
 
 ## Configuring resources with `WithX(...)`
 
@@ -117,10 +124,10 @@ public static IResourceBuilder<TResource> WithX(
 
 ### Summary table
 
-| Method | Target | Action |
-|--|--|--|
+| Method       | Target                        | Action                                                 |
+| ------------ | ----------------------------- | ------------------------------------------------------ |
 | `WithX(...)` | `IResourceBuilder<TResource>` | Attaches `XAnnotation` using the `WithAnnotation` API. |
-| Returns | `IResourceBuilder<TResource>` | Enables fluent chaining . |
+| Returns      | `IResourceBuilder<TResource>` | Enables fluent chaining .                              |
 
 ## Annotations
 
@@ -140,11 +147,11 @@ builder.WithAnnotation(new PersistenceAnnotation(
 
 ### Summary table
 
-| Concept | Pattern | Notes |
-|--|--|--|
-| Annotation Type | `public record XAnnotation(...) : IResourceAnnotation` | Public to support dynamic runtime use. |
-| Attach | `builder.WithAnnotation(new XAnnotation(...))` | Adds metadata to resource builder. |
-| Query | `resource.TryGetLastAnnotation<XAnnotation>(out var a)` | Consumers inspect annotations as needed. |
+| Concept         | Pattern                                                 | Notes                                    |
+| --------------- | ------------------------------------------------------- | ---------------------------------------- |
+| Annotation Type | `public record XAnnotation(...) : IResourceAnnotation`  | Public to support dynamic runtime use.   |
+| Attach          | `builder.WithAnnotation(new XAnnotation(...))`          | Adds metadata to resource builder.       |
+| Query           | `resource.TryGetLastAnnotation<XAnnotation>(out var a)` | Consumers inspect annotations as needed. |
 
 ## Custom value objects
 
@@ -152,13 +159,13 @@ Custom value objects defer evaluation and allow the framework to discover depend
 
 ### Core interfaces
 
-| Interface | Member | Mode | Purpose |
-|--|--|--|--|
-| `IValueProvider` | `ValueTask<string?> GetValueAsync(CancellationToken)` | Run | Resolve live values at runtime |
-| `IManifestExpressionProvider` | `string ValueExpression { get; }` | Publish | Emit structured expressions in manifests |
-| `IValueWithReferences` _(opt.)_ | `IEnumerable<object> References { get; }` | Both (if needed) | Declare dependencies on other resources |
+| Interface                       | Member                                                | Mode             | Purpose                                  |
+| ------------------------------- | ----------------------------------------------------- | ---------------- | ---------------------------------------- |
+| `IValueProvider`                | `ValueTask<string?> GetValueAsync(CancellationToken)` | Run              | Resolve live values at runtime           |
+| `IManifestExpressionProvider`   | `string ValueExpression { get; }`                     | Publish          | Emit structured expressions in manifests |
+| `IValueWithReferences` _(opt.)_ | `IEnumerable<object> References { get; }`             | Both (if needed) | Declare dependencies on other resources  |
 
-- **Implement** `IValueProvider` and `IManifestExpressionProvider` on all structured value types.  
+- **Implement** `IValueProvider` and `IManifestExpressionProvider` on all structured value types.
 - **Implement** `IValueWithReferences` only when your type holds resource references.
 
 ### Attaching to resources
@@ -169,9 +176,9 @@ builder.WithEnvironment(context =>
 ```
 
 ```csharp title="Example: BicepOutputReference"
-public sealed partial class BicepOutputReference : 
-    IManifestExpressionProvider, 
-    IValueProvider, 
+public sealed partial class BicepOutputReference :
+    IManifestExpressionProvider,
+    IValueProvider,
     IValueWithReferences
 {
     public string ValueExpression { get; }
@@ -194,9 +201,9 @@ public static IResourceBuilder<T> WithEnvironment<T>(
 
 ### Summary table
 
-| Concept | Pattern | Purpose |
-|--|--|--|
-| `IValueProvider` | `GetValueAsync(...)` | Deferred runtime resolution |
-| `IManifestExpressionProvider` | `ValueExpression` | Structured publish-time expression |
-| `IValueWithReferences` _(opt.)_ | `References` | Declare resource dependencies |
-| `WithEnvironment(...)` | `new("NAME", valueProvider)` | Attach structured values unflattened |
+| Concept                         | Pattern                      | Purpose                              |
+| ------------------------------- | ---------------------------- | ------------------------------------ |
+| `IValueProvider`                | `GetValueAsync(...)`         | Deferred runtime resolution          |
+| `IManifestExpressionProvider`   | `ValueExpression`            | Structured publish-time expression   |
+| `IValueWithReferences` _(opt.)_ | `References`                 | Declare resource dependencies        |
+| `WithEnvironment(...)`          | `new("NAME", valueProvider)` | Attach structured values unflattened |

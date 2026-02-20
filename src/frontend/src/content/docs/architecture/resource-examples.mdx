@@ -43,21 +43,6 @@ public static class RedisResourceExtensions
         // Variable to hold the resolved connection string at runtime.
         string? connectionString = null;
 
-        // 4. Subscribe to ConnectionStringAvailableEvent to capture the connection string at runtime
-        // This event hook allows capturing the connection string *after* it has been resolved
-        // by the Aspire runtime, including potentially allocated ports and resolved parameter values.
-        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(redis, async (@event, ct) =>
-        {
-            // Resolve the connection string using the resource's method.
-            connectionString = await redis.GetConnectionStringAsync(ct).ConfigureAwait(false);
-            // Ensure the connection string was actually resolved.
-            if (connectionString == null)
-            {
-                throw new DistributedApplicationException(
-                    $"Connection string for '{redis.Name}' was unexpectedly null.");
-            }
-        });
-
         // 5. Register a health check that uses the connection string once it becomes available
         // Define a unique key for the health check.
         var healthCheckKey = $"{name}_check";
@@ -73,6 +58,21 @@ public static class RedisResourceExtensions
         // 6. Add & configure container using the fluent builder pattern
         // Add the RedisResource instance to the application model.
         return builder.AddResource(redis)
+                    // 4. Subscribe to ConnectionStringAvailableEvent to capture the connection string at runtime
+                    // This event hook allows capturing the connection string *after* it has been resolved
+                    // by the Aspire runtime, including potentially allocated ports and resolved parameter values.
+                    .OnConnectionStringAvailable(
+                        async (resource, @event, ct) =>
+                        {
+                            // Resolve the connection string using the resource's method.
+                            connectionString = await redis.GetConnectionStringAsync(ct).ConfigureAwait(false);
+                            // Ensure the connection string was actually resolved.
+                            if (connectionString == null)
+                            {
+                                throw new DistributedApplicationException(
+                                    $"Connection string for '{redis.Name}' was unexpectedly null.");
+                            }
+                        })
                     // 6.a Expose the Redis TCP endpoint
                     // Map the host port (if provided) to the container's default Redis port (6379).
                     // Name the endpoint "tcp" for reference.
