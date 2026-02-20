@@ -210,6 +210,47 @@ storage.ConfigureInfrastructure(infra =>
 });
 ```
 
+### Use an infrastructure resolver to customize Azure provisioning options
+
+Another method you can use to customize Azure provisioning is to create an [`InfrastructureResolver`](https://learn.microsoft.com/dotnet/api/azure.provisioning.primitives.infrastructureresolver) and write code in it to implement your requirements. Then add that class to the configuration options for your AppHost.
+
+A custom infrastructure resolver is a class that inherits from `InfrastructureResolver` and can override one or more of its virtual members to apply the desired customizations. In the following example, the `ResolveProperties` method is overridden to set the name of a Cosmos DB resource, but other members can also be overridden depending on your needs.
+
+```csharp title="C# — AppHost.cs"
+using Azure.Provisioning;
+using Azure.Provisioning.CosmosDB;
+using Azure.Provisioning.Primitives;
+
+internal sealed class FixedNameInfrastructureResolver : InfrastructureResolver
+{
+    public override void ResolveProperties(ProvisionableConstruct construct, ProvisioningBuildOptions options)
+    {
+        if (construct is CosmosDBAccount account)
+        {
+            account.Name = "ContosoCosmosDb";
+        }
+
+        base.ResolveProperties(construct, options);
+    }
+}
+```
+
+Having created that class, add it to the configuration options using code like this in the AppHost:
+
+```csharp title="C# — AppHost.cs"
+using Aspire.Hosting.Azure;
+using Microsoft.Extensions.DependencyInjection;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.Services.Configure<AzureProvisioningOptions>(options =>
+{
+    options.ProvisioningBuildOptions.InfrastructureResolvers.Add(new FixedNameInfrastructureResolver());
+});
+
+builder.Build().Run();
+```
+
 ## Custom Bicep templates
 
 For more complex scenarios or when you need full control, you can provide custom Bicep templates.
