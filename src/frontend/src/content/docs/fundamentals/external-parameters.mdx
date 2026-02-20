@@ -134,7 +134,7 @@ When you select **Enter values**, Aspire displays a form that you can use to con
 You can also control how the dashboard displays these parameters, by using these methods:
 
 - `WithDescription`: Use this method to provide a text description that helps users understand the purpose of the parameter. To provide a formatted description in [Markdown](https://www.markdownguide.org/basic-syntax/), use the `enableMarkdown: true` parameter.
-- `WithCustomInput`: Use this method to provide a callback method that customizes the parameter dialog. For example, in this callback you can customize the default value, input type, label, and placeholder text.
+- `WithCustomInput`: Use this method to provide a callback method that customizes the parameter dialog. For example, in this callback you can customize the default value, input type, label, and placeholder text. When using `WithCustomInput`, you must copy the `EnableDescriptionMarkdown` property from the parameter to the `InteractionInput` object to preserve markdown rendering.
 
 This code shows how to set a description and use the callback:
 
@@ -143,14 +143,15 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 #pragma warning disable ASPIREINTERACTION001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 var externalServiceUrl = builder.AddParameter("external-service-url")
-    .WithDescription("The URL of the external service.")
+    .WithDescription("The URL of the external service. See [example.com](https://example.com) for details.", enableMarkdown: true)
     .WithCustomInput(p => new()
     {
         InputType = InputType.Text,
         Value = "https://example.com",
         Name = p.Name,
         Placeholder = $"Enter value for {p.Name}",
-        Description = p.Description
+        Description = p.Description,
+        EnableDescriptionMarkdown = p.EnableDescriptionMarkdown
     });
 var externalService = builder.AddExternalService("external-service", externalServiceUrl);
 #pragma warning restore ASPIREINTERACTION001
@@ -164,6 +165,10 @@ The code renders this control in the dashboard:
   src={customizedParameterUi}
   alt="Screenshot of the Aspire dashboard parameter completion dialog with customizations."
 />
+
+<Aside type="note">
+  When using `WithCustomInput`, the `InteractionInput` object you create replaces the default input generation. To preserve markdown rendering in the parameter dialog, copy `EnableDescriptionMarkdown = p.EnableDescriptionMarkdown` from the parameter. The `enableMarkdown: true` parameter in `WithDescription` sets this property on the parameter resource, but you must explicitly copy it to your custom `InteractionInput` object.
+</Aside>
 
 <Aside type="note">
   The dashboard parameter dialog includes a **Save to user secret** checkbox.
