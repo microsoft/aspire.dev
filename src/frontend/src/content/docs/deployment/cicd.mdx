@@ -1,0 +1,348 @@
+---
+title: Deploy Aspire apps in CI/CD pipelines
+description: Learn how to deploy Aspire applications from CI/CD pipelines using GitHub Actions and Azure DevOps.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Deploying Aspire applications from continuous integration and continuous delivery (CI/CD) pipelines requires a few extra considerations compared to interactive local deployments. This guide covers how to configure the Aspire CLI for non-interactive use, set up GitHub Actions and Azure DevOps pipelines, and handle Azure authentication from service principals.
+
+## Non-interactive deployment
+
+The `aspire deploy` command is **interactive by default**—it prompts you to select an Azure tenant, subscription, and resource group. In a CI/CD environment there is no terminal operator, so you must supply those values through environment variables to suppress the prompts:
+
+| Environment variable | Description |
+|---|---|
+| `Azure__SubscriptionId` | The Azure subscription ID to deploy into. |
+| `Azure__Location` | The Azure region (for example, `eastus`). |
+| `Azure__ResourceGroup` | The resource group name to create or reuse. |
+
+When all three variables are set, `aspire deploy` skips the interactive tenant/subscription/resource-group prompts and proceeds automatically.
+
+<Aside type="tip">
+Set `Azure__ResourceGroup` to the same value on every run so that subsequent deployments update the existing resources rather than creating new ones.
+</Aside>
+
+## Azure authentication in CI/CD
+
+### Service principal vs. interactive user login
+
+Locally you typically run `az login` to authenticate as a **user principal**. In CI/CD pipelines the agent runs as a **service principal** (via a federated credential or a client secret), which causes a small but important difference for some Azure resources.
+
+For example, Cosmos DB uses `principalType: "User"` for interactive logins but `principalType: "ServicePrincipal"` for headless service-principal logins. If you provision Cosmos DB through Aspire with an interactive login and later deploy from a pipeline with a service principal, the role assignment may fail.
+
+To avoid this, use **OpenID Connect (OIDC) / Workload Identity Federation** when possible. This avoids storing long-lived secrets and uses a short-lived token that is automatically associated with the correct principal type.
+
+### Logging in with a service principal
+
+<Tabs>
+<TabItem label="GitHub Actions">
+
+Use the [`azure/login`](https://github.com/Azure/login) action with OIDC:
+
+```yaml title="GitHub Actions — Azure login with OIDC"
+- name: Azure login
+  uses: azure/login@v2
+  with:
+    client-id: ${{ secrets.AZURE_CLIENT_ID }}
+    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+```
+
+Or with a client secret (less preferred):
+
+```yaml title="GitHub Actions — Azure login with client secret"
+- name: Azure login
+  uses: azure/login@v2
+  with:
+    creds: ${{ secrets.AZURE_CREDENTIALS }}
+```
+
+</TabItem>
+<TabItem label="Azure DevOps">
+
+Use the [Azure CLI task](https://learn.microsoft.com/azure/devops/pipelines/tasks/reference/azure-cli-v2) with a service connection:
+
+```yaml title="Azure DevOps — Azure CLI task"
+- task: AzureCLI@2
+  displayName: Deploy with Aspire CLI
+  inputs:
+    azureSubscription: '<your-service-connection>'
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      aspire deploy \
+        --project src/AppHost/AppHost.csproj
+  env:
+    Azure__SubscriptionId: $(AZURE_SUBSCRIPTION_ID)
+    Azure__Location: $(AZURE_LOCATION)
+    Azure__ResourceGroup: $(AZURE_RESOURCE_GROUP)
+```
+
+When the `AzureCLI@2` task runs, it automatically authenticates the Azure CLI using the service connection—no separate `az login` step is required.
+
+</TabItem>
+</Tabs>
+
+## GitHub Actions workflow
+
+The following workflow builds and deploys an Aspire application to Azure Container Apps. It triggers on pushes to the `main` branch and uses OIDC for passwordless Azure authentication.
+
+```yaml title="GitHub Actions — .github/workflows/deploy.yml"
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # Required for OIDC token exchange
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+
+      - name: Install Aspire CLI
+        run: dotnet tool install -g aspire.cli
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy
+        run: aspire deploy --project src/AppHost/AppHost.csproj
+        env:
+          Azure__SubscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          Azure__Location: ${{ vars.AZURE_LOCATION }}
+          Azure__ResourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+```
+
+### Setting up OIDC for GitHub Actions
+
+<Steps>
+
+1. In the Azure portal, create an **App Registration** (or use an existing one).
+
+1. Add a **Federated credential** to the App Registration:
+
+    - **Federated credential scenario**: GitHub Actions deploying Azure resources
+    - **Organization**: your GitHub org or username
+    - **Repository**: your repository name
+    - **Entity type**: Branch
+    - **Branch**: `main` (or the branch you deploy from)
+
+1. Assign the App Registration a role on the target subscription or resource group:
+
+    ```azurecli title="Azure CLI — Role assignment"
+    az role assignment create \
+      --assignee <app-registration-client-id> \
+      --role Contributor \
+      --scope /subscriptions/<subscription-id>
+    ```
+
+1. Add the following secrets to your GitHub repository (**Settings > Secrets and variables > Actions**):
+
+    | Secret name | Value |
+    |---|---|
+    | `AZURE_CLIENT_ID` | The App Registration's Application (client) ID |
+    | `AZURE_TENANT_ID` | Your Azure tenant ID |
+    | `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
+
+1. Add the following variables (non-sensitive):
+
+    | Variable name | Example value |
+    |---|---|
+    | `AZURE_LOCATION` | `eastus` |
+    | `AZURE_RESOURCE_GROUP` | `my-aspire-app-rg` |
+
+</Steps>
+
+<LearnMore>
+For more information, see [GitHub's OIDC documentation](https://docs.github.com/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect).
+</LearnMore>
+
+## Azure DevOps pipeline
+
+The following pipeline deploys an Aspire application to Azure Container Apps using an Azure DevOps service connection.
+
+```yaml title="Azure DevOps — azure-pipelines.yml"
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: aspire-deploy-vars   # Variable group with AZURE_* variables
+
+steps:
+  - task: UseDotNet@2
+    displayName: Set up .NET
+    inputs:
+      packageType: sdk
+      version: '9.x'
+
+  - script: dotnet tool install -g aspire.cli
+    displayName: Install Aspire CLI
+
+  - task: AzureCLI@2
+    displayName: Deploy with Aspire CLI
+    inputs:
+      azureSubscription: '<your-service-connection-name>'
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: aspire deploy --project src/AppHost/AppHost.csproj
+    env:
+      Azure__SubscriptionId: $(AZURE_SUBSCRIPTION_ID)
+      Azure__Location: $(AZURE_LOCATION)
+      Azure__ResourceGroup: $(AZURE_RESOURCE_GROUP)
+```
+
+### Setting up the service connection
+
+<Steps>
+
+1. In Azure DevOps, navigate to **Project settings > Service connections**.
+
+1. Select **New service connection** and choose **Azure Resource Manager**.
+
+1. Choose **Workload Identity federation (automatic)** for the authentication method—this creates a federated credential in Azure automatically.
+
+1. Select your subscription and (optionally) a resource group scope.
+
+1. Give the connection a name and save it. Use this name in the `azureSubscription` field of your pipeline task.
+
+</Steps>
+
+### Using a variable group
+
+<Steps>
+
+1. In Azure DevOps, navigate to **Pipelines > Library** and create a **Variable group** named `aspire-deploy-vars`.
+
+1. Add the following variables:
+
+    | Variable | Example value | Secret |
+    |---|---|---|
+    | `AZURE_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Yes |
+    | `AZURE_LOCATION` | `eastus` | No |
+    | `AZURE_RESOURCE_GROUP` | `my-aspire-app-rg` | No |
+
+1. Link the variable group in your pipeline using the `variables` block shown above.
+
+</Steps>
+
+## CI environment tips
+
+### Terminal output and formatting
+
+The Aspire CLI detects whether it's running in a CI environment and adjusts its output accordingly (no interactive prompts, plain-text progress). If you see garbled or ANSI escape codes in logs, set the `NO_COLOR` environment variable:
+
+```yaml title="Disable color output"
+env:
+  NO_COLOR: '1'
+```
+
+### Timeouts
+
+Deployments to Azure Container Apps can take several minutes. Make sure your pipeline job timeout is set high enough (at least 15–20 minutes) to allow for:
+
+- .NET container image builds
+- Azure Container Registry provisioning and image push
+- Container Apps environment and app provisioning
+
+<Tabs>
+<TabItem label="GitHub Actions">
+
+```yaml title="GitHub Actions — job timeout"
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+```
+
+</TabItem>
+<TabItem label="Azure DevOps">
+
+```yaml title="Azure DevOps — step timeout"
+- task: AzureCLI@2
+  displayName: Deploy with Aspire CLI
+  timeoutInMinutes: 30
+  inputs:
+    # ...
+```
+
+</TabItem>
+</Tabs>
+
+### Docker availability
+
+The Aspire CLI builds container images during deployment. Ensure Docker is available on the build agent:
+
+- **GitHub Actions**: Docker is pre-installed on `ubuntu-latest` and `windows-latest` runners.
+- **Azure DevOps**: Docker is pre-installed on Microsoft-hosted `ubuntu-latest` agents. Self-hosted agents may need Docker installed separately.
+
+<Aside type="note">
+The Aspire CLI uses the local Docker daemon to build container images. If your pipeline uses Podman or another container runtime, ensure it is configured to be compatible with Docker CLI commands.
+</Aside>
+
+### Caching deployment state
+
+The Aspire CLI caches deployment state (provisioned resource IDs, resolved parameter values) to speed up subsequent runs. In CI/CD you typically want one of two behaviors:
+
+- **Ephemeral (fresh deploy every run)**: Use `--clear-cache` to discard saved state and provision from scratch.
+- **Incremental (update existing resources)**: Persist the `.aspire/` directory between runs using your pipeline's cache mechanism and set `Azure__ResourceGroup` to the same group on every run.
+
+<Tabs>
+<TabItem label="GitHub Actions">
+
+```yaml title="GitHub Actions — cache .aspire directory"
+- name: Restore deployment cache
+  uses: actions/cache@v4
+  with:
+    path: .aspire
+    key: aspire-deploy-${{ github.ref_name }}
+```
+
+</TabItem>
+<TabItem label="Azure DevOps">
+
+```yaml title="Azure DevOps — cache .aspire directory"
+- task: Cache@2
+  inputs:
+    key: aspire-deploy | $(Build.SourceBranchName)
+    path: .aspire
+  displayName: Restore deployment cache
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For more information about deployment state caching, see [Deployment state caching](/deployment/deployment-state-caching/).
+</LearnMore>
+
+## See also
+
+- [Deploy using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/)
+- [Azure security best practices](/deployment/azure/azure-security-best-practices/)
+- [Deployment state caching](/deployment/deployment-state-caching/)
+- [Publishing and deployment overview](/deployment/overview/)
+- [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/)
