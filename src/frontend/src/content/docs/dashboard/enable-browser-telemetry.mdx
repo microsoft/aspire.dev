@@ -306,7 +306,144 @@ The bundling and minification of the JavaScript code is beyond the scope of this
 
 For the complete working example of how to configure the JavaScript OTEL SDK to send telemetry to the dashboard, see the [browser telemetry sample](https://github.com/dotnet/aspire/tree/main/playground/BrowserTelemetry).
 
+## Blazor WebAssembly integration
+
+Blazor WebAssembly (WASM) apps run entirely in the browser using a .NET runtime compiled to WebAssembly. Like other browser apps, Blazor WASM apps use the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) to send telemetry to the Aspire dashboard via JavaScript interop. The dashboard configuration for [OTLP HTTP](#otlp-configuration) and [CORS](#cors-configuration) described earlier in this article applies to Blazor WASM apps as well.
+
+### Provide OTEL configuration to the browser
+
+Blazor WASM apps can't read server-side environment variables directly. When the app is hosted by an ASP.NET Core server (for example, a Blazor Web App or hosted Blazor WASM project), expose the OTEL configuration through an API endpoint on the server:
+
+```csharp title="C# — Program.cs (Server)"
+app.MapGet("/api/telemetry-config", () => new
+{
+    Endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? string.Empty,
+    Headers = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS") ?? string.Empty,
+    ResourceAttributes = Environment.GetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES") ?? string.Empty
+})
+.AllowAnonymous();
+```
+
+<Aside type="caution">
+This approach exposes the OTLP API key to the browser in the HTTP response. For environments where the API key must remain secret, use an [authenticated OTEL proxy](#authenticated-otel-proxy) instead. In production, consider adding authentication or authorization to restrict access to this endpoint.
+</Aside>
+
+### Initialize OTEL from a Blazor component
+
+In the Blazor WASM app, call the JavaScript `initializeTelemetry` function using `IJSRuntime` after the component has rendered. Add the [JavaScript OTEL SDK initialization code](#example-browser-telemetry-code) to a JavaScript file bundled with your app, then call it from a Razor component:
+
+```razor title="Razor — TelemetryInitializer.razor (Client)"
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var config = await Http.GetFromJsonAsync<TelemetryConfig>("/api/telemetry-config");
+            if (config is { Endpoint.Length: > 0 })
+            {
+                await JS.InvokeVoidAsync(
+                    "initializeTelemetry",
+                    config.Endpoint,
+                    config.Headers,
+                    config.ResourceAttributes);
+            }
+        }
+    }
+
+    private sealed record TelemetryConfig(
+        string Endpoint,
+        string Headers,
+        string ResourceAttributes);
+}
+```
+
+Include this component in your `App.razor` or another top-level component so that telemetry is initialized when the app loads.
+
+### Backend-to-frontend trace correlation
+
+To correlate browser spans with server-side traces, include the current trace context in the server-rendered HTML. When the Blazor WASM app is hosted within a server-rendered page (such as a Blazor Web App with prerendering), the server can write the `traceparent` meta tag during prerender:
+
+```razor title="Razor — App.razor (Server prerender)"
+@using System.Diagnostics
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    @if (Activity.Current is { } currentActivity)
+    {
+        <meta name="traceparent" content="@currentActivity.Id" />
+    }
+    <!-- Other elements omitted for brevity... -->
+</head>
+```
+
+The JavaScript OTEL SDK reads this `traceparent` value automatically when `DocumentLoadInstrumentation` is registered, linking the browser spans to the originating server trace.
+
+### Authenticated OTEL proxy
+
+When the Aspire dashboard's OTLP API key must not be exposed to the browser, route telemetry through a server-side proxy endpoint. The browser sends telemetry to the proxy, and the proxy forwards it to the dashboard with the API key included as a server-side secret:
+
+```csharp title="C# — Program.cs (Server proxy endpoint)"
+// Register an HttpClient for the OTEL proxy
+builder.Services.AddHttpClient("otel-proxy");
+
+// ...
+
+app.MapPost("/api/telemetry/{**path}", async (
+    string path,
+    HttpContext context,
+    IHttpClientFactory httpClientFactory) =>
+{
+    var dashboardEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+    if (string.IsNullOrEmpty(dashboardEndpoint))
+    {
+        return Results.NotFound();
+    }
+
+    var client = httpClientFactory.CreateClient("otel-proxy");
+
+    // Copy OTLP API key from server environment to forwarded request
+    var headersEnv = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS") ?? string.Empty;
+    foreach (var header in headersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries))
+    {
+        var parts = header.Split('=', 2);
+        if (parts.Length == 2)
+        {
+            client.DefaultRequestHeaders.TryAddWithoutValidation(parts[0].Trim(), parts[1].Trim());
+        }
+    }
+
+    using var requestBody = new StreamContent(context.Request.Body);
+    requestBody.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue
+        .Parse(context.Request.ContentType ?? "application/x-protobuf");
+
+    var response = await client.PostAsync(
+        $"{dashboardEndpoint.TrimEnd('/')}/{path}",
+        requestBody);
+
+    context.Response.StatusCode = (int)response.StatusCode;
+    await response.Content.CopyToAsync(context.Response.Body);
+    return Results.Empty;
+});
+```
+
+Configure the JavaScript OTEL SDK in the Blazor WASM app to point to the proxy endpoint instead of the dashboard directly:
+
+```javascript title="JavaScript — telemetry.js (Client)"
+export function initializeTelemetry(resourceAttributes) {
+    const otlpOptions = {
+        url: '/api/telemetry/v1/traces'  // Proxy endpoint, same origin - no CORS needed
+    };
+    // ... rest of SDK initialization
+}
+```
+
+This pattern eliminates the need for CORS configuration on the dashboard because the browser communicates only with the same-origin server. The API key stays on the server and is never visible to the browser.
+
 ## See also
 
 - [Aspire dashboard configuration](/dashboard/configuration/)
 - [Standalone Aspire dashboard](/dashboard/standalone/)
+- [Telemetry after deployment](/dashboard/telemetry-after-deployment/)
