@@ -255,9 +255,148 @@ The `aspire agent init` command supports the following AI assistants:
 The Aspire MCP server uses the STDIO transport protocol and may work with other agentic coding environments that support this MCP communication protocol.
 </Aside>
 
+## Security
+
+The Aspire MCP server is a development-time tool designed for local use. Understanding its security model helps teams evaluate it for enterprise environments.
+
+### Security model overview
+
+The Aspire MCP server uses the **STDIO transport protocol** when started via `aspire agent mcp`. In this mode:
+
+- The MCP server runs as a **local child process** spawned by your AI assistant.
+- Communication happens over **standard input/output (STDIO) pipes** between the AI assistant and the MCP server process.
+- There are **no open network ports** — the MCP server doesn't listen on any network interface.
+- Only the parent process (your AI assistant) can communicate with the MCP server.
+
+<Aside type="tip">
+Because the STDIO transport uses pipes rather than network sockets, there is no network attack surface when using `aspire agent mcp`. The MCP server is only accessible to the AI assistant process that started it.
+</Aside>
+
+### What data is accessible
+
+The MCP server provides AI assistants with access to the following data from your running AppHost:
+
+- **Resource metadata** — resource names, types, states, health status, endpoints, and available commands.
+- **Console logs** — standard output and error streams from resources.
+- **Structured logs** — structured log entries from resources via OpenTelemetry.
+- **Distributed traces** — trace data showing request flow across resources.
+- **Integration catalog** — the list of available Aspire hosting integration packages and their documentation.
+
+The MCP server does **not** expose:
+
+- Source code or file system contents.
+- Environment variable values or secrets stored in configuration.
+- Network traffic or raw request/response payloads.
+- Access to the host machine beyond the Aspire AppHost process.
+
+You can further restrict what the MCP server exposes by using `ExcludeFromMcp()` on specific resources, as described in the [Tools](#tools) section.
+
+### Authentication
+
+When using the STDIO transport (the default with `aspire agent mcp`), no additional authentication is required because communication is restricted to the local process pipe.
+
+For the HTTP-based MCP endpoint exposed by the Aspire dashboard (used in [manual MCP configuration](/dashboard/mcp-server/) for older Aspire versions), an API key (`x-mcp-api-key` header) is required to authenticate requests. This key is generated automatically when the AppHost starts.
+
+### Enterprise deployment considerations
+
+For teams evaluating the Aspire MCP server for organizational use:
+
+- **Development-time only** — the MCP server is a development tool and is not included in published or deployed applications. It runs only during local development with `aspire run`.
+- **No external network access** — using STDIO transport, the server has no network listeners and cannot be reached from other machines.
+- **Data stays local** — telemetry and resource data remain on the developer's machine. The MCP server doesn't transmit data to external services. Data shared with AI assistants is governed by the AI assistant's own data policies.
+- **Granular access control** — use `ExcludeFromMcp()` to prevent sensitive resources and their associated telemetry from being accessible to AI assistants.
+- **No persistent storage** — the MCP server doesn't write data to disk. All data is held in memory for the duration of the development session.
+- **Open specification** — the MCP server implements the open [Model Context Protocol specification](https://modelcontextprotocol.io/), allowing security teams to review the protocol.
+
 ## Troubleshooting
 
 Aspire MCP is designed to work seamlessly with AI assistants, but you may encounter some setup challenges depending on your environment. If you run into issues, check the [open MCP issues on GitHub](https://github.com/dotnet/aspire/issues?q=is%3Aissue+is%3Aopen+label%3Aarea-mcp) for known problems and solutions.
+
+### AppHost detection and lifecycle
+
+The Aspire MCP server automatically detects running AppHosts within the working directory scope. Understanding this lifecycle helps troubleshoot connection issues:
+
+- When the MCP server starts (via `aspire agent mcp`), it scans for running AppHost processes.
+- The MCP server **continuously monitors** for AppHost changes — you don't need to restart the MCP server when starting or stopping AppHosts.
+- Use `list_apphosts` to see which AppHosts are currently detected.
+- Use `select_apphost` to switch between multiple running AppHosts.
+
+<Aside type="note">
+If your AI assistant doesn't seem to detect your AppHost, verify it's running with `aspire run` and that the AI assistant was started from (or has access to) the same workspace directory as your AppHost project.
+</Aside>
+
+### Claude Code integration issues
+
+If you experience issues with Claude Code and the Aspire MCP server:
+
+- **Verify configuration** — ensure `.mcp.json` exists in your project root with the correct configuration. Run `aspire agent init` to regenerate it if needed.
+- **Windows `cmd.exe` prefix** — on Windows, commands like `npx` require a `cmd.exe /c` prefix. See [GitHub issue #14000](https://github.com/anthropics/claude-code/issues/14000) for details.
+- **Restart Claude Code** — if the MCP server connection appears stale, restart Claude Code to re-establish the STDIO connection.
+- **Check Claude Code MCP logs** — use Claude Code's built-in MCP debugging to inspect connection status. Refer to the [Claude Code MCP documentation](https://docs.claude.com/en/docs/claude-code/mcp) for details.
+
+### Debugging MCP connection problems
+
+If your AI assistant can't connect to the Aspire MCP server:
+
+<Steps>
+
+1. Verify the Aspire CLI is installed and available on your `PATH`:
+
+   ```bash title="Aspire CLI"
+   aspire --version
+   ```
+
+1. Confirm your AppHost is running:
+
+   ```bash title="Aspire CLI"
+   aspire run
+   ```
+
+1. Test the MCP server directly by running it manually:
+
+   ```bash title="Aspire CLI"
+   aspire agent mcp
+   ```
+
+   If the server starts without errors, the issue is likely in your AI assistant's configuration.
+
+1. Regenerate configuration files:
+
+   ```bash title="Aspire CLI"
+   aspire agent init
+   ```
+
+1. Verify the generated configuration file matches your AI assistant's expected format (see [Understanding the configuration](#understanding-the-configuration)).
+
+</Steps>
+
+## Deployment considerations
+
+The Aspire MCP server is a development-time tool and should not be included in published or deployed applications. If your AppHost includes dev-only resources (such as MCP tooling or other development utilities), you may need to conditionally exclude them during deployment.
+
+### Exclude dev-only resources from publish
+
+Use `ExecutionContext.IsRunMode` to conditionally add resources that should only be available during local development:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+if (builder.ExecutionContext.IsRunMode)
+{
+    // Resources added here are only available during
+    // local development with 'aspire run', and are
+    // excluded from 'aspire deploy' and 'aspire publish'.
+    builder.AddContainer("dev-tool", "some-dev-image");
+}
+
+builder.Build().Run();
+```
+
+<Aside type="tip">
+The Aspire MCP server itself doesn't require any explicit exclusion — it's part of the Aspire CLI tooling and runs separately from your AppHost. This pattern is useful for other dev-only resources that might interfere with deployment, such as local monitoring tools or test containers.
+</Aside>
 
 ## Limitations
 
@@ -275,4 +414,5 @@ AI models have limits on how much data they can process at once. Aspire MCP may 
 - [aspire agent command](/reference/cli/commands/aspire-agent/)
 - [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
 - [aspire agent mcp command](/reference/cli/commands/aspire-agent-mcp/)
+- [Dashboard security considerations](/dashboard/security-considerations/)
 - [GitHub Copilot in the Dashboard](/dashboard/copilot/)
