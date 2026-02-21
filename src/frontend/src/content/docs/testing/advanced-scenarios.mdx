@@ -80,15 +80,15 @@ public async Task ApiStartsWithoutDatabase()
     var appHost = await DistributedApplicationTestingBuilder
         .CreateAsync<Projects.MyAppHost>(["AddDatabase=false"]);
 
+    // Assert that the "postgres" resource doesn't exist
+    Assert.DoesNotContain(appHost.Resources, r => r.Name == "postgres");
+
     await using var app = await appHost.BuildAsync();
     await app.StartAsync();
 
     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     await app.ResourceNotifications.WaitForResourceAsync(
         "api", KnownResourceStates.Running, cts.Token);
-
-    // Assert that the "postgres" resource doesn't exist
-    Assert.DoesNotContain(app.Resources, r => r.Name == "postgres");
 }
 ```
 

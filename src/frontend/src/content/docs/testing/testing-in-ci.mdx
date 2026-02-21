@@ -107,7 +107,11 @@ The recommended approach is to configure a service principal and set the standar
 | `AZURE_TENANT_ID` | Your Azure Active Directory tenant ID |
 | `AZURE_CLIENT_SECRET` | The client secret of your service principal |
 
-<Tabs>
+<Aside type="note">
+When deploying to Azure Container Apps or Azure App Service, Aspire 13.0 automatically sets `AZURE_TOKEN_CREDENTIALS=managedidentity` so that `DefaultAzureCredential` uses only `ManagedIdentityCredential`. This doesn't affect test environments, but is important to understand if your tests also exercise deployment paths. For more information, see [DefaultAzureCredential behavior in Azure deployments](/whats-new/aspire-13/#defaultazurecredential-behavior-in-azure-deployments).
+</Aside>
+
+<Tabs syncKey="ci-provider">
 <TabItem label="GitHub Actions">
 
 ```yaml title="YAML — .github/workflows/tests.yml"
@@ -141,7 +145,7 @@ The recommended approach is to configure a service principal and set the standar
 
 ### Configure Azure credentials in the AppHost factory
 
-You can also set Azure credentials programmatically in your test setup using the `DistributedApplicationFactory` or the `configureBuilder` parameter:
+You can also set Azure credentials programmatically in your test setup using the `DistributedApplicationFactory`:
 
 ```csharp title="C# — CiAppHostFactory.cs"
 public class CiAppHostFactory()
@@ -243,7 +247,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
 
       - name: Restore dependencies
         run: dotnet restore
