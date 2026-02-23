@@ -10,6 +10,7 @@ interface Props {
   primaryCta?: { label: string; href: string };
   secondaryCta?: { label: string; href: string };
   icon?: StarlightIcon;
+  floatingIcons?: StarlightIcon[];
 }
 
 const {
@@ -20,6 +21,7 @@ const {
   primaryCta,
   secondaryCta,
   icon,
+  floatingIcons = [],
 } = Astro.props;
 
 const accentVarMap: Record<string, string> = {
@@ -34,6 +36,16 @@ const accentVarMap: Record<string, string> = {
 };
 
 const accentColor = accentVarMap[accent];
+
+// Predefined positions and animation configs for floating icons
+const floatingConfigs = [
+  { top: '10%', right: '8%', size: '1.35rem', delay: '0s', duration: '7.2s' },
+  { top: '62%', right: '28%', size: '1.15rem', delay: '1.4s', duration: '9s' },
+  { top: '25%', right: '45%', size: '1.5rem', delay: '3.6s', duration: '6.8s' },
+  { top: '78%', right: '6%', size: '1.05rem', delay: '4.2s', duration: '8.4s' },
+  { top: '14%', right: '58%', size: '1.25rem', delay: '2.5s', duration: '7.6s' },
+  { top: '44%', right: '3%', size: '1.1rem', delay: '5.2s', duration: '6.2s' },
+];
 ---
 
 <section class="topic-hero not-content" style={`--topic-accent: ${accentColor}`}>
@@ -69,6 +81,21 @@ const accentColor = accentVarMap[accent];
       )
     }
   </div>
+  {floatingIcons.length > 0 && (
+    <div class="topic-hero-floating-icons" aria-hidden="true">
+      {floatingIcons.map((iconName, i) => {
+        const cfg = floatingConfigs[i % floatingConfigs.length];
+        return (
+          <span
+            class="floating-icon"
+            style={`top: ${cfg.top}; right: ${cfg.right}; font-size: ${cfg.size}; animation-delay: ${cfg.delay}; animation-duration: ${cfg.duration};`}
+          >
+            <Icon name={iconName} size="1em" />
+          </span>
+        );
+      })}
+    </div>
+  )}
   <div class="topic-hero-glow" aria-hidden="true"></div>
 </section>
 
@@ -220,12 +247,60 @@ const accentColor = accentVarMap[accent];
     pointer-events: none;
   }
 
+  /* Floating topic icons */
+  .topic-hero-floating-icons {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .floating-icon {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--topic-accent);
+    opacity: 0.1;
+    animation: float-icon 7s ease-in-out infinite;
+    filter: blur(0.5px);
+  }
+
+  .floating-icon :global(svg) {
+    width: 1em;
+    height: 1em;
+  }
+
+  @keyframes float-icon {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg) scale(1);
+      opacity: 0.1;
+    }
+    25% {
+      transform: translateY(-6px) rotate(3deg) scale(1.05);
+      opacity: 0.15;
+    }
+    50% {
+      transform: translateY(-12px) rotate(-2deg) scale(1.1);
+      opacity: 0.18;
+    }
+    75% {
+      transform: translateY(-5px) rotate(1deg) scale(1.02);
+      opacity: 0.12;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .topic-btn {
       transition: none;
     }
     .topic-btn-primary:hover {
       transform: none;
+    }
+    .floating-icon {
+      animation: none;
+      opacity: 0.08;
     }
   }
 
