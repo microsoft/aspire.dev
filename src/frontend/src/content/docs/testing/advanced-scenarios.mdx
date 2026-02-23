@@ -99,6 +99,8 @@ Resources in Aspire can have wait dependencies (via `WaitFor` or `WaitForComplet
 You can remove `WaitAnnotation` instances after building the testing builder, before calling `BuildAsync`:
 
 ```csharp title="C# — IntegrationTest.cs"
+using Aspire.Hosting.ApplicationModel;
+
 [Fact]
 public async Task ApiStartsWithoutWaitingForDatabase()
 {
@@ -154,66 +156,14 @@ public async Task ApiUsesTestFeatureFlag()
 
 ### Override configuration with AppHost arguments
 
-You can also pass arguments to the AppHost to override configuration values. Arguments are passed to the .NET configuration system, so they can override values from `appsettings.json`:
+You can also pass arguments to the AppHost to override configuration values. Arguments are passed to the .NET configuration system, so they can override values from `appsettings.json`. For more information, see [Pass arguments to your AppHost](/testing/manage-app-host/#pass-arguments-to-your-apphost).
 
-```csharp title="C# — IntegrationTest.cs"
-[Fact]
-public async Task TestWithCustomConfiguration()
-{
-    var appHost = await DistributedApplicationTestingBuilder
-        .CreateAsync<Projects.MyAppHost>(
-        [
-            "--environment=Testing",
-            "MyApp:FeatureFlags:NewCheckout=true"
-        ]);
+### Override AppHost configuration before resources are created
 
-    await using var app = await appHost.BuildAsync();
-    await app.StartAsync();
-}
-```
-
-### Override AppHost configuration using `DistributedApplicationFactory`
-
-For more control over the AppHost configuration before any resources are created, use the `DistributedApplicationFactory` class and override the `OnBuilderCreating` lifecycle method:
-
-```csharp title="C# — CustomAppHostFactory.cs"
-public class CustomAppHostFactory()
-    : DistributedApplicationFactory(typeof(Projects.MyAppHost))
-{
-    protected override void OnBuilderCreating(
-        DistributedApplicationOptions applicationOptions,
-        HostApplicationBuilderSettings hostOptions)
-    {
-        hostOptions.Configuration ??= new();
-
-        // Override configuration before the AppHost is created
-        hostOptions.Configuration["MyApp:ConnectionString"] = "Server=test-server;...";
-        hostOptions.Configuration["MyApp:FeatureFlags:NewCheckout"] = "true";
-    }
-}
-```
-
-Use the factory in your test:
-
-```csharp title="C# — IntegrationTest.cs"
-[Fact]
-public async Task TestWithCustomFactory()
-{
-    await using var factory = new CustomAppHostFactory();
-    await using var app = await factory.BuildAsync();
-    await app.StartAsync();
-
-    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-    await app.ResourceNotifications.WaitForResourceHealthyAsync("api", cts.Token);
-
-    using var httpClient = app.CreateHttpClient("api");
-    using var response = await httpClient.GetAsync("/");
-    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-}
-```
+For more control over the AppHost configuration before any resources are created, use the `DistributedApplicationFactory` class and override the `OnBuilderCreating` lifecycle method. For more information, see [Use the `DistributedApplicationFactory` class](/testing/manage-app-host/#use-the-distributedapplicationfactory-class).
 
 <LearnMore>
-For more information about the `DistributedApplicationFactory` and its lifecycle methods, see [Manage the AppHost in tests](/testing/manage-app-host/).
+For full documentation on argument passing and the `DistributedApplicationFactory` lifecycle, see [Manage the AppHost in tests](/testing/manage-app-host/).
 </LearnMore>
 
 ## Single-file and minimal AppHost considerations
@@ -240,7 +190,7 @@ This AppHost works with the testing builder the same as a class-based AppHost:
 ```csharp title="C# — IntegrationTest.cs"
 // Works with top-level statement AppHosts
 var appHost = await DistributedApplicationTestingBuilder
-    .CreateAsync<Projects.MyApp_AppHost>();
+    .CreateAsync<Projects.MyAppHost>();
 ```
 
 The `Projects` namespace entries are generated based on the `<ProjectReference>` elements in your test project file. Ensure your AppHost project is referenced:
