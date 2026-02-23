@@ -625,6 +625,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'MongoDB',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-get-started',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-client',
+                },
+              ],
+            },
+            {
               label: 'Oracle',
               collapsed: true,
               items: [
