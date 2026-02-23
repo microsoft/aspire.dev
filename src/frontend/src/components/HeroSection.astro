@@ -13,14 +13,60 @@ interface Props {
 
 const { title, highlight, subtitle, primaryCta, secondaryCta, logo } = Astro.props;
 
+// Simple hash from the title string to seed per-page randomness
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function seededRandom(seed: number) {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Floating icons relevant to docs: distributed apps, config, building, deploying
-const floatingIcons = [
-  { icon: 'open-book', top: '12%', right: '10%', size: '1.35rem', delay: '0s', duration: '7.2s' },
-  { icon: 'puzzle', top: '65%', right: '24%', size: '1.15rem', delay: '1.6s', duration: '8.8s' },
-  { icon: 'rocket', top: '22%', right: '48%', size: '1.4rem', delay: '3.8s', duration: '6.6s' },
-  { icon: 'setting', top: '76%', right: '7%', size: '1.05rem', delay: '4.4s', duration: '7.8s' },
-  { icon: 'seti:config', top: '40%', right: '4%', size: '1.1rem', delay: '2.4s', duration: '9.2s' },
-] as const;
+const iconNames = ['open-book', 'puzzle', 'rocket', 'setting', 'seti:config'] as const;
+const rand = seededRandom(hashStr(title));
+const MIN_DIST = 22;
+const placed: { top: number; right: number }[] = [];
+
+function generateSpacedPosition() {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const top = Math.round(5 + rand() * 80);
+    const right = Math.round(3 + rand() * 55);
+    const tooClose = placed.some(
+      (p) => Math.hypot(p.top - top, p.right - right) < MIN_DIST
+    );
+    if (!tooClose) {
+      placed.push({ top, right });
+      return { top, right };
+    }
+  }
+  const top = Math.round(5 + rand() * 80);
+  const right = Math.round(3 + rand() * 55);
+  placed.push({ top, right });
+  return { top, right };
+}
+
+const floatingIcons = iconNames.map((icon) => {
+  const pos = generateSpacedPosition();
+  return {
+    icon,
+    top: `${pos.top}%`,
+    right: `${pos.right}%`,
+    size: `${(1.5 + rand() * 0.825).toFixed(2)}rem`,
+    delay: `${(rand() * 6).toFixed(1)}s`,
+    duration: `${(8.5 + rand() * 6).toFixed(1)}s`,
+  };
+});
 ---
 
 <section class="hero-section not-content">
@@ -224,7 +270,10 @@ const floatingIcons = [
   /* Floating topic icons */
   .hero-floating-icons {
     position: absolute;
-    inset: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 40%;
     pointer-events: none;
     overflow: hidden;
   }
@@ -284,6 +333,9 @@ const floatingIcons = [
     }
     .hero-content {
       padding-left: 0.5rem;
+    }
+    .hero-floating-icons {
+      width: 35%;
     }
   }
 </style>

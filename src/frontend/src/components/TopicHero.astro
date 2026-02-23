@@ -37,15 +37,61 @@ const accentVarMap: Record<string, string> = {
 
 const accentColor = accentVarMap[accent];
 
-// Predefined positions and animation configs for floating icons
-const floatingConfigs = [
-  { top: '10%', right: '8%', size: '1.35rem', delay: '0s', duration: '7.2s' },
-  { top: '62%', right: '28%', size: '1.15rem', delay: '1.4s', duration: '9s' },
-  { top: '25%', right: '45%', size: '1.5rem', delay: '3.6s', duration: '6.8s' },
-  { top: '78%', right: '6%', size: '1.05rem', delay: '4.2s', duration: '8.4s' },
-  { top: '14%', right: '58%', size: '1.25rem', delay: '2.5s', duration: '7.6s' },
-  { top: '44%', right: '3%', size: '1.1rem', delay: '5.2s', duration: '6.2s' },
-];
+// Simple hash from the title string to seed per-page randomness
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+// Seeded pseudo-random number generator (mulberry32)
+function seededRandom(seed: number) {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Generate unique positions per page based on the title
+// Enforces minimum distance between icons so they don't cluster
+const rand = seededRandom(hashStr(title));
+const MIN_DIST = 22; // minimum % distance between any two icons
+const placed: { top: number; right: number }[] = [];
+
+function generateSpacedPosition() {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const top = Math.round(5 + rand() * 80);
+    const right = Math.round(3 + rand() * 85);
+    const tooClose = placed.some(
+      (p) => Math.hypot(p.top - top, p.right - right) < MIN_DIST
+    );
+    if (!tooClose) {
+      placed.push({ top, right });
+      return { top, right };
+    }
+  }
+  // fallback: use as-is if we can't find a spaced position
+  const top = Math.round(5 + rand() * 80);
+  const right = Math.round(3 + rand() * 85);
+  placed.push({ top, right });
+  return { top, right };
+}
+
+const floatingConfigs = floatingIcons.map(() => {
+  const pos = generateSpacedPosition();
+  return {
+    top: `${pos.top}%`,
+    right: `${pos.right}%`,
+    size: `${(1.5 + rand() * 0.825).toFixed(2)}rem`,
+    delay: `${(rand() * 6).toFixed(1)}s`,
+    duration: `${(8.5 + rand() * 6).toFixed(1)}s`,
+  };
+});
 ---
 
 <section class="topic-hero not-content" style={`--topic-accent: ${accentColor}`}>
@@ -250,7 +296,10 @@ const floatingConfigs = [
   /* Floating topic icons */
   .topic-hero-floating-icons {
     position: absolute;
-    inset: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 40%;
     pointer-events: none;
     overflow: hidden;
   }
@@ -310,6 +359,9 @@ const floatingConfigs = [
     }
     .topic-hero-content {
       padding-left: 0.5rem;
+    }
+    .topic-hero-floating-icons {
+      width: 35%;
     }
   }
 </style>
