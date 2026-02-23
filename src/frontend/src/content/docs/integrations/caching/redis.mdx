@@ -243,7 +243,7 @@ For more information on keyed services, see [.NET dependency injection: Keyed se
 
 ### Redis client builder pattern
 
-Aspire 9.5 introduces a new Redis client builder pattern that provides a fluent, type-safe approach to configuring Redis clients with integrated support for distributed caching, output caching, and Azure authentication.
+The Redis client builder pattern provides a fluent, type-safe approach to configuring Redis clients with integrated support for distributed caching and Azure authentication.
 
 #### Basic usage
 
@@ -252,7 +252,7 @@ Use `AddRedisClientBuilder` to configure Redis clients with a fluent API:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddRedisClientBuilder("redis")
+builder.AddRedisClientBuilder("cache")
     .WithDistributedCache(options =>
     {
         options.InstanceName = "MyApp";
@@ -270,7 +270,7 @@ To enable Azure authentication for Redis, add a reference to the [📦 Aspire.Mi
 Then chain a call to `WithAzureAuthentication()`:
 
 ```csharp
-builder.AddRedisClientBuilder("redis")
+builder.AddRedisClientBuilder("cache")
     .WithAzureAuthentication()
     .WithDistributedCache(options =>
     {
@@ -286,11 +286,14 @@ Redis client connections support auto activation to prevent startup deadlocks an
 var builder = WebApplication.CreateBuilder(args);
 
 // Enable auto activation by setting DisableAutoActivation to false
-builder.AddRedisClient("redis", c => c.DisableAutoActivation = false);
+builder.AddRedisClient("cache", c => c.DisableAutoActivation = false);
 ```
 
 <Aside type="note">
-  In a future version of Aspire, auto activation is planned to be **enabled by default**. When this change occurs, you'll need to explicitly set `DisableAutoActivation = true` if you want to maintain the lazy initialization behavior.
+  In a future version of Aspire, auto activation is planned to be **enabled by
+  default**. When this change occurs, you'll need to explicitly set
+  `DisableAutoActivation = true` if you want to maintain the lazy initialization
+  behavior.
 </Aside>
 
 ### Configuration
