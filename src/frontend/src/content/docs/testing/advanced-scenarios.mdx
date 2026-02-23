@@ -3,7 +3,7 @@ title: Advanced testing scenarios
 description: Learn advanced patterns for using DistributedApplicationTestingBuilder, including selectively disabling resources, overriding environment variables, and customizing the test AppHost.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 This article covers advanced patterns for testing Aspire applications, including selectively disabling resources during tests, overriding environment variables, and customizing the AppHost for specific test scenarios.
@@ -166,40 +166,51 @@ For more control over the AppHost configuration before any resources are created
 For full documentation on argument passing and the `DistributedApplicationFactory` lifecycle, see [Manage the AppHost in tests](/testing/manage-app-host/).
 </LearnMore>
 
-## Single-file and minimal AppHost considerations
+## File-based AppHost limitations
 
-The `DistributedApplicationTestingBuilder.CreateAsync<T>()` method uses a project reference (from the `Projects` namespace) to locate and start your AppHost. This means your AppHost must be a **project** referenced in your test project.
+The Aspire CLI supports **file-based AppHosts** — a lightweight `apphost.cs` file with no `.csproj` project file. These are created with `aspire init` or the `aspire-apphost-singlefile` template and are run directly with `aspire run`.
 
-<Aside type="note">
-File-based or single-file AppHosts that aren't structured as .NET projects can't be directly targeted by `DistributedApplicationTestingBuilder.CreateAsync<T>()`. The generic type parameter `T` must be a type from the auto-generated `Projects` namespace, which is only available for project references.
+<Aside type="caution">
+File-based AppHosts (`apphost.cs` without a `.csproj`) **cannot** be tested with `DistributedApplicationTestingBuilder`. Because they don't have a project file, they don't appear in the auto-generated `Projects` namespace, and there's no project reference to pass to `CreateAsync<T>()`.
 </Aside>
 
-If your AppHost uses top-level statements (a common pattern in minimal or single-file AppHosts), it works fine as long as it's a project. Top-level statement projects still produce the necessary project reference metadata:
-
-```csharp title="C# — AppHost.cs (top-level statements)"
-// Top-level statements work fine—this is still a project
-var builder = DistributedApplication.CreateBuilder(args);
-
-builder.AddProject<Projects.Api>("api");
-
-builder.Build().Run();
-```
-
-This AppHost works with the testing builder the same as a class-based AppHost:
+The `DistributedApplicationTestingBuilder.CreateAsync<T>()` method requires a type from the `Projects` namespace:
 
 ```csharp title="C# — IntegrationTest.cs"
-// Works with top-level statement AppHosts
+// This requires Projects.MyAppHost to exist — only available via ProjectReference
 var appHost = await DistributedApplicationTestingBuilder
     .CreateAsync<Projects.MyAppHost>();
 ```
 
-The `Projects` namespace entries are generated based on the `<ProjectReference>` elements in your test project file. Ensure your AppHost project is referenced:
+The `Projects` namespace entries are only generated for `<ProjectReference>` entries in your test project. A file-based `apphost.cs` produces no such entry.
 
-```xml title="XML — MyApp.Tests.csproj"
-<ItemGroup>
-    <ProjectReference Include="..\MyApp.AppHost\MyApp.AppHost.csproj" />
-</ItemGroup>
-```
+### Migrate a file-based AppHost to a project for testing
+
+To enable integration testing, convert your file-based AppHost to a standard `.csproj` project. The code itself doesn't need to change — only the project structure:
+
+<Steps>
+
+1. Create a new AppHost project using `dotnet new`:
+
+    ```bash
+    dotnet new aspire-apphost -n MyApp.AppHost -o MyApp.AppHost
+    ```
+
+2. Copy your `apphost.cs` code into the new project's `AppHost.cs` file, removing the `#:sdk` and `#:package` directives (these are file-based-app-specific).
+
+3. Add the required package references to the `.csproj` (the template already includes `Aspire.AppHost.Sdk`).
+
+4. Add a `<ProjectReference>` from your test project to the new AppHost:
+
+    ```xml title="XML — MyApp.Tests.csproj"
+    <ItemGroup>
+        <ProjectReference Include="..\MyApp.AppHost\MyApp.AppHost.csproj" />
+    </ItemGroup>
+    ```
+
+5. Your AppHost now appears as `Projects.MyApp_AppHost` in the test project and can be used with `DistributedApplicationTestingBuilder.CreateAsync<T>()`.
+
+</Steps>
 
 ## See also
 
