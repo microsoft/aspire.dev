@@ -81,6 +81,61 @@ Uri: redis://:p%40ssw0rd1@localhost:6379
   `cache` becomes `CACHE_URI`.
 </Aside>
 
+## Redis client builder pattern
+
+The Redis client builder pattern provides a fluent, type-safe approach to configuring Redis clients with integrated support for distributed caching and Azure authentication.
+
+### Basic usage
+
+Use `AddRedisClientBuilder` to configure Redis clients with a fluent API:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddRedisClientBuilder("cache")
+    .WithDistributedCache(options =>
+    {
+        options.InstanceName = "MyApp";
+    });
+```
+
+The client builder pattern simplifies the configuration of Redis-backed caching services by combining client setup with caching configuration in a single fluent chain.
+
+### Azure authentication
+
+To enable Azure authentication for Redis, add a reference to the [📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Azure.StackExchangeRedis" />
+
+Then chain a call to `WithAzureAuthentication()`:
+
+```csharp
+builder.AddRedisClientBuilder("cache")
+    .WithAzureAuthentication()
+    .WithDistributedCache(options =>
+    {
+        options.InstanceName = "MyApp";
+    });
+```
+
+### Auto activation
+
+Redis client connections support auto activation to prevent startup deadlocks and improve application reliability. Auto activation is disabled by default but can be enabled using the `DisableAutoActivation` option:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Enable auto activation by setting DisableAutoActivation to false
+builder.AddRedisClient("cache", c => c.DisableAutoActivation = false);
+```
+
+<Aside type="note">
+  In a future version of Aspire, auto activation is planned to be **enabled by
+  default**. When this change occurs, you'll need to explicitly set
+  `DisableAutoActivation = true` if you want to maintain the lazy initialization
+  behavior.
+</Aside>
+
 ## Configuration
 
 ### Use a connection string

@@ -147,5 +147,13 @@ export const communityTopics: StarlightSidebarTopicsUserConfig = {
       },
       slug: 'community/videos',
     },
+    {
+      label: 'Aspire Conf',
+      slug: 'aspireconf',
+      badge: {
+        text: 'Mar 23',
+        variant: 'tip',
+      },
+    },
   ],
 };
