@@ -35,7 +35,6 @@ During development, the recommended approach is to allow your frontend's develop
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.Services.AddControllers();
 
 // Configure CORS for development
 builder.Services.AddCors(options =>
@@ -51,9 +50,8 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
-app.UseCors(); // Must be called before UseAuthorization and MapControllers
-app.UseAuthorization();
-app.MapControllers();
+app.UseCors(); // Must be called before endpoint mapping
+app.MapGet("/", () => Results.Ok());
 
 app.Run();
 ```
@@ -70,7 +68,6 @@ A better pattern is to read allowed origins from configuration, so you can easil
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.Services.AddControllers();
 
 builder.Services.AddCors(options =>
 {
@@ -90,15 +87,14 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.UseCors();
-app.UseAuthorization();
-app.MapControllers();
+app.MapGet("/", () => Results.Ok());
 
 app.Run();
 ```
 
 Then configure the allowed origins per environment:
 
-<Tabs>
+<Tabs syncKey="environment">
 <TabItem label="Development">
 
 ```json title="JSON — appsettings.Development.json"
@@ -152,7 +148,6 @@ In the API project, read the injected frontend endpoint for CORS configuration:
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.Services.AddControllers();
 
 builder.Services.AddCors(options =>
 {
@@ -186,8 +181,7 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.UseCors();
-app.UseAuthorization();
-app.MapControllers();
+app.MapGet("/", () => Results.Ok());
 
 app.Run();
 ```
@@ -202,16 +196,22 @@ Using `WithReference(frontend)` not only helps configure CORS but also establish
 
 **Symptom**: Browser shows a CORS error even though you've added `AddCors` and `UseCors`.
 
-**Cause**: The order of middleware registration matters. `UseCors()` must be called **before** `UseAuthorization()` and **before** any endpoint mapping.
+**Cause**: The order of middleware registration matters. `UseCors()` must be called **before** any endpoint mapping and before `UseAuthorization()` when authentication is used.
 
 **Solution**: Ensure middleware is ordered correctly:
 
 ```csharp title="C# — Program.cs"
-app.UseRouting(); // If using explicit routing
-app.UseCors();    // CORS must come before Authorization
+app.UseCors();    // CORS must come before endpoint mapping
+app.MapGet("/", () => Results.Ok());
+```
+
+If you're using authentication and authorization, ensure CORS comes before them as well:
+
+```csharp title="C# — Program.cs"
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
+app.MapGet("/secure", () => Results.Ok()).RequireAuthorization();
 ```
 
 ### Issue: Preflight requests failing
@@ -220,7 +220,7 @@ app.MapControllers();
 
 **Cause**: The API doesn't handle `OPTIONS` requests, which browsers use for CORS preflight checks.
 
-**Solution**: `UseCors()` handles preflight automatically. Ensure it's in your middleware pipeline. If you're using `[Authorize]` or other middleware that short-circuits before CORS, move `UseCors()` earlier.
+**Solution**: `UseCors()` handles preflight automatically. Ensure it's in your middleware pipeline and called before endpoint mapping.
 
 ### Issue: Credentials not sent with cross-origin requests
 
