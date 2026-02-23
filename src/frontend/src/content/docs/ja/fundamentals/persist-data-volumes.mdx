@@ -1,0 +1,161 @@
+---
+title: ボリュームまたはバインドマウントを使用して、Aspire プロジェクトのデータを永続化
+description: コンテナーでボリュームやバインドマウントを使用して、再起動後もデータを保持する Aspire の構成について学びましょう。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Aspire プロジェクトを開始・停止するたびに、アプリはリソースコンテナーも作成および破棄します。そのため、デバッグセッション中にそれらのコンテナー内に保存されたデータやファイルは、次回のセッションでは失われます。多くの開発チームでは、たとえば実行のたびにサンプルデータでデータベースを再投入する必要がないように、デバッグセッション間でデータを保持したいと考えています。
+
+この記事では、アプリの再起動後もデータを保持できるように Aspire プロジェクトを構成する方法を学びます。ローカル開発においてデータを継続的に保持することは、多くのシナリオで有用です。PostgreSQL、Redis、Azure Storage など、さまざまな Aspire のリソースコンテナータイプが、ボリュームやバインドマウントを活用できます。
+
+## プロジェクトデータを永続化するタイミング
+
+Aspire ソリューションにデータベースリソースが含まれているとします。既定では、そのリソースのデータはコンテナー内に保存されます。しかし、アプリを停止するとすべてのリソースコンテナーが破棄されるため、保存されていたデータも失われ、次回ソリューションを実行した際には参照できません。この動作は、テストやデバッグのためにアプリの起動間でデータベースやストレージサービスのデータを保持したい場合に問題となります。たとえば、次のようなケースです:
+
+- 複数回の再起動をまたぐ長時間の開発セッション中に、データベース内のデータを継続的に利用したい場合。
+- Azure Blob Storage エミュレーター内で変化するファイル群をテストまたはデバッグしたい場合。
+- Redis インスタンス内のキャッシュデータやメッセージを、アプリの起動をまたいで保持したい場合。
+
+これらの目的は、ボリュームまたはバインドマウントを使用することで実現できます。これらはコンテナー外、つまりコンテナーホスト上のディレクトリにデータを保存するため、コンテナーが破棄されてもデータは削除されません。これにより、Aspire プロジェクトの起動間でどのサービスのデータを保持するかを選択できます。
+
+<Aside type="note">
+  ボリュームおよびバインドマウントは、Docker や Podman などのコンテナーランタイムの機能です。
+  Aspire には、それらを簡単に利用できるメソッドが用意されています。
+</Aside>
+
+## ボリュームとバインドマウントの比較
+
+ボリュームとバインドマウントはいずれも、コンテナーホスト上のディレクトリにデータを保存します。このディレクトリはコンテナーの外部にあるため、コンテナーが停止してもデータは削除されません。ただし、両者の動作には違いがあります:
+
+- **ボリューム**: コンテナーランタイムが作成および管理します。ボリュームはコンテナーホストの中核機能から分離されています。
+- **バインドマウント**: コンテナーランタイムがホストマシン上のファイルまたはディレクトリをマウントします。コンテナーとホストマシンの両方からその内容にアクセスできます。
+
+ボリュームは、バインドマウントよりも安全性と可搬性に優れており、パフォーマンスも高いため、可能な限りボリュームの使用を推奨します。ホストマシンからデータにアクセスまたは変更する必要がある場合にのみ、バインドマウントを使用してください。
+
+## ボリュームの使用
+
+ボリュームは、コンテナーによって生成されたデータを永続化するための推奨方法であり、Windows と Linux の両方でサポートされています。ボリュームは複数のコンテナーのデータを同時に保存でき、高いパフォーマンスを提供し、バックアップや移行も容易です。Aspire では、各リソースコンテナーに対して `WithVolume` メソッドを使用してボリュームを構成します。このメソッドは次の 3 つのパラメーターを受け取ります:
+
+- **`name`**: ボリュームの任意の名前
+- **`target`**: 永続化したいデータの、コンテナー内のターゲットパス。
+- **`isReadOnly`**: ボリューム内のデータを変更可能にするかどうかを示すブール値。既定値は `false` です。
+
+以降では、分散アプリケーションビルダーがすでに定義されている Aspire の [AppHost プロジェクト](/ja/get-started/app-host/)内の `Program` クラスを操作していると想定します:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO:
+//   ここでボリューム構成や
+//   永続化されたパスワードの設定を検討します。
+
+builder.Build().Run();
+```
+
+最初の例では、`WithVolume` API を使用して SQL Server リソースにボリュームを構成します。次のコードは、Aspire の AppHost プロジェクトで SQL Server リソースにボリュームを設定する方法を示しています:
+
+```csharp
+var sql = builder.AddSqlServer("sql")
+                 .WithVolume(target: "/var/opt/mssql")
+                 .AddDatabase("sqldb");
+```
+
+この例では、`/var/opt/mssql` がコンテナー内のデータベースファイルのパスを指定しています。
+
+すべての Aspire コンテナーリソースでボリュームを利用できます。また、一部のリソースでは、リソース名から派生した名前付きボリュームを追加するための便利な API も提供されています。`WithDataVolume` メソッドを使用すると、前述の例と同じ機能をより簡潔に記述できます:
+
+```csharp
+var sql = builder.AddSqlServer("sql")
+                 .WithDataVolume()
+                 .AddDatabase("sqldb");
+```
+
+AppHost プロジェクト名が `VolumeMount.AppHost` の場合、`WithDataVolume` メソッドは自動的に `VolumeMount.AppHost-sql-data` という名前のボリュームを作成し、SQL Server コンテナー内の `/var/opt/mssql` パスにマウントします。命名規則は次のとおりです:
+
+- `{appHostProjectName}-{resourceName}-data`: ボリューム名は、AppHost プロジェクト名とリソース名から生成されます。
+
+## バインドマウントの使用
+
+バインドマウントを使用すると、コンテナー内およびホストマシン上のプロセスの両方からデータにアクセスできます。たとえば、バインドマウントを設定した後、ホストコンピューター上でそのフォルダーにファイルをコピーすると、そのファイルはコンテナー内のマウント先パスから利用できるようになります。Aspire では、各リソースコンテナーに対して `WithBindMount` メソッドを使用してバインドマウントを構成します。このメソッドは次の 3 つのパラメーターを受け取ります:
+
+- **`source`**: コンテナーにマウントする、ホストマシン上のフォルダーのパス。
+- **`target`**: コンテナー内でのフォルダーのターゲットパス。
+- **`isReadOnly`**: バインドマウント内のデータを変更可能にするかどうかを示すブール値。既定値は `false` です。
+
+次のコード例では、`WithBindMount` API を使用して SQL Server リソースにバインドマウントを構成しています:
+
+```csharp
+var sql = builder.AddSqlServer("sql")
+                 .WithBindMount(source: @"C:\SqlServer\Data", target: "/var/opt/mssql")
+                 .AddDatabase("sqldb");
+```
+
+この例では:
+
+- `source: @"C:\SqlServer\Data"` は、バインド対象となるホストコンピューター上のフォルダーを指定します。
+- `target: "/var/opt/mssql"` は、コンテナー内のデータベースファイルのパスを指定します。
+
+ボリュームと同様に、一部の Aspire コンテナーリソースでは、バインドマウントを簡単に追加できる便利な API が提供されています。`WithDataBindMount` メソッドを使用すると、前述の例と同じ機能をより簡潔に記述できます"
+
+```csharp
+var sql = builder.AddSqlServer("sql")
+                 .WithDataBindMount(source: @"C:\SqlServer\Data")
+                 .AddDatabase("sqldb");
+```
+
+## 永続的なパスワードの作成
+
+名前付きボリュームを使用する場合、アプリの起動間で一貫したパスワードが必要になります。Aspire には、ランダムなパスワードを生成する便利な機能が用意されています。先ほどの例をもう一度見てみましょう。ここではパスワードが自動生成されています:
+
+```csharp
+var sql = builder.AddSqlServer("sql")
+                 .WithDataVolume()
+                 .AddDatabase("sqldb");
+```
+
+`AddSqlServer` を呼び出す際に `password` パラメーターを指定していないため、Aspire は SQL Server リソース用のパスワードを自動的に生成します。
+
+<Aside type="caution">
+  これは永続的なパスワードではありません。AppHost を実行するたびに
+  変更されます。
+</Aside>
+
+_永続的_ なパスワードを作成するには、自動生成されたパスワードを上書きする必要があります。そのためには、AppHost プロジェクトのディレクトリで次のコマンドを実行し、.NET のユーザーシークレットにローカルパスワードを設定します:
+
+```bash title=".NET CLI"
+dotnet user-secrets set Parameters:sql-password <password>
+```
+
+これらのシークレットの命名規則を理解することが重要です。パスワードは `Parameters:sql-password` というキーで構成に保存されます。命名規則は次のパターンに従います:
+
+- `Parameters:{resourceName}-password`: SQL Server リソース（名前が `"sql"`）の場合、パスワードは `Parameters:sql-password` というキーで構成に保存されます。
+
+同じパターンは、次の表に示すような他のサーバーベースのリソースタイプにも適用されます:
+
+| リソースタイプ | ホスティングパッケージ                                                                          | リソース名の例 | 上書きキー                     |
+| ------------- | ---------------------------------------------------------------------------------------- | --------------------- | -------------------------------- |
+| MySQL         | [📦 Aspire.Hosting.MySql](https://www.nuget.org/packages/Aspire.Hosting.MySql)           | `mysql`               | `Parameters:mysql-password`      |
+| Oracle        | [📦 Aspire.Hosting.Oracle](https://www.nuget.org/packages/Aspire.Hosting.Oracle)         | `oracle`              | `Parameters:oracle-password`     |
+| PostgreSQL    | [📦 Aspire.Hosting.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.PostgreSQL) | `postgresql`          | `Parameters:postgresql-password` |
+| RabbitMQ      | [📦 Aspire.Hosting.RabbitMq](https://www.nuget.org/packages/Aspire.Hosting.RabbitMq)     | `rabbitmq`            | `Parameters:rabbitmq-password`   |
+| SQL Server    | [📦 Aspire.Hosting.SqlServer](https://www.nuget.org/packages/Aspire.Hosting.SqlServer)   | `sql`                 | `Parameters:sql-password`        |
+
+自動生成されたパスワードを上書きすることで、アプリの起動間でパスワードを一貫して維持できます。別の方法として、`AddParameter` メソッドを使用してパスワードとして利用できるパラメーターを作成することも可能です。次のコードは、SQL Server リソース用の永続的なパスワードを作成する方法を示しています：
+
+```csharp
+var sqlPassword = builder.AddParameter("sql-password", secret: true);
+
+var sql = builder.AddSqlServer("sql", password: sqlPassword)
+                 .WithDataVolume()
+                 .AddDatabase("sqldb");
+```
+
+`AddParameter` メソッドは、`sql-password` という名前のパラメーターを作成し、それをシークレットとして扱います。その後、`AddSqlServer` メソッドを `password` パラメーター付きで呼び出し、SQL Server リソースのパスワードを設定します。詳細については、[外部パラメーター](/ja/fundamentals/external-parameters/)を参照してください。
+
+## 次のステップ
+
+前述のコードで紹介したボリュームの概念は、アプリの起動間でデータを保持するデータベースのシードなど、さまざまなサービスに適用できます。次のチュートリアルで紹介されているリソース実装と組み合わせて、ぜひ試してみてください:
+
+- [チュートリアル: Aspire と Entity Framework Core を使用して ASP.NET Core アプリを SQL Server に接続する](/ja/integrations/databases/efcore/sql-server/sql-server-get-started/)
+- [Aspire オーケストレーション概要](/ja/get-started/app-host/)
