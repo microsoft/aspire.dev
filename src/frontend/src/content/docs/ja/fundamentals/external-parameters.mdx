@@ -1,0 +1,462 @@
+---
+title: 外部パラメーター
+description: シークレット、接続文字列、その他の環境ごとに異なる可能性のある構成値などのパラメーターを表現する方法を学びます。
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved-parameters-message.png';
+import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.png';
+
+環境は、アプリケーションが実行されるためのコンテキストを提供します。パラメーターは、アプリの実行時に外部の値を要求できる仕組みを表します。パラメーターは、ローカル実行時にアプリへ値を提供したり、デプロイ時に値の入力を求めたりするために使用できます。また、シークレットや接続文字列、その他の環境ごとに異なる可能性のある構成値など、幅広いシナリオをモデル化するためにも利用できます。
+
+## パラメーター値
+
+パラメーター値は、AppHost の構成内にある `Parameters` セクションから読み取られ、ローカル実行時にアプリへ値を提供するために使用されます。アプリを実行または公開する際に値が構成されていない場合は、入力を求められます。
+
+以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// "example-parameter-name" という名前のパラメーターを追加
+var parameter = builder.AddParameter("example-parameter-name");
+
+builder.AddProject<Projects.ApiService>("api")
+       .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
+```
+
+上記のコードでは、AppHost に `example-parameter-name` という名前のパラメーターを追加しています。このパラメーターは、`Projects.ApiService` プロジェクトに対して `ENVIRONMENT_VARIABLE_NAME` という名前の環境変数として渡されます。
+
+### パラメーター値の構成
+
+ビルダーにパラメーターを追加することは、構成の一部にすぎません。パラメーターの値もあわせて指定する必要があります。値は、AppHost の構成ファイルで指定するか、ユーザーシークレットとして設定するか、あるいは [その他の標準的な構成](https://learn.microsoft.com/ja-jp/dotnet/core/extensions/configuration) で設定できます。パラメーター値が見つからない場合、アプリの実行または公開時に入力を求められます。
+
+以下の AppHost 構成ファイル _appsettings.json_ をご覧ください:
+
+```json title="appsettings.json"
+{
+  "Parameters": {
+    "example-parameter-name": "local-value"
+  }
+}
+```
+
+上記の JSON では、AppHost 構成の `Parameters` セクションにパラメーターを設定しています。つまり、この AppHost は構成済みのパラメーターを参照できます。たとえば、`IDistributedApplicationBuilder.Configuration` にアクセスし、`Parameters:example-parameter-name` キーを使用して値を取得できます:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var key = $"Parameters:example-parameter-name";
+var value = builder.Configuration[key]; // value = "local-value"
+```
+
+<Aside type="caution">
+  ただし、AppHost 内でこの構成値を自分で取得する必要はありません。
+  代わりに、`ParameterResource` を使用してパラメーター値を依存リソースへ渡します。
+  多くの場合、環境変数として渡されます。
+</Aside>
+
+### 環境変数を使用してパラメーター値を設定する
+
+パラメーターは環境変数を使って設定できます。これは、特に CI/CD パイプラインやデプロイシナリオにおいて便利です。環境変数名は `Parameters__{parameter_name}` という形式に従います。構成セクションとパラメーター名を区切るためにダブルアンダースコア (`__`) を使用し、ダッシュはシングルアンダースコアで表します。
+
+<Aside type="note">
+  ダブルアンダースコア (`__`) の構文は、入れ子になった構成キーを
+  環境変数で表現するための .NET の標準的な構成規約です。
+  構成パス内のコロン (`:`) は、ダブルアンダースコアに
+  置き換えられます。
+</Aside>
+
+以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// コンテナ レジストリ用のパラメーターを定義
+var endpoint = builder.AddParameter("registry-endpoint");
+var repository = builder.AddParameter("registry-repository");
+
+builder.AddContainerRegistry("container-registry", endpoint, repository);
+
+builder.Build().Run();
+```
+
+これらのパラメーターは、次の環境変数によって指定できます:
+
+- `Parameters__registry_endpoint` - レジストリの URL (例: `ghcr.io`)
+- `Parameters__registry_repository` - リポジトリ パス (例: `username/reponame`)
+
+#### 例: GitHub Actions ワークフロー
+
+以下の例は、GitHub Actions のワークフロー内でパラメーターを環境変数として設定する方法を示しています:
+
+```yaml title=".github/workflows/deploy.yml"
+- name: Login to GHCR
+  uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Push images with Aspire
+  env:
+    Parameters__registry_endpoint: ghcr.io
+    Parameters__registry_repository: your-org/your-repo
+  run: aspire do push
+```
+
+#### パラメーターの解決方法
+
+Aspire は、次の順序でパラメーター値を解決します:
+
+<Steps>
+
+1. **環境変数** - `Parameters__*` 構文を使用して設定された値
+2. **構成ファイル** - _appsettings.json_、ユーザーシークレット、またはその他の構成ソースからの値
+3. **ユーザー入力** - 値が見つからない場合、ダッシュボードまたは CLI が入力を求めます
+
+</Steps>
+
+この解決順序により、構成ファイルの値を環境変数で上書きできます。これにより、構成ファイルを変更せずに、さまざまな環境に合わせてアプリケーションを柔軟に適応させることができます。
+
+### ダッシュボードでパラメーター値を入力する
+
+コードでパラメーターを追加していても値を設定していない場合、Aspire ダッシュボードに値の入力を促す画面が表示されます。**Unresolved parameters** というメッセージが表示され、**Enter values** を選択すると問題を解決できます:
+
+<Image
+  src={dashboardUnresolvedParams}
+  alt="未解決のパラメーターがある場合に表示される Aspire ダッシュボードの警告画面のスクリーンショット。"
+/>
+
+**Enter values** を選択すると、不足している各パラメーターの値を設定できるフォームが表示されます。
+
+また、以下のメソッドを使用して、ダッシュボード上でのパラメーター表示方法を制御できます:
+
+- `WithDescription`: パラメーターの目的をユーザーが理解しやすくするための説明テキストを指定します。[Markdown](https://www.markdownguide.org/basic-syntax/) 形式で記述する場合は、`enableMarkdown: true` パラメーターを使用します。
+- `WithCustomInput`: コールバックメソッドを指定して、パラメーター ダイアログをカスタマイズします。たとえば、既定値、入力タイプ、ラベル、プレースホルダー テキストなどを設定できます。
+
+以下のコードは、説明を設定し、コールバックを使用する方法を示しています:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREINTERACTION001 // この型は評価目的のものであり、将来の更新で変更または削除される可能性があります。この診断を抑制して続行してください。
+var externalServiceUrl = builder.AddParameter("external-service-url")
+    .WithDescription("The URL of the external service.")
+    .WithCustomInput(p => new()
+    {
+        InputType = InputType.Text,
+        Value = "https://example.com",
+        Name = p.Name,
+        Placeholder = $"Enter value for {p.Name}",
+        Description = p.Description
+    });
+var externalService = builder.AddExternalService("external-service", externalServiceUrl);
+#pragma warning restore ASPIREINTERACTION001
+
+builder.Build().Run();
+```
+
+このコードを実行すると、ダッシュボードでは次のような入力コントロールが表示されます:
+
+<Image
+  src={customizedParameterUi}
+  alt="カスタマイズされたパラメーター入力ダイアログが表示されている Aspire ダッシュボードのスクリーンショット。"
+/>
+
+<Aside type="note">
+  ダッシュボードのパラメーター ダイアログには **Save to user secret** チェックボックスが含まれています。
+  このオプションを選択すると、機密性の高い値を AppHost のユーザーシークレットに保存でき、
+  より安全に管理できます。シークレット パラメーター値の詳細については、
+  [シークレット値](#シークレット値) をご参照ください。
+</Aside>
+
+### マニフェストにおけるパラメーターの表現
+
+Aspire は、アプリのリソースとそれらの関係を表現するためにデプロイメント マニフェストを使用します。パラメーターは、`parameter.v0` という新しいプリミティブとしてマニフェスト内に表現されます:
+
+```json
+{
+  "resources": {
+    "example-parameter-name": {
+      "type": "parameter.v0",
+      "value": "{value.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
+```
+
+## シークレット値
+
+パラメーターはシークレットを表現する目的でも使用できます。パラメーターがシークレットとしてマークされると、マニフェストに対して「この値はシークレットとして扱うべき」というヒントになります。アプリを公開する際には値の入力が求められ、安全な場所に保存されます。ローカルでアプリを実行する場合は、AppHost 構成の `Parameters` セクションから値が読み取られます。
+
+以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// "secret" という名前のシークレット パラメーターを追加
+var secret = builder.AddParameter("secret", secret: true);
+
+builder.AddProject<Projects.ApiService>("api")
+       .WithEnvironment("SECRET", secret);
+
+builder.Build().Run();
+```
+
+次に、以下の AppHost 構成ファイル _appsettings.json_ をご覧ください:
+
+```json title="appsettings.json"
+{
+  "Parameters": {
+    "secret": "local-secret"
+  }
+}
+```
+
+マニフェストでの表現は次のとおりです:
+
+```json
+{
+  "resources": {
+    "value": {
+      "type": "parameter.v0",
+      "value": "{value.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string",
+          "secret": true
+        }
+      }
+    }
+  }
+}
+```
+
+## 構成からパラメーターを追加する
+
+特定のシナリオでは、標準の `Parameters:*` パターンに従うのではなく、特定の構成キーから直接パラメーター値を読み取りたい場合があります。`AddParameterFromConfiguration` メソッドを使用すると、パラメーターに対してカスタムの構成キーを指定できます。
+
+### API シグネチャ
+
+```csharp
+public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
+    this IDistributedApplicationBuilder builder,
+    string name,
+    string configurationKey,
+    bool secret = false
+);
+```
+
+### パラメーター
+
+- `name` - パラメーター リソースの名前
+- `configurationKey` - 値を読み取る構成キー
+- `secret` - パラメーターをシークレットとして扱うかどうかを示す任意のフラグ (既定値: `false`)
+
+### 使用例
+
+カスタム セクションに構成値が保存されているシナリオを考えてみましょう:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// カスタム構成キーから読み取る
+var dbPassword = builder.AddParameterFromConfiguration(
+    "db-password",
+    "CustomConfig:Database:Password",
+    secret: true);
+
+builder.AddProject<Projects.ApiService>("api")
+       .WithEnvironment("DB_PASSWORD", dbPassword);
+
+builder.Build().Run();
+```
+
+対応する構成ファイルは次のようになります:
+
+```json title="appsettings.json"
+{
+  "CustomConfig": {
+    "Database": {
+      "Password": "your-secure-password"
+    }
+  }
+}
+```
+
+このメソッドは、次のような場合に役立ちます:
+
+- 既存の構成構造と統合する必要がある場合
+- 構成が標準の `Parameters:*` 規約とは異なるパターンに従っている場合
+- 特定の構成セクションから値を読み取りたい場合
+
+## 接続文字列の値
+
+パラメーターは接続文字列を表現する目的でも使用できます。アプリを公開する際には値の入力が求められ、安全な場所に保存されます。ローカルでアプリを実行する場合は、AppHost 構成の `ConnectionStrings` セクションから値が読み取られます。
+
+<Aside type="danger">
+シークレットをリソースに渡す場合は、必ず `AddParameter` を使用してください。パスワードや接続文字列などの機密情報をソースコードに直接含めてはいけません。
+
+ローカル データベースに接続し、統合セキュリティやパスワードレス認証を使用する場合は、接続文字列の保護について過度に心配する必要はありません。パスワードを使用する場合は、アプリ シークレットを使って安全に保存してください。
+
+</Aside>
+
+以下の AppHost の _AppHost.cs_ ファイルの例をご覧ください:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddConnectionString("redis");
+
+builder.AddProject<Projects.WebApplication>("api")
+       .WithReference(redis)
+       .WaitFor(redis);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+  接続文字列に対して `WaitFor` を使用すると、その接続先となるリソースの起動を
+  暗黙的に待機します。
+</Aside>
+
+次に、以下の AppHost 構成ファイル _appsettings.json_ をご覧ください:
+
+```json title="appsettings.json"
+{
+  "ConnectionStrings": {
+    "redis": "local-connection-string"
+  }
+}
+```
+
+### 参照式を使用して接続文字列を構築する
+
+パラメーターから接続文字列を構築し、開発環境と本番環境の両方で正しく扱われるようにしたい場合は、`ReferenceExpression` を指定した `AddConnectionString` を使用します。
+
+たとえば、接続文字列の一部を保持するシークレット パラメーターがある場合、次のコードでそれを組み込めます:
+
+```csharp title="AppHost.cs"
+var secretKey = builder.AddParameter("secretkey", secret: true);
+
+var connectionString = builder.AddConnectionString(
+    "composedconnectionstring",
+    ReferenceExpression.Create($"Endpoint=https://api.contoso.com/v1;Key={secretKey}"));
+
+builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
+       .WithReference(connectionString)
+       .WaitFor(connectionString);
+```
+
+また、Aspire リソースによって作成された接続文字列にテキストを追加するために、参照式を使用することもできます。たとえば、Aspire ソリューションに PostgreSQL リソースを追加すると、データベース サーバーはコンテナー内で実行され、そのための接続文字列が生成されます。次のコードでは、その接続文字列に `Include Error Details` という追加プロパティを付与してから、利用するプロジェクトに渡しています:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("db");
+
+var pgConnectionString = builder.AddConnectionString(
+    "pgdatabase",
+    ReferenceExpression.Create($"{database};Include Error Details=true"));
+
+builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi")
+       .WithReference(pgConnectionString)
+       .WaitFor(pgConnectionString);
+```
+
+## パラメーターの例
+
+パラメーターを表現する例として、次のコードをご覧ください:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddSqlServer("sql")
+                .PublishAsConnectionString()
+                .AddDatabase("db");
+
+var insertionRows = builder.AddParameter("insertionRows");
+
+builder.AddProject<Projects.Parameters_ApiService>("api")
+       .WithEnvironment("InsertionRows", insertionRows)
+       .WithReference(db);
+
+builder.Build().Run();
+```
+
+この例では、次の処理を行っています:
+
+<Steps>
+
+1. `sql` という名前の SQL Server リソースを追加し、接続文字列として公開します。
+2. `db` という名前のデータベースを追加します。
+3. `insertionRows` という名前のパラメーターを追加します。
+4. `api` という名前のプロジェクトを追加し、それを `Projects.Parameters_ApiService` のプロジェクト リソース型として関連付けます。
+5. `insertionRows` パラメーターを `api` プロジェクトに渡します。
+6. `db` データベースを参照します。
+
+</Steps>
+
+`insertionRows` パラメーターの値は、AppHost 構成ファイル _appsettings.json_ の `Parameters` セクションから読み取られます:
+
+```json title="appsettings.json"
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Aspire.Hosting.Dcp": "Warning"
+    }
+  },
+  "Parameters": {
+    "insertionRows": "1"
+  }
+}
+```
+
+`Parameters_ApiService` プロジェクトは `insertionRows` パラメーターを利用します。以下は Program.cs の例です:
+
+```csharp title="Program.cs"
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+int insertionRows = builder.Configuration.GetValue<int>("InsertionRows", 1);
+
+builder.AddServiceDefaults();
+
+builder.AddSqlServerDbContext<MyDbContext>("db");
+
+var app = builder.Build();
+
+app.MapGet("/", async (MyDbContext context) =>
+{
+    // 通常は毎回の呼び出しで行うものではありませんが、
+    // ここでは例を簡単にするために実行しています。
+    context.Database.EnsureCreated();
+
+    for (var i = 0; i < insertionRows; i++)
+    {
+        var entry = new Entry();
+        await context.Entries.AddAsync(entry);
+    }
+
+    await context.SaveChangesAsync();
+
+    var entries = await context.Entries.ToListAsync();
+
+    return new
+    {
+        totalEntries = entries.Count,
+        entries
+    };
+});
+
+app.Run();
+```
