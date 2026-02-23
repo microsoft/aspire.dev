@@ -3,7 +3,7 @@ title: Advanced testing scenarios
 description: Learn advanced patterns for using DistributedApplicationTestingBuilder, including selectively disabling resources, overriding environment variables, and customizing the test AppHost.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 This article covers advanced patterns for testing Aspire applications, including selectively disabling resources during tests, overriding environment variables, and customizing the AppHost for specific test scenarios.
@@ -183,34 +183,6 @@ var appHost = await DistributedApplicationTestingBuilder
 ```
 
 The `Projects` namespace entries are only generated for `<ProjectReference>` entries in your test project. A file-based `apphost.cs` produces no such entry.
-
-### Migrate a file-based AppHost to a project for testing
-
-To enable integration testing, convert your file-based AppHost to a standard `.csproj` project. The code itself doesn't need to change — only the project structure:
-
-<Steps>
-
-1. Create a new AppHost project using `dotnet new`:
-
-    ```bash
-    dotnet new aspire-apphost -n MyApp.AppHost -o MyApp.AppHost
-    ```
-
-2. Copy your `apphost.cs` code into the new project's `AppHost.cs` file, removing the `#:sdk` and `#:package` directives (these are file-based-app-specific).
-
-3. Add the required package references to the `.csproj` (the template already includes `Aspire.AppHost.Sdk`).
-
-4. Add a `<ProjectReference>` from your test project to the new AppHost:
-
-    ```xml title="XML — MyApp.Tests.csproj"
-    <ItemGroup>
-        <ProjectReference Include="..\MyApp.AppHost\MyApp.AppHost.csproj" />
-    </ItemGroup>
-    ```
-
-5. Your AppHost now appears as `Projects.MyApp_AppHost` in the test project and can be used with `DistributedApplicationTestingBuilder.CreateAsync<T>()`.
-
-</Steps>
 
 ## See also
 
