@@ -91,15 +91,15 @@ Only dashes are transformed. Other characters such as dots or underscores are pr
 
 ### Accessing the connection string in consuming services
 
-In your .NET application, the configuration system maps double underscores (`__`) to the colon (`:`) separator used by `IConfiguration`. This means `ConnectionStrings__app_db` is accessible as `ConnectionStrings:app-db` in the configuration API:
+In your .NET application, the configuration system maps double underscores (`__`) to the colon (`:`) separator used by `IConfiguration`. This means the environment variable `ConnectionStrings__app_db` is transformed to the configuration key `ConnectionStrings:app_db`:
 
 ```csharp title="C# — Program.cs"
 // This resolves ConnectionStrings__app_db (injected by Aspire)
-var connectionString = builder.Configuration.GetConnectionString("app-db");
+var connectionString = builder.Configuration.GetConnectionString("app_db");
 ```
 
 <Aside type="tip">
-When using the typed configuration pattern (e.g., `AddNpgsqlDataSource("app-db")`), pass the original resource name with dashes — Aspire integrations handle the underscore mapping internally.
+When using Aspire integration client APIs (e.g., `AddNpgsqlDataSource("app-db")`), pass the original resource name with dashes — Aspire integrations resolve the correct environment variable internally.
 </Aside>
 
 For Python and JavaScript services, the double-underscore format is used directly:
@@ -119,9 +119,8 @@ const connectionString = process.env["ConnectionStrings__app_db"];
 Follow these recommendations when naming resources in your AppHost:
 
 - **Use lowercase names**: Resource names are case-sensitive in service discovery. Use lowercase to avoid confusion.
-- **Use dashes as separators**: Dashes (`-`) are the conventional separator for multi-word resource names in Aspire, as they are commonly used in DNS names and container networking.
+- **Use dashes as separators**: Dashes (`-`) are the conventional separator for multi-word resource names in Aspire, as they are commonly used in DNS names and container networking. Underscores are also valid but dashes are preferred for consistency.
 - **Keep names short and descriptive**: Resource names appear in the Aspire dashboard, in environment variables, and in logs. Short names reduce visual noise.
-- **Avoid underscores in names**: While underscores work, they can cause confusion because dashes are transformed to underscores in environment variables.
 - **Be consistent with related names**: If you name a server resource `postgres`, name related databases `postgres-appdb` rather than something unrelated.
 
 **Examples of good resource names:**
@@ -156,7 +155,7 @@ Aspire validates resource names at startup. Valid resource names:
 
 - Must be non-empty
 - Must start with a lowercase letter
-- May only contain lowercase letters, digits, and dashes (`-`)
+- May only contain lowercase letters, digits, dashes (`-`), and underscores (`_`)
 - Must not contain consecutive dashes (`--`)
 
 If a resource name is invalid, Aspire reports a diagnostic error at build time. For more information, see [ASPIRE006](/diagnostics/aspire006/).

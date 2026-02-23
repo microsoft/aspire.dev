@@ -813,6 +813,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/console-apps',
           translations: {
             en: 'Console and worker apps',
+            ja: 'コンソール アプリとワーカー アプリ',
           },
         },
         {
@@ -820,6 +821,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/resource-naming',
           translations: {
             en: 'Resource naming',
+            ja: 'リソースの名前付け',
           },
         },
         {
@@ -827,6 +829,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'app-host/cors-configuration',
           translations: {
             en: 'CORS configuration',
+            ja: 'CORS の構成',
           },
         },
         {

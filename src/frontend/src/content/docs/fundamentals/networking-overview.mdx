@@ -391,14 +391,15 @@ builder.Build().Run();
 
 ### For container resources
 
-For container resources, configure the binding when adding the endpoint. The `WithHttpEndpoint` host port is bound by the DCP proxy on the host, but you can control the container's internal binding address:
+For container resources, `WithHttpEndpoint` configures host-to-container port mapping via the DCP proxy on the host. The application inside the container must also be configured to listen on `0.0.0.0` — this is typically done via an environment variable or argument:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Bind the container to listen on all interfaces inside the container
+// Map host port 8080 to container port 80, and configure the app inside to bind on all interfaces
 builder.AddContainer("myapp", "myregistry/myapp")
-    .WithHttpEndpoint(port: 8080, targetPort: 80);
+    .WithHttpEndpoint(port: 8080, targetPort: 80)
+    .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:80");
 
 builder.Build().Run();
 ```
@@ -439,14 +440,18 @@ When containers need to communicate with services running directly on the host (
 | Docker on Linux | `host-gateway` (requires `--add-host`) |
 | Podman | `host.containers.internal` |
 
-Aspire's `WithReference` API automatically handles this for managed resources. When you reference a project (host-side resource) from a container, Aspire injects the appropriate address:
+Aspire's `WithReference` API automatically resolves the correct host gateway address for the container runtime in use. When you reference a host-side project resource from a container, Aspire injects the appropriate address:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// The container can reach the host-side service via the correct gateway address
+// Host-side project (runs on the developer machine, not in a container)
+var api = builder.AddProject<Projects.Api>("api");
+
+// The container can reach the host-side service via WithReference,
+// which automatically uses the correct host gateway address for the runtime
 var containerApp = builder.AddContainer("mycontainer", "myimage")
-    .WithEnvironment("HOST_URL", $"http://host.docker.internal:5000");
+    .WithReference(api);
 
 builder.Build().Run();
 ```
