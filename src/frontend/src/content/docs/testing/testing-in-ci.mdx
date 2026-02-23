@@ -1,6 +1,6 @@
 ---
 title: Testing in CI/CD pipelines
-description: Learn how to run Aspire integration tests reliably in CI/CD environments including GitHub Actions and Azure DevOps, including timeout configuration, Azure authentication, and container requirements.
+description: Learn how to run Aspire integration tests reliably in CI/CD environments, such as GitHub Actions and Azure DevOps, covering timeout configuration, Azure authentication, and container requirements.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -12,7 +12,7 @@ This article covers how to run Aspire integration tests reliably in continuous i
 
 Aspire integration tests typically start containers (databases, caches, and other services) as part of the test run. Your CI environment must have a container runtime available.
 
-- **GitHub Actions**: Docker is available by default on `ubuntu-*`, `windows-*`, and `macos-*` runners.
+- **GitHub Actions**: For Linux-based Aspire test containers, use `ubuntu-*` runners, which have Docker available by default. GitHub-hosted `windows-*` and `macos-*` runners do not provide a Docker Engine suitable for running Linux containers; use self-hosted runners with a configured container runtime if you must target those operating systems.
 - **Azure DevOps**: Docker is available on Microsoft-hosted agents (`ubuntu-latest`, `windows-latest`). Ensure the agent pool supports Docker.
 - **Self-hosted runners**: Install and start Docker or another compatible container runtime (such as Podman) before running tests.
 
@@ -185,10 +185,12 @@ When Azure credentials aren't configured, you may want to skip tests that requir
 public async Task TestWithAzureCosmosDb()
 {
     if (Environment.GetEnvironmentVariable("AZURE_CLIENT_ID") is null
-        && Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID") is null)
+        || Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID") is null)
     {
         // Skip when Azure credentials are not available
-        return;
+        throw new Xunit.Sdk.SkipException("""
+            Azure credentials not configured; skipping test.
+            """);
     }
 
     var appHost = await DistributedApplicationTestingBuilder
