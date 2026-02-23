@@ -23,7 +23,6 @@ export const redirects = {
   '/integrations/databases/efcore/postgresql/': '/integrations/databases/efcore/postgres/postgresql-get-started/',
   '/integrations/databases/efcore/azure-postgresql/': '/integrations/databases/efcore/azure-postgresql/azure-postgresql-get-started/',
   '/integrations/databases/efcore/azure-sql/': '/integrations/databases/efcore/azure-sql/azure-sql-get-started/',
-  // Redirects for restructured integrations (Feb 2026)
   '/integrations/ai/github-models/': '/integrations/ai/github-models/github-models-get-started/',
   '/integrations/ai/openai/': '/integrations/ai/openai/openai-get-started/',
   '/integrations/caching/redis/': '/integrations/caching/redis/redis-get-started/',
@@ -32,6 +31,7 @@ export const redirects = {
   '/integrations/caching/valkey/': '/integrations/caching/valkey/valkey-get-started/',
   '/integrations/caching/garnet/': '/integrations/caching/garnet/garnet-get-started/',
   '/integrations/messaging/apache-kafka/': '/integrations/messaging/apache-kafka/apache-kafka-get-started/',
+  '/integrations/messaging/rabbitmq/': '/integrations/messaging/rabbitmq/rabbitmq-get-started/',
   '/integrations/messaging/nats/': '/integrations/messaging/nats/nats-get-started/',
   '/integrations/observability/seq/': '/integrations/observability/seq/seq-get-started/',
 };
