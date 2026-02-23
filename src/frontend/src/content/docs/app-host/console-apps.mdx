@@ -1,0 +1,229 @@
+---
+title: Console and worker apps
+description: Learn how to integrate console applications and background worker services into Aspire, including service discovery, resource references, and interactive console patterns.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire can orchestrate more than just ASP.NET Core web applications. You can add console applications and background worker services to the AppHost, allowing them to participate in service discovery, receive connection strings, and benefit from centralized orchestration alongside the rest of your application.
+
+## Adding a console app to the AppHost
+
+Any .NET project — including console applications and Worker Service projects — can be added to the AppHost using `AddProject`. The project doesn't need to be a web app. For non-.NET apps (Python, Node.js, or arbitrary executables), use `AddExecutable`, `AddPythonApp`, or `AddNodeApp` instead.
+
+<LearnMore>
+  For more information on adding non-.NET apps, see [Executable resources](/app-host/executable-resources/), [Python integration](/integrations/frameworks/python/), and [JavaScript integration](/integrations/frameworks/javascript/).
+</LearnMore>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// Add a console app project to the AppHost
+var processor = builder.AddProject<Projects.MyConsoleApp>("processor")
+    .WithReference(redis);
+
+builder.Build().Run();
+```
+
+The `processor` project receives the `ConnectionStrings__cache` environment variable at runtime, just like any other project type.
+
+<Aside type="note">
+The console app project must target `net10.0` or later and reference the service defaults project to benefit from telemetry and service discovery. For more information, see [Service defaults](/fundamentals/service-defaults/).
+</Aside>
+
+## Service discovery in console apps
+
+Non-ASP.NET Core console apps can use the same service discovery infrastructure as web apps. Add the appropriate packages and configure them during startup.
+
+<Steps>
+
+1. Add the required packages to your console app:
+
+    ```xml title="XML — MyConsoleApp.csproj"
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    ```
+
+    Or reference the service defaults project from your solution:
+
+    ```xml title="XML — MyConsoleApp.csproj"
+    <ProjectReference Include="..\MyApp.ServiceDefaults\MyApp.ServiceDefaults.csproj" />
+    ```
+
+2. Configure the host in your console app's _Program.cs_:
+
+    ```csharp title="C# — Program.cs"
+    using Microsoft.Extensions.Hosting;
+
+    var builder = Host.CreateApplicationBuilder(args);
+
+    // Add service defaults (telemetry, health checks, service discovery)
+    builder.AddServiceDefaults();
+
+    // Register your services
+    builder.Services.AddHttpClient<CatalogClient>(
+        client => client.BaseAddress = new Uri("https+http://catalog"));
+
+    var app = builder.Build();
+    await app.RunAsync();
+    ```
+
+3. In the AppHost, reference the services this app depends on:
+
+    ```csharp title="C# — AppHost.cs"
+    var builder = DistributedApplication.CreateBuilder(args);
+
+    var catalog = builder.AddProject<Projects.CatalogService>("catalog");
+
+    var processor = builder.AddProject<Projects.MyConsoleApp>("processor")
+        .WithReference(catalog)
+        .WaitFor(catalog);
+
+    builder.Build().Run();
+    ```
+
+</Steps>
+
+The `WithReference(catalog)` call injects service discovery configuration so `processor` can resolve `https+http://catalog` to the running catalog service endpoint.
+
+## Background worker services
+
+Worker Service projects are the recommended pattern for long-running background tasks with Aspire. They use `IHostedService` (or `BackgroundService`) and integrate naturally with the .NET Generic Host.
+
+### Creating a Worker Service
+
+```csharp title="C# — DataProcessor.cs"
+public class DataProcessor : BackgroundService
+{
+    private readonly ILogger<DataProcessor> _logger;
+    private readonly IServiceProvider _services;
+
+    public DataProcessor(ILogger<DataProcessor> logger, IServiceProvider services)
+    {
+        _logger = logger;
+        _services = services;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Processing data at: {Time}", DateTimeOffset.UtcNow);
+
+            await DoWorkAsync(stoppingToken);
+
+            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+        }
+    }
+
+    private async Task DoWorkAsync(CancellationToken stoppingToken)
+    {
+        // Your background work here
+    }
+}
+```
+
+```csharp title="C# — Program.cs"
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddServiceDefaults();
+
+// Register resource connections
+builder.AddRedisClient("cache");
+
+// Register the background worker
+builder.Services.AddHostedService<DataProcessor>();
+
+var app = builder.Build();
+await app.RunAsync();
+```
+
+### Adding to the AppHost
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+var db = builder.AddPostgres("postgres").AddDatabase("app-db");
+
+var worker = builder.AddProject<Projects.DataWorker>("data-worker")
+    .WithReference(cache)
+    .WithReference(db)
+    .WaitFor(db);
+
+builder.Build().Run();
+```
+
+<LearnMore>
+  For more information on the Redis and PostgreSQL hosting integrations, see [Redis integration](/integrations/caching/redis/) and [PostgreSQL integration](/integrations/databases/postgres/postgres-get-started/).
+</LearnMore>
+
+## Explicit start and console interaction
+
+By default, all resources start automatically when the AppHost runs. For console apps that require interactive input (reading from stdin), or that should only run on demand, use `WithExplicitStart`.
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var interactiveTool = builder.AddProject<Projects.MyInteractiveTool>("tool")
+    .WithExplicitStart();
+
+builder.Build().Run();
+```
+
+With `WithExplicitStart`, the resource appears in the Aspire dashboard but doesn't start automatically. You can start it manually from the dashboard or programmatically.
+
+<Aside type="caution">
+Interactive console apps that read from stdin (e.g., `Console.ReadLine()`) are not fully supported in the Aspire dashboard view. The Aspire dashboard captures and displays stdout/stderr, but does not support forwarding user input to the process's stdin. For interactive input scenarios, consider running the app independently or restructure to avoid stdin.
+</Aside>
+
+## Viewing console output
+
+Aspire captures stdout and stderr from all managed resources and displays them in the dashboard's **Console logs** page. Console apps output is fully visible, including colored text (ANSI escape codes are rendered).
+
+<LearnMore>
+  For more information, see [Console logs page](/dashboard/explore/#console-logs-page).
+</LearnMore>
+
+For structured logging in console apps, use `ILogger` instead of `Console.Write`:
+
+```csharp title="C# — Program.cs"
+// Prefer structured logging
+logger.LogInformation("Processing item {ItemId}", itemId);
+
+// Instead of
+Console.WriteLine($"Processing item {itemId}");
+```
+
+Structured logs appear in both the **Console** and **Structured logs** tabs of the dashboard, making them easier to search and filter.
+
+## Using connection strings without service defaults
+
+If you can't use the service defaults project (for example, in a minimal console app without a host), you can access connection strings directly from environment variables:
+
+```csharp title="C# — Program.cs"
+// For .NET apps, read from configuration
+using Microsoft.Extensions.Configuration;
+
+var config = new ConfigurationBuilder()
+    .AddEnvironmentVariables()
+    .Build();
+
+var redisConnection = config.GetConnectionString("cache");
+// Or equivalently:
+var redisConnection2 = Environment.GetEnvironmentVariable("ConnectionStrings__cache");
+```
+
+<Aside type="tip">
+When using configuration APIs directly, use `GetConnectionString("cache")` rather than reading `ConnectionStrings__cache` directly. The configuration system maps the double-underscore separator to the colon used by `IConfiguration`, making `ConnectionStrings:cache` and `ConnectionStrings__cache` equivalent. For more information, see [Resource naming conventions](/app-host/resource-naming/).
+</Aside>
+
+## See also
+
+- [Service defaults](/fundamentals/service-defaults/)
+- [Service discovery](/fundamentals/service-discovery/)
+- [Resource naming conventions](/app-host/resource-naming/)
+- [Executable resources](/app-host/executable-resources/)
+- [.NET Worker Service](https://learn.microsoft.com/dotnet/core/extensions/workers)

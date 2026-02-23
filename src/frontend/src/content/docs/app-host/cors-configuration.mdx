@@ -1,0 +1,277 @@
+---
+title: CORS configuration
+description: Learn when and how to configure Cross-Origin Resource Sharing (CORS) in Aspire applications, covering development and production scenarios.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Cross-Origin Resource Sharing (CORS) is a browser security feature that restricts how web pages can request resources from a different domain. This article explains when CORS is relevant in Aspire applications, and how to configure it correctly for development and production.
+
+## When does CORS matter with Aspire?
+
+CORS is only enforced by **browsers**. It applies when a web frontend (running in a user's browser) makes HTTP requests to an API on a different origin (different host, port, or scheme). Aspire doesn't add or remove any browser CORS restrictions.
+
+You need to configure CORS in your API when:
+
+- Your Blazor WebAssembly, React, Angular, or other browser-based frontend calls an API on a different port or host.
+- Your API is hosted separately from your frontend during development or production.
+- Your browser shows errors like `Access to fetch at 'http://localhost:5000' from origin 'http://localhost:3000' has been blocked by CORS policy`.
+
+You **don't** need to configure CORS when:
+
+- Your frontend is server-side rendered (Blazor Server, Razor Pages, MVC) — these run on the server, not the browser.
+- Your API and frontend share the same origin (same host and port).
+- Communication is between server-to-server (backend services calling other backend services).
+
+<Aside type="note">
+Aspire's inner-loop proxy handles port routing between services, but it doesn't change browser CORS enforcement. The browser still sees the original scheme, host, and port of the API endpoint.
+</Aside>
+
+## Configuring CORS in development
+
+During development, the recommended approach is to allow your frontend's development server origin. Configure CORS with `AddCors` and `UseCors` in your API's `Program.cs`:
+
+```csharp title="C# — Program.cs (API)"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+// Configure CORS for development
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Your frontend origin
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+app.UseCors(); // Must be called before endpoint mapping
+app.MapGet("/", () => Results.Ok());
+
+app.Run();
+```
+
+<Aside type="caution">
+Avoid using `AllowAnyOrigin()` in production as it disables CORS protection entirely. Always specify the exact origins that should be allowed.
+</Aside>
+
+### Using environment-based CORS configuration
+
+A better pattern is to read allowed origins from configuration, so you can easily change them per environment:
+
+```csharp title="C# — Program.cs (API)"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? [];
+
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+app.UseCors();
+app.MapGet("/", () => Results.Ok());
+
+app.Run();
+```
+
+Then configure the allowed origins per environment:
+
+<Tabs syncKey="environment">
+<TabItem label="Development">
+
+```json title="JSON — appsettings.Development.json"
+{
+  "Cors": {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://localhost:7000"
+    ]
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Production">
+
+```json title="JSON — appsettings.json"
+{
+  "Cors": {
+    "AllowedOrigins": [
+      "https://myapp.com",
+      "https://www.myapp.com"
+    ]
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Using Aspire to inject the frontend URL
+
+When Aspire orchestrates your frontend and API together, you can use Aspire's environment variable injection to automatically provide the frontend URL to your API. This avoids hardcoding the origin:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddNpmApp("frontend", "../frontend", "dev")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(frontend) // Injects services__frontend__http__0 into the API
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+In the API project, read the injected frontend endpoint for CORS configuration:
+
+```csharp title="C# — Program.cs (API)"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        // Read the frontend URL injected by Aspire via WithReference
+        var frontendUrl = builder.Configuration["services:frontend:http:0"];
+
+        if (!string.IsNullOrEmpty(frontendUrl))
+        {
+            // Extract just the origin (scheme://host:port)
+            var origin = new Uri(frontendUrl);
+            policy.WithOrigins($"{origin.Scheme}://{origin.Authority}")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            // Fallback for when not running in Aspire
+            var allowedOrigins = builder.Configuration
+                .GetSection("Cors:AllowedOrigins")
+                .Get<string[]>() ?? [];
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+    });
+});
+
+var app = builder.Build();
+
+app.MapDefaultEndpoints();
+app.UseCors();
+app.MapGet("/", () => Results.Ok());
+
+app.Run();
+```
+
+<Aside type="tip">
+Using `WithReference(frontend)` not only helps configure CORS but also establishes a proper dependency ordering, so the API starts after the frontend endpoint URL is known.
+</Aside>
+
+## Common CORS issues and solutions
+
+### Issue: CORS error despite configuring CORS middleware
+
+**Symptom**: Browser shows a CORS error even though you've added `AddCors` and `UseCors`.
+
+**Cause**: The order of middleware registration matters. `UseCors()` must be called **before** any endpoint mapping and before `UseAuthorization()` when authentication is used.
+
+**Solution**: Ensure middleware is ordered correctly:
+
+```csharp title="C# — Program.cs"
+app.UseCors();    // CORS must come before endpoint mapping
+app.MapGet("/", () => Results.Ok());
+```
+
+If you're using authentication and authorization, ensure CORS comes before them as well:
+
+```csharp title="C# — Program.cs"
+app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapGet("/secure", () => Results.Ok()).RequireAuthorization();
+```
+
+### Issue: Preflight requests failing
+
+**Symptom**: `OPTIONS` requests return 405 Method Not Allowed.
+
+**Cause**: The API doesn't handle `OPTIONS` requests, which browsers use for CORS preflight checks.
+
+**Solution**: `UseCors()` handles preflight automatically. Ensure it's in your middleware pipeline and called before endpoint mapping.
+
+### Issue: Credentials not sent with cross-origin requests
+
+**Symptom**: Cookies or Authorization headers aren't included in cross-origin requests.
+
+**Cause**: By default, browsers don't send credentials with cross-origin requests.
+
+**Solution**: Enable credentials on both the server and the client:
+
+```csharp title="C# — Program.cs (API)"
+options.AddDefaultPolicy(policy =>
+{
+    policy.WithOrigins("https://myapp.com")
+          .AllowAnyHeader()
+          .AllowAnyMethod()
+          .AllowCredentials(); // Enable credentials
+});
+```
+
+<Aside type="caution">
+When using `AllowCredentials()`, you must specify exact origins with `WithOrigins()`. Using `AllowAnyOrigin()` together with `AllowCredentials()` will cause an error.
+</Aside>
+
+### Issue: CORS errors in production but not development
+
+**Symptom**: CORS works locally but fails in production.
+
+**Cause**: The production origin (e.g., `https://myapp.com`) is not in the allowed origins list, or the environment-specific configuration isn't deployed.
+
+**Solution**: Verify the allowed origins in your production configuration match the exact origin your frontend uses, including the scheme (`https://`) and any subdomain.
+
+## Dashboard CORS configuration
+
+The Aspire dashboard also uses CORS for browser telemetry. If you're accessing the dashboard from a different origin, configure the dashboard's allowed origins using the `ASPIRE_DASHBOARD_CORS_ALLOWED_ORIGINS` environment variable. Multiple origins are separated by commas:
+
+```
+ASPIRE_DASHBOARD_CORS_ALLOWED_ORIGINS=https://myapp.com,https://www.myapp.com
+```
+
+You can also use the `*` wildcard to allow any domain:
+
+```
+ASPIRE_DASHBOARD_CORS_ALLOWED_ORIGINS=*
+```
+
+For more information, see [Dashboard configuration](/dashboard/configuration/).
+
+## See also
+
+- [Inner-loop networking overview](/fundamentals/networking-overview/)
+- [Service defaults](/fundamentals/service-defaults/)
+- [Dashboard configuration](/dashboard/configuration/)
+- [Enable browser telemetry](/dashboard/enable-browser-telemetry/)
+- [Cross-Origin Resource Sharing (CORS) in ASP.NET Core](https://learn.microsoft.com/aspnet/core/security/cors)
