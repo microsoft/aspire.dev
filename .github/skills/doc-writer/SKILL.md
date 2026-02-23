@@ -51,6 +51,8 @@ src/frontend/src/content/docs/
 
 ## Astro and MDX Conventions
 
+When calling `pnpm dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
+
 ### Frontmatter
 
 Every documentation file requires frontmatter:
