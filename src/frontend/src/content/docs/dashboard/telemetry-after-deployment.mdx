@@ -47,7 +47,7 @@ builder.AddProject<Projects.MyApp_Web>("webfrontend")
 builder.Build().Run();
 ```
 
-When you reference Application Insights, Aspire automatically configures the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable for each service. The `Microsoft.Extensions.Azure` OTEL integration reads this variable and sends telemetry to Application Insights.
+When you reference Application Insights, Aspire automatically configures the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable for each service. The `Azure.Monitor.OpenTelemetry.AspNetCore` package (via `UseAzureMonitor()`) reads this variable and sends telemetry to Application Insights.
 
 <Aside type="note">
 The Application Insights resource provisions an Azure Application Insights component. Provisioning requires an active Azure subscription. When running locally, telemetry is sent to the Aspire dashboard as usual unless a real connection string is present.
@@ -123,13 +123,19 @@ The deployed Aspire dashboard stores telemetry in memory. Telemetry is lost each
 
 ### Find the dashboard URL
 
-After a successful `aspire deploy`, the dashboard URL is included in the deployment output. It typically appears as a Container App URL, for example:
+After a successful `aspire deploy`, the deployment output includes URLs for your deployed resources. Look for a Container App named `aspire-dashboard` (or similar) in the output. The exact format varies depending on the environment name you configured.
 
-```plaintext data-disable-copy
-Dashboard URL: https://aspire-dashboard.wonderfulcoast-abc12345.eastus.azurecontainerapps.io
+You can also find the URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container App for the Aspire dashboard, and finding its **Application URL** on the Overview page.
+
+Alternatively, use the Azure CLI:
+
+```azurecli title="Azure CLI — Get dashboard URL"
+az containerapp show \
+  --name aspire-dashboard \
+  --resource-group my-resource-group \
+  --query properties.configuration.ingress.fqdn \
+  --output tsv
 ```
-
-You can also find the URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container App named `aspire-dashboard` (or similar), and finding its **Application URL** on the Overview page.
 
 ### Authenticate with the login token
 
@@ -153,14 +159,7 @@ The deployed dashboard requires a login token, just like the standalone dashboar
 
 ### Configure a fixed login token
 
-By default, the dashboard generates a new token each time it starts. To set a fixed token, configure the `Dashboard:Frontend:BrowserToken` setting using an environment variable:
-
-```csharp title="C# — AppHost.cs"
-var dashboard = builder.AddAzureContainerAppEnvironment("aspire-env")
-    .WithDashboard();
-```
-
-Or set the environment variable directly on the dashboard container app after deployment using the Azure CLI:
+By default, the dashboard generates a new token each time it starts. To set a fixed token, configure the `Dashboard:Frontend:BrowserToken` setting on the dashboard container app after deployment using the Azure CLI:
 
 ```azurecli title="Azure CLI — Set dashboard token"
 az containerapp update \
