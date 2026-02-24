@@ -150,6 +150,7 @@ export default defineConfig({
             'reference/api/browser',
             'community/contributors',
             'community/videos',
+            'community/thanks',
             'da/**',
             'de/**',
             'es/**',

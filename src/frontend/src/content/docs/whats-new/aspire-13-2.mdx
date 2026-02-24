@@ -41,6 +41,10 @@ The easiest way to upgrade to Aspire 13.2 is using the `aspire update` command:
   The `aspire update` command is currently in preview.
 </Aside>
 
+<Aside type="note">
+  The `aspire update` command currently requires an interactive terminal. The `--non-interactive` flag is not fully supported for this command. In non-interactive environments such as CI/CD pipelines, use `dotnet new` for project creation and manual package updates instead.
+</Aside>
+
 <Steps>
 
 1. Update your Aspire project using the [`aspire update` command](/reference/cli/commands/aspire-update/):
@@ -95,19 +99,28 @@ aspire stop
 
 The `aspire ps` command displays all currently running Aspire AppHosts, making it easy to manage multiple projects simultaneously. When combined with `aspire stop`, you have full control over your application lifecycle directly from the command line.
 
+<Aside type="tip">
+  For automation and CI/CD scenarios, use `--format Json` to get machine-readable output:
+
+  ```bash title="Aspire CLI — Detached mode with JSON output"
+  aspire run --detach --format Json
+  aspire ps --format Json
+  ```
+</Aside>
+
 <LearnMore>
 Command reference: [`aspire run`](/reference/cli/commands/aspire-run/), [`aspire ps`](/reference/cli/commands/aspire-ps/), and [`aspire stop`](/reference/cli/commands/aspire-stop/).
 </LearnMore>
 
 ### Isolated mode for parallel development
 
-The new `--isolated` flag enables running multiple instances of the same AppHost simultaneously:
+The new `--isolated` flag enables running an AppHost with randomized ports and isolated user secrets:
 
 ```bash title="Aspire CLI — Isolated mode"
 aspire run --isolated
 ```
 
-This mode uses randomized ports and isolated user secrets, which is particularly useful when you need to test different configurations side-by-side or run integration tests in parallel.
+Isolated mode assigns random ports and creates separate user secrets for each run, preventing port conflicts and configuration collisions. This is particularly useful when switching between different Aspire projects or running integration tests that need dedicated ports.
 
 ### Environment diagnostics with `aspire doctor`
 
@@ -124,6 +137,8 @@ This command checks:
 - WSL2 environment configuration
 - Container tunnel requirements for Docker Engine
 - Agent configuration status (detecting deprecated settings)
+
+Not all checks appear in every run. Some checks, such as WSL2 configuration and agent configuration status, are conditional and only appear when the relevant environment or issues are detected.
 
 The output provides actionable recommendations when issues are detected, making it easier to troubleshoot configuration problems.
 
