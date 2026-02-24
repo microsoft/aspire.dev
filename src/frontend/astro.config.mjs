@@ -35,6 +35,7 @@ export default defineConfig({
     }),
     starlight({
       title: 'Aspire',
+      routeMiddleware: ['./src/route-data-middleware'],
       defaultLocale: 'root',
       locales,
       logo: {
