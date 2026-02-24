@@ -1,0 +1,188 @@
+---
+title: C# file-based apps
+description: Learn how to use AddCSharpApp to host C# file-based applications in your Aspire AppHost without a project file.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import { Image } from 'astro:assets';
+import csharpIcon from '@assets/icons/csharp.svg';
+
+<Aside type="danger" title="Experimental">
+The `AddCSharpApp` API is experimental and may change or be removed in future releases. You must suppress the [ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/) diagnostic to use it.
+</Aside>
+
+<Image
+  src={csharpIcon}
+  alt="C# logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+C# file-based applications let you run single `.cs` files without a `.csproj` project file. This feature, built on .NET 10 SDK's file-based app support, integrates directly with Aspire's orchestration. Use `AddCSharpApp` to add these lightweight apps to your AppHost alongside traditional projects, containers, and executables.
+
+## When to use file-based apps
+
+Use file-based apps when you need to:
+
+- Prototype a service quickly without project scaffolding.
+- Run simple worker processes or background tasks.
+- Create lightweight APIs with minimal ceremony.
+- Experiment with Aspire integrations in a single file.
+
+For production workloads or apps with multiple source files, use `AddProject<T>` with a standard `.csproj` project instead.
+
+## Basic usage
+
+Call `AddCSharpApp` with a resource name and the relative path to a `.cs` file:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIRECSHARPAPPS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddCSharpApp("worker", "../worker/Program.cs");
+
+builder.Build().Run();
+```
+
+The path is resolved relative to the AppHost directory. You can also point to a `.csproj` file or a directory that contains one:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIRECSHARPAPPS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Point to a .csproj file
+builder.AddCSharpApp("api", "../api/Api.csproj");
+
+// Point to a directory containing a .csproj file
+builder.AddCSharpApp("frontend", "../frontend/");
+
+builder.Build().Run();
+```
+
+<Aside type="tip">
+When pointing to a `.csproj` file or directory, `AddCSharpApp` behaves similarly to `AddProject<T>` but doesn't require a `ProjectReference` from the AppHost to the target project.
+</Aside>
+
+## Resource dependencies
+
+File-based apps integrate fully with Aspire's resource model. You can reference other resources, configure service discovery, and set environment variables just like any other project resource:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIRECSHARPAPPS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+var db = builder.AddPostgres("pg").AddDatabase("mydb");
+
+builder.AddCSharpApp("worker", "../worker/Program.cs")
+    .WithReference(cache)
+    .WithReference(db)
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+The file-based app receives connection strings and service discovery information through environment variables, exactly like projects added with `AddProject<T>`.
+
+## Configure options
+
+The `AddCSharpApp` method accepts an optional `Action<ProjectResourceOptions>` parameter to configure launch settings:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIRECSHARPAPPS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddCSharpApp("api", "../api/Api.cs", options =>
+{
+    options.LaunchProfileName = "https";
+    options.ExcludeLaunchProfile = false;
+    options.ExcludeKestrelEndpoints = false;
+});
+
+builder.Build().Run();
+```
+
+The available options are the same as those used with `AddProject<T>`:
+
+| Option | Description |
+|--------|-------------|
+| `LaunchProfileName` | The name of the launch profile to use from _launchSettings.json_. |
+| `ExcludeLaunchProfile` | When `true`, ignores launch profile settings. |
+| `ExcludeKestrelEndpoints` | When `true`, doesn't automatically add Kestrel endpoints. |
+
+## File-based AppHost
+
+You can also write the AppHost itself as a file-based app using the `#:sdk` directive:
+
+```csharp title="C# — apphost.cs"
+#:sdk Aspire.AppHost.Sdk@13.1.0
+#:package Aspire.Hosting.Redis@13.1.0
+
+#pragma warning disable ASPIRECSHARPAPPS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddCSharpApp("worker", "../worker/Program.cs")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+Use `#:package` directives to add NuGet package references directly in the source file instead of a `.csproj`.
+
+<LearnMore href="/get-started/aspire-sdk/" text="Learn more about the Aspire SDK" />
+
+## Limitations
+
+Since this feature is experimental, be aware of the following limitations:
+
+- **Experimental status** &mdash; the API is marked with `[Experimental("ASPIRECSHARPAPPS001")]` and may change in future releases.
+- **Single-file only** &mdash; file-based apps are limited to a single `.cs` file per resource.
+- **.NET 10 SDK required** &mdash; file-based app execution requires the .NET 10 SDK or later.
+- **No deployment support** &mdash; file-based apps are designed for local development scenarios.
+
+## Suppress the diagnostic
+
+To use `AddCSharpApp`, suppress the `ASPIRECSHARPAPPS001` diagnostic using one of these methods:
+
+**In code** with a pragma directive:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIRECSHARPAPPS001
+builder.AddCSharpApp("worker", "../worker/Program.cs");
+#pragma warning restore ASPIRECSHARPAPPS001
+```
+
+**In your project file** with `NoWarn`:
+
+```xml title="C# project file"
+<PropertyGroup>
+    <NoWarn>$(NoWarn);ASPIRECSHARPAPPS001</NoWarn>
+</PropertyGroup>
+```
+
+**In an _.editorconfig_ file**:
+
+```ini title=".editorconfig"
+[*.{cs,vb}]
+dotnet_diagnostic.ASPIRECSHARPAPPS001.severity = none
+```
+
+<LearnMore href="/diagnostics/aspirecsharpapps001/" text="Learn more about ASPIRECSHARPAPPS001" />
+
+## See also
+
+- [What is the AppHost?](/get-started/app-host/)
+- [Compiler Error ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/)
+- [Aspire SDK](/get-started/aspire-sdk/)
+- [Executable resources](/app-host/executable-resources/)
+- [What's new in Aspire 13.0](/whats-new/aspire-13/)
