@@ -45,7 +45,18 @@ Before creating a PR, check if there is already an open PR with a similar title 
 ```
 gh pr list --search "is:open in:title \"Update integration data\""
 ```
-If an open PR already exists, call `noop` and explain that an update PR is already open.
+If an open PR already exists, update it instead of creating a new one:
+1. Check out the existing PR branch: `gh pr checkout <PR_NUMBER>`
+2. Run `pnpm update:all` from the repository root
+3. Check if any files were modified using `git diff --stat`
+4. If there are changes, commit and push them to the existing branch:
+   ```
+   git add -A
+   git commit -m "chore: Update integration data and GitHub stats (DATE)"
+   git push
+   ```
+5. If there are no changes after updating, call `noop` and explain that integration data is already up to date
+6. Do NOT use `create-pull-request` when updating an existing PR
 
 ## Guidelines
 
@@ -54,7 +65,8 @@ If an open PR already exists, call `noop` and explain that an update PR is alrea
   - `aspire-integrations.json` — latest NuGet package information
   - `github-stats.json` — repository star counts, descriptions, and license info
 - Use today's date in the PR title formatted as `M/D/YY` (e.g., `2/24/26`)
-- Do NOT commit changes yourself — the `create-pull-request` safe output handles that
+- When creating a **new** PR, do NOT commit changes yourself — the `create-pull-request` safe output handles that
+- When updating an **existing** PR, commit and push changes directly to the PR branch
 
 ## PR Details
 
@@ -80,5 +92,6 @@ This PR contains automated updates to:
 
 ## Safe Outputs
 
-- If files were modified and no duplicate PR exists: use `create-pull-request` with the title and body above
-- If no files were modified or a duplicate PR exists: use `noop` with a clear explanation
+- If files were modified and no existing PR: use `create-pull-request` with the title and body above
+- If an existing PR was found and updated with new changes: use `noop` explaining the existing PR was updated
+- If no files were modified: use `noop` with a clear explanation
