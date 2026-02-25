@@ -1,0 +1,394 @@
+---
+import { Badge, Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { marked } from 'marked';
+
+interface Props {
+  sample: {
+    name: string;
+    title: string;
+    description: string | null;
+    href: string;
+    tags: string[];
+    thumbnail: string | null;
+    resolvedThumbnail: ImageMetadata | null;
+  };
+}
+
+const { sample } = Astro.props;
+
+const TAG_LABELS: Record<string, string> = {
+  'csharp': 'C#',
+  'python': 'Python',
+  'javascript': 'JavaScript',
+  'node': 'Node.js',
+  'go': 'Go',
+  'redis': 'Redis',
+  'postgresql': 'PostgreSQL',
+  'sql-server': 'SQL Server',
+  'mysql': 'MySQL',
+  'mongodb': 'MongoDB',
+  'rabbitmq': 'RabbitMQ',
+  'kafka': 'Kafka',
+  'prometheus': 'Prometheus',
+  'grafana': 'Grafana',
+  'docker': 'Docker',
+  'azure': 'Azure',
+  'azure-functions': 'Azure Functions',
+  'azure-storage': 'Azure Storage',
+  'azure-service-bus': 'Service Bus',
+  'blazor': 'Blazor',
+  'orleans': 'Orleans',
+  'grpc': 'gRPC',
+  'ef-core': 'EF Core',
+  'metrics': 'Metrics',
+  'health-checks': 'Health Checks',
+  'containers': 'Containers',
+  'databases': 'Databases',
+  'migrations': 'Migrations',
+  'volumes': 'Volumes',
+  'dashboard': 'Dashboard',
+};
+
+function tagLabel(tag: string): string {
+  return TAG_LABELS[tag] || tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, ' ');
+}
+
+// Render markdown, stripping relative links (repo-internal) to plain text
+
+function renderMarkdown(md: string, sampleName: string): string {
+  const renderer = new marked.Renderer();
+  renderer.link = function ({ href, title, tokens }) {
+    // Strip relative links — just output the link text
+    if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
+      const text = tokens?.map((t: any) => t.raw || t.text || '').join('') || '';
+      return text;
+    }
+    const defaultLinkRenderer = Object.getPrototypeOf(renderer).link.bind(renderer);
+    return defaultLinkRenderer({ href, title, tokens });
+  };
+  return marked.parse(md, { breaks: false, gfm: true, renderer }) as string;
+}
+
+/**
+ * Split a markdown description into a preview (first paragraph or intro before
+ * a list) and the remaining content. Short descriptions are not split.
+ */
+function splitDescription(text: string): { preview: string; rest: string | null } {
+  if (text.length <= 200) return { preview: text, rest: null };
+
+  // Try splitting at the first markdown list item or paragraph break
+  const listIdx = text.indexOf('\n- ');
+  const paraIdx = text.indexOf('\n\n');
+
+  let splitPoint = -1;
+  // Prefer splitting at a paragraph break if it comes first
+  if (paraIdx > 40) splitPoint = paraIdx;
+  if (listIdx > 40 && (splitPoint === -1 || listIdx < splitPoint)) splitPoint = listIdx;
+
+  if (splitPoint > 0) {
+    return {
+      preview: text.substring(0, splitPoint).trim(),
+      rest: text.substring(splitPoint).trim(),
+    };
+  }
+
+  // Fallback: split after the first two sentences
+  const sentenceEnd = /[.!?]\s/g;
+  let count = 0;
+  let match: RegExpExecArray | null;
+  while ((match = sentenceEnd.exec(text)) !== null) {
+    count++;
+    if (count >= 2 && match.index + 1 > 80) {
+      return {
+        preview: text.substring(0, match.index + 1).trim(),
+        rest: text.substring(match.index + 1).trim() || null,
+      };
+    }
+  }
+
+  // No natural break — don't split
+  return { preview: text, rest: null };
+}
+
+let previewHtml: string | null = null;
+let restHtml: string | null = null;
+
+if (sample.description) {
+  // Cards without a thumbnail show full text (no truncation)
+  if (!sample.resolvedThumbnail) {
+    previewHtml = renderMarkdown(sample.description, sample.name);
+    restHtml = null;
+  } else {
+    const { preview, rest } = splitDescription(sample.description);
+    previewHtml = renderMarkdown(preview, sample.name);
+    restHtml = rest ? renderMarkdown(rest, sample.name) : null;
+  }
+}
+
+const visibleTags = sample.tags.slice(0, 5);
+const remaining = Math.max(sample.tags.length - 5, 0);
+const overflowTags = sample.tags.slice(5);
+---
+
+<article
+  class="sample-card"
+  data-tags={sample.tags.join(',')}
+  data-title={sample.title.toLowerCase()}
+  data-name={sample.name}
+  data-description={(sample.description || '').toLowerCase()}
+>
+  {sample.resolvedThumbnail && (
+    <div class="thumbnail">
+      <Image
+        src={sample.resolvedThumbnail}
+        alt={`Screenshot of the ${sample.title} sample`}
+        loading="lazy"
+        widths={[400, 800]}
+        sizes="(min-width: 768px) 50vw, 100vw"
+      />
+    </div>
+  )}
+  <div class="card-body">
+    <h3 class="title">
+      <a href={sample.href} target="_blank" rel="noopener noreferrer">
+        {sample.title}
+      </a>
+    </h3>
+    {previewHtml && (
+      <div class="desc" data-desc>
+        <div set:html={previewHtml} />
+        {restHtml && (
+          <div class="desc-rest" set:html={restHtml} data-desc-rest hidden />
+        )}
+        {restHtml && (
+          <button class="read-more-btn" data-read-more type="button">
+            Read more&hellip;
+          </button>
+        )}
+      </div>
+    )}
+    {sample.tags.length > 0 && (
+      <div class="badges">
+        {visibleTags.map((tag) => (
+          <Badge text={tagLabel(tag)} size="small" />
+        ))}
+        {remaining > 0 && (
+          <Badge
+            text={`+${remaining}`}
+            size="small"
+            variant="tip"
+            title={overflowTags.map(tagLabel).join(', ')}
+          />
+        )}
+      </div>
+    )}
+    <div class="footer">
+      <a href={sample.href} target="_blank" rel="noopener noreferrer" class="link">
+        View on GitHub
+        <Icon name="external" size="1rem" />
+      </a>
+    </div>
+  </div>
+</article>
+
+<script>
+  document.addEventListener('click', (e) => {
+    // Read-more toggle with smooth animation
+    const btn = (e.target as HTMLElement).closest('[data-read-more]') as HTMLButtonElement | null;
+    if (btn) {
+      const desc = btn.closest('[data-desc]');
+      if (!desc) return;
+      const rest = desc.querySelector('[data-desc-rest]') as HTMLElement | null;
+      if (!rest) return;
+
+      const isExpanded = !rest.hidden;
+      rest.hidden = isExpanded;
+      btn.textContent = isExpanded ? 'Read more\u2026' : 'Show less';
+      return;
+    }
+
+    // Clickable tag badges — activate the matching filter chip in the grid
+    const badge = (e.target as HTMLElement).closest('.sample-card .badges .sl-badge') as HTMLElement | null;
+    if (badge) {
+      const card = badge.closest('.sample-card') as HTMLElement | null;
+      if (!card) return;
+      const cardTags = (card.dataset.tags || '').split(',');
+      const badgeText = badge.textContent?.trim() || '';
+      // Find which tag this badge represents by matching label text
+      const browser = document.querySelector('[data-samples-browser]');
+      if (!browser) return;
+      const filterChips = browser.querySelectorAll('[data-tag]') as NodeListOf<HTMLElement>;
+      for (const chip of filterChips) {
+        if (chip.textContent?.trim() === badgeText) {
+          chip.click();
+          // Scroll filter bar into view
+          chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          break;
+        }
+      }
+    }
+  });
+</script>
+
+<style>
+  .sample-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--sl-color-gray-5);
+    border-top: 3px solid transparent;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: var(--sl-shadow-sm);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sl-color-gray-6) 100%, transparent) 0%,
+      color-mix(in srgb, var(--sl-color-gray-6) 85%, var(--sl-color-black)) 100%
+    );
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    break-inside: avoid;
+  }
+
+  .sample-card:hover {
+    box-shadow: var(--sl-shadow-md);
+    border-color: var(--sl-color-gray-4);
+    border-top-color: var(--sl-color-accent);
+  }
+
+  .thumbnail {
+    width: 100%;
+    overflow: hidden;
+    background: var(--sl-color-gray-5);
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    box-shadow: inset 0 -4px 8px -4px rgba(0, 0, 0, 0.15);
+  }
+
+  .thumbnail img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.3;
+    color: var(--sl-color-white);
+  }
+
+  .title a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .title a:hover {
+    text-decoration: underline;
+    color: var(--sl-color-accent-high);
+  }
+
+  /* ---- Description (rendered markdown) ---- */
+  .desc {
+    color: var(--sl-color-gray-2);
+    line-height: 1.55;
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .desc :global(p) {
+    margin: 0 0 0.5em;
+  }
+
+  .desc :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .desc :global(ul),
+  .desc :global(ol) {
+    margin: 0.25em 0 0.5em;
+    padding-left: 1.25em;
+  }
+
+  .desc :global(li) {
+    margin-bottom: 0.25em;
+  }
+
+  .desc :global(strong) {
+    color: var(--sl-color-white);
+    font-weight: 600;
+  }
+
+  .desc :global(code) {
+    background: var(--sl-color-gray-5);
+    padding: 0.1em 0.35em;
+    border-radius: 0.25em;
+    font-size: 0.85em;
+  }
+
+  .desc :global(a) {
+    color: var(--sl-color-accent-high);
+    text-decoration: underline;
+  }
+
+  .read-more-btn {
+    background: none;
+    border: none;
+    color: var(--sl-color-accent-high);
+    font-size: 0.825rem;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 0.25em;
+    font-weight: 500;
+  }
+
+  .read-more-btn:hover {
+    text-decoration: underline;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em;
+    margin: 0;
+    padding: 0;
+  }
+
+  .badges :global(.sl-badge) {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .badges :global(.sl-badge:hover) {
+    opacity: 0.8;
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 0.625rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .link {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--sl-color-accent-high);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .link:hover {
+    text-decoration: underline;
+  }
+</style>

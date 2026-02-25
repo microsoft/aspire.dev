@@ -119,12 +119,13 @@ function extractDescription(readme) {
     descLines.push(trimmed);
   }
 
-  // Clean up: trim trailing empty lines and join
+  // Clean up: trim trailing empty lines and join preserving structure
   while (descLines.length > 0 && descLines[descLines.length - 1] === '') {
     descLines.pop();
   }
 
-  return descLines.join(' ').replace(/\s+/g, ' ').trim() || null;
+  // Preserve newlines so markdown structure (lists, paragraphs) is kept
+  return descLines.join('\n').trim() || null;
 }
 
 // ---------- Image downloading ----------
@@ -192,7 +193,7 @@ async function downloadAndRewriteImages(name, readme) {
   return { readme: rewritten, images: downloadedImages };
 }
 
-function extractThumbnail(name, readme) {
+function extractThumbnail(_name, readme) {
   // Find the first image reference in the (already-rewritten) README
   const match = readme.match(/!\[.*?\]\((.+?)\)/);
   if (!match) return null;
@@ -242,7 +243,7 @@ async function processSample(name) {
   }
 
   // Download images and rewrite paths in README
-  const { readme, images } = await downloadAndRewriteImages(name, rawReadme);
+  const { readme } = await downloadAndRewriteImages(name, rawReadme);
 
   const title = extractTitle(readme) || name;
   const description = extractDescription(readme);
