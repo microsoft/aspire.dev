@@ -36,6 +36,7 @@ The Azure Container Registry integration supports the following scenarios:
 - **Referencing an existing registry**: Use an existing Azure Container Registry by providing its name and resource group.
 - **Credential management**: Automatically flow credentials to compute environments for secure image pulls.
 - **Role assignments**: Assign specific roles (for example, `AcrPush`) to enable services to push images to the registry.
+- **Scheduled image cleanup**: Automatically remove old or unused container images on a cron schedule with purge tasks.
 
 ## Hosting integration
 
@@ -111,19 +112,44 @@ The preceding code:
 
 ### Access the registry from a compute environment
 
-Compute environments such as `AzureContainerAppEnvironment` and `AzureAppServiceEnvironment` automatically provision a default Azure Container Registry. You can also specify an explicit registry with `WithAzureContainerRegistry`. In either case, access the registry through the `ContainerRegistry` property:
+Compute environments such as `AzureContainerAppEnvironment` and `AzureAppServiceEnvironment` automatically provision a default Azure Container Registry. You can also specify an explicit registry with `WithAzureContainerRegistry`. To get a resource builder for the associated registry, use the `GetAzureContainerRegistry` method:
 
 ```csharp title="C# — Access the registry from the compute environment"
 var env = builder.AddAzureContainerAppEnvironment("env");
 
 // A default registry is auto-provisioned — no need to call
 // WithAzureContainerRegistry unless you want a specific one
-var registry = env.Resource.ContainerRegistry;
+var registry = env.GetAzureContainerRegistry();
 ```
+
+This returns an `IResourceBuilder<AzureContainerRegistryResource>` that you can use for further configuration, such as adding [purge tasks](#schedule-image-cleanup-with-purge-tasks).
 
 <Aside type="caution">
   The `IAzureContainerRegistry` interface is obsolete as of Aspire 13.2. If your code casts a compute environment to `IAzureContainerRegistry`, migrate to the `ContainerRegistry` property on `IAzureComputeEnvironmentResource` instead. For more information, see [What's new in Aspire 13.2](/whats-new/aspire-13-2/#breaking-changes).
 </Aside>
+
+### Schedule image cleanup with purge tasks
+
+Over time, container registries accumulate old images that consume storage and increase costs. The `WithPurgeTask` method adds a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused container images on a cron schedule:
+
+```csharp title="C# — Add a purge task"
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .WithPurgeTask("0 1 * * *", ago: TimeSpan.FromDays(7), keep: 5);
+```
+
+The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository.
+
+#### Multiple purge tasks
+
+You can add multiple purge tasks to a single registry, each with different schedules and filters:
+
+```csharp title="C# — Multiple purge tasks"
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .WithPurgeTask("0 1 * * *", filter: "app1:.*", keep: 3)
+    .WithPurgeTask("0 2 * * 0", filter: "app2:.*", ago: TimeSpan.FromDays(30), keep: 10);
+```
+
+Each purge task is given a unique name automatically. You can also specify a custom task name with the `taskName` parameter.
 
 ### Key features
 
