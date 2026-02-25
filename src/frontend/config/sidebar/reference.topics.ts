@@ -378,6 +378,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
             { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
             {
+              label: 'ASPIREATS001',
+              link: '/diagnostics/aspireats001',
+            },
+            {
               label: 'ASPIRECERTIFICATES001',
               link: '/diagnostics/aspirecertificates001',
             },
@@ -416,6 +420,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'ASPIREINTERACTION001',
               link: '/diagnostics/aspireinteraction001',
+            },
+            {
+              label: 'ASPIREMCP001',
+              link: '/diagnostics/aspiremcp001',
             },
             {
               label: 'ASPIREPIPELINES004',
