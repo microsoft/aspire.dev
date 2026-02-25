@@ -31,7 +31,7 @@ const TAG_RULES = [
   { tag: 'python', patterns: [/\bPython\b/i, /\.py\b/] },
   { tag: 'javascript', patterns: [/\bJavaScript\b/i, /\bJS\b/, /\.js\b/] },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
-  { tag: 'go', patterns: [/\bGolang\b/i, /\bGo\s+(?:app|service|project)\b/i] },
+  { tag: 'go', patterns: [/\bGolang\b/i, /\bGo\s+(?:app|service|project)\b/i, /\b(?:written|built)\s+(?:in|using)\s+Go\b/i, /\bGo\b.*\bGin\b/i] },
 
   // Services & Technologies
   { tag: 'redis', patterns: [/\bRedis\b/i] },
@@ -152,8 +152,15 @@ async function downloadImage(url, destPath) {
   }
   ensureDir(path.dirname(destPath));
   const fileStream = fs.createWriteStream(destPath);
-  await pipeline(res.body, fileStream);
-  return true;
+  try {
+    await pipeline(res.body, fileStream);
+    return true;
+  } catch (err) {
+    // Remove partial file on failure so we don't leave corrupt assets on disk
+    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+    console.warn(`  ⚠️  Failed to write image: ${destPath} (${err.message})`);
+    return false;
+  }
 }
 
 function collectImageRefs(readme) {

@@ -36,5 +36,5 @@ export const TAG_LABELS: Record<string, string> = {
 };
 
 export function tagLabel(tag: string): string {
-  return TAG_LABELS[tag] || tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, ' ');
+  return TAG_LABELS[tag] || tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }

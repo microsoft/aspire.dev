@@ -1,6 +1,7 @@
 ---
 import { Badge, Icon } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+// marked is used at build-time only (Astro component server code) — no client bundle cost
 import { marked } from 'marked';
 import { tagLabel } from '@utils/sample-tags';
 
@@ -22,7 +23,7 @@ const { sample } = Astro.props;
 
 // Render markdown, stripping relative links (repo-internal) to plain text
 
-function renderMarkdown(md: string, sampleName: string): string {
+function renderMarkdown(md: string): string {
   const renderer = new marked.Renderer();
   renderer.link = function ({ href, title, tokens }) {
     // Strip relative links — just output the link text
@@ -41,6 +42,7 @@ function renderMarkdown(md: string, sampleName: string): string {
  * a list) and the remaining content. Short descriptions are not split.
  */
 function splitDescription(text: string): { preview: string; rest: string | null } {
+  // Short descriptions don't need truncation — 200 chars fits comfortably in a card
   if (text.length <= 200) return { preview: text, rest: null };
 
   // Try splitting at the first markdown list item or paragraph break
@@ -48,7 +50,7 @@ function splitDescription(text: string): { preview: string; rest: string | null 
   const paraIdx = text.indexOf('\n\n');
 
   let splitPoint = -1;
-  // Prefer splitting at a paragraph break if it comes first
+  // Require the split point to be at least 40 chars in to avoid tiny previews
   if (paraIdx > 40) splitPoint = paraIdx;
   if (listIdx > 40 && (splitPoint === -1 || listIdx < splitPoint)) splitPoint = listIdx;
 
@@ -59,12 +61,15 @@ function splitDescription(text: string): { preview: string; rest: string | null 
     };
   }
 
-  // Fallback: split after the first two sentences
+  // Fallback: split after the first two sentences.
+  // The regex is intentionally simple — it may match abbreviations like "e.g. "
+  // but that's acceptable for a best-effort preview split.
   const sentenceEnd = /[.!?]\s/g;
   let count = 0;
   let match: RegExpExecArray | null;
   while ((match = sentenceEnd.exec(text)) !== null) {
     count++;
+    // Require at least 80 chars so the preview isn't too short
     if (count >= 2 && match.index + 1 > 80) {
       return {
         preview: text.substring(0, match.index + 1).trim(),
@@ -83,12 +88,12 @@ let restHtml: string | null = null;
 if (sample.description) {
   // Cards without a thumbnail show full text (no truncation)
   if (!sample.resolvedThumbnail) {
-    previewHtml = renderMarkdown(sample.description, sample.name);
+    previewHtml = renderMarkdown(sample.description);
     restHtml = null;
   } else {
     const { preview, rest } = splitDescription(sample.description);
-    previewHtml = renderMarkdown(preview, sample.name);
-    restHtml = rest ? renderMarkdown(rest, sample.name) : null;
+    previewHtml = renderMarkdown(preview);
+    restHtml = rest ? renderMarkdown(rest) : null;
   }
 }
 
@@ -137,7 +142,9 @@ const overflowTags = sample.tags.slice(5);
     {sample.tags.length > 0 && (
       <div class="badges">
         {visibleTags.map((tag) => (
-          <Badge text={tagLabel(tag)} size="small" />
+          <span data-tag-key={tag}>
+            <Badge text={tagLabel(tag)} size="small" />
+          </span>
         ))}
         {remaining > 0 && (
           <Badge
@@ -174,24 +181,19 @@ const overflowTags = sample.tags.slice(5);
       return;
     }
 
-    // Clickable tag badges — activate the matching filter chip in the grid
-    const badge = (e.target as HTMLElement).closest('.sample-card .badges .sl-badge') as HTMLElement | null;
-    if (badge) {
-      const card = badge.closest('.sample-card') as HTMLElement | null;
-      if (!card) return;
-      const cardTags = (card.dataset.tags || '').split(',');
-      const badgeText = badge.textContent?.trim() || '';
-      // Find which tag this badge represents by matching label text
+    // Clickable tag badges — activate the matching filter chip in the grid.
+    // Each badge is wrapped in a <span data-tag-key="..."> so we can match by
+    // tag key rather than display text, avoiding locale/whitespace mismatches.
+    const badgeWrap = (e.target as HTMLElement).closest('[data-tag-key]') as HTMLElement | null;
+    if (badgeWrap) {
+      const tagKey = badgeWrap.dataset.tagKey;
+      if (!tagKey) return;
       const browser = document.querySelector('[data-samples-browser]');
       if (!browser) return;
-      const filterChips = browser.querySelectorAll('[data-tag]') as NodeListOf<HTMLElement>;
-      for (const chip of filterChips) {
-        if (chip.textContent?.trim() === badgeText) {
-          chip.click();
-          // Scroll filter bar into view
-          chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-          break;
-        }
+      const chip = browser.querySelector(`[data-tag="${tagKey}"]`) as HTMLElement | null;
+      if (chip) {
+        chip.click();
+        chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   });
