@@ -53,6 +53,9 @@ IMPORTANT! Consider avoiding persistent containers early during development to a
 ## Aspire workload
 IMPORTANT! The aspire workload is obsolete. You should never attempt to install or use the Aspire workload.
 
+## Verifying documentation changes
+After making documentation changes, running `pnpm dev` (the dev server) is sufficient to verify that the changes render correctly. A full `pnpm run build` is not required because it takes a long time.
+
 ## Official documentation
 IMPORTANT! Always prefer official documentation when available. The following sites contain the official documentation for Aspire and related components
 
