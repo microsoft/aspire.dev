@@ -801,6 +801,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
+          label: 'Container files',
+          slug: 'app-host/container-files',
+        },
+        {
           label: 'Executable resources',
           slug: 'app-host/executable-resources',
           translations: {
