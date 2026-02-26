@@ -1,0 +1,126 @@
+---
+title: Azure SQL Database hosting integration
+description: Learn how to use the Aspire Azure SQL Database hosting integration to create Azure SQL Database resources.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
+
+<Image
+  src={sqlServerIcon}
+  alt="Azure SQL Database logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire Azure SQL Database hosting integration models the SQL Server as the `AzureSqlServerResource` type and SQL databases as the `AzureSqlDatabaseResource` type. To access these types and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Sql](https://www.nuget.org/packages/Aspire.Hosting.Azure.Sql) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Sql" />
+
+For an introduction to working with the Azure SQL Database hosting integration, see [Get started with the Azure SQL Database integration](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/).
+
+### Add Azure SQL server resource and database resource
+
+In your AppHost project, call `AddAzureSqlServer` to add and return an Azure SQL server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add an Azure SQL database resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var azureSql = builder.AddAzureSqlServer("azuresql")
+    .AddDatabase("database");
+
+var myService = builder.AddProject<Projects.MyService>()
+    .WithReference(azureSql);
+```
+
+The preceding call to `AddAzureSqlServer` configures the Azure SQL server resource to be deployed as an [Azure SQL Database server](https://learn.microsoft.com/azure/azure-sql/database/sql-database-paas-overview).
+
+<Aside type="caution">
+  When you call `AddAzureSqlServer`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+### Connect to an existing Azure SQL server
+
+You might have an existing Azure SQL Database service that you want to connect to. You can chain a call to annotate that your `AzureSqlServerResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingSqlServerName = builder.AddParameter("existingSqlServerName");
+var existingSqlServerResourceGroup = builder.AddParameter("existingSqlServerResourceGroup");
+
+var sqlserver = builder.AddAzureSqlServer("sqlserver")
+    .AsExisting(existingSqlServerName, existingSqlServerResourceGroup)
+    .AddDatabase("database");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(sqlserver);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure SQL resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+### Run Azure SQL server resource as a container
+
+The Azure SQL Server hosting integration supports running the Azure SQL server as a local container. This is beneficial for situations where you want to run the Azure SQL server locally for development and testing purposes, avoiding the need to provision an Azure resource or connect to an existing Azure SQL server.
+
+To run the Azure SQL server as a container, call the `RunAsContainer` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var azureSql = builder.AddAzureSqlServer("azuresql")
+    .RunAsContainer();
+
+var azureSqlData = azureSql.AddDatabase("database");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(azureSqlData);
+```
+
+The preceding code configures an Azure SQL Database resource to run locally in a container.
+
+> [!TIP]
+> The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.
+
+### Connection properties
+
+When you reference Azure SQL Server resources using `WithReference`, the following connection properties are made available to the consuming project:
+
+#### Azure SQL Server resource
+
+The Azure SQL Server resource exposes the following connection properties:
+
+| Property Name          | Description                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Host`                 | The fully qualified domain name of the Azure SQL Server                                                           |
+| `Port`                 | The SQL Server port (`1433` for Azure)                                                                            |
+| `Uri`                  | The connection URI, with the format `mssql://{Host}:{Port}`                                                       |
+| `JdbcConnectionString` | JDBC connection string with the format `jdbc:sqlserver://{Host}:{Port};encrypt=true;trustServerCertificate=false` |
+
+#### Azure SQL database resource
+
+The Azure SQL database resource inherits all properties from its parent Azure SQL Server resource and adds:
+
+| Property Name          | Description                                                                                                                               |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `DatabaseName`         | The name of the database                                                                                                                  |
+| `Uri`                  | The connection URI, with the format `mssql://{Host}:{Port}/{DatabaseName}`                                                                |
+| `JdbcConnectionString` | JDBC connection string with the format `jdbc:sqlserver://{Host}:{Port};database={DatabaseName};encrypt=true;trustServerCertificate=false` |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `db1` becomes `DB1_URI`. The client should add a valid authentication property
+  for the JDBC connection string like `authentication=ActiveDirectoryDefault` or
+  `authentication=ActiveDirectoryManagedIdentity`.
+</Aside>

@@ -1,0 +1,182 @@
+---
+title: Azure Cache for Redis Client integration
+description: Learn about the Aspire Azure Cache for Redis client integration including distributed cache, output cache, and telemetry.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+The Aspire Azure Cache for Redis client integration is used to connect to an Azure Redis cache using StackExchange.Redis. To get started with the Aspire Azure Cache for Redis client integration, install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Aspire.StackExchange.Redis) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+
+## Add Redis client
+
+In the `Program.cs` file of your client-consuming project, call the `AddRedisClient` extension method to register an `IConnectionMultiplexer` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddRedisClient(connectionName: "redis");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Redis
+  resource in the AppHost project.
+</Aside>
+
+After adding the `IConnectionMultiplexer`, you can retrieve the connection instance using dependency injection:
+
+```csharp
+public class ExampleService(IConnectionMultiplexer redis)
+{
+    // Use redis...
+}
+```
+
+For more information, see:
+
+- [StackExchange.Redis documentation](https://stackexchange.github.io/StackExchange.Redis/) for examples on using the `IConnectionMultiplexer`.
+- [Dependency injection in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+## Properties of the Azure Cache for Redis resources
+
+When you use the `WithReference` method to pass an Azure Cache for Redis resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `redis` becomes `REDIS_HOST`.
+
+### Azure Managed Redis
+
+The Azure Managed Redis resource exposes the following connection properties:
+
+| Property Name | Description                                 |
+| ------------- | ------------------------------------------- |
+| `Host`        | The Redis server hostname                   |
+| `Port`        | The Redis server port (default: `10000`)    |
+| `Uri`         | The connection URI with TLS (`rediss://`)   |
+
+When access key authentication is enabled:
+
+| Property Name | Description                                 |
+| ------------- | ------------------------------------------- |
+| `Password`    | The access key from Key Vault               |
+
+For example, if you reference an Azure Managed Redis resource named `redis` in your AppHost project, the following environment variables will be available in the consuming project:
+
+- `REDIS_HOST`
+- `REDIS_PORT`
+- `REDIS_URI`
+
+## Add Redis distributed cache
+
+For caching scenarios, you can add a Redis-based distributed cache using the `AddRedisDistributedCache` method:
+
+```csharp
+builder.AddRedisDistributedCache(connectionName: "redis");
+```
+
+This registers an `IDistributedCache` implementation backed by Redis:
+
+```csharp
+public class ExampleService(IDistributedCache cache)
+{
+    // Use cache...
+}
+```
+
+## Add Redis output cache
+
+For output caching scenarios in ASP.NET Core, you can add a Redis-based output cache using the `AddRedisOutputCache` method:
+
+```csharp
+builder.AddRedisOutputCache(connectionName: "redis");
+```
+
+This configures Redis as the output cache store for your web application.
+
+## Add keyed Redis client
+
+There might be situations where you want to register multiple `IConnectionMultiplexer` instances with different connection names. To register keyed Redis clients, call the `AddKeyedRedisClient` method:
+
+```csharp
+builder.AddKeyedRedisClient(name: "primary-cache");
+builder.AddKeyedRedisClient(name: "secondary-cache");
+```
+
+Then you can retrieve the connection instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("primary-cache")] IConnectionMultiplexer primaryRedis,
+    [KeyedService("secondary-cache")] IConnectionMultiplexer secondaryRedis)
+{
+    // Use redis connections...
+}
+```
+
+For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configuration
+
+The Aspire Azure Cache for Redis library provides multiple options to configure the Redis connection based on the requirements and conventions of your project. A `ConnectionString` is required.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddRedisClient`:
+
+```csharp
+builder.AddRedisClient(connectionName: "redis");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "redis": "myredis.redis.cache.windows.net:6380,password=your_password,ssl=True"
+  }
+}
+```
+
+### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:StackExchange:Redis` key:
+
+```json
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "DisableHealthChecks": true,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddRedisClient(
+    "redis",
+    settings => settings.DisableHealthChecks = true);
+```
+
+## Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
+
+### Logging
+
+The Aspire Azure Cache for Redis integration uses standard .NET logging for connection events and errors.
+
+### Tracing
+
+The Aspire Azure Cache for Redis integration will emit the following tracing activities using OpenTelemetry:
+
+- `StackExchange.Redis.*`
+
+### Metrics
+
+The Aspire Azure Cache for Redis integration currently doesn't expose custom metrics by default, but uses standard Redis monitoring capabilities.

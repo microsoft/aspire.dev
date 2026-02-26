@@ -1,0 +1,190 @@
+---
+title: Azure SQL Database client integration
+description: Learn how to use the Aspire Azure SQL Database client integration to connect to Azure SQL Database services.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
+
+<Image
+  src={sqlServerIcon}
+  alt="Azure SQL Database logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire Azure SQL Database client integration is used to connect to an Azure SQL database using Microsoft.Data.SqlClient. To get started with the Aspire Azure SQL Database client integration, install the [📦 Aspire.Microsoft.Data.SqlClient](https://www.nuget.org/packages/Aspire.Microsoft.Data.SqlClient) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Data.SqlClient" />
+
+For an introduction to working with the Azure SQL Database client integration, see [Get started with the Azure SQL Database integration](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/).
+
+### Add SQL Server client
+
+In the `Program.cs` file of your client-consuming project, call the `AddSqlServerClient` extension method to register a `SqlConnection` for use via the dependency injection container. The method takes a connection name parameter:
+
+```csharp
+builder.AddSqlServerClient(connectionName: "database");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the SQL
+  database resource in the AppHost project.
+</Aside>
+
+After adding the `SqlConnection`, you can retrieve the connection instance using dependency injection:
+
+```csharp
+public class ExampleService(SqlConnection connection)
+{
+    // Use connection...
+}
+```
+
+For more information, see:
+
+- [Microsoft.Data.SqlClient documentation](https://learn.microsoft.com/sql/connect/ado-net/introduction-microsoft-data-sqlclient-namespace) for examples on using the `SqlConnection`.
+- [Dependency injection in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+## Properties of the Azure SQL Database resources
+
+When you use the `WithReference` method to pass an Azure SQL Database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `database` becomes `DATABASE_HOST`.
+
+### Azure SQL Server
+
+The Azure SQL Server resource exposes the following connection properties:
+
+| Property Name          | Description                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `Host`                 | The server fully qualified domain name                                                                              |
+| `Port`                 | The SQL Server port (default: `1433`)                                                                               |
+| `Uri`                  | The connection URI (e.g., `mssql://{host}:1433`)                                                                    |
+| `JdbcConnectionString` | JDBC-format connection string (e.g., `jdbc:sqlserver://{host}:1433;encrypt=true;trustServerCertificate=false`)      |
+
+### Azure SQL Database
+
+The Azure SQL Database resource inherits all properties from its parent server and adds:
+
+| Property Name  | Description             |
+| -------------- | ----------------------- |
+| `DatabaseName` | The name of the database |
+
+For example, if you reference a database resource named `database` in your AppHost project, the following environment variables will be available in the consuming project:
+
+- `DATABASE_HOST`
+- `DATABASE_PORT`
+- `DATABASE_URI`
+- `DATABASE_JDBCCONNECTIONSTRING`
+- `DATABASE_DATABASENAME`
+
+### Add keyed SQL client
+
+There might be situations where you want to register multiple `SqlConnection` instances with different connection names. To register keyed SQL clients, call the `AddKeyedSqlServerClient` method:
+
+```csharp
+builder.AddKeyedSqlServerClient(name: "primary-db");
+builder.AddKeyedSqlServerClient(name: "secondary-db");
+```
+
+Then you can retrieve the connection instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [KeyedService("primary-db")] SqlConnection primaryConnection,
+    [KeyedService("secondary-db")] SqlConnection secondaryConnection)
+{
+    // Use connections...
+}
+```
+
+For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+### Configuration
+
+The Aspire Azure SQL Database library provides multiple options to configure the SQL connection based on the requirements and conventions of your project. A `ConnectionString` is required.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddSqlServerClient`:
+
+```csharp
+builder.AddSqlServerClient(connectionName: "database");
+```
+
+The connection information is retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "database": "Server=myserver;Database=mydb;User Id=myuser;Password=mypassword;Encrypt=True"
+  }
+}
+```
+
+#### Use configuration providers
+
+The library supports `Microsoft.Extensions.Configuration`. It loads settings from configuration using the `Aspire:Microsoft:Data:SqlClient` key:
+
+```json
+{
+  "Aspire": {
+    "Microsoft": {
+      "Data": {
+        "SqlClient": {
+          "DisableHealthChecks": true,
+          "DisableTracing": false,
+          "DisableMetrics": false
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use inline delegates
+
+You can configure settings inline:
+
+```csharp
+builder.AddSqlServerClient(
+    "database",
+    settings => settings.DisableHealthChecks = true);
+```
+
+### Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
+
+#### Logging
+
+The Aspire Azure SQL Database integration uses the following log categories:
+
+- `Microsoft.Data.SqlClient`
+
+#### Tracing
+
+The Aspire Azure SQL Database integration will emit the following tracing activities using OpenTelemetry:
+
+- `Microsoft.Data.SqlClient`
+
+#### Metrics
+
+The Aspire Azure SQL Database integration will emit the following metrics using OpenTelemetry:
+
+- `Microsoft.Data.SqlClient`
+  - `db.client.connections.create_time`
+  - `db.client.connections.use_time`
+  - `db.client.connections.wait_time`
+  - `db.client.connections.idle.max`
+  - `db.client.connections.idle.min`
+  - `db.client.connections.max`
+  - `db.client.connections.pending_requests`
+  - `db.client.connections.timeouts`
+  - `db.client.connections.usage`
