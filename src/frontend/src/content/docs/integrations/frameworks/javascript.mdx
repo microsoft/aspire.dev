@@ -289,6 +289,94 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 
 The HTTPS configuration is automatically applied without modifying your `vite.config.js` file. For more information about certificate configuration, see [Certificate configuration](/app-host/certificate-configuration/).
 
+## Pass API URLs to Vite apps
+
+When your Vite app needs to communicate with a backend API, pass the API URL via an environment variable. Vite only exposes variables prefixed with `VITE_` to client-side code.
+
+In your AppHost, expose the API URL to the Vite app using `WithEnvironment`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ApiService>("api")
+    .WithExternalHttpEndpoints();
+
+var viteApp = builder.AddViteApp("vite-app", "./vite-app")
+    .WithReference(api)
+    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("https"));
+
+// After adding all resources, run the app...
+```
+
+In your Vite app, read the variable from `import.meta.env`:
+
+```typescript title="TypeScript — src/api.ts"
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+export async function fetchData() {
+    const response = await fetch(`${apiBaseUrl}/api/data`);
+    return response.json();
+}
+```
+
+<Aside type="tip">
+`import.meta.env` variables are replaced at **build time** by Vite. For dynamic runtime values (such as a URL that changes per environment), consider using a server-rendered configuration endpoint instead.
+</Aside>
+
+## Monorepo and Turborepo patterns
+
+Aspire supports monorepo layouts where multiple JavaScript apps share a single root workspace. Each app is added as a separate resource in the AppHost pointing to its own subdirectory.
+
+### pnpm workspaces
+
+For a pnpm monorepo, install dependencies from the workspace root and reference individual app directories:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ApiService>("api");
+
+// Each app lives in its own subdirectory with its own package.json
+var frontend = builder.AddViteApp("frontend", "./apps/frontend")
+    .WithPnpm()
+    .WithReference(api);
+
+var dashboard = builder.AddViteApp("dashboard", "./apps/dashboard")
+    .WithPnpm()
+    .WithReference(api);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+Each app directory must have its own `package.json` with a `dev` script. The `pnpm install` command should be run from the **monorepo root** before starting Aspire, so that the shared `node_modules` are populated.
+</Aside>
+
+### Turborepo
+
+Turborepo orchestrates builds across a monorepo. Use a custom run script that delegates to the Turborepo pipeline for a specific app:
+
+```json title="apps/frontend/package.json"
+{
+  "scripts": {
+    "dev": "turbo run dev --filter=frontend"
+  }
+}
+```
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ApiService>("api");
+
+var frontend = builder.AddJavaScriptApp("frontend", "./apps/frontend")
+    .WithPnpm()
+    .WithRunScript("dev")
+    .WithReference(api);
+
+// After adding all resources, run the app...
+```
+
 ## Production builds
 
 When you publish your application using `aspire deploy`, Aspire automatically:

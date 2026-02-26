@@ -291,6 +291,70 @@ var python = builder.AddPythonApp("python-api", "../python-app", "main.py")
 
 The connection string will be available as an environment variable in the Python application.
 
+## HTTPS configuration
+
+By default, Python apps run over HTTP in local development. To enable HTTPS, use `WithHttpsEndpoint` and configure the developer certificate in your app host:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var python = builder.AddUvicornApp("python-api", "../python-app", "main:app")
+    .WithHttpsEndpoint(port: 8443, env: "PORT")
+    .WithHttpsDeveloperCertificate();
+
+// After adding all resources, run the app...
+```
+
+When you call `WithHttpsDeveloperCertificate`, Aspire exports the ASP.NET Core development certificate and injects it into the Python process as environment variables. Read those variables in your Uvicorn startup:
+
+```python title="Python — main.py"
+import os
+import uvicorn
+
+if __name__ == "__main__":
+    ssl_keyfile = os.environ.get("ASPNETCORE_Kestrel__Certificates__Default__KeyPath")
+    ssl_certfile = os.environ.get("ASPNETCORE_Kestrel__Certificates__Default__Path")
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8443)),
+        ssl_keyfile=ssl_keyfile,
+        ssl_certfile=ssl_certfile,
+    )
+```
+
+<Aside type="note">
+HTTPS is primarily needed when your Python service is exposed externally. For internal service-to-service communication within Aspire, HTTP is sufficient and simpler to configure.
+</Aside>
+
+## Internal vs. external service exposure
+
+By default, Aspire services are only accessible within the distributed application—they are not exposed to external traffic. To control whether a Python service is reachable from outside the app, use `WithExternalHttpEndpoints`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var internalApi = builder.AddUvicornApp("internal-api", "../internal-api", "main:app")
+    .WithHttpEndpoint(port: 8001, env: "PORT");
+// internalApi is NOT exposed publicly — only reachable by other Aspire resources
+
+var publicApi = builder.AddUvicornApp("public-api", "../public-api", "main:app")
+    .WithHttpEndpoint(port: 8000, env: "PORT")
+    .WithExternalHttpEndpoints();
+// publicApi IS exposed publicly
+
+builder.AddProject<Projects.WebFrontend>()
+    .WithReference(internalApi)
+    .WithReference(publicApi);
+
+// After adding all resources, run the app...
+```
+
+<Aside type="tip">
+Keep backend Python services (databases, AI inference, internal APIs) unexposed and only expose the services that need to be reachable by browsers or external clients.
+</Aside>
+
 ## Debugging
 
 The Python hosting integration provides full debugging support in Visual Studio Code:

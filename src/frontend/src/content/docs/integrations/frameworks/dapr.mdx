@@ -132,6 +132,89 @@ app.Run();
 
 For more information on Dapr service invocation, see [Dapr service invocation](https://docs.dapr.io/developing-applications/building-blocks/service-invocation/).
 
+## Configure Dapr state stores
+
+The Aspire Dapr integration supports adding Dapr state store components. Use the `AddDaprStateStore` method to register a state store and reference it from your services:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var stateStore = builder.AddDaprStateStore("statestore");
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+       .WithDaprSidecar()
+       .WithReference(stateStore);
+
+// After adding all resources, run the app...
+```
+
+### Configure an actor state store
+
+To configure a state store as an Actor state store (required by Dapr actors), add the `actorStateStore` metadata entry to your component file. Create a `components` directory in your app host and add a component YAML file:
+
+```yaml title="YAML — components/statestore.yaml"
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      value: localhost:6379
+    - name: actorStateStore
+      # Setting actorStateStore to "true" designates this state store
+      # as the actor state store. Dapr actors require exactly one state
+      # store to be configured with this flag.
+      value: "true"
+```
+
+Reference the component directory in your AppHost using `WithDaprSidecar` options:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.ActorService>("actorservice")
+       .WithDaprSidecar(new DaprSidecarOptions
+       {
+           ResourcesDirectory = "./components"
+       });
+
+// After adding all resources, run the app...
+```
+
+## Deploy with Azure Container Apps
+
+The Aspire Dapr Community Toolkit integration configures Dapr sidecars for local development. When deploying to Azure Container Apps (ACA), Dapr sidecar settings are part of the container app configuration and must be preserved on each deployment.
+
+<Aside type="caution">
+When you redeploy a container app that previously had Dapr enabled, Azure Container Apps does **not** automatically retain Dapr settings from the previous deployment. If Dapr appears disabled in the Azure portal after redeployment, re-enable it by configuring the Dapr settings in the ACA environment or by using `PublishAsAzureContainerApp` with explicit Dapr configuration.
+</Aside>
+
+To ensure Dapr settings are preserved on Azure Container Apps deployments, configure the sidecar explicitly using `PublishAsAzureContainerApp`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+       .WithDaprSidecar()
+       .PublishAsAzureContainerApp((infra, app) =>
+       {
+           // Enable Dapr on the container app and set the app ID
+           app.Configuration.Dapr = new()
+           {
+               IsEnabled = true,
+               AppId = "exampleproject",
+               AppPort = 8080,
+           };
+       });
+
+// After adding all resources, run the app...
+```
+
+For more information on customizing Azure Container Apps resources, see [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/).
+
 ## See also
 
 - [Dapr documentation](https://docs.dapr.io/)

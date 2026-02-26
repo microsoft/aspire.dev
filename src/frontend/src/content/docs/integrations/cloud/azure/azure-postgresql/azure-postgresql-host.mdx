@@ -254,3 +254,20 @@ The preceding code:
   - A tag is added to the flexible server with a key of `ExampleKey` and a value of `Example value`.
 
 There are many more configuration options available to customize the PostgreSQL resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Database creation after initial deployment
+
+When you call `AddDatabase` on an Azure PostgreSQL resource, Aspire provisions the database during the **first** deployment. On subsequent deployments with `azd up`, only the server-level Bicep is redeployed—databases that already exist are not recreated or deleted.
+
+<Aside type="note">
+If a database does not appear after redeployment, verify that the `AddDatabase` call is still present in your AppHost and that the Bicep output in the `infra/` folder is up to date. Run `azd provision` (instead of `azd up`) to force Aspire to re-evaluate the provisioning output.
+</Aside>
+
+If you need to add a new database to an existing server, redeploy with the updated AppHost code or manually create the database in the Azure portal or via the PostgreSQL CLI:
+
+```bash title="Bash — Create database manually"
+az postgres flexible-server db create \
+  --resource-group <resource-group> \
+  --server-name <server-name> \
+  --database-name <new-database-name>
+```

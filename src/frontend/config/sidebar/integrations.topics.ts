@@ -1177,6 +1177,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
         { label: 'Python', slug: 'integrations/frameworks/python' },
         { label: 'Rust', slug: 'integrations/frameworks/rust' },
+        { label: 'WPF and Windows Forms', slug: 'integrations/frameworks/wpf-winforms' },
       ],
     },
     {
