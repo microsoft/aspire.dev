@@ -1,0 +1,260 @@
+---
+title: Azure Key Vault client integration
+description: Learn how to use the Aspire Azure Key Vault client integration to connect to Azure Key Vault services.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import keyVaultIcon from '@assets/icons/azure-keyvault-icon.png';
+
+<Image
+  src={keyVaultIcon}
+  alt="Azure Key Vault logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire Azure Key Vault client integration is used to connect to an Azure Key Vault service. To get started with the Aspire Azure Key Vault client integration, install the [📦 Aspire.Azure.Security.KeyVault](https://www.nuget.org/packages/Aspire.Azure.Security.KeyVault) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Security.KeyVault" />
+
+For an introduction to working with the Azure Key Vault client integration, see [Get started with the Azure Key Vault integration](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/).
+
+The client integration provides two ways to access secrets from Azure Key Vault:
+
+- Add secrets to app configuration, using either the `IConfiguration` or the `IOptions<T>` pattern.
+- Use a `SecretClient` to retrieve secrets on demand.
+
+## Add secrets to configuration
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureKeyVaultSecrets` extension method on the `IConfiguration` to add the secrets as part of your app's configuration. The method takes a connection name parameter:
+
+```csharp
+builder.Configuration.AddAzureKeyVaultSecrets(connectionName: "key-vault");
+```
+
+<Aside type="note">
+  The `AddAzureKeyVaultSecrets` API name has caused a bit of confusion. The
+  method is used to configure the `SecretClient` based on the given connection
+  name, and _it's not used_ to add secrets to the configuration.
+</Aside>
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Azure
+  Key Vault resource in the AppHost project. For more information, see [Add
+  Azure Key Vault resource](/integrations/cloud/azure/azure-key-vault/azure-key-vault-host/#add-azure-key-vault-resource)
+</Aside>
+
+You can then retrieve a secret-based configuration value through the normal `IConfiguration` APIs, or by binding to strongly-typed classes with the options pattern.
+
+### Retrieve `IConfiguration` instance
+
+```csharp
+public class ExampleService(IConfiguration configuration)
+{
+    // Use configuration...
+    private string _secretValue = configuration["SecretKey"];
+}
+```
+
+### Retrieve `IOptions<T>` instance
+
+```csharp
+public class ExampleService(IOptions<SecretOptions> options)
+{
+    // Use options...
+    private string _secretValue = options.Value.SecretKey;
+}
+```
+
+Additional `AddAzureKeyVaultSecrets` API parameters are available optionally for the following scenarios:
+
+- `Action<AzureSecurityKeyVaultSettings>? configureSettings`: To set up some or all the options inline.
+- `Action<SecretClientOptions>? configureClientOptions`: To set up the `SecretClientOptions` inline.
+- `AzureKeyVaultConfigurationOptions? options`: To configure the `AzureKeyVaultConfigurationOptions` inline.
+
+## Add an Azure Secret client
+
+Alternatively, you can use the `SecretClient` directly to retrieve the secrets on demand. This requires a slightly different registration API.
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureKeyVaultClient` extension on the `IHostApplicationBuilder` instance to register a `SecretClient` for use via the dependency injection container:
+
+```csharp
+builder.AddAzureKeyVaultClient(connectionName: "key-vault");
+```
+
+After adding the `SecretClient` to the builder, you can get the `SecretClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(SecretClient client)
+{
+    // Use client...
+}
+```
+
+## Properties of the Azure Key Vault resources
+
+When you use the `WithReference` method to pass an Azure Key Vault resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `keyvault` becomes `KEYVAULT_URI`.
+
+### Azure Key Vault
+
+The Azure Key Vault resource exposes the following connection property:
+
+| Property Name | Description                                                          |
+| ------------- | -------------------------------------------------------------------- |
+| `Uri`         | The vault URI (e.g., `https://{name}.vault.azure.net/`)              |
+
+For example, if you reference an Azure Key Vault resource named `keyvault` in your AppHost project, the following environment variables will be available in the consuming project:
+
+- `KEYVAULT_URI`
+
+## Add keyed Azure Key Vault client
+
+There might be situations where you want to register multiple `SecretClient` instances with different connection names. To register keyed Azure Key Vault clients, call the `AddKeyedAzureKeyVaultClient` method:
+
+```csharp
+builder.AddKeyedAzureKeyVaultClient(name: "feature-toggles");
+builder.AddKeyedAzureKeyVaultClient(name: "admin-portal");
+```
+
+Then you can retrieve the `SecretClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("feature-toggles")] SecretClient featureTogglesClient,
+    [FromKeyedServices("admin-portal")] SecretClient adminPortalClient)
+{
+    // Use clients...
+}
+```
+
+## Configuration
+
+The Azure Key Vault integration provides multiple options to configure the `SecretClient`.
+
+### Use configuration providers
+
+The Azure Key Vault integration supports `Microsoft.Extensions.Configuration`. It loads the `AzureSecurityKeyVaultSettings` from `appsettings.json` or other configuration files using `Aspire:Azure:Security:KeyVault` key:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Security": {
+        "KeyVault": {
+          "DisableHealthChecks": true,
+          "DisableTracing": false,
+          "ClientOptions": {
+            "Diagnostics": {
+              "ApplicationId": "myapp"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Use named configuration
+
+The Azure Key Vault integration supports named configuration for multiple instances:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Security": {
+        "KeyVault": {
+          "vault1": {
+            "VaultUri": "https://myvault1.vault.azure.net/",
+            "DisableHealthChecks": true,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp1"
+              }
+            }
+          },
+          "vault2": {
+            "VaultUri": "https://myvault2.vault.azure.net/",
+            "DisableTracing": true,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp2"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Use the connection names when calling `AddAzureKeyVaultSecrets`:
+
+```csharp
+builder.AddAzureKeyVaultSecrets("vault1");
+builder.AddAzureKeyVaultSecrets("vault2");
+```
+
+### Use inline delegates
+
+You can also pass the `Action<AzureSecurityKeyVaultSettings>` delegate to set up options inline:
+
+```csharp
+builder.AddAzureKeyVaultSecrets(
+    connectionName: "key-vault",
+    configureSettings: settings => settings.VaultUri = new Uri("KEY_VAULT_URI"));
+```
+
+You can also configure the `SecretClientOptions`:
+
+```csharp
+builder.AddAzureKeyVaultSecrets(
+    connectionName: "key-vault",
+    configureClientOptions: options => options.DisableChallengeResourceVerification = true);
+```
+
+## Configuration options
+
+The following configurable options are exposed through the `AzureSecurityKeyVaultSettings` class:
+
+| Name                  | Description                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `Credential`          | The credential used to authenticate to the Azure Key Vault.                                 |
+| `DisableHealthChecks` | A boolean value that indicates whether the Key Vault health check is disabled or not.       |
+| `DisableTracing`      | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not.        |
+| `VaultUri`            | A URI to the vault on which the client operates. Appears as "DNS Name" in the Azure portal. |
+
+## Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Azure Key Vault integration includes the following health checks:
+
+- Adds the `AzureKeyVaultSecretsHealthCheck` health check, which attempts to connect to and query the Key Vault
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
+
+## Observability and telemetry
+
+### Logging
+
+The Azure Key Vault integration uses the following log categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+### Tracing
+
+The Azure Key Vault integration emits the following tracing activities using OpenTelemetry:
+
+- `Azure.Security.KeyVault.Secrets.SecretClient`
+
+### Metrics
+
+The Azure Key Vault integration currently doesn't support metrics by default due to limitations with the Azure SDK.

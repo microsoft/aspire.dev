@@ -269,53 +269,221 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                 },
                 {
                   label: 'Azure AI Foundry',
-                  slug: 'integrations/cloud/azure/azure-ai-foundry',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started',
+                    },
+                    {
+                      label: 'Hosting integration (AppHost)',
+                      slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host',
+                    },
+                    {
+                      label: 'Client integration',
+                      slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-client',
+                    },
+                  ],
                 },
                 {
                   label: 'Azure AI Inference',
-                  slug: 'integrations/cloud/azure/azure-ai-inference',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started',
+                    },
+                    {
+                      label: 'Hosting integration (AppHost)',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-host',
+                    },
+                    {
+                      label: 'Client integration',
+                      slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-client',
+                    },
+                  ],
                 },
                 {
                   label: 'Azure AI Search',
-                  slug: 'integrations/cloud/azure/azure-ai-search',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started',
+                    },
+                    {
+                      label: 'Hosting integration (AppHost)',
+                      slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-host',
+                    },
+                    {
+                      label: 'Client integration',
+                      slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-client',
+                    },
+                  ],
                 },
                 {
                   label: 'Azure OpenAI',
-                  slug: 'integrations/cloud/azure/azure-openai',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'Get started',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-get-started',
+                    },
+                    {
+                      label: 'Hosting integration (AppHost)',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-host',
+                    },
+                    {
+                      label: 'Client integration',
+                      slug: 'integrations/cloud/azure/azure-openai/azure-openai-client',
+                    },
+                  ],
                 },
               ],
             },
             {
               label: 'Azure App Configuration',
-              slug: 'integrations/cloud/azure/azure-app-configuration',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-client',
+                },
+              ],
             },
             {
               label: 'Azure App Service',
-              slug: 'integrations/cloud/azure/azure-app-service',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-client',
+                },
+              ],
             },
             {
               label: 'Azure Cache for Redis',
-              slug: 'integrations/cloud/azure/azure-cache-redis',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-client',
+                },
+              ],
             },
             {
               label: 'Azure Container Registry',
-              slug: 'integrations/cloud/azure/azure-container-registry',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-client',
+                },
+              ],
             },
             {
               label: 'Azure Cosmos DB',
-              slug: 'integrations/cloud/azure/azure-cosmos-db',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-client',
+                },
+              ],
             },
             {
               label: 'Azure Event Hubs',
-              slug: 'integrations/cloud/azure/azure-event-hubs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client',
+                },
+              ],
             },
             {
               label: 'Azure Functions',
-              slug: 'integrations/cloud/azure/azure-functions',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-functions/azure-functions-client',
+                },
+              ],
             },
             {
               label: 'Azure Key Vault',
-              slug: 'integrations/cloud/azure/azure-key-vault',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-client',
+                },
+              ],
             },
             {
               label: 'Azure PostgreSQL',
@@ -337,37 +505,129 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Azure Service Bus',
-              slug: 'integrations/cloud/azure/azure-service-bus',
-            },
-            {
-              label: 'Azure SignalR Service',
-              slug: 'integrations/cloud/azure/azure-signalr',
-            },
-            {
-              label: 'Azure SQL Database',
-              slug: 'integrations/cloud/azure/azure-sql-database',
-            },
-            {
-              label: 'Azure Storage',
               collapsed: true,
               items: [
                 {
-                  label: 'Azure Storage Blobs',
-                  slug: 'integrations/cloud/azure/azure-storage-blobs',
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started',
                 },
                 {
-                  label: 'Azure Storage Queues',
-                  slug: 'integrations/cloud/azure/azure-storage-queues',
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-host',
                 },
                 {
-                  label: 'Azure Storage Tables',
-                  slug: 'integrations/cloud/azure/azure-storage-tables',
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-client',
+                },
+              ],
+            },
+            {
+              label: 'Azure SignalR Service',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-host',
+                },
+                {
+                  label: 'Hub host integration',
+                  slug: 'integrations/cloud/azure/azure-signalr/azure-signalr-client',
+                },
+              ],
+            },
+            {
+              label: 'Azure SQL Database',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started',
+                },
+                {
+                  label: 'Hosting integration (AppHost)',
+                  slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-client',
+                },
+              ],
+            },
+            {
+              label: 'Azure Storage Blobs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started',
+                },
+                {
+                  label: 'Hosting integration',
+                  slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-client',
+                },
+              ],
+            },
+            {
+              label: 'Azure Storage Queues',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-get-started',
+                },
+                {
+                  label: 'Hosting integration',
+                  slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-client',
+                },
+              ],
+            },
+            {
+              label: 'Azure Storage Tables',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-get-started',
+                },
+                {
+                  label: 'Hosting integration',
+                  slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-client',
                 },
               ],
             },
             {
               label: 'Azure Web PubSub',
-              slug: 'integrations/cloud/azure/azure-web-pubsub',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started',
+                },
+                {
+                  label: 'Hosting integration',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-host',
+                },
+                {
+                  label: 'Client integration',
+                  slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-client',
+                },
+              ],
             },
             {
               label: 'Azure Container App Jobs',

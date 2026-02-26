@@ -1,0 +1,108 @@
+---
+title: Get started with the Azure Event Hubs integrations
+description: Learn how to set up the Aspire Azure Event Hubs hosting and client integrations simply.
+prev: false
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import eventHubsIcon from '@assets/icons/azure-eventhubs-icon.png';
+
+<Image
+  src={eventHubsIcon}
+  alt="Azure Event Hubs logo"
+  width={80}
+  height={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[Azure Event Hubs](https://learn.microsoft.com/event-hubs/event-hubs-about) is a native data-streaming service in the cloud that can stream millions of events per second, with low latency, from any source to any destination. The Aspire Azure Event Hubs integration enables you to connect to Azure Event Hubs instances from your applications.
+
+In this introduction, you'll see how to install and use the Aspire Azure Event Hubs integrations in a simple configuration. If you already have this knowledge, see [Azure Event Hubs Hosting integration](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-host/) and [Azure Event Hubs Client integration](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Azure Event Hubs Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure Event Hubs resources from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.EventHubs" />
+
+Next, in the AppHost project, create an Azure Event Hubs resource and pass it to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var eventHubs = builder.AddAzureEventHubs("event-hubs");
+eventHubs.AddHub("messages");
+
+builder.AddProject<Projects.ExampleService>()
+    .WithReference(eventHubs);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+The preceding code adds an Azure Event Hubs resource named `event-hubs` and an Event Hub named `messages` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleService` project.
+
+## Set up client integration
+
+To get started with the Aspire Azure Event Hubs client integration, install the client integration package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Messaging.EventHubs" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureEventHubProducerClient` extension method to register an `EventHubProducerClient` for use via the dependency injection container:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureEventHubProducerClient(connectionName: "event-hubs");
+```
+
+### Use injected Azure Event Hubs properties
+
+In the AppHost, when you used the `WithReference` method to pass an Azure Event Hubs resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `eventhubs` becomes `EVENTHUBS_URI`.
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# — Obtain configuration properties"
+string eventHubsHost = builder.Configuration.GetValue<string>("EVENTHUBS_HOST");
+string eventHubsUri = builder.Configuration.GetValue<string>("EVENTHUBS_URI");
+string eventHubName = builder.Configuration.GetValue<string>("MESSAGES_EVENTHUBNAME");
+```
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on whether you passed an Azure Event Hubs namespace, hub, or consumer group resource. For more information, see [Properties of the Azure Event Hubs resources](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client/#properties-of-the-azure-event-hubs-resources).
+</Aside>
+
+## Use Azure Event Hubs resources in client code
+
+You can then retrieve the client instance using dependency injection. For example, to retrieve your client from an example service:
+
+```csharp
+public class ExampleService(EventHubProducerClient client)
+{
+    // Use client...
+}
+```
+
+## Continue learning
+
+For more information on how the Azure Event Hubs integrations work, see:
+
+<CardGrid>
+    <LinkCard
+        href="/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-host/"
+        title="Hosting integration"
+        description="Learn more about the Hosting integration" />
+    <LinkCard
+        href="/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client/"
+        title="Client integration"
+        description="Learn more about the Client integration" />
+</CardGrid>

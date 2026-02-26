@@ -1,0 +1,84 @@
+---
+title: Get started with the Azure AI Foundry integrations
+description: Learn how to set up the Aspire Azure AI Foundry hosting and client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Aside, Badge, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
+
+<Image
+  src={aiFoundryIcon}
+  alt="Azure AI Foundry logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+[Azure AI Foundry](https://learn.microsoft.com/ai-studio) provides a unified platform for developing, testing, and deploying AI applications. The Aspire Azure AI Foundry integration enables you to connect to Azure AI Foundry services from your applications, providing access to various AI capabilities including model deployments, prompt flow, and more.
+
+In this introduction, you'll see how to install and use the Aspire Azure AI Foundry integrations in a simple configuration. If you already have this knowledge, see [Azure AI Foundry Hosting integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Azure AI Foundry Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure AI Foundry resources from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.AIFoundry" />
+
+Next, in the AppHost project, create an Azure AI Foundry resource and pass it to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddAzureAIFoundry("foundry");
+
+var chat = foundry.AddDeployment("chat", "Phi-4", "1", "Microsoft");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(chat)
+    .WaitFor(chat);
+
+// After adding all resources, run the app...
+
+builder.Build().Run();
+```
+
+The preceding code adds an Azure AI Foundry resource named `foundry` with a deployment named `chat` using the Phi-4 model to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+  When you call `AddAzureAIFoundry`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+<Aside type="tip">
+    This is the simplest implementation of Azure AI Foundry resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Azure AI Foundry Hosting integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/).
+</Aside>
+
+## Set up client integration
+
+The client integration for Azure AI Foundry is the [Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/) integration. To use Azure AI Foundry from your client applications, install the Azure AI Inference integration in your client project.
+
+For more information on using the client integration, see the [Azure AI Inference integration documentation](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/).
+
+## Next steps
+
+<CardGrid>
+    <LinkCard
+        title="Azure AI Foundry Hosting integration"
+        description="Learn more about the hosting integration features and capabilities"
+        href="/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/"
+    />
+    <LinkCard
+        title="Azure AI Inference Client integration"
+        description="Learn how to use the Azure AI Inference client integration"
+        href="/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/"
+    />
+</CardGrid>
