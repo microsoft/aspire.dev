@@ -1,0 +1,213 @@
+---
+title: GitHub Models client integration
+description: Full reference for the Aspire GitHub Models client integration.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+To get started with the Aspire GitHub Models client integration, you can use either the Azure AI Inference client or the OpenAI client, depending on your needs and model compatibility.
+
+## Using Azure AI Inference client
+
+Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.AI.Inference" />
+
+### Add a ChatCompletionsClient
+
+In the `Program.cs` file of your client-consuming project, use the `AddAzureChatCompletionsClient` method to register a `ChatCompletionsClient` for dependency injection:
+
+```csharp
+builder.AddAzureChatCompletionsClient("chat");
+```
+
+You can then retrieve the `ChatCompletionsClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(ChatCompletionsClient client)
+{
+    public async Task<string> GetResponseAsync(string prompt)
+    {
+        var response = await client.GetChatCompletionsAsync(
+            new[]
+            {
+                new ChatMessage(ChatRole.User, prompt)
+            });
+
+        return response.Value.Choices[0].Message.Content;
+    }
+}
+```
+
+### Add ChatCompletionsClient with registered IChatClient
+
+If you're using the Microsoft.Extensions.AI abstractions, you can register an `IChatClient`:
+
+```csharp
+builder.AddAzureChatCompletionsClient("chat")
+       .AddChatClient();
+```
+
+Then use it in your services:
+
+```csharp
+public class StoryService(IChatClient chatClient)
+{
+    public async Task<string> GenerateStoryAsync(string prompt)
+    {
+        var response = await chatClient.GetResponseAsync(prompt);
+
+        return response.Text;
+    }
+}
+```
+
+## Using OpenAI client
+
+For models compatible with the OpenAI API (such as `openai/gpt-4o-mini`), you can use the OpenAI client. Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.OpenAI" />
+
+### Add an OpenAI client
+
+```csharp
+builder.AddOpenAIClient("chat");
+```
+
+You can then use the OpenAI client:
+
+```csharp
+public class ChatService(OpenAIClient client)
+{
+    public async Task<string> GetChatResponseAsync(string prompt)
+    {
+        var chatClient = client.GetChatClient(GitHubModel.OpenAI.OpenAIGpt4oMini);
+        var response = await chatClient.CompleteChatAsync(
+            new[]
+            {
+                new UserChatMessage(prompt)
+            });
+
+        return response.Value.Content[0].Text;
+    }
+}
+```
+
+### Add OpenAI client with registered IChatClient
+
+```csharp
+builder.AddOpenAIClient("chat")
+       .AddChatClient();
+```
+
+## Configuration
+
+The GitHub Models integration supports configuration through user secrets, environment variables, or app settings. The integration automatically uses the `GITHUB_TOKEN` environment variable if available, or you can specify a custom API key parameter.
+
+### Authentication
+
+The GitHub Models integration requires a GitHub personal access token with `models: read` permission. The token can be provided in several ways:
+
+#### Environment variables in Codespaces and GitHub Actions
+
+When running an app in GitHub Codespaces or GitHub Actions, the `GITHUB_TOKEN` environment variable is automatically available and can be used without additional configuration. This token has the necessary permissions to access GitHub Models for the repository context.
+
+```csharp
+// No additional configuration needed in Codespaces/GitHub Actions
+var model = GitHubModel.OpenAI.OpenAIGpt4oMini;
+var chat = builder.AddGitHubModel("chat", model);
+```
+
+#### Personal access tokens for local development
+
+For local development, you need to create a [fine-grained personal access token](https://github.com/settings/tokens) with the `models: read` scope and configure it in user secrets:
+
+```json
+{
+  "Parameters": {
+    "chat-gh-apikey": "github_pat_YOUR_TOKEN_HERE"
+  }
+}
+```
+
+### Connection string format
+
+The connection string follows this format:
+
+```plaintext
+Endpoint=https://models.github.ai/inference;Key={api_key};Model={model_name};DeploymentId={model_name}
+```
+
+For organization-specific requests:
+
+```plaintext
+Endpoint=https://models.github.ai/orgs/{organization}/inference;Key={api_key};Model={model_name};DeploymentId={model_name}
+```
+
+## Connection properties
+
+When you reference a GitHub Model resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+### GitHub Model
+
+The GitHub Model resource exposes the following connection properties:
+
+| Property Name  | Description                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| `Uri`          | The GitHub Models inference endpoint URI, with the format `https://models.github.ai/inference` |
+| `Key`          | The API key (PAT or GitHub App token) for authentication                                       |
+| `ModelName`    | The model identifier for inference requests, for instance `openai/gpt-4o-mini`                 |
+| `Organization` | The organization attributed to the request (available when configured)                         |
+
+**Example properties:**
+
+```
+Uri: https://models.github.ai/inference
+ModelName: openai/gpt-4o-mini
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `chat` becomes `CHAT_URI`.
+</Aside>
+
+## Rate limits and costs
+
+<Aside type="caution">
+  Each model has rate limits that vary by model and usage tier. Some models
+  include costs if you exceed free tier limits. Check the [GitHub Models
+  documentation](https://docs.github.com/github-models) for current rate limits
+  and pricing information.
+</Aside>
+
+<Aside type="tip">
+  Use health checks sparingly to avoid consuming your rate limit allowance. The
+  integration caches health check results to minimize API calls.
+</Aside>
+
+## Sample application
+
+The `dotnet/aspire` repo contains an example application demonstrating the GitHub Models integration. You can find the sample in the [Aspire GitHub repository](https://github.com/dotnet/aspire/tree/main/playground/GitHubModelsEndToEnd).
+
+## Observability and telemetry
+
+### Logging
+
+The GitHub Models integration uses standard HTTP client logging categories:
+
+- `System.Net.Http.HttpClient`
+- `Microsoft.Extensions.Http`
+
+### Tracing
+
+HTTP requests to the GitHub Models API are automatically traced when using the Azure AI Inference or OpenAI clients.
+
+## See also
+
+- [Get started with the GitHub Models integration](/integrations/ai/github-models/github-models-get-started/)
+- [GitHub Models hosting integration](/integrations/ai/github-models/github-models-host/)
+- [GitHub Models documentation](https://docs.github.com/github-models)
+- [GitHub Models API documentation](https://docs.github.com/rest/models/inference)

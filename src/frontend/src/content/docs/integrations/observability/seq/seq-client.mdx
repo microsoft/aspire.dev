@@ -1,0 +1,140 @@
+---
+title: Seq client integration
+description: Learn how to use the Seq client integration to send logs and traces to Seq.
+next: false
+---
+
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import seqIcon from '@assets/icons/seq-icon.png';
+
+<Image
+  src={seqIcon}
+  alt="Seq logo"
+  width={80}
+  height={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Seq client integration, install the [📦 Aspire.Seq](https://www.nuget.org/packages/Aspire.Seq) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Seq" />
+
+## Add a Seq client
+
+In the `Program.cs` file of your client-consuming project, call the `AddSeqEndpoint` extension method to register OpenTelemetry Protocol exporters to send logs and traces to Seq:
+
+```csharp
+builder.AddSeqEndpoint(connectionName: "seq");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Seq
+  resource in the AppHost project.
+</Aside>
+
+## Connection properties
+
+When you reference a Seq resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+### Seq
+
+The Seq resource exposes the following connection properties:
+
+| Property Name | Description                                                |
+| ------------- | ---------------------------------------------------------- |
+| `Host`        | The hostname or IP address of the Seq server               |
+| `Port`        | The port number the Seq server is listening on             |
+| `Uri`         | The connection URI, with the format `http://{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: http://localhost:5341
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `seq` becomes `SEQ_URI`.
+</Aside>
+
+## Configuration
+
+The Seq integration provides multiple options to configure the connection to Seq.
+
+### Use configuration providers
+
+The Seq integration supports `Microsoft.Extensions.Configuration`. It loads the `SeqSettings` from configuration using the `Aspire:Seq` key. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Seq": {
+      "DisableHealthChecks": true,
+      "ServerUrl": "http://localhost:5341"
+    }
+  }
+}
+```
+
+### Use named configuration
+
+The Seq integration supports named configuration for multiple instances:
+
+```json
+{
+  "Aspire": {
+    "Seq": {
+      "seq1": {
+        "ServerUrl": "http://seq1:5341",
+        "DisableHealthChecks": true
+      },
+      "seq2": {
+        "ServerUrl": "http://seq2:5341",
+        "DisableHealthChecks": false
+      }
+    }
+  }
+}
+```
+
+Use the connection names when calling `AddSeqEndpoint`:
+
+```csharp
+builder.AddSeqEndpoint("seq1");
+builder.AddSeqEndpoint("seq2");
+```
+
+### Use inline delegates
+
+You can pass the `Action<SeqSettings>` delegate to set up options inline:
+
+```csharp
+builder.AddSeqEndpoint("seq", static settings =>
+{
+    settings.DisableHealthChecks  = true;
+    settings.ServerUrl = "http://localhost:5341";
+});
+```
+
+## Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Seq integration:
+
+- Adds the health check when `DisableHealthChecks` is `false`, which attempts to connect to the Seq server's `/health` endpoint.
+- Integrates with the `/health` HTTP endpoint.
+
+## Observability and telemetry
+
+### Logging
+
+The Seq integration uses the following log categories:
+
+- `Seq`
+
+### Tracing and Metrics
+
+The Seq integration doesn't emit tracing activities or metrics because it's a telemetry sink, not a telemetry source.

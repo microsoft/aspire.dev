@@ -1,0 +1,83 @@
+---
+title: Get started with the RabbitMQ integration
+description: Learn how to set up the Aspire RabbitMQ hosting and client integrations simply.
+prev: false
+---
+
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import rabbitmqIcon from '@assets/icons/rabbitmq-icon.svg';
+
+<Image
+  src={rabbitmqIcon}
+  alt="RabbitMQ logo"
+  width={120}
+  height={120}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[RabbitMQ](https://www.rabbitmq.com/) is a reliable messaging and streaming broker, which is easy to deploy on cloud environments, on-premises, and on your local machine. The Aspire RabbitMQ integration enables you to connect to existing RabbitMQ instances, or create new instances from the [`docker.io/library/rabbitmq` container image](https://hub.docker.com/_/rabbitmq).
+
+In this introduction, you'll see how to install and use the Aspire RabbitMQ integrations in a simple configuration. If you already have this knowledge, see [RabbitMQ hosting integration](/integrations/messaging/rabbitmq/rabbitmq-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire RabbitMQ hosting integration in your Aspire AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.RabbitMQ" />
+
+Next, in the AppHost project, create instances of RabbitMQ resources and pass them to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rabbitmq = builder.AddRabbitMQ("messaging");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(rabbitmq);
+
+builder.Build().Run();
+```
+
+When Aspire adds a container image to the app host, it creates a new RabbitMQ server instance on your local machine. The RabbitMQ server resource includes default credentials with a `username` of `"guest"` and randomly generated `password`.
+
+<Aside type="tip">
+    If you'd rather connect to an existing RabbitMQ server, chain a call to `AsExisting` instead—passing the appropriate parameters.
+</Aside>
+
+## Set up client integration
+
+To get started with the Aspire RabbitMQ client integration, install the package:
+
+<InstallDotNetPackage packageName="Aspire.RabbitMQ.Client" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddRabbitMQClient` extension method to register an `IConnection` for use via the dependency injection container:
+
+```csharp
+builder.AddRabbitMQClient(connectionName: "messaging");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the RabbitMQ server resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `IConnection` instance using dependency injection:
+
+```csharp
+public class ExampleService(IConnection connection)
+{
+    // Use connection...
+}
+```
+
+## See also
+
+- [RabbitMQ hosting integration](/integrations/messaging/rabbitmq/rabbitmq-host/)
+- [RabbitMQ client integration](/integrations/messaging/rabbitmq/rabbitmq-client/)

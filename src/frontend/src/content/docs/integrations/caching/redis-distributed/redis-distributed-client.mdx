@@ -1,0 +1,150 @@
+---
+title: Redis Distributed Caching client integration
+description: Learn how to use the Redis Distributed Caching client integration to register an IDistributedCache provider backed by Redis.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import redisIcon from '@assets/icons/redis-icon.png';
+
+<Image
+  src={redisIcon}
+  alt="Redis logo"
+  width={80}
+  height={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Redis distributed caching integration, install the [📦 Aspire.StackExchange.Redis.DistributedCaching](https://www.nuget.org/packages/Aspire.StackExchange.Redis.DistributedCaching) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis.DistributedCaching" />
+
+## Add Redis distributed cache
+
+In the `Program.cs` file of your client-consuming project, call the `AddRedisDistributedCache` extension to register the required services for distributed caching:
+
+```csharp
+builder.AddRedisDistributedCache(connectionName: "cache");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Redis
+  resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `IDistributedCache` instance using dependency injection:
+
+```csharp
+public class ExampleService(IDistributedCache cache)
+{
+    // Use cache...
+}
+```
+
+## Add keyed Redis distributed cache
+
+Due to its limitations, you cannot register multiple `IDistributedCache` instances simultaneously. However, there may be scenarios where you need to register multiple Redis clients. To register a keyed Redis client for `IDistributedCache`, call the `AddKeyedRedisDistributedCache` method:
+
+```csharp
+builder.AddKeyedRedisClient(name: "chat");
+builder.AddKeyedRedisDistributedCache(name: "product");
+```
+
+Then retrieve the instances:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("chat")] IConnectionMultiplexer chatConnectionMux,
+    IDistributedCache productCache)
+{
+    // Use product cache...
+}
+```
+
+## Configuration
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section:
+
+```csharp
+builder.AddRedisDistributedCache("cache");
+```
+
+Then the connection string will be retrieved:
+
+```json
+{
+  "ConnectionStrings": {
+    "cache": "localhost:6379"
+  }
+}
+```
+
+### Use configuration providers
+
+The Redis distributed caching integration supports `Microsoft.Extensions.Configuration`. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "DistributedCaching": {
+          "ConnectionString": "localhost:6379",
+          "DisableHealthChecks": false,
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+### Use inline delegates
+
+You can pass the delegate to set up options inline:
+
+```csharp
+builder.AddRedisDistributedCache(
+    "cache",
+    settings => settings.DisableTracing = true);
+```
+
+You can also configure the [ConfigurationOptions](https://stackexchange.github.io/StackExchange.Redis/Configuration.html#configuration-options):
+
+```csharp
+builder.AddRedisDistributedCache(
+    "cache",
+    null,
+    static options => options.ConnectTimeout = 3_000);
+```
+
+## Client integration health checks
+
+By default, Aspire integrations enable health checks. The Redis distributed caching integration adds a health check that verifies the Redis instance is reachable.
+
+## Observability and telemetry
+
+### Logging
+
+The Redis distributed caching integration uses standard .NET logging.
+
+### Tracing
+
+The integration emits tracing activities using OpenTelemetry.
+
+### Metrics
+
+The integration emits metrics using OpenTelemetry.
+
+:::tip[Registered trademark]{icon="information"}
+
+<span id="registered-trademark"></span>
+Redis is a registered trademark of Redis Ltd. Any rights therein are reserved to
+Redis Ltd. Any use by Microsoft is for referential purposes only and does not
+indicate any sponsorship, endorsement or affiliation between Redis and
+Microsoft. :::

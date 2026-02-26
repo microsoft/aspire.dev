@@ -1,0 +1,103 @@
+---
+title: Valkey hosting integration
+description: Learn how to use the Valkey hosting integration to add a Valkey resource to your AppHost.
+---
+
+import InstallPackage from '@components/InstallPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import valkeyIcon from '@assets/icons/valkey-icon.png';
+
+<Image
+  src={valkeyIcon}
+  alt="Valkey logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Valkey hosting integration models a Valkey resource as the `ValkeyResource` type. To access this type and APIs, add the [📦 Aspire.Hosting.Valkey](https://www.nuget.org/packages/Aspire.Hosting.Valkey) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Valkey" />
+
+## Add Valkey resource
+
+In your AppHost project, call `AddValkey` on the builder instance to add a Valkey resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(cache);
+```
+
+When Aspire adds a container image to the AppHost, it creates a new Valkey instance on your local machine.
+
+<Aside type="tip">
+  If you'd rather connect to an existing Valkey instance, call `AsExisting`
+  instead.
+</Aside>
+
+## Add Valkey resource with data volume
+
+To add a data volume to the Valkey resource, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache")
+                   .WithDataVolume(isReadOnly: false);
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(cache);
+```
+
+The data volume is used to persist the Valkey data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Valkey container.
+
+## Add Valkey resource with data bind mount
+
+To add a data bind mount to the Valkey resource, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache")
+                   .WithDataBindMount(
+                       source: @"C:\Valkey\Data",
+                       isReadOnly: false);
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(cache);
+```
+
+<Aside>
+  Data bind mounts have limited functionality compared to volumes, and when you
+  use a bind mount, a file or directory on the host machine is mounted into a
+  container.
+</Aside>
+
+## Add Valkey resource with persistence
+
+To add persistence to the Valkey resource, call the `WithPersistence` method with either the data volume or data bind mount:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddValkey("cache")
+                   .WithDataVolume()
+                   .WithPersistence(
+                       interval: TimeSpan.FromMinutes(5),
+                       keysChangedThreshold: 100);
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(cache);
+```
+
+The preceding code adds persistence to the Valkey resource by taking snapshots of the data at a specified interval and threshold.
+
+## Hosting integration health checks
+
+The Valkey hosting integration automatically adds a health check for the Valkey resource. The health check verifies that the Valkey instance is running and that a connection can be established to it.

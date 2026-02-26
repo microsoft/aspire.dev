@@ -1,0 +1,216 @@
+---
+title: Redis client integration
+description: Full reference for the Aspire Redis client integration.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+To get started with the Aspire Redis client integration, install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Aspire.StackExchange.Redis) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+
+## Add Redis client
+
+In the `Program.cs` file of your client-consuming project, call the `AddRedisClient` extension method to register an `IConnectionMultiplexer` for use via the dependency injection container:
+
+```csharp
+builder.AddRedisClient(connectionName: "cache");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Redis
+  resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `IConnectionMultiplexer` instance using dependency injection:
+
+```csharp
+public class ExampleService(IConnectionMultiplexer connectionMux)
+{
+    // Use connection multiplexer...
+}
+```
+
+## Add keyed Redis client
+
+There might be situations where you want to register multiple `IConnectionMultiplexer` instances with different connection names. To register keyed Redis clients, call the `AddKeyedRedisClient` method:
+
+```csharp
+builder.AddKeyedRedisClient(name: "chat");
+builder.AddKeyedRedisClient(name: "queue");
+```
+
+Then retrieve the instances:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("chat")] IConnectionMultiplexer chatConnectionMux,
+    [FromKeyedServices("queue")] IConnectionMultiplexer queueConnectionMux)
+{
+    // Use connections...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Connection properties
+
+When you reference a Redis resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+### Redis
+
+The Redis resource exposes the following connection properties:
+
+| Property Name | Description                                                             |
+| ------------- | ----------------------------------------------------------------------- |
+| `Host`        | The hostname or IP address of the Redis server                          |
+| `Port`        | The port number the Redis server is listening on                        |
+| `Password`    | The password for authentication                                         |
+| `Uri`         | The connection URI, with the format `redis://:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: redis://:p%40ssw0rd1@localhost:6379
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `cache` becomes `CACHE_URI`.
+</Aside>
+
+## Redis client builder pattern
+
+The Redis client builder pattern provides a fluent, type-safe approach to configuring Redis clients with integrated support for distributed caching and Azure authentication.
+
+### Basic usage
+
+Use `AddRedisClientBuilder` to configure Redis clients with a fluent API:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddRedisClientBuilder("cache")
+    .WithDistributedCache(options =>
+    {
+        options.InstanceName = "MyApp";
+    });
+```
+
+The client builder pattern simplifies the configuration of Redis-backed caching services by combining client setup with caching configuration in a single fluent chain.
+
+### Azure authentication
+
+To enable Azure authentication for Redis, add a reference to the [📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Azure.StackExchangeRedis" />
+
+Then chain a call to `WithAzureAuthentication()`:
+
+```csharp
+builder.AddRedisClientBuilder("cache")
+    .WithAzureAuthentication()
+    .WithDistributedCache(options =>
+    {
+        options.InstanceName = "MyApp";
+    });
+```
+
+### Auto activation
+
+Redis client connections support auto activation to prevent startup deadlocks and improve application reliability. Auto activation is disabled by default but can be enabled using the `DisableAutoActivation` option:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+// Enable auto activation by setting DisableAutoActivation to false
+builder.AddRedisClient("cache", c => c.DisableAutoActivation = false);
+```
+
+<Aside type="note">
+  In a future version of Aspire, auto activation is planned to be **enabled by
+  default**. When this change occurs, you'll need to explicitly set
+  `DisableAutoActivation = true` if you want to maintain the lazy initialization
+  behavior.
+</Aside>
+
+## Configuration
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddRedisClient`:
+
+```csharp
+builder.AddRedisClient("cache");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "cache": "localhost:6379"
+  }
+}
+```
+
+For more information on how to format this connection string, see the [Stack Exchange Redis configuration docs](https://stackexchange.github.io/StackExchange.Redis/Configuration.html#basic-configuration-strings).
+
+### Use configuration providers
+
+The Redis client integration supports `Microsoft.Extensions.Configuration`. It loads the `StackExchangeRedisSettings` from configuration using the `Aspire:StackExchange:Redis` key. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "ConnectionString": "localhost:6379",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+### Use inline delegates
+
+You can pass the delegate to set up options inline:
+
+```csharp
+builder.AddRedisClient(
+    "cache",
+    static settings => settings.DisableTracing = true);
+```
+
+## Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Redis integration adds a health check that verifies the Redis instance is reachable and can execute commands.
+
+## Observability and telemetry
+
+### Logging
+
+The Redis integration uses the following log categories:
+
+- `Aspire.StackExchange.Redis`
+
+### Tracing
+
+The Redis integration will emit the following tracing activities using OpenTelemetry:
+
+- `OpenTelemetry.Instrumentation.StackExchangeRedis`
+
+### Metrics
+
+The Redis integration emits metrics using OpenTelemetry.
+
+## See also
+
+- [Get started with the Redis integration](/integrations/caching/redis/redis-get-started/)
+- [Redis hosting integration](/integrations/caching/redis/redis-host/)
+- [Redis documentation](https://redis.io/)
+- [Stack Exchange Redis documentation](https://stackexchange.github.io/StackExchange.Redis/)

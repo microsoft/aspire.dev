@@ -1,0 +1,203 @@
+---
+title: Azure Blob Storage - Client integration
+description: Learn how to use the Azure Blob Storage client integration.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+## Client integration
+
+To get started with the Aspire Azure Blob Storage client integration, install the [📦 Aspire.Azure.Storage.Blobs](https://www.nuget.org/packages/Aspire.Azure.Storage.Blobs) NuGet package:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Storage.Blobs" />
+
+### Add Azure Blob Storage client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureBlobServiceClient` extension method to register a `BlobServiceClient` for dependency injection. The method takes a connection name parameter:
+
+```csharp
+builder.AddAzureBlobServiceClient("blobs");
+```
+
+You can then retrieve the `BlobServiceClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(BlobServiceClient client)
+{
+    // Use client...
+}
+```
+
+## Properties of the Azure Blob Storage resources
+
+When you use the `WithReference` method to pass an Azure Blob Storage resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `blobs` becomes `BLOBS_URI`.
+
+### Azure Blob Storage
+
+The Azure Blob Storage resource exposes the following connection properties:
+
+| Property Name | Description                  |
+| ------------- | ---------------------------- |
+| `Uri`         | The blob service endpoint    |
+
+In emulator mode, an additional property is available:
+
+| Property Name      | Description                                |
+| ------------------ | ------------------------------------------ |
+| `ConnectionString` | The full connection string for the emulator |
+
+For example, if you reference a Blob Storage resource named `blobs` in your AppHost project, the following environment variables will be available in the consuming project:
+
+- `BLOBS_URI`
+
+### Configuration
+
+The Azure Blob Storage integration provides multiple options to configure the `BlobServiceClient`.
+
+#### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name when calling `AddAzureBlobServiceClient`:
+
+```csharp
+builder.AddAzureBlobServiceClient("blobs");
+```
+
+Two connection formats are supported:
+
+##### Service URI
+
+The recommended approach is to use a `ServiceUri`, which works with the `Credential` property. If no credential is configured, the `DefaultAzureCredential` is used:
+
+```json
+{
+  "ConnectionStrings": {
+    "blobs": "https://{account_name}.blob.core.windows.net/"
+  }
+}
+```
+
+##### Connection string
+
+Alternatively, an [Azure Storage connection string](https://learn.microsoft.com/azure/storage/common/storage-configure-connection-string) can be used:
+
+```json
+{
+  "ConnectionStrings": {
+    "blobs": "AccountName=myaccount;AccountKey=myaccountkey"
+  }
+}
+```
+
+#### Use configuration providers
+
+The Azure Blob Storage integration supports `Microsoft.Extensions.Configuration`. It loads the `AzureStorageBlobsSettings` and `BlobClientOptions` from configuration using the `Aspire:Azure:Storage:Blobs` key. Example `appsettings.json`:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Storage": {
+        "Blobs": {
+          "DisableHealthChecks": true,
+          "DisableTracing": false,
+          "ClientOptions": {
+            "Diagnostics": {
+              "ApplicationId": "myapp"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+#### Use named configuration
+
+The Azure Blob Storage integration supports named configuration for multiple instances:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Storage": {
+        "Blobs": {
+          "blob1": {
+            "DisableHealthChecks": true,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp1"
+              }
+            }
+          },
+          "blob2": {
+            "DisableTracing": true,
+            "ClientOptions": {
+              "Diagnostics": {
+                "ApplicationId": "myapp2"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Use the connection names when calling `AddAzureBlobServiceClient`:
+
+```csharp
+builder.AddAzureBlobServiceClient("blob1");
+builder.AddAzureBlobServiceClient("blob2");
+```
+
+#### Use inline delegates
+
+You can also pass the `Action<AzureStorageBlobsSettings>` delegate to set up options inline:
+
+```csharp
+builder.AddAzureBlobServiceClient(
+    "blobs",
+    settings => settings.DisableHealthChecks = true);
+```
+
+You can also configure the `BlobClientOptions`:
+
+```csharp
+builder.AddAzureBlobServiceClient(
+    "blobs",
+    configureClientBuilder: clientBuilder =>
+        clientBuilder.ConfigureOptions(
+            options => options.Diagnostics.ApplicationId = "myapp"));
+```
+
+### Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Azure Blob Storage integration:
+
+- Adds the health check when `DisableHealthChecks` is `false`, which attempts to connect to the Azure Blob Storage.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
+
+### Observability and telemetry
+
+#### Logging
+
+The Azure Blob Storage integration uses the following log categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+#### Tracing
+
+The Azure Blob Storage integration emits the following tracing activities using OpenTelemetry:
+
+- `Azure.Storage.Blobs.BlobContainerClient`
+
+#### Metrics
+
+The Azure Blob Storage integration currently doesn't support metrics by default due to limitations with the Azure SDK.
