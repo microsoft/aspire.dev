@@ -94,14 +94,10 @@ export default defineConfig({
         starlightSidebarTopics(sidebarTopics, {
           exclude: ['**/includes/**/*', '/support'],
         }),
-        ...(process.env.CHECK_LINKS
-          ? [
-              starlightLinksValidator({
-                errorOnRelativeLinks: false,
-                errorOnFallbackPages: false,
-              }),
-            ]
-          : []),
+        starlightLinksValidator({
+          errorOnRelativeLinks: false,
+          errorOnFallbackPages: false,
+        }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
           svgPath: 'M4 16L12 8L20 16',
