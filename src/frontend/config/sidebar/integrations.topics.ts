@@ -116,9 +116,43 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '人工智能 (AI)',
       },
       items: [
-        { label: 'GitHub Models', slug: 'integrations/ai/github-models' },
+        {
+          label: 'GitHub Models',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/github-models/github-models-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/ai/github-models/github-models-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/ai/github-models/github-models-client',
+            },
+          ],
+        },
         { label: 'Ollama', slug: 'integrations/ai/ollama' },
-        { label: 'OpenAI', slug: 'integrations/ai/openai' },
+        {
+          label: 'OpenAI',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/openai/openai-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/ai/openai/openai-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/ai/openai/openai-client',
+            },
+          ],
+        },
       ],
     },
     {
@@ -673,8 +707,16 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           collapsed: true,
           items: [
             {
-              label: 'Integration overview',
-              slug: 'integrations/caching/redis',
+              label: 'Get started',
+              slug: 'integrations/caching/redis/redis-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/caching/redis/redis-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/caching/redis/redis-client',
             },
             {
               label: 'Community extensions',
@@ -684,14 +726,76 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Redis Distributed Cache',
-          slug: 'integrations/caching/redis-distributed',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/caching/redis-distributed/redis-distributed-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/caching/redis-distributed/redis-distributed-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/caching/redis-distributed/redis-distributed-client',
+            },
+          ],
         },
         {
           label: 'Redis Output Cache',
-          slug: 'integrations/caching/redis-output',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/caching/redis-output/redis-output-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/caching/redis-output/redis-output-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/caching/redis-output/redis-output-client',
+            },
+          ],
         },
-        { label: 'Valkey', slug: 'integrations/caching/valkey' },
-        { label: 'Garnet', slug: 'integrations/caching/garnet' },
+        {
+          label: 'Valkey',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/caching/valkey/valkey-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/caching/valkey/valkey-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/caching/valkey/valkey-client',
+            },
+          ],
+        },
+        {
+          label: 'Garnet',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/caching/garnet/garnet-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/caching/garnet/garnet-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/caching/garnet/garnet-client',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1100,11 +1204,59 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Apache Kafka',
-          slug: 'integrations/messaging/apache-kafka',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/apache-kafka/apache-kafka-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/messaging/apache-kafka/apache-kafka-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/messaging/apache-kafka/apache-kafka-client',
+            },
+          ],
         },
         { label: 'LavinMQ', slug: 'integrations/messaging/lavinmq' },
-        { label: 'NATS', slug: 'integrations/messaging/nats' },
-        { label: 'RabbitMQ', slug: 'integrations/messaging/rabbitmq' },
+        {
+          label: 'NATS',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/nats/nats-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/messaging/nats/nats-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/messaging/nats/nats-client',
+            },
+          ],
+        },
+        {
+          label: 'RabbitMQ',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/messaging/rabbitmq/rabbitmq-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/messaging/rabbitmq/rabbitmq-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/messaging/rabbitmq/rabbitmq-client',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1153,7 +1305,26 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Спостережуваність та ведення журналів',
         'zh-CN': '可观察性与日志记录',
       },
-      items: [{ label: 'Seq', slug: 'integrations/observability/seq' }],
+      items: [
+        {
+          label: 'Seq',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/observability/seq/seq-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/observability/seq/seq-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/observability/seq/seq-client',
+            },
+          ],
+        },
+      ],
     },
     {
       label: 'Reverse proxies & APIs',

@@ -1,0 +1,105 @@
+---
+title: Apache Kafka hosting integration
+description: Learn how to use the Apache Kafka hosting integration to add a Kafka resource to your AppHost.
+---
+
+import InstallPackage from '@components/InstallPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import kafkaIcon from '@assets/icons/apache-kafka-icon.svg';
+
+<Image
+  src={kafkaIcon}
+  alt="Apache Kafka logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Apache Kafka hosting integration models a Kafka resource as the `KafkaServerResource` type. To access this type and APIs, add the [📦 Aspire.Hosting.Kafka](https://www.nuget.org/packages/Aspire.Hosting.Kafka) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Kafka" />
+
+## Add Kafka server resource
+
+In your AppHost project, call `AddKafka` on the builder instance to add a Kafka server resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(kafka);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds a container image to the AppHost, it creates a new Kafka server instance on your local machine.
+
+<Aside type="tip">
+If you'd rather connect to an existing Kafka server, call `AddConnectionString` instead. For more information on how to use `WithReference`, see [Resource dependencies](/get-started/resources/) and [Configuration injection](/get-started/app-host/).
+</Aside>
+
+## Add Kafka UI
+
+To add the [Kafka UI](https://hub.docker.com/r/kafbat/kafka-ui) to the Kafka server resource, call the `WithKafkaUI` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+                   .WithKafkaUI();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(kafka);
+```
+
+The Kafka UI is a free, open-source web UI to monitor and manage Apache Kafka clusters.
+
+## Change the Kafka UI host port
+
+To change the Kafka UI host port, chain a call to the `WithHostPort` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+                   .WithKafkaUI(kafkaUI => kafkaUI.WithHostPort(9100));
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(kafka);
+```
+
+## Add Kafka server resource with data volume
+
+To add a data volume to the Kafka server resource, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var kafka = builder.AddKafka("kafka")
+                   .WithDataVolume(isReadOnly: false);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(kafka);
+```
+
+The data volume is used to persist the Kafka server data outside the lifecycle of its container.
+
+## Work with larger Kafka clusters
+
+The Aspire Kafka integration deploys a container from the confluentinc/confluent-local image to your local container host. This image provides a simple Apache Kafka cluster that runs in KRaft mode and requires no further configuration. It's ideal for developing and testing producers and consumers. However, this image is for local experimentation only and isn't supported by Confluent.
+
+In the following AppHost code, a local container is used in run mode. At other times, a connection string provides URLs and port numbers for the Kafka brokers:
+
+```csharp
+var kafka = builder.ExecutionContext.IsRunMode
+    ? builder.AddKafka("kafka").WithKafkaUI()
+    : builder.AddConnectionString("kafka");
+```
+
+## Hosting integration health checks
+
+The Kafka hosting integration automatically adds a health check for the Kafka server resource. The health check verifies that a Kafka producer with the specified connection name is able to connect and persist a topic to the Kafka server.

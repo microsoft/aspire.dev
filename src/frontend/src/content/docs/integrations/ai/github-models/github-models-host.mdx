@@ -1,0 +1,129 @@
+---
+title: GitHub Models hosting integration
+description: Full reference for the Aspire GitHub Models hosting integration.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+The Aspire GitHub Models hosting integration models GitHub Models resources as `GitHubModelResource`. To access these types and APIs, install the [📦 Aspire.Hosting.GitHub.Models](https://www.nuget.org/packages/Aspire.Hosting.GitHub.Models) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.GitHub.Models" />
+
+## Add a GitHub Model resource
+
+To add a `GitHubModelResource` to your AppHost project, call the `AddGitHubModel` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+
+builder.Build().Run();
+```
+
+The preceding code adds a GitHub Model resource named `chat` using the identifier string for OpenAI's GPT-4o-mini model. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="tip">
+  Use the strongly-typed `GitHubModel` constants to avoid typos and ensure
+  you're using valid model identifiers. These constants are grouped by publisher
+  (for example, `GitHubModel.OpenAI.OpenAIGpt4oMini`,
+  `GitHubModel.Microsoft.Phi4MiniInstruct`,
+  `GitHubModel.DeepSeek.DeepSeekV30324`).
+</Aside>
+
+## Specify an organization
+
+For organization-specific requests, you can specify an organization parameter:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var organization = builder.AddParameter("github-org");
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini", organization);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+
+builder.Build().Run();
+```
+
+When an organization is specified, the token must be attributed to that organization in GitHub.
+
+## Configure API key authentication
+
+The GitHub Models integration supports multiple ways to configure authentication:
+
+### Default API key parameter
+
+By default, the integration creates a parameter named `{resource_name}-gh-apikey` that automatically falls back to the `GITHUB_TOKEN` environment variable:
+
+```csharp
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
+```
+
+Then in user secrets:
+
+```json
+{
+  "Parameters": {
+    "chat-gh-apikey": "YOUR_GITHUB_TOKEN_HERE"
+  }
+}
+```
+
+### Custom API key parameter
+
+You can also specify a custom parameter for the API key:
+
+```csharp
+var apiKey = builder.AddParameter("my-api-key", secret: true);
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini")
+                  .WithApiKey(apiKey);
+```
+
+Then in user secrets:
+
+```json
+{
+  "Parameters": {
+    "my-api-key": "YOUR_GITHUB_TOKEN_HERE"
+  }
+}
+```
+
+## Health checks
+
+You can add health checks to verify the GitHub Models endpoint accessibility and API key validity:
+
+```csharp
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini")
+                  .WithHealthCheck();
+```
+
+<Aside type="caution">
+  Because health checks are included in the rate limit of the GitHub Models API,
+  use this health check sparingly, such as when debugging connectivity issues.
+  The health check runs only once per application instance to minimize API
+  usage.
+</Aside>
+
+## Available models
+
+GitHub Models supports various AI models. Use the strongly-typed `GitHubModel` constants for the most up-to-date list of available models. Some popular options include:
+
+- `GitHubModel.OpenAI.OpenAIGpt4oMini`
+- `GitHubModel.OpenAI.OpenAIGpt41Mini`
+- `GitHubModel.DeepSeek.DeepSeekV30324`
+- `GitHubModel.Microsoft.Phi4MiniInstruct`
+
+Check the [GitHub Models documentation](https://docs.github.com/github-models) for more information about these models and their capabilities.
+
+## See also
+
+- [Get started with the GitHub Models integration](/integrations/ai/github-models/github-models-get-started/)
+- [GitHub Models client integration](/integrations/ai/github-models/github-models-client/)
+- [GitHub Models documentation](https://docs.github.com/github-models)
