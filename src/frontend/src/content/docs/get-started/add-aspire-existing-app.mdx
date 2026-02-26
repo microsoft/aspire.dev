@@ -16,11 +16,13 @@ import Pivot from '@components/Pivot.astro';
     options={[
         { id: "csharp", title: "C#" },
         { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript" },
+        { id: "nodejs", title: "Node.js" },
+        { id: "go", title: "Go" },
+        { id: "java", title: "Java" },
     ]}
 />
 
-This guide shows you how to add Aspire orchestration to an existing application, whether it's written in C#, Python, JavaScript, or a mix of these languages. Instead of starting from scratch, you'll use the `aspire init` command to incrementally adopt Aspire in your current project.
+This guide shows you how to add Aspire orchestration to an existing application, whether it's written in C#, Python, Node.js, Go, Java, or a mix of these languages. Instead of starting from scratch, you'll use the `aspire init` command to incrementally adopt Aspire in your current project.
 
 :::note[Definition]{icon="approve-check-circle"}
 **Aspireify** (verb): To transform an existing application into a distributed, observable, and orchestrated system by adding Aspire—no cape required, just a few commands!
@@ -30,7 +32,7 @@ This guide shows you how to add Aspire orchestration to an existing application,
 
 As distributed applications grow, coordinating multiple services becomes a tangled web of configuration files, hard-coded URLs, and fragile startup scripts. You're juggling connection strings across environments, manually wiring service dependencies, and struggling to trace issues across your microservices. Development setup becomes a ritual of precision—start the database, then the cache, then service A before service B—and any misstep sends you back to square one.
 
-Aspire cuts through this complexity with a unified orchestration layer that treats your entire application as a cohesive system. Define your services and their relationships once in code ([the AppHost](/get-started/app-host/)), and Aspire handles service discovery, injects configuration automatically, and provides a dashboard with logs, traces, and metrics out of the box. Whether you're orchestrating C#, Python, or JavaScript services—or all three together—you get the same consistent experience from development through deployment.
+Aspire cuts through this complexity with a unified orchestration layer that treats your entire application as a cohesive system. Define your services and their relationships once in code ([the AppHost](/get-started/app-host/)), and Aspire handles service discovery, injects configuration automatically, and provides a dashboard with logs, traces, and metrics out of the box. Whether you're orchestrating C#, Python, Node.js, Go, Java services—or all of them together—you get the same consistent experience from development through deployment.
 
 The best part? You can adopt Aspire incrementally. Start with orchestration, add observability when you're ready, integrate external services as needed. Your existing codebase stays largely unchanged, and you can reverse course if Aspire isn't the right fit.
 
@@ -78,13 +80,13 @@ Before you begin, ensure you have the following prerequisites installed based on
 - Streamlit or other Python web frameworks
 
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
 
-**For JavaScript/TypeScript applications:**
+**For Node.js/TypeScript applications:**
 
 - [Node.js 22 or later](https://nodejs.org/) installed
 - npm, yarn, or pnpm for package management
-- An existing JavaScript/TypeScript application
+- An existing Node.js/TypeScript application
 
 **Example application types:**
 - React, Vue, or Svelte applications (especially Vite-based)
@@ -92,6 +94,37 @@ Before you begin, ensure you have the following prerequisites installed based on
 - Next.js applications
 - Angular applications
 - TypeScript backend services
+
+</Pivot>
+<Pivot id="go">
+
+**For Go applications:**
+
+- [Go 1.21 or later](https://go.dev/dl/) installed
+- An existing Go application
+
+**Example application types:**
+- HTTP servers using net/http, Gin, or Echo
+- gRPC services
+- CLI applications
+- Microservices
+- API backends
+
+</Pivot>
+<Pivot id="java">
+
+**For Java applications:**
+
+- [Java 17 or later](https://adoptium.net/) installed
+- Maven or Gradle for dependency management
+- An existing Java application
+
+**Example application types:**
+- Spring Boot applications
+- Jakarta EE applications
+- Micronaut applications
+- Quarkus applications
+- Java microservices
 
 </Pivot>
 
@@ -106,7 +139,7 @@ Adding Aspire to an existing application follows these key steps:
 <Steps>
 
 1. **Initialize Aspire support** — Use `aspire init` to add the AppHost (orchestration layer)
-2. **Add your applications** — Register C#, Python, and JavaScript applications in the AppHost
+2. **Add your applications** — Register C#, Python, Node.js, Go, and Java applications in the AppHost
 3. **Configure telemetry (optional)** — Add OpenTelemetry instrumentation for observability
 4. **Add integrations (optional)** — Connect to databases, caches, and message queues
 5. **Run and verify** — Test your application with Aspire orchestration
@@ -131,9 +164,19 @@ The `aspire init` command is the starting point for adding Aspire to your existi
    cd /path/to/your-project
    ```
    </Pivot>
-   <Pivot id="javascript">
+   <Pivot id="nodejs">
    ```bash title="Navigate to your workspace root"
    cd /path/to/your-workspace
+   ```
+   </Pivot>
+   <Pivot id="go">
+   ```bash title="Navigate to your Go module root"
+   cd /path/to/your-go-module
+   ```
+   </Pivot>
+   <Pivot id="java">
+   ```bash title="Navigate to your project root"
+   cd /path/to/your-project
    ```
    </Pivot>
 
@@ -157,10 +200,22 @@ The `aspire init` command is the starting point for adding Aspire to your existi
    - Analyze your Python applications and suggest which ones to add to the orchestration
    - Install necessary Aspire packages
    </Pivot>
-   <Pivot id="javascript">
+   <Pivot id="nodejs">
    - Detect your existing workspace structure
    - Create a file-based AppHost (`apphost.cs`)
-   - Analyze your JavaScript/Node.js applications and suggest which ones to add to the orchestration
+   - Analyze your Node.js/JavaScript applications and suggest which ones to add to the orchestration
+   - Install necessary Aspire packages
+   </Pivot>
+   <Pivot id="go">
+   - Detect your existing Go module structure
+   - Create a file-based AppHost (`apphost.cs`)
+   - Analyze your Go applications and suggest which ones to add to the orchestration
+   - Install necessary Aspire packages
+   </Pivot>
+   <Pivot id="java">
+   - Detect your existing project structure
+   - Create a file-based AppHost (`apphost.cs`)
+   - Analyze your Java applications and suggest which ones to add to the orchestration
    - Install necessary Aspire packages
    </Pivot>
 
@@ -221,7 +276,7 @@ After running `aspire init`, your project will have a file-based AppHost:
 
 A typical SaaS application with FastAPI backend, Flask frontend, and Celery worker.
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
 After running `aspire init`, your project will have a file-based AppHost:
 
 <FileTree>
@@ -250,6 +305,61 @@ After running `aspire init`, your project will have a file-based AppHost:
 
 A typical monorepo with Node.js API, React storefront, and admin dashboard.
 </Pivot>
+<Pivot id="go">
+After running `aspire init`, your project will have a file-based AppHost:
+
+<FileTree>
+- my-service/
+  - **apphost.cs** (new) orchestration code
+  - **apphost.run.json** (new) configuration
+  - api/
+    - main.go
+    - handlers/
+    - models/
+    - go.mod
+  - web/
+    - src/
+      - App.tsx
+      - components/
+    - package.json
+    - vite.config.ts
+  - worker/
+    - main.go
+    - tasks/
+    - go.mod
+  - go.work (workspace file)
+</FileTree>
+
+A typical Go workspace with HTTP API, React frontend, and background worker.
+</Pivot>
+<Pivot id="java">
+After running `aspire init`, your project will have a file-based AppHost:
+
+<FileTree>
+- my-app/
+  - **apphost.cs** (new) orchestration code
+  - **apphost.run.json** (new) configuration
+  - api/
+    - src/
+      - main/
+        - java/
+          - com/example/api/
+            - Application.java
+            - controllers/
+        - resources/
+          - application.properties
+    - pom.xml
+  - web/
+    - src/
+      - App.tsx
+      - components/
+    - package.json
+    - vite.config.ts
+  - pom.xml (parent POM)
+</FileTree>
+
+A typical Spring Boot application with REST API and React frontend.
+</Pivot>
 
 <Pivot id="csharp">
 The `AppHost.cs` file in your new AppHost project initially contains a minimal starter:
@@ -277,7 +387,35 @@ builder.Build().Run();
 ```
 
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
+The `apphost.cs` file initially contains a minimal starter:
+
+```csharp title="apphost.cs — Initial state after aspire init"
+#:sdk Aspire.AppHost.Sdk@13.1.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO: Add resources here
+
+builder.Build().Run();
+```
+
+</Pivot>
+<Pivot id="go">
+The `apphost.cs` file initially contains a minimal starter:
+
+```csharp title="apphost.cs — Initial state after aspire init"
+#:sdk Aspire.AppHost.Sdk@13.1.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TODO: Add resources here
+
+builder.Build().Run();
+```
+
+</Pivot>
+<Pivot id="java">
 The `apphost.cs` file initially contains a minimal starter:
 
 ```csharp title="apphost.cs — Initial state after aspire init"
@@ -314,13 +452,31 @@ For Python applications, install the Python hosting package:
 This package provides methods like `AddUvicornApp`, `AddPythonApp`, and `AddPythonModule`.
 
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
 
-For JavaScript/TypeScript applications, install the JavaScript hosting package:
+For Node.js/JavaScript applications, install the JavaScript hosting package:
 
 <InstallPackage packageName="Aspire.Hosting.JavaScript" omitPackageReference={true} />
 
 This package provides methods like `AddViteApp`, `AddNodeApp`, and `AddJavaScriptApp`.
+
+</Pivot>
+<Pivot id="go">
+
+For Go applications, install the Go hosting package from the Community Toolkit:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Golang" omitPackageReference={true} />
+
+This package provides methods like `AddGolangApp` and `AddGolangExecutable`.
+
+</Pivot>
+<Pivot id="java">
+
+For Java applications, install the Java hosting package from the Community Toolkit:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Java" omitPackageReference={true} />
+
+This package provides methods like `AddSpringApp`, `AddMavenApp`, and `AddJavaApp`.
 
 </Pivot>
 
@@ -355,7 +511,7 @@ This updates the AppHost `.csproj` file with entries like:
 <Pivot id="csharp">
 Now update your `AppHost.cs` file in the AppHost project to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
 </Pivot>
-<Pivot id="python,javascript">
+<Pivot id="python,nodejs,go,java">
 Now update your `apphost.cs` file to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
 </Pivot>
 
@@ -425,9 +581,9 @@ builder.Build().Run();
 - `WithPip()` - Use traditional pip for package management
 
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
 
-For JavaScript applications, use the appropriate method based on your application type:
+For Node.js applications, use the appropriate method based on your application type:
 
 ```csharp title="apphost.cs — Complete monorepo example"
 #:sdk Aspire.AppHost.Sdk@13.1.0
@@ -492,9 +648,84 @@ Option 2 keeps all script configuration in `package.json`, making your scripts m
 :::
 
 </Pivot>
+<Pivot id="go">
+
+For Go applications, use the Go hosting methods:
+
+```csharp title="apphost.cs — Complete Go microservices example"
+#:sdk Aspire.AppHost.Sdk@13.1.0
+#:package CommunityToolkit.Aspire.Hosting.Golang@13.1.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Go API service
+var api = builder.AddGolangApp("api", "./api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithHttpHealthCheck("/health");
+
+// Go worker service
+var worker = builder.AddGolangApp("worker", "./worker")
+    .WithReference(api);
+
+// React frontend
+var web = builder.AddViteApp("web", "./web")
+    .WithExternalHttpEndpoints()
+    .WithReference(api)
+    .WaitFor(api);
+
+builder.Build().Run();
+```
+
+**Key methods:**
+- `AddGolangApp` - For Go applications with go.mod
+- `AddGolangExecutable` - For pre-built Go binaries
+- `WithHttpEndpoint` - Configure HTTP endpoint with PORT environment variable
+- `WithReference` - Pass connection info to dependent services
+- `WaitFor` - Ensure proper startup order
+
+</Pivot>
+<Pivot id="java">
+
+For Java applications, use the Java hosting methods:
+
+```csharp title="apphost.cs — Complete Spring Boot example"
+#:sdk Aspire.AppHost.Sdk@13.1.0
+#:package CommunityToolkit.Aspire.Hosting.Java@13.1.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Spring Boot API
+var api = builder.AddSpringApp("api", "./api")
+    .WithHttpEndpoint(port: 8080)
+    .WithHttpHealthCheck("/actuator/health");
+
+// Spring Boot admin service
+var admin = builder.AddSpringApp("admin", "./admin")
+    .WithHttpEndpoint(port: 8081)
+    .WithReference(api)
+    .WaitFor(api);
+
+// React frontend
+var web = builder.AddViteApp("web", "./web")
+    .WithExternalHttpEndpoints()
+    .WithReference(api)
+    .WaitFor(api);
+
+builder.Build().Run();
+```
+
+**Key methods:**
+- `AddSpringApp` - For Spring Boot applications
+- `AddMavenApp` - For Maven-based Java applications
+- `AddJavaApp` - For generic Java applications
+- `WithHttpEndpoint` - Configure HTTP endpoint with specific port
+- `WithReference` - Pass connection info to dependent services
+- `WaitFor` - Ensure proper startup order
+
+</Pivot>
 
 <Aside type="tip">
-You can mix and match languages! The examples above show single-language scenarios, but Aspire excels at orchestrating polyglot applications. Add C#, Python, and JavaScript resources to the same AppHost to create truly cross-language solutions.
+You can mix and match languages! The examples above show single-language scenarios, but Aspire excels at orchestrating polyglot applications. Add C#, Python, Node.js, Go, and Java resources to the same AppHost to create truly cross-language solutions.
 </Aside>
 
 ### Connect services
@@ -533,13 +764,43 @@ var worker = builder.AddPythonApp("worker", "../python-worker", "worker.py")
 ```
 
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
 
-```csharp title="apphost.cs — Connect JavaScript services" ".WithReference"
+```csharp title="apphost.cs — Connect Node.js services" ".WithReference"
 // Omitted for brevity...
 
 var api = builder.AddNodeApp("api", "../node-api", "server.js")
     .WithNpm();
+
+var frontend = builder.AddViteApp("frontend", "../react-frontend")
+    .WithReference(api);  // Frontend gets API_HTTP and API_HTTPS env vars
+
+// Omitted for brevity...
+```
+
+</Pivot>
+<Pivot id="go">
+
+```csharp title="apphost.cs — Connect Go services" ".WithReference"
+// Omitted for brevity...
+
+var api = builder.AddGolangApp("api", "../go-api")
+    .WithHttpEndpoint(env: "PORT");
+
+var frontend = builder.AddViteApp("frontend", "../react-frontend")
+    .WithReference(api);  // Frontend gets API_HTTP and API_HTTPS env vars
+
+// Omitted for brevity...
+```
+
+</Pivot>
+<Pivot id="java">
+
+```csharp title="apphost.cs — Connect Java services" ".WithReference"
+// Omitted for brevity...
+
+var api = builder.AddSpringApp("api", "../spring-api")
+    .WithHttpEndpoint(port: 8080);
 
 var frontend = builder.AddViteApp("frontend", "../react-frontend")
     .WithReference(api);  // Frontend gets API_HTTP and API_HTTPS env vars
@@ -638,9 +899,9 @@ Python applications can send telemetry to the Aspire dashboard using OpenTelemet
 </Steps>
 
 </Pivot>
-<Pivot id="javascript">
+<Pivot id="nodejs">
 
-JavaScript/Node.js applications can also send telemetry using OpenTelemetry:
+Node.js applications can also send telemetry using OpenTelemetry:
 
 <Steps>
 
@@ -655,7 +916,7 @@ JavaScript/Node.js applications can also send telemetry using OpenTelemetry:
 
 2. Create a telemetry configuration file:
 
-   ```javascript title="JavaScript — telemetry.js"
+   ```javascript title="Node.js — telemetry.js"
    const { NodeSDK } = require('@opentelemetry/sdk-node');
    const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
@@ -685,12 +946,143 @@ JavaScript/Node.js applications can also send telemetry using OpenTelemetry:
 
 3. Import the telemetry configuration at the top of your application entry point:
 
-   ```javascript title="JavaScript — app.js"
+   ```javascript title="Node.js — app.js"
    // This must be first!
    require('./telemetry');
 
    const express = require('express');
    // ... rest of your app
+   ```
+
+</Steps>
+
+</Pivot>
+<Pivot id="go">
+
+Go applications can send telemetry using OpenTelemetry:
+
+<Steps>
+
+1. Install OpenTelemetry packages:
+
+   ```bash title="Install OpenTelemetry packages for Go"
+   go get go.opentelemetry.io/otel
+   go get go.opentelemetry.io/otel/sdk
+   go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
+   go get go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+   go get go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+   ```
+
+2. Configure OpenTelemetry in your Go application:
+
+   ```go title="Go — main.go telemetry setup"
+   package main
+
+   import (
+       "context"
+       "log"
+       "os"
+       
+       "go.opentelemetry.io/otel"
+       "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+       "go.opentelemetry.io/otel/sdk/resource"
+       "go.opentelemetry.io/otel/sdk/trace"
+       semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+   )
+
+   func initTracer() func() {
+       ctx := context.Background()
+       
+       // Get OTLP endpoint from environment
+       endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+       if endpoint == "" {
+           endpoint = "localhost:4317"
+       }
+
+       exporter, err := otlptracegrpc.New(ctx,
+           otlptracegrpc.WithEndpoint(endpoint),
+           otlptracegrpc.WithInsecure(),
+       )
+       if err != nil {
+           log.Fatal(err)
+       }
+
+       res := resource.NewWithAttributes(
+           semconv.SchemaURL,
+           semconv.ServiceNameKey.String("api"),
+       )
+
+       tp := trace.NewTracerProvider(
+           trace.WithBatcher(exporter),
+           trace.WithResource(res),
+       )
+       otel.SetTracerProvider(tp)
+
+       return func() { tp.Shutdown(ctx) }
+   }
+   ```
+
+3. Initialize telemetry at application startup:
+
+   ```go title="Go — Initialize telemetry"
+   func main() {
+       cleanup := initTracer()
+       defer cleanup()
+
+       // ... rest of your application
+   }
+   ```
+
+</Steps>
+
+</Pivot>
+<Pivot id="java">
+
+Java applications can send telemetry using OpenTelemetry:
+
+<Steps>
+
+1. Add OpenTelemetry dependencies to your `pom.xml` (Maven) or `build.gradle` (Gradle):
+
+   ```xml title="Maven — pom.xml"
+   <dependencies>
+       <dependency>
+           <groupId>io.opentelemetry</groupId>
+           <artifactId>opentelemetry-api</artifactId>
+           <version>1.32.0</version>
+       </dependency>
+       <dependency>
+           <groupId>io.opentelemetry</groupId>
+           <artifactId>opentelemetry-sdk</artifactId>
+           <version>1.32.0</version>
+       </dependency>
+       <dependency>
+           <groupId>io.opentelemetry</groupId>
+           <artifactId>opentelemetry-exporter-otlp</artifactId>
+           <version>1.32.0</version>
+       </dependency>
+   </dependencies>
+   ```
+
+2. For Spring Boot applications, the easiest approach is to use the OpenTelemetry Java agent:
+
+   Download the agent and add it to your application startup:
+
+   ```bash title="Run with OpenTelemetry Java agent"
+   java -javaagent:path/to/opentelemetry-javaagent.jar \
+        -Dotel.service.name=api \
+        -Dotel.exporter.otlp.endpoint=http://localhost:4317 \
+        -jar your-app.jar
+   ```
+
+3. In the AppHost, specify environment variables to configure the OpenTelemetry agent:
+
+   ```csharp title="apphost.cs — Configure Spring Boot with OTel agent"
+   var api = builder.AddSpringApp("api", "./api")
+       .WithHttpEndpoint(port: 8080)
+       .WithEnvironment("JAVA_TOOL_OPTIONS", 
+           "-javaagent:path/to/opentelemetry-javaagent.jar " +
+           "-Dotel.service.name=api");
    ```
 
 </Steps>
@@ -777,13 +1169,13 @@ When you add a hosting integration (like Redis) to your AppHost and reference it
    ```
 
    </Pivot>
-   <Pivot id="javascript">
+   <Pivot id="nodejs">
 
    ```bash title="Add Redis client to Node.js project"
    npm install redis
    ```
 
-   ```javascript title="JavaScript — Configure Redis client"
+   ```javascript title="Node.js — Configure Redis client"
    const redis = require('redis');
 
    // Aspire injects CACHE_HOST and CACHE_PORT
@@ -793,6 +1185,59 @@ When you add a hosting integration (like Redis) to your AppHost and reference it
        port: process.env.CACHE_PORT
      }
    });
+   ```
+
+   </Pivot>
+   <Pivot id="go">
+
+   ```bash title="Add Redis client to Go project"
+   go get github.com/redis/go-redis/v9
+   ```
+
+   ```go title="Go — Configure Redis client"
+   package main
+
+   import (
+       "context"
+       "os"
+       
+       "github.com/redis/go-redis/v9"
+   )
+
+   func newRedisClient() *redis.Client {
+       // Aspire injects CACHE_HOST and CACHE_PORT
+       host := os.Getenv("CACHE_HOST")
+       port := os.Getenv("CACHE_PORT")
+       
+       return redis.NewClient(&redis.Options{
+           Addr: host + ":" + port,
+       })
+   }
+   ```
+
+   </Pivot>
+   <Pivot id="java">
+
+   ```xml title="Maven — Add Jedis Redis client to pom.xml"
+   <dependency>
+       <groupId>redis.clients</groupId>
+       <artifactId>jedis</artifactId>
+       <version>5.1.0</version>
+   </dependency>
+   ```
+
+   ```java title="Java — Configure Redis client"
+   import redis.clients.jedis.Jedis;
+
+   public class RedisConfig {
+       public static Jedis createRedisClient() {
+           // Aspire injects CACHE_HOST and CACHE_PORT
+           String host = System.getenv("CACHE_HOST");
+           String port = System.getenv("CACHE_PORT");
+           
+           return new Jedis(host, Integer.parseInt(port));
+       }
+   }
    ```
 
    </Pivot>
@@ -918,7 +1363,7 @@ builder.Build().Run();
 - **Built-in dashboard** — Observability without additional tools like Prometheus/Grafana.
 - **Development and deployment** — Same orchestration code works locally and can generate Docker Compose or deploy anywhere.
 - **Integration libraries** — Pre-built support for databases, caches, message queues with best practices.
-- **Language-agnostic** — Works with C#, Python, JavaScript, many more, and containerized services.
+- **Language-agnostic** — Works with C#, Python, Node.js, Go, Java, many more, and containerized services.
 
 <Aside type="note">
 Aspire can even generate Docker Compose files for you! When you deploy with `aspire deploy`, you can target Docker Compose as a deployment option. See [Deploy your first Aspire app](/get-started/deploy-first-app/) for more details.
@@ -936,11 +1381,19 @@ Congratulations! You've successfully added Aspire to your existing application. 
   <Pivot id="python">
   - See [Standalone dashboard for Python](/dashboard/standalone-for-python/)
   </Pivot>
-  <Pivot id="javascript">
+  <Pivot id="nodejs">
   - See [Standalone dashboard for Node.js](/dashboard/standalone-for-nodejs/)
+  </Pivot>
+  <Pivot id="go">
+  - See [Go integration documentation](/integrations/frameworks/go-apps/)
+  </Pivot>
+  <Pivot id="java">
+  - See [Java integration documentation](/integrations/frameworks/java/)
   </Pivot>
 - **Deploy your app** — Follow the [Deploy your first app](/get-started/deploy-first-app/) tutorial to deploy your Aspire application
 - **Explore the dashboard** — Learn more about the [Aspire dashboard](/dashboard/overview/) and its features
 - **Learn about polyglot features**:
   - [Python support in Aspire](/whats-new/aspire-13/#python-as-a-first-class-citizen)
-  - [JavaScript support in Aspire](/whats-new/aspire-13/#javascript-as-a-first-class-citizen)
+  - [Node.js support in Aspire](/whats-new/aspire-13/#javascript-as-a-first-class-citizen)
+  - [Go support in the Community Toolkit](/integrations/frameworks/go-apps/)
+  - [Java support in the Community Toolkit](/integrations/frameworks/java/)
