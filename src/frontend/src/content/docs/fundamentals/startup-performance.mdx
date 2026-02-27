@@ -1,0 +1,246 @@
+---
+title: Startup performance
+description: Learn how to optimize Aspire application startup time, speed up NuGet restore, and reduce container pull delays.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire orchestrates multiple services and containers during local development, so startup times can add up when packages aren't cached, container images need to be pulled, or the build system isn't optimized. This guide covers practical strategies for improving the startup experience.
+
+## Understand startup phases
+
+Before optimizing, it helps to understand the three main phases of an Aspire startup:
+
+1. **NuGet restore** — downloading and caching NuGet packages referenced by AppHost and service projects
+2. **Build** — compiling your .NET projects
+3. **Container pull** — downloading container images (Redis, PostgreSQL, etc.) if they aren't cached locally
+
+Each phase has different optimization strategies.
+
+## Speed up NuGet restore
+
+The first time you build an Aspire project, NuGet must download all referenced packages. Subsequent restores use the local cache.
+
+### Use a local NuGet cache
+
+NuGet caches packages locally by default. To check your current cache location and size:
+
+```bash title="Bash — Check NuGet cache"
+dotnet nuget locals all --list
+```
+
+To clear a stale or corrupted cache:
+
+```bash title="Bash — Clear NuGet cache"
+dotnet nuget locals all --clear
+```
+
+<Aside type="tip">
+Clearing the NuGet cache forces a full re-download on the next restore. Only clear it when you suspect corruption or need to force a refresh of specific packages.
+</Aside>
+
+### Disable floating version ranges
+
+Using wildcard or floating version constraints (for example, `*` or `1.0.*`) forces NuGet to check for new versions on every restore, which adds latency. Pin to specific versions in your project files:
+
+```xml title="XML — MyAppHost.csproj"
+<!-- Slow: requires a remote check on every restore -->
+<PackageReference Include="Aspire.Hosting.Redis" Version="*" />
+
+<!-- Fast: resolves from local cache immediately -->
+<PackageReference Include="Aspire.Hosting.Redis" Version="9.3.1" />
+```
+
+### Use a NuGet feed mirror or proxy
+
+If your NuGet restore is slow because of network latency to nuget.org, consider configuring a closer mirror or a local proxy like [Azure Artifacts](https://learn.microsoft.com/azure/devops/artifacts/nuget/upstream-sources) or a corporate feed. Add the feed in a `nuget.config` at the solution root:
+
+```xml title="XML — nuget.config"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <!-- Optional: add a local or corporate mirror -->
+    <!-- <add key="local-mirror" value="https://pkgs.dev.azure.com/myorg/_packaging/myfeed/nuget/v3/index.json" /> -->
+  </packageSources>
+</configuration>
+```
+
+### Run restore before building
+
+When possible, pre-restore packages before starting the build, for example in a CI environment or when pulling a repository for the first time:
+
+```bash title="Bash — Pre-restore packages"
+dotnet restore MyApp.sln
+```
+
+## Speed up the build
+
+### Use incremental builds
+
+Aspire relies on standard MSBuild incremental builds. Ensure you're not inadvertently forcing full rebuilds by:
+
+- Not cleaning the output directory between runs during development
+- Avoiding `dotnet clean` before `aspire run` unless you have a specific reason
+
+### Reduce the number of projects
+
+Every project in your solution adds to the build time. Consider combining small utility libraries into larger shared projects during development if it doesn't affect your architecture.
+
+### Enable parallel builds
+
+MSBuild builds independent projects in parallel by default. If you have a large solution, ensure you're not accidentally limiting parallelism:
+
+```bash title="Bash — Build with maximum parallelism"
+dotnet build --maxcpucount
+```
+
+## Speed up container image pulls
+
+Container images can be large (several hundred MB to several GB). The first `aspire run` after adding a new container resource can be slow while images are pulled.
+
+### Pre-pull container images
+
+Before starting your development session, pull the images you need in advance:
+
+```bash title="Bash — Pre-pull Docker images"
+docker pull redis:latest
+docker pull postgres:16
+```
+
+### Pin container image versions
+
+Using `latest` or a floating tag forces the container runtime to check for updates. Pin to a specific digest or version tag to use the cached image:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Uses a specific version; Docker can use the cached layer
+var cache = builder.AddRedis("cache")
+    .WithImageTag("7.4");
+
+var db = builder.AddPostgres("postgres")
+    .WithImageTag("16.3");
+
+builder.Build().Run();
+```
+
+### Use persistent containers
+
+By default, Aspire creates and destroys containers on each run. Using [persistent containers](/app-host/persistent-containers/) keeps containers running between sessions, eliminating the startup cost of creating and initializing new containers:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+builder.Build().Run();
+```
+
+<Aside type="caution">
+Persistent containers retain data between runs, which can cause unexpected state during development. Only use persistent containers when you understand the implications for your workflow.
+</Aside>
+
+<LearnMore>
+For more information about persistent containers, see [Persistent containers](/app-host/persistent-containers/).
+</LearnMore>
+
+### Switch to a faster container runtime
+
+If Docker Desktop is slow on your machine, consider using an alternative OCI-compatible runtime:
+
+- **[Podman](https://podman.io/)** — A daemonless container runtime that can be faster on some systems.
+- **[Rancher Desktop](https://rancherdesktop.io/)** — Provides containerd or moby (Docker) as the runtime.
+
+<LearnMore>
+For supported container runtimes, see [Prerequisites](/get-started/prerequisites/).
+</LearnMore>
+
+## Optimize AppHost startup
+
+The AppHost itself starts quickly, but there are a few patterns that can improve the inner-loop experience.
+
+### Reduce the number of resources
+
+During early development, consider commenting out resources you don't need for your current task. For example, if you're working on a UI change, you may not need all backend services running:
+
+```csharp title="C# — AppHost.cs (reduced for UI development)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Comment out services not needed right now
+// var cache = builder.AddRedis("cache");
+// var worker = builder.AddProject<Projects.BackgroundWorker>("worker");
+
+var api = builder.AddProject<Projects.ApiService>("api");
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+### Profile startup with aspire doctor
+
+Use `aspire doctor` to identify common configuration issues that can slow startup:
+
+```bash title="Aspire CLI — Diagnose issues"
+aspire doctor
+```
+
+The command checks for certificate issues, container runtime availability, .NET SDK version compatibility, and other common problems.
+
+<LearnMore>
+For more information, see [`aspire doctor`](/reference/cli/commands/aspire-doctor/).
+</LearnMore>
+
+## Common slow startup scenarios
+
+### First run after cloning a repository
+
+The first run is always slower because NuGet packages aren't cached and container images haven't been pulled. To speed this up:
+
+<Steps>
+
+1. Run `dotnet restore` to pre-restore NuGet packages.
+1. Pull required container images with `docker pull`.
+1. Run `aspire run`.
+
+</Steps>
+
+### Slow restore in CI/CD environments
+
+CI/CD pipelines often start with a clean environment, which means NuGet packages and container images must be downloaded fresh on every run.
+
+**Cache NuGet packages between runs** using your CI system's cache feature. For example, in GitHub Actions:
+
+```yaml title="YAML — .github/workflows/ci.yml"
+- name: Cache NuGet packages
+  uses: actions/cache@v4
+  with:
+    path: ~/.nuget/packages
+    key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+    restore-keys: |
+      ${{ runner.os }}-nuget-
+```
+
+**Cache container images** or use a container registry mirror to avoid pulling from Docker Hub on every run.
+
+### Restore taking more than 2 minutes
+
+If restore consistently takes over 2 minutes even after the first run, check:
+
+- **NuGet cache is working**: Run `dotnet nuget locals all --list` to confirm the cache directory is accessible.
+- **No floating versions**: Search for `*` or `latest` version constraints in your project files.
+- **Network issues**: Try `dotnet restore --verbosity detailed` to see which packages are being downloaded and from which feeds.
+
+```bash title="Bash — Diagnose slow restore"
+dotnet restore --verbosity detailed 2>&1 | grep -E "(Restoring|OK|Error)"
+```
+
+## See also
+
+- [Persistent containers](/app-host/persistent-containers/)
+- [Launch profiles](/fundamentals/launch-profiles/)
+- [`aspire doctor`](/reference/cli/commands/aspire-doctor/)
+- [Prerequisites](/get-started/prerequisites/)

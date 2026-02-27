@@ -754,6 +754,18 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': 'Aspire 应用生命周期指南',
           },
         },
+        {
+          label: 'Debug Aspire apps',
+          slug: 'fundamentals/debug-aspire-apps',
+        },
+        {
+          label: 'Startup performance',
+          slug: 'fundamentals/startup-performance',
+        },
+        {
+          label: 'Hot reload and watch mode',
+          slug: 'fundamentals/hot-reload',
+        },
       ],
     },
     {
