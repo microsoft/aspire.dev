@@ -11,6 +11,7 @@ runtimes:
 steps:
   - name: Setup pnpm
     run: corepack enable && corepack install
+    working-directory: src/frontend
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
     working-directory: src/frontend
