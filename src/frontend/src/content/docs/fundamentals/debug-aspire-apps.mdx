@@ -29,9 +29,9 @@ Visual Studio offers the tightest Aspire integration. When you open an Aspire so
 
 <Steps>
 
-1. Open your Aspire solution (`.sln`) in Visual Studio.
+1. Open your Aspire solution (`.sln` or `.slnx`) in Visual Studio.
 1. Set the AppHost project as the startup project if it isn't already.
-1. Press **F5** or select **Debug** > **Start Debugging**.
+1. Press <Kbd windows='F5' /> or select **Debug** > **Start Debugging**.
 
 </Steps>
 
@@ -136,7 +136,7 @@ JetBrains Rider supports Aspire projects natively from Rider 2024.1. You can run
 
 1. Open your Aspire solution in Rider.
 1. In the **Run/Debug Configurations** dropdown, select the AppHost project configuration.
-1. Press **Shift+F9** or select **Run** > **Debug** to start debugging.
+1. Press <Kbd windows='Shift+F9' /> or select **Run** > **Debug** to start debugging.
 
 </Steps>
 
@@ -220,11 +220,13 @@ For projects that run as Linux containers, you can configure remote debugging:
 1. Add a development-time Dockerfile for your Linux service that includes the .NET debugger tools:
 
     ```dockerfile title="Dockerfile — Linux service with debugger"
-    FROM mcr.microsoft.com/dotnet/sdk:9.0 AS debug
+    FROM mcr.microsoft.com/dotnet/sdk:10.0 AS debug
     WORKDIR /app
     EXPOSE 4024
     # Install vsdbg (the .NET debugger)
-    RUN curl -sSL https://aka.ms/getvsdbg | bash /dev/stdin -v latest -l /vsdbg
+    RUN apt-get update \
+        && apt-get install -y unzip \
+        && curl -sSL https://aka.ms/getvsdbgsh | bash /dev/stdin -v latest -l /vsdbg
     ENTRYPOINT ["dotnet", "MyLinuxService.dll"]
     ```
 
