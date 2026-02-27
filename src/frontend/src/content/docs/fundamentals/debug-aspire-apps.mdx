@@ -217,11 +217,18 @@ For projects that run as Linux containers, you can configure remote debugging:
 
 <Steps>
 
-1. Add a development-time Dockerfile for your Linux service that includes the .NET debugger tools:
+1. Add a development-time Dockerfile for your Linux service that publishes in Debug configuration and includes the .NET debugger tools:
 
     ```dockerfile title="Dockerfile — Linux service with debugger"
-    FROM mcr.microsoft.com/dotnet/sdk:10.0 AS debug
+    FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+    WORKDIR /src
+    COPY . .
+    # Publish in Debug configuration so that .pdb files are included
+    RUN dotnet publish -c Debug -o /app/publish
+
+    FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS debug
     WORKDIR /app
+    COPY --from=build /app/publish .
     EXPOSE 4024
     # Install vsdbg (the .NET debugger)
     RUN apt-get update \
@@ -229,6 +236,8 @@ For projects that run as Linux containers, you can configure remote debugging:
         && curl -sSL https://aka.ms/getvsdbgsh | bash /dev/stdin -v latest -l /vsdbg
     ENTRYPOINT ["dotnet", "MyLinuxService.dll"]
     ```
+
+    Building with `-c Debug` ensures `.pdb` symbol files are published alongside the assemblies, which are required for the remote debugger to map execution back to your source code.
 
 1. In your AppHost, reference the container and expose the debug port:
 
