@@ -849,6 +849,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'ClickHouse',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/clickhouse/clickhouse-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/clickhouse/clickhouse-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/clickhouse/clickhouse-client',
+            },
+          ],
+        },
+        {
           label: 'Elasticsearch',
           collapsed: true,
           items: [
