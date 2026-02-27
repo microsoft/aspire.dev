@@ -90,7 +90,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Довідник API',
         'zh-CN': 'API参考',
       },
-      collapsed: false,
+      collapsed: true,
       items: [
         {
           label: 'Browse APIs',
@@ -389,7 +389,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Діагностика',
         'zh-CN': '诊断',
       },
-      collapsed: false,
+      collapsed: true,
       items: [
         { label: 'Overview', link: '/diagnostics/overview' },
         {
