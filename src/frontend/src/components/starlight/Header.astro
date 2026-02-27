@@ -1,205 +1,232 @@
 ---
-import DefaultHeader from "@astrojs/starlight/components/Header.astro";
-
-import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
-import SocialIcons from "@components/starlight/SocialIcons.astro";
-import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
-import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
-import Search from "@astrojs/starlight/components/Search.astro";
-
-import { isHomepage } from "@utils/helpers";
+import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
+import Search from '@astrojs/starlight/components/Search.astro';
+import { Icon } from '@astrojs/starlight/components';
+import InstallCliModal from '@components/InstallCliModal.astro';
+import CookiesSvg from '@assets/icons/cookies.svg';
 ---
 
-{
-    isHomepage(Astro) ? (
-        <div class="header">
-            <div class="title-wrapper sl-flex" data-homepage-title>
-                <SiteTitle />
-            </div>
-            <div class="sl-flex print:hidden homepage-search" data-homepage-search>
-                <Search />
-            </div>
-            <div class="sl-hidden md:sl-flex print:hidden right-group">
-                <div class="sl-flex social-icons">
-                    <SocialIcons />
-                </div>
-                <ThemeSelect />
-                <LanguageSelect />
-            </div>
-        </div>
-    ) : (
-        <DefaultHeader>
-            <slot />
-        </DefaultHeader>
-    )
-}
-
-<script>
-    // Store the AbortController to manage scroll listener lifecycle
-    let scrollController: AbortController | null = null;
-
-    function initHomepageHeader() {
-        // Abort any existing scroll listener before setting up a new one
-        if (scrollController) {
-            scrollController.abort();
-        }
-        scrollController = new AbortController();
-
-        const searchWrapper = document.querySelector('[data-homepage-search]');
-        const titleWrapper = document.querySelector('[data-homepage-title]');
-        const siteTitleText = titleWrapper?.querySelector('.site-title .sr-only');
-        if (!searchWrapper && !siteTitleText) return;
-
-        const hero = document.querySelector('.hero');
-        if (!hero) {
-            // If no hero found, show elements immediately
-            searchWrapper?.classList.add('visible');
-            siteTitleText?.classList.add('visible');
-            return;
-        }
-
-        function checkScroll() {
-            const heroRect = hero.getBoundingClientRect();
-            // Show elements when the bottom of the hero is at or above the top of the viewport
-            if (heroRect.bottom <= 0) {
-                searchWrapper?.classList.add('visible');
-                siteTitleText?.classList.add('visible');
-            } else {
-                searchWrapper?.classList.remove('visible');
-                siteTitleText?.classList.remove('visible');
-            }
-        }
-
-        let ticking = false;
-        function onScroll() {
-            if (!ticking) {
-                ticking = true;
-                window.requestAnimationFrame(() => {
-                    checkScroll();
-                    ticking = false;
-                });
-            }
-        }
-
-        // Check on initial load
-        checkScroll();
-
-        // Check on scroll (throttled with requestAnimationFrame)
-        // Use AbortController signal to automatically remove listener when aborted
-        window.addEventListener('scroll', onScroll, {
-            passive: true,
-            signal: scrollController!.signal,
-        });
-    }
-
-    // Run on initial load
-    initHomepageHeader();
-
-    // Re-run on Astro page transitions (View Transitions)
-    document.addEventListener('astro:after-swap', initHomepageHeader);
-</script>
+<div class="header">
+  <div class="title-wrapper sl-flex">
+    <SiteTitle />
+  </div>
+  <div class="sl-flex print:hidden">
+    <Search />
+  </div>
+  <div class="sl-hidden md:sl-flex print:hidden right-group">
+    <button
+      type="button"
+      class="header-icon-btn cookie-consent-btn"
+      data-cc="show-preferencesModal"
+      title="Cookie preferences"
+      data-placement="top"
+      aria-label="Open cookie preferences dialog"
+    >
+      <span class="sr-only">Cookie Preferences</span>
+      <CookiesSvg />
+    </button>
+    <button
+      class="header-icon-btn install-cli-btn"
+      data-open-install-modal
+      title="Install Aspire CLI"
+      data-placement="top"
+      aria-label="Open install Aspire CLI dialog"
+    >
+      <span class="sr-only">Install Aspire CLI</span>
+      <Icon name="download" />
+    </button>
+    <a href="/docs/" class="docs-btn">Docs</a>
+    <a href="/get-started/first-app/" class="try-aspire-btn">Try Aspire</a>
+  </div>
+  <div class="sl-flex md:sl-hidden print:hidden right-group-mobile">
+    <a href="/docs/" class="docs-btn-mobile">Docs</a>
+    <a href="/get-started/first-app/" class="try-aspire-btn-mobile">Try</a>
+  </div>
+</div>
+<InstallCliModal />
 
 <style>
-    .homepage-search {
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s ease;
+  @layer starlight.core {
+    .header {
+      display: flex;
+      gap: var(--sl-nav-gap);
+      justify-content: space-between;
+      align-items: center;
+      height: 100%;
     }
 
-    .homepage-search.visible {
-        opacity: 1;
-        pointer-events: auto;
+    .title-wrapper {
+      /* Prevent long titles overflowing and covering the search and menu buttons on narrow viewports. */
+      overflow: clip;
+      /* Avoid clipping focus ring around link inside title wrapper. */
+      padding: 0.25rem;
+      margin: -0.25rem;
+      min-width: 0;
     }
 
-    /* Site title text - hidden by default on homepage, shown when scrolling */
-    /* Use :global() to escape Astro's scoped CSS since .sr-only is in SiteTitle component */
-    [data-homepage-title] :global(a.site-title .sr-only.visible) {
-        position: initial !important;
-        width: auto !important;
-        height: auto !important;
-        margin: initial !important;
-        padding: initial !important;
-        clip: auto !important;
-        overflow: visible !important;
-        white-space: normal !important;
+    .right-group,
+    .social-icons {
+      gap: 0.5rem;
+      align-items: center;
     }
 
-    @layer starlight.core {
-        .header {
-            display: flex;
-            gap: var(--sl-nav-gap);
-            justify-content: space-between;
-            align-items: center;
-            height: 100%;
-        }
+    .social-icons::after {
+      content: '';
+      height: 2rem;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+    }
 
-        .title-wrapper {
-            /* Prevent long titles overflowing and covering the search and menu buttons on narrow viewports. */
-            overflow: clip;
-            /* Avoid clipping focus ring around link inside title wrapper. */
-            padding: 0.25rem;
-            margin: -0.25rem;
-            min-width: 0;
-        }
+    .docs-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1.25rem;
+      background: transparent;
+      border: 1px solid var(--sl-color-gray-5);
+      color: var(--sl-color-text-accent);
+      font-weight: 600;
+      font-size: var(--sl-text-sm);
+      text-decoration: none;
+      border-radius: 0.5rem;
+      transition:
+        background-color 0.2s ease,
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+      white-space: nowrap;
+    }
 
-        .right-group,
-        .social-icons {
-            gap: 1rem;
-            align-items: center;
-        }
-        
-        .social-icons::after {
-            content: "";
-            height: 2rem;
-            border-inline-end: 1px solid var(--sl-color-gray-5);
-        }
+    .docs-btn:hover {
+      background: var(--sl-color-gray-6);
+      transform: scale(1.05);
+    }
 
-        @media (max-width: 1200px)  {
-            :global(.social-icons) {
-                display: none !important;
-            }
-        }
+    :global([data-theme='light']) .docs-btn {
+      color: #684cc6;
+    }
 
-        @media (min-width: 50rem) {
-            :global(:root[data-has-sidebar]) {
-                --__sidebar-pad: calc(2 * var(--sl-nav-pad-x));
-            }
-            :global(:root:not([data-has-toc])) {
-                --__toc-width: 0rem;
-            }
-            .header {
-                --__sidebar-width: max(
-                    0rem,
-                    var(--sl-content-inline-start, 0rem) - var(--sl-nav-pad-x)
-                );
-                --__main-column-fr: calc(
-                    (
-                            100% + var(--__sidebar-pad, 0rem) -
-                                var(--__toc-width, var(--sl-sidebar-width)) -
-                                (2 * var(--__toc-width, var(--sl-nav-pad-x))) -
-                                var(--sl-content-inline-start, 0rem) -
-                                var(--sl-content-width)
-                        ) / 2
-                );
-                display: grid;
-                grid-template-columns:
+    .header-icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.5rem;
+      color: var(--sl-color-text-accent);
+      transition:
+        opacity 0.2s ease,
+        transform 0.15s ease;
+    }
+
+    .header-icon-btn:hover {
+      opacity: 0.7;
+      transform: scale(1.05);
+    }
+
+    .header-icon-btn :global(svg) {
+      --sl-icon-size: 1.25rem !important;
+    }
+
+    .install-cli-btn :global(svg) {
+      --sl-icon-size: 1.5rem !important;
+    }
+
+    .try-aspire-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1.25rem;
+      background: var(--aspire-color-light, #dcd5f6);
+      border: 1px solid var(--sl-color-gray-5);
+      color: var(--aspire-color-black, #1f1e33);
+      font-weight: 600;
+      font-size: var(--sl-text-sm);
+      text-decoration: none;
+      border-radius: 0.5rem;
+      transition:
+        background-color 0.2s ease,
+        transform 0.15s ease,
+        box-shadow 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .try-aspire-btn:hover {
+      background: var(--aspire-color-primary, #7455dd);
+      color: var(--aspire-color-white, #fff);
+      box-shadow: 0 4px 12px rgba(116, 85, 221, 0.4);
+    }
+
+    .right-group-mobile {
+      gap: 0.375rem;
+      align-items: center;
+    }
+
+    .docs-btn-mobile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.375rem 0.75rem;
+      background: transparent;
+      border: 1px solid var(--sl-color-gray-5);
+      color: var(--sl-color-text-accent);
+      font-weight: 600;
+      font-size: var(--sl-text-xs);
+      text-decoration: none;
+      border-radius: 0.375rem;
+      white-space: nowrap;
+    }
+
+    .try-aspire-btn-mobile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.375rem 0.75rem;
+      background: var(--aspire-color-light, #dcd5f6);
+      border: 1px solid var(--sl-color-gray-5);
+      color: var(--aspire-color-black, #1f1e33);
+      font-weight: 600;
+      font-size: var(--sl-text-xs);
+      text-decoration: none;
+      border-radius: 0.375rem;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1200px) {
+      :global(.social-icons) {
+        display: none !important;
+      }
+    }
+
+    @media (min-width: 50rem) {
+      :global(:root[data-has-sidebar]) {
+        --__sidebar-pad: calc(2 * var(--sl-nav-pad-x));
+      }
+      :global(:root:not([data-has-toc])) {
+        --__toc-width: 0rem;
+      }
+      .header {
+        --__sidebar-width: max(0rem, var(--sl-content-inline-start, 0rem) - var(--sl-nav-pad-x));
+        --__main-column-fr: calc(
+          (
+              100% + var(--__sidebar-pad, 0rem) - var(--__toc-width, var(--sl-sidebar-width)) -
+                (2 * var(--__toc-width, var(--sl-nav-pad-x))) -
+                var(--sl-content-inline-start, 0rem) - var(--sl-content-width)
+            ) /
+            2
+        );
+        display: grid;
+        grid-template-columns:
         /* 1 (site title): runs up until the main content column’s left edge or the width of the title, whichever is the largest  */
-                    minmax(
-                        calc(
-                            var(--__sidebar-width) +
-                                max(
-                                    0rem,
-                                    var(--__main-column-fr) - var(--sl-nav-gap)
-                                )
-                        ),
-                        auto
-                    )
-                    /* 2 (search box): all free space that is available. */
-                    1fr
-                    /* 3 (right items): use the space that these need. */
-                    auto;
-                align-content: center;
-            }
-        }
+          minmax(
+            calc(var(--__sidebar-width) + max(0rem, var(--__main-column-fr) - var(--sl-nav-gap))),
+            auto
+          )
+          /* 2 (search box): all free space that is available. */
+          1fr
+          /* 3 (right items): use the space that these need. */
+          auto;
+        align-content: center;
+      }
     }
+  }
 </style>

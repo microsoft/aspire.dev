@@ -53,4 +53,7 @@ export const redirects = {
   '/integrations/cloud/azure/azure-storage-queues/': '/integrations/cloud/azure/azure-storage-queues/azure-storage-queues-get-started/',
   '/integrations/cloud/azure/azure-storage-tables/': '/integrations/cloud/azure/azure-storage-tables/azure-storage-tables-get-started/',
   '/integrations/cloud/azure/azure-web-pubsub/': '/integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started/',
+  '/reference/cli/commands/aspire-mcp/': '/reference/cli/commands/aspire-agent/',
+  '/reference/cli/commands/aspire-mcp-init/': '/reference/cli/commands/aspire-agent-init/',
+  '/reference/cli/commands/aspire-mcp-start/': '/reference/cli/commands/aspire-agent-mcp/',
 };

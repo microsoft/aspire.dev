@@ -1,0 +1,120 @@
+---
+title: aspire wait command
+description: Learn about the aspire wait command which blocks until a named resource reaches a target status, with a configurable timeout.
+sidebar:
+  badge: Preview
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire wait` - Wait for a resource to reach a target status.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire wait <resource> [options]
+```
+
+## Description
+
+The `aspire wait` command blocks until a named resource within a running AppHost reaches a target status. This is useful for CI/CD pipelines and automation workflows where you need to wait for resources to be ready after starting an AppHost with `aspire run --detach`.
+
+The command connects to a running AppHost via the backchannel and streams resource state changes in real-time. It validates that the specified resource exists before entering the wait loop, so typos in resource names are caught immediately rather than causing a silent timeout.
+
+When executed without the `--project` option, the command:
+
+1. Scans for all running AppHost processes.
+2. If multiple AppHosts are running within the current directory scope, prompts you to select which one to target.
+3. If only one AppHost is running in scope, connects to it directly.
+4. If no in-scope AppHosts are found but out-of-scope AppHosts exist, displays all running AppHosts for selection.
+
+## Arguments
+
+- **`<resource>`**
+
+  The name of the resource to wait for. This must match the name of a resource defined in the running AppHost.
+
+## Options
+
+The following options are available:
+
+- **`--status <healthy|up|down>`**
+
+  The target status to wait for. Defaults to `healthy`. The following values are supported:
+
+  | Value | Condition |
+  |-------|-----------|
+  | `healthy` | Resource is running and healthy, or running with no health checks configured |
+  | `up` | Resource is running, regardless of health status |
+  | `down` | Resource has finished, exited, or failed to start |
+
+  Values are case-insensitive.
+
+- **`--timeout <seconds>`**
+
+  The maximum number of seconds to wait for the resource to reach the target status. Defaults to `120`. Must be a positive integer.
+
+- **`--project <path>`**
+
+  The path to the Aspire AppHost project file. When specified, the command connects to the AppHost running from that project file without prompting for selection.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-debug.md" />
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Resource reached the target status |
+| 7 | No running AppHost found |
+| 17 | Timeout exceeded before the resource reached the target status |
+| 18 | Resource entered a failed or terminal state while waiting for `up` or `healthy` |
+
+## Examples
+
+- Wait for a resource to be healthy (default):
+
+  ```bash title="Aspire CLI"
+  aspire wait webfrontend
+  ```
+
+- Wait for a resource to be running:
+
+  ```bash title="Aspire CLI"
+  aspire wait mydb --status up
+  ```
+
+- Wait for a resource to stop:
+
+  ```bash title="Aspire CLI"
+  aspire wait worker --status down
+  ```
+
+- Wait with a custom timeout of 60 seconds:
+
+  ```bash title="Aspire CLI"
+  aspire wait webfrontend --timeout 60
+  ```
+
+- Target a specific AppHost project:
+
+  ```bash title="Aspire CLI"
+  aspire wait mydb --project './src/MyApp.AppHost/MyApp.AppHost.csproj'
+  ```
+
+- Use with `aspire run --detach` in a CI/CD pipeline:
+
+  ```bash title="Aspire CLI"
+  aspire run --detach
+  aspire wait webfrontend
+  aspire wait mydb --status healthy
+  ```
+
+## See also
+
+- [aspire run](/reference/cli/commands/aspire-run/)
+- [aspire ps](/reference/cli/commands/aspire-ps/)
+- [aspire stop](/reference/cli/commands/aspire-stop/)

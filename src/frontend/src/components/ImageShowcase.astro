@@ -1,0 +1,140 @@
+---
+/**
+ * ImageShowcase — Split section with text on one side and a zoomable image on the other.
+ * Great for highlighting dashboard screenshots, diagrams, etc.
+ */
+import { Icon } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { Zoom } from 'starlight-image-zoom/components';
+
+interface Props {
+  title: string;
+  description: string;
+  image: ImageMetadata;
+  imageAlt: string;
+  imagePosition?: 'left' | 'right';
+  cta?: { label: string; href: string };
+}
+
+const { title, description, image, imageAlt, imagePosition = 'right', cta } = Astro.props;
+---
+
+<section class:list={['image-showcase not-content', { reversed: imagePosition === 'left' }]}>
+  <div class="showcase-text">
+    <h3 class="showcase-title">{title}</h3>
+    <p class="showcase-desc">{description}</p>
+    {
+      cta && (
+        <a href={cta.href} class="showcase-cta">
+          {cta.label}
+          <Icon name="right-arrow" size="0.85rem" />
+        </a>
+      )
+    }
+  </div>
+  <div class="showcase-image">
+    <Zoom label={imageAlt}>
+      <Image src={image} alt={imageAlt} loading="lazy" />
+    </Zoom>
+  </div>
+</section>
+
+<style>
+  .image-showcase {
+    display: grid;
+    grid-template-columns: 3fr 8fr;
+    gap: 2rem;
+    align-items: center;
+    margin: 2rem 0;
+    padding: 1.5rem 0;
+  }
+
+  .image-showcase.reversed {
+    direction: rtl;
+  }
+
+  .image-showcase.reversed > * {
+    direction: ltr;
+  }
+
+  .showcase-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 0.4rem;
+    color: var(--sl-color-text);
+    line-height: 1.2;
+  }
+
+  .showcase-desc {
+    font-size: 0.825rem;
+    line-height: 1.55;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 0.75rem;
+  }
+
+  :global([data-theme='light']) .showcase-desc {
+    color: var(--sl-color-gray-2);
+  }
+
+  .showcase-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--aspire-color-secondary);
+    text-decoration: none;
+    transition: gap 0.2s ease;
+  }
+
+  :global([data-theme='light']) .showcase-cta {
+    color: var(--aspire-color-primary);
+  }
+
+  .showcase-cta:hover {
+    gap: 0.6rem;
+    text-decoration: underline;
+  }
+
+  .showcase-image {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--sl-color-gray-5);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .showcase-image :global(starlight-image-zoom-zoomable) {
+    display: block;
+    line-height: 0;
+  }
+
+  .showcase-image :global(starlight-image-zoom-zoomable figure) {
+    margin: 0;
+    line-height: 0;
+  }
+
+  .showcase-image :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  @media (max-width: 768px) {
+    .image-showcase {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    .image-showcase.reversed {
+      direction: ltr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .showcase-cta {
+      transition: none;
+    }
+  }
+</style>

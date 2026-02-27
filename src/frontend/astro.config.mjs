@@ -35,14 +35,15 @@ export default defineConfig({
     }),
     starlight({
       title: 'Aspire',
+      routeMiddleware: ['./src/route-data-middleware'],
       defaultLocale: 'root',
       locales,
       logo: {
         src: './src/assets/aspire-logo-32.svg',
-        replacesTitle: true,
+        replacesTitle: false,
       },
       editLink: {
-        baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
+        baseUrl: 'https://github.com/microsoft/aspire.dev/main/src/frontend/',
       },
       favicon: 'favicon.svg',
       head: headAttrs,
@@ -67,6 +68,7 @@ export default defineConfig({
       },
       plugins: [
         starlightPageActions({
+          share: true,
           actions: {
             chatgpt: false,
             claude: false,
@@ -75,14 +77,14 @@ export default defineConfig({
                 label: 'Open in GitHub Copilot',
                 href: 'https://github.com/copilot/?prompt=',
               },
+              claude: {
+                label: 'Open in Claude',
+                href: 'https://claude.ai/new?q=',
+              },
               chatGpt: {
                 label: 'Open in ChatGPT',
                 href: 'https://chatgpt.com/?q=',
               },
-              claude: {
-                label: 'Open in Claude',
-                href: 'https://claude.ai/new?q=',
-              }
             },
           },
         }),
@@ -97,6 +99,7 @@ export default defineConfig({
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
+                exclude: ['/i18n/'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
@@ -134,12 +137,16 @@ export default defineConfig({
             'index',
             '404',
             'docs',
+            'dashboard/index',
+            'deployment/index',
+            'community/index',
+            'integrations/index',
             'integrations/gallery',
             'reference/overview',
             'reference/api/browser',
             'community/contributors',
-            'community/posts',
             'community/videos',
+            'community/thanks',
             'da/**',
             'de/**',
             'es/**',
@@ -161,6 +168,7 @@ export default defineConfig({
           showCaptions: true,
         }),
         starlightKbd({
+          globalPicker: false, // We manually place the picker in the footer preferences
           types: [
             { id: 'mac', label: 'macOS', detector: 'apple' },
             { id: 'windows', label: 'Windows', detector: 'windows', default: true },

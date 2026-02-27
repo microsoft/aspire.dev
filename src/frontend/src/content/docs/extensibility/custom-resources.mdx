@@ -1,0 +1,292 @@
+---
+title: Aspire custom resources
+description: Learn how to create custom resource types for the Aspire app host to model your application's unique infrastructure components.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Creating custom resources allows you to extend Aspire to model components that aren't covered by built-in integrations. This guide covers the patterns and APIs for building your own resource types.
+
+## Resource fundamentals
+
+All Aspire resources implement the `IResource` interface, which requires a `Name` property. The base `Resource` class provides a simple implementation you can inherit from.
+
+### Basic resource definition
+
+The simplest custom resource is a class that inherits from `Resource`:
+
+```csharp title="MailDevResource.cs"
+public sealed class MailDevResource(string name) : Resource(name);
+```
+
+This creates a resource that can be added to the app model but doesn't have any special behavior. You'll typically want to implement additional interfaces to add capabilities.
+
+## Common resource interfaces
+
+Aspire provides several interfaces that give resources specific capabilities:
+
+| Interface | Purpose |
+|-----------|---------|
+| `IResourceWithConnectionString` | Resource exposes a connection string for consumers |
+| `IResourceWithEndpoints` | Resource has network endpoints |
+| `IResourceWithEnvironment` | Resource can configure environment variables |
+| `IResourceWithArgs` | Resource accepts command-line arguments |
+| `IResourceWithWaitSupport` | Resource supports `WaitFor` orchestration |
+| `IResourceWithParent` | Resource has a parent resource (lifecycle binding) |
+
+### Implementing IResourceWithConnectionString
+
+Resources that expose connection strings for client applications should implement `IResourceWithConnectionString`:
+
+```csharp title="MailDevResource.cs"
+public sealed class MailDevResource(string name, EndpointReference smtpEndpoint) 
+    : Resource(name), IResourceWithConnectionString
+{
+    public ReferenceExpression ConnectionStringExpression =>
+        ReferenceExpression.Create(
+            $"smtp://{smtpEndpoint.Property(EndpointProperty.Host)}:{smtpEndpoint.Property(EndpointProperty.Port)}");
+}
+```
+
+For resources with authentication, include credentials in the connection string:
+
+```csharp title="InfluxDbResource.cs"
+public sealed class InfluxDbResource : Resource, IResourceWithConnectionString
+{
+    private readonly EndpointReference _endpoint;
+    private readonly ParameterResource _token;
+
+    public InfluxDbResource(
+        string name,
+        EndpointReference endpoint,
+        ParameterResource token) : base(name)
+    {
+        _endpoint = endpoint;
+        _token = token;
+    }
+
+    public ReferenceExpression ConnectionStringExpression =>
+        ReferenceExpression.Create(
+            $"Endpoint={_endpoint.Property(EndpointProperty.UriString)};" +
+            $"Token={_token}");
+}
+```
+
+## Creating extension methods
+
+By convention, resources are added to the app model via extension methods on `IDistributedApplicationBuilder`:
+
+```csharp title="MailDevExtensions.cs"
+public static class MailDevExtensions
+{
+    public static IResourceBuilder<MailDevResource> AddMailDev(
+        this IDistributedApplicationBuilder builder,
+        [ResourceName] string name,
+        int? smtpPort = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(name);
+
+        var resource = new MailDevResource(name);
+        
+        return builder.AddResource(resource)
+            .WithImage("maildev/maildev", "2.1.0")
+            .WithHttpEndpoint(targetPort: 1080, name: "http")
+            .WithEndpoint(targetPort: 1025, port: smtpPort, name: "smtp");
+    }
+}
+```
+
+The `[ResourceName]` attribute enables IDE tooling and validation for resource names.
+
+## Adding resource behavior
+
+Resources are data containers by default. To add runtime behavior, use one of these approaches:
+
+### Using eventing subscribers
+
+The recommended approach for adding lifecycle behavior is implementing `IDistributedApplicationEventingSubscriber`:
+
+```csharp title="MailDevEventingSubscriber.cs"
+public sealed class MailDevEventingSubscriber(
+    ResourceNotificationService notification,
+    ResourceLoggerService loggerService) 
+    : IDistributedApplicationEventingSubscriber
+{
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        eventing.Subscribe<AfterResourcesCreatedEvent>(async (@event, ct) =>
+        {
+            foreach (var resource in context.Model.Resources.OfType<MailDevResource>())
+            {
+                var logger = loggerService.GetLogger(resource);
+                logger.LogInformation("MailDev server ready at {Name}", resource.Name);
+
+                await notification.PublishUpdateAsync(resource, s => s with
+                {
+                    State = KnownResourceStates.Running,
+                    StartTimeStamp = DateTime.UtcNow
+                });
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+}
+```
+
+<LearnMore>
+For the full list of available events and advanced patterns, see [AppHost eventing](/app-host/eventing/).
+</LearnMore>
+
+Register the subscriber in your extension method:
+
+```csharp title="MailDevExtensions.cs"
+public static IResourceBuilder<MailDevResource> AddMailDev(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name,
+    int? smtpPort = null)
+{
+    builder.Services.TryAddEventingSubscriber<MailDevEventingSubscriber>();
+    
+    var resource = new MailDevResource(name);
+    return builder.AddResource(resource);
+}
+```
+
+### Using inline event subscriptions
+
+For simpler cases, you can subscribe to events directly on the resource builder:
+
+```csharp title="AppHost.cs"
+public static IResourceBuilder<MailDevResource> AddMailDev(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name)
+{
+    var resource = new MailDevResource(name);
+    
+    builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(resource, async (@event, ct) =>
+    {
+        // Initialize mail server, create test mailboxes, etc.
+    });
+    
+    return builder.AddResource(resource);
+}
+```
+
+## Resource state management
+
+Use `ResourceNotificationService` to publish state updates that appear in the dashboard:
+
+```csharp title="Publishing state updates"
+await notification.PublishUpdateAsync(resource, state => state with
+{
+    State = KnownResourceStates.Running,
+    StartTimeStamp = DateTime.UtcNow
+});
+```
+
+### Well-known states
+
+Aspire provides several well-known states in `KnownResourceStates`:
+
+- `NotStarted` - Resource hasn't started yet
+- `Starting` - Resource is initializing
+- `Running` - Resource is operational
+- `Stopping` - Resource is shutting down
+- `Exited` - Resource has stopped
+- `FailedToStart` - Resource failed during startup
+- `Waiting` - Resource is waiting for dependencies
+- `Hidden` - Resource is hidden from the dashboard
+
+### Custom states
+
+You can create custom states using `ResourceStateSnapshot`:
+
+```csharp title="Custom state example"
+await notification.PublishUpdateAsync(resource, state => state with
+{
+    State = new ResourceStateSnapshot("Indexing", KnownResourceStateStyles.Info)
+});
+```
+
+## Initial state configuration
+
+Set the initial dashboard appearance using `WithInitialState`:
+
+```csharp title="Setting initial state"
+return builder.AddResource(resource)
+    .WithInitialState(new CustomResourceSnapshot
+    {
+        ResourceType = "MailDev",
+        CreationTimeStamp = DateTime.UtcNow,
+        State = KnownResourceStates.NotStarted,
+        Properties = [
+            new(CustomResourceKnownProperties.Source, "MailDev SMTP Server")
+        ]
+    });
+```
+
+## Excluding from manifest
+
+If your resource is for local development only, exclude it from deployment manifests:
+
+```csharp title="Excluding from deployment"
+return builder.AddResource(resource)
+    .ExcludeFromManifest();
+```
+
+## Resource relationships
+
+Use relationships to organize how resources appear in the dashboard:
+
+### WithRelationship
+
+Create custom relationships between resources for visual organization:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api");
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithRelationship(api.Resource, "publishes-to");
+```
+
+### WithChildRelationship
+
+Group related resources under a parent in the dashboard:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres");
+var catalogDb = postgres.AddDatabase("catalog");
+
+// Custom resources can establish parent-child relationships:
+var mailDev = builder.AddMailDev("mail")
+    .WithChildRelationship(catalogDb);
+```
+
+<LearnMore>
+For more on how the Aspire Dashboard displays resources, see [Dashboard overview](/dashboard/overview/).
+</LearnMore>
+
+## Custom icons
+
+Use `WithIconName` to display a custom icon for your resource in the dashboard. Any [Fluent UI system icon](https://github.com/microsoft/fluentui-system-icons/blob/main/icons_filled.md) can be used:
+
+```csharp title="Setting custom dashboard icons"
+return builder.AddResource(resource)
+    .WithIconName("mail");  // Uses the "mail" Fluent UI icon
+
+// Or specify a variant (Filled is default, Regular is outline-only)
+return builder.AddResource(resource)
+    .WithIconName("mail", IconVariant.Regular);
+```
+
+## See also
+
+- [AppHost eventing](/app-host/eventing/) - Lifecycle events and subscribers
+- [Resource annotations](/fundamentals/annotations-overview/) - Creating and using annotations
+- [Resource examples](/architecture/resource-examples/) - Real-world custom resource examples
+- [Custom resource commands](/fundamentals/custom-resource-commands/) - Adding dashboard commands

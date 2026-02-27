@@ -1,7 +1,6 @@
 ---
 title: Docker integration
 description: Learn how to use the Aspire Docker hosting integration to deploy your app with Docker Compose.
-prev: false
 ---
 
 import InstallPackage from '@components/InstallPackage.astro';
@@ -71,7 +70,8 @@ The preceding code:
 - Adds a Redis cache service that will be included in the Docker Compose deployment
 - Adds an API service project that will be containerized and included in the deployment
 - Adds a web application that references both the cache and API service
-- Configures all services to be published as Docker Compose services using `PublishAsDockerComposeService`
+
+When a Docker Compose environment is present, all resources are automatically published as Docker Compose services — no additional opt-in is required.
 
 <Aside type="tip">
   With the `compose` variable assigned, you can pass that to the
@@ -214,6 +214,73 @@ builder.AddDockerComposeEnvironment("compose")
 ```
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
+
+### Customize a Docker Compose service
+
+To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+builder.AddContainer("cache", "redis", "latest")
+    .PublishAsDockerComposeService((resource, service) =>
+    {
+        // Customize the generated Docker Compose service
+        service.Labels.Add("com.example.team", "backend");
+    });
+
+builder.Build().Run();
+```
+
+The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, or other Docker Compose service settings.
+
+## Configure image pull policy
+
+Container resources support an `ImagePullPolicy` that controls when the container runtime pulls an image. The following policies are available:
+
+| Policy | Description |
+|--------|-------------|
+| `Default` | Uses the container runtime's default behavior. |
+| `Always` | Always pulls the image, even if it already exists locally. |
+| `Missing` | Pulls the image only if it doesn't already exist locally. |
+| `Never` | Never pulls the image from a registry. The image must already exist locally. |
+
+Use the `WithImagePullPolicy` extension method to set the policy on a container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("mycontainer", "myimage:latest")
+    .WithImagePullPolicy(ImagePullPolicy.Always);
+```
+
+### Use `Never` with locally-built images
+
+The `Never` policy is useful when working with locally-built images that shouldn't be pulled from a registry. For example, when using a Dockerfile-based resource that you build and tag locally:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "my-local-image:dev")
+    .WithImagePullPolicy(ImagePullPolicy.Never);
+```
+
+<Aside type="tip">
+  The `Never` policy was added in Aspire 13.2. If the image isn't available locally when using this policy, the container will fail to start.
+</Aside>
+
+### Image pull policy in Docker Compose
+
+When you publish resources to a Docker Compose environment, the `ImagePullPolicy` set with `WithImagePullPolicy` is automatically mapped to the Docker Compose [`pull_policy`](https://docs.docker.com/reference/compose-file/services/#pull_policy) field on the generated service:
+
+| `ImagePullPolicy` | Docker Compose `pull_policy` |
+|--------------------|------------------------------|
+| `Always` | `always` |
+| `Missing` | `missing` |
+| `Never` | `never` |
+| `Default` | _(omitted — uses runtime default)_ |
 
 ## Customize container image push options
 

@@ -1,0 +1,219 @@
+---
+/**
+ * TerminalShowcase — A full-width CLI-hero inspired by cli.github.com.
+ * Wraps an AsciinemaPlayer in a themed terminal window chrome
+ * with a highlight title, description, and optional CTA arranged
+ * in a modern stacked layout.
+ */
+import { Icon } from '@astrojs/starlight/components';
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+
+interface Props {
+  title: string;
+  highlight?: string;
+  description?: string;
+  cast: string;
+  poster?: string;
+  rows?: number;
+  cta?: { label: string; href: string };
+}
+
+const { title, highlight, description, cast, poster = 'npt:0:03', rows = 12, cta } = Astro.props;
+---
+
+<section class="terminal-showcase not-content">
+  <div class="terminal-header">
+    <div class="terminal-header-text">
+      <h2 class="terminal-showcase-title">
+        {title}{' '}
+        {highlight && <span class="terminal-highlight">{highlight}</span>}
+      </h2>
+      {description && <p class="terminal-showcase-desc">{description}</p>}
+    </div>
+    {
+      cta && (
+        <a href={cta.href} class="terminal-cta">
+          {cta.label}
+          <Icon name="right-arrow" size="1rem" />
+        </a>
+      )
+    }
+  </div>
+  <div class="terminal-window">
+    <div class="terminal-chrome" aria-hidden="true">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+      <span class="terminal-tab">Terminal</span>
+    </div>
+    <div class="terminal-body">
+      <AsciinemaPlayer src={cast} poster={poster} rows={rows} autoPlay={true} />
+    </div>
+  </div>
+</section>
+
+<style>
+  .terminal-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin: 2.5rem 0;
+    padding: 2rem 2rem 2rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--aspire-color-primary) 6%, transparent),
+      color-mix(in srgb, var(--sl-color-gray-6) 80%, transparent) 60%,
+      color-mix(in srgb, var(--aspire-color-primary) 3%, transparent) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--aspire-color-primary) 10%, transparent);
+  }
+
+  .terminal-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .terminal-header-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .terminal-showcase-title {
+    font-size: clamp(1.35rem, 3vw, 1.85rem);
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+    color: var(--sl-color-text);
+  }
+
+  .terminal-highlight {
+    background: linear-gradient(90deg, var(--aspire-color-primary), var(--aspire-color-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  :global([data-theme='light']) .terminal-highlight {
+    background: linear-gradient(90deg, var(--aspire-color-purple), var(--aspire-color-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .terminal-showcase-desc {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-3);
+    margin: 0;
+    max-width: 52rem;
+  }
+
+  :global([data-theme='light']) .terminal-showcase-desc {
+    color: var(--sl-color-gray-2);
+  }
+
+  .terminal-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.25rem;
+    border-radius: 0.5rem;
+    font-family: var(--sl-font-system);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    background: var(--aspire-color-primary);
+    color: #ffffff;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .terminal-cta:hover {
+    background: var(--aspire-color-purple);
+    transform: translateY(-1px);
+  }
+
+  .terminal-cta:focus-visible {
+    outline: 2px solid var(--sl-color-text);
+    outline-offset: 2px;
+  }
+
+  .terminal-window {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--sl-color-gray-5);
+    box-shadow: var(--sl-shadow-lg);
+    background: var(--sl-color-gray-6);
+    width: 100%;
+  }
+
+  .terminal-chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background: color-mix(in srgb, var(--sl-color-gray-5) 50%, var(--sl-color-gray-6));
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+  }
+
+  .dot.red {
+    background: #ff5f57;
+  }
+  .dot.yellow {
+    background: #febc2e;
+  }
+  .dot.green {
+    background: #28c840;
+  }
+
+  .terminal-tab {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+    letter-spacing: 0.02em;
+  }
+
+  .terminal-body {
+    padding: 0;
+  }
+
+  /* Override asciinema container styles inside showcase */
+  .terminal-body :global(.asciinema-player-container) {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  @media (max-width: 768px) {
+    .terminal-showcase {
+      padding: 1.5rem 1.25rem;
+    }
+
+    .terminal-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .terminal-cta {
+      transition: none;
+    }
+    .terminal-cta:hover {
+      transform: none;
+    }
+  }
+</style>

@@ -5,10 +5,91 @@ tableOfContents: true
 lastUpdated: true
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire streamlines building, running, debugging, and deploying distributed apps. Picture your app as a set of services, databases, and frontends—when they're deployed, they all work together seamlessly, but every time you develop them they need to be individually started and connected. With Aspire, you get a unified toolchain that eliminates complex configs and makes local debugging effortless. Instantly launch and debug your entire app with a single command. Ready to deploy? Aspire lets you publish anywhere—Kubernetes, the cloud, or your own servers. It's also fully extensible, so you can integrate your favorite tools and services with ease.
+
+## Why Aspire?
+
+Building modern applications means juggling multiple services, databases, and dependencies. Here's what that looks like **without** Aspire:
+
+### The pain of distributed development
+
+| Problem | Without Aspire | With Aspire |
+|---------|----------------|-------------|
+| **Starting services** | Open 5 terminals, run 5 different commands, hope they start in the right order | Run `aspire run` — everything starts automatically. See [AppHost overview](/get-started/app-host/). |
+| **Connection strings** | Hardcode `localhost:5432` everywhere, break production deploys | Service discovery handles it — same code works locally and in production. See [Service discovery](/fundamentals/service-discovery/). |
+| **"Works on my machine"** | Different team members have different ports, different configs | One AppHost definition, everyone runs the same setup. See [First app tutorial](/get-started/first-app/). |
+| **Debugging** | Attach debugger to each service individually | Debug your entire stack with a single <Kbd windows="F5" mac="F5" linux="F5" />. |
+| **Finding logs** | Check 5 different terminal windows | Aspire Dashboard shows all logs in one place. See [Dashboard overview](/dashboard/overview/). |
+| **Adding a database** | Install locally, configure connection, hope versions match | `builder.AddPostgres("db")` — containerized, versioned, consistent. See [Integrations](/integrations/overview/). |
+
+### Before and after
+
+**Without Aspire**, your startup routine might look like:
+
+<Steps>
+
+1. Start the database container
+
+   ```bash frame="terminal" data-disable-copy
+   docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=secret postgres:15
+   ```
+
+2. Start the C# API service
+
+   ```bash frame="terminal" data-disable-copy
+   cd api && dotnet run
+   ```
+
+3. Start the Python worker
+
+   ```bash frame="terminal" data-disable-copy
+   cd worker && source .venv/bin/activate && python main.py
+   ```
+
+4. Start the JavaScript frontend
+
+   ```bash frame="terminal" data-disable-copy
+   cd frontend && npm run dev
+   ```
+
+5. Manually verify they can all connect...
+
+   Frustration ensues. 🙁
+
+</Steps>
+
+**With Aspire**, it's just:
+
+```bash
+aspire run
+```
+
+And your AppHost defines everything in type-safe C#—even for polyglot stacks:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("db");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);
+
+var worker = builder.AddPythonApp("worker", "../worker", "main.py")
+    .WithReference(db);
+
+builder.AddNpmApp("frontend", "../frontend")
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+<Aside type="tip" title="The real win">
+Your AppHost becomes the single source of truth for your application's architecture. New team members can understand your entire system by reading one file.
+</Aside>
 
 ## Key benefits
 

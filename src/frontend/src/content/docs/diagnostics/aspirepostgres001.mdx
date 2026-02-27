@@ -1,0 +1,87 @@
+---
+title: Compiler Warning ASPIREPOSTGRES001
+description: Learn more about compiler Warning ASPIREPOSTGRES001. The PostgreSQL MCP integration APIs are experimental and subject to change.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> The PostgreSQL MCP integration APIs are experimental and subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+The `WithPostgresMcp` extension method for adding Model Context Protocol (MCP) support to PostgreSQL resources is an experimental feature. This API may change or be removed in future versions.
+
+The following APIs are protected by this diagnostic:
+
+- `WithPostgresMcp` on `IResourceBuilder<PostgresDatabaseResource>` — adds a Postgres MCP server container to a PostgreSQL database resource.
+- `WithPostgresMcp` on `IResourceBuilder<AzurePostgresFlexibleServerDatabaseResource>` — adds a Postgres MCP server container to an Azure PostgreSQL Flexible Server database resource running as a container.
+
+## Example
+
+The following code generates `ASPIREPOSTGRES001` when using a PostgreSQL database resource:
+
+```csharp title="C# — AppHost.cs (PostgreSQL)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("mydb")
+    .WithPostgresMcp();
+
+builder.Build().Run();
+```
+
+—or—
+
+The following code generates `ASPIREPOSTGRES001` when using an Azure PostgreSQL Flexible Server database resource:
+
+```csharp title="C# — AppHost.cs (Azure PostgreSQL)"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddAzurePostgresFlexibleServer("postgres")
+    .RunAsContainer()
+    .AddDatabase("mydb")
+    .WithPostgresMcp();
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPOSTGRES001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPOSTGRES001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPOSTGRES001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIREPOSTGRES001
+  var db = builder.AddPostgres("postgres")
+      .AddDatabase("mydb")
+      .WithPostgresMcp();
+  #pragma warning restore ASPIREPOSTGRES001
+  ```
+
+## See also
+
+- [PostgreSQL integration](/integrations/databases/postgres/postgres-host/) - Learn about PostgreSQL hosting integration
+- [Configure MCP](/get-started/configure-mcp/) - Learn about Model Context Protocol configuration
