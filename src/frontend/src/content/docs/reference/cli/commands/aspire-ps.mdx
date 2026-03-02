@@ -1,0 +1,85 @@
+---
+title: aspire ps command
+description: Learn about the aspire ps command which lists all running Aspire AppHost processes with their process IDs and dashboard URLs.
+---
+
+import Include from '@components/Include.astro';
+
+## Name
+
+`aspire ps` - List running Aspire AppHosts.
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire ps [options]
+```
+
+## Description
+
+The `aspire ps` command lists all running Aspire AppHost processes. The output includes the AppHost project path, process IDs, and dashboard URLs for each running instance.
+
+The command scans for running AppHosts by checking the backchannel connections in the `~/.aspire/backchannels/` directory. This approach is fast because it doesn't need to recursively search for project files.
+
+The default output is a human-readable table with the following columns:
+
+| Column | Description |
+|--------|-------------|
+| `PATH` | The file path to the AppHost project |
+| `PID` | The process ID of the running AppHost |
+| `CLI_PID` | The process ID of the CLI that started the AppHost |
+| `DASHBOARD` | The dashboard URL with login token |
+
+In-scope AppHosts (those within the current directory) are displayed first, followed by out-of-scope AppHosts.
+
+## Options
+
+The following options are available:
+
+- **`--format <Json|Table>`**
+
+  Output result format. Use `Json` for machine-readable output suitable for scripting and automation. The JSON output includes an array of AppHost objects with `appHostPath`, `appHostPid`, `cliPid`, and `dashboardUrl` properties. Defaults to `Table`.
+
+- <Include relativePath="reference/cli/includes/option-help.md" />
+
+- <Include relativePath="reference/cli/includes/option-debug.md" />
+
+## Examples
+
+- List all running AppHosts in table format:
+
+  ```bash title="Aspire CLI"
+  aspire ps
+  ```
+
+  Example output:
+
+  ```text title="Output"
+  PATH                                                PID    CLI_PID  DASHBOARD
+  ./src/MyApp.AppHost/MyApp.AppHost.csproj            12345  12340    https://localhost:17244/login?t=abc123
+  /home/user/other/OtherApp.AppHost.csproj            67890  67885    https://localhost:17250/login?t=def456
+  ```
+
+- Output running AppHosts as JSON for scripting:
+
+  ```bash title="Aspire CLI"
+  aspire ps --format Json
+  ```
+
+  Example output:
+
+  ```json title="Output"
+  [
+    {
+      "appHostPath": "./src/MyApp.AppHost/MyApp.AppHost.csproj",
+      "appHostPid": 12345,
+      "cliPid": 12340,
+      "dashboardUrl": "https://localhost:17244/login?t=abc123"
+    }
+  ]
+  ```
+
+## See also
+
+- [aspire run](/reference/cli/commands/aspire-run/)
+- [aspire stop](/reference/cli/commands/aspire-stop/)

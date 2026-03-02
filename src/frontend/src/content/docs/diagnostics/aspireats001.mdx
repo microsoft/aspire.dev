@@ -1,0 +1,86 @@
+---
+title: Compiler Warning ASPIREATS001
+description: Learn more about compiler Warning ASPIREATS001. ATS (Aspire Type Specification) types are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> ATS (Aspire Type Specification) types are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental Aspire Type Specification (ATS) types and related APIs. These types enable polyglot AppHost support by defining runtime execution configurations for different languages.
+
+The following types are protected by this diagnostic:
+
+- `RuntimeSpec` — specifies the runtime execution configuration for a language.
+- `CommandSpec` — specifies a command to execute.
+- `AtsCapabilityInfo` — capability information for ATS.
+- `AtsConstants` — constants used by ATS.
+- `AtsContext` — context for ATS operations.
+- `ICodeGenerator` — interface for code generation.
+- `ILanguageSupport` — interface for language support.
+
+## Example
+
+The following code generates `ASPIREATS001`:
+
+```csharp title="C# — Using RuntimeSpec"
+var spec = new RuntimeSpec
+{
+    Language = "TypeScript",
+    DisplayName = "TypeScript (Node.js)",
+    CodeGenLanguage = "typescript",
+    DetectionPatterns = ["apphost.ts"],
+    Execute = new CommandSpec
+    {
+        Command = "npx",
+        Args = ["tsx", "{appHostFile}", "{args}"]
+    }
+};
+```
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREATS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREATS001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIREATS001
+  var spec = new RuntimeSpec
+  {
+      Language = "TypeScript",
+      DisplayName = "TypeScript (Node.js)",
+      CodeGenLanguage = "typescript",
+      DetectionPatterns = ["apphost.ts"],
+      Execute = new CommandSpec
+      {
+          Command = "npx",
+          Args = ["tsx", "{appHostFile}", "{args}"]
+      }
+  };
+  #pragma warning restore ASPIREATS001
+  ```

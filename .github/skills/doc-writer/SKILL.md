@@ -51,6 +51,8 @@ src/frontend/src/content/docs/
 
 ## Astro and MDX Conventions
 
+When calling `pnpm dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
+
 ### Frontmatter
 
 Every documentation file requires frontmatter:
@@ -138,7 +140,7 @@ Use for sequential instructions:
 Use for language or platform-specific content:
 
 ```mdx
-<Tabs>
+<Tabs syncKey="cli-commands">
 <TabItem label="CLI">
 
 ```bash
@@ -194,6 +196,61 @@ Use for navigation and feature highlights:
     href="/integrations/"
 />
 </CardGrid>
+```
+
+#### Kbd (Keyboard Shortcuts)
+
+Use the `Kbd` component from `starlight-kbd` to display keyboard shortcuts with OS-specific variants. This renders styled `<kbd>` elements and automatically shows the correct shortcut for the reader's operating system.
+
+```mdx
+import { Kbd } from 'starlight-kbd/components';
+
+Open the Command Palette (<Kbd windows="Ctrl+Shift+P" mac="Cmd+Shift+P" />)
+```
+
+**Props**:
+- `windows` — The shortcut for Windows (also used as the default/Linux fallback)
+- `mac` — The shortcut for macOS
+- `linux` — (optional) The shortcut for Linux, if different from Windows
+
+You can specify just `windows` when the shortcut is the same on all platforms (e.g., `<Kbd windows="F5" />`), or provide OS-specific values when they differ:
+
+```mdx
+Open a terminal (<Kbd windows="Ctrl+`" mac="⌘+`" linux="Ctrl+`" />)
+```
+
+Always prefer the `Kbd` component over the raw HTML `<kbd>` element, even for simple keys that don't vary by OS. This ensures consistent styling and behavior across the site:
+
+```mdx
+Press <Kbd windows="F5" /> to start debugging.
+```
+
+#### LearnMore
+
+Use the `LearnMore` component to add a styled "learn more" link with an open-book icon. It provides a consistent visual pattern for directing readers to related documentation.
+
+```mdx
+import LearnMore from '@components/LearnMore.astro';
+
+<LearnMore>
+For more information, see [Service Defaults](/fundamentals/service-defaults/).
+</LearnMore>
+```
+
+The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside `<Aside>` blocks or after `<Steps>`:
+
+```mdx
+<Aside type="tip" title="Feature flag">
+Enable polyglot support by running:
+
+```bash
+aspire config set features:polyglotSupportEnabled true --global
+```
+
+<LearnMore>
+For more information, see [aspire config command reference](/reference/cli/commands/aspire-config-set/)
+</LearnMore>
+</Aside>
 ```
 
 ### Code Blocks
@@ -500,7 +557,7 @@ Recordings are stored in `src/frontend/public/casts/`. Check for existing record
 - `aspire-new.cast` - Shows project creation with `aspire new`
 - `aspire-run.cast` - Shows running an Aspire app
 - `aspire-help.cast` - Shows CLI help output
-- `mcp-init.cast` - Shows MCP initialization
+- `agent-init.cast` - Shows agent init command
 
 #### Using AsciinemaPlayer
 

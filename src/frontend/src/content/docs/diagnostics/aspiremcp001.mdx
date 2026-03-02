@@ -1,0 +1,82 @@
+---
+title: Compiler Warning ASPIREMCP001
+description: Learn more about compiler Warning ASPIREMCP001. MCP server types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> MCP server types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `WithMcpServer` extension method and related Model Context Protocol (MCP) server APIs. These APIs enable Aspire tooling to discover and proxy MCP servers exposed by resources.
+
+The following APIs are protected by this diagnostic:
+
+- `WithMcpServer` on `IResourceBuilder<T>` — marks a resource as hosting an MCP server on a specified endpoint.
+- `McpServerEndpointAnnotation` — annotation that stores the MCP server endpoint information.
+
+## Example
+
+The following code generates `ASPIREMCP001`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithMcpServer();
+
+builder.Build().Run();
+```
+
+—or—
+
+The following code uses a custom path and endpoint name:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithMcpServer("/sse", endpointName: "https");
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREMCP001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREMCP001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREMCP001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIREMCP001
+  var api = builder.AddProject<Projects.MyApi>("api")
+      .WithMcpServer();
+  #pragma warning restore ASPIREMCP001
+  ```
+
+## See also
+
+- [Configure MCP](/get-started/configure-mcp/) - Learn about Model Context Protocol configuration

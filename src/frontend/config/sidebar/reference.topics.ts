@@ -47,6 +47,29 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'reference/overview',
     },
     {
+      label: 'Samples',
+      translations: {
+        da: 'Eksempler',
+        de: 'Beispiele',
+        en: 'Samples',
+        es: 'Muestras',
+        fr: 'Exemples',
+        hi: 'नमूने',
+        id: 'Sampel',
+        it: 'Esempi',
+        ja: 'サンプル',
+        ko: '샘플',
+        pt: 'Exemplos',
+        'pt-BR': 'Exemplos',
+        'pt-PT': 'Exemplos',
+        ru: 'Примеры',
+        tr: 'Örnekler',
+        uk: 'Зразки',
+        'zh-CN': '示例',
+      },
+      slug: 'reference/samples',
+    },
+    {
       label: 'API reference',
       translations: {
         da: 'API reference',
@@ -67,7 +90,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Довідник API',
         'zh-CN': 'API参考',
       },
-      collapsed: false,
+      collapsed: true,
       items: [
         {
           label: 'Browse APIs',
@@ -187,6 +210,29 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'reference/cli/configuration',
         },
         {
+          label: 'Microsoft telemetry',
+          translations: {
+            da: 'Microsoft telemetri',
+            de: 'Microsoft-Telemetrie',
+            en: 'Microsoft telemetry',
+            es: 'Telemetría de Microsoft',
+            fr: 'Télémétrie Microsoft',
+            hi: 'Microsoft टेलीमेट्री',
+            id: 'Telemetri Microsoft',
+            it: 'Telemetria Microsoft',
+            ja: 'Microsoft テレメトリ',
+            ko: 'Microsoft 원격 분석',
+            pt: 'Telemetria da Microsoft',
+            'pt-BR': 'Telemetria da Microsoft',
+            'pt-PT': 'Telemetria da Microsoft',
+            ru: 'Телеметрия Microsoft',
+            tr: 'Microsoft telemetrisi',
+            uk: 'Телеметрія Microsoft',
+            'zh-CN': 'Microsoft 遥测',
+          },
+          slug: 'reference/cli/microsoft-collected-cli-telemetry',
+        },
+        {
           label: 'Commands',
           translations: {
             da: 'Kommandoer',
@@ -257,42 +303,241 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
             {
+              label: 'aspire docs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire docs',
+                  slug: 'reference/cli/commands/aspire-docs',
+                },
+                {
+                  label: 'aspire docs list',
+                  slug: 'reference/cli/commands/aspire-docs-list',
+                },
+                {
+                  label: 'aspire docs search',
+                  slug: 'reference/cli/commands/aspire-docs-search',
+                },
+                {
+                  label: 'aspire docs get',
+                  slug: 'reference/cli/commands/aspire-docs-get',
+                },
+              ],
+            },
+            {
               label: 'aspire doctor',
               slug: 'reference/cli/commands/aspire-doctor',
             },
             { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
             {
-              label: 'aspire mcp',
+              label: 'aspire agent',
               collapsed: true,
               items: [
                 {
-                  label: 'aspire mcp',
-                  slug: 'reference/cli/commands/aspire-mcp',
+                  label: 'aspire agent',
+                  slug: 'reference/cli/commands/aspire-agent',
                 },
                 {
-                  label: 'aspire mcp init',
-                  slug: 'reference/cli/commands/aspire-mcp-init',
+                  label: 'aspire agent init',
+                  slug: 'reference/cli/commands/aspire-agent-init',
                 },
                 {
-                  label: 'aspire mcp start',
-                  slug: 'reference/cli/commands/aspire-mcp-start',
+                  label: 'aspire agent mcp',
+                  slug: 'reference/cli/commands/aspire-agent-mcp',
                 },
               ],
             },
             { label: 'aspire new', slug: 'reference/cli/commands/aspire-new' },
+            { label: 'aspire ps', slug: 'reference/cli/commands/aspire-ps' },
             {
               label: 'aspire publish',
               slug: 'reference/cli/commands/aspire-publish',
             },
             { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
+            { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
               label: 'aspire update',
               slug: 'reference/cli/commands/aspire-update',
+            },
+            {
+              label: 'aspire wait',
+              slug: 'reference/cli/commands/aspire-wait',
             },
           ],
         },
       ],
     },
+    {
+      label: 'Diagnostics',
+      translations: {
+        da: 'Diagnostik',
+        de: 'Diagnose',
+        en: 'Diagnostics',
+        es: 'Diagnósticos',
+        fr: 'Diagnostics',
+        hi: 'निदान',
+        id: 'Diagnostik',
+        it: 'Diagnostica',
+        ja: '診断',
+        ko: '진단',
+        pt: 'Diagnósticos',
+        'pt-BR': 'Diagnósticos',
+        'pt-PT': 'Diagnósticos',
+        ru: 'Диагностика',
+        tr: 'Tanılama',
+        uk: 'Діагностика',
+        'zh-CN': '诊断',
+      },
+      collapsed: true,
+      items: [
+        { label: 'Overview', link: '/diagnostics/overview' },
+        {
+          label: 'Warnings',
+          collapsed: true,
+          items: [
+            { label: 'ASPIRE001', link: '/diagnostics/aspire001' },
+            { label: 'ASPIRE002', link: '/diagnostics/aspire002' },
+            { label: 'ASPIRE003', link: '/diagnostics/aspire003' },
+            { label: 'ASPIRE004', link: '/diagnostics/aspire004' },
+            {
+              label: 'ASPIREATS001',
+              link: '/diagnostics/aspireats001',
+            },
+            {
+              label: 'ASPIRECERTIFICATES001',
+              link: '/diagnostics/aspirecertificates001',
+            },
+            {
+              label: 'ASPIRECOMPUTE002',
+              link: '/diagnostics/aspirecompute002',
+            },
+            {
+              label: 'ASPIRECOMPUTE003',
+              link: '/diagnostics/aspirecompute003',
+            },
+            {
+              label: 'ASPIRECONTAINERRUNTIME001',
+              link: '/diagnostics/aspirecontainerruntime001',
+            },
+            {
+              label: 'ASPIRECONTAINERSHELLEXECUTION001',
+              link: '/diagnostics/aspirecontainershellexecution001',
+            },
+            {
+              label: 'ASPIREDOCKERFILEBUILDER001',
+              link: '/diagnostics/aspiredockerfilebuilder001',
+            },
+            {
+              label: 'ASPIREDOTNETTOOL',
+              link: '/diagnostics/aspiredotnettool',
+            },
+            {
+              label: 'ASPIREEXTENSION001',
+              link: '/diagnostics/aspireextension001',
+            },
+            {
+              label: 'ASPIREFILESYSTEM001',
+              link: '/diagnostics/aspirefilesystem001',
+            },
+            {
+              label: 'ASPIREINTERACTION001',
+              link: '/diagnostics/aspireinteraction001',
+            },
+            {
+              label: 'ASPIREMCP001',
+              link: '/diagnostics/aspiremcp001',
+            },
+            {
+              label: 'ASPIREPIPELINES004',
+              link: '/diagnostics/aspirepipelines004',
+            },
+            {
+              label: 'ASPIREPROBES001',
+              link: '/diagnostics/aspireprobes001',
+            },
+            {
+              label: 'ASPIREPOSTGRES001',
+              link: '/diagnostics/aspirepostgres001',
+            },
+            {
+              label: 'ASPIREUSERSECRETS001',
+              link: '/diagnostics/aspireusersecrets001',
+            },
+          ],
+        },
+        {
+          label: 'Errors',
+          collapsed: true,
+          items: [
+            { label: 'ASPIRE006', link: '/diagnostics/aspire006' },
+            { label: 'ASPIRE007', link: '/diagnostics/aspire007' },
+            { label: 'ASPIRE008', link: '/diagnostics/aspire008' },
+            {
+              label: 'ASPIREACADOMAIN001',
+              link: '/diagnostics/aspireacadomains001',
+            },
+            { label: 'ASPIRECOMPUTE001', link: '/diagnostics/aspirecompute001' },
+            {
+              label: 'ASPIRECSHARPAPPS001',
+              link: '/diagnostics/aspirecsharpapps001',
+            },
+            {
+              label: 'ASPIRECOSMOSDB001',
+              link: '/diagnostics/aspirecosmosdb001',
+            },
+            {
+              label: 'ASPIREHOSTINGPYTHON001',
+              link: '/diagnostics/aspirehostingpython001',
+            },
+            {
+              label: 'ASPIREPIPELINES001',
+              link: '/diagnostics/aspirepipelines001',
+            },
+            {
+              label: 'ASPIREPIPELINES002',
+              link: '/diagnostics/aspirepipelines002',
+            },
+            {
+              label: 'ASPIREPIPELINES003',
+              link: '/diagnostics/aspirepipelines003',
+            },
+            {
+              label: 'ASPIREPROXYENDPOINTS001',
+              link: '/diagnostics/aspireproxyendpoints001',
+            },
+            {
+              label: 'ASPIREPUBLISHERS001',
+              link: '/diagnostics/aspirepublishers001',
+            },
+            { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
+            { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Support',
+      translations: {
+        da: 'Support',
+        de: 'Support',
+        en: 'Support',
+        es: 'Soporte',
+        fr: 'Support',
+        hi: 'समर्थन',
+        id: 'Dukungan',
+        it: 'Supporto',
+        ja: 'サポート',
+        ko: '지원',
+        pt: 'Suporte',
+        'pt-BR': 'Suporte',
+        'pt-PT': 'Suporte',
+        ru: 'Поддержка',
+        tr: 'Destek',
+        uk: 'Підтримка',
+        'zh-CN': '支持',
+      },
+      link: '/support/',
+    }
   ],
 };
