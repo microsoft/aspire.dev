@@ -92,82 +92,6 @@ The preceding code configures an Azure SQL Database resource to run locally in a
 > [!TIP]
 > The `RunAsContainer` method is useful for local development and testing. The API exposes an optional delegate that enables you to customize the underlying `SqlServerServerResource` configuration. For example, you can add a data volume or data bind mount. For more information, see the [Aspire SQL Server hosting integration](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume) section.
 
-### Admin deployment script
-
-When you deploy an Azure SQL Server resource, Aspire runs a deployment script that grants your application's managed identity access to the SQL database. This script executes on an [Azure Container Instance (ACI)](https://learn.microsoft.com/azure/container-instances/) and connects to the SQL Server to create the necessary database user and role assignments.
-
-#### Private endpoint considerations
-
-When you add a [private endpoint](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints) to the Azure SQL Server resource, public network access is disabled on the SQL Server. In order for the deployment script to execute successfully, the ACI it runs on needs to be able to access the SQL Server through the private network. This requires:
-
-- A **subnet** delegated to ACI, so the container runs inside the virtual network.
-- An **Azure Storage account**, so ACI can mount a file share for the deployment script contents and logs.
-
-Aspire automatically creates both of these resources when a private endpoint is detected on the Azure SQL Server. Specifically, it allocates a minimal subnet at an open address in the top of the virtual network range and creates a new storage account with the appropriate settings.
-
-#### Customize the deployment script behavior
-
-You can modify the default behavior in the following ways:
-
-##### Disable the deployment script
-
-Call `ClearDefaultRoleAssignments` to disable the deployment script entirely, which also removes the default subnet and storage resources:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var sql = builder.AddAzureSqlServer("sql")
-    .ClearDefaultRoleAssignments();
-```
-
-<Aside type="caution">
-  When you call `ClearDefaultRoleAssignments`, the deployment script no longer
-  adds the app's managed identity access to the database. You must ensure your
-  application has the appropriate database access configured separately.
-</Aside>
-
-##### Specify a custom subnet
-
-Call `WithAdminDeploymentScriptSubnet` to provide your own subnet for the deployment script container. Aspire automatically delegates the specified subnet to ACI:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var vnet = builder.AddAzureVirtualNetwork("vnet");
-var peSubnet = vnet.AddSubnet("pe-subnet", "10.0.2.0/24");
-var aciSubnet = vnet.AddSubnet("aci-subnet", "10.0.3.0/29");
-
-var sql = builder.AddAzureSqlServer("sql")
-    .WithAdminDeploymentScriptSubnet(aciSubnet);
-var db = sql.AddDatabase("db");
-
-peSubnet.AddPrivateEndpoint(sql);
-```
-
-##### Specify a custom storage account
-
-Call `WithAdminDeploymentScriptStorage` to provide your own storage account for the deployment script. Aspire automatically creates a `StorageFileDataPrivilegedContributor` role assignment from the deployment script's identity to this storage account:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var vnet = builder.AddAzureVirtualNetwork("vnet");
-var peSubnet = vnet.AddSubnet("pe-subnet", "10.0.2.0/24");
-
-var storage = builder.AddAzureStorage("scriptstorage");
-var sql = builder.AddAzureSqlServer("sql")
-    .WithAdminDeploymentScriptStorage(storage);
-var db = sql.AddDatabase("db");
-
-peSubnet.AddPrivateEndpoint(sql);
-```
-
-<Aside type="caution">
-  The storage account must be network-accessible from the deployment script's
-  Azure Container Instance and must have `AllowSharedKeyAccess` enabled so the
-  deployment script can mount a file share in the storage account.
-</Aside>
-
 ### Provisioning-generated Bicep
 
 If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand—the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure SQL Server resource, the following Bicep is generated:
@@ -272,6 +196,82 @@ The preceding code:
   - The `SqlDatabase` is configured with a Hyperscale SKU instead of the default serverless.
 
 For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.Sql](https://learn.microsoft.com/dotnet/api/azure.provisioning.sql) API documentation.
+
+### Admin deployment script
+
+When you deploy an Azure SQL Server resource, Aspire runs a deployment script that grants your application's managed identity access to the SQL database. This script executes on an [Azure Container Instance (ACI)](https://learn.microsoft.com/azure/container-instances/) and connects to the SQL Server to create the necessary database user and role assignments.
+
+#### Private endpoint considerations
+
+When you add a [private endpoint](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints) to the Azure SQL Server resource, public network access is disabled on the SQL Server. In order for the deployment script to execute successfully, the ACI it runs on needs to be able to access the SQL Server through the private network. This requires:
+
+- A **subnet** delegated to ACI, so the container runs inside the virtual network.
+- An **Azure Storage account**, so ACI can mount a file share for the deployment script contents and logs.
+
+Aspire automatically creates both of these resources when a private endpoint is detected on the Azure SQL Server. Specifically, it allocates a minimal subnet at an open address in the top of the virtual network range and creates a new storage account with the appropriate settings.
+
+#### Customize the deployment script behavior
+
+You can modify the default behavior in the following ways:
+
+##### Disable the deployment script
+
+Call `ClearDefaultRoleAssignments` to disable the deployment script entirely, which also removes the default subnet and storage resources:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var sql = builder.AddAzureSqlServer("sql")
+    .ClearDefaultRoleAssignments();
+```
+
+<Aside type="caution">
+  When you call `ClearDefaultRoleAssignments`, the deployment script no longer
+  adds the app's managed identity access to the database. You must ensure your
+  application has the appropriate database access configured separately.
+</Aside>
+
+##### Specify a custom subnet
+
+Call `WithAdminDeploymentScriptSubnet` to provide your own subnet for the deployment script container. Aspire automatically delegates the specified subnet to ACI:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var peSubnet = vnet.AddSubnet("pe-subnet", "10.0.2.0/24");
+var aciSubnet = vnet.AddSubnet("aci-subnet", "10.0.3.0/29");
+
+var sql = builder.AddAzureSqlServer("sql")
+    .WithAdminDeploymentScriptSubnet(aciSubnet);
+var db = sql.AddDatabase("db");
+
+peSubnet.AddPrivateEndpoint(sql);
+```
+
+##### Specify a custom storage account
+
+Call `WithAdminDeploymentScriptStorage` to provide your own storage account for the deployment script. Aspire automatically creates a `StorageFileDataPrivilegedContributor` role assignment from the deployment script's identity to this storage account:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var peSubnet = vnet.AddSubnet("pe-subnet", "10.0.2.0/24");
+
+var storage = builder.AddAzureStorage("scriptstorage");
+var sql = builder.AddAzureSqlServer("sql")
+    .WithAdminDeploymentScriptStorage(storage);
+var db = sql.AddDatabase("db");
+
+peSubnet.AddPrivateEndpoint(sql);
+```
+
+<Aside type="caution">
+  The storage account must be network-accessible from the deployment script's
+  Azure Container Instance and must have `AllowSharedKeyAccess` enabled so the
+  deployment script can mount a file share in the storage account.
+</Aside>
 
 ### Connection properties
 
