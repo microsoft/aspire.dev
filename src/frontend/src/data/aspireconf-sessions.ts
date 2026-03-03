@@ -149,9 +149,9 @@ export const sessions: SessionProps[] = [
   {
     title: 'Closing',
     speakers: [
-      { name: 'Maddy Montaquila', jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
-      { name: 'Damian Edwards', jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
-      { name: 'David Fowler', jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
+      { name: 'Maddy Montaquila', headshot: maddyPic, jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
+      { name: 'Damian Edwards', headshot: damianPic, jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
+      { name: 'David Fowler', headshot: fowlerPic, jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
     ],
     abstract: 'Wrap-up the first ever Aspire Conf and potentially win some prizes!',
     timeslot: '4:45 PM PT',
