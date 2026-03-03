@@ -7,7 +7,7 @@ import maddyPic from '../assets/aspireconf/maddy.jpg';
 import pinePic from '../assets/aspireconf/pine.webp';
 import claudiaPic from '../assets/aspireconf/claudia.png';
 import juarezPic from '../assets/aspireconf/seth.png';
-import stocchiPic from '../assets/aspireconf/stocchi.png';
+import stocchiPic from '../assets/aspireconf/tommaso.png';
 import michaelPic from '../assets/aspireconf/michaelcummings.png';
 import piercePic from '../assets/aspireconf/pierce.png';
 import ayersPic from '../assets/aspireconf/chrisayers.jpg';
