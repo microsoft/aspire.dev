@@ -1418,7 +1418,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         { label: 'k6', slug: 'integrations/devtools/k6' },
-        { label: 'MailPit', slug: 'integrations/devtools/mailpit' },
+        {
+          label: 'MailPit',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/mailpit/mailpit-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/devtools/mailpit/mailpit-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/devtools/mailpit/mailpit-client',
+            },
+          ],
+        },
         {
           label: 'SQL Database Projects',
           slug: 'integrations/devtools/sql-projects',
