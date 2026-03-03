@@ -3,12 +3,13 @@ import type { Props as SessionProps } from '@components/SessionCard.astro';
 // Import speaker headshots, e.g.:
 import pinePic from '../assets/aspireconf/pine.webp';
 import ayersPic from '../assets/aspireconf/chrisayers.jpg';
+import michaelPic from '../assets/aspireconf/michaelcummings.png';
 
 export const sessions: SessionProps[] = [
   {
     title: 'Keynote: Come Meet the New Aspire',
     speakers: [
-      { name: 'Maddy Montaquila', jobTitle: 'Senior Product Manager', company: 'Aspire @ Microsoft' },
+      { name: 'Maddy Montaquila', jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
       { name: 'Damian Edwards', jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
       { name: 'David Fowler', jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
     ],
@@ -28,22 +29,22 @@ export const sessions: SessionProps[] = [
     duration: '45 min',
   },
   {
-    title: 'Aspire for AI Apps',
+    title: 'Aspire to Be Agentic: Designing Distributed Agentic Systems Without the Chaos',
     speakers: [
       { name: 'Tommaso Stocchi' },
       { name: 'Seth Juarez' },
     ],
-    abstract: 'TBD',
-    timeslot: '10:45 AM PT',
+    abstract: 'Agentic systems are inherently distributed: multiple agents, multiple services, multiple languages. And right from the start, things get messy fast. Silent failures. Unclear execution paths. Too many “What tool did the agent call?” moments. Aspire’s polyglot support and built-in observability help you bring order to the chaos. You’ll see how much easier your life becomes when building agentic applications with Aspire.',
+    timeslot: '11:00 AM PT',
     duration: '30 min',
   },
   {
-    title: 'Aspire at Microsoft',
+    title: 'Aspire Dashboard as the Ultimate DevEx',
     speakers: [
-      { name: 'Chuanbo Zhang' },
+      { name: 'Michael Cummings', headshot: michaelPic,  jobTitle: 'Principal Software Engineer', company: "NuGet + VS Marketplace @ Microsoft" },
     ],
-    abstract: 'TBD',
-    timeslot: '11:15 AM PT',
+    abstract: 'Aspire is often positioned as a way to model and run distributed applications, but its biggest impact is how it improves the everyday developer experience. In this talk, we\'ll focus on small, practical features in Aspire that reduce friction during local development and testing. Rather than adding complexity, these capabilities help you move faster with fewer context switches. Get some concrete ideas for using Aspire to make your app dev more approachable, safer to operate, and easier to work on day to day. Aspire doesn’t just help you run distributed apps—it helps you think less while building them.',
+    timeslot: '11:30 AM PT',
     duration: '30 min',
   },
   {
@@ -54,15 +55,6 @@ export const sessions: SessionProps[] = [
     ],
     abstract: 'TBD',
     timeslot: '11:45 AM PT',
-    duration: '30 min',
-  },
-  {
-    title: 'Aspire Dashboard as the Ultimate DevEx',
-    speakers: [
-      { name: 'Michael Cortese' },
-    ],
-    abstract: 'TBD',
-    timeslot: '12:15 PM PT',
     duration: '30 min',
   },
   {
@@ -136,6 +128,15 @@ export const sessions: SessionProps[] = [
     ],
     abstract: 'TBD',
     timeslot: '4:15 PM PT',
+    duration: '30 min',
+  },
+    {
+    title: 'Aspire at Microsoft',
+    speakers: [
+      { name: 'Chuanbo Zhang' },
+    ],
+    abstract: 'TBD',
+    timeslot: '11:15 AM PT',
     duration: '30 min',
   },
 ];
