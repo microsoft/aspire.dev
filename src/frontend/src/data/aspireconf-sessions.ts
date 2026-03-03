@@ -6,8 +6,11 @@ import fowlerPic from '../assets/aspireconf/fowler.png';
 import maddyPic from '../assets/aspireconf/maddy.jpg';
 import pinePic from '../assets/aspireconf/pine.webp';
 import claudiaPic from '../assets/aspireconf/claudia.png';
-import ayersPic from '../assets/aspireconf/chrisayers.jpg';
+import juarezPic from '../assets/aspireconf/juarez.png';
+import stocchiPic from '../assets/aspireconf/stocchi.png';
 import michaelPic from '../assets/aspireconf/michaelcummings.png';
+import piercePic from '../assets/aspireconf/pierce.png';
+import ayersPic from '../assets/aspireconf/chrisayers.jpg';
 
 export const sessions: SessionProps[] = [
   {
@@ -35,8 +38,8 @@ export const sessions: SessionProps[] = [
   {
     title: 'Aspire to Be Agentic: Designing Distributed Agentic Systems Without the Chaos',
     speakers: [
-      { name: 'Tommaso Stocchi' },
-      { name: 'Seth Juarez' },
+      { name: 'Tommaso Stocchi', headshot: stocchiPic, jobTitle: 'Cloud Solution Architect', company: 'Microsoft'},
+      { name: 'Seth Juarez', headshot: juarezPic, jobTitle: 'Principal Product Manager', company: 'DevRel @ Microsoft'},
     ],
     abstract: 'Agentic systems are inherently distributed: multiple agents, multiple services, multiple languages. And right from the start, things get messy fast. Silent failures. Unclear execution paths. Too many “What tool did the agent call?” moments. Aspire’s polyglot support and built-in observability help you bring order to the chaos. You’ll see how much easier your life becomes when building agentic applications with Aspire.',
     timeslot: '11:00 AM PT',
@@ -54,7 +57,7 @@ export const sessions: SessionProps[] = [
   {
     title: 'Coding Agents Need Aspire Too',
     speakers: [
-      { name: 'Pierce Boggan' },
+      { name: 'Pierce Boggan', headshot: piercePic, jobTitle: 'PM Lead', company: 'VS Code + GitHub Copilot @ Microsoft' },
     ],
     abstract: 'Your coding agents are only as good as the context they can access. Aspire hands them the keys — your entire app topology, real-time logs and traces, and resource commands like stop and restart — all with zero setup. You\'ll see how Aspire turns your agents from helpful assistants into full-stack collaborators you can actually trust.',
     timeslot: '12:00 PM PT',
