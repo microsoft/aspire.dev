@@ -1,11 +1,10 @@
 ---
-title: KurrentDB integration
-description: Learn how to use the KurrentDB hosting and client integration to run the KurrentDB container and access it via the KurrentDB client.
+title: KurrentDB Client integration reference
+description: Learn how to use the Aspire KurrentDB client integration to interact with KurrentDB from your Aspire projects.
+next: false
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import { Badge } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
+import { Aside, Badge } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import kurrentIcon from '@assets/icons/kurrent-icon.png';
@@ -23,76 +22,13 @@ import kurrentLightIcon from '@assets/icons/kurrent-light-icon.png';
   classOverride="float-inline-left icon"
 />
 
-[KurrentDB](https://www.kurrent.io/) is an event store database designed for Event Sourcing, offering high availability and reliability for storing events. The Aspire KurrentDB integration enables you to connect to existing KurrentDB instances or create new instances from Aspire using the KurrentDB container image.
+To get started with the Aspire KurrentDB integrations, follow the [Get started with KurrentDB integrations](/integrations/databases/kurrentdb/kurrentdb-get-started/) guide.
 
-## Hosting integration
+This article includes full details about the Aspire KurrentDB Client integration.
 
-To run the KurrentDB container, install the [📦 CommunityToolkit.Aspire.Hosting.KurrentDB](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.KurrentDB) NuGet package in the AppHost project.
+## Installation
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.KurrentDB" />
-
-### Add KurrentDB resource
-
-In the AppHost project, register and consume the KurrentDB integration using the `AddKurrentDB` extension method to add the KurrentDB container to the application builder.
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var kurrentdb = builder.AddKurrentDB("kurrentdb");
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(kurrentdb);
-
-// After adding all resources, run the app...
-```
-
-### Add KurrentDB resource with data volume
-
-To add a data volume to the KurrentDB resource, call the `WithDataVolume` method:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var kurrentdb = builder.AddKurrentDB("kurrentdb")
-                       .WithDataVolume();
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(kurrentdb);
-
-// After adding all resources, run the app...
-```
-
-The data volume is used to persist the KurrentDB data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/kurrentdb` path in the KurrentDB container.
-
-### Add KurrentDB resource with data bind mount
-
-To add a data bind mount to the KurrentDB resource, call the `WithDataBindMount` method:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var kurrentdb = builder.AddKurrentDB("kurrentdb")
-                       .WithDataBindMount(source: @"C:\KurrentDB\Data");
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(kurrentdb);
-
-// After adding all resources, run the app...
-```
-
-<Aside>
-  Data bind mounts have limited functionality compared to volumes, and when you
-  use a bind mount, a file or directory on the host machine is mounted into a
-  container.
-</Aside>
-
-### Hosting integration health checks
-
-The KurrentDB hosting integration automatically adds a health check for the KurrentDB resource. The health check verifies that the KurrentDB instance is running and that a connection can be established to it.
-
-## Client integration
-
-To get started with the Aspire KurrentDB client integration, install the [📦 CommunityToolkit.Aspire.KurrentDB](https://nuget.org/packages/CommunityToolkit.Aspire.KurrentDB) NuGet package in the client-consuming project:
+To install the [📦 CommunityToolkit.Aspire.KurrentDB](https://nuget.org/packages/CommunityToolkit.Aspire.KurrentDB) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="CommunityToolkit.Aspire.KurrentDB" />
 
@@ -100,7 +36,7 @@ To get started with the Aspire KurrentDB client integration, install the [📦 C
 
 In the `Program.cs` file of your client-consuming project, call the `AddKurrentDBClient` extension to register an `KurrentDBClient` for use via the dependency injection container.
 
-```csharp
+```csharp title="C# — Program.cs"
 builder.AddKurrentDBClient(connectionName: "kurrentdb");
 ```
 
@@ -111,7 +47,7 @@ builder.AddKurrentDBClient(connectionName: "kurrentdb");
 
 You can then retrieve the `KurrentDBClient` instance using dependency injection. For example, to retrieve the client from a service:
 
-```csharp
+```csharp title="C# — ExampleService.cs"
 public class ExampleService(KurrentDBClient client)
 {
     // Use client...
@@ -122,14 +58,14 @@ public class ExampleService(KurrentDBClient client)
 
 There might be situations where you want to register multiple `KurrentDBClient` instances with different connection names. To register keyed KurrentDB clients, call the `AddKeyedKurrentDBClient` method:
 
-```csharp
+```csharp title="C# — Program.cs"
 builder.AddKeyedKurrentDBClient(name: "events");
 builder.AddKeyedKurrentDBClient(name: "audit");
 ```
 
 Then retrieve the instances using dependency injection:
 
-```csharp
+```csharp title="C# — ExampleService.cs"
 public class ExampleService(
     [FromKeyedServices("events")] KurrentDBClient eventsClient,
     [FromKeyedServices("audit")] KurrentDBClient auditClient)
@@ -148,13 +84,13 @@ The KurrentDB client integration provides multiple configuration approaches and 
 
 When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling `AddKurrentDBClient`:
 
-```csharp
+```csharp title="C# — Program.cs"
 builder.AddKurrentDBClient("kurrentdb");
 ```
 
 Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
 
-```json
+```json title="JSON — appsettings.json"
 {
   "ConnectionStrings": {
     "kurrentdb": "kurrentdb://localhost:22113?tls=false"
@@ -166,7 +102,7 @@ Then the connection string will be retrieved from the `ConnectionStrings` config
 
 The KurrentDB client integration supports `Microsoft.Extensions.Configuration`. It loads the `KurrentDBSettings` from configuration using the `Aspire:KurrentDB:Client` key. Example `appsettings.json`:
 
-```json
+```json title="JSON — appsettings.json"
 {
   "Aspire": {
     "KurrentDB": {
@@ -184,7 +120,7 @@ The KurrentDB client integration supports `Microsoft.Extensions.Configuration`. 
 
 You can pass the delegate to set up options inline:
 
-```csharp
+```csharp title="C# — Program.cs"
 builder.AddKurrentDBClient(
     "kurrentdb",
     static settings => settings.DisableHealthChecks = true);
