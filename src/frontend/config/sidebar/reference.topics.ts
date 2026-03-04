@@ -349,6 +349,28 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             { label: 'aspire new', slug: 'reference/cli/commands/aspire-new' },
+            {
+              label: 'aspire otel',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire otel',
+                  slug: 'reference/cli/commands/aspire-otel',
+                },
+                {
+                  label: 'aspire otel logs',
+                  slug: 'reference/cli/commands/aspire-otel-logs',
+                },
+                {
+                  label: 'aspire otel spans',
+                  slug: 'reference/cli/commands/aspire-otel-spans',
+                },
+                {
+                  label: 'aspire otel traces',
+                  slug: 'reference/cli/commands/aspire-otel-traces',
+                },
+              ],
+            },
             { label: 'aspire ps', slug: 'reference/cli/commands/aspire-ps' },
             {
               label: 'aspire publish',
