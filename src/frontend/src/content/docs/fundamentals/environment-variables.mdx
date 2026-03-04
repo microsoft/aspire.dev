@@ -1,0 +1,220 @@
+---
+title: Environment variables
+description: Learn how Aspire generates environment variables from resource names and how to access them in your applications.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+When you use `WithReference` to connect resources in the AppHost, Aspire automatically injects environment variables into the consuming resource. The names of these environment variables follow specific conventions based on the resource name and the type of reference. Understanding these conventions is essential, especially for non-.NET applications (Python, Node.js, Go, and others) where you must read environment variables directly rather than using typed Aspire client integrations.
+
+## Naming conventions
+
+Aspire generates environment variables in different formats depending on the type of resource being referenced. The following sections describe each category.
+
+### Connection strings
+
+When you reference a resource that exposes a connection string (such as a database, cache, or messaging resource), Aspire generates an environment variable using the `ConnectionStrings__` prefix:
+
+```
+ConnectionStrings__{resource-name}
+```
+
+The resource name is used **as-is** (preserving the original casing and hyphens). For example:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("my-cache");
+var db = builder.AddPostgres("postgres").AddDatabase("my-db");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithReference(db);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The `api` resource receives the following environment variables:
+
+| Environment variable | Description |
+|---|---|
+| `ConnectionStrings__my-cache` | Connection string for the Redis cache |
+| `ConnectionStrings__my-db` | Connection string for the PostgreSQL database |
+
+<Aside type="tip">
+
+In .NET applications, you can access connection strings with `builder.Configuration.GetConnectionString("my-cache")`, which automatically resolves the `ConnectionStrings__` prefix. For non-.NET applications, read the full environment variable name directly.
+
+</Aside>
+
+### Endpoint URLs
+
+When you reference a resource that exposes HTTP or HTTPS endpoints (such as a project or container service), Aspire generates environment variables for the endpoint URLs. The resource name is first **encoded** (hyphens and other non-alphanumeric characters are replaced with underscores), then **uppercased**:
+
+```
+{RESOURCE_NAME}_{SCHEME}
+```
+
+If the resource only exposes a single endpoint, the scheme suffix is omitted:
+
+```
+{RESOURCE_NAME}
+```
+
+For example:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("my-api");
+
+var frontend = builder.AddJavaScriptApp("frontend", "./app")
+    .WithReference(api);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+The `frontend` resource receives:
+
+| Environment variable | Example value |
+|---|---|
+| `MY_API_HTTP` | `http://localhost:5000` |
+| `MY_API_HTTPS` | `https://localhost:5001` |
+
+### Service discovery variables
+
+In addition to the endpoint URL variables, Aspire also generates service discovery variables for .NET service resolution. These use the format:
+
+```
+services__{resourcename}__{scheme}__{index}
+```
+
+These variables use double underscores (`__`) as separators and are **lowercase**. For example, `services__my-api__http__0`. .NET applications use these automatically through the service discovery system. Non-.NET applications should use the [endpoint URL variables](#endpoint-urls) instead.
+
+### Resource properties
+
+Some integrations expose individual resource properties as environment variables. The resource name is **encoded** (hyphens replaced with underscores) and **uppercased**, with the property name appended:
+
+```
+{RESOURCE_NAME}_{PROPERTY}
+```
+
+For example, a ClickHouse resource named `my-clickhouse` exposes:
+
+| Environment variable | Description |
+|---|---|
+| `MY_CLICKHOUSE_HOST` | The hostname |
+| `MY_CLICKHOUSE_PORT` | The port number |
+| `MY_CLICKHOUSE_USERNAME` | The username |
+| `MY_CLICKHOUSE_PASSWORD` | The password |
+| `MY_CLICKHOUSE_DATABASENAME` | The database name |
+
+## Resource name encoding rules
+
+When a resource name is used in an endpoint URL or property variable, Aspire applies the following transformations:
+
+1. **Non-alphanumeric characters are replaced with underscores**: Hyphens (`-`), dots (`.`), and any other characters that aren't ASCII letters or digits are replaced with `_`.
+2. **Leading digits get a prefix**: If the name starts with a digit, an underscore (`_`) is prepended.
+3. **The result is uppercased**: The encoded name is converted to uppercase for the final environment variable name.
+
+For example, a resource named `foundry-demo-proj` becomes `FOUNDRY_DEMO_PROJ` in environment variable prefixes:
+
+| Resource name | Encoded prefix | Example variable |
+|---|---|---|
+| `api` | `API` | `API_HTTP` |
+| `my-api` | `MY_API` | `MY_API_HTTPS` |
+| `foundry-demo-proj` | `FOUNDRY_DEMO_PROJ` | `FOUNDRY_DEMO_PROJ_URI` |
+
+<Aside type="note">
+
+Connection string variables (`ConnectionStrings__`) do **not** apply encoding to the resource name. The original resource name (including hyphens) is preserved.
+
+</Aside>
+
+## Accessing environment variables
+
+### C\#
+
+In .NET applications, Aspire client integrations handle environment variable access automatically. For manual access:
+
+```csharp title="C# — Program.cs"
+// Connection strings
+string cache = builder.Configuration.GetConnectionString("my-cache");
+
+// Endpoint URLs
+string apiUrl = builder.Configuration.GetValue<string>("MY_API_HTTP");
+
+// Resource properties
+string host = builder.Configuration.GetValue<string>("MY_CLICKHOUSE_HOST");
+```
+
+### Python
+
+```python title="Python — main.py"
+import os
+
+# Connection strings
+cache_conn = os.getenv("ConnectionStrings__my-cache")
+
+# Endpoint URLs
+api_url = os.getenv("MY_API_HTTP")
+
+# Resource properties
+db_host = os.getenv("MY_CLICKHOUSE_HOST")
+```
+
+### JavaScript / TypeScript
+
+```javascript title="JavaScript — app.js"
+// Connection strings
+const cacheConn = process.env.ConnectionStrings__my_cache;
+
+// Endpoint URLs
+const apiUrl = process.env.MY_API_HTTP;
+
+// Resource properties
+const dbHost = process.env.MY_CLICKHOUSE_HOST;
+```
+
+<Aside type="caution">
+
+In JavaScript, `process.env` is an object. Property names containing hyphens require bracket notation: `process.env["ConnectionStrings__my-cache"]`.
+
+</Aside>
+
+## Custom environment variables
+
+If you need different variable names, use `WithEnvironment` to set custom environment variables:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres").AddDatabase("my-db");
+
+var api = builder.AddPythonApp("api", "../api", "main.py")
+    .WithReference(db)
+    .WithEnvironment("DB_HOST", db.Resource.Parent.PrimaryEndpoint.Property(EndpointProperty.Host))
+    .WithEnvironment("DB_PORT", db.Resource.Parent.PrimaryEndpoint.Property(EndpointProperty.Port));
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+This approach lets you define explicit, predictable variable names without relying on the automatic naming conventions.
+
+<Aside type="tip">
+
+Use the [Aspire dashboard](/dashboard/explore/#resource-details) to inspect the actual environment variables that Aspire injects into each resource. This is the fastest way to discover the exact variable names available to your application.
+
+</Aside>
+
+## See also
+
+- [Service discovery](/fundamentals/service-discovery/)
+- [Inner-loop networking overview](/fundamentals/networking-overview/)
+- [Python integration](/integrations/frameworks/python/)
+- [JavaScript integration](/integrations/frameworks/javascript/)
+- [Executable resources](/app-host/executable-resources/)
+- [Deployment manifest format](/deployment/manifest-format/)
