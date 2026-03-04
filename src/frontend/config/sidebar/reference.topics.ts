@@ -328,6 +328,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               label: 'aspire doctor',
               slug: 'reference/cli/commands/aspire-doctor',
             },
+            {
+              label: 'aspire describe',
+              slug: 'reference/cli/commands/aspire-describe',
+            },
             { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
             {
