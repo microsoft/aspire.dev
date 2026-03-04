@@ -56,6 +56,7 @@ export default defineConfig({
         Header: './src/components/starlight/Header.astro',
         Hero: './src/components/starlight/Hero.astro',
         MarkdownContent: './src/components/starlight/MarkdownContent.astro',
+        PageTitle: './src/components/starlight/PageTitle.astro',
         Search: './src/components/starlight/Search.astro',
         Sidebar: './src/components/starlight/Sidebar.astro',
         SocialIcons: './src/components/starlight/SocialIcons.astro',
@@ -99,7 +100,7 @@ export default defineConfig({
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
-                exclude: ['/i18n/'],
+          exclude: ['/i18n/'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
