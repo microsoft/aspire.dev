@@ -10,6 +10,9 @@ import juarezPic from '../assets/aspireconf/seth.png';
 import stocchiPic from '../assets/aspireconf/tommaso.png';
 import michaelPic from '../assets/aspireconf/michaelcummings.png';
 import piercePic from '../assets/aspireconf/pierce.png';
+import andresPic from '../assets/aspireconf/andres.png';
+import joshPic from '../assets/aspireconf/joshg.jpg';
+import mitchPic from '../assets/aspireconf/mitch.png';
 import ayersPic from '../assets/aspireconf/chrisayers.jpg';
 
 export const sessions: SessionProps[] = [
@@ -66,7 +69,7 @@ export const sessions: SessionProps[] = [
   {
     title: 'From Microservices to Water Sensors: End-to-End Testing with Aspire',
     speakers: [
-      { name: 'Andres Rodriguez' },
+      { name: 'Andres Rodriguez', headshot: andresPic },
     ],
     abstract: 'In this session, Andres will walk through how he uses Aspire to test an end-to-end pipeline that spans from cloud microservices to physical IoT devices — specifically an automated irrigation system powered by Arduino sensors and water pumps. You\'ll learn how Aspire\'s orchestration and integration testing capabilities can verify not just your web APIs and databases, but the full journey of data from a soil moisture sensor through HTTP endpoints to a real-time dashboard. Whether you\'re building traditional web apps or pushing Aspire into unconventional territory, you\'ll walk away with practical patterns for reliable end-to-end testing.',
     timeslot: '12:30 PM PT',
@@ -82,30 +85,30 @@ export const sessions: SessionProps[] = [
     duration: '30 min',
   },
   {
-    title: 'Aspire + TypeScript',
+    title: 'TypeScript and Aspire - type safety for your dev experience',
     speakers: [
-      { name: 'Josh Goldberg' },
+      { name: 'Josh Goldberg', headshot: joshPic, jobTitle: 'Senior Frontend Developer', company: 'Sentry' },
     ],
-    abstract: 'TBD',
+    abstract: 'Types aren\'t just for your server-side C#: they\'re a huge benefit in frontend and full-stack logic too! Let\'s dive into all the wonderfully fully-typed libraries and utilities in a freshly installed Aspire app. We\'ll cover the basics of how types work in TypeScript compared to traditional languages like C#, how they simultaneously catch bugs and help you write features in your code, and uncover some seriously nifty features of the TypeScript type system along the way.',
     timeslot: '1:30 PM PT',
     duration: '30 min',
   },
     {
     title: 'Auth Made Easy(ish) with Aspire and Entra ID',
     speakers: [
-      { name: 'Jean-Marc Prieur' },
       { name: 'Jenny Ferries' },
+      { name: 'Jean-Marc Prieur'}
     ],
     abstract: 'TBD',
     timeslot: '2:00 PM PT',
     duration: '30 min',
   },
   {
-    title: 'Deployment',
+    title: 'Aspire escapes the inner loop and does deployment',
     speakers: [
-      { name: 'Mitch Denny' },
+      { name: 'Mitch Denny', headshot: mitchPic, jobTitle: 'Principal Software Engineer', company: 'Aspire @ Microsoft' },
     ],
-    abstract: 'TBD',
+    abstract: 'Everyone knows that Aspire makes your development inner loop awesome, but did you know that it can also be used to streamline your deployments - all the way to production! Recent releases of Aspire have significantly improved Aspire\'s end-to-end deployment capabilities and now is a great time to get across how they work and how it can be adapted to suit your specific environment.',
     timeslot: '2:30 PM PT',
     duration: '30 min',
   },
@@ -130,31 +133,33 @@ export const sessions: SessionProps[] = [
   {
     title: 'Contributing to Aspire',
     speakers: [
-      { name: 'Jose Perez Rodriguez' },
-      { name: 'Adam Ratzman'},
+      { name: 'Jose Perez Rodriguez', jobTitle: 'Principal Engineering Lead', company: 'Aspire @ Microsoft' },
+      { name: 'Adam Ratzman', jobTitle: 'Senior Software Engineer', company: 'Aspire @ Microsoft' },
     ],
-    abstract: 'TBD',
+    abstract: 'Aspire is open-source, and our community is the best in the game. Getting involved is easier than you think — whether that\'s filing an issue, contributing code to the core repo, helping build out aspire.dev, or shipping integrations in the Community Toolkit. In this session, Jose (Aspire\'s engineering manager) and Adam (one of the devs on the team) will break down all the ways you can contribute and pull back the curtain on how our code gets reviewed, tested, and released.',
     timeslot: '4:00 PM PT',
     duration: '30 min',
   },
   {
-    title: 'Aspire at Microsoft',
+    title: 'Customer Spotlight: Aspire for Windows 365 - Reliability, Extensibility, and Multi-Repo Rollout with AI',
     speakers: [
       { name: 'Chuanbo Zhang' },
+      { name: 'Yongyu Chen' },
+      { name: 'Jisheng Xing' }
     ],
-    abstract: 'TBD',
+    abstract: 'We\'ll share how Windows 365 doubled Aspire adoption while improving reliability by driving E2E CloudTest success and systematically removing the top onboarding blockers, including key reliability fixes for Azure Functions and Cosmos DB. We\'ll cover the concrete work that made runs consistently “green,” plus the repeatable onboarding patterns used to move services onto Aspire and CloudTest at scale. Finally, we\'ll demo and explain how Aspire acts as the agent orchestrator, with Aspire extensibility and the GitHub Copilot SDK enable AI-driven multi-repo rollout via an agent team—using analysis, remediation, and evolution agents to generate ready-to-merge pull requests that standardize repositories to a quality-gated, green baseline, without manual repo-by-repo effort.',
     timeslot: '4:30 PM PT',
-    duration: '15 min',
+    duration: '30 min',
   },
   {
     title: 'Closing',
     speakers: [
-      { name: 'Maddy Montaquila', headshot: maddyPic, jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
-      { name: 'Damian Edwards', headshot: damianPic, jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
-      { name: 'David Fowler', headshot: fowlerPic, jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
+      { name: 'Maddy Montaquila', jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
+      { name: 'Damian Edwards', jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
+      { name: 'David Fowler', jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
     ],
-    abstract: 'Wrap-up the first ever Aspire Conf and potentially win some prizes!',
-    timeslot: '4:45 PM PT',
+    abstract: 'Wrap-up the first ever Aspire Conf!',
+    timeslot: '5:00 PM PT',
     duration: '15 min',
   },
 ];
