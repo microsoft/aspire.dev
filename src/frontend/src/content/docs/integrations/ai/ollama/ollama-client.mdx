@@ -32,16 +32,16 @@ To get started with the Aspire OllamaSharp integration, install the [📦 Commun
 
 ## Add Ollama client API
 
-In the `Program.cs` file of your client-consuming project, call the `AddOllamaApiClient` extension to register an `IOllamaClientApi` for use via the dependency injection container. If the resource provided in the AppHost, and referenced in the client-consuming project, is an `OllamaModelResource`, then the `AddOllamaApiClient` method will register the model as the default model for the `IOllamaClientApi`:
+In the `Program.cs` file of your client-consuming project, call the `AddOllamaApiClient` extension to register an `IOllamaApiClient` for use via the dependency injection container. If the resource provided in the AppHost, and referenced in the client-consuming project, is an `OllamaModelResource`, then the `AddOllamaApiClient` method will register the model as the default model for the `IOllamaApiClient`:
 
 ```csharp
 builder.AddOllamaApiClient("llama3");
 ```
 
-After adding `IOllamaClientApi` to the builder, you can get the `IOllamaClientApi` instance using dependency injection. For example, to retrieve your context object from service:
+After adding `IOllamaApiClient` to the builder, you can get the `IOllamaApiClient` instance using dependency injection. For example, to retrieve your context object from service:
 
 ```csharp
-public class ExampleService(IOllamaClientApi ollama)
+public class ExampleService(IOllamaApiClient ollama)
 {
     // Use ollama...
 }
@@ -49,19 +49,19 @@ public class ExampleService(IOllamaClientApi ollama)
 
 ## Add keyed Ollama client API
 
-There might be situations where you want to register multiple `IOllamaClientApi` instances with different connection names. To register keyed Ollama clients, call the `AddKeyedOllamaClientApi` method:
+There might be situations where you want to register multiple `IOllamaApiClient` instances with different connection names. To register keyed Ollama clients, call the `AddKeyedOllamaApiClient` method:
 
 ```csharp
-builder.AddKeyedOllamaClientApi(name: "chat");
-builder.AddKeyedOllamaClientApi(name: "embeddings");
+builder.AddKeyedOllamaApiClient(name: "chat");
+builder.AddKeyedOllamaApiClient(name: "embeddings");
 ```
 
-Then you can retrieve the `IOllamaClientApi` instances using dependency injection. For example, to retrieve the connection from an example service:
+Then you can retrieve the `IOllamaApiClient` instances using dependency injection. For example, to retrieve the connection from an example service:
 
 ```csharp
 public class ExampleService(
-    [FromKeyedServices("chat")] IOllamaClientApi chatOllama,
-    [FromKeyedServices("embeddings")] IOllamaClientApi embeddingsOllama)
+    [FromKeyedServices("chat")] IOllamaApiClient chatOllama,
+    [FromKeyedServices("embeddings")] IOllamaApiClient embeddingsOllama)
 {
     // Use ollama...
 }
