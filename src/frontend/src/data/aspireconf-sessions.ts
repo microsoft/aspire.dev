@@ -158,7 +158,7 @@ export const sessions: SessionProps[] = [
       { name: 'Damian Edwards', jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
       { name: 'David Fowler', jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
     ],
-    abstract: 'Wrap-up the first ever Aspire Conf and potentially win some prizes!',
+    abstract: 'Wrap-up the first ever Aspire Conf!',
     timeslot: '5:00 PM PT',
     duration: '15 min',
   },
