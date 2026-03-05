@@ -317,6 +317,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/configure-container-apps',
             },
             {
+              label: 'Default Azure credential',
+              slug: 'integrations/cloud/azure/azure-default-credential',
+            },
+            {
               label: 'Azure AI',
               collapsed: true,
               items: [
