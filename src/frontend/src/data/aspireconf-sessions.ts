@@ -96,8 +96,8 @@ export const sessions: SessionProps[] = [
     {
     title: 'Auth Made Easy(ish) with Aspire and Entra ID',
     speakers: [
-      { name: 'Jean-Marc Prieur' },
       { name: 'Jenny Ferries' },
+      { name: 'Jean-Marc Prieur'}
     ],
     abstract: 'TBD',
     timeslot: '2:00 PM PT',
