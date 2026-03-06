@@ -1,96 +1,89 @@
 ---
 title: Deploy Aspire apps in CI/CD pipelines
-description: Learn how to deploy Aspire applications from CI/CD pipelines using GitHub Actions and Azure DevOps.
+description: Learn how to use aspire publish with GitHub Actions and Azure DevOps to build container images and generate deployment artifacts for any target platform.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Deploying Aspire applications from continuous integration and continuous delivery (CI/CD) pipelines requires a few extra considerations compared to interactive local deployments. This guide covers how to configure the Aspire CLI for non-interactive use, set up GitHub Actions and Azure DevOps pipelines, and handle Azure authentication from service principals.
+Deploying Aspire applications from continuous integration and continuous delivery (CI/CD) pipelines follows a consistent pattern regardless of your target platform: generate deployment artifacts, push container images to a registry, then apply the artifacts using your preferred tooling.
 
-## Non-interactive deployment
+## CI/CD workflow overview
 
-The `aspire deploy` command is **interactive by default**—it prompts you to select an Azure tenant, subscription, and resource group. In a CI/CD environment there is no terminal operator, so you must supply those values through environment variables to suppress the prompts:
+The recommended CI/CD pattern for Aspire applications uses `aspire publish` to produce deployment artifacts and then pushes the built images to a container registry. The artifacts (Docker Compose files, Kubernetes manifests, or other formats) reference your images by a placeholder that you resolve at deploy time.
 
-| Environment variable | Description |
-|---|---|
-| `Azure__SubscriptionId` | The Azure subscription ID to deploy into. |
-| `Azure__Location` | The Azure region (for example, `eastus`). |
-| `Azure__ResourceGroup` | The resource group name to create or reuse. |
+```mermaid
+architecture-beta
+  service ci(logos:github-actions)[CI runner]
+  service reg(logos:docker)[Container registry]
+  service target(logos:kubernetes)[Deployment target]
 
-When all three variables are set, `aspire deploy` skips the interactive tenant/subscription/resource-group prompts and proceeds automatically.
+  ci:R --> L:reg
+  reg:R --> L:target
+```
 
-<Aside type="tip">
-Set `Azure__ResourceGroup` to the same value on every run so that subsequent deployments update the existing resources rather than creating new ones.
+The workflow breaks down into three phases:
+
+1. **Build & publish** — `aspire publish` builds your .NET project container images and generates deployment artifacts (Docker Compose files, Kubernetes manifests, etc.) with image name placeholders.
+2. **Push** — Your pipeline tags the locally-built images and pushes them to a container registry such as GitHub Container Registry, Docker Hub, Amazon ECR, or Azure Container Registry.
+3. **Deploy** — Your pipeline applies the generated artifacts using the appropriate tooling (`kubectl apply`, `docker compose up`, etc.), substituting the image placeholders with the pushed registry addresses.
+
+<Aside type="note">
+Some integrations also support `aspire deploy`, which handles image building, pushing, and provisioning in a single command. See the platform-specific deployment documentation for details.
 </Aside>
 
-## Azure authentication in CI/CD
+<LearnMore>
+  Learn more: [Publishing and deployment overview](/deployment/overview/)
+</LearnMore>
 
-### Service principal vs. interactive user login
+## Running aspire publish in CI
 
-Locally you typically run `az login` to authenticate as a **user principal**. In CI/CD pipelines the agent runs as a **service principal** (via a federated credential or a client secret), which causes a small but important difference for some Azure resources.
+The `aspire publish` command is **non-interactive by default** — it does not prompt for input and writes all artifacts to the output path you specify. This makes it straightforward to use in automated pipelines.
 
-For example, Cosmos DB uses `principalType: "User"` for interactive logins but `principalType: "ServicePrincipal"` for headless service-principal logins. If you provision Cosmos DB through Aspire with an interactive login and later deploy from a pipeline with a service principal, the role assignment may fail.
-
-To avoid this, use **OpenID Connect (OIDC) / Workload Identity Federation** when possible. This avoids storing long-lived secrets and uses a short-lived token that is automatically associated with the correct principal type.
-
-### Logging in with a service principal
-
-<Tabs>
-<TabItem label="GitHub Actions">
-
-Use the [`azure/login`](https://github.com/Azure/login) action with OIDC:
-
-```yaml title="GitHub Actions — Azure login with OIDC"
-- name: Azure login
-  uses: azure/login@v2
-  with:
-    client-id: ${{ secrets.AZURE_CLIENT_ID }}
-    tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-    subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+```bash title="Aspire CLI — Generate deployment artifacts"
+aspire publish --project src/AppHost/AppHost.csproj -o ./artifacts
 ```
 
-Or with a client secret (less preferred):
+The output directory contains the deployment manifests and the container images are built into the local Docker daemon during the publish step. You push those images to a registry as a separate step.
 
-```yaml title="GitHub Actions — Azure login with client secret"
-- name: Azure login
-  uses: azure/login@v2
-  with:
-    creds: ${{ secrets.AZURE_CREDENTIALS }}
+<Aside type="tip">
+Use a consistent, versioned image tag (for example, the Git commit SHA) so that each pipeline run produces a unique, traceable image. Avoid overwriting a fixed `latest` tag in production pipelines.
+</Aside>
+
+## Pushing container images to a registry
+
+After `aspire publish` builds your images locally, tag and push them to your registry using standard Docker CLI commands.
+
+### GitHub Container Registry
+
+[GitHub Container Registry (GHCR)](https://docs.github.com/packages/working-with-a-github-packages-registry/working-with-the-container-registry) is built into every GitHub repository and requires no additional setup. Authenticate with the built-in `GITHUB_TOKEN`:
+
+```bash title="Bash — Authenticate and push to GHCR"
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+docker tag myapp-api:latest ghcr.io/$GITHUB_REPOSITORY/myapp-api:$GITHUB_SHA
+docker push ghcr.io/$GITHUB_REPOSITORY/myapp-api:$GITHUB_SHA
 ```
 
-</TabItem>
-<TabItem label="Azure DevOps">
+### Docker Hub
 
-Use the [Azure CLI task](https://learn.microsoft.com/azure/devops/pipelines/tasks/reference/azure-cli-v2) with a service connection:
-
-```yaml title="Azure DevOps — Azure CLI task"
-- task: AzureCLI@2
-  displayName: Deploy with Aspire CLI
-  inputs:
-    azureSubscription: '<your-service-connection>'
-    scriptType: bash
-    scriptLocation: inlineScript
-    inlineScript: |
-      aspire deploy \
-        --project src/AppHost/AppHost.csproj
-  env:
-    Azure__SubscriptionId: $(AZURE_SUBSCRIPTION_ID)
-    Azure__Location: $(AZURE_LOCATION)
-    Azure__ResourceGroup: $(AZURE_RESOURCE_GROUP)
+```bash title="Bash — Authenticate and push to Docker Hub"
+echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+docker tag myapp-api:latest $DOCKERHUB_USERNAME/myapp-api:$IMAGE_TAG
+docker push $DOCKERHUB_USERNAME/myapp-api:$IMAGE_TAG
 ```
 
-When the `AzureCLI@2` task runs, it automatically authenticates the Azure CLI using the service connection—no separate `az login` step is required.
+Store `DOCKERHUB_TOKEN` and `DOCKERHUB_USERNAME` as secrets in your pipeline. Generate the token from [hub.docker.com](https://hub.docker.com) under **Account settings > Personal access tokens**.
 
-</TabItem>
-</Tabs>
+### Other registries
+
+Other container registries (Amazon ECR, Azure Container Registry, Google Artifact Registry, JFrog Artifactory, and self-hosted registries) follow the same pattern: authenticate with `docker login`, tag your image with the registry hostname, and push. Refer to your registry's authentication documentation for the specific login command.
 
 ## GitHub Actions workflow
 
-The following workflow builds and deploys an Aspire application to Azure Container Apps. It triggers on pushes to the `main` branch and uses OIDC for passwordless Azure authentication.
+The following complete workflow generates artifacts with `aspire publish`, pushes images to GitHub Container Registry, and applies a Docker Compose deployment. Customize the deploy step for your own target (Kubernetes, a cloud provider, etc.).
 
 ```yaml title="GitHub Actions — .github/workflows/deploy.yml"
-name: Deploy to Azure Container Apps
+name: Build and deploy Aspire app
 
 on:
   push:
@@ -98,12 +91,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # Required for OIDC token exchange
   contents: read
+  packages: write   # Required to push to GHCR
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
 
     steps:
       - name: Checkout
@@ -117,68 +115,38 @@ jobs:
       - name: Install Aspire CLI
         run: dotnet tool install -g aspire.cli
 
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Generate deployment artifacts
+        # Adjust the --project path to match your AppHost project location
+        run: aspire publish --project src/AppHost/AppHost.csproj -o ./artifacts
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push container images
+        run: |
+          # Replace 'myapp-api' and 'myapp-web' with the resource names from your AppHost.
+          # The image names produced by aspire publish match your AppHost resource names.
+          for image in myapp-api myapp-web; do
+            docker tag ${image}:latest ${REGISTRY}/${image}:${IMAGE_TAG}
+            docker push ${REGISTRY}/${image}:${IMAGE_TAG}
+          done
 
       - name: Deploy
-        run: aspire deploy --project src/AppHost/AppHost.csproj
-        env:
-          Azure__SubscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          Azure__Location: ${{ vars.AZURE_LOCATION }}
-          Azure__ResourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          # This example uses Docker Compose. Replace with kubectl apply, helm upgrade,
+          # or your cloud provider's CLI as needed for your deployment target.
+          export MYAPP_API_IMAGE=${REGISTRY}/myapp-api:${IMAGE_TAG}
+          export MYAPP_WEB_IMAGE=${REGISTRY}/myapp-web:${IMAGE_TAG}
+          docker compose -f artifacts/docker-compose.yml up -d
 ```
 
-### Setting up OIDC for GitHub Actions
-
-<Steps>
-
-1. In the Azure portal, create an **App Registration** (or use an existing one).
-
-1. Add a **Federated credential** to the App Registration:
-
-    - **Federated credential scenario**: GitHub Actions deploying Azure resources
-    - **Organization**: your GitHub org or username
-    - **Repository**: your repository name
-    - **Entity type**: Branch
-    - **Branch**: `main` (or the branch you deploy from)
-
-1. Assign the App Registration a role scoped to the target resource group:
-
-    ```azurecli title="Azure CLI — Role assignment"
-    az role assignment create \
-      --assignee <app-registration-client-id> \
-      --role Contributor \
-      --scope /subscriptions/<subscription-id>/resourceGroups/<resource-group-name>
-    ```
-
-1. Add the following secrets to your GitHub repository (**Settings > Secrets and variables > Actions**):
-
-    | Secret name | Value |
-    |---|---|
-    | `AZURE_CLIENT_ID` | The App Registration's Application (client) ID |
-    | `AZURE_TENANT_ID` | Your Azure tenant ID |
-    | `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
-
-1. Add the following variables (non-sensitive):
-
-    | Variable name | Example value |
-    |---|---|
-    | `AZURE_LOCATION` | `eastus` |
-    | `AZURE_RESOURCE_GROUP` | `my-aspire-app-rg` |
-
-</Steps>
-
-<LearnMore>
-For more information, see [GitHub's OIDC documentation](https://docs.github.com/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect).
-</LearnMore>
+<Aside type="tip">
+Replace the service image names (`myapp-api`, `myapp-web`) and the deploy step with those specific to your application. The image names used by `aspire publish` match the resource names defined in your AppHost.
+</Aside>
 
 ## Azure DevOps pipeline
 
-The following pipeline deploys an Aspire application to Azure Container Apps using an Azure DevOps service connection.
+The following pipeline publishes and deploys an Aspire application using the same pattern. It uses generic Docker CLI commands to push to any container registry.
 
 ```yaml title="Azure DevOps — azure-pipelines.yml"
 trigger:
@@ -190,7 +158,8 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  - group: aspire-deploy-vars   # Variable group with AZURE_* variables
+  imageTag: $(Build.SourceVersion)
+  registry: $(REGISTRY_HOST)/$(REGISTRY_NAMESPACE)
 
 steps:
   - task: UseDotNet@2
@@ -202,52 +171,40 @@ steps:
   - script: dotnet tool install -g aspire.cli
     displayName: Install Aspire CLI
 
-  - task: AzureCLI@2
-    displayName: Deploy with Aspire CLI
+  - script: |
+      # Adjust the --project path to match your AppHost project location
+      aspire publish --project src/AppHost/AppHost.csproj -o $(Build.ArtifactStagingDirectory)/artifacts
+    displayName: Generate deployment artifacts
+
+  - script: |
+      echo "$(REGISTRY_PASSWORD)" | docker login $(REGISTRY_HOST) \
+        -u $(REGISTRY_USERNAME) --password-stdin
+    displayName: Log in to container registry
+
+  - script: |
+      # Replace 'myapp-api' and 'myapp-web' with the resource names from your AppHost.
+      for image in myapp-api myapp-web; do
+        docker tag ${image}:latest $(registry)/${image}:$(imageTag)
+        docker push $(registry)/${image}:$(imageTag)
+      done
+    displayName: Push container images
+
+  - script: |
+      # This example uses Docker Compose. Replace with kubectl apply, helm upgrade,
+      # or your cloud provider's CLI as needed for your deployment target.
+      export MYAPP_API_IMAGE=$(registry)/myapp-api:$(imageTag)
+      export MYAPP_WEB_IMAGE=$(registry)/myapp-web:$(imageTag)
+      docker compose -f $(Build.ArtifactStagingDirectory)/artifacts/docker-compose.yml up -d
+    displayName: Deploy
+
+  - task: PublishBuildArtifacts@1
+    displayName: Publish artifacts
     inputs:
-      azureSubscription: '<your-service-connection-name>'
-      scriptType: bash
-      scriptLocation: inlineScript
-      inlineScript: aspire deploy --project src/AppHost/AppHost.csproj
-    env:
-      Azure__SubscriptionId: $(AZURE_SUBSCRIPTION_ID)
-      Azure__Location: $(AZURE_LOCATION)
-      Azure__ResourceGroup: $(AZURE_RESOURCE_GROUP)
+      PathtoPublish: $(Build.ArtifactStagingDirectory)/artifacts
+      ArtifactName: deployment-artifacts
 ```
 
-### Setting up the service connection
-
-<Steps>
-
-1. In Azure DevOps, navigate to **Project settings > Service connections**.
-
-1. Select **New service connection** and choose **Azure Resource Manager**.
-
-1. Choose **Workload Identity federation (automatic)** for the authentication method—this creates a federated credential in Azure automatically.
-
-1. Select your subscription and (optionally) a resource group scope.
-
-1. Give the connection a name and save it. Use this name in the `azureSubscription` field of your pipeline task.
-
-</Steps>
-
-### Using a variable group
-
-<Steps>
-
-1. In Azure DevOps, navigate to **Pipelines > Library** and create a **Variable group** named `aspire-deploy-vars`.
-
-1. Add the following variables:
-
-    | Variable | Example value | Secret |
-    |---|---|---|
-    | `AZURE_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Yes |
-    | `AZURE_LOCATION` | `eastus` | No |
-    | `AZURE_RESOURCE_GROUP` | `my-aspire-app-rg` | No |
-
-1. Link the variable group in your pipeline using the `variables` block shown above.
-
-</Steps>
+Set `REGISTRY_HOST`, `REGISTRY_NAMESPACE`, `REGISTRY_USERNAME`, and `REGISTRY_PASSWORD` as pipeline variables or a variable group. Mark credentials as secret so they're not logged.
 
 ## CI environment tips
 
@@ -255,18 +212,32 @@ steps:
 
 The Aspire CLI detects whether it's running in a CI environment and adjusts its output accordingly (no interactive prompts, plain-text progress). If you see garbled or ANSI escape codes in logs, set the `NO_COLOR` environment variable:
 
-```yaml title="Disable color output"
+<Tabs>
+<TabItem label="GitHub Actions">
+
+```yaml title="GitHub Actions — Disable color output"
 env:
   NO_COLOR: '1'
 ```
 
+</TabItem>
+<TabItem label="Azure DevOps">
+
+```yaml title="Azure DevOps — Disable color output"
+variables:
+  NO_COLOR: '1'
+```
+
+</TabItem>
+</Tabs>
+
 ### Timeouts
 
-Deployments to Azure Container Apps can take several minutes. Make sure your pipeline job timeout is set high enough (at least 15–20 minutes) to allow for:
+Publishing and deploying Aspire apps can take several minutes. Set your pipeline's timeout high enough to allow for:
 
 - .NET container image builds
-- Azure Container Registry provisioning and image push
-- Container Apps environment and app provisioning
+- Container registry image push (varies with image size and network speed)
+- Provisioning and startup of deployment targets
 
 <Tabs>
 <TabItem label="GitHub Actions">
@@ -281,12 +252,10 @@ jobs:
 </TabItem>
 <TabItem label="Azure DevOps">
 
-```yaml title="Azure DevOps — step timeout"
-- task: AzureCLI@2
-  displayName: Deploy with Aspire CLI
-  timeoutInMinutes: 30
-  inputs:
-    # ...
+```yaml title="Azure DevOps — job timeout"
+jobs:
+  - job: deploy
+    timeoutInMinutes: 30
 ```
 
 </TabItem>
@@ -294,13 +263,13 @@ jobs:
 
 ### Docker availability
 
-The Aspire CLI builds container images during deployment. Ensure Docker is available on the build agent:
+The Aspire CLI builds container images using the local Docker daemon during `aspire publish`. Ensure Docker is available on the build agent:
 
 - **GitHub Actions**: Docker is pre-installed on `ubuntu-latest` and `windows-latest` runners.
 - **Azure DevOps**: Docker is pre-installed on Microsoft-hosted `ubuntu-latest` agents. Self-hosted agents may need Docker installed separately.
 
 <Aside type="note">
-The Aspire CLI uses the local Docker daemon to build container images. If your pipeline uses Podman or another container runtime, ensure it is configured to be compatible with Docker CLI commands.
+If your pipeline uses Podman or another container runtime, ensure it is configured to be compatible with Docker CLI commands (for example, by aliasing `docker` to `podman`).
 </Aside>
 
 ### Caching deployment state
@@ -308,7 +277,7 @@ The Aspire CLI uses the local Docker daemon to build container images. If your p
 The Aspire CLI caches deployment state (provisioned resource IDs, resolved parameter values) to speed up subsequent runs. In CI/CD you typically want one of two behaviors:
 
 - **Ephemeral (fresh deploy every run)**: Use `--clear-cache` to discard saved state and provision from scratch.
-- **Incremental (update existing resources)**: Persist the `.aspire/` directory between runs using your pipeline's cache mechanism and set `Azure__ResourceGroup` to the same group on every run.
+- **Incremental (update existing resources)**: Persist the `.aspire/` directory between runs using your pipeline's cache mechanism.
 
 <Tabs>
 <TabItem label="GitHub Actions">
@@ -336,13 +305,13 @@ The Aspire CLI caches deployment state (provisioned resource IDs, resolved param
 </Tabs>
 
 <LearnMore>
-For more information about deployment state caching, see [Deployment state caching](/deployment/deployment-state-caching/).
+  For more information about deployment state caching, see [Deployment state caching](/deployment/deployment-state-caching/).
 </LearnMore>
 
 ## See also
 
-- [Deploy using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/)
-- [Azure security best practices](/deployment/azure/azure-security-best-practices/)
-- [Deployment state caching](/deployment/deployment-state-caching/)
 - [Publishing and deployment overview](/deployment/overview/)
+- [Deploy using the Aspire CLI (Azure Container Apps)](/deployment/azure/aca-deployment-aspire-cli/)
+- [Deployment state caching](/deployment/deployment-state-caching/)
+- [`aspire publish` command reference](/reference/cli/commands/aspire-publish/)
 - [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/)
