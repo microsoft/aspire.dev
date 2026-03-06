@@ -262,6 +262,29 @@ Common environment variables for JavaScript frameworks:
 - **VITE_PORT**: For Vite applications
 - **HOST**: Some frameworks also use this to bind to specific interfaces
 
+When you use `WithReference` to connect a JavaScript app to other resources, Aspire injects environment variables with the connection details. For example:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres").AddDatabase("mydb");
+
+var app = builder.AddJavaScriptApp("app", "./app")
+    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithReference(db);
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+Access the connection string in your JavaScript code:
+
+```javascript title="JavaScript — app.js"
+const connectionString = process.env.ConnectionStrings__mydb;
+```
+
+For more details on how resource names map to environment variable names, see [Environment variables](/fundamentals/environment-variables/).
+
 ## Customize Vite configuration
 
 For Vite applications, you can specify a custom configuration file if you need to override the default Vite configuration resolution behavior:
@@ -311,6 +334,7 @@ This ensures your JavaScript applications are built consistently across environm
 
 ## See also
 
+- [Environment variables](/fundamentals/environment-variables/) - How Aspire generates environment variable names from resources
 - [Node.js hosting extensions](/integrations/frameworks/nodejs-extensions/) - Community Toolkit extensions for Vite, Yarn, and pnpm
 - [What's new in Aspire 13](/whats-new/aspire-13/) - Learn about first-class JavaScript support
 - [Aspire integrations overview](/integrations/overview/)
