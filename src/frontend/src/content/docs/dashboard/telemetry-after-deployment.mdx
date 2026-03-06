@@ -1,0 +1,189 @@
+---
+title: Telemetry after deployment
+description: Understand how telemetry and the Aspire dashboard work after you deploy your app, and how to configure production-grade observability.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+The Aspire dashboard is designed for local development and short-term diagnostics. It stores telemetry in memory, which means telemetry is lost when the dashboard restarts and there are built-in limits on how much data it retains. After deploying your app to a production environment, you need to configure a persistent telemetry backend.
+
+This article explains what changes when you deploy your app, how to configure production telemetry with Azure Monitor, and how to access the Aspire dashboard if it's included in your deployment.
+
+## Development vs. production telemetry
+
+During development, Aspire automatically starts the dashboard and configures your app's OTEL environment variables to send telemetry to it. This works well for local diagnostics but is not suitable for production for the following reasons:
+
+| | Aspire dashboard | Production telemetry backend |
+|---|---|---|
+| **Storage** | In-memory only | Persistent (database, cloud service) |
+| **Retention** | Lost on restart | Configurable (days, months, indefinitely) |
+| **Telemetry limits** | Default 10,000 log entries, 10,000 traces | Configurable or unlimited |
+| **Access** | Local or private | Secured, multi-user |
+| **Alerting** | None | Configurable alerts and dashboards |
+
+After deploying, configure your app to send telemetry to a persistent backend. Azure Monitor with Application Insights is the recommended production telemetry solution for Azure-hosted apps.
+
+## Configure Azure Monitor for production telemetry
+
+[Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/overview) collects, analyzes, and responds to telemetry data from your cloud applications. Aspire has built-in support for Azure Application Insights, which is the Azure Monitor feature for application telemetry.
+
+### Add Application Insights to your AppHost
+
+Add the Application Insights resource to your AppHost project:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var insights = builder.AddAzureApplicationInsights("app-insights");
+
+builder.AddProject<Projects.MyApp_ApiService>("apiservice")
+    .WithReference(insights);
+
+builder.AddProject<Projects.MyApp_Web>("webfrontend")
+    .WithReference(insights)
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+When you reference Application Insights, Aspire automatically configures the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable for each service. The `Azure.Monitor.OpenTelemetry.AspNetCore` package (via `UseAzureMonitor()`) reads this variable and sends telemetry to Application Insights.
+
+<Aside type="note">
+The Application Insights resource provisions an Azure Application Insights component. Provisioning requires an active Azure subscription. When running locally, telemetry is sent to the Aspire dashboard as usual unless a real connection string is present.
+</Aside>
+
+### Use OpenTelemetry with Azure Monitor
+
+Add the [📦 Azure.Monitor.OpenTelemetry.AspNetCore](https://www.nuget.org/packages/Azure.Monitor.OpenTelemetry.AspNetCore) package to each service project to enable OTEL-based export to Azure Monitor:
+
+```csharp title="C# — Program.cs (service)"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+// Add Azure Monitor OTEL export when connection string is available
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor();
+```
+
+Aspire's service defaults already configure OpenTelemetry. The `UseAzureMonitor()` call adds Azure Monitor as an additional exporter. When the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable is set (which Aspire does automatically when the resource is referenced), telemetry flows to Azure Monitor.
+
+<LearnMore>
+For more information, see [Azure Monitor OpenTelemetry documentation](https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable).
+</LearnMore>
+
+## Troubleshoot missing logs after deployment
+
+If some or all logs don't appear in your telemetry backend after deployment, check the following common causes.
+
+### OTEL environment variables not set
+
+Verify that the OTEL environment variables are correctly set in your deployed containers. When deploying to Azure Container Apps, Aspire sets these variables automatically when you use `WithReference` for Application Insights or when the OTEL endpoint is configured.
+
+Check for these environment variables in your deployed container:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: The OTLP endpoint receiving telemetry.
+- `OTEL_EXPORTER_OTLP_HEADERS`: Headers including the API key (if required).
+- `APPLICATIONINSIGHTS_CONNECTION_STRING`: Application Insights connection string (when using Azure Monitor).
+
+For Azure Container Apps deployments, verify variables in the [Azure Portal](https://portal.azure.com) by navigating to your Container App → **Containers** → **Environment variables**.
+
+### Telemetry not exported from the app
+
+Verify that your app is configured to export telemetry. All service projects should call `AddServiceDefaults()` in their `Program.cs`, which sets up OpenTelemetry:
+
+```csharp title="C# — Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+// This configures OpenTelemetry with logging, metrics, and tracing
+builder.AddServiceDefaults();
+```
+
+If you're not using Aspire service defaults, ensure your app is configured with the OpenTelemetry SDK and an appropriate exporter.
+
+### Telemetry sampled out
+
+The OpenTelemetry SDK may sample traces, meaning not every request produces a trace. By default, Aspire's service defaults configure 100% sampling for development. In production, check your sampling configuration.
+
+### Transport protocol mismatch
+
+The Aspire dashboard supports both gRPC OTLP (port 18889) and HTTP OTLP (port 18890). Most cloud-hosted OTLP endpoints require HTTP. Verify that the protocol in `OTEL_EXPORTER_OTLP_PROTOCOL` matches the endpoint:
+
+- Use `grpc` for the Aspire dashboard's gRPC OTLP endpoint.
+- Use `http/protobuf` for HTTP OTLP endpoints (required for browser apps and many cloud services).
+
+## Dashboard access after deployment
+
+When you deploy an Aspire app to Azure Container Apps using `aspire deploy`, the Aspire dashboard is included as a container app in your deployment. This gives you a familiar UI for viewing telemetry from your deployed app.
+
+<Aside type="caution">
+The deployed Aspire dashboard stores telemetry in memory. Telemetry is lost each time the dashboard container restarts. For persistent telemetry, configure Azure Monitor in addition to the dashboard.
+</Aside>
+
+### Find the dashboard URL
+
+After a successful `aspire deploy`, the deployment output includes URLs for your deployed resources. Look for a Container App named `aspire-dashboard` (or similar) in the output. The exact format varies depending on the environment name you configured.
+
+You can also find the URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container App for the Aspire dashboard, and finding its **Application URL** on the Overview page.
+
+Alternatively, use the Azure CLI:
+
+```azurecli title="Azure CLI — Get dashboard URL"
+az containerapp show \
+  --name aspire-dashboard \
+  --resource-group my-resource-group \
+  --query properties.configuration.ingress.fqdn \
+  --output tsv
+```
+
+### Authenticate with the login token
+
+The deployed dashboard requires a login token, just like the standalone dashboard. The token is displayed in the dashboard container's logs.
+
+<Steps>
+
+1. In the Azure Portal, navigate to your `aspire-dashboard` Container App.
+
+2. Select **Monitoring** → **Log stream** from the left navigation.
+
+3. Look for a log line containing `login?t=`, for example:
+
+    ```plaintext data-disable-copy
+    Login to the dashboard at https://aspire-dashboard.example.com/login?t=abc123...
+    ```
+
+4. Copy the token value (the part after `t=`) and use it to log in at the dashboard URL.
+
+</Steps>
+
+### Configure a fixed login token
+
+By default, the dashboard generates a new token each time it starts. To set a fixed token, configure the `Dashboard:Frontend:BrowserToken` setting on the dashboard container app after deployment using the Azure CLI:
+
+```azurecli title="Azure CLI — Set dashboard token"
+az containerapp update \
+  --name aspire-dashboard \
+  --resource-group my-resource-group \
+  --set-env-vars "DASHBOARD__FRONTEND__BROWSERTOKEN=my-secret-token"
+```
+
+<Aside type="caution">
+Use a secure, randomly generated token. Anyone with the token can view sensitive telemetry data including environment variables, connection strings, and runtime data from your app.
+</Aside>
+
+### Use OpenID Connect authentication
+
+For team access to the deployed dashboard, configure OpenID Connect (OIDC) authentication instead of browser token auth. This allows multiple users to log in with their organizational identity provider.
+
+<LearnMore>
+For more information on configuring OIDC, see [Aspire dashboard configuration: Frontend](/dashboard/configuration/#frontend).
+</LearnMore>
+
+## See also
+
+- [Aspire dashboard configuration](/dashboard/configuration/)
+- [Aspire dashboard security considerations](/dashboard/security-considerations/)
+- [Enable browser telemetry](/dashboard/enable-browser-telemetry/)
+- [Deploy using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/)
+- [Azure Monitor OpenTelemetry documentation](https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable)
