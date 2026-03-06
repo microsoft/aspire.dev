@@ -82,7 +82,10 @@ dotnet hex1b --help
 
 - Terminal size: 120 columns × 30 rows
 - Idle time limit: 2.0 seconds
-- File naming: `aspire-<subcommand>.cast` (e.g., `aspire-add.cast`)
+- File naming:
+  - Root command help: `aspire-help.cast`
+  - Subcommand help: `aspire-<subcommand>.cast` (e.g., `aspire-add.cast`)
+  - Live/demo variants (e.g., for `aspire --version` or `aspire doctor`): `aspire-<subcommand>-demo.cast` or `aspire-help-demo.cast`
 - Overwrite existing cast files when re-recording
 
 ## Output
