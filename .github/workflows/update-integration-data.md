@@ -17,8 +17,7 @@ steps:
     working-directory: src/frontend
 network:
   allowed:
-    - defaults
-    - node
+    - containers
     - dotnet
     - github
     - playwright
