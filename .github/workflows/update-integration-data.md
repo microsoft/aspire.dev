@@ -19,11 +19,9 @@ network:
   allowed:
     - defaults
     - node
-    - containers
     - dotnet
     - github
     - playwright
-    - linux-distros
 safe-outputs:
   create-pull-request:
     title-prefix: "chore: "
