@@ -302,7 +302,7 @@ This ensures your JavaScript applications are built consistently across environm
 
 ## Pass runtime configuration to SPA frontends
 
-Vite and other SPA build tools bake environment variables (such as `VITE_*`) into the JavaScript bundle at **build time**. However, Aspire sets environment variables at **runtime**. This means calling `.WithEnvironment("VITE_GOOGLE_CLIENT_ID", parameter)` on a Vite resource doesn't work as expected—the value isn't available when Vite compiles the frontend during development.
+Vite and other SPA build tools bake environment variables (such as `VITE_*`) into the JavaScript bundle at **build time** (for example, when building the client for production). However, Aspire sets environment variables at **runtime**. This means calling `.WithEnvironment("VITE_GOOGLE_CLIENT_ID", parameter)` on a Vite resource won't change values that were already baked into a previously built production bundle.
 
 To bridge this gap, pass the parameter to your API project as a standard environment variable and expose it through a configuration endpoint that the SPA fetches at startup.
 
@@ -344,6 +344,8 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 
     <Aside type="tip">
     For multiple configuration values, consider grouping them under a single endpoint (such as `GET /api/config`) to reduce network requests.
+
+    Use this pattern only for non-secret/public configuration values (for example OAuth client IDs). Do not expose secrets such as client secrets, API keys, or connection strings via a frontend config endpoint.
     </Aside>
 
 3. **Fetch the config value in the SPA**
