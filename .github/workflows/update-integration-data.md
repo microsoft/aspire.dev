@@ -17,10 +17,10 @@ steps:
     working-directory: src/frontend
 network:
   allowed:
-    - defaults
-    - node
+    - containers
+    - dotnet
     - github
-    - "*.nuget.org"
+    - playwright
 safe-outputs:
   create-pull-request:
     title-prefix: "chore: "
