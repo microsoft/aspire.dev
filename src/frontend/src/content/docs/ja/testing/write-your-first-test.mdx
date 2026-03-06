@@ -9,13 +9,13 @@ import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
 
 <PivotSelector
-  title="使用するテストフレームワークを選択してください"
-  key="testing-framework"
-  options={[
-    { id: 'xunit', title: 'xUnit.net' },
-    { id: 'mstest', title: 'MSTest' },
-    { id: 'nunit', title: 'NUnit' },
-  ]}
+    title="使用するテストフレームワークを選択してください"
+    key="testing-framework"
+    options={[
+        { id: 'xunit', title: 'xUnit.net' },
+        { id: 'mstest', title: 'MSTest' },
+        { id: 'nunit', title: 'NUnit' },
+    ]}
 />
 
 この記事では、Aspire ソリューション向けにテストプロジェクトを作成し、C# でテストを書き、それらを実行する方法を学びます。これらはユニットテストではなく、分散アプリケーションの各コンポーネントがどのように連携して動作するかを検証するための 機能テストおよび統合テスト です。Aspire では、xUnit.net、MSTest、NUnit 向けのテストプロジェクトテンプレートが提供されており、それぞれにサンプルテストが含まれているため、すぐに始めることができます。
@@ -384,15 +384,12 @@ public class IntegrationTest1
 
 - `DistributedApplicationTestingBuilder.CreateAsync` API を使用して、AppHost を非同期に作成しています。
 - `appHost` は `IDistributedApplicationTestingBuilder` のインスタンスで、AppHost を表します。
-- appHost のサービス コレクションに対して、ログ設定および標準の HTTP レジリエンス ハンドラーを構成しています。詳細については [回復性がある HTTP アプリを構築する: 主要な開発パターン](https://learn.microsoft.com/ja-jp/dotnet/core/resilience/http-resilience)をご参照ください。
-- The `appHost` has its `BuildAsync` method invoked, which returns the `DistributedApplication` instance as the `app`.
+- `appHost` のサービス コレクションに対して、ログ設定および標準の HTTP レジリエンス ハンドラーを構成しています。詳細については [回復性がある HTTP アプリを構築する: 主要な開発パターン](https://learn.microsoft.com/ja-jp/dotnet/core/resilience/http-resilience)をご参照ください。
 - `appHost.BuildAsync` を呼び出し、`DistributedApplication` インスタンスを `app` として取得しています。
 - `app` を非同期に起動しています。
 - `app.CreateHttpClient` を呼び出して、`webfrontend` リソース用の `HttpClient` を作成しています。
 - `app.ResourceNotifications` を使用して、`webfrontend` リソースが正常状態になるまで待機しています。
-- A simple HTTP GET request is made to the root of the `webfrontend` resource.
 - `webfrontend` リソースのルートに対して、シンプルな HTTP GET リクエストを送信しています。
-- The test asserts that the response status code is `OK`.
 - レスポンスのステータス コードが OK（HTTP 200）であることを検証しています。
 
 ## リソースの環境変数をテストする
@@ -418,8 +415,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // 実行（Act）
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // 検証（Assert）
         Assert.Contains(envVars, static (kvp) =>
@@ -454,8 +455,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // 実行（Act）
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // 検証（Assert）
         CollectionAssert.Contains(envVars,
@@ -486,8 +491,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // 実行（Act）
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // 検証（Assert）
         Assert.That(envVars, Does.Contain(
@@ -503,10 +512,10 @@ public class EnvVarTests
 上記のコードでは、次のことを行っています:
 
 - `DistributedApplicationTestingBuilder.CreateAsync` API を利用して、AppHost を非同期に作成しています。
-- `builder` インスタンスは、`Resources` プロパティから 「webfrontend」 という名前の `IResourceWithEnvironment` インスタンスを取得するために使用されます。
-- `webfrontend` リソースに対して `GetEnvironmentVariableValuesAsync` を呼び出し、構成済みの環境変数を取得しています。
-- `GetEnvironmentVariableValuesAsync` 呼び出し時に `DistributedApplicationOperation.Publish` を渡し、バインディング式としてリソースに公開（Publish）される環境変数を対象にしています。
-- 返却された環境変数を用いて、テストでは `webfrontend` リソースに、`apiservice` リソースへ解決される HTTPS の環境変数が存在することを検証しています。
+- `builder` インスタンスの `Resources` プロパティから 「webfrontend」 という名前の `IResourceWithEnvironment` インスタンスを取得しています。
+- `ExecutionConfigurationBuilder` を使用して `webfrontend` リソースの `ExecutionConfiguration` を構築し、`WithEnvironmentVariablesConfig` によって環境変数の構成を明示的に有効化しています。
+- `DistributedApplicationOperation.Publish` を指定して `BuildAsync` を呼び出し、未解決のバインディング式を含む、そのリソースに対して公開される環境変数を生成しています。
+- 返却された環境変数を用いて、テストでは `webfrontend` リソースが `apiservice` リソースへ解決される HTTPS の環境変数が存在することを検証しています。
 
 ## テストからログを取得する
 

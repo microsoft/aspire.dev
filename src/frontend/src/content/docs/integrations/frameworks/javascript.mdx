@@ -104,9 +104,14 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 
 `AddViteApp` automatically configures:
 
+- **HTTP endpoint**: Registers an `http` endpoint and sets the `PORT` environment variable — you don't need to call `WithHttpEndpoint` yourself
 - **Development script**: Runs the "dev" script (typically `vite`) during local development
 - **Build script**: Runs the "build" script (typically `vite build`) when publishing
 - **Package manager**: Uses npm by default, but can be customized with `WithYarn()` or `WithPnpm()`
+
+:::caution
+Do _not_ call `.WithHttpEndpoint()` on a Vite resource. `AddViteApp` already registers an `http` endpoint with the `PORT` environment variable, and adding another causes a duplicate endpoint error at runtime.
+:::
 
 The method accepts the same parameters as `AddJavaScriptApp`:
 
@@ -237,6 +242,10 @@ var app = builder.AddJavaScriptApp("app", "./app")
 ## Configure endpoints
 
 JavaScript applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the environment variable:
+
+:::tip
+`AddViteApp` already registers an `http` endpoint with the `PORT` environment variable. The following example applies to `AddJavaScriptApp` and `AddNodeApp` only.
+:::
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);

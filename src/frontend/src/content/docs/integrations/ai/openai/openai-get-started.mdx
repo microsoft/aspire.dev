@@ -1,0 +1,99 @@
+---
+title: Get started with the OpenAI integration
+description: Learn how to set up the Aspire OpenAI hosting and client integrations simply.
+prev: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import openaiIcon from '@assets/icons/openai-icon.png';
+import openaiLightIcon from '@assets/icons/openai-light-icon.png';
+
+<ThemeImage
+  light={openaiLightIcon}
+  dark={openaiIcon}
+  alt="OpenAI logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+[OpenAI](https://openai.com/) provides access to chat/completions, embeddings, image, and audio models via a REST API. The OpenAI integration lets you:
+
+- Model an OpenAI account (endpoint + API key) once in the AppHost.
+- Add one or more model resources that compose their connection strings from the parent.
+- Reference those model resources from projects to get strongly-named connection strings.
+- Consume those connection strings with the `Aspire.OpenAI` component to obtain an `OpenAIClient` and (optionally) an `IChatClient`.
+
+In this introduction, you'll see how to install and use the Aspire OpenAI integrations in a simple configuration. If you already have this knowledge, see [OpenAI hosting integration](/integrations/ai/openai/openai-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire OpenAI hosting integration in your Aspire AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.OpenAI" />
+
+Next, in the AppHost project, create instances of OpenAI resources and pass them to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddOpenAI("openai");
+
+var chat = openai.AddModel("chat", "gpt-4o-mini");
+var embeddings = openai.AddModel("embeddings", "text-embedding-3-small");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+
+builder.Build().Run();
+```
+
+The preceding code adds an OpenAI parent resource and two model resources. Referencing `chat` passes a connection string named `chat` to the project. Multiple models can share the single API key and endpoint via the parent resource.
+
+### Configure authentication
+
+The integration creates a secret parameter named `openai-openai-apikey` that automatically falls back to the `OPENAI_API_KEY` environment variable. Provide the key via user-secrets:
+
+```bash
+dotnet user-secrets set Parameters:openai-openai-apikey sk-your-api-key
+```
+
+## Set up client integration
+
+To get started with the Aspire OpenAI client integration, install the package:
+
+<InstallDotNetPackage packageName="Aspire.OpenAI" />
+
+In the `Program.cs` file of your client-consuming project, use `AddOpenAIClient` to register an `OpenAIClient` for dependency injection:
+
+```csharp
+builder.AddOpenAIClient(connectionName: "chat");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the OpenAI
+  resource in the AppHost project.
+</Aside>
+
+After adding the `OpenAIClient`, you can retrieve the client instance using dependency injection:
+
+```csharp
+public class ExampleService(OpenAIClient client)
+{
+    // Use client...
+}
+```
+
+## See also
+
+- [OpenAI hosting integration](/integrations/ai/openai/openai-host/)
+- [OpenAI client integration](/integrations/ai/openai/openai-client/)
+- [OpenAI documentation](https://openai.com/)

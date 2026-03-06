@@ -1,0 +1,136 @@
+---
+title: OpenAI hosting integration
+description: Full reference for the Aspire OpenAI hosting integration.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+
+The hosting integration models OpenAI with two resource types:
+
+- `OpenAIResource`: Parent that holds the shared API key and base endpoint (defaults to `https://api.openai.com/v1`).
+- `OpenAIModelResource`: Child representing a specific model; composes a connection string from the parent (`Endpoint` + `Key` + `Model`).
+
+To access these types and APIs, install the [📦 Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.OpenAI" />
+
+## Add an OpenAI parent resource
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddOpenAI("openai");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(openai);
+
+// After adding all resources, run the app...
+```
+
+## Add OpenAI model resources
+
+Add one or more model children beneath the parent and reference them from projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddOpenAI("openai");
+
+var chat = openai.AddModel("chat", "gpt-4o-mini");
+var embeddings = openai.AddModel("embeddings", "text-embedding-3-small");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+
+Referencing `chat` passes a connection string named `chat` to the project. Multiple models can share the single API key and endpoint via the parent resource.
+
+## Use default API key parameter
+
+Calling `AddOpenAI("openai")` creates a secret parameter named `openai-openai-apikey`. Aspire resolves its value in this order:
+
+1. The `Parameters:openai-openai-apikey` configuration key (user secrets, `appsettings.*`, or environment variables).
+2. The `OPENAI_API_KEY` environment variable.
+
+If neither source provides a value, startup throws an exception. Provide the key via user-secrets:
+
+```bash
+dotnet user-secrets set Parameters:openai-openai-apikey sk-your-api-key
+```
+
+## Use custom API key parameter
+
+Replace the default parameter by creating your own secret parameter and calling `WithApiKey` on the parent:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiKey = builder.AddParameter("my-api-key", secret: true);
+
+var openai = builder.AddOpenAI("openai")
+                    .WithApiKey(apiKey);
+
+var chat = openai.AddModel("chat", "gpt-4o-mini");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+```
+
+<Aside type="note">Custom parameters must be marked `secret: true`.</Aside>
+
+## Add a custom endpoint
+
+Override the default endpoint (for example to use a proxy or compatible gateway):
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddOpenAI("openai")
+                    .WithEndpoint("https://my-gateway.example.com/v1");
+
+var chat = openai.AddModel("chat", "gpt-4o-mini");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+```
+
+## Health checks
+
+Add an optional single-run health check per model when diagnosing issues:
+
+```csharp
+var chat = builder.AddOpenAI("openai")
+                  .AddModel("chat", "gpt-4o-mini")
+                  .WithHealthCheck();
+```
+
+The model health check validates endpoint reachability, API key validity (401), and model existence (404). It executes only once per application instance to limit rate-limit implications. A status-page check against `https://status.openai.com/api/v2/status.json` is automatically registered for each parent resource.
+
+## Available models
+
+Common identifiers:
+
+- `gpt-5`
+- `gpt-4o-mini`
+- `gpt-4o`
+- `gpt-4-turbo`
+- `gpt-realtime`
+- `text-embedding-3-small`
+- `text-embedding-3-large`
+- `dall-e-3`
+- `whisper-1`
+
+<Aside type="note">
+  The model name is case-insensitive, but we usually write it in lowercase.
+</Aside>
+
+For more information, see the [OpenAI models documentation](https://platform.openai.com/docs/models).
+
+## See also
+
+- [Get started with the OpenAI integration](/integrations/ai/openai/openai-get-started/)
+- [OpenAI client integration](/integrations/ai/openai/openai-client/)
+- [OpenAI documentation](https://openai.com/)

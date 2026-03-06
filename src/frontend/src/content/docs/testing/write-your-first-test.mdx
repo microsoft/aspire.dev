@@ -415,8 +415,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // Act
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // Assert
         Assert.Contains(envVars, static (kvp) =>
@@ -451,8 +455,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // Act
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // Assert
         CollectionAssert.Contains(envVars,
@@ -483,8 +491,12 @@ public class EnvVarTests
         var frontend = builder.CreateResourceBuilder<ProjectResource>("webfrontend");
 
         // Act
-        var envVars = await frontend.Resource.GetEnvironmentVariableValuesAsync(
-            DistributedApplicationOperation.Publish);
+        var executionConfiguration = await ExecutionConfigurationBuilder.Create(frontend.Resource)
+            .WithEnvironmentVariablesConfig()
+            .BuildAsync(new(DistributedApplicationOperation.Publish), NullLogger.Instance, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        var envVars = executionConfiguration.EnvironmentVariables.ToDictionary();
 
         // Assert
         Assert.That(envVars, Does.Contain(
@@ -501,8 +513,8 @@ The preceding code:
 
 - Relies on the `DistributedApplicationTestingBuilder.CreateAsync` API to asynchronously create the AppHost.
 - The `builder` instance is used to retrieve an `IResourceWithEnvironment` instance named "webfrontend" from the `Resources` property.
-- The `webfrontend` resource is used to call `GetEnvironmentVariableValuesAsync` to retrieve its configured environment variables.
-- The `DistributedApplicationOperation.Publish` argument is passed when calling `GetEnvironmentVariableValuesAsync` to specify environment variables that are published to the resource as binding expressions.
+- Builds an `ExecutionConfiguration` for the `webfrontend` resource using `ExecutionConfigurationBuilder`, explicitly enabling environment variable configuration via `WithEnvironmentVariablesConfig`.
+- Calls `BuildAsync` with `DistributedApplicationOperation.Publish` to generate the environment variables that will be published for the resource, including unresolved binding expressions.
 - With the returned environment variables, the test asserts that the `webfrontend` resource has an HTTPS environment variable that resolves to the `apiservice` resource.
 
 ## Capture logs from tests
