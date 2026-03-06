@@ -1,0 +1,320 @@
+---
+title: Testing in CI/CD pipelines
+description: Learn how to run Aspire integration tests reliably in CI/CD environments, such as GitHub Actions and Azure DevOps, covering timeout configuration, Azure authentication, and container requirements.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+This article covers how to run Aspire integration tests reliably in continuous integration (CI) and continuous deployment (CD) environments, addressing common challenges such as test timeouts, Azure authentication, and container requirements.
+
+## Container requirements
+
+Aspire integration tests typically start containers (databases, caches, and other services) as part of the test run. Your CI environment must have a container runtime available.
+
+- **GitHub Actions**: For Linux-based Aspire test containers, use `ubuntu-*` runners, which have Docker available by default. GitHub-hosted `windows-*` and `macos-*` runners do not provide a Docker Engine suitable for running Linux containers; use self-hosted runners with a configured container runtime if you must target those operating systems.
+- **Azure DevOps**: Docker is available on Microsoft-hosted agents (`ubuntu-latest`, `windows-latest`). Ensure the agent pool supports Docker.
+- **Self-hosted runners**: Install and start Docker or another compatible container runtime (such as Podman) before running tests.
+
+<Aside type="caution">
+Some CI environments restrict container networking, privileged containers, or certain Docker features. If you encounter container startup failures in CI, check your runner's Docker capabilities and network configuration.
+</Aside>
+
+## Configure timeouts to prevent hanging tests
+
+One of the most common issues when running Aspire tests in CI is tests hanging indefinitely because resources never reach their expected state. Always configure explicit timeouts for resource waiting and test execution.
+
+### Set timeouts on resource waiting
+
+The `WaitForResourceAsync` and `WaitForResourceHealthyAsync` methods accept a `CancellationToken`. Always pass a token with a timeout to avoid indefinite waits:
+
+```csharp title="C# — IntegrationTest.cs"
+using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+await app.ResourceNotifications.WaitForResourceHealthyAsync(
+    "webfrontend",
+    cts.Token);
+```
+
+### Set timeouts on `BuildAsync` and `StartAsync`
+
+Use `WaitAsync` to apply a timeout to the build and startup operations:
+
+```csharp title="C# — IntegrationTest.cs"
+var timeout = TimeSpan.FromMinutes(5);
+var cancellationToken = CancellationToken.None;
+
+await using var app = await appHost.BuildAsync(cancellationToken)
+    .WaitAsync(timeout, cancellationToken);
+
+await app.StartAsync(cancellationToken)
+    .WaitAsync(timeout, cancellationToken);
+```
+
+### Use longer timeouts in CI
+
+CI environments are often slower than local development machines due to network latency when pulling container images, limited CPU and memory, and parallel test execution. Consider using environment-aware timeouts:
+
+```csharp title="C# — IntegrationTest.cs"
+private static readonly TimeSpan DefaultTimeout = 
+    Environment.GetEnvironmentVariable("CI") is not null
+        ? TimeSpan.FromMinutes(5)   // Longer timeout in CI
+        : TimeSpan.FromSeconds(30); // Shorter timeout locally
+
+[Fact]
+public async Task GetWebResourceRootReturnsOkStatusCode()
+{
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>();
+
+    await using var app = await appHost.BuildAsync()
+        .WaitAsync(DefaultTimeout);
+    await app.StartAsync().WaitAsync(DefaultTimeout);
+
+    using var cts = new CancellationTokenSource(DefaultTimeout);
+    await app.ResourceNotifications.WaitForResourceHealthyAsync(
+        "webfrontend", cts.Token);
+
+    using var httpClient = app.CreateHttpClient("webfrontend");
+    using var response = await httpClient.GetAsync("/");
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+}
+```
+
+## Configure Azure authentication in CI
+
+When running tests that involve Azure resources (such as Azure Cosmos DB, Azure Service Bus, or Azure Storage), you must configure Azure authentication appropriately for your CI environment.
+
+### Local vs. CI authentication
+
+In local development, Aspire uses your developer identity (via `DefaultAzureCredential`, which tries Visual Studio, Azure CLI, and other sources). In CI, no developer identity is available, so you must configure a **service principal** or **managed identity**.
+
+A common symptom of misconfigured CI authentication is errors like:
+
+```
+The principal type 'User' is not allowed. Expected 'ServicePrincipal'.
+```
+
+This occurs when a role assignment in your Aspire AppHost is configured with `principalType: "User"` but the CI pipeline is running as a service principal.
+
+### Use `DefaultAzureCredential` with environment variables
+
+The recommended approach is to configure a service principal and set the standard Azure SDK environment variables in your CI pipeline. `DefaultAzureCredential` automatically picks up these environment variables:
+
+| Environment variable | Description |
+|----------------------|-------------|
+| `AZURE_CLIENT_ID` | The application (client) ID of your service principal |
+| `AZURE_TENANT_ID` | Your Azure Active Directory tenant ID |
+| `AZURE_CLIENT_SECRET` | The client secret of your service principal |
+
+<Aside type="note">
+When deploying to Azure Container Apps or Azure App Service, Aspire 13.0 automatically sets `AZURE_TOKEN_CREDENTIALS=managedidentity` so that `DefaultAzureCredential` uses only `ManagedIdentityCredential`. This doesn't affect test environments, but is important to understand if your tests also exercise deployment paths. For more information, see [DefaultAzureCredential behavior in Azure deployments](/whats-new/aspire-13/#defaultazurecredential-behavior-in-azure-deployments).
+</Aside>
+
+<Tabs syncKey="ci-provider">
+<TabItem label="GitHub Actions">
+
+```yaml title="YAML — .github/workflows/tests.yml"
+- name: Run Aspire integration tests
+  env:
+    AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+    AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  run: dotnet test --no-build
+```
+
+</TabItem>
+<TabItem label="Azure DevOps">
+
+```yaml title="YAML — azure-pipelines.yml"
+- task: DotNetCoreCLI@2
+  displayName: Run Aspire integration tests
+  inputs:
+    command: test
+    projects: '**/*.Tests.csproj'
+  env:
+    AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)
+    AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+    AZURE_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+    AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+```
+
+</TabItem>
+</Tabs>
+
+### Configure Azure credentials in the AppHost factory
+
+You can also set Azure credentials programmatically in your test setup using the `DistributedApplicationFactory`:
+
+```csharp title="C# — CiAppHostFactory.cs"
+public class CiAppHostFactory()
+    : DistributedApplicationFactory(typeof(Projects.MyAppHost))
+{
+    protected override void OnBuilderCreating(
+        DistributedApplicationOptions applicationOptions,
+        HostApplicationBuilderSettings hostOptions)
+    {
+        hostOptions.Configuration ??= new();
+
+        // Read credentials from environment and forward to AppHost configuration
+        if (Environment.GetEnvironmentVariable("AZURE_CLIENT_ID") is { } clientId)
+        {
+            hostOptions.Configuration["AZURE_CLIENT_ID"] = clientId;
+        }
+
+        if (Environment.GetEnvironmentVariable("AZURE_TENANT_ID") is { } tenantId)
+        {
+            hostOptions.Configuration["AZURE_TENANT_ID"] = tenantId;
+        }
+
+        if (Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET") is { } clientSecret)
+        {
+            hostOptions.Configuration["AZURE_CLIENT_SECRET"] = clientSecret;
+        }
+
+        if (Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID") is { } subscriptionId)
+        {
+            hostOptions.Configuration["AZURE_SUBSCRIPTION_ID"] = subscriptionId;
+        }
+    }
+}
+```
+
+### Skip Azure tests when credentials are unavailable
+
+When Azure credentials aren't configured, you may want to skip tests that require Azure resources rather than fail them. Use a guard at the start of your test or in a base class:
+
+```csharp title="C# — IntegrationTest.cs"
+[Fact]
+public async Task TestWithAzureCosmosDb()
+{
+    if (Environment.GetEnvironmentVariable("AZURE_CLIENT_ID") is null
+        || Environment.GetEnvironmentVariable("AZURE_SUBSCRIPTION_ID") is null)
+    {
+        // Skip when Azure credentials are not available
+        throw new Xunit.Sdk.SkipException("""
+            Azure credentials not configured; skipping test.
+            """);
+    }
+
+    var appHost = await DistributedApplicationTestingBuilder
+        .CreateAsync<Projects.MyAppHost>();
+
+    // ... rest of test
+}
+```
+
+<Aside type="tip">
+Consider using test categories or traits to separate tests that require Azure credentials from tests that run entirely on local containers. This lets CI pipelines choose which tests to run based on available credentials.
+</Aside>
+
+## Run tests in parallel
+
+Aspire tests use random port assignment by default, which allows multiple test instances to run concurrently without port conflicts. This is controlled by the `DcpPublisher:RandomizePorts` setting, which is enabled by default in the testing builder.
+
+For CI environments running multiple test classes in parallel, random ports help prevent failures caused by port collisions. If you've disabled random ports (for example to match a specific port in a health check URL), re-enable them for CI:
+
+```csharp title="C# — IntegrationTest.cs"
+var appHost = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.MyAppHost>(
+    [
+        "DcpPublisher:RandomizePorts=true"
+    ]);
+```
+
+<LearnMore>
+For information about disabling port randomization, see [Testing overview: Disable port randomization](/testing/overview/#disable-port-randomization).
+</LearnMore>
+
+## Example CI workflow
+
+The following is a complete GitHub Actions workflow for running Aspire integration tests:
+
+<Aside type="note">
+GitHub Actions automatically sets the `CI` environment variable to `true` for all workflow runs. The test code from the earlier [Use longer timeouts in CI](#use-longer-timeouts-in-ci) section checks for this variable to apply extended timeouts. Other CI platforms (Azure DevOps, CircleCI, and others) also set `CI=true` by default.
+</Aside>
+
+```yaml title="YAML — .github/workflows/integration-tests.yml"
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Run integration tests
+        env:
+          # Azure credentials (optional—skip Azure tests if not set)
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: dotnet test --no-build --verbosity normal
+        timeout-minutes: 30
+```
+
+<Aside type="tip">
+Always set a `timeout-minutes` on your test job to prevent stuck tests from consuming CI minutes indefinitely.
+</Aside>
+
+## Troubleshooting common CI failures
+
+### Tests hang or time out
+
+**Cause**: Resources fail to start or become healthy within the expected time.
+
+**Solutions**:
+- Increase the timeout values in your tests.
+- Add logging to capture resource startup output.
+- Check that Docker is available and running on the CI agent.
+- Verify that container images can be pulled (network access, image name, and tags).
+
+### Container pull failures
+
+**Cause**: The CI environment can't pull required container images.
+
+**Solutions**:
+- Check that the CI runner has internet access to Docker Hub or your container registry.
+- Pre-pull commonly used images as a build step.
+- Use a private registry mirror if Docker Hub rate limits are an issue.
+
+### Azure authentication errors
+
+**Cause**: Missing or incorrect Azure service principal credentials.
+
+**Solutions**:
+- Ensure `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_CLIENT_SECRET` are set as CI secrets.
+- Verify the service principal has the required role assignments in Azure.
+- Check that `AZURE_SUBSCRIPTION_ID` is set when provisioning Azure resources.
+
+### Port conflicts
+
+**Cause**: Multiple test instances using the same fixed ports.
+
+**Solution**: Ensure `DcpPublisher:RandomizePorts` isn't explicitly set to `false` when running tests in parallel.
+
+## See also
+
+- [Testing overview](/testing/overview/)
+- [Manage the AppHost in tests](/testing/manage-app-host/)
+- [Advanced testing scenarios](/testing/advanced-scenarios/)
