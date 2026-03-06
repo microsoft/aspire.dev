@@ -1,0 +1,252 @@
+namespace AtsJsonGenerator.Helpers;
+
+/// <summary>
+/// Transforms the raw <c>aspire sdk dump --json</c> output into the docs-site JSON model.
+/// </summary>
+internal static class AtsTransformer
+{
+    /// <summary>
+    /// Transform the deserialized dump output into a <see cref="TsPackageModel"/>.
+    /// </summary>
+    public static TsPackageModel Transform(
+        AtsDumpRoot dump,
+        string packageName,
+        string? version = null,
+        string? sourceRepository = null,
+        string? sourceCommit = null)
+    {
+        // Fall back to the version from the dump's Packages metadata if not explicitly provided
+        version ??= dump.Packages
+            .FirstOrDefault(p => string.Equals(p.Name, packageName, StringComparison.OrdinalIgnoreCase))
+            ?.Version;
+
+        // Transform handle types
+        var handleModels = dump.HandleTypes
+            .Select(TransformHandle)
+            .OrderBy(h => h.FullName)
+            .ToList();
+
+        // Build a lookup for associating capabilities with handle types
+        var handleLookup = handleModels.ToDictionary(h => h.FullName, h => h);
+
+        // Transform capabilities into functions
+        var functionModels = dump.Capabilities
+            .Select(TransformCapability)
+            .OrderBy(f => f.QualifiedName)
+            .ToList();
+
+        // Associate capabilities with their target handle types
+        foreach (var func in functionModels)
+        {
+            if (func.TargetTypeId is null)
+            {
+                continue;
+            }
+
+            var targetFullName = StripAssemblyPrefix(func.TargetTypeId);
+            if (handleLookup.TryGetValue(targetFullName, out var handle))
+            {
+                handle.Capabilities.Add(func);
+            }
+        }
+
+        // Transform DTO types
+        var dtoModels = dump.DtoTypes
+            .Select(TransformDto)
+            .OrderBy(d => d.FullName)
+            .ToList();
+
+        // Transform enum types
+        var enumModels = dump.EnumTypes
+            .Select(TransformEnum)
+            .OrderBy(e => e.FullName)
+            .ToList();
+
+        return new TsPackageModel
+        {
+            Package = new TsPackageInfo
+            {
+                Name = packageName,
+                Version = version,
+                SourceRepository = sourceRepository,
+                SourceCommit = sourceCommit,
+            },
+            Functions = functionModels,
+            HandleTypes = handleModels,
+            DtoTypes = dtoModels,
+            EnumTypes = enumModels,
+        };
+    }
+
+    private static TsHandleTypeModel TransformHandle(AtsDumpHandleType h)
+    {
+        var fullName = StripAssemblyPrefix(h.AtsTypeId);
+        return new TsHandleTypeModel
+        {
+            Name = SimpleName(fullName),
+            FullName = fullName,
+            IsInterface = h.IsInterface,
+            ExposeProperties = h.ExposeProperties,
+            ExposeMethods = h.ExposeMethods,
+            ImplementedInterfaces = h.ImplementedInterfaces
+                .Select(i => StripAssemblyPrefix(i.TypeId))
+                .OrderBy(i => i)
+                .ToList(),
+        };
+    }
+
+    private static TsFunctionModel TransformCapability(AtsDumpCapability cap)
+    {
+        // Filter out the context/builder target parameter from visible params
+        var visibleParams = cap.Parameters
+            .Where(p => p.Name != cap.TargetParameterName)
+            .ToList();
+
+        var paramModels = visibleParams.Select(p => new TsParameterModel
+        {
+            Name = p.Name,
+            Type = FormatTypeRef(p.Type),
+            IsOptional = p.IsOptional,
+            IsNullable = p.IsNullable,
+            DefaultValue = p.DefaultValue,
+            IsCallback = p.IsCallback,
+            CallbackSignature = p.IsCallback ? FormatCallbackSignature(p) : null,
+        }).ToList();
+
+        // Build a TypeScript-style signature
+        var paramParts = paramModels.Select(p =>
+        {
+            var opt = p.IsOptional ? "?" : "";
+            var type = p.IsCallback && p.CallbackSignature is not null
+                ? p.CallbackSignature
+                : p.Type;
+            return $"{p.Name}{opt}: {type}";
+        });
+
+        var returnTypeStr = FormatTypeRef(cap.ReturnType);
+        var sig = $"{cap.MethodName}({string.Join(", ", paramParts)}): {returnTypeStr}";
+
+        return new TsFunctionModel
+        {
+            Name = cap.MethodName,
+            CapabilityId = cap.CapabilityId,
+            QualifiedName = cap.QualifiedMethodName,
+            Description = cap.Description,
+            Kind = cap.CapabilityKind,
+            Signature = sig,
+            Parameters = paramModels,
+            ReturnType = returnTypeStr,
+            ReturnsBuilder = cap.ReturnsBuilder,
+            TargetTypeId = cap.TargetTypeId,
+            ExpandedTargetTypes = cap.ExpandedTargetTypes
+                .Select(t => StripAssemblyPrefix(t.TypeId))
+                .ToList(),
+        };
+    }
+
+    private static TsDtoTypeModel TransformDto(AtsDumpDtoType dto)
+    {
+        var fullName = StripAssemblyPrefix(dto.TypeId);
+        return new TsDtoTypeModel
+        {
+            Name = dto.Name,
+            FullName = fullName,
+            Fields = dto.Properties.Select(p => new TsDtoFieldModel
+            {
+                Name = p.Name,
+                Type = FormatTypeRef(p.Type),
+                IsOptional = p.IsOptional,
+            }).ToList(),
+        };
+    }
+
+    private static TsEnumTypeModel TransformEnum(AtsDumpEnumType e)
+    {
+        // EnumType TypeId is "enum:Full.Name" — strip "enum:" prefix
+        var fullName = e.TypeId.StartsWith("enum:", StringComparison.Ordinal)
+            ? e.TypeId["enum:".Length..]
+            : e.TypeId;
+
+        return new TsEnumTypeModel
+        {
+            Name = e.Name,
+            FullName = fullName,
+            Members = e.Values,
+        };
+    }
+
+    /// <summary>
+    /// Format a callback parameter into a TypeScript-style function type signature.
+    /// </summary>
+    private static string FormatCallbackSignature(AtsDumpParameter param)
+    {
+        if (param.CallbackParameters is null)
+        {
+            return "() => void";
+        }
+
+        var cbParams = param.CallbackParameters.Select(p =>
+            $"{p.Name}: {FormatTypeRef(p.Type)}");
+
+        var returnType = param.CallbackReturnType is not null
+            ? FormatTypeRef(param.CallbackReturnType)
+            : "void";
+
+        return $"({string.Join(", ", cbParams)}) => {returnType}";
+    }
+
+    /// <summary>
+    /// Format a type reference for display, simplifying common patterns.
+    /// </summary>
+    internal static string FormatTypeRef(AtsDumpTypeRef? typeRef)
+    {
+        if (typeRef is null)
+        {
+            return "void";
+        }
+
+        return typeRef.Category switch
+        {
+            "Primitive" => typeRef.TypeId,
+            "Callback" => "callback",
+            "Array" when typeRef.ElementType is not null =>
+                $"{FormatTypeRef(typeRef.ElementType)}[]",
+            _ => SimplifyTypeId(typeRef.TypeId),
+        };
+    }
+
+    /// <summary>
+    /// Simplify a fully-qualified type ID for display.
+    /// </summary>
+    internal static string SimplifyTypeId(string typeId)
+    {
+        var stripped = StripAssemblyPrefix(typeId);
+        return SimpleName(stripped);
+    }
+
+    /// <summary>
+    /// Strip the "Assembly/" prefix from a type ID.
+    /// </summary>
+    internal static string StripAssemblyPrefix(string typeId)
+    {
+        var slashIdx = typeId.IndexOf('/');
+        return slashIdx >= 0 ? typeId[(slashIdx + 1)..] : typeId;
+    }
+
+    /// <summary>
+    /// Extract the simple name from a fully-qualified name.
+    /// </summary>
+    private static string SimpleName(string fullName)
+    {
+        // Handle generic types: don't split inside angle brackets
+        if (fullName.Contains('<'))
+        {
+            var angleIdx = fullName.IndexOf('<');
+            var prefix = fullName[..angleIdx];
+            var suffix = fullName[angleIdx..];
+            return prefix.Split('.').Last() + suffix;
+        }
+
+        return fullName.Split('.').Last();
+    }
+}

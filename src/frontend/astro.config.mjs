@@ -94,12 +94,17 @@ export default defineConfig({
         }),
         catppuccin(),
         starlightSidebarTopics(sidebarTopics, {
-          exclude: ['**/includes/**/*', '/support'],
+          exclude: [
+            '**/includes/**/*',
+            '/support', 
+            '/reference/api', 
+            '/reference/api/**'
+          ],
         }),
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
-                exclude: ['/i18n/'],
+          exclude: ['/i18n/'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
@@ -143,7 +148,6 @@ export default defineConfig({
             'integrations/index',
             'integrations/gallery',
             'reference/overview',
-            'reference/api/browser',
             'community/contributors',
             'community/videos',
             'community/thanks',

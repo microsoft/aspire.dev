@@ -1,0 +1,280 @@
+---
+/**
+ * MemberOverviewList — condensed member summary for the type overview page.
+ *
+ * Renders a compact table per member kind (constructors, properties, methods, etc.)
+ * with name, return type, and one-line summary. Each group links to the
+ * dedicated member-kind detail page for full documentation.
+ */
+import AnchorHeading from './AnchorHeading.astro';
+import DocContent from './DocContent.astro';
+import {
+  groupMembersByKind,
+  memberKindLabels,
+  memberKindSlugs,
+  typeHref,
+  resolveTypeLink,
+  shortTypeName,
+  memberSlug,
+  memberDisplayName,
+} from '@utils/packages';
+
+interface Props {
+  members: any[];
+  typeName: string;
+  typeArity?: number;
+  allTypes?: any[];
+  packageName?: string;
+}
+
+const { members = [], typeName, typeArity = 0, allTypes = [], packageName = '' } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const groups = groupMembersByKind(members);
+
+/** Build the href for a member-kind detail page. */
+function kindPageHref(kind: string): string {
+  const slug = memberKindSlugs[kind];
+  if (!slug) return '#';
+  const typeBase = typeHref(base, packageName, typeName, typeArity);
+  return `${typeBase}${slug}/`;
+}
+---
+
+{groups.size > 0 && (
+  <div class="mol">
+    {[...groups.entries()].map(([kind, items]) => {
+      const kindHref = kindPageHref(kind);
+      return (
+        <section class="mol-group">
+          <AnchorHeading id={`members-${kind}`} text={memberKindLabels[kind] ?? kind}>
+            <span class="api-count-badge">{items.length}</span>
+          </AnchorHeading>
+          <div class="mol-table not-content" role="table" aria-label={`${memberKindLabels[kind] ?? kind} for ${typeName}`}>
+            {items.map((m: any) => {
+              const rawDisplayName = memberDisplayName(m);
+              const displayName = m.name === '.ctor' ? rawDisplayName.replace('.ctor', typeName) : rawDisplayName;
+              const memberAnchor = memberSlug(m);
+              const memberHref = kindHref !== '#' ? `${kindHref}#${memberAnchor}` : undefined;
+              const returnShort = m.returnType && m.returnType !== 'void'
+                ? shortTypeName(m.returnType)
+                : null;
+              const returnLink = m.returnType
+                ? resolveTypeLink(m.returnType, allTypes, base, packageName)
+                : null;
+              const summary = m.docs?.summary;
+              const isObsolete = m.attributes?.some((a: any) => a.name.includes('Obsolete'));
+              const isExperimental = m.attributes?.some((a: any) => a.name.includes('Experimental'));
+
+              // Badges
+              const badges: string[] = [];
+              if (m.isStatic && !m.isExtension) badges.push('static');
+              if (m.isExtension) badges.push('extension');
+              if (m.isAbstract) badges.push('abstract');
+              if (m.isVirtual) badges.push('virtual');
+
+              // Property accessor info
+              if ((m.kind === 'property' || m.kind === 'indexer') && (m.hasGet || m.hasSet)) {
+                const parts: string[] = [];
+                if (m.hasGet) parts.push('get');
+                if (m.hasSet) parts.push(m.isInitOnly ? 'init' : 'set');
+                badges.push(parts.join('; '));
+              }
+
+              const RowTag = memberHref ? 'a' : 'div';
+              const rowAttrs = memberHref ? { href: memberHref } : {};
+
+              return (
+                <RowTag {...rowAttrs} class={`mol-row${isObsolete ? ' mol-obsolete' : ''}${memberHref ? ' mol-row-link' : ''}`} role="row" id={memberAnchor}>
+                  <div class="mol-name-col" role="cell">
+                    <code class="mol-name">{displayName}</code>
+                    {badges.map(b => <span class={`api-mod-badge mol-badge${b === 'extension' ? ' api-ext-badge' : ''}`}>{b}</span>)}
+                    {isObsolete && <span class="api-mod-badge mol-badge mol-badge-obsolete">obsolete</span>}
+                    {isExperimental && <span class="api-mod-badge mol-badge mol-badge-experimental">experimental</span>}
+                  </div>
+                  {returnShort && (
+                    <div class="mol-type-col" role="cell">
+                      {returnLink ? (
+                        <a href={returnLink.href} class="mol-type-link">{returnShort}</a>
+                      ) : (
+                        <code class="mol-type">{returnShort}</code>
+                      )}
+                    </div>
+                  )}
+                  {summary && (
+                    <div class="mol-desc-col" role="cell">
+                      <DocContent content={summary} allTypes={allTypes} packageName={packageName} tag="span" />
+                    </div>
+                  )}
+                </RowTag>
+              );
+            })}
+          </div>
+          <a href={kindHref} class="mol-view-all">
+            View all {memberKindLabels[kind]?.toLowerCase() ?? kind}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14"/>
+              <path d="m12 5 7 7-7 7"/>
+            </svg>
+          </a>
+        </section>
+      );
+    })}
+  </div>
+)}
+
+<style>
+  .mol {
+    margin: 0.5rem 0;
+  }
+  .mol-group {
+    margin-bottom: 2.5rem;
+  }
+  .mol-group:last-child {
+    margin-bottom: 1rem;
+  }
+  .mol-group :global(.anchor-heading) {
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--sl-color-gray-5);
+  }
+  .mol-group :global(.anchor-heading h2) {
+    font-size: 1.25rem;
+  }
+  /* Prevent the anchor-link icon from causing layout shifts */
+  .mol-group :global(.anchor-heading .sl-anchor-link) {
+    vertical-align: middle;
+  }
+
+  /* Rows */
+  .mol-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .mol-row {
+    display: grid;
+    grid-template-columns: minmax(160px, auto) 1fr;
+    gap: 0.35rem 1.25rem;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--api-border-subtle);
+    border-radius: var(--api-radius-md);
+    align-items: baseline;
+    transition: background 0.12s;
+  }
+  .mol-row:last-child {
+    border-bottom: none;
+  }
+  a.mol-row-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  a.mol-row-link:hover {
+    background: var(--api-surface);
+    text-decoration: none;
+  }
+  a.mol-row-link:hover .mol-name {
+    color: var(--sl-color-text-accent);
+  }
+  .mol-obsolete {
+    opacity: 0.6;
+  }
+
+  /* Name column */
+  .mol-name-col {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .mol-name {
+    font-weight: 600;
+    font-size: var(--api-text-md);
+    color: var(--sl-color-text);
+    background: none;
+    padding: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  /* Badges */
+  .mol-badge {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.35rem;
+  }
+  .mol-badge-obsolete {
+    color: var(--sl-color-orange);
+    border-color: var(--sl-color-orange);
+  }
+  .mol-badge-experimental {
+    color: var(--sl-color-purple);
+    border-color: var(--sl-color-purple);
+  }
+
+  /* Return type column */
+  .mol-type-col {
+    font-size: var(--api-text-base);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .mol-type-link {
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+  }
+  .mol-type-link:hover {
+    text-decoration: underline;
+  }
+  .mol-type {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: var(--sl-color-gray-2);
+  }
+
+  /* Description column */
+  .mol-desc-col {
+    grid-column: 1 / -1;
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+    line-height: 1.5;
+    /* Truncate long summaries */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* "View all" link */
+  .mol-view-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+    font-size: var(--api-text-base);
+    font-weight: 500;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+    transition: gap 0.15s ease;
+  }
+  .mol-view-all:hover {
+    text-decoration: underline;
+    gap: 0.55rem;
+  }
+
+  /* Responsive: stack on narrow screens */
+  @media (max-width: 40rem) {
+    .mol-row {
+      grid-template-columns: 1fr;
+    }
+    .mol-type-col {
+      grid-column: 1;
+      grid-row: auto;
+    }
+  }
+</style>

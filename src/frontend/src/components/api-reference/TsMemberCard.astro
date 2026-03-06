@@ -1,0 +1,44 @@
+---
+/**
+ * TsMemberCard — renders a single TypeScript member (method, property, field)
+ * using the shared MemberCardBase layout.
+ */
+import MemberCardBase from './MemberCardBase.astro';
+
+interface Props {
+  /** The member/capability object from the TS API data. */
+  member: any;
+  /** Display variant: 'method' | 'property' | 'field' */
+  variant?: 'method' | 'property' | 'field';
+}
+
+const { member, variant = 'method' } = Astro.props;
+
+const params = (member.parameters ?? []).map((p: any) => ({
+  name: p.name,
+  type: p.isCallback && p.callbackSignature ? p.callbackSignature : p.type,
+  isOptional: p.isOptional,
+  defaultValue: p.defaultValue,
+}));
+
+const kindLabel = variant === 'property' ? 'property' : variant === 'field' ? undefined : 'method';
+const kindClass = variant === 'property' ? 'kind-property' : variant === 'field' ? 'kind-field' : 'kind-method';
+
+const badges: string[] = [];
+if (member.returnsBuilder) badges.push('builder');
+if (member.accessorLabel) badges.push(member.accessorLabel);
+if (member.isOptional) badges.push('optional');
+---
+
+<MemberCardBase
+  name={member.name}
+  kindLabel={kindLabel}
+  kindClass={kindClass}
+  badges={badges}
+  description={member.description}
+  signature={variant === 'method' ? member.signature : undefined}
+  lang="typescript"
+  returnType={member.returnType}
+  parameters={variant === 'method' ? params : []}
+  showReturnInHeader={variant !== 'method'}
+/>

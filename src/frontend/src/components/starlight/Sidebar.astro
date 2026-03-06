@@ -1,12 +1,78 @@
 ---
 import SidebarTopicsSidebar from 'starlight-sidebar-topics/overrides/Sidebar.astro';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
 import { Icon, LinkButton } from '@astrojs/starlight/components';
+
+const routeData = Astro.locals.starlightRoute;
+const pageId = routeData?.id ?? '';
+const isApiRefPage = pageId.startsWith('reference/api');
+const apiLang = pageId.startsWith('reference/api/typescript') ? 'ts' : pageId.startsWith('reference/api/csharp') ? 'csharp' : undefined;
+const sidebar = routeData?.sidebar ?? [];
 ---
 
-<div class="topics-sidebar">
-  <SidebarTopicsSidebar {...Astro.props}>
-    <slot />
-  </SidebarTopicsSidebar>
+<div class="topics-sidebar" data-api-ref={isApiRefPage || undefined} data-api-lang={apiLang}>
+  {isApiRefPage ? (
+    <>
+      <div class="api-sidebar-sticky not-content">
+        <div class="api-sidebar-header">
+          <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/reference/overview/`} class="api-sidebar-back" aria-label="Back to Reference">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <span>Back to Reference</span>
+          </a>
+          <button
+            type="button"
+            class="sidebar-collapse-btn"
+            id="sidebar-collapse-btn"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18m7-6l-3-3l3-3"/></svg>
+          </button>
+        </div>
+        <div class="api-sidebar-filter">
+          <div class="api-sidebar-filter-wrap">
+            <svg class="api-sidebar-filter-icon" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <label class="sr-only" for="api-sidebar-filter-input">Filter sidebar</label>
+            <input
+              type="text"
+              id="api-sidebar-filter-input"
+              class="api-sidebar-filter-input"
+              placeholder="Filter API docs…"
+              autocomplete="off"
+              aria-label="Filter sidebar entries"
+            />
+            <button
+              type="button"
+              id="api-sidebar-filter-clear"
+              class="api-sidebar-filter-clear"
+              aria-label="Clear filter"
+              hidden
+            >
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div id="api-sidebar-filter-status" class="sr-only" aria-live="polite"></div>
+        </div>
+      </div>
+      <SidebarPersister>
+        <SidebarSublist sublist={sidebar} />
+      </SidebarPersister>
+      <div class="md:sl-hidden">
+        <MobileMenuFooter />
+      </div>
+    </>
+  ) : (
+    <SidebarTopicsSidebar {...Astro.props}>
+      <slot />
+    </SidebarTopicsSidebar>
+  )}
   <div class="divider"></div>
   <div class="sidebar-bottom">
     <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal">
@@ -15,6 +81,18 @@ import { Icon, LinkButton } from '@astrojs/starlight/components';
     </LinkButton>
   </div>
 </div>
+{isApiRefPage && (
+  <button
+    type="button"
+    class="sidebar-expand-btn"
+    id="sidebar-expand-btn"
+    aria-label="Expand sidebar"
+    title="Expand sidebar"
+    hidden
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18m5-12l3 3l-3 3"/></svg>
+  </button>
+)}
 
 <style>
   .topics-sidebar {
@@ -40,4 +118,578 @@ import { Icon, LinkButton } from '@astrojs/starlight/components';
   .topics-sidebar .sl-link-button {
     padding-bottom: 0rem;
   }
+
+  /* API Reference sidebar sticky wrapper */
+  .api-sidebar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sl-color-bg-sidebar);
+    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
+    padding-inline: var(--sl-sidebar-pad-x);
+  }
+
+  /* API Reference sidebar header */
+  .api-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .api-sidebar-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--sl-color-text-accent);
+    font-size: var(--sl-text-base);
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1.5;
+    padding: 0.4rem 0.85rem 0.4rem 0.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: transparent;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .api-sidebar-back:hover {
+    background: var(--sl-color-gray-6);
+    transform: scale(1.03);
+  }
+
+  :global([data-theme='light']) .api-sidebar-back {
+    color: #684cc6;
+  }
+  :global([data-theme='light']) .api-sidebar-back:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  /* ── Sidebar filter input ─────────────────────────────────────── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .api-sidebar-filter {
+    padding: 0.5rem 0;
+  }
+
+  .api-sidebar-filter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .api-sidebar-filter-icon {
+    position: absolute;
+    left: 0.5rem;
+    color: var(--sl-color-gray-2);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .api-sidebar-filter-input {
+    width: 100%;
+    padding: 0.45rem 2rem 0.45rem 1.85rem;
+    background: var(--sl-color-black);
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm, 0.875rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    line-height: 1.4;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .api-sidebar-filter-input::placeholder {
+    color: var(--sl-color-gray-2);
+  }
+
+  .api-sidebar-filter-input:focus {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  .api-sidebar-filter-clear {
+    position: absolute;
+    right: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0.25rem;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .api-sidebar-filter-clear:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-4) 40%, transparent);
+  }
+
+  .api-sidebar-filter-clear[hidden] {
+    display: none;
+  }
+
+  :global([data-theme='light']) .api-sidebar-filter-input {
+    border-color: var(--sl-color-gray-5);
+  }
+  :global([data-theme='light']) .api-sidebar-filter-clear:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-5) 60%, transparent);
+  }
+
+  /* Sidebar filter highlight */
+  :global(mark.sb-hl) {
+    background: color-mix(in srgb, var(--sl-color-text-accent) 25%, transparent);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* ── Sidebar collapse / expand ────────────────────────────────── */
+
+  .sidebar-collapse-btn {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 0.375rem;
+    color: var(--sl-color-text-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s, background-color 0.15s;
+  }
+  .sidebar-collapse-btn:hover {
+    color: var(--sl-color-text);
+    background-color: var(--sl-color-gray-6);
+  }
+  .sidebar-collapse-btn svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .sidebar-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin: 0.75rem auto 0;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 0.375rem;
+    color: var(--sl-color-text-accent);
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s;
+  }
+  .sidebar-expand-btn[hidden] {
+    display: none;
+  }
+  .sidebar-expand-btn:hover {
+    color: var(--sl-color-text);
+    background-color: var(--sl-color-gray-6);
+  }
+  .sidebar-expand-btn svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Hide collapse/expand on mobile-style sidebar (< 72rem for API pages) */
+  @media (max-width: 71.999rem) {
+    .sidebar-collapse-btn,
+    .sidebar-expand-btn {
+      display: none !important;
+    }
+  }
 </style>
+
+<script>
+  /**
+   * Sidebar filter controller for API reference pages.
+   * Filters sidebar entries by matching their label text against user input.
+   */
+  class SidebarFilterController {
+    private input: HTMLInputElement | null = null;
+    private clearBtn: HTMLButtonElement | null = null;
+    private statusEl: HTMLElement | null = null;
+    private sidebarContainer: HTMLElement | null = null;
+    private debounceTimer: number | null = null;
+    private static readonly DEBOUNCE_MS = 200;
+
+    constructor() {
+      this.init();
+    }
+
+    private init(): void {
+      const container = document.querySelector('.topics-sidebar[data-api-ref]');
+      if (!container) return;
+
+      this.input = container.querySelector('#api-sidebar-filter-input');
+      this.clearBtn = container.querySelector('#api-sidebar-filter-clear');
+      this.statusEl = container.querySelector('#api-sidebar-filter-status');
+      this.sidebarContainer = container.querySelector('.sl-sidebar-persist');
+
+      if (!this.input || !this.sidebarContainer) {
+        // Fallback: look for the ul.top-level directly
+        this.sidebarContainer = container.querySelector('ul.top-level')?.parentElement ?? null;
+      }
+      if (!this.input) return;
+
+      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          this.clear();
+          this.input?.blur();
+        }
+      });
+
+      this.clearBtn?.addEventListener('click', () => {
+        this.clear();
+        this.input?.focus();
+      });
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(
+        () => this.applyFilter(),
+        SidebarFilterController.DEBOUNCE_MS,
+      );
+    }
+
+    private clear(): void {
+      if (this.input) this.input.value = '';
+      this.applyFilter();
+    }
+
+    private applyFilter(): void {
+      const query = this.input?.value.trim().toLowerCase() ?? '';
+      const hasQuery = query.length > 0;
+
+      // Toggle clear button visibility
+      if (this.clearBtn) {
+        this.clearBtn.hidden = !hasQuery;
+      }
+
+      const topList = this.sidebarContainer?.querySelector('ul.top-level') as HTMLElement | null;
+      if (!topList) return;
+
+      if (!hasQuery) {
+        this.resetAll(topList);
+        this.updateStatus('');
+        return;
+      }
+
+      let visibleCount = 0;
+      const topItems = topList.querySelectorAll(':scope > li');
+
+      for (const li of topItems) {
+        visibleCount += this.filterItem(li as HTMLElement, query);
+      }
+
+      this.updateStatus(
+        visibleCount === 0
+          ? 'No matching entries'
+          : `${visibleCount} matching ${visibleCount === 1 ? 'entry' : 'entries'}`,
+      );
+    }
+
+    /**
+     * CamelCase match: "dab" matches DistributedApplicationBuilder.
+     */
+    private camelMatch(text: string, query: string): boolean {
+      const uppers = text.replace(/[^A-Z]/g, '').toLowerCase();
+      return uppers.length >= 2 && (uppers.startsWith(query) || uppers.includes(query));
+    }
+
+    /**
+     * Recursively filter a sidebar <li>.
+     * Returns the number of visible leaf items within this subtree.
+     */
+    private filterItem(li: HTMLElement, query: string): number {
+      const details = li.querySelector(':scope > details') as HTMLDetailsElement | null;
+
+      if (details) {
+        // Group item (has children)
+        const summary = details.querySelector(':scope > summary');
+        const labelEl = summary?.querySelector('.group-label .large, .group-label') as HTMLElement | null;
+        const groupLabel = (labelEl?.textContent ?? '').trim();
+        const groupLower = groupLabel.toLowerCase();
+        const groupMatches = groupLower.includes(query) || this.camelMatch(groupLabel, query);
+
+        // Filter children
+        const childList = details.querySelector(':scope > ul');
+        const childItems = childList?.querySelectorAll(':scope > li') ?? [];
+        let childVisible = 0;
+
+        for (const childLi of childItems) {
+          childVisible += this.filterItem(childLi as HTMLElement, query);
+        }
+
+        if (groupMatches) {
+          // Group label matches — show the group and ALL children
+          li.style.display = '';
+          if (labelEl) this.highlightText(labelEl, query);
+          this.showAllChildren(details as HTMLElement);
+          (details as HTMLDetailsElement).open = true;
+          return this.countLeafItems(details as HTMLElement);
+        } else if (childVisible > 0) {
+          // Some children match — show the group, keep it open
+          li.style.display = '';
+          if (labelEl) this.clearHighlight(labelEl);
+          (details as HTMLDetailsElement).open = true;
+          return childVisible;
+        } else {
+          // Nothing matches — hide the group
+          li.style.display = 'none';
+          if (labelEl) this.clearHighlight(labelEl);
+          return 0;
+        }
+      } else {
+        // Leaf item (link)
+        const link = li.querySelector(':scope > a') as HTMLElement | null;
+        const label = (link?.textContent ?? '').trim();
+        const labelLower = label.toLowerCase();
+        const matches = labelLower.includes(query) || this.camelMatch(label, query);
+        li.style.display = matches ? '' : 'none';
+        if (link) {
+          if (matches && query) {
+            this.highlightText(link, query);
+          } else {
+            this.clearHighlight(link);
+          }
+        }
+        return matches ? 1 : 0;
+      }
+    }
+
+    /** Highlight matching text within an element */
+    private highlightText(el: HTMLElement, query: string): void {
+      this.clearHighlight(el);
+      const text = el.textContent ?? '';
+      const lowerText = text.toLowerCase();
+      const idx = lowerText.indexOf(query);
+      if (idx >= 0) {
+        el.innerHTML =
+          this.escHtml(text.slice(0, idx)) +
+          '<mark class="sb-hl">' + this.escHtml(text.slice(idx, idx + query.length)) + '</mark>' +
+          this.escHtml(text.slice(idx + query.length));
+      }
+    }
+
+    /** Remove highlights from an element */
+    private clearHighlight(el: HTMLElement): void {
+      const marks = el.querySelectorAll('mark.sb-hl');
+      if (marks.length === 0) return;
+      el.textContent = el.textContent ?? '';
+    }
+
+    private escHtml(s: string): string {
+      return s.replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c));
+    }
+
+    /** Show all descendants (reset display) */
+    private showAllChildren(parent: HTMLElement): void {
+      const childItems = parent.querySelectorAll('li');
+      for (const li of childItems) {
+        (li as HTMLElement).style.display = '';
+      }
+    }
+
+    /** Count leaf items (links, not groups) in a subtree */
+    private countLeafItems(parent: HTMLElement): number {
+      return parent.querySelectorAll('a[href]').length;
+    }
+
+    /** Reset all items to visible and restore collapsed state */
+    private resetAll(topList: HTMLElement): void {
+      const allItems = topList.querySelectorAll('li');
+      for (const li of allItems) {
+        (li as HTMLElement).style.display = '';
+      }
+      // Clear highlights
+      topList.querySelectorAll('mark.sb-hl').forEach(m => {
+        const parent = m.parentElement;
+        if (parent) parent.textContent = parent.textContent ?? '';
+      });
+      // Re-collapse groups that aren't on the current page path
+      const allDetails = topList.querySelectorAll('details');
+      for (const details of allDetails) {
+        const hasCurrent = details.querySelector('[aria-current="page"]');
+        if (!hasCurrent) {
+          (details as HTMLDetailsElement).open = false;
+        }
+      }
+    }
+
+    private updateStatus(text: string): void {
+      if (this.statusEl) this.statusEl.textContent = text;
+    }
+  }
+
+  /**
+   * Handle Ctrl+K / Cmd+K on API reference pages.
+   * Routes to #api-search-input (the main search on the index page) if present,
+   * otherwise falls back to the sidebar filter input.
+   *
+   * Because Search.astro does not render <site-search> on API pages, there is
+   * no competing Pagefind handler — we just need to prevent the browser default.
+   */
+  function handleApiSearchShortcut(e: KeyboardEvent) {
+    // Only act when on an API ref page (signalled by server-rendered attribute)
+    if (!document.querySelector('.topics-sidebar[data-api-ref]')) return;
+    if (!((e.ctrlKey || e.metaKey) && e.key === 'k')) return;
+
+    e.preventDefault();
+
+    // Prefer the page-level API search input; fall back to sidebar filter
+    const target =
+      (document.getElementById('api-search-input') as HTMLInputElement | null) ??
+      (document.getElementById('api-sidebar-filter-input') as HTMLInputElement | null);
+
+    if (target) {
+      target.focus();
+      target.select();
+    }
+  }
+
+  // Initialize on load and after Astro client-side navigation
+  function initSidebarFilter() {
+    new SidebarFilterController();
+  }
+
+  /* ── Sidebar collapse / expand toggle ─────────────────────────── */
+
+  const SIDEBAR_COLLAPSED_KEY = 'api-sidebar-collapsed';
+
+  function initSidebarCollapse() {
+    const container = document.querySelector('.topics-sidebar[data-api-ref]');
+    if (!container) return;
+
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    const expandBtn = document.getElementById('sidebar-expand-btn');
+    if (!collapseBtn || !expandBtn) return;
+
+    // Sync expand button visibility with the collapsed state
+    // (the data-sidebar-collapsed attribute is set early in Head.astro)
+    const isCollapsed = document.documentElement.hasAttribute('data-sidebar-collapsed');
+    expandBtn.hidden = !isCollapsed;
+
+    collapseBtn.addEventListener('click', () => {
+      setSidebarCollapsed(true, expandBtn, collapseBtn);
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
+    });
+
+    expandBtn.addEventListener('click', () => {
+      setSidebarCollapsed(false, expandBtn, collapseBtn);
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '0');
+    });
+  }
+
+  function setSidebarCollapsed(
+    collapsed: boolean,
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement,
+  ) {
+    if (collapsed) {
+      document.documentElement.setAttribute('data-sidebar-collapsed', '');
+      expandBtn.hidden = false;
+    } else {
+      document.documentElement.removeAttribute('data-sidebar-collapsed');
+      expandBtn.hidden = true;
+    }
+  }
+
+  /** Auto-focus the sidebar filter input on API reference pages.
+   *  Skips if the page-level search input exists (it gets focus instead). */
+  function focusSidebarFilter() {
+    if (document.getElementById('api-search-input')) return;
+    const filterInput = document.getElementById('api-sidebar-filter-input') as HTMLInputElement | null;
+    filterInput?.focus();
+  }
+
+  document.addEventListener('keydown', handleApiSearchShortcut);
+  document.addEventListener('DOMContentLoaded', initSidebarFilter);
+  document.addEventListener('astro:after-swap', initSidebarFilter);
+  document.addEventListener('DOMContentLoaded', initSidebarCollapse);
+  document.addEventListener('astro:after-swap', initSidebarCollapse);
+  document.addEventListener('astro:page-load', focusSidebarFilter);
+  // Also init immediately in case DOMContentLoaded already fired
+  if (document.readyState !== 'loading') initSidebarFilter();
+  if (document.readyState !== 'loading') initSidebarCollapse();
+  // Defer focus slightly to run after Astro/Starlight's own DOM setup
+  requestAnimationFrame(() => focusSidebarFilter());
+
+  /* ── Sticky sidebar offsets & auto-scroll ─────────────────────── */
+
+  /**
+   * Set up sticky positioning for the sidebar header and filter.
+   * Also scrolls the active sidebar item into view.
+   */
+  function setupStickySidebar() {
+    const sidebar = document.querySelector('.topics-sidebar[data-api-ref]') as HTMLElement | null;
+    if (!sidebar) return;
+
+    // Auto-scroll the active item into view
+    scrollToActive(sidebar);
+  }
+
+  /**
+   * Scroll the sidebar so the currently active item is visible,
+   * positioned roughly in the upper third of the visible area.
+   */
+  function scrollToActive(sidebar: Element) {
+    const scrollContainer = sidebar.closest('.sidebar-pane');
+    if (!scrollContainer) return;
+
+    const activeLink = sidebar.querySelector('[aria-current="page"]') as HTMLElement | null;
+    if (!activeLink) return;
+
+    // Wait a tick for sticky layout to settle
+    requestAnimationFrame(() => {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const activeRect = activeLink.getBoundingClientRect();
+
+      // Check if active item is already fully visible
+      if (activeRect.top >= containerRect.top && activeRect.bottom <= containerRect.bottom) {
+        return; // Already visible, no scroll needed
+      }
+
+      // Scroll so active item is in the upper third of the visible area
+      const targetOffset = activeRect.top - containerRect.top - (containerRect.height / 3);
+      scrollContainer.scrollTop += targetOffset;
+    });
+  }
+
+  // Run sticky setup on load and after client-side navigation
+  document.addEventListener('DOMContentLoaded', setupStickySidebar);
+  document.addEventListener('astro:after-swap', setupStickySidebar);
+  document.addEventListener('astro:page-load', setupStickySidebar);
+  if (document.readyState !== 'loading') {
+    requestAnimationFrame(setupStickySidebar);
+  }
+</script>
