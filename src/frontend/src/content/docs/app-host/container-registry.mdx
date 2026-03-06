@@ -1,0 +1,379 @@
+---
+title: Container registry configuration
+description: Learn how to configure container registries for your Aspire applications, including generic registries and Azure Container Registry.
+---
+
+import { Aside, Code, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire 13.1 introduced explicit container registry configuration, giving developers control over where and when container images are pushed during deployment. This article explains how to configure container registries for your Aspire applications.
+
+## Container registry configuration
+
+When deploying Aspire applications to production environments, your containerized services need to be pushed to a container registry. Prior to Aspire 13.1, registry configuration was often implicit, making it difficult to control and understand the deployment process. The new `ContainerRegistryResource` provides explicit configuration for:
+
+- **Generic container registries** — DockerHub, GitHub Container Registry (GHCR), Harbor, or any Docker-compatible registry
+- **Azure Container Registry** — First-class support with automatic credential management
+- **Pipeline integration** — Control when images are built and pushed using `aspire do push`
+- **Authentication** — Configure registry credentials securely
+
+## Generic container registries
+
+<Aside type="caution">
+  This API is experimental and may change in future releases. Use diagnostic code `ASPIRECOMPUTE003` to suppress the experimental warning. For more information, see [ASPIRECOMPUTE003](/diagnostics/aspirecompute003/).
+</Aside>
+
+Use the `AddContainerRegistry` method to configure a generic container registry for your application. This works with any Docker-compatible registry including DockerHub, GitHub Container Registry, Harbor, and private registries.
+
+### Basic usage
+
+The following example configures a container registry and associates it with a project resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add a container registry
+var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
+
+// Associate the registry with a project
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+
+builder.Build().Run();
+```
+
+The preceding code:
+
+- Creates a container registry resource pointing to `registry.example.com`
+- Associates the registry with the `api` project
+- When deploying, the `api` project will be built as a container image and pushed to the specified registry
+
+### DockerHub example
+
+To push images to DockerHub, specify `docker.io` as the registry endpoint:
+
+```csharp title="C# — DockerHub registry"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry("dockerhub", "docker.io");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+### GitHub Container Registry example
+
+To push images to GitHub Container Registry (GHCR):
+
+```csharp title="C# — GitHub Container Registry"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry("ghcr", "ghcr.io");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+### Private registry example
+
+For private registries, provide the full registry URL:
+
+```csharp title="C# — Private registry"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry(
+    "private-registry", 
+    "registry.mycompany.com:5000");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+## Authentication and credentials
+
+Container registries typically require authentication for pushing images. You can configure credentials using parameters and secrets.
+
+### Using parameters for registry credentials
+
+Parameters allow you to provide registry configuration dynamically:
+
+```csharp title="C# — Registry with parameters"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryEndpoint = builder.AddParameter("registry-endpoint");
+var registryRepository = builder.AddParameter("registry-repository");
+
+var registry = builder.AddContainerRegistry(
+    "myregistry", 
+    registryEndpoint, 
+    registryRepository);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+
+<LearnMore>
+  For more information about parameters, see [External parameters](/fundamentals/external-parameters/).
+</LearnMore>
+
+### Configuring credentials
+
+Registry credentials should be configured through your deployment environment:
+
+#### Docker login
+
+Before pushing images, ensure you're authenticated with the registry:
+
+```bash title="Bash — Docker login"
+docker login registry.example.com
+```
+
+For DockerHub:
+
+```bash title="Bash — DockerHub login"
+docker login docker.io -u username
+```
+
+For GitHub Container Registry:
+
+```bash title="Bash — GHCR login"
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+```
+
+#### CI/CD configuration
+
+In CI/CD environments (GitHub Actions, Azure Pipelines, etc.), configure credentials using secrets:
+
+```yaml title="YAML — GitHub Actions example"
+- name: Login to GitHub Container Registry
+  uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Push images
+  run: aspire do push
+```
+
+## Azure Container Registry
+
+Azure Container Registry (ACR) provides first-class integration with Aspire, with automatic credential management and parallel provisioning.
+
+### Explicit ACR configuration
+
+Aspire 13.1 introduces explicit container registry configuration for Azure Container Apps environments:
+
+```csharp title="C# — Azure Container Registry"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var acr = builder.AddAzureContainerAppEnvironment("myenv");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(acr);
+
+builder.Build().Run();
+```
+
+The preceding code:
+
+- Creates an Azure Container Apps environment with an associated ACR
+- The ACR is provisioned in parallel with the environment
+- Images begin pushing as soon as the registry is available
+- Credentials are automatically managed through Azure authentication
+
+<Aside type="note">
+  Prior to Aspire 13.1, ACR was provisioned implicitly as part of the Container Apps environment. The explicit configuration provides better control and visibility into the deployment process.
+</Aside>
+
+<LearnMore>
+  For more information, see [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/).
+</LearnMore>
+
+### Using an existing ACR
+
+To use an existing Azure Container Registry:
+
+```csharp title="C# — Existing ACR"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryName = builder.AddParameter("registryName");
+var rgName = builder.AddParameter("rgName");
+
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .PublishAsExisting(registryName, rgName);
+
+builder.AddAzureContainerAppEnvironment("env")
+    .WithAzureContainerRegistry(acr);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(acr);
+```
+
+## Pipeline integration
+
+Aspire's deployment pipeline includes a dedicated `push` step for pushing container images to registries.
+
+### Using aspire do push
+
+The `aspire do push` command builds container images and pushes them to configured registries:
+
+```bash title="Aspire CLI — Push images"
+aspire do push
+```
+
+<Steps>
+
+1. Builds all container images for compute resources
+2. Tags images with the appropriate registry and repository names
+3. Pushes images to their configured registries
+
+</Steps>
+
+Example output:
+
+```plaintext title="Output" data-disable-copy
+16:03:38 (pipeline-execution) → Starting pipeline-execution...
+16:03:38 (build-api) → Starting build-api...
+16:03:43 (push-api) → Starting push-api...
+16:03:43 (push-api) → Pushing api to container-registry
+16:03:44 (push-api) i [INF] Docker tag for api -> docker.io/username/api:latest succeeded.
+16:04:05 (push-api) i [INF] Docker push for docker.io/username/api:latest succeeded.
+16:04:05 (push-api) ✓ Successfully pushed api to docker.io/username/api:latest (21.3s)
+16:04:05 (push-api) ✓ push-api completed successfully
+```
+
+<LearnMore>
+  For more information about pipeline commands, see [`aspire do` command](/reference/cli/commands/aspire-do/).
+</LearnMore>
+
+### Pipeline step dependencies
+
+The `push` step automatically handles dependencies:
+
+- **`build-prereq`** — Ensures prerequisites are met before building
+- **`build-<resource>`** — Builds container images for each resource
+- **`push-<resource>`** — Pushes images to registries
+
+You can execute individual steps or the entire pipeline:
+
+```bash title="Aspire CLI — Build only"
+aspire do build
+```
+
+```bash title="Aspire CLI — Full deployment"
+aspire do deploy
+```
+
+The `deploy` step includes building, pushing, and deploying all resources.
+
+## Complete examples
+
+### Multi-registry deployment
+
+You can configure different registries for different resources:
+
+```csharp title="C# — Multiple registries"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var publicRegistry = builder.AddContainerRegistry("dockerhub", "docker.io");
+var privateRegistry = builder.AddContainerRegistry(
+    "private", 
+    "registry.company.com");
+
+var publicApi = builder.AddProject<Projects.PublicApi>("public-api")
+    .WithContainerRegistry(publicRegistry);
+
+var internalApi = builder.AddProject<Projects.InternalApi>("internal-api")
+    .WithContainerRegistry(privateRegistry);
+```
+
+### Parameterized registry configuration
+
+For flexible deployment across environments:
+
+```csharp title="C# — Parameterized configuration"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryEndpoint = builder.AddParameter("registry-endpoint");
+var registryRepository = builder.AddParameter("registry-repository");
+
+var registry = builder.AddContainerRegistry(
+    "container-registry", 
+    registryEndpoint, 
+    registryRepository);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithContainerRegistry(registry);
+
+builder.Build().Run();
+```
+
+Configure the parameters in your AppHost configuration:
+
+```json title="JSON — appsettings.json"
+{
+  "Parameters": {
+    "registry-endpoint": "ghcr.io",
+    "registry-repository": "myorg"
+  }
+}
+```
+
+Or provide them via environment variables:
+
+```bash title="Bash — Environment variables"
+export Parameters__registry_endpoint="ghcr.io"
+export Parameters__registry_repository="myorg"
+```
+
+### Azure deployment with ACR
+
+Complete example with Azure Container Apps and ACR:
+
+```csharp title="C# — Azure Container Apps with ACR"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Create Azure Container Apps environment with ACR
+var acaEnv = builder.AddAzureContainerAppEnvironment("production");
+
+// Add Redis cache
+var cache = builder.AddRedis("cache");
+
+// Add API with registry configuration
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithContainerRegistry(acaEnv);
+
+// Add frontend with registry configuration
+var web = builder.AddProject<Projects.Web>("web")
+    .WithReference(api)
+    .WithContainerRegistry(acaEnv);
+
+builder.Build().Run();
+```
+
+## Benefits of explicit configuration
+
+The explicit container registry configuration introduced in Aspire 13.1 provides several benefits:
+
+- **Visibility** — Clear understanding of where images are pushed
+- **Control** — Explicit configuration of registry endpoints and credentials
+- **Parallelization** — Registry provisioning happens in parallel with other resources
+- **Early feedback** — Faster deployments with images pushing as soon as registries are ready
+- **Flexibility** — Support for any Docker-compatible registry
+
+<LearnMore>
+  For a deeper dive into container registry improvements, see [Safia Abdalla's blog post on fixing Aspire's image problem](https://blog.safia.rocks/2025/12/15/aspire-image-push/).
+</LearnMore>
+
+## See also
+
+- [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
+- [`aspire do` command](/reference/cli/commands/aspire-do/)
+- [External parameters](/fundamentals/external-parameters/)
+- [Pipelines and app topology](/get-started/pipelines/)
