@@ -315,13 +315,14 @@ Blazor WebAssembly (WASM) apps run entirely in the browser using a .NET runtime 
 Blazor WASM apps can't read server-side environment variables directly. When the app is hosted by an ASP.NET Core server (for example, a Blazor Web App or hosted Blazor WASM project), expose the OTEL configuration through an API endpoint on the server:
 
 ```csharp title="C# — Program.cs (Server)"
-app.MapGet("/api/telemetry-config", () => new
+using Microsoft.AspNetCore.Authorization;
+
+app.MapGet("/api/telemetry-config", [Authorize] () => new
 {
     Endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? string.Empty,
     Headers = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS") ?? string.Empty,
     ResourceAttributes = Environment.GetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES") ?? string.Empty
-})
-.AllowAnonymous();
+});
 ```
 
 <Aside type="caution">
