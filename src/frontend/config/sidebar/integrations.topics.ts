@@ -329,7 +329,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/ai-compatibility-matrix',
                 },
                 {
-                  label: 'Azure AI Foundry',
+                  label: 'Microsoft Foundry',
                   collapsed: true,
                   items: [
                     {
