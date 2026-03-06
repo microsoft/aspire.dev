@@ -301,6 +301,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               label: 'aspire deploy',
               slug: 'reference/cli/commands/aspire-deploy',
             },
+            {
+              label: 'aspire describe',
+              slug: 'reference/cli/commands/aspire-describe',
+            },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
             {
               label: 'aspire docs',
