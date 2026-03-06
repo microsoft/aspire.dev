@@ -85,7 +85,7 @@ export const sessions: SessionProps[] = [
     duration: '30 min',
   },
   {
-    title: 'TypeScript and Aspire - type safety for your dev experience',
+    title: 'TypeScript and Aspire: Type Safety for Your Dev Experience',
     speakers: [
       { name: 'Josh Goldberg', headshot: joshPic, jobTitle: 'Senior Frontend Developer', company: 'Sentry' },
     ],
@@ -104,7 +104,7 @@ export const sessions: SessionProps[] = [
     duration: '30 min',
   },
   {
-    title: 'Aspire escapes the inner loop and does deployment',
+    title: 'Aspire Escapes the Inner Loop and Does Deployment',
     speakers: [
       { name: 'Mitch Denny', headshot: mitchPic, jobTitle: 'Principal Software Engineer', company: 'Aspire @ Microsoft' },
     ],
