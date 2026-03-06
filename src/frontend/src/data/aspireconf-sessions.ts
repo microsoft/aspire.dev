@@ -1,19 +1,19 @@
 import type { Props as SessionProps } from '@components/SessionCard.astro';
 
 // Import speaker headshots, e.g.:
-import damianPic from '../assets/aspireconf/damian.png';
-import fowlerPic from '../assets/aspireconf/fowler.png';
-import maddyPic from '../assets/aspireconf/maddy.jpg';
-import pinePic from '../assets/aspireconf/pine.webp';
-import claudiaPic from '../assets/aspireconf/claudia.png';
-import juarezPic from '../assets/aspireconf/seth.png';
-import stocchiPic from '../assets/aspireconf/tommaso.png';
-import michaelPic from '../assets/aspireconf/michaelcummings.png';
-import piercePic from '../assets/aspireconf/pierce.png';
-import andresPic from '../assets/aspireconf/andres.png';
-import joshPic from '../assets/aspireconf/joshg.jpg';
-import mitchPic from '../assets/aspireconf/mitch.png';
-import ayersPic from '../assets/aspireconf/chrisayers.jpg';
+import damianPic from '@assets/aspireconf/damian.png';
+import fowlerPic from '@assets/aspireconf/fowler.png';
+import maddyPic from '@assets/aspireconf/maddy.jpg';
+import pinePic from '@assets/aspireconf/pine.webp';
+import claudiaPic from '@assets/aspireconf/claudia.png';
+import juarezPic from '@assets/aspireconf/seth.png';
+import stocchiPic from '@assets/aspireconf/tommaso.png';
+import michaelPic from '@assets/aspireconf/michaelcummings.png';
+import piercePic from '@assets/aspireconf/pierce.png';
+import andresPic from '@assets/aspireconf/andres.png';
+import joshPic from '@assets/aspireconf/joshg.jpg';
+import mitchPic from '@assets/aspireconf/mitch.png';
+import ayersPic from '@assets/aspireconf/chrisayers.jpg';
 
 export const sessions: SessionProps[] = [
   {
@@ -154,9 +154,9 @@ export const sessions: SessionProps[] = [
   {
     title: 'Closing',
     speakers: [
-      { name: 'Maddy Montaquila', jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
-      { name: 'Damian Edwards', jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
-      { name: 'David Fowler', jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
+      { name: 'Maddy Montaquila', headshot: maddyPic, jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
+      { name: 'Damian Edwards', headshot: damianPic, jobTitle: 'Principal Architect', company: 'Aspire @ Microsoft' },
+      { name: 'David Fowler', headshot: fowlerPic, jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
     ],
     abstract: 'Wrap-up the first ever Aspire Conf!',
     timeslot: '5:00 PM PT',
