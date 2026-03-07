@@ -15,6 +15,12 @@ const hideSearch = isApiRefPage;
     const siteSearch = document.querySelector('site-search');
     if (!siteSearch) return;
 
+    // Disconnect any existing observer before creating a new one to avoid accumulation
+    const existing = (window as any).__apiNoticeObserver as MutationObserver | undefined;
+    if (existing) existing.disconnect();
+
+    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
     const observer = new MutationObserver(() => {
       const dialog = siteSearch.querySelector('dialog');
       if (!dialog) return;
@@ -28,11 +34,12 @@ const hideSearch = isApiRefPage;
       const notice = document.createElement('div');
       notice.className = 'api-search-notice';
       notice.innerHTML =
-        'Looking for API docs? <a href="/reference/api/">Search the API Reference</a>';
+        `Looking for API docs? <a href="${base}/reference/api/">Search the API Reference</a>`;
       inner.appendChild(notice);
     });
 
     observer.observe(siteSearch, { childList: true, subtree: true });
+    (window as any).__apiNoticeObserver = observer;
   }
 
   // Run on load and after Astro client-side navigation

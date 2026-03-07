@@ -10,6 +10,11 @@ const pageId = routeData?.id ?? '';
 const isApiRefPage = pageId.startsWith('reference/api');
 const apiLang = pageId.startsWith('reference/api/typescript') ? 'ts' : pageId.startsWith('reference/api/csharp') ? 'csharp' : undefined;
 const sidebar = routeData?.sidebar ?? [];
+
+// Build a locale-aware back link so it works on localized pages (e.g. /ja/reference/overview/)
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const localePrefix = routeData?.locale ? `/${routeData.locale}` : '';
+const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
 ---
 
 <div class="topics-sidebar" data-api-ref={isApiRefPage || undefined} data-api-lang={apiLang}>
@@ -17,7 +22,7 @@ const sidebar = routeData?.sidebar ?? [];
     <>
       <div class="api-sidebar-sticky not-content">
         <div class="api-sidebar-header">
-          <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/reference/overview/`} class="api-sidebar-back" aria-label="Back to Reference">
+          <a href={referenceOverviewHref} class="api-sidebar-back" aria-label="Back to Reference">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
             <span>Back to Reference</span>
           </a>
@@ -632,12 +637,16 @@ const sidebar = routeData?.sidebar ?? [];
     filterInput?.focus();
   }
 
-  document.addEventListener('keydown', handleApiSearchShortcut);
-  document.addEventListener('DOMContentLoaded', initSidebarFilter);
-  document.addEventListener('astro:after-swap', initSidebarFilter);
-  document.addEventListener('DOMContentLoaded', initSidebarCollapse);
-  document.addEventListener('astro:after-swap', initSidebarCollapse);
-  document.addEventListener('astro:page-load', focusSidebarFilter);
+  // Guard against registering duplicate listeners on client-side navigation
+  if (!(window as any).__apiSidebarInit) {
+    (window as any).__apiSidebarInit = true;
+    document.addEventListener('keydown', handleApiSearchShortcut);
+    document.addEventListener('DOMContentLoaded', initSidebarFilter);
+    document.addEventListener('astro:after-swap', initSidebarFilter);
+    document.addEventListener('DOMContentLoaded', initSidebarCollapse);
+    document.addEventListener('astro:after-swap', initSidebarCollapse);
+    document.addEventListener('astro:page-load', focusSidebarFilter);
+  }
   // Also init immediately in case DOMContentLoaded already fired
   if (document.readyState !== 'loading') initSidebarFilter();
   if (document.readyState !== 'loading') initSidebarCollapse();
@@ -686,9 +695,12 @@ const sidebar = routeData?.sidebar ?? [];
   }
 
   // Run sticky setup on load and after client-side navigation
-  document.addEventListener('DOMContentLoaded', setupStickySidebar);
-  document.addEventListener('astro:after-swap', setupStickySidebar);
-  document.addEventListener('astro:page-load', setupStickySidebar);
+  if (!(window as any).__apiSidebarStickInit) {
+    (window as any).__apiSidebarStickInit = true;
+    document.addEventListener('DOMContentLoaded', setupStickySidebar);
+    document.addEventListener('astro:after-swap', setupStickySidebar);
+    document.addEventListener('astro:page-load', setupStickySidebar);
+  }
   if (document.readyState !== 'loading') {
     requestAnimationFrame(setupStickySidebar);
   }
