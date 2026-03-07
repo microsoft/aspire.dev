@@ -534,6 +534,7 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             },
             { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
             { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
+            { label: 'ASPIREAZURE003', link: '/diagnostics/aspireazure003' },
           ],
         },
       ],
