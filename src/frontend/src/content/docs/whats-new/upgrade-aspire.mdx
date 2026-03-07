@@ -72,12 +72,64 @@ Please remove the **aspire workload** with the following command:
 dotnet workload uninstall aspire
 ```
 
+## Upgrade test projects
+
+If your solution includes an Aspire test project (one that references [📦 Aspire.Hosting.Testing](https://www.nuget.org/packages/Aspire.Hosting.Testing)), you'll need to update it alongside your AppHost.
+
+<Steps>
+
+1. **Update the `Aspire.Hosting.Testing` package** to match the version of your updated AppHost:
+
+    ```bash title="Update the testing package"
+    dotnet add <your-test-project>.csproj package Aspire.Hosting.Testing
+    ```
+
+    <Aside type="tip">
+    If you're using Central Package Management (CPM), update the version in your _Directory.Packages.props_ file instead.
+    </Aside>
+
+2. **Verify the project reference to the AppHost** exists in your test project:
+
+    ```xml title="YourApp.Tests.csproj"
+    <ItemGroup>
+      <ProjectReference Include="..\YourApp.AppHost\YourApp.AppHost.csproj" />
+    </ItemGroup>
+    ```
+
+    This reference is required for the `Projects` namespace to be generated, which is how `DistributedApplicationTestingBuilder.CreateAsync<Projects.YourApp_AppHost>()` resolves your AppHost.
+
+3. **Run your tests** to verify everything still works:
+
+    ```bash title="Run tests"
+    dotnet test
+    ```
+
+</Steps>
+
+<Aside type="caution" title="Projects namespace not found?">
+If your tests fail to compile with an error that the `Projects` namespace doesn't exist, ensure:
+
+- Your AppHost project uses the [`Aspire.AppHost.Sdk`](/get-started/aspire-sdk/) (for example, `<Project Sdk="Aspire.AppHost.Sdk/13.1">`).
+- Your test project has a direct `ProjectReference` to the AppHost `.csproj` file.
+- The `Aspire.Hosting.Testing` package version matches your `Aspire.AppHost.Sdk` version.
+</Aside>
+
+<LearnMore>
+For more information, see [Testing overview](/testing/overview/).
+</LearnMore>
+
 ## Verify the upgrade
 
 After upgrading, run your application to ensure everything works as expected:
 
 ```bash title="Run the Aspire application"
 aspire run
+```
+
+If your solution includes test projects, also run your tests to confirm they pass:
+
+```bash title="Run tests"
+dotnet test
 ```
 
 ## Need help?
