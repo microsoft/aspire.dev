@@ -1,0 +1,582 @@
+---
+/**
+ * InpageSearch — reusable in-page search bar with kind-filter chips,
+ * stats line, and results container for API reference pages.
+ *
+ * Renders the search bar HTML, all shared styles (including dynamic
+ * result styles), and uses `var(--sl-color-gray-1)` for icon
+ * and placeholder colors to match the global Search.astro component.
+ *
+ * Each page still provides its own `<script>` with a controller class
+ * that drives the search logic and result rendering.
+ */
+interface Props {
+  /** Unique prefix for element IDs (e.g. "api" or "pkg") */
+  id: string;
+  /** Placeholder text for the search input */
+  placeholder: string;
+  /** Unique kind strings to render as filter chips */
+  kinds: string[];
+  /** Text shown beneath the search bar before any query */
+  defaultStatsText: string;
+  /** Size variant: "lg" (index page) or "sm" (package page) */
+  size?: 'lg' | 'sm';
+}
+
+const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
+---
+
+<div class="inpage-search" data-size={size}>
+  <!-- Search bar -->
+  <div class="inpage-search-bar">
+    <div class="inpage-search-input-wrap">
+      <svg class="inpage-search-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <label class="sr-only" for={`${id}-search-input`}>{placeholder}</label>
+      <input
+        type="search"
+        id={`${id}-search-input`}
+        class="inpage-search-input"
+        placeholder={placeholder}
+        autocomplete="off"
+        aria-describedby={`${id}-search-status`}
+      />
+      <button
+        type="button"
+        class="inpage-search-clear"
+        id={`${id}-search-clear`}
+        aria-label="Clear search"
+        style="display: none;"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Kind filter chips -->
+  <div class="inpage-kind-filters" id={`${id}-kind-filters`}>
+    {kinds.map(kind => (
+      <button
+        class="api-filter-chip"
+        data-kind={kind}
+        type="button"
+        aria-pressed="false"
+      >
+        <span class={`api-filter-dot kind-${kind.replace(/\s+/g, '-')}`}></span>
+        {kind}
+      </button>
+    ))}
+  </div>
+
+  <div id={`${id}-search-status`} class="sr-only" aria-live="polite"></div>
+
+  <!-- Stats line -->
+  <div class="inpage-search-stats">
+    <span id={`${id}-search-count`}>{defaultStatsText}</span>
+    <button class="inpage-clear-filters" id={`${id}-clear-filters`} type="button" style="display: none;">Clear filters</button>
+  </div>
+
+  <!-- Search results (populated by the page's controller script) -->
+  <div id={`${id}-search-results`} class="api-list" style="display: none;"></div>
+</div>
+
+<style>
+  /* ── Accessibility ──────────────────────────────────────────── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ── Search bar ─────────────────────────────────────────────── */
+  .inpage-search-bar {
+    margin-bottom: 0.25rem;
+  }
+
+  .inpage-search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .inpage-search-icon {
+    position: absolute;
+    left: 0.85rem;
+    color: var(--sl-color-gray-1);
+    pointer-events: none;
+  }
+
+  /* Size tokens — set by data-size on the container */
+  .inpage-search[data-size='lg'] .inpage-search-icon {
+    width: 18px;
+    height: 18px;
+  }
+  .inpage-search[data-size='sm'] .inpage-search-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .inpage-search-input {
+    width: 100%;
+    background-color: var(--sl-color-black);
+    color: var(--sl-color-text);
+    border: 1px solid var(--sl-color-gray-5);
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .inpage-search[data-size='lg'] .inpage-search-input {
+    padding: 0.75rem 2.5rem 0.75rem 2.75rem;
+    font-size: 1rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+  }
+  .inpage-search[data-size='sm'] .inpage-search-input {
+    padding: 0.6rem 2.25rem 0.6rem 2.5rem;
+    font-size: 0.9rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+  }
+
+  .inpage-search-input::placeholder {
+    color: var(--sl-color-gray-1);
+  }
+
+  .inpage-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* ── Clear button (embedded in input) ────────────────────────── */
+  .inpage-search-clear {
+    position: absolute;
+    right: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .inpage-search-clear svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .inpage-search-clear:hover {
+    background: var(--sl-color-gray-4);
+    color: var(--sl-color-white);
+  }
+
+  .inpage-search-input:focus {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  /* ── Kind filter chips ──────────────────────────────────────── */
+  .inpage-kind-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+  }
+
+  .api-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 2rem;
+    background: transparent;
+    color: var(--sl-color-gray-2);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+    text-transform: capitalize;
+    user-select: none;
+  }
+
+  .api-filter-chip:hover {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-white);
+    background: var(--sl-color-gray-6);
+  }
+
+  .api-filter-chip.active {
+    border-color: currentColor;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    font-weight: 600;
+  }
+
+  /* Per-kind active colors */
+  .api-filter-chip.active[data-kind='class']         { color: var(--api-kind-class); }
+  .api-filter-chip.active[data-kind='interface']     { color: var(--api-kind-interface); }
+  .api-filter-chip.active[data-kind='enum']          { color: var(--api-kind-enum); }
+  .api-filter-chip.active[data-kind='struct']        { color: var(--api-kind-struct); }
+  .api-filter-chip.active[data-kind='record']        { color: var(--api-kind-record); }
+  .api-filter-chip.active[data-kind='delegate']      { color: var(--api-kind-delegate); }
+  .api-filter-chip.active[data-kind='record struct'] { color: var(--api-kind-record-struct); }
+  .api-filter-chip.active[data-kind='method']        { color: #3b82f6; }
+  .api-filter-chip.active[data-kind='property']      { color: #10b981; }
+  .api-filter-chip.active[data-kind='constructor']   { color: #8b5cf6; }
+  .api-filter-chip.active[data-kind='field']         { color: #f59e0b; }
+  .api-filter-chip.active[data-kind='event']         { color: #ef4444; }
+  .api-filter-chip.active[data-kind='indexer']       { color: #06b6d4; }
+  .api-filter-chip.active[data-kind='enum member']   { color: #d97706; }
+
+  /* Filter dot (kind color indicator) */
+  .api-filter-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--api-kind-class, var(--sl-color-accent));
+  }
+
+  .api-filter-dot.kind-interface    { background: var(--api-kind-interface); }
+  .api-filter-dot.kind-enum         { background: var(--api-kind-enum); }
+  .api-filter-dot.kind-struct       { background: var(--api-kind-struct); }
+  .api-filter-dot.kind-record       { background: var(--api-kind-record); }
+  .api-filter-dot.kind-delegate     { background: var(--api-kind-delegate); }
+  .api-filter-dot.kind-record-struct { background: var(--api-kind-record-struct); }
+  .api-filter-dot.kind-method       { background: #2563a8; }
+  .api-filter-dot.kind-property     { background: #0a7d56; }
+  .api-filter-dot.kind-constructor  { background: #6d3dc8; }
+  .api-filter-dot.kind-field        { background: #9a6400; }
+  .api-filter-dot.kind-event        { background: #c42b2b; }
+  .api-filter-dot.kind-indexer      { background: #047e94; }
+  .api-filter-dot.kind-enum-member  { background: #d97706; }
+
+  /* ── Stats line ─────────────────────────────────────────────── */
+  .inpage-search-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0 0.15rem;
+    font-size: var(--api-text-sm, 0.875rem);
+    color: var(--sl-color-gray-3);
+  }
+
+  .inpage-clear-filters {
+    background: none;
+    border: none;
+    color: var(--sl-color-text-accent);
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    white-space: nowrap;
+  }
+
+  .inpage-clear-filters:hover {
+    color: var(--sl-color-white);
+  }
+
+  /* ── Responsive ─────────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .inpage-search[data-size='lg'] .inpage-search-input {
+      height: 2.5rem;
+      font-size: 0.9rem;
+      border-radius: 0.5rem;
+    }
+    .inpage-search[data-size='lg'] .inpage-search-icon {
+      width: 16px;
+      height: 16px;
+      left: 0.75rem;
+    }
+    .inpage-search[data-size='sm'] .inpage-search-input {
+      font-size: 0.85rem;
+      height: 2.25rem;
+    }
+    .api-filter-chip {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+    }
+  }
+</style>
+
+<!-- ─── Global styles for dynamically-rendered search results ─── -->
+<style is:global>
+  /* ── Search result items ──────────────────────────────────────── */
+  .inpage-search .api-result-name-wrap {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .inpage-search .api-result-parent {
+    color: var(--sl-color-gray-3);
+    font-size: 0.85em;
+    font-weight: 400;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .inpage-search .api-result-dot {
+    color: var(--sl-color-gray-4);
+    font-size: 0.85em;
+    flex-shrink: 0;
+  }
+
+  .inpage-search .api-search-result-name {
+    font-weight: 600;
+    font-size: var(--api-text-md, 1.05rem);
+    flex-shrink: 0;
+  }
+
+  /* ── Micro kind badge (compact for search results) ────────────── */
+  .inpage-search .api-kind-micro {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: var(--api-kind-class, var(--sl-color-accent));
+    flex-shrink: 0;
+    line-height: 1.4;
+    vertical-align: middle;
+  }
+
+  .inpage-search .api-kind-micro.kind-interface    { background: var(--api-kind-interface); }
+  .inpage-search .api-kind-micro.kind-enum         { background: var(--api-kind-enum); }
+  .inpage-search .api-kind-micro.kind-struct       { background: var(--api-kind-struct); }
+  .inpage-search .api-kind-micro.kind-record       { background: var(--api-kind-record); }
+  .inpage-search .api-kind-micro.kind-delegate     { background: var(--api-kind-delegate); }
+  .inpage-search .api-kind-micro.kind-record-struct { background: var(--api-kind-record-struct); }
+  .inpage-search .api-kind-micro.kind-method       { background: #2563a8; }
+  .inpage-search .api-kind-micro.kind-property     { background: #0a7d56; }
+  .inpage-search .api-kind-micro.kind-constructor  { background: #6d3dc8; }
+  .inpage-search .api-kind-micro.kind-field        { background: #9a6400; }
+  .inpage-search .api-kind-micro.kind-event        { background: #c42b2b; }
+  .inpage-search .api-kind-micro.kind-indexer      { background: #047e94; }
+  .inpage-search .api-kind-micro.kind-enum-member  { background: #d97706; }
+
+  /* Light theme: ghost-style micro badges */
+  [data-theme='light'] .inpage-search .api-kind-micro {
+    color: var(--api-kind-class);
+    background: color-mix(in srgb, var(--api-kind-class) 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, var(--api-kind-class) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-interface {
+    color: var(--api-kind-interface);
+    background: color-mix(in srgb, var(--api-kind-interface) 10%, #f5f5f5);
+    border-color: color-mix(in srgb, var(--api-kind-interface) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-enum {
+    color: var(--api-kind-enum);
+    background: color-mix(in srgb, var(--api-kind-enum) 10%, #f5f5f5);
+    border-color: color-mix(in srgb, var(--api-kind-enum) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-struct {
+    color: var(--api-kind-struct);
+    background: color-mix(in srgb, var(--api-kind-struct) 10%, #f5f5f5);
+    border-color: color-mix(in srgb, var(--api-kind-struct) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-record {
+    color: var(--api-kind-record);
+    background: color-mix(in srgb, var(--api-kind-record) 10%, #f5f5f5);
+    border-color: color-mix(in srgb, var(--api-kind-record) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-delegate {
+    color: var(--api-kind-delegate);
+    background: color-mix(in srgb, var(--api-kind-delegate) 10%, #f5f5f5);
+    border-color: color-mix(in srgb, var(--api-kind-delegate) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-record-struct {
+    color: var(--api-kind-record-struct);
+    background: color-mix(in srgb, var(--api-kind-record-struct) 10%, #f5f5f5);
+    border-color: color-mix(in srgb, var(--api-kind-record-struct) 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-method {
+    color: #2563a8;
+    background: color-mix(in srgb, #2563a8 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #2563a8 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-property {
+    color: #0a7d56;
+    background: color-mix(in srgb, #0a7d56 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #0a7d56 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-constructor {
+    color: #6d3dc8;
+    background: color-mix(in srgb, #6d3dc8 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #6d3dc8 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-field {
+    color: #9a6400;
+    background: color-mix(in srgb, #9a6400 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #9a6400 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-event {
+    color: #c42b2b;
+    background: color-mix(in srgb, #c42b2b 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #c42b2b 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-indexer {
+    color: #047e94;
+    background: color-mix(in srgb, #047e94 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #047e94 25%, transparent);
+  }
+  [data-theme='light'] .inpage-search .api-kind-micro.kind-enum-member {
+    color: #d97706;
+    background: color-mix(in srgb, #d97706 10%, #f5f5f5);
+    border: 1px solid color-mix(in srgb, #d97706 25%, transparent);
+  }
+
+  /* ── Search highlight ─────────────────────────────────────────── */
+  .inpage-search mark {
+    background-color: transparent;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--sl-color-text-accent);
+    text-underline-offset: 2px;
+    text-decoration-thickness: 2px;
+  }
+
+  /* ── Empty state ──────────────────────────────────────────────── */
+  .inpage-search .api-search-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    background: var(--api-surface, var(--sl-color-gray-6));
+    border-radius: var(--api-radius-lg, 0.75rem);
+    color: var(--sl-color-gray-2);
+  }
+
+  .inpage-search .api-search-empty-hint {
+    margin-top: 0.5rem;
+    font-size: var(--api-text-sm, 0.875rem);
+    color: var(--sl-color-gray-3);
+  }
+
+  /* ── Load more button ─────────────────────────────────────────── */
+  .inpage-search .api-load-more {
+    display: block;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    margin-top: 0.75rem;
+    background: var(--sl-color-accent-low);
+    border: 1px solid var(--sl-color-accent);
+    border-radius: var(--api-radius-md, 0.5rem);
+    color: var(--sl-color-accent-high);
+    font-size: var(--api-text-sm, 0.875rem);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    text-align: center;
+  }
+
+  .inpage-search .api-load-more:hover {
+    background: var(--sl-color-accent);
+    color: #fff;
+    border-color: var(--sl-color-accent);
+  }
+
+  :root[data-theme='light'] .inpage-search .api-load-more {
+    color: var(--sl-color-accent-high);
+    background: var(--sl-color-accent-low);
+    border-color: var(--sl-color-accent);
+  }
+  :root[data-theme='light'] .inpage-search .api-load-more:hover {
+    color: #fff;
+    background: var(--sl-color-accent);
+  }
+</style>
+
+<script>
+  /**
+   * InpageSearchSync — URL query-string ↔ search-state synchronization.
+   *
+   * Provides helpers to read/write `?q=` (search text) and `?kinds=`
+   * (comma-separated active filter kinds) to the URL so users can
+   * share deep-links to filtered/searched views.
+   *
+   * Also wires up the embedded clear (×) button in the search input.
+   */
+  class InpageSearchSync {
+    private input: HTMLInputElement;
+    private clearBtn: HTMLElement;
+    private onClear: () => void;
+
+    constructor(prefix: string, onClear: () => void) {
+      this.input = document.getElementById(`${prefix}-search-input`) as HTMLInputElement;
+      this.clearBtn = document.getElementById(`${prefix}-search-clear`) as HTMLElement;
+      this.onClear = onClear;
+
+      this.input.addEventListener('input', () => this.updateClearButton());
+      this.clearBtn.addEventListener('click', () => {
+        this.input.value = '';
+        this.updateClearButton();
+        this.input.focus();
+        this.onClear();
+      });
+    }
+
+    readQuery(): string {
+      return new URLSearchParams(window.location.search).get('q') ?? '';
+    }
+
+    readKinds(validKinds: Set<string>): Set<string> {
+      const raw = new URLSearchParams(window.location.search).get('kinds') ?? '';
+      if (!raw) return new Set();
+      const kinds = new Set<string>();
+      for (const k of raw.split(',')) {
+        const trimmed = k.trim();
+        if (trimmed && validKinds.has(trimmed)) kinds.add(trimmed);
+      }
+      return kinds;
+    }
+
+    writeUrl(query: string, activeKinds: Set<string>): void {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('q');
+      url.searchParams.delete('kinds');
+
+      if (query) url.searchParams.set('q', query);
+      if (activeKinds.size > 0) url.searchParams.set('kinds', [...activeKinds].join(','));
+
+      const hasParams = url.searchParams.toString().length > 0;
+      const target = hasParams
+        ? `${url.pathname}?${url.searchParams}${url.hash}`
+        : `${url.pathname}${url.hash}`;
+      if (target !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+        history.replaceState(null, '', target);
+      }
+    }
+
+    updateClearButton(): void {
+      this.clearBtn.style.display = this.input.value.length > 0 ? '' : 'none';
+    }
+  }
+
+  // Expose globally for controller scripts
+  (window as any).InpageSearchSync = InpageSearchSync;
+</script>

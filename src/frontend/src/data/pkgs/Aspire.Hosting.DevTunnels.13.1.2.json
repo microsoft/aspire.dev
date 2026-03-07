@@ -1,0 +1,1262 @@
+{
+  "package": {
+    "name": "Aspire.Hosting.DevTunnels",
+    "version": "13.1.2",
+    "targetFramework": "net10.0",
+    "sourceRepository": "https://github.com/dotnet/aspire",
+    "sourceCommit": "895a2f0b09d747a052aaaf0273d55ad0e2dc95b0"
+  },
+  "types": [
+    {
+      "name": "DevTunnelsResourceBuilderExtensions",
+      "fullName": "Aspire.Hosting.DevTunnelsResourceBuilderExtensions",
+      "namespace": "Aspire.Hosting",
+      "kind": "class",
+      "accessibility": "public",
+      "isStatic": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Provides extension methods for adding dev tunnels resources to an "
+          },
+          {
+            "kind": "cref",
+            "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+          },
+          {
+            "kind": "text",
+            "text": ". "
+          }
+        ]
+      },
+      "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+      "sourceLines": "23-23",
+      "members": [
+        {
+          "name": "AddDevTunnel",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.AddDevTunnel(this IDistributedApplicationBuilder builder, string name, string? tunnelId = null, DevTunnelOptions? options = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.IDistributedApplicationBuilder",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "tunnelId",
+              "type": "string?",
+              "isNullable": true,
+              "isOptional": true
+            },
+            {
+              "name": "options",
+              "type": "Aspire.Hosting.DevTunnels.DevTunnelOptions?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a dev tunnel resource to the application model. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Dev tunnels can be used to expose local endpoints to the public internet via a secure tunnel. By default, the tunnel requires authentication, but anonymous access can be enabled via "
+              },
+              {
+                "kind": "cref",
+                "value": "M:Aspire.Hosting.DevTunnelsResourceBuilderExtensions.WithAnonymousAccess(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.DevTunnels.DevTunnelResource})"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "examples": [
+              {
+                "code": "\n            var builder = DistributedApplication.CreateBuilder(args);\n            var web = builder.AddProject<Projects.WebApp>(\"web\");\n            var tunnel = builder.AddDevTunnel(\"mytunnel\")\n                .WithReference(web)\n                .WithAnonymousAccess();\n            builder.Build().Run();\n            ",
+                "language": "csharp",
+                "description": [
+                  {
+                    "kind": "text",
+                    "text": "The following example shows how to create a dev tunnel resource that exposes all endpoints on a web application project and enable anonymous access:"
+                  }
+                ]
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "49-214"
+        },
+        {
+          "name": "GetEndpoint",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static EndpointReference DevTunnelsResourceBuilderExtensions.GetEndpoint<TResource>(this IResourceBuilder<DevTunnelResource> tunnelBuilder, IResourceBuilder<TResource> resourceBuilder, string endpointName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "resourceBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<TResource>"
+            },
+            {
+              "name": "endpointName",
+              "type": "string"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "TResource",
+              "constraints": [
+                "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints"
+              ]
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the tunnel endpoint reference for the specified target resource and endpoint. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "An "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.EndpointReference"
+              },
+              {
+                "kind": "text",
+                "text": " representing the public tunnel endpoint."
+              }
+            ],
+            "parameters": {
+              "endpointName": [
+                {
+                  "kind": "text",
+                  "text": "The name of the endpoint on the target resource."
+                }
+              ],
+              "resourceBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The target resource builder."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The dev tunnel resource builder."
+                }
+              ]
+            },
+            "typeParameters": {
+              "TResource": [
+                {
+                  "kind": "text",
+                  "text": "The type of the target resource."
+                }
+              ]
+            },
+            "exceptions": [
+              {
+                "type": "T:System.InvalidOperationException",
+                "description": [
+                  {
+                    "kind": "text",
+                    "text": "Thrown when the specified endpoint is not found in the tunnel."
+                  }
+                ]
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "334-338"
+        },
+        {
+          "name": "GetEndpoint",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static EndpointReference DevTunnelsResourceBuilderExtensions.GetEndpoint(this IResourceBuilder<DevTunnelResource> tunnelBuilder, IResource resource, string endpointName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "resource",
+              "type": "Aspire.Hosting.ApplicationModel.IResource"
+            },
+            {
+              "name": "endpointName",
+              "type": "string"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the tunnel endpoint reference for the specified target resource and endpoint. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "An "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.EndpointReference"
+              },
+              {
+                "kind": "text",
+                "text": " representing the public tunnel endpoint."
+              }
+            ],
+            "parameters": {
+              "endpointName": [
+                {
+                  "kind": "text",
+                  "text": "The name of the endpoint on the target resource."
+                }
+              ],
+              "resource": [
+                {
+                  "kind": "text",
+                  "text": "The target resource."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The dev tunnel resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "350-362"
+        },
+        {
+          "name": "GetEndpoint",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static EndpointReference DevTunnelsResourceBuilderExtensions.GetEndpoint(this IResourceBuilder<DevTunnelResource> tunnelBuilder, EndpointReference targetEndpointReference)",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "targetEndpointReference",
+              "type": "Aspire.Hosting.ApplicationModel.EndpointReference"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the tunnel endpoint reference for the specified target endpoint. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "An "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.EndpointReference"
+              },
+              {
+                "kind": "text",
+                "text": " representing the public tunnel endpoint."
+              }
+            ],
+            "parameters": {
+              "targetEndpointReference": [
+                {
+                  "kind": "text",
+                  "text": "The target endpoint reference."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The dev tunnel resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "373-385"
+        },
+        {
+          "name": "WithAnonymousAccess",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.WithAnonymousAccess(this IResourceBuilder<DevTunnelResource> tunnelBuilder)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Allows the tunnel to be publicly accessed without authentication. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Sets "
+              },
+              {
+                "kind": "cref",
+                "value": "P:Aspire.Hosting.DevTunnels.DevTunnelOptions.AllowAnonymous"
+              },
+              {
+                "kind": "text",
+                "text": " to "
+              },
+              {
+                "kind": "code",
+                "text": "true"
+              },
+              {
+                "kind": "text",
+                "text": " on "
+              },
+              {
+                "kind": "cref",
+                "value": "P:Aspire.Hosting.DevTunnels.DevTunnelResource.Options"
+              },
+              {
+                "kind": "text",
+                "text": " . "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder."
+              }
+            ],
+            "parameters": {
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "318-319"
+        },
+        {
+          "name": "WithReference",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.WithReference<TResource>(this IResourceBuilder<DevTunnelResource> tunnelBuilder, IResourceBuilder<TResource> resourceBuilder, bool allowAnonymous)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "resourceBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<TResource>"
+            },
+            {
+              "name": "allowAnonymous",
+              "type": "bool"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "TResource",
+              "constraints": [
+                "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints"
+              ]
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds ports on the dev tunnel for all endpoints found on the referenced resource and sets whether anonymous access is allowed. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder."
+              }
+            ],
+            "parameters": {
+              "allowAnonymous": [
+                {
+                  "kind": "text",
+                  "text": "Whether anonymous access is allowed."
+                }
+              ],
+              "resourceBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder for the referenced resource."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "230-233"
+        },
+        {
+          "name": "WithReference",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.WithReference<TResource>(this IResourceBuilder<DevTunnelResource> tunnelBuilder, IResourceBuilder<TResource> resourceBuilder, DevTunnelPortOptions? portOptions = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "resourceBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<TResource>"
+            },
+            {
+              "name": "portOptions",
+              "type": "Aspire.Hosting.DevTunnels.DevTunnelPortOptions?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "TResource",
+              "constraints": [
+                "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints"
+              ]
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds ports on the dev tunnel for all endpoints found on the referenced resource. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " To expose only specific endpoints on the referenced resource, use "
+              },
+              {
+                "kind": "cref",
+                "value": "M:Aspire.Hosting.DevTunnelsResourceBuilderExtensions.WithReference(Aspire.Hosting.ApplicationModel.IResourceBuilder{Aspire.Hosting.DevTunnels.DevTunnelResource},Aspire.Hosting.ApplicationModel.EndpointReference,Aspire.Hosting.DevTunnels.DevTunnelPortOptions)"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder."
+              }
+            ],
+            "parameters": {
+              "portOptions": [
+                {
+                  "kind": "text",
+                  "text": "Options for the dev tunnel ports."
+                }
+              ],
+              "resourceBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder for the referenced resource."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "252-260"
+        },
+        {
+          "name": "WithReference",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.WithReference(this IResourceBuilder<DevTunnelResource> tunnelBuilder, EndpointReference targetEndpoint)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "targetEndpoint",
+              "type": "Aspire.Hosting.ApplicationModel.EndpointReference"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Exposes the specified endpoint via the dev tunnel. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder."
+              }
+            ],
+            "parameters": {
+              "targetEndpoint": [
+                {
+                  "kind": "text",
+                  "text": "The endpoint to expose via the dev tunnel."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "273-273"
+        },
+        {
+          "name": "WithReference",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.WithReference(this IResourceBuilder<DevTunnelResource> tunnelBuilder, EndpointReference targetEndpoint, bool allowAnonymous)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "targetEndpoint",
+              "type": "Aspire.Hosting.ApplicationModel.EndpointReference"
+            },
+            {
+              "name": "allowAnonymous",
+              "type": "bool"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Exposes the specified endpoint via the dev tunnel and sets whether anonymous access is allowed. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder."
+              }
+            ],
+            "parameters": {
+              "allowAnonymous": [
+                {
+                  "kind": "text",
+                  "text": "Whether anonymous access is allowed."
+                }
+              ],
+              "targetEndpoint": [
+                {
+                  "kind": "text",
+                  "text": "The endpoint to expose via the dev tunnel."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "286-286"
+        },
+        {
+          "name": "WithReference",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<DevTunnelResource> DevTunnelsResourceBuilderExtensions.WithReference(this IResourceBuilder<DevTunnelResource> tunnelBuilder, EndpointReference targetEndpoint, DevTunnelPortOptions? portOptions)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "tunnelBuilder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "targetEndpoint",
+              "type": "Aspire.Hosting.ApplicationModel.EndpointReference"
+            },
+            {
+              "name": "portOptions",
+              "type": "Aspire.Hosting.DevTunnels.DevTunnelPortOptions?",
+              "isNullable": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Exposes the specified endpoint via the dev tunnel. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder."
+              }
+            ],
+            "parameters": {
+              "portOptions": [
+                {
+                  "kind": "text",
+                  "text": "Options for the dev tunnel port."
+                }
+              ],
+              "targetEndpoint": [
+                {
+                  "kind": "text",
+                  "text": "The endpoint to expose via the dev tunnel."
+                }
+              ],
+              "tunnelBuilder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "300-305"
+        },
+        {
+          "name": "WithReference",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<TResource> DevTunnelsResourceBuilderExtensions.WithReference<TResource>(this IResourceBuilder<TResource> builder, IResourceBuilder<IResourceWithEndpoints> targetResource, IResourceBuilder<DevTunnelResource> tunnelResource)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<TResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<TResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "targetResource",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.IResourceWithEndpoints>"
+            },
+            {
+              "name": "tunnelResource",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.DevTunnels.DevTunnelResource>"
+            }
+          ],
+          "genericParameters": [
+            {
+              "name": "TResource",
+              "constraints": [
+                "Aspire.Hosting.ApplicationModel.IResourceWithEnvironment"
+              ]
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Injects service discovery and endpoint information as environment variables from the dev tunnel resource into the destination resource, using the tunneled resource's name as the service name. Each endpoint defined on the target resource will be injected using the format defined by the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.ReferenceEnvironmentInjectionAnnotation"
+              },
+              {
+                "kind": "text",
+                "text": " on the destination resource, i.e. either \"services__{sourceResourceName}__{endpointName}__{endpointIndex}={uriString}\" for .NET service discovery, or \"{RESOURCE_ENDPOINT}={uri}\" for endpoint injection. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Referencing a dev tunnel will delay the start of the resource until the referenced dev tunnel's endpoint is allocated. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The builder."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The builder."
+                }
+              ],
+              "targetResource": [
+                {
+                  "kind": "text",
+                  "text": "The resource to inject service discovery information for."
+                }
+              ],
+              "tunnelResource": [
+                {
+                  "kind": "text",
+                  "text": "The dev tunnel resource to resolve the tunnel address from."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResourceBuilderExtensions.cs",
+          "sourceLines": "412-451"
+        }
+      ]
+    },
+    {
+      "name": "DevTunnelOptions",
+      "fullName": "Aspire.Hosting.DevTunnels.DevTunnelOptions",
+      "namespace": "Aspire.Hosting.DevTunnels",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Options for the dev tunnel resource. Controls the creation and access settings of the underyling dev tunnel. "
+          }
+        ]
+      },
+      "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs",
+      "sourceLines": "9-9",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public DevTunnelOptions.DevTunnelOptions()",
+          "returnType": "void"
+        },
+        {
+          "name": "AllowAnonymous",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public bool DevTunnelOptions.AllowAnonymous",
+          "returnType": "bool",
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Whether to allow anonymous access to this dev tunnel. If "
+              },
+              {
+                "kind": "code",
+                "text": "false"
+              },
+              {
+                "kind": "text",
+                "text": ", authentication is required. Defaults to "
+              },
+              {
+                "kind": "code",
+                "text": "false"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        },
+        {
+          "name": "Description",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string? DevTunnelOptions.Description",
+          "returnType": "string?",
+          "isReturnNullable": true,
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Optional description for the tunnel. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        },
+        {
+          "name": "Labels",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public List<string>? DevTunnelOptions.Labels",
+          "returnType": "System.Collections.Generic.List<string>?",
+          "isReturnNullable": true,
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Optional labels to attach to the tunnel. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        }
+      ]
+    },
+    {
+      "name": "DevTunnelPortOptions",
+      "fullName": "Aspire.Hosting.DevTunnels.DevTunnelPortOptions",
+      "namespace": "Aspire.Hosting.DevTunnels",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Options for a dev tunnel port. "
+          }
+        ]
+      },
+      "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs",
+      "sourceLines": "32-32",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public DevTunnelPortOptions.DevTunnelPortOptions()",
+          "returnType": "void"
+        },
+        {
+          "name": "AllowAnonymous",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public bool? DevTunnelPortOptions.AllowAnonymous",
+          "returnType": "bool?",
+          "isReturnNullable": true,
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Whether to allow anonymous access to this port. If "
+              },
+              {
+                "kind": "code",
+                "text": "null"
+              },
+              {
+                "kind": "text",
+                "text": ", defaults to the parent tunnel's setting. Defaults to "
+              },
+              {
+                "kind": "code",
+                "text": "null"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        },
+        {
+          "name": "Description",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string? DevTunnelPortOptions.Description",
+          "returnType": "string?",
+          "isReturnNullable": true,
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " A description for this port within the dev tunnel. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        },
+        {
+          "name": "Labels",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public List<string>? DevTunnelPortOptions.Labels",
+          "returnType": "System.Collections.Generic.List<string>?",
+          "isReturnNullable": true,
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Optional labels to attach to this tunnel port. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        },
+        {
+          "name": "Protocol",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string? DevTunnelPortOptions.Protocol",
+          "returnType": "string?",
+          "isReturnNullable": true,
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Protocol type to expose. \"http\", \"https\", or \"auto\". Defaults to match scheme of exposed endpoint. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelOptions.cs"
+        }
+      ]
+    },
+    {
+      "name": "DevTunnelPortResource",
+      "fullName": "Aspire.Hosting.DevTunnels.DevTunnelPortResource",
+      "namespace": "Aspire.Hosting.DevTunnels",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "baseType": "Aspire.Hosting.ApplicationModel.Resource",
+      "interfaces": [
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithEndpoints",
+        "Aspire.Hosting.ApplicationModel.IResourceWithWaitSupport",
+        "Aspire.Hosting.IResourceWithServiceDiscovery"
+      ],
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource representing a single forwarded endpoint/port on a dev tunnel. Contains an endpoint that resolves to the public tunnel URL of this port. "
+          }
+        ]
+      },
+      "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+      "sourceLines": "40-40",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public DevTunnelPortResource.DevTunnelPortResource(string name, DevTunnelResource tunnel, EndpointReference targetEndpoint, DevTunnelPortOptions? options = null)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "tunnel",
+              "type": "Aspire.Hosting.DevTunnels.DevTunnelResource"
+            },
+            {
+              "name": "targetEndpoint",
+              "type": "Aspire.Hosting.ApplicationModel.EndpointReference"
+            },
+            {
+              "name": "options",
+              "type": "Aspire.Hosting.DevTunnels.DevTunnelPortOptions?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Initializes a new instance of the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.DevTunnels.DevTunnelPortResource"
+              },
+              {
+                "kind": "text",
+                "text": " class, representing a single forwarded endpoint/port on a dev tunnel. "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the port resource."
+                }
+              ],
+              "options": [
+                {
+                  "kind": "text",
+                  "text": "Options controlling how this port is exposed."
+                }
+              ],
+              "targetEndpoint": [
+                {
+                  "kind": "text",
+                  "text": "The endpoint to be forwarded through the tunnel."
+                }
+              ],
+              "tunnel": [
+                {
+                  "kind": "text",
+                  "text": "The parent "
+                },
+                {
+                  "kind": "cref",
+                  "value": "T:Aspire.Hosting.DevTunnels.DevTunnelResource"
+                },
+                {
+                  "kind": "text",
+                  "text": " this port belongs to."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+          "sourceLines": "58-70"
+        },
+        {
+          "name": "DevTunnel",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public DevTunnelResource DevTunnelPortResource.DevTunnel",
+          "returnType": "Aspire.Hosting.DevTunnels.DevTunnelResource",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " The dev tunnel this port belongs to. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+          "sourceLines": "75-75"
+        },
+        {
+          "name": "Options",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public DevTunnelPortOptions DevTunnelPortResource.Options",
+          "returnType": "Aspire.Hosting.DevTunnels.DevTunnelPortOptions",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Options controlling how this port is exposed. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+          "sourceLines": "80-80"
+        }
+      ]
+    },
+    {
+      "name": "DevTunnelResource",
+      "fullName": "Aspire.Hosting.DevTunnels.DevTunnelResource",
+      "namespace": "Aspire.Hosting.DevTunnels",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "baseType": "Aspire.Hosting.ApplicationModel.ExecutableResource",
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource representing a persistent dev tunnel that runs for the life of the AppHost. "
+          }
+        ]
+      },
+      "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+      "sourceLines": "16-16",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public DevTunnelResource.DevTunnelResource(string name, string tunnelId, string command, string workingDirectory, DevTunnelOptions? options = null)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "tunnelId",
+              "type": "string"
+            },
+            {
+              "name": "command",
+              "type": "string"
+            },
+            {
+              "name": "workingDirectory",
+              "type": "string"
+            },
+            {
+              "name": "options",
+              "type": "Aspire.Hosting.DevTunnels.DevTunnelOptions?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " A resource representing a persistent dev tunnel that runs for the life of the AppHost. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+          "sourceLines": "17-29"
+        },
+        {
+          "name": "Options",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public DevTunnelOptions DevTunnelResource.Options",
+          "returnType": "Aspire.Hosting.DevTunnels.DevTunnelOptions",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Options controlling how this tunnel is created and managed. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs",
+          "sourceLines": "22-22"
+        },
+        {
+          "name": "TunnelId",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public string DevTunnelResource.TunnelId",
+          "returnType": "string",
+          "hasGet": true,
+          "hasSet": true,
+          "isInitOnly": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " The unique ID for the dev tunnel. "
+              }
+            ]
+          },
+          "sourceFile": "src/Aspire.Hosting.DevTunnels/DevTunnelResource.cs"
+        }
+      ]
+    }
+  ]
+}

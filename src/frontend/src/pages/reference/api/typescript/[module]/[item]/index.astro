@@ -1,0 +1,358 @@
+---
+/**
+ * /reference/api/typescript/[module]/[item]/ — Individual type/item detail page.
+ *
+ * Renders detail for a handle type, DTO type, or enum type, organized by module
+ * (namespace), matching the C# type detail page pattern.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+import { tsModuleSlug, tsSlugify, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
+import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
+
+export async function getStaticPaths() {
+  const packages = await getTsModules();
+  const paths: any[] = [];
+
+  for (const pkg of packages) {
+    const pkgSlug = tsModuleSlug(pkg.data.package.name);
+
+    // Handle types
+    for (const handle of pkg.data.handleTypes ?? []) {
+      const slug = tsSlugify(handle.name);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: handle, itemKind: 'handle' },
+      });
+    }
+
+    // DTO types
+    for (const dto of pkg.data.dtoTypes ?? []) {
+      const slug = tsSlugify(dto.name);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: dto, itemKind: 'dto' },
+      });
+    }
+
+    // Enum types
+    for (const enumType of pkg.data.enumTypes ?? []) {
+      const slug = tsSlugify(enumType.name);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: enumType, itemKind: 'enum' },
+      });
+    }
+  }
+
+  return paths;
+}
+
+const { pkg, item, itemKind } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const tsSidebar = await getTsApiReferenceSidebar();
+const pkgSlug = tsModuleSlug(pkg.package.name);
+
+/* ── Handle type: group capabilities into properties & methods ── */
+const capabilities = item.capabilities ?? [];
+const getters = capabilities.filter((c: any) => c.kind === 'PropertyGetter');
+const setters = capabilities.filter((c: any) => c.kind === 'PropertySetter');
+const methods = capabilities.filter((c: any) => c.kind === 'Method' || c.kind === 'InstanceMethod');
+
+/* ── Kind labels and CSS ─────────────────────────────────────── */
+
+/** Simple string hash → 0–3 for parameter type color assignment. */
+function typeColorIndex(s: string): number {
+  let h = 0;
+  for (const c of s) h = ((h * 31) + c.charCodeAt(0)) | 0;
+  return Math.abs(h) % 4;
+}
+
+const kindLabel = itemKind === 'handle' ? (item.isInterface ? 'Interface' : 'Handle')
+               : itemKind === 'dto' ? 'Type'
+               : 'Enum';
+
+const kindPillClass = itemKind === 'handle'
+  ? (item.isInterface ? 'kind-interface' : 'kind-handle')
+  : itemKind === 'dto' ? 'kind-struct'
+  : 'kind-enum';
+
+/* ── Build TypeScript declaration for the Code block ──────────── */
+let typeDeclaration = '';
+if (itemKind === 'handle') {
+  const keyword = item.isInterface ? 'interface' : 'interface';
+  const declMembers: string[] = [];
+
+  // Properties
+  for (const g of getters) {
+    const hasSetter = setters.some((s: any) => s.name.replace(/^set/, '').toLowerCase() === g.name.toLowerCase());
+    declMembers.push(`  ${hasSetter ? '' : 'readonly '}${g.name}: ${g.returnType};`);
+  }
+  for (const s of setters) {
+    if (!getters.some((g: any) => g.name.toLowerCase() === s.name.replace(/^set/, '').toLowerCase())) {
+      declMembers.push(`  ${s.name}(value: ${s.parameters?.[0]?.type ?? 'unknown'}): void;`);
+    }
+  }
+
+  // Methods — fully expanded with parameter signatures
+  for (const m of methods.sort((a: any, b: any) => a.name.localeCompare(b.name))) {
+    const rawSig = `${m.name}(${(m.parameters ?? []).map((p: any) => {
+      const opt = p.isOptional ? '?' : '';
+      const type = p.isCallback && p.callbackSignature ? p.callbackSignature : p.type;
+      return `${p.name}${opt}: ${type}`;
+    }).join(', ')}): ${m.returnType};`;
+    // Format with the shared formatter, then indent for interface body
+    const formatted = formatTsSignature(rawSig);
+    declMembers.push(formatted.split('\n').map(line => '  ' + line).join('\n'));
+  }
+
+  const ifaces = (item.implementedInterfaces ?? []).map((i: string) => simplifyType(i));
+  let extendsClause = '';
+  if (ifaces.length === 1) {
+    extendsClause = ` extends ${ifaces[0]}`;
+  } else if (ifaces.length > 1) {
+    extendsClause = `\n  extends ${ifaces.join(',\n    ')}`;
+  }
+  const body = declMembers.length > 0
+    ? ` {\n${declMembers.join('\n')}\n}`
+    : ' { }';
+  typeDeclaration = `${keyword} ${item.name}${extendsClause}${body}`;
+} else if (itemKind === 'dto') {
+  const fields = (item.fields ?? []).map((f: any) =>
+    `  ${f.name}${f.isOptional ? '?' : ''}: ${f.type};`
+  );
+  typeDeclaration = fields.length > 0
+    ? `type ${item.name} = {\n${fields.join('\n')}\n}`
+    : `type ${item.name} = { }`;
+} else if (itemKind === 'enum') {
+  const enumMembers = (item.members ?? []).map((m: string, i: number) => `  ${m} = ${i},`);
+  typeDeclaration = enumMembers.length > 0
+    ? `enum ${item.name} {\n${enumMembers.join('\n')}\n}`
+    : `enum ${item.name} { }`;
+}
+
+/* ── Build type-scoped search index for complex types ─────────── */
+const memberCount = getters.length + setters.length + methods.length +
+  (itemKind === 'dto' ? (item.fields ?? []).length : 0) +
+  (itemKind === 'enum' ? (item.members ?? []).length : 0);
+const hasSearchableMembers = memberCount >= 5;
+
+interface TypeIndexEntry { n: string; k: string; s: string; }
+const typeIndex: TypeIndexEntry[] = [];
+if (itemKind === 'handle') {
+  for (const g of getters) typeIndex.push({ n: g.name, k: 'property', s: g.description ?? '' });
+  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '' });
+} else if (itemKind === 'dto') {
+  for (const f of (item.fields ?? [])) typeIndex.push({ n: f.name, k: 'field', s: '' });
+} else if (itemKind === 'enum') {
+  for (const m of (item.members ?? [])) typeIndex.push({ n: m, k: 'enum member', s: '' });
+}
+const typeSearchKinds = [...new Set(typeIndex.map((e: TypeIndexEntry) => e.k))].sort();
+const typeIndexJson = JSON.stringify(typeIndex);
+
+/* ── Headings for right-side TOC ─────────────────────────────── */
+const headings: { depth: 2; slug: string; text: string }[] = [];
+if (itemKind === 'handle') {
+  if (getters.length > 0 || setters.length > 0) headings.push({ depth: 2, slug: 'properties', text: 'Properties' });
+  if (methods.length > 0) headings.push({ depth: 2, slug: 'methods', text: 'Methods' });
+} else if (itemKind === 'dto') {
+  if ((item.fields ?? []).length > 0) headings.push({ depth: 2, slug: 'fields', text: 'Fields' });
+} else if (itemKind === 'enum') {
+  if ((item.members ?? []).length > 0) headings.push({ depth: 2, slug: 'values', text: 'Values' });
+}
+---
+
+<StarlightPage
+  frontmatter={{
+    title: item.name,
+    description: `${kindLabel} — TypeScript API reference for ${item.name} in ${pkg.package.name}`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+  }}
+  sidebar={tsSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'TypeScript APIs', href: `${base}/reference/api/typescript/` },
+    { label: pkg.package.name, href: `${base}/reference/api/typescript/${pkgSlug}/` },
+    { label: item.name },
+  ]} />
+
+  <div class={`not-content kind-tint-${itemKind === 'handle' ? (item.isInterface ? 'interface' : 'handle') : itemKind === 'dto' ? 'type' : 'enum'}`}>
+    {/* ── Type Hero (matches C# TypeHero pattern) ────────────────── */}
+    <div class="api-hero type-hero not-content">
+      <div class="type-hero-top">
+        <div class="type-hero-badges">
+          <span class={`api-kind-pill ${kindPillClass}`}>{kindLabel}</span>
+          <span class="type-hero-framework">TypeScript</span>
+        </div>
+      </div>
+
+      <span class="type-hero-pkg">📦 {pkg.package.name} {pkg.package.version && <span class="type-hero-ver">v{pkg.package.version}</span>}</span>
+
+      {/* Definition (signature) */}
+      {typeDeclaration && (
+        <div class="ts not-content">
+          <div class="ts-code">
+            <Code code={typeDeclaration} lang="typescript" showLineNumbers={false} />
+          </div>
+        </div>
+      )}
+
+      {/* Implements footer */}
+      {(item.implementedInterfaces ?? []).length > 0 && (
+        <div class="type-hero-footer">
+          <div class="type-hero-footer-left">
+            <div class="type-hero-implements">
+              <span class="api-meta-label type-hero-section-label">Implements</span>
+              <ul class="impl-list">
+                {item.implementedInterfaces.map((iface: string) => (
+                  <li><code>{simplifyType(iface)}</code></li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* ── Type-scoped search (for complex types) ──────────────── */}
+    {hasSearchableMembers && (
+      <div class="type-search-section not-content">
+        <InpageSearch
+          id="type"
+          placeholder={`Search members of ${item.name}…`}
+          kinds={typeSearchKinds}
+          defaultStatsText={`${memberCount} member${memberCount !== 1 ? 's' : ''}`}
+          size="sm"
+        />
+      </div>
+    )}
+
+    {/* ── Type content sections ───────────────────────────────── */}
+    <div id="type-content-sections">
+
+    {/* ── Handle Type Detail ─────────────────────────────────── */}
+    {itemKind === 'handle' && (
+      <>
+        {/* Properties (getters paired with matching setters) */}
+        {(getters.length > 0 || setters.length > 0) && (
+          <section>
+            <h2 id="properties">Properties</h2>
+            <div class="api-list">
+              {getters.map((g: any) => {
+                const hasSetter = setters.some((s: any) => s.name.replace(/^set/, '').toLowerCase() === g.name.toLowerCase());
+                return (
+                  <TsMemberCard
+                    member={{ ...g, accessorLabel: hasSetter ? 'get · set' : 'get' }}
+                    variant="property"
+                  />
+                );
+              })}
+              {setters.filter((s: any) =>
+                !getters.some((g: any) => g.name.toLowerCase() === s.name.replace(/^set/, '').toLowerCase())
+              ).map((s: any) => (
+                <TsMemberCard
+                  member={{ ...s, accessorLabel: 'set' }}
+                  variant="property"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Methods */}
+        {methods.length > 0 && (
+          <section>
+            <h2 id="methods">Methods</h2>
+            <div class="api-list">
+              {methods.sort((a: any, b: any) => a.name.localeCompare(b.name)).map((m: any) => (
+                <TsMemberCard member={m} variant="method" />
+              ))}
+            </div>
+          </section>
+        )}
+
+      </>
+    )}
+
+    {/* ── DTO Type Detail ────────────────────────────────────── */}
+    {itemKind === 'dto' && (item.fields ?? []).length > 0 && (
+      <section>
+        <h2 id="fields">Fields</h2>
+        <div class="api-list">
+          {item.fields.map((f: any) => (
+            <TsMemberCard
+              member={{ name: f.name, returnType: f.type, isOptional: f.isOptional, description: null }}
+              variant="field"
+            />
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* ── Enum Type Detail ───────────────────────────────────── */}
+    {itemKind === 'enum' && (item.members ?? []).length > 0 && (
+      <section>
+        <h2 id="values">Values</h2>
+        <div class="api-list">
+          {item.members.map((m: string, i: number) => (
+            <div class="api-list-item mc">
+              <div class="api-list-header">
+                <code class="mc-param-name">{m}</code>
+                <span class="mc-param-type mc-param-type-1"><code>{i}</code></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+    </div>{/* close type-content-sections */}
+  </div>{/* close not-content kind-tint */}
+</StarlightPage>
+
+<style>
+  /* Kind-tinted page wrapper — sets --kind-tint for the top border accent */
+  .kind-tint-handle    { --kind-tint: var(--api-kind-class); }
+  .kind-tint-interface { --kind-tint: var(--api-kind-interface); }
+  .kind-tint-type      { --kind-tint: var(--api-kind-struct); }
+  .kind-tint-enum      { --kind-tint: var(--api-kind-enum); }
+
+  /* Type hero layout — consistent vertical rhythm matching C# TypeHero */
+  .type-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* Remove default margins from the TypeSignature code wrapper inside hero */
+  .type-hero :global(.ts) {
+    margin: 0;
+  }
+  .type-hero :global(.ts-code) {
+    margin: 0;
+  }
+  .type-hero :global(.ts-code .astro-code) {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    font-size: var(--api-text-base);
+    line-height: 1.55;
+  }
+  .type-hero :global(.ts-code pre) {
+    margin: 0;
+  }
+  .type-hero :global(.ts-code figure.frame) {
+    margin: 0;
+    border: none;
+  }
+</style>
