@@ -1,0 +1,90 @@
+---
+const PAGE_TITLE_ID = '_top';
+
+const title = Astro.locals.starlightRoute.entry.data.title;
+const parts = title.split(/(Aspire)/);
+const hasAspire = parts.length > 1;
+---
+
+<h1 id={PAGE_TITLE_ID}>
+  {
+    hasAspire
+      ? parts.map((part: string) =>
+          part === 'Aspire' ? <span class="title-accent">{part}</span> : part
+        )
+      : title
+  }
+</h1>
+
+<style>
+  @layer starlight.core {
+    h1 {
+      margin-top: 1rem;
+      font-size: var(--sl-text-h1);
+      line-height: var(--sl-line-height-headings);
+      font-weight: 600;
+      color: var(--sl-color-white);
+    }
+  }
+
+  .title-accent {
+    color: var(--sl-color-text-accent);
+    display: inline-block;
+    background: linear-gradient(
+      90deg,
+      var(--sl-color-text-accent) 0%,
+      var(--sl-color-text-accent) 40%,
+      var(--sl-color-white) 50%,
+      var(--sl-color-text-accent) 60%,
+      var(--sl-color-text-accent) 100%
+    );
+    background-size: 250% 100%;
+    background-position: 0% 0%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .title-accent.shimmer {
+    animation: title-shimmer 1s ease-in-out;
+  }
+
+  @keyframes title-shimmer {
+    0% {
+      background-position: 100% 0%;
+    }
+    100% {
+      background-position: -50% 0%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .title-accent.shimmer {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  function initShimmer() {
+    const accents = document.querySelectorAll('.title-accent');
+    if (!accents.length) return;
+
+    function triggerShimmer() {
+      accents.forEach((el) => {
+        el.classList.add('shimmer');
+        el.addEventListener('animationend', () => el.classList.remove('shimmer'), { once: true });
+      });
+      // Schedule next shimmer randomly between 4–10 seconds
+      const next = 4000 + Math.random() * 6000;
+      setTimeout(triggerShimmer, next);
+    }
+
+    // First shimmer after 2–5 seconds
+    setTimeout(triggerShimmer, 2000 + Math.random() * 3000);
+  }
+
+  // Run on initial load and on Astro client-side navigations
+  initShimmer();
+  document.addEventListener('astro:after-swap', initShimmer);
+</script>
