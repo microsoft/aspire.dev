@@ -273,10 +273,12 @@ builder.Build().Run();
 If your application expects URL-format variables like `DATABASE_URL` or `REDIS_URL`, construct them manually:
 
 ```csharp title="C# — AppHost.cs"
+var dbPassword = builder.AddParameter("dbPassword", secret: true);
+
 var app = builder.AddContainer("app", "myapp", "latest")
     .WithReference(database)
     .WithEnvironment("DATABASE_URL", () =>
-        $"postgresql://postgres:{dbPassword}@db:5432/myapp")
+        $"postgresql://user:{dbPassword.Resource.Value}@db:5432/myapp")
     .WithEnvironment("REDIS_URL", () =>
         $"redis://cache:6379");
 ```
@@ -481,12 +483,17 @@ For custom container health checks that need shell commands (like RabbitMQ), reg
 builder.Services.AddHealthChecks()
     .AddCheck("rabbitmq-health", () =>
     {
-        // Custom health check logic
+        // Implement your custom health check logic here,
+        // for example, attempting a TCP connection to the service
         return HealthCheckResult.Healthy();
     });
 
 var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
     .WithHealthCheck("rabbitmq-health");
+
+// WaitFor uses the registered health check to determine readiness
+var app = builder.AddProject<Projects.App>("app")
+    .WaitFor(rabbit);
 ```
 
 <Aside type="note">
