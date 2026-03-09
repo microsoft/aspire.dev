@@ -557,6 +557,28 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'fundamentals/service-discovery',
         },
         {
+          label: 'Environment variables',
+          slug: 'fundamentals/environment-variables',
+          translations: {
+            da: 'Miljøvariabler',
+            de: 'Umgebungsvariablen',
+            en: 'Environment variables',
+            es: 'Variables de entorno',
+            fr: "Variables d'environnement",
+            hi: 'पर्यावरण चर',
+            id: 'Variabel lingkungan',
+            it: 'Variabili di ambiente',
+            ja: '環境変数',
+            ko: '환경 변수',
+            'pt-BR': 'Variáveis de ambiente',
+            'pt-PT': 'Variáveis de ambiente',
+            ru: 'Переменные среды',
+            tr: 'Ortam değişkenleri',
+            uk: 'Змінні середовища',
+            'zh-CN': '环境变量',
+          },
+        },
+        {
           label: 'Service defaults',
           translations: {
             da: 'Tjenestestandarder',
