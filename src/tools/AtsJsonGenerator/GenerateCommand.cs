@@ -5,7 +5,7 @@ using AtsJsonGenerator.Helpers;
 namespace AtsJsonGenerator;
 
 /// <summary>
-/// Root command: transform a single <c>aspire sdk dump --json</c> output file
+/// Root command: transform a single <c>aspire sdk dump --format json</c> output file
 /// into a docs-site JSON file.
 /// </summary>
 internal static class GenerateCommand
@@ -13,7 +13,7 @@ internal static class GenerateCommand
     private static readonly Option<string> s_inputOption = new("--input", "-i")
     {
         Required = true,
-        Description = "Path to the JSON file produced by 'aspire sdk dump --json'.",
+        Description = "Path to the JSON file produced by 'aspire sdk dump --format json'.",
     };
 
     private static readonly Option<string> s_outputOption = new("--output", "-o")
@@ -49,7 +49,7 @@ internal static class GenerateCommand
 
     public static RootCommand GetCommand()
     {
-        var command = new RootCommand("Transforms 'aspire sdk dump --json' output into docs-site JSON.")
+        var command = new RootCommand("Transforms 'aspire sdk dump --format json' output into docs-site JSON.")
         {
             s_inputOption,
             s_outputOption,

@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Generates TypeScript API reference JSON files by running `aspire sdk dump --json`
+    Generates TypeScript API reference JSON files by running `aspire sdk dump --format json`
     for each Aspire hosting integration that has [AspireExport] attributes.
 
 .DESCRIPTION
@@ -10,7 +10,7 @@
     2. -NuGetPackageVersion: Uses Name@Version syntax to resolve packages via NuGet
 
     For each eligible package, this script:
-    1. Runs `aspire sdk dump --json` to generate raw ATS capabilities JSON
+    1. Runs `aspire sdk dump --format json` to generate raw ATS capabilities JSON
     2. Runs the AtsJsonGenerator tool to transform it into docs-site JSON
     3. Outputs to src/frontend/src/data/ts-modules/
 
@@ -80,9 +80,42 @@ if (-not (Test-Path $TempDir)) {
     New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 }
 
+# ── Route 0: Auto-detect from installed CLI ────────────────────────────────────
 if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersion.Count -eq 0)) {
-    Write-Error "Provide either -AspireRepoPath or -NuGetPackageVersion"
-    return
+    Write-Host "No -AspireRepoPath or -NuGetPackageVersion provided. Auto-detecting from installed Aspire CLI..." -ForegroundColor Cyan
+
+    # Get the CLI version
+    try {
+        $cliVersion = & aspire --version 2>&1
+        # Strip build metadata (+sha) — NuGet versions don't include it
+        $cliVersion = ($cliVersion -replace '\+.*$', '').Trim()
+        Write-Host "  Detected Aspire CLI version: $cliVersion" -ForegroundColor DarkGray
+    }
+    catch {
+        Write-Error "Could not detect Aspire CLI version. Is the 'aspire' CLI installed?"
+        return
+    }
+
+    # Read the integration package list from aspire-integrations.json
+    $integrationsJson = Join-Path $RepoRoot "src\frontend\src\data\aspire-integrations.json"
+    if (-not (Test-Path $integrationsJson)) {
+        Write-Error "Integration list not found at $integrationsJson"
+        return
+    }
+
+    $integrations = Get-Content $integrationsJson -Raw | ConvertFrom-Json
+    $hostingPackages = @($integrations | Where-Object {
+        $_.title -eq "Aspire.Hosting" -or $_.title -like "Aspire.Hosting.*"
+    })
+
+    if ($hostingPackages.Count -eq 0) {
+        Write-Error "No Aspire.Hosting.* packages found in $integrationsJson"
+        return
+    }
+
+    # Build NuGet package version entries using the CLI version
+    $NuGetPackageVersion = @($hostingPackages | ForEach-Object { "$($_.title)@$cliVersion" })
+    Write-Host "  Found $($NuGetPackageVersion.Count) Aspire.Hosting packages to process" -ForegroundColor DarkGray
 }
 
 # ── Helper: invoke the aspire CLI ──────────────────────────────────────────────
@@ -192,11 +225,11 @@ if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
             continue
         }
 
-        # Pass as the integration argument using Name@Version syntax
+        # Core Aspire.Hosting uses no integration argument (CLI dumps core by default)
         $Packages += @{
             Name = $pkgName
             Version = $pkgVersion
-            DumpArgs = @("$pkgName@$pkgVersion")
+            DumpArgs = if ($pkgName -eq "Aspire.Hosting") { @() } else { @("$pkgName@$pkgVersion") }
         }
     }
 }
@@ -242,17 +275,17 @@ foreach ($pkg in $corePackages) {
     Write-Host ""
     Write-Host "[$name] (core — processed first)" -ForegroundColor Cyan
 
-    # Step 1: Run aspire sdk dump --json
+    # Step 1: Run aspire sdk dump --format json
     Write-Host "  Dumping ATS capabilities..."
     try {
-        $dumpArgs = @("sdk", "dump", "--json", "--non-interactive", "--nologo", "-o", $dumpFile)
+        $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
         $dumpArgs += $pkg.DumpArgs
 
         $workDir = if ($AspireRepoPath) { $AspireRepoPath } else { $PWD.Path }
         $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
             -StderrFile (Join-Path $TempDir "$name.stderr.txt")
 
-        if ($proc.ExitCode -ne 0) {
+        if ($proc.ExitCode -ne 0 -and -not (Test-Path $dumpFile)) {
             $stderr = Get-Content (Join-Path $TempDir "$name.stderr.txt") -Raw -ErrorAction SilentlyContinue
             Write-Warning "  aspire sdk dump failed (exit $($proc.ExitCode))"
             if ($stderr) { Write-Warning "  $stderr" }
@@ -264,6 +297,10 @@ foreach ($pkg in $corePackages) {
             Write-Warning "  Dump file not created"
             $failed++
             continue
+        }
+
+        if ($proc.ExitCode -ne 0) {
+            Write-Host "  aspire sdk dump exited with $($proc.ExitCode) but output was generated — continuing" -ForegroundColor DarkYellow
         }
     }
     catch {
@@ -322,17 +359,17 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
     Write-Host ""
     Write-Host "[$name]" -ForegroundColor Cyan
 
-    # Step 1: Run aspire sdk dump --json
+    # Step 1: Run aspire sdk dump --format json
     Write-Host "  Dumping ATS capabilities..."
     try {
-        $dumpArgs = @("sdk", "dump", "--json", "--non-interactive", "--nologo", "-o", $dumpFile)
+        $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
         $dumpArgs += $pkg.DumpArgs
 
         $workDir = if ($AspireRepoPath) { $AspireRepoPath } else { $PWD.Path }
         $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
             -StderrFile (Join-Path $TempDir "$name.stderr.txt")
 
-        if ($proc.ExitCode -ne 0) {
+        if ($proc.ExitCode -ne 0 -and -not (Test-Path $dumpFile)) {
             $stderr = Get-Content (Join-Path $TempDir "$name.stderr.txt") -Raw -ErrorAction SilentlyContinue
             Write-Warning "  aspire sdk dump failed (exit $($proc.ExitCode))"
             if ($stderr) { Write-Warning "  $stderr" }
@@ -344,6 +381,10 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
             Write-Warning "  Dump file not created"
             $failed++
             continue
+        }
+
+        if ($proc.ExitCode -ne 0) {
+            Write-Host "  aspire sdk dump exited with $($proc.ExitCode) but output was generated — continuing" -ForegroundColor DarkYellow
         }
     }
     catch {

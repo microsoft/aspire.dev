@@ -1,7 +1,7 @@
 namespace AtsJsonGenerator.Helpers;
 
 /// <summary>
-/// Transforms the raw <c>aspire sdk dump --json</c> output into the docs-site JSON model.
+/// Transforms the raw <c>aspire sdk dump --format json</c> output into the docs-site JSON model.
 /// </summary>
 internal static class AtsTransformer
 {

@@ -47,4 +47,28 @@ export const collections = {
       })
       .passthrough(),
   }),
+
+  /**
+   * TypeScript API module schemas — drop `{Package}.{version}.json` files
+   * into `src/data/ts-modules/` and the TS API reference pages are generated
+   * automatically.
+   */
+  tsModules: defineCollection({
+    loader: glob({ pattern: '**/*.json', base: './src/data/ts-modules' }),
+    schema: z
+      .object({
+        package: z.object({
+          name: z.string(),
+          version: z.string().optional(),
+          language: z.string().optional(),
+          sourceRepository: z.string().optional(),
+          sourceCommit: z.string().optional(),
+        }),
+        functions: z.array(z.any()).default([]),
+        handleTypes: z.array(z.any()).default([]),
+        dtoTypes: z.array(z.any()).default([]),
+        enumTypes: z.array(z.any()).default([]),
+      })
+      .passthrough(),
+  }),
 };

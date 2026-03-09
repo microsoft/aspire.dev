@@ -6,7 +6,7 @@ using AtsJsonGenerator.Helpers;
 namespace AtsJsonGenerator;
 
 /// <summary>
-/// Batch command: runs <c>aspire sdk dump --json</c> for multiple packages
+/// Batch command: runs <c>aspire sdk dump --format json</c> for multiple packages
 /// and transforms the results into docs-site JSON files.
 /// </summary>
 internal static class BatchGenerateCommand
@@ -25,7 +25,7 @@ internal static class BatchGenerateCommand
     private static readonly Option<string[]> s_inputFilesOption = new("--input")
     {
         AllowMultipleArgumentsPerToken = true,
-        Description = "One or more pre-generated JSON files from 'aspire sdk dump --json' to transform.",
+        Description = "One or more pre-generated JSON files from 'aspire sdk dump --format json' to transform.",
     };
 
     private static readonly Option<string?> s_versionOption = new("--version")
@@ -150,7 +150,7 @@ internal static class BatchGenerateCommand
 
     /// <summary>
     /// Discover integration projects in a dotnet/aspire repo clone and run
-    /// <c>aspire sdk dump --json</c> for each.
+    /// <c>aspire sdk dump --format json</c> for each.
     /// </summary>
     private static List<(string path, string packageName)> DiscoverAndDump(
         string aspireRepoPath,
@@ -216,8 +216,8 @@ internal static class BatchGenerateCommand
     private static bool RunAspireSdkDump(string repoPath, string? csproj, string outputPath)
     {
         var args = csproj is not null
-            ? $"sdk dump --json --ci \"{csproj}\" -o \"{outputPath}\""
-            : $"sdk dump --json --ci -o \"{outputPath}\"";
+            ? $"sdk dump --format json --ci \"{csproj}\" -o \"{outputPath}\""
+            : $"sdk dump --format json --ci -o \"{outputPath}\"";
 
         Console.WriteLine($"  Running: aspire {args}");
 

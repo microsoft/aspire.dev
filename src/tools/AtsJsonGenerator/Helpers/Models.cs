@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace AtsJsonGenerator;
 
 // ════════════════════════════════════════════════════════════════════
-//  INPUT MODELS — deserialized from `aspire sdk dump --json` output
+//  INPUT MODELS — deserialized from `aspire sdk dump --format json` output
 // ════════════════════════════════════════════════════════════════════
 
 internal sealed class AtsDumpRoot

@@ -1,10 +1,10 @@
 # AtsJsonGenerator
 
-Transforms `aspire sdk dump --json` output into structured JSON files for the aspire.dev TypeScript API reference pages.
+Transforms `aspire sdk dump --format json` output into structured JSON files for the aspire.dev TypeScript API reference pages.
 
 ## Overview
 
-The Aspire CLI can emit a JSON description of all TypeScript-accessible capabilities for any hosting package via `aspire sdk dump --json`. This tool transforms that output into a docs-friendly JSON format suitable for consumption by Astro's content collections.
+The Aspire CLI can emit a JSON description of all TypeScript-accessible capabilities for any hosting package via `aspire sdk dump --format json`. This tool transforms that output into a docs-friendly JSON format suitable for consumption by Astro's content collections.
 
 ## Usage
 
@@ -12,7 +12,7 @@ The Aspire CLI can emit a JSON description of all TypeScript-accessible capabili
 
 ```bash
 # First, generate the dump from the Aspire CLI
-aspire sdk dump --json -o Aspire.Hosting.dump.json
+aspire sdk dump --format json -o Aspire.Hosting.dump.json
 
 # Then transform it for the docs site
 dotnet run --project AtsJsonGenerator.csproj -- \
