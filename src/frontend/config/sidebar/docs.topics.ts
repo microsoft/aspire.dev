@@ -667,6 +667,28 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
+          label: 'Container networking',
+          slug: 'fundamentals/container-networking',
+          translations: {
+            da: 'Containernetværk',
+            de: 'Containernetzwerke',
+            en: 'Container networking',
+            es: 'Redes de contenedores',
+            fr: 'Réseau de conteneurs',
+            hi: 'कंटेनर नेटवर्किंग',
+            id: 'Jaringan kontainer',
+            it: 'Rete dei container',
+            ja: 'コンテナー ネットワーキング',
+            ko: '컨테이너 네트워킹',
+            'pt-BR': 'Rede de contêineres',
+            'pt-PT': 'Rede de contentores',
+            ru: 'Сеть контейнеров',
+            tr: 'Konteyner ağı',
+            uk: 'Мережа контейнерів',
+            'zh-CN': '容器网络',
+          },
+        },
+        {
           label: 'External parameters',
           slug: 'fundamentals/external-parameters',
           translations: {
