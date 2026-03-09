@@ -102,13 +102,13 @@ var builder = DistributedApplication.CreateBuilder(args);
 var database = builder.AddPostgres("postgres")
     .WithImageTag("15")
     .WithDataVolume()
-    .AddDatabase("DefaultConnection");
+    .AddDatabase("myapp");
 
 // Add the API project with proper dependencies
 var api = builder.AddProject<Projects.MyApp_Api>("api")
     .WithHttpEndpoint(port: 5000)
     .WithHttpHealthCheck("/health")
-    .WithReference(database)
+    .WithReference(database, "DefaultConnection")
     .WaitFor(database);
 
 // Add the frontend project with dependencies
@@ -131,7 +131,7 @@ In Docker Compose, the `build:` directive creates container images from Dockerfi
 - **Ports** — Both examples explicitly map ports (3000 and 5000)
 - **Startup order** — Docker Compose uses `depends_on` with health conditions; Aspire uses `WaitFor()` for startup ordering
 - **Service discovery** — `WithReference()` only configures service discovery and connection strings; it doesn't control startup order
-- **Connection strings** — `WithReference(database)` provides `ConnectionStrings__DefaultConnection` because the resource name passed to `AddDatabase()` determines the environment variable name
+- **Connection strings** — By default, `WithReference(database)` provides `ConnectionStrings__myapp` using the resource name from `AddDatabase()`. To match a different name like `DefaultConnection`, use a named reference: `.WithReference(database, "DefaultConnection")`
 - **Volumes** — `WithDataVolume()` must be called explicitly to add persistent storage; it's not automatic
 - **Image versions** — `WithImageTag("15")` pins PostgreSQL to version 15
 
@@ -206,10 +206,10 @@ builder.Build().Run();
 Aspire generates .NET-format connection strings, which differ from Docker Compose URL formats:
 
 - Docker Compose: `REDIS_URL=redis://redis:6379`
-- Aspire: `ConnectionStrings__redis=localhost:54321,password=abc...`
+- Aspire: `ConnectionStrings__redis=localhost:54321`
 
 - Docker Compose: `DATABASE_URL=postgresql://postgres:secret@postgres:5432/main`
-- Aspire: `ConnectionStrings__main=Host=localhost;Port=12345;Username=postgres;Password=abc...;Database=main`
+- Aspire: `ConnectionStrings__main=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=main`
 
 If your application expects URL-format environment variables, construct them manually with `WithEnvironment()`. See [Environment variables and configuration](#environment-variables-and-configuration) for details.
 </Aside>
@@ -267,20 +267,26 @@ builder.Build().Run();
 <Aside type="caution" title="Aspire connection strings differ from Docker Compose URLs">
 `WithReference()` provides connection strings in .NET format, not URL format:
 
-- `ConnectionStrings__myapp=Host=localhost;Port=12345;Username=postgres;Password=abc...;Database=myapp`
-- `ConnectionStrings__cache=localhost:54321,password=xyz...`
+- `ConnectionStrings__myapp=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=myapp`
+- `ConnectionStrings__cache=localhost:54321`
 
-If your application expects URL-format variables like `DATABASE_URL` or `REDIS_URL`, construct them manually:
+If your application expects URL-format variables like `DATABASE_URL` or `REDIS_URL`, construct them manually using the `WithEnvironment` callback:
 
 ```csharp title="C# — AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
 
+var db = builder.AddPostgres("db", password: dbPassword)
+    .AddDatabase("myapp");
+
 var app = builder.AddContainer("app", "myapp", "latest")
-    .WithReference(database)
-    .WithEnvironment("DATABASE_URL", () =>
-        $"postgresql://user:{dbPassword.Resource.Value}@db:5432/myapp")
-    .WithEnvironment("REDIS_URL", () =>
-        $"redis://cache:6379");
+    .WithReference(db)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["DATABASE_URL"] =
+            ReferenceExpression.Create(
+                $"postgresql://postgres:{dbPassword}@db:5432/myapp");
+        context.EnvironmentVariables["REDIS_URL"] = "redis://cache:6379";
+    });
 ```
 
 </Aside>
@@ -355,7 +361,7 @@ networks:
   backend:
 ```
 
-Aspire doesn't have an equivalent for custom network isolation. Instead, Aspire automatically creates a shared container network for all resources and uses service discovery to manage inter-service communication. All containers in an Aspire AppHost can reach each other by resource name.
+Aspire doesn't have an equivalent for custom network isolation. Instead, Aspire automatically creates a shared container network for all container resources and uses service discovery to manage inter-service communication. All containers in an Aspire AppHost can reach each other by resource name. .NET projects and executables run on the host and access containers through injected host/port endpoints.
 
 <Aside type="note">
 If your Docker Compose setup relies on network isolation (for example, preventing a frontend service from directly accessing the database), Aspire doesn't provide a direct equivalent. Consider using application-level access controls or firewall rules in your deployment environment instead.
@@ -428,13 +434,19 @@ Aspire generates .NET-style connection strings (`ConnectionStrings__*`) rather t
 **Solution**: If your application expects specific URL formats, construct them manually using `WithEnvironment()`:
 
 ```csharp title="C# — AppHost.cs"
-var postgres = builder.AddPostgres("db")
+var dbPassword = builder.AddParameter("dbPassword", secret: true);
+
+var postgres = builder.AddPostgres("db", password: dbPassword)
     .AddDatabase("myapp");
 
 var app = builder.AddContainer("app", "myapp", "latest")
     .WithReference(postgres)
-    .WithEnvironment("DATABASE_URL", () =>
-        $"postgresql://postgres:secret@db:5432/myapp");
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["DATABASE_URL"] =
+            ReferenceExpression.Create(
+                $"postgresql://postgres:{dbPassword}@db:5432/myapp");
+    });
 ```
 
 **Service startup order issues**
