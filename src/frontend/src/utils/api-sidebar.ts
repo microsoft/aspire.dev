@@ -60,7 +60,7 @@ export async function getApiReferenceSidebar() {
     .sort((a, b) => a.package.name.localeCompare(b.package.name));
 
   return [
-    { label: 'Search APIs', link: '/reference/api/' },
+    { label: 'Search APIs', link: '/reference/api/csharp/' },
     ...sorted.map((pkg) => {
       const validTypes = pkg.types.filter((t: any) => t.name);
       const nsGroups = groupTypesByNamespace(validTypes);
