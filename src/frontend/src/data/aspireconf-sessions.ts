@@ -113,7 +113,7 @@ export const sessions: SessionProps[] = [
     timeslot: '2:30 PM PT',
     duration: '30 min',
   },
-    {
+  {
     title: 'Building and Deploying with Aspire and AWS',
     speakers: [
       { name: 'Norm Johanson', headshot: normPic, jobTitle: 'Principal Developer Engineer', company: 'AWS' },
