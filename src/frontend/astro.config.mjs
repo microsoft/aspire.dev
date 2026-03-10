@@ -20,9 +20,11 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+import dotnet from 'astro-adapter-dotnet';
 
 // https://astro.build/config
 export default defineConfig({
+  adapter: dotnet(),
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',

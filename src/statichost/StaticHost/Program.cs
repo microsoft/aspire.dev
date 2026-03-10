@@ -9,6 +9,26 @@ builder.Services.AddHsts(options =>
     options.MaxAge = TimeSpan.FromDays(180);
 });
 
+// Astro SSR adapter — proxies on-demand pages to the SSR service.
+// Prerendered content continues to be served via MapStaticAssets() below.
+var ssrUrl = builder.Configuration.GetConnectionString("astro-ssr")
+          ?? builder.Configuration["services__astro-ssr__http__0"];
+
+builder.Services.AddAstro(options =>
+{
+    if (ssrUrl is not null)
+    {
+        // Run mode: SSR is a separate Aspire resource via service discovery.
+        options.SsrBaseUrl = ssrUrl;
+    }
+    else
+    {
+        // Publish mode: Node.js is bundled in the container, manage it locally.
+        options.ServerEntryPath = Path.Combine(
+            builder.Environment.ContentRootPath, "astro-server", "entry.mjs");
+    }
+});
+
 await using var app = builder.Build();
 
 // Only enable HSTS in production
@@ -60,6 +80,10 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+// Astro SSR proxy — placed after UseRouting() so it can check if an endpoint
+// was already matched. Only proxies requests with no matching static asset.
+app.UseAstroSsr();
 
 app.MapGet("/healthz", () => Results.Ok());
 
