@@ -116,7 +116,7 @@ export const sessions: SessionProps[] = [
     {
     title: 'Building and Deploying with Aspire and AWS',
     speakers: [
-      { name: 'Norm Johanson', headshot: normPic, jobTitle: 'Principal Developer Engineer ', company: 'AWS' },
+      { name: 'Norm Johanson', headshot: normPic, jobTitle: 'Principal Developer Engineer', company: 'AWS' },
     ],
     abstract: 'Learn how to use Aspire with Amazon Web Services to streamline both local development and cloud deployment. This session demonstrates the new support for running and debugging AWS Lambda functions locally within Aspire, enabling a fast inner development loop. Then see how Aspire applications can be deployed to AWS by combining Aspire’s orchestration model with AWS Cloud Development Kit (CDK).',
     timeslot: '3:00 PM PT',
