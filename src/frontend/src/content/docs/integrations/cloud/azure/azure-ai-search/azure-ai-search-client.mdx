@@ -1,0 +1,239 @@
+---
+title: Azure AI Search client integration
+description: Learn how to use the Aspire Azure AI Search client integration to connect to Azure AI Search services.
+next: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import searchIcon from '@assets/icons/azure-search-icon.png';
+
+<Image
+  src={searchIcon}
+  alt="Azure AI Search logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire Azure AI Search client integration is used to connect to an Azure AI Search service using the `SearchIndexClient`. To get started with the Aspire Azure AI Search client integration, install the [📦 Aspire.Azure.Search.Documents](https://www.nuget.org/packages/Aspire.Azure.Search.Documents) NuGet package.
+
+<InstallDotNetPackage packageName="Aspire.Azure.Search.Documents" />
+
+For an introduction to working with the Azure AI Search client integration, see [Get started with the Azure AI Search integration](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/).
+
+## Add an Azure AI Search index client
+
+In the `Program.cs` file of your client-consuming project, call the `AddAzureSearchClient` extension method on any `IHostApplicationBuilder` to register a [SearchIndexClient class](https://learn.microsoft.com/dotnet/api/microsoft.azure.search.searchindexclient) for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddAzureSearchClient(connectionName: "search");
+```
+
+> [!TIP]
+> The `connectionName` parameter must match the name used when adding the Azure AI Search resource in the AppHost project. For more information, see [Add an Azure AI Search resource](/integrations/cloud/azure/azure-ai-search/azure-ai-search-host/#add-an-azure-ai-search-resource).
+
+After adding the `SearchIndexClient`, you can retrieve the client instance using dependency injection. For example, to retrieve the client instance from an example service:
+
+```csharp
+public class ExampleService(SearchIndexClient indexClient)
+{
+    // Use indexClient
+}
+```
+
+You can also retrieve a `SearchClient` which can be used for querying, by calling the `GetSearchClient` method:
+
+```csharp
+public class ExampleService(SearchIndexClient indexClient)
+{
+    public async Task<long> GetDocumentCountAsync(
+        string indexName,
+        CancellationToken cancellationToken)
+    {
+        var searchClient = indexClient.GetSearchClient(indexName);
+
+        var documentCountResponse = await searchClient.GetDocumentCountAsync(
+            cancellationToken);
+
+        return documentCountResponse.Value;
+    }
+}
+```
+
+For more information, see:
+
+- Azure AI Search client library for .NET [samples using the `SearchIndexClient`](https://learn.microsoft.com/azure/search/samples-dotnet).
+- [Dependency injection in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection) for details on dependency injection.
+
+## Properties of the Azure AI Search resources
+
+When you use the `WithReference` method to pass an Azure AI Search resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `search` becomes `SEARCH_URI`.
+
+### Azure AI Search service
+
+The Azure AI Search resource exposes the following connection property:
+
+| Property Name | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `Uri`         | The service endpoint URI (e.g., `https://{name}.search.windows.net`)              |
+
+For example, if you reference a search resource named `search` in your AppHost project, the following environment variables will be available in the consuming project:
+
+- `SEARCH_URI`
+
+## Add keyed Azure AI Search index client
+
+There might be situations where you want to register multiple `SearchIndexClient` instances with different connection names. To register keyed Azure AI Search clients, call the `AddKeyedAzureSearchClient` method:
+
+```csharp
+builder.AddKeyedAzureSearchClient(name: "images");
+builder.AddKeyedAzureSearchClient(name: "documents");
+```
+
+> [!IMPORTANT]
+> When using keyed services, it's expected that your Azure AI Search resource configured two named connections, one for the `images` and one for the `documents`.
+
+Then you can retrieve the client instances using dependency injection. For example, to retrieve the clients from a service:
+
+```csharp
+public class ExampleService(
+    [KeyedService("images")] SearchIndexClient imagesClient,
+    [KeyedService("documents")] SearchIndexClient documentsClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+## Configuration
+
+The Azure AI Search Documents library provides multiple options to configure the Azure AI Search connection based on the requirements and conventions of your project. Either an `Endpoint` or a `ConnectionString` is required to be supplied.
+
+### Use a connection string
+
+A connection can be constructed from the **Keys and Endpoint** tab with the format `Endpoint={endpoint};Key={key};`. You can provide the name of the connection string when calling `builder.AddAzureSearchClient()`:
+
+```csharp
+builder.AddAzureSearchClient("searchConnectionName");
+```
+
+The connection string is retrieved from the `ConnectionStrings` configuration section. Two connection formats are supported:
+
+#### Account endpoint
+
+The recommended approach is to use an `Endpoint`, which works with the `AzureSearchSettings.Credential` property to establish a connection. If no credential is configured, the `DefaultAzureCredential` is used.
+
+```json
+{
+  "ConnectionStrings": {
+    "search": "https://{search_service}.search.windows.net/"
+  }
+}
+```
+
+#### Connection string
+
+Alternatively, a connection string with key can be used, however; it's not the recommended approach:
+
+```json
+{
+  "ConnectionStrings": {
+    "search": "Endpoint=https://{search_service}.search.windows.net/;Key={account_key};"
+  }
+}
+```
+
+### Use configuration providers
+
+The Azure AI Search library supports `Microsoft.Extensions.Configuration`. It loads the `AzureSearchSettings` and `SearchClientOptions` from configuration by using the `Aspire:Azure:Search:Documents` key. Example `appsettings.json` that configures some of the options:
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Search": {
+        "Documents": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete Azure AI Search Documents client integration JSON schema, see [Aspire.Azure.Search.Documents/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/main/src/Components/Aspire.Azure.Search.Documents/ConfigurationSchema.json).
+
+### Use named configuration
+
+The Azure AI Search library supports named configuration, which allows you to configure multiple instances of the same resource type with different settings. The named configuration uses the connection name as a key under the main configuration section.
+
+```json
+{
+  "Aspire": {
+    "Azure": {
+      "Search": {
+        "Documents": {
+          "search1": {
+            "Endpoint": "https://mysearch1.search.windows.net/",
+            "DisableTracing": false
+          },
+          "search2": {
+            "Endpoint": "https://mysearch2.search.windows.net/",
+            "DisableTracing": true
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+In this example, the `search1` and `search2` connection names can be used when calling `AddAzureSearchClient`:
+
+```csharp
+builder.AddAzureSearchClient("search1");
+builder.AddAzureSearchClient("search2");
+```
+
+Named configuration takes precedence over the top-level configuration. If both are provided, the settings from the named configuration override the top-level settings.
+
+### Use inline delegates
+
+You can also pass the `Action<AzureSearchSettings> configureSettings` delegate to set up some or all the options inline, for example to disable tracing from code:
+
+```csharp
+builder.AddAzureSearchClient(
+    "searchConnectionName",
+    static settings => settings.DisableTracing = true);
+```
+
+You can also set up the `SearchClientOptions` using the optional `Action<IAzureClientBuilder<SearchIndexClient, SearchClientOptions>> configureClientBuilder` parameter of the `AddAzureSearchClient` method. For example, to set the client ID for this client:
+
+```csharp
+builder.AddAzureSearchClient(
+    "searchConnectionName",
+    configureClientBuilder: builder => builder.ConfigureOptions(
+        static options => options.Diagnostics.ApplicationId = "CLIENT_ID"));
+```
+
+The Azure AI Search Documents integration implements a single health check that calls the `GetServiceStatisticsAsync` method on the `SearchIndexClient` to verify that the service is available.
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as _the pillars of observability_. For more information about integration observability and telemetry, see [Aspire integrations overview](/integrations/overview/). Depending on the backing service, some integrations may only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+## Logging
+
+The Azure AI Search Documents integration uses the following log categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+
+## Tracing
+
+The Azure AI Search Documents integration emits tracing activities using OpenTelemetry when interacting with the search service.

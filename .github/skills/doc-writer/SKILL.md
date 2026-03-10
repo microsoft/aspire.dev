@@ -524,28 +524,45 @@ import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 - `speed`: Playback speed multiplier (default: 1.5)
 - `idleTimeLimit`: Max idle time between commands (default: 1.5s)
 
-#### Creating New Recordings with Hex1b MCP
+#### Creating New Recordings with Hex1b CLI
 
-Use the Hex1b MCP server to create new terminal recordings:
+Use the Hex1b CLI tool to create new terminal recordings and screenshots. Install it first if needed:
 
-1. Activate the terminal tools:
-   ```
-   activate_terminal_session_creation_tools
-   activate_terminal_interaction_tools
-   ```
+```bash
+dotnet tool install -g Hex1b.Tool
+```
 
-2. Start a terminal session and record:
-   ```
-   mcp_hex1b_start_bash_terminal     # Start a new session
-   mcp_hex1b_send_terminal_input     # Send commands
-   mcp_hex1b_wait_for_terminal_text  # Wait for output
-   mcp_hex1b_record_asciinema        # Save as .cast file
+Refer to the **hex1b skill** for the full command reference. Common workflow:
+
+1. Start a terminal session:
+   ```bash
+   dotnet hex1b terminal start -- bash
+   # Note the terminal ID from the output
    ```
 
-3. For screenshots instead of recordings:
+2. Send commands and wait for output:
+   ```bash
+   dotnet hex1b keys <id> --text "aspire run"
+   dotnet hex1b keys <id> --key Enter
+   dotnet hex1b assert <id> --text-present "Ready" --timeout 30
    ```
-   mcp_hex1b_capture_terminal_screenshot  # Capture as SVG
-   mcp_hex1b_capture_terminal_text        # Capture as text
+
+3. Record a session:
+   ```bash
+   dotnet hex1b capture recording start <id> --output session.cast
+   # ... interact with the terminal ...
+   dotnet hex1b capture recording stop <id>
+   ```
+
+4. Capture output as SVG (for screenshots) or text:
+   ```bash
+   dotnet hex1b capture screenshot <id> --format svg --output screenshot.svg
+   dotnet hex1b capture screenshot <id> --format text --output output.txt
+   ```
+
+5. Stop the terminal when done:
+   ```bash
+   dotnet hex1b terminal stop <id>
    ```
 
 #### When to Use Recordings vs Code Blocks

@@ -1,0 +1,193 @@
+---
+title: Azure AI Search hosting integration
+description: Learn how to use the Aspire Azure AI Search hosting integration to create Azure AI Search resources.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import searchIcon from '@assets/icons/azure-search-icon.png';
+
+<Image
+  src={searchIcon}
+  alt="Azure AI Search logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The Aspire Azure AI Search hosting integration models the search service as the `AzureSearchResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Search](https://www.nuget.org/packages/Aspire.Hosting.Azure.Search) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Search" />
+
+For an introduction to working with the Azure AI Search hosting integration, see [Get started with the Azure AI Search integration](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/).
+
+## Add an Azure AI Search resource
+
+To add an Azure AI Search resource to your AppHost project, call the `AddAzureSearch` method providing a name:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var search = builder.AddAzureSearch("search");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(search);
+
+// After adding all resources, run the app...
+```
+
+The preceding code adds an Azure AI Search resource named `search` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="caution">
+  When you call `AddAzureSearch`, it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Connect to an existing Azure AI Search instance
+
+You might have an existing Azure AI Search service that you want to connect to. You can chain a call to annotate that your `AzureSearchResource` is an existing resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingSearchName = builder.AddParameter("existingSearchName");
+var existingSearchResourceGroup = builder.AddParameter("existingSearchResourceGroup");
+
+var search = builder.AddAzureSearch("search")
+    .AsExisting(existingSearchName, existingSearchResourceGroup);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(search);
+
+// After adding all resources, run the app...
+```
+
+For more information on treating Azure AI Search resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+
+<Aside type="note">
+  Alternatively, instead of representing an Azure AI Search resource, you can
+  add a connection string to the AppHost. This approach is weakly-typed and
+  doesn't work with role assignments or infrastructure customizations.
+</Aside>
+
+## Provisioning-generated Bicep
+
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand; instead, the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure AI Search resource, Bicep is generated to provision the search service with appropriate defaults.
+
+```bicep title="Generated Bicep — search.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+resource search 'Microsoft.Search/searchServices@2023-11-01' = {
+  name: take('search-${uniqueString(resourceGroup().id)}', 60)
+  location: location
+  properties: {
+    hostingMode: 'default'
+    disableLocalAuth: true
+    partitionCount: 1
+    replicaCount: 1
+  }
+  sku: {
+    name: 'basic'
+  }
+  tags: {
+    'aspire-resource-name': 'search'
+  }
+}
+
+output connectionString string = 'Endpoint=https://${search.name}.search.windows.net'
+
+output name string = search.name
+```
+
+The preceding Bicep is a module that provisions an Azure AI Search service resource. Additionally, role assignments are created for the Azure resource in a separate module:
+
+```bicep title="Generated Bicep — search-roles.bicep"
+@description('The location for the resource(s) to be deployed.')
+param location string = resourceGroup().location
+
+param search_outputs_name string
+
+param principalType string
+
+param principalId string
+
+resource search 'Microsoft.Search/searchServices@2023-11-01' existing = {
+  name: search_outputs_name
+}
+
+resource search_SearchIndexDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(search.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7')
+    principalType: principalType
+  }
+  scope: search
+}
+
+resource search_SearchServiceContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(search.id, principalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0'))
+  properties: {
+    principalId: principalId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0')
+    principalType: principalType
+  }
+  scope: search
+}
+```
+
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+
+### Customize provisioning infrastructure
+
+All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureSearch("search")
+    .ConfigureInfrastructure(infra =>
+    {
+        var searchService = infra.GetProvisionableResources()
+                                  .OfType<SearchService>()
+                                  .Single();
+
+        searchService.PartitionCount = 6;
+        searchService.ReplicaCount = 3;
+        searchService.SearchSkuName = SearchServiceSkuName.Standard3;
+        searchService.Tags.Add("ExampleKey", "Example value");
+    });
+```
+
+The preceding code:
+
+- Chains a call to the `ConfigureInfrastructure` API:
+  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
+  - The provisionable resources are retrieved by calling the `GetProvisionableResources` method.
+  - The single `SearchService` resource is retrieved.
+    - The `PartitionCount` is set to `6`.
+    - The `ReplicaCount` is set to `3`.
+    - The `SearchSkuName` is set to `Standard3`.
+    - A tag is added to the Cognitive Services resource with a key of `ExampleKey` and a value of `Example value`.
+
+There are many more configuration options available to customize the Search resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Connection properties
+
+When you reference an Azure AI Search service using `WithReference`, the following connection properties are made available to the consuming project:
+
+| Property Name | Description                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `Uri`         | The HTTPS endpoint of the Azure AI Search service in the format `https://{name}.search.windows.net`. |
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named
+  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
+  `search1` becomes `SEARCH1_URI`.
+</Aside>

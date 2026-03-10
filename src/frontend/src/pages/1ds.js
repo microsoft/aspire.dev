@@ -63,14 +63,22 @@ export async function GET({ request }) {
       if (typeof oneDS === 'undefined') {
         return;
       }
+
+      if (window.analytics && window.analytics.__initialized) {
+        console.debug('[1ds] Already initialized, skipping.');
+        return;
+      }
     
       try {
         const analytics = new oneDS.ApplicationInsights();
 
         const configJson = \`${JSON.stringify(config)}\`;
-        const config = JSON.parse(configJson);
+        const parsedConfig = JSON.parse(configJson);
 
-        analytics.initialize(config, []);
+        analytics.initialize(parsedConfig, []);
+
+        analytics.__initialized = true;
+        window.analytics = analytics;
       } catch (err) {
         console.debug("[1ds] Failed to initialize Application Insights:", err);
       }

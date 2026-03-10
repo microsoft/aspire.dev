@@ -1,0 +1,213 @@
+---
+title: RabbitMQ client integration
+description: Learn how to use the RabbitMQ client integration to connect to RabbitMQ instances.
+next: false
+---
+
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import rabbitmqIcon from '@assets/icons/rabbitmq-icon.svg';
+
+<Image
+  src={rabbitmqIcon}
+  alt="RabbitMQ logo"
+  width={120}
+  height={120}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire RabbitMQ client integration, install the [📦 Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.RabbitMQ.Client) NuGet package in the client-consuming project, that is, the project for the application that uses the RabbitMQ client. The RabbitMQ client integration registers an [IConnection](https://rabbitmq.github.io/rabbitmq-dotnet-client/api/RabbitMQ.Client.IConnection.html) instance that you can use to interact with RabbitMQ.
+
+<InstallDotNetPackage packageName="Aspire.RabbitMQ.Client" />
+
+<Aside type="note">
+    The `Aspire.RabbitMQ.Client` NuGet package depends on the `RabbitMQ.Client` NuGet package. With the release of version 7.0.0 of `RabbitMQ.Client`, a binary breaking change was introduced. To address this, a new client integration package, `Aspire.RabbitMQ.Client.v7`, was created. The original `Aspire.RabbitMQ.Client` package continues to reference `RabbitMQ.Client` version 6.8.1, ensuring compatibility with previous versions of the RabbitMQ client integration. The new `Aspire.RabbitMQ.Client.v7` package references `RabbitMQ.Client` version 7.0.0. In a future version of Aspire, the `Aspire.RabbitMQ.Client` will be updated to version `7.x` and the `Aspire.RabbitMQ.Client.v7` package will be deprecated. For more information, see [Migrating to RabbitMQ .NET Client 7.x](https://github.com/rabbitmq/rabbitmq-dotnet-client/blob/main/v7-MIGRATION.md).
+</Aside>
+
+## Add RabbitMQ client
+
+In the `Program.cs` file of your client-consuming project, call the `AddRabbitMQClient` extension method on any `IHostApplicationBuilder` to register an `IConnection` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(connectionName: "messaging");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the RabbitMQ server resource in the AppHost project. For more information, see [Add RabbitMQ server resource](/integrations/messaging/rabbitmq/rabbitmq-host/#add-rabbitmq-server-resource).
+</Aside>
+
+You can then retrieve the `IConnection` instance using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IConnection connection)
+{
+    // Use connection...
+}
+```
+
+## Add keyed RabbitMQ client
+
+There might be situations where you want to register multiple `IConnection` instances with different connection names. To register keyed RabbitMQ clients, call the `AddKeyedRabbitMQClient` method:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedRabbitMQClient(name: "chat");
+builder.AddKeyedRabbitMQClient(name: "queue");
+```
+
+Then you can retrieve the `IConnection` instances using dependency injection. For example, to retrieve the connection from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] IConnection chatConnection,
+    [FromKeyedServices("queue")] IConnection queueConnection)
+{
+    // Use connections...
+}
+```
+
+## Connection properties
+
+When you reference a RabbitMQ resource using `WithReference`, the following connection properties are made available to the consuming project:
+
+### RabbitMQ server
+
+The RabbitMQ server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the RabbitMQ server |
+| `Port` | The port number the RabbitMQ server is listening on |
+| `Username` | The username for authentication |
+| `Password` | The password for authentication |
+| `Uri` | The connection URI, with the format `amqp://{Username}:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: amqp://guest:p%40ssw0rd1@localhost:5672
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `messaging` becomes `MESSAGING_URI`.
+</Aside>
+
+## Configuration
+
+The Aspire RabbitMQ integration provides multiple options to configure the connection based on the requirements and conventions of your project.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you can provide the name of the connection string when calling the `AddRabbitMQClient` method:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(connectionName: "messaging");
+```
+
+Then the connection string is retrieved from the `ConnectionStrings` configuration section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "messaging": "amqp://username:password@localhost:5672"
+  }
+}
+```
+
+For more information on how to format this connection string, see the [RabbitMQ URI specification docs](https://www.rabbitmq.com/uri-spec.html).
+
+### Use configuration providers
+
+The Aspire RabbitMQ integration supports `Configuration`. It loads the `RabbitMQClientSettings` from configuration by using the `Aspire:RabbitMQ:Client` key. The following snippet is an example of a _appsettings.json_ file that configures some of the options:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "RabbitMQ": {
+      "Client": {
+        "ConnectionString": "amqp://username:password@localhost:5672",
+        "DisableHealthChecks": true,
+        "DisableTracing": true,
+        "MaxConnectRetryCount": 2
+      }
+    }
+  }
+}
+```
+
+For the complete RabbitMQ client integration JSON schema, see [Aspire.RabbitMQ.Client/ConfigurationSchema.json](https://github.com/dotnet/aspire/blob/v9.1.0/src/Components/Aspire.RabbitMQ.Client/ConfigurationSchema.json).
+
+### Use inline delegates
+
+Also you can pass the `Action<RabbitMQClientSettings> configureSettings` delegate to set up some or all the options inline, for example to disable health checks from code:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(
+    "messaging",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+You can also set up the [IConnectionFactory](https://rabbitmq.github.io/rabbitmq-dotnet-client/api/RabbitMQ.Client.IConnectionFactory.html) using the `Action<IConnectionFactory> configureConnectionFactory` delegate parameter of the `AddRabbitMQClient` method. For example to set the client provided name for connections:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(
+    "messaging",
+    configureConnectionFactory:
+        static factory => factory.ClientProvidedName = "MyApp");
+```
+
+## Auto activation
+
+Auto activation is a feature that helps prevent startup deadlocks in applications that use RabbitMQ. When auto activation is enabled, the RabbitMQ client connection is automatically opened when the application starts, rather than being lazily initialized on first use. This ensures that any connection issues are detected early during application startup, rather than during runtime operations.
+
+### When to enable auto activation
+
+Auto activation is particularly useful in scenarios where:
+
+- Your application needs to verify RabbitMQ connectivity during startup
+- You want to fail fast if RabbitMQ is unavailable
+- Your application architecture requires connections to be established before accepting traffic
+- You're experiencing startup deadlocks or race conditions with lazy connection initialization
+
+### Configuration
+
+Auto activation is **disabled by default** in Aspire 9.5 to maintain backward compatibility. To enable auto activation, set the `DisableAutoActivation` property to `false` in the `RabbitMQClientSettings`:
+
+```csharp title="C# — Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+// Enable auto activation
+builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
+```
+
+<Aside type="note">
+  In a future version of Aspire, auto activation is planned to be **enabled by default**. When this change occurs, you'll need to explicitly set `DisableAutoActivation = true` if you want to maintain the lazy initialization behavior.
+</Aside>
+
+## Client integration health checks
+
+By default, Aspire integrations enable health checks for all services. The Aspire RabbitMQ integration:
+
+- Adds the health check when `DisableHealthChecks` is `false`, which attempts to connect to and create a channel on the RabbitMQ server.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
+
+## Observability and telemetry
+
+Aspire integrations automatically set up Logging, Tracing, and Metrics configurations, which are sometimes known as *the pillars of observability*. Depending on the backing service, some integrations might only support some of these features. For example, some integrations support logging and tracing, but not metrics. Telemetry features can also be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+### Logging
+
+The Aspire RabbitMQ integration uses the following log categories:
+
+- `RabbitMQ.Client`
+
+### Tracing
+
+The Aspire RabbitMQ integration emits the following tracing activities using OpenTelemetry:
+
+- `Aspire.RabbitMQ.Client`
+
+### Metrics
+
+The Aspire RabbitMQ integration currently doesn't support metrics by default.

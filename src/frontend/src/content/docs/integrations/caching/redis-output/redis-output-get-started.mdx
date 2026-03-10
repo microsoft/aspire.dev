@@ -1,0 +1,106 @@
+---
+title: Get started with the Redis Output Caching integration
+description: Learn how to set up the Aspire Redis Output Caching hosting and client integrations simply.
+prev: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import redisIcon from '@assets/icons/redis-icon.png';
+
+<Image
+  src={redisIcon}
+  alt="Redis logo"
+  width={80}
+  height={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The [Redis®](#registered-trademark) output caching integration is used to register an [ASP.NET Core Output Caching](https://learn.microsoft.com/aspnet/core/performance/caching/output) provider backed by a [Redis](https://redis.io/) server with the [`docker.io/library/redis` container image](https://hub.docker.com/_/redis/).
+
+In this introduction, you'll see how to install and use the Aspire Redis Output Caching integrations in a simple configuration. If you already have this knowledge, see [Redis Output Caching hosting integration](/integrations/caching/redis-output/redis-output-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire Redis hosting integration in your Aspire AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Redis" />
+
+Next, in the AppHost project, create instances of Redis resources and pass them to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+                       .WithReference(cache);
+
+builder.Build().Run();
+```
+
+When Aspire adds a container image to the AppHost, it creates a new Redis instance on your local machine.
+
+<Aside type="tip">
+  If you'd rather connect to an existing Redis instance, call `AsExisting`
+  instead.
+</Aside>
+
+## Set up client integration
+
+To get started with the Redis output caching integration, install the package:
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis.OutputCaching" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddRedisOutputCache` extension method to register the required services for output caching:
+
+```csharp
+builder.AddRedisOutputCache(connectionName: "cache");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the Redis
+  resource in the AppHost project.
+</Aside>
+
+Add the middleware to the request processing pipeline by calling `UseOutputCache`:
+
+```csharp
+var app = builder.Build();
+
+app.UseOutputCache();
+```
+
+For minimal API apps, configure an endpoint to do caching by calling `CacheOutput`, or by applying the `OutputCacheAttribute`:
+
+```csharp
+app.MapGet("/cached", () => "Hello world!")
+   .CacheOutput();
+
+app.MapGet(
+    "/attribute",
+    [OutputCache] () => "Hello world!");
+```
+
+For apps with controllers, apply the `[OutputCache]` attribute to the action method. For Razor Pages apps, apply the attribute to the Razor page class.
+
+## See also
+
+- [Redis Output Caching hosting integration](/integrations/caching/redis-output/redis-output-host/)
+- [Redis Output Caching client integration](/integrations/caching/redis-output/redis-output-client/)
+- [Main Redis integration](/integrations/caching/redis/redis-get-started/)
+
+:::tip[Registered trademark]{icon="information"}
+
+<span id="registered-trademark"></span>
+Redis is a registered trademark of Redis Ltd. Any rights therein are reserved to
+Redis Ltd. Any use by Microsoft is for referential purposes only and does not
+indicate any sponsorship, endorsement or affiliation between Redis and
+Microsoft. :::

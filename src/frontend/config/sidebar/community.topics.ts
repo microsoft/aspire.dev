@@ -20,9 +20,32 @@ export const communityTopics: StarlightSidebarTopicsUserConfig = {
     tr: 'Topluluk',
     uk: 'Спільнота',
   },
-  link: '/community/contributors',
+  link: '/community/',
   icon: 'heart',
   items: [
+    {
+      label: 'Overview',
+      translations: {
+        da: 'Oversigt',
+        de: 'Übersicht',
+        en: 'Overview',
+        es: 'Resumen',
+        fr: 'Aperçu',
+        hi: 'अवलोकन',
+        id: 'Ikhtisar',
+        it: 'Panoramica',
+        ja: '概要',
+        ko: '개요',
+        pt: 'Visão geral',
+        'pt-BR': 'Visão geral',
+        'pt-PT': 'Visão geral',
+        ru: 'Обзор',
+        tr: 'Genel Bakış',
+        uk: 'Огляд',
+        'zh-CN': '概述',
+      },
+      slug: 'community',
+    },
     {
       label: 'Contributors',
       translations: {
@@ -123,6 +146,14 @@ export const communityTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '视频',
       },
       slug: 'community/videos',
+    },
+    {
+      label: 'Aspire Conf',
+      slug: 'aspireconf',
+      badge: {
+        text: 'Mar 23',
+        variant: 'tip',
+      },
     },
   ],
 };

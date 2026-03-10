@@ -292,7 +292,7 @@ The trace detail page includes several quality-of-life improvements:
 
 ### OpenAI hosting integration
 
-The new `AddOpenAI` integration provides first-class support for modeling OpenAI endpoints and their associated models within your Aspire application model. For more information, see [Aspire OpenAI integration (Preview)](https://aspire.dev/integrations/ai/openai/).
+The new `AddOpenAI` integration provides first-class support for modeling OpenAI endpoints and their associated models within your Aspire application model. For more information, see [Aspire OpenAI integration (Preview)](https://aspire.dev/integrations/ai/openai/openai-get-started/).
 
 **Features:**
 
@@ -343,7 +343,7 @@ var embeddingModel = builder.AddGitHubModel("embeddings", GitHubModel.OpenAI.Ope
 For more information, see:
 
 - [Aspire GitHub Models integration (Preview)](https://aspire.dev/integrations/ai/github-models/).
-- [Aspire Azure AI Foundry integration (Preview)](https://aspire.dev/integrations/cloud/azure/azure-ai-foundry/).
+- [Aspire Azure AI Foundry integration (Preview)](https://aspire.dev/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
 
 ### Dev Tunnels hosting integration
 
@@ -456,14 +456,28 @@ builder.Build().Run();
 
 ### RabbitMQ auto activation
 
-RabbitMQ client connections now support auto activation to prevent startup deadlocks and improve application reliability. Auto activation is disabled by default in 9.5, but planned to be enabled by default in a future release.
+RabbitMQ client connections now support auto activation to prevent startup deadlocks and improve application reliability. When enabled, auto activation ensures that the RabbitMQ connection is established during application startup rather than being lazily initialized on first use. This helps detect connection issues early and prevents certain race conditions that can occur with lazy initialization.
+
+Auto activation is **disabled by default** in Aspire 9.5 to maintain backward compatibility. In a future release, it's planned to be **enabled by default**.
+
+**When to enable auto activation:**
+
+- Your application needs to verify RabbitMQ connectivity during startup
+- You want to fail fast if RabbitMQ is unavailable
+- Your application requires connections to be established before accepting traffic
+- You're experiencing startup deadlocks with lazy connection initialization
+
+**Enable auto activation:**
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-// Auto activation is disabled by default for RabbitMQ, enable using DisableAutoActivation=false
+// Auto activation is disabled by default for RabbitMQ
+// Enable using DisableAutoActivation=false
 builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
 ```
+
+For more information, see [RabbitMQ integration - Auto activation](/integrations/messaging/rabbitmq/rabbitmq-client/#auto-activation).
 
 ### Redis integration improvements
 
@@ -547,7 +561,7 @@ var redisEnterprise = builder.AddAzureRedisEnterprise("redis-enterprise")
     .WithAccessKeyAuthentication(keyVault);
 ```
 
-For more information, see [Aspire Azure Managed Redis integration](https://aspire.dev/integrations/cloud/azure/azure-cache-redis/).
+For more information, see [Aspire Azure Managed Redis integration](https://aspire.dev/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started/).
 
 ### Azure App Configuration emulator (preview)
 

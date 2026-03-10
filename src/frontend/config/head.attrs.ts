@@ -102,4 +102,13 @@ export const headAttrs: HeadAttr[] = [
       'data-category': 'analytics',
     },
   },
+  {
+    tag: 'script',
+    attrs: {
+      type: 'text/plain',
+      src: '/track/',
+      defer: true,
+      'data-category': 'analytics',
+    },
+  },
 ];
