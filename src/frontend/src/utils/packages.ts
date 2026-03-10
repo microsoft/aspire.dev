@@ -188,7 +188,7 @@ export function typeHref(
   arity: number = 0,
 ): string {
   const b = base.replace(/\/$/, '');
-  return `${b}/reference/api/${packageSlug(packageName)}/${slugify(typeName, arity)}/`;
+  return `${b}/reference/api/csharp/${packageSlug(packageName)}/${slugify(typeName, arity)}/`;
 }
 
 /** NuGet package page URL. */

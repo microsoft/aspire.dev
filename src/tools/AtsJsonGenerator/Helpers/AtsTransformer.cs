@@ -225,12 +225,72 @@ internal static class AtsTransformer
     }
 
     /// <summary>
-    /// Strip the "Assembly/" prefix from a type ID.
+    /// Strip the "Assembly/" prefix from a type ID and clean assembly-qualified
+    /// generic type arguments (e.g., <c>System.IEquatable`1[[TypeName, Assembly, Version=..., ...]]</c>).
     /// </summary>
     internal static string StripAssemblyPrefix(string typeId)
     {
         var slashIdx = typeId.IndexOf('/');
-        return slashIdx >= 0 ? typeId[(slashIdx + 1)..] : typeId;
+        var stripped = slashIdx >= 0 ? typeId[(slashIdx + 1)..] : typeId;
+
+        // Clean assembly metadata from generic type arguments:
+        // [[TypeName, AssemblyName, Version=..., Culture=..., PublicKeyToken=...]]
+        // becomes [[TypeName]]
+        if (stripped.Contains("[["))
+        {
+            stripped = CleanAssemblyQualifiedGenerics(stripped);
+        }
+
+        return stripped;
+    }
+
+    /// <summary>
+    /// Remove assembly metadata from inside double-bracket generic type arguments.
+    /// </summary>
+    private static string CleanAssemblyQualifiedGenerics(string typeId)
+    {
+        var result = new System.Text.StringBuilder(typeId.Length);
+        var i = 0;
+
+        while (i < typeId.Length)
+        {
+            if (i + 1 < typeId.Length && typeId[i] == '[' && typeId[i + 1] == '[')
+            {
+                result.Append("[[");
+                i += 2;
+
+                // Read the type name (up to the first comma or closing bracket)
+                while (i < typeId.Length && typeId[i] != ',' && typeId[i] != ']')
+                {
+                    result.Append(typeId[i]);
+                    i++;
+                }
+
+                // Skip assembly metadata: everything between the comma and "]]"
+                var depth = 1;
+                while (i < typeId.Length && depth > 0)
+                {
+                    if (i + 1 < typeId.Length && typeId[i] == ']' && typeId[i + 1] == ']')
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            result.Append("]]");
+                            i += 2;
+                            break;
+                        }
+                    }
+                    i++;
+                }
+            }
+            else
+            {
+                result.Append(typeId[i]);
+                i++;
+            }
+        }
+
+        return result.ToString();
     }
 
     /// <summary>

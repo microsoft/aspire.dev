@@ -49,6 +49,17 @@ export async function getStaticPaths() {
         props: { pkg: pkg.data, item: enumType, itemKind: 'enum' },
       });
     }
+
+    // Standalone functions (no dot in qualifiedName)
+    for (const fn of pkg.data.functions ?? []) {
+      if (fn.qualifiedName && fn.qualifiedName.includes('.')) continue;
+      const slug = tsSlugify(fn.name);
+      if (!slug) continue;
+      paths.push({
+        params: { module: pkgSlug, item: slug },
+        props: { pkg: pkg.data, item: fn, itemKind: 'function' },
+      });
+    }
   }
 
   return paths;
@@ -76,11 +87,13 @@ function typeColorIndex(s: string): number {
 
 const kindLabel = itemKind === 'handle' ? (item.isInterface ? 'Interface' : 'Handle')
                : itemKind === 'dto' ? 'Type'
+               : itemKind === 'function' ? 'Function'
                : 'Enum';
 
 const kindPillClass = itemKind === 'handle'
   ? (item.isInterface ? 'kind-interface' : 'kind-handle')
   : itemKind === 'dto' ? 'kind-struct'
+  : itemKind === 'function' ? 'kind-method'
   : 'kind-enum';
 
 /* ── Build TypeScript declaration for the Code block ──────────── */
@@ -135,6 +148,23 @@ if (itemKind === 'handle') {
   typeDeclaration = enumMembers.length > 0
     ? `enum ${item.name} {\n${enumMembers.join('\n')}\n}`
     : `enum ${item.name} { }`;
+} else if (itemKind === 'function') {
+  // Build the function signature showing it in the context of its target type
+  const params = (item.parameters ?? []).map((p: any) => {
+    const opt = p.isOptional ? '?' : '';
+    return `${p.name}${opt}: ${p.type}`;
+  });
+  const paramStr = params.join(', ');
+  const memberSig = `${item.name}(${paramStr}): ${item.returnType ?? 'void'};`;
+  const formattedMember = formatTsSignature(memberSig);
+  const indentedMember = formattedMember.split('\n').map((line: string) => '  ' + line).join('\n');
+
+  if ((item.expandedTargetTypes ?? []).length > 0) {
+    const targetName = simplifyType(item.expandedTargetTypes[0]);
+    typeDeclaration = `interface ${targetName} {\n  // ... omitted for brevity\n${indentedMember}\n}`;
+  } else {
+    typeDeclaration = `function ${formatTsSignature(memberSig.replace(/;$/, ''))}`;
+  }
 }
 
 /* ── Build type-scoped search index for complex types ─────────── */
@@ -165,6 +195,9 @@ if (itemKind === 'handle') {
   if ((item.fields ?? []).length > 0) headings.push({ depth: 2, slug: 'fields', text: 'Fields' });
 } else if (itemKind === 'enum') {
   if ((item.members ?? []).length > 0) headings.push({ depth: 2, slug: 'values', text: 'Values' });
+} else if (itemKind === 'function') {
+  headings.push({ depth: 2, slug: 'signature', text: 'Signature' });
+  if ((item.expandedTargetTypes ?? []).length > 0) headings.push({ depth: 2, slug: 'applies-to', text: 'Applies to' });
 }
 ---
 
@@ -183,18 +216,17 @@ if (itemKind === 'handle') {
   <Breadcrumb crumbs={[
     { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
     { label: 'Reference', href: `${base}/reference/overview/` },
-    { label: 'TypeScript APIs', href: `${base}/reference/api/typescript/` },
+    { label: 'Search TypeScript APIs', href: `${base}/reference/api/typescript/` },
     { label: pkg.package.name, href: `${base}/reference/api/typescript/${pkgSlug}/` },
     { label: item.name },
   ]} />
 
-  <div class={`not-content kind-tint-${itemKind === 'handle' ? (item.isInterface ? 'interface' : 'handle') : itemKind === 'dto' ? 'type' : 'enum'}`}>
+  <div class={`not-content kind-tint-${itemKind === 'handle' ? (item.isInterface ? 'interface' : 'handle') : itemKind === 'dto' ? 'type' : itemKind === 'function' ? 'function' : 'enum'}`}>
     {/* ── Type Hero (matches C# TypeHero pattern) ────────────────── */}
     <div class="api-hero type-hero not-content">
       <div class="type-hero-top">
         <div class="type-hero-badges">
           <span class={`api-kind-pill ${kindPillClass}`}>{kindLabel}</span>
-          <span class="type-hero-framework">TypeScript</span>
         </div>
       </div>
 
@@ -277,7 +309,11 @@ if (itemKind === 'handle') {
             <h2 id="methods">Methods</h2>
             <div class="api-list">
               {methods.sort((a: any, b: any) => a.name.localeCompare(b.name)).map((m: any) => (
-                <TsMemberCard member={m} variant="method" />
+                <TsMemberCard
+                  member={m}
+                  variant="method"
+                  href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(item.name)}/${tsSlugify(m.name)}/`}
+                />
               ))}
             </div>
           </section>
@@ -317,6 +353,50 @@ if (itemKind === 'handle') {
         </div>
       </section>
     )}
+
+    {/* ── Function Detail ────────────────────────────────────── */}
+    {itemKind === 'function' && (
+      <>
+        {/* Full function rendered as a member card with signature, params, return */}
+        <section>
+          <h2 id="signature">Signature</h2>
+          <div class="api-list">
+            <TsMemberCard
+              member={{
+                name: item.name,
+                signature: item.signature,
+                parameters: item.parameters,
+                returnType: item.returnType,
+                returnsBuilder: item.returnsBuilder,
+                description: item.description,
+              }}
+              variant="method"
+            />
+          </div>
+        </section>
+
+        {(item.expandedTargetTypes ?? []).length > 0 && (
+          <section>
+            <h2 id="applies-to">Applies to</h2>
+            <p class="fn-applies-desc">This function is an extension method on the following types:</p>
+            <div class="api-list not-content">
+              {item.expandedTargetTypes.map((t: string) => {
+                const simpleName = simplifyType(t);
+                const typeSlug = tsSlugify(simpleName);
+                return (
+                  <a href={`${base}/reference/api/typescript/${pkgSlug}/${typeSlug}/`} class="api-list-item">
+                    <div class="api-list-header">
+                      <span class="api-kind-pill kind-interface">type</span>
+                      <code class="api-type-link">{simpleName}</code>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </>
+    )}
     </div>{/* close type-content-sections */}
   </div>{/* close not-content kind-tint */}
 </StarlightPage>
@@ -327,6 +407,7 @@ if (itemKind === 'handle') {
   .kind-tint-interface { --kind-tint: var(--api-kind-interface); }
   .kind-tint-type      { --kind-tint: var(--api-kind-struct); }
   .kind-tint-enum      { --kind-tint: var(--api-kind-enum); }
+  .kind-tint-function  { --kind-tint: #3b82f6; }
 
   /* Type hero layout — consistent vertical rhythm matching C# TypeHero */
   .type-hero {
@@ -354,5 +435,11 @@ if (itemKind === 'handle') {
   .type-hero :global(.ts-code figure.frame) {
     margin: 0;
     border: none;
+  }
+
+  .fn-applies-desc {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    margin-bottom: 0.75rem;
   }
 </style>

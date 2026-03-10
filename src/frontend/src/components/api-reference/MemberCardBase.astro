@@ -43,6 +43,8 @@ interface Props {
   parameters?: Param[];
   /** Whether return type should show as colored inline */
   showReturnInHeader?: boolean;
+  /** Optional link URL — makes the member name a clickable link */
+  href?: string | null;
 }
 
 const {
@@ -56,6 +58,7 @@ const {
   returnType,
   parameters = [],
   showReturnInHeader = false,
+  href,
 } = Astro.props;
 
 /** Simple string hash → 0–3 for type color assignment. */
@@ -74,7 +77,10 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
   {/* Header */}
   <div class="api-list-header">
     {kindLabel && <span class={`api-kind-pill ${kindClass}`}>{kindLabel}</span>}
-    <code class="mc-param-name">{name}</code>
+    {href
+      ? <a href={href} class="mc-name-link"><code class="mc-param-name">{name}</code></a>
+      : <code class="mc-param-name">{name}</code>
+    }
     {showReturnInHeader && hasReturn && (
       <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
         <code>{returnType}</code>

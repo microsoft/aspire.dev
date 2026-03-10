@@ -47,7 +47,7 @@ const totalTypeCount = allTypes.length + allEnums.length;
 const headings: { depth: 2; slug: string; text: string }[] = [];
 if (allTypes.length > 0) headings.push({ depth: 2, slug: 'types', text: 'Types' });
 if (standaloneFunctions.length > 0) headings.push({ depth: 2, slug: 'functions', text: 'Functions' });
-if (allEnums.length > 0) headings.push({ depth: 2, slug: 'enums', text: 'Enumerations' });
+if (allEnums.length > 0) headings.push({ depth: 2, slug: 'enums', text: 'Enums' });
 
 /* ── Build package-scoped search index ───────────────────────── */
 
@@ -187,7 +187,6 @@ const pkgName = pkg.package.name;
       <div class="pkg-hero-badges">
         <code class="pkg-name">📦 {pkg.package.name}</code>
         {pkg.package.version && <code class="pkg-version">v{pkg.package.version}</code>}
-        <span class="pkg-framework">TypeScript</span>
       </div>
     </div>
     <div class="pkg-hero-bottom">
@@ -249,14 +248,19 @@ const pkgName = pkg.package.name;
         <h2 id="functions">Functions</h2>
         <div class="api-list not-content">
           {standaloneFunctions.map((f: any) => (
-            <div class="api-list-item">
+            <a href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(f.name)}/`} class="api-list-item">
               <div class="api-list-header">
                 <span class="api-kind-pill kind-method">function</span>
                 <code class="api-type-link">{f.name}</code>
                 {f.returnsBuilder && <span class="api-mini-badge">builder</span>}
               </div>
               {f.description && <div class="api-list-desc">{f.description}</div>}
-            </div>
+              {f.signature && (
+                <div class="api-fn-signature">
+                  <code>{f.signature}</code>
+                </div>
+              )}
+            </a>
           ))}
         </div>
       </section>
@@ -265,7 +269,7 @@ const pkgName = pkg.package.name;
     {/* Enums */}
     {allEnums.length > 0 && (
       <section>
-        <h2 id="enums">Enumerations</h2>
+        <h2 id="enums">Enums</h2>
         <div class="api-list not-content">
           {allEnums.map((e: any) => (
             <a href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(e.name)}/`} class="api-list-item">
@@ -638,6 +642,20 @@ const pkgName = pkg.package.name;
 </script>
 
 <style>
+  /* ── Function signature ─────────────────────────────────────── */
+  .api-fn-signature {
+    margin-top: 0.35rem;
+    font-size: var(--api-text-sm, 0.8rem);
+    color: var(--sl-color-gray-3);
+  }
+  .api-fn-signature code {
+    font-size: inherit;
+    background: none;
+    padding: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   /* ── Hero card ──────────────────────────────────────────────── */
   .pkg-hero {
     display: flex;
@@ -679,15 +697,6 @@ const pkgName = pkg.package.name;
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
-  }
-  .pkg-framework {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--sl-color-gray-3);
-    background: color-mix(in srgb, var(--sl-color-gray-3) 12%, transparent);
-    padding: 0.15rem 0.45rem;
-    border-radius: var(--api-radius-sm, 0.25rem);
-    letter-spacing: 0.02em;
   }
   .pkg-version {
     font-size: var(--api-text-sm);

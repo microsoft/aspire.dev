@@ -46,9 +46,9 @@ export const capabilityKindLabels: Record<string, string> = {
 export const typeKindOrder = ['handle', 'dto', 'enum'] as const;
 
 export const typeKindLabels: Record<string, string> = {
-  handle: 'Handle Types',
+  handle: 'Types',
   dto: 'Types',
-  enum: 'Enumerations',
+  enum: 'Enums',
 };
 
 /* ---- Grouping helpers ----------------------------------------------- */
@@ -169,12 +169,19 @@ export function formatTsSignature(sig: string): string {
 
 /**
  * Simplify a fully-qualified type reference for display.
- * Strips assembly prefixes and extracts simple names.
+ * Strips assembly prefixes, assembly-qualified generic metadata, and extracts simple names.
  */
 export function simplifyType(typeRef: string): string {
   // Strip "Assembly/" prefix
   const slashIdx = typeRef.indexOf('/');
-  const stripped = slashIdx >= 0 ? typeRef.slice(slashIdx + 1) : typeRef;
+  let stripped = slashIdx >= 0 ? typeRef.slice(slashIdx + 1) : typeRef;
+
+  // Clean assembly metadata from generic type arguments:
+  // System.IEquatable`1[[TypeName, Assembly, Version=..., ...]] → System.IEquatable`1[[TypeName]]
+  stripped = stripped.replace(
+    /\[\[([^\],]+),\s*[^\]]*\]\]/g,
+    '[[$1]]',
+  );
 
   // For generic types with angle brackets, simplify the outer name only
   if (stripped.includes('<')) {

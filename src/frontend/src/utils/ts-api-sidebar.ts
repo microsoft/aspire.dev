@@ -27,32 +27,35 @@ export async function getTsApiReferenceSidebar() {
         { label: 'Overview', link: `/reference/api/typescript/${modSlug}/` },
       ];
 
-      // Handle types with their capabilities
-      const handles = (mod.handleTypes ?? []).filter((t: any) => t.name);
-      if (handles.length > 0) {
-        items.push({
-          label: 'Handle Types',
-          collapsed: true,
-          items: handles
-            .sort((a: any, b: any) => a.name.localeCompare(b.name))
-            .map((h: any) => ({
-              label: h.name,
-              link: `/reference/api/typescript/${modSlug}/${tsSlugify(h.name)}/`,
-            })),
-        });
-      }
+      // Types (handles + DTOs merged into one group)
+      const allTypes = [
+        ...(mod.handleTypes ?? []).filter((t: any) => t.name),
+        ...(mod.dtoTypes ?? []).filter((t: any) => t.name),
+      ].sort((a: any, b: any) => a.name.localeCompare(b.name));
 
-      // DTO types
-      const dtos = (mod.dtoTypes ?? []).filter((t: any) => t.name);
-      if (dtos.length > 0) {
+      if (allTypes.length > 0) {
         items.push({
           label: 'Types',
           collapsed: true,
-          items: dtos
+          items: allTypes.map((t: any) => ({
+            label: t.name,
+            link: `/reference/api/typescript/${modSlug}/${tsSlugify(t.name)}/`,
+          })),
+        });
+      }
+
+      // Functions — individual pages
+      const functions = (mod.functions ?? [])
+        .filter((f: any) => f.name && (!f.qualifiedName || !f.qualifiedName.includes('.')));
+      if (functions.length > 0) {
+        items.push({
+          label: 'Functions',
+          collapsed: true,
+          items: functions
             .sort((a: any, b: any) => a.name.localeCompare(b.name))
-            .map((d: any) => ({
-              label: d.name,
-              link: `/reference/api/typescript/${modSlug}/${tsSlugify(d.name)}/`,
+            .map((f: any) => ({
+              label: f.name,
+              link: `/reference/api/typescript/${modSlug}/${tsSlugify(f.name)}/`,
             })),
         });
       }
@@ -61,7 +64,7 @@ export async function getTsApiReferenceSidebar() {
       const enums = (mod.enumTypes ?? []).filter((t: any) => t.name);
       if (enums.length > 0) {
         items.push({
-          label: 'Enumerations',
+          label: 'Enums',
           collapsed: true,
           items: enums
             .sort((a: any, b: any) => a.name.localeCompare(b.name))
