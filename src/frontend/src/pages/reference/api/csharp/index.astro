@@ -9,7 +9,7 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { packageSlug, slugify, genericArity, getPackages } from '@utils/packages';
 import { getApiReferenceSidebar } from '@utils/api-sidebar';
-import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
 
 const apiSidebar = await getApiReferenceSidebar();
 const packages = await getPackages();
@@ -18,6 +18,9 @@ const sorted = packages
   .sort((a, b) => a.package.name.localeCompare(b.package.name));
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+/* ── Collect unique versions for the filter ─────────────────────── */
+const allVersions = [...new Set(sorted.map(p => p.package.version).filter(Boolean))] as string[];
 
 /* ── Build the search index ─────────────────────────────────────── */
 
@@ -36,6 +39,8 @@ interface IndexEntry {
   s: string;
   /** Parent type name (for members only) */
   t?: string;
+  /** Package version */
+  v?: string;
 }
 
 /** Extract plain-text summary from doc nodes. */
@@ -61,6 +66,7 @@ let memberCount = 0;
 
 for (const pkg of sorted) {
   const pkgName = pkg.package.name;
+  const pkgVersion = pkg.package.version;
   for (const type of pkg.types) {
     typeCount++;
     const typeSlug = slugify(type.name, genericArity(type));
@@ -72,6 +78,7 @@ for (const pkg of sorted) {
       p: pkgName,
       s: extractSummary(type.docs?.summary),
       ...(typeSlug !== type.name.toLowerCase() ? { g: typeSlug } : {}),
+      ...(pkgVersion ? { v: pkgVersion } : {}),
     });
 
     // Index members (methods, properties, constructors, fields, events, indexers)
@@ -89,6 +96,7 @@ for (const pkg of sorted) {
         s: extractSummary(member.docs?.summary),
         t: type.name,
         ...(typeSlug !== type.name.toLowerCase() ? { ts: typeSlug } : {}),
+        ...(pkgVersion ? { v: pkgVersion } : {}),
       });
     }
   }
@@ -113,10 +121,16 @@ const indexJson = JSON.stringify(index);
   headings={[]}
 >
   <div class="api-ref-landing not-content">
-    <InpageSearch
+    <p class="csharp-api-intro">
+      Browse the C# API reference for .NET Aspire packages, including hosting integrations,
+      client libraries, and the <a href={`${base}/docs/community-toolkit/overview/`}>Community Toolkit</a>.
+    </p>
+
+    <ApiSearchBar
       id="api"
       placeholder="Search types, methods, properties, and more…"
       kinds={allKinds}
+      versions={allVersions}
       defaultStatsText={`${typeCount.toLocaleString()} types and ${memberCount.toLocaleString()} members across ${sorted.length.toLocaleString()} packages`}
       size="lg"
     />
@@ -124,7 +138,7 @@ const indexJson = JSON.stringify(index);
     <!-- Default: package listing (shown when not searching) -->
     <div id="api-package-list" class="api-list">
       {sorted.map(pkg => (
-        <a href={`${base}/reference/api/csharp/${packageSlug(pkg.package.name)}/`} class="api-list-item">
+        <a href={`${base}/reference/api/csharp/${packageSlug(pkg.package.name)}/`} class="api-list-item" data-version={pkg.package.version}>
           <div class="api-list-header">
             <span class="api-pkg-link" title={pkg.package.name}>{pkg.package.name}</span>
             <div class="trailing">
@@ -159,6 +173,8 @@ const indexJson = JSON.stringify(index);
     g?: string;
     /** Precomputed parent type slug (only present for members of generic types) */
     ts?: string;
+    /** Package version */
+    v?: string;
   }
 
   const PAGE_SIZE = 10;
@@ -210,6 +226,7 @@ const indexJson = JSON.stringify(index);
     private memberCount: number;
     private packageCount: number;
     private activeKinds = new Set<string>();
+    private activeVersions: Set<string> | null = null; // null = all versions
     private lastScored: { entry: IndexEntry; score: number }[] = [];
     private lastTokens: string[] = [];
     private visibleCount = 0;
@@ -233,6 +250,33 @@ const indexJson = JSON.stringify(index);
 
       this.init();
       this.restoreFromUrl();
+
+      // Listen for version filter changes
+      document.addEventListener('version-filter-change', (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (detail.all) {
+          this.activeVersions = null;
+        } else if (detail.none) {
+          this.activeVersions = new Set();
+        } else {
+          this.activeVersions = new Set(detail.selected);
+        }
+        this.filterPackageList();
+
+        // Show clear-filters when versions are filtered
+        if (!detail.all) {
+          this.clearFiltersBtn.style.display = '';
+        } else if (this.activeKinds.size === 0) {
+          this.clearFiltersBtn.style.display = 'none';
+        }
+
+        // When no versions selected, force search view to show empty state
+        if (detail.none) {
+          this.showSearchResults();
+        } else {
+          this.applySearch();
+        }
+      });
     }
 
     private init(): void {
@@ -260,13 +304,29 @@ const indexJson = JSON.stringify(index);
         });
       });
 
-      // Clear filters
+      // Clear filters (kinds + versions)
       this.clearFiltersBtn.addEventListener('click', () => {
         this.activeKinds.clear();
         this.filtersEl.querySelectorAll('.api-filter-chip').forEach(c => {
           c.classList.remove('active');
           c.setAttribute('aria-pressed', 'false');
         });
+
+        // Reset version filter — check all checkboxes
+        this.activeVersions = null;
+        const vfContainer = document.querySelector('.version-filter');
+        if (vfContainer) {
+          vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb').forEach(cb => { cb.checked = true; });
+          const allCb = vfContainer.querySelector<HTMLInputElement>('.version-filter-cb[data-version="__all__"]');
+          if (allCb) { allCb.checked = true; allCb.indeterminate = false; }
+          const countEl = vfContainer.querySelector('[id$="-count"]');
+          const total = vfContainer.querySelectorAll('.version-filter-cb:not([data-version="__all__"])').length;
+          if (countEl) countEl.textContent = `${total}/${total}`;
+          const btn = vfContainer.querySelector('.version-filter-btn');
+          if (btn) { btn.classList.remove('filtered', 'none-selected'); }
+        }
+        this.filterPackageList();
+
         this.clearFiltersBtn.style.display = 'none';
         this.syncUrl();
         this.applySearch();
@@ -336,16 +396,37 @@ const indexJson = JSON.stringify(index);
 
     private applySearch(): void {
       const q = this.input.value.trim();
-      if (!q && this.activeKinds.size === 0) {
+      if (!q && this.activeKinds.size === 0 && this.activeVersions === null) {
         this.showPackages();
         return;
       }
       this.search(q);
     }
 
+    /** Switch to search-results view (hides package list, shows results container). */
+    private showSearchResults(): void {
+      this.packageList.style.display = 'none';
+      this.resultsEl.style.display = '';
+      this.search(this.input.value.trim());
+    }
+
+    private filterPackageList(): void {
+      if (!this.packageList) return;
+      const items = this.packageList.querySelectorAll('.api-list-item[data-version]');
+      for (const item of items) {
+        const version = (item as HTMLElement).dataset.version;
+        if (this.activeVersions && version && !this.activeVersions.has(version)) {
+          (item as HTMLElement).style.display = 'none';
+        } else {
+          (item as HTMLElement).style.display = '';
+        }
+      }
+    }
+
     private search(query: string): void {
       const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
       const hasKindFilter = this.activeKinds.size > 0;
+      const hasVersionFilter = this.activeVersions !== null;
 
       type Scored = { entry: IndexEntry; score: number };
       const scored: Scored[] = [];
@@ -353,6 +434,9 @@ const indexJson = JSON.stringify(index);
       for (const entry of this.index) {
         // Kind filter
         if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+
+        // Version filter
+        if (hasVersionFilter && entry.v && !this.activeVersions!.has(entry.v)) continue;
 
         // If no text query, include everything that passes kind filter
         if (tokens.length === 0) {
@@ -415,13 +499,23 @@ const indexJson = JSON.stringify(index);
       this.resultsEl.style.display = '';
 
       if (total === 0) {
-        const hint = query
-          ? `No results for "<strong>${this.esc(query)}</strong>"`
-          : 'No results match the selected filters';
+        const noVersions = this.activeVersions !== null && this.activeVersions.size === 0;
+        let hint: string;
+        let sub: string;
+        if (noVersions) {
+          hint = 'No versions selected';
+          sub = 'Select at least one version to see results.';
+        } else if (query) {
+          hint = `No results for &ldquo;<strong>${this.esc(query)}</strong>&rdquo;`;
+          sub = 'Try a different name, namespace, or keyword.';
+        } else {
+          hint = 'No results match the selected filters';
+          sub = 'Try adjusting the version or kind filters.';
+        }
         this.resultsEl.innerHTML = `
           <div class="api-search-empty">
             <p>${hint}</p>
-            <p class="api-search-empty-hint">Try a different name, namespace, or keyword.</p>
+            <p class="api-search-empty-hint">${sub}</p>
           </div>`;
         this.countEl.textContent = '0 results';
         this.status.textContent = `No results`;
@@ -534,3 +628,10 @@ const indexJson = JSON.stringify(index);
   });
 </script>
 
+<style>
+  .csharp-api-intro {
+    margin-bottom: 1.5rem;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-base);
+  }
+</style>

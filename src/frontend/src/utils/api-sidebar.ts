@@ -30,7 +30,7 @@ function buildTypeSidebarItems(
   packageName: string,
   type: any,
 ): { label: string; link: string }[] {
-  const base = `/reference/api/${packageSlug(packageName)}/${slugify(type.name, genericArity(type))}`;
+  const base = `/reference/api/csharp/${packageSlug(packageName)}/${slugify(type.name, genericArity(type))}`;
   const items: { label: string; link: string }[] = [
     { label: 'Overview', link: `${base}/` },
   ];
@@ -83,7 +83,7 @@ export async function getApiReferenceSidebar() {
         label: pkg.package.name,
         collapsed: true,
         items: [
-          { label: 'Overview', link: `/reference/api/${packageSlug(pkg.package.name)}/` },
+          { label: 'Overview', link: `/reference/api/csharp/${packageSlug(pkg.package.name)}/` },
           ...typeItems,
         ],
       };
@@ -97,7 +97,7 @@ function buildTypeSidebarEntry(packageName: string, t: any) {
   if (isMarkerInterface(t)) {
     return {
       label,
-      link: `/reference/api/${packageSlug(packageName)}/${slugify(t.name, genericArity(t))}/`,
+      link: `/reference/api/csharp/${packageSlug(packageName)}/${slugify(t.name, genericArity(t))}/`,
     };
   }
   return {
