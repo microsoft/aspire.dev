@@ -21,8 +21,8 @@ export interface BreadcrumbItem {
   label: string;
   /** Link target — omit for the current (last) crumb */
   href?: string;
-  /** Optional icon identifier. Currently supports 'docs'. */
-  icon?: 'docs';
+  /** Optional Starlight icon identifier, for example 'open-book' or 'puzzle'. */
+  icon?: BreadcrumbIcon;
 }
 
 interface Props {
@@ -31,8 +31,13 @@ interface Props {
 
 import cornerIconRaw from '@assets/icons/subdirectory-arrow.svg?raw';
 import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+
+type BreadcrumbIcon = StarlightIcon | 'docs';
 
 const cornerIcon = cornerIconRaw.replace('<svg ', '<svg class="bc-corner" aria-hidden="true" ');
+const getIconName = (icon?: BreadcrumbIcon): StarlightIcon | undefined =>
+  icon === 'docs' ? 'open-book' : icon;
 
 const { crumbs } = Astro.props;
 const allButLast = crumbs.slice(0, -1);
@@ -46,7 +51,7 @@ const current = crumbs[crumbs.length - 1];
       <>
         {crumb.href ? (
           <a href={crumb.href} class:list={[{ 'bc-icon': !!crumb.icon }]}>
-            {crumb.icon === 'docs' && <Icon name='open-book' size="0.875em" />}
+            {crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
             {crumb.label}
           </a>
         ) : (
@@ -69,7 +74,7 @@ const current = crumbs[crumbs.length - 1];
         crumb.href ? (
           <a href={crumb.href} class:list={[{ 'bc-icon': !!crumb.icon }]} style={`--bc-depth: ${i}`}>
             {i > 0 && <Fragment set:html={cornerIcon} />}
-            {crumb.icon === 'docs' && <Icon name='open-book' size="0.875em" />}
+            {crumb.icon && <Icon name={getIconName(crumb.icon)!} size="0.875em" />}
             {crumb.label}
           </a>
         ) : (
