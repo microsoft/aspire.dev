@@ -262,8 +262,6 @@ var app = builder.AddContainer("app", "myapp", "latest")
 builder.Build().Run();
 ```
 
-**Important differences:**
-
 <Aside type="caution" title="Aspire connection strings differ from Docker Compose URLs">
 `WithReference()` provides connection strings in .NET format, not URL format:
 
@@ -427,7 +425,7 @@ Successfully migrating from Docker Compose to Aspire requires a systematic appro
 
 ### Common issues and solutions
 
-**Connection string format mismatch**
+#### Connection string format mismatch
 
 Aspire generates .NET-style connection strings (`ConnectionStrings__*`) rather than URL formats like `postgresql://` or `redis://`.
 
@@ -449,7 +447,7 @@ var app = builder.AddContainer("app", "myapp", "latest")
     });
 ```
 
-**Service startup order issues**
+#### Service startup order issues
 
 `WithReference()` only configures service discovery, not startup ordering.
 
@@ -461,13 +459,13 @@ var api = builder.AddProject<Projects.Api>("api")
     .WaitFor(database);       // Startup ordering
 ```
 
-**Volume mounting issues**
+#### Volume mounting issues
 
 - Use absolute paths for bind mounts to avoid path resolution issues
 - Ensure the host directory exists and has proper permissions
 - Use `WithDataVolume()` for database integrations — this must be called explicitly
 
-**Port conflicts**
+#### Port conflicts
 
 Aspire automatically assigns random ports by default.
 
@@ -478,7 +476,7 @@ var redis = builder.AddRedis("cache")
     .WithHostPort(6379);
 ```
 
-**Health check migration**
+#### Health check migration
 
 Docker Compose health checks use shell commands. Aspire integrations (like PostgreSQL and Redis) include built-in health checks automatically. For custom health checks, Aspire offers different approaches depending on the resource type.
 
