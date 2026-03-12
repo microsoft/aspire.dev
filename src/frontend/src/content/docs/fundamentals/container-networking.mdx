@@ -3,7 +3,8 @@ title: Container networking
 description: Learn how the DCP container tunnel enables reliable container-to-host communication in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 During local development, your Aspire app model often includes a mix of container resources and host-based services (such as .NET projects or executables). Container-to-container communication works naturally over the bridge network, but containers that need to reach services running on the host require a different approach. Aspire solves this with the **container tunnel**, a DCP capability that provides reliable, transparent container-to-host connectivity.
 
@@ -25,10 +26,17 @@ The container tunnel is managed by DCP and operates transparently—you don't ne
 
 At a high level, the tunnel works as follows:
 
+<Steps>
+
 1. **Dependency detection**: When the AppHost builds the app model, it identifies which containers reference endpoints on host-based resources.
+
 2. **Tunnel setup**: DCP creates a network path from the container bridge network to the host, so containers can reach host-bound ports.
+
 3. **Endpoint injection**: The correct host endpoints are injected into the container as environment variables, using addresses that are reachable from within the container network.
+
 4. **Automatic cleanup**: When the AppHost process stops, DCP tears down the tunnel along with the rest of the orchestrated resources.
+
+</Steps>
 
 This means that when you write code like the following, the container tunnel ensures `mycontainer` can reach the `api` project regardless of your operating system or container runtime:
 
@@ -98,10 +106,24 @@ To enable the container tunnel, set the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environ
 
 Alternatively, set the variable in your shell before running:
 
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
 ```bash
 export ASPIRE_ENABLE_CONTAINER_TUNNEL=true
 aspire run
 ```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "true"
+aspire run
+```
+
+</div>
+</OsAwareTabs>
 
 When the tunnel is enabled, containers can reach host-based services without relying on platform-specific workarounds like `host.docker.internal`.
 
