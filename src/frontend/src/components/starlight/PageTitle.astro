@@ -37,40 +37,19 @@ const isApiSubpage = currentPath.startsWith('reference/api/');
 
 <script is:inline define:vars={{ isApiSubpage }}>
   function initPageTitle() {
-    var panel = document.querySelector('main > .content-panel:has(.actions-container)');
-    if (!panel) return;
-
     if (isApiSubpage) {
-      var h1 = panel.querySelector('h1#_top');
+      var h1 = document.querySelector('main h1#_top');
       if (h1) h1.classList.add('api-page-title');
     }
-
-    // Fix library bug: dropdown toggle removes "show" then re-adds via toggle(),
-    // making it impossible to close by clicking the button again.
-    panel.querySelectorAll('.dropdown').forEach(function (dropdown) {
-      var toggle = dropdown.querySelector('#dropdown-toggle');
-      var menu = dropdown.querySelector('#dropdown-menu');
-      if (!toggle || !menu) return;
-      var newToggle = toggle.cloneNode(true);
-      toggle.replaceWith(newToggle);
-      newToggle.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var wasOpen = menu.classList.contains('show');
-        panel.querySelectorAll('#dropdown-menu').forEach(function (m) { m.classList.remove('show'); });
-        if (!wasOpen) menu.classList.add('show');
-      });
-    });
   }
 
   if (window.__pageTitleAbort) window.__pageTitleAbort.abort();
-  window.__pageTitleAbort = new AbortController();
-  initPageTitle();
-  document.addEventListener('astro:page-load', initPageTitle, { signal: window.__pageTitleAbort.signal });
 
-  if (!window.__dropdownDismiss) {
-    window.__dropdownDismiss = true;
-    document.addEventListener('click', function () {
-      document.querySelectorAll('.actions-container #dropdown-menu').forEach(function (m) { m.classList.remove('show'); });
-    });
-  }
+  window.__pageTitleAbort = new AbortController();
+
+  initPageTitle();
+
+  document.addEventListener('astro:page-load', initPageTitle, {
+    signal: window.__pageTitleAbort.signal,
+  });
 </script>
