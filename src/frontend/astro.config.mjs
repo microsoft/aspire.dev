@@ -50,6 +50,7 @@ export default defineConfig({
       social: socialConfig,
       customCss: ['@fontsource-variable/outfit', './src/styles/site.css'],
       components: {
+        Banner: './src/components/starlight/Banner.astro',
         EditLink: './src/components/starlight/EditLink.astro',
         Footer: './src/components/starlight/Footer.astro',
         Head: './src/components/starlight/Head.astro',
