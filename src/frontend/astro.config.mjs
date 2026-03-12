@@ -152,6 +152,7 @@ export default defineConfig({
             'community/contributors',
             'community/videos',
             'community/thanks',
+            'reference/api/**',
             'da/**',
             'de/**',
             'es/**',
