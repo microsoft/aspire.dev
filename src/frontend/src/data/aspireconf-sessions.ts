@@ -15,6 +15,10 @@ import joshPic from '@assets/aspireconf/joshg.jpg';
 import mitchPic from '@assets/aspireconf/mitch.png';
 import ayersPic from '@assets/aspireconf/chrisayers.jpg';
 import normPic from '@assets/aspireconf/norm.jpg';
+import lukePic from '@assets/aspireconf/lukeParker.png';
+import chuanboPic from '@assets/aspireconf/chuanbo.jpeg';
+import yongyuPic from '@assets/aspireconf/yongyuchen.jpeg';
+import jishengPic from '@assets/aspireconf/jisheng.jpeg';
 
 export const sessions: SessionProps[] = [
   {
@@ -94,13 +98,14 @@ export const sessions: SessionProps[] = [
     timeslot: '1:30 PM PT',
     duration: '30 min',
   },
-    {
-    title: 'Auth Made Easy(ish) with Aspire and Entra ID',
+  {
+    title: 'Customer Spotlight: Aspire for Windows 365 - Reliability, Extensibility, and Multi-Repo Rollout with AI',
     speakers: [
-      { name: 'Jenny Ferries' },
-      { name: 'Jean-Marc Prieur'}
+      { name: 'Chuanbo Zhang', headshot: chuanboPic, jobTitle: 'Principal Software Engineer', company: 'Windows 365 @ Microsoft' },
+      { name: 'Yongyu Chen', headshot: yongyuPic, jobTitle: 'Senior Software Engineer Manager', company: 'Windows 365 @ Microsoft' },
+      { name: 'Jisheng Xing', headshot: jishengPic, jobTitle: 'Senior Software Engineer', company: 'Windows 365 @ Microsoft' },
     ],
-    abstract: 'TBD',
+    abstract: 'We\'ll share how Windows 365 doubled Aspire adoption while improving reliability by driving E2E CloudTest success and systematically removing the top onboarding blockers, including key reliability fixes for Azure Functions and Cosmos DB. We\'ll cover the concrete work that made runs consistently “green,” plus the repeatable onboarding patterns used to move services onto Aspire and CloudTest at scale. Finally, we\'ll demo and explain how Aspire acts as the agent orchestrator, with Aspire extensibility and the GitHub Copilot SDK enable AI-driven multi-repo rollout via an agent team—using analysis, remediation, and evolution agents to generate ready-to-merge pull requests that standardize repositories to a quality-gated, green baseline, without manual repo-by-repo effort.',
     timeslot: '2:00 PM PT',
     duration: '30 min',
   },
@@ -125,9 +130,9 @@ export const sessions: SessionProps[] = [
   {
     title: 'Aspire at OpenCode',
     speakers: [
-      { name: 'Luke Parker' },
+      { name: 'Luke Parker', headshot: lukePic, jobTitle: 'Cooking', company: '@ OpenCode' },
     ],
-    abstract: 'TBD',
+    abstract: 'OpenCode and Aspire make a strong pair for practical, observable agent workflows. In this demo-driven session, I’ll show how Aspire gives both me and an OpenCode agent access to the same OpenTelemetry data, so we can inspect traces, metrics, and runtime behavior from the same human-readable view instead of relying on hidden magic. You’ll learn how to use Aspire as a local observability surface for agent-assisted development, how to ground an agent in the same evidence a human would use, and why that leads to more trustworthy debugging. Surprisingly, OpenCode itself is a distributed application, which makes it an especially compelling system to explore this way.',
     timeslot: '3:30 PM PT',
     duration: '30 min',
   },
@@ -142,17 +147,6 @@ export const sessions: SessionProps[] = [
     duration: '30 min',
   },
   {
-    title: 'Customer Spotlight: Aspire for Windows 365 - Reliability, Extensibility, and Multi-Repo Rollout with AI',
-    speakers: [
-      { name: 'Chuanbo Zhang' },
-      { name: 'Yongyu Chen' },
-      { name: 'Jisheng Xing' }
-    ],
-    abstract: 'We\'ll share how Windows 365 doubled Aspire adoption while improving reliability by driving E2E CloudTest success and systematically removing the top onboarding blockers, including key reliability fixes for Azure Functions and Cosmos DB. We\'ll cover the concrete work that made runs consistently “green,” plus the repeatable onboarding patterns used to move services onto Aspire and CloudTest at scale. Finally, we\'ll demo and explain how Aspire acts as the agent orchestrator, with Aspire extensibility and the GitHub Copilot SDK enable AI-driven multi-repo rollout via an agent team—using analysis, remediation, and evolution agents to generate ready-to-merge pull requests that standardize repositories to a quality-gated, green baseline, without manual repo-by-repo effort.',
-    timeslot: '4:30 PM PT',
-    duration: '30 min',
-  },
-  {
     title: 'Closing',
     speakers: [
       { name: 'Maddy Montaquila', headshot: maddyPic, jobTitle: 'Principal Product Manager', company: 'Aspire @ Microsoft' },
@@ -160,7 +154,7 @@ export const sessions: SessionProps[] = [
       { name: 'David Fowler', headshot: fowlerPic, jobTitle: 'Distinguished Engineer', company: 'Aspire @ Microsoft' },
     ],
     abstract: 'Wrap-up the first ever Aspire Conf!',
-    timeslot: '5:00 PM PT',
+    timeslot: '4:30 PM PT',
     duration: '15 min',
   },
 ];
