@@ -1,6 +1,6 @@
 ---
 title: What's new in Aspire 13.2
-description: Aspire 13.2 introduces detached mode for long-running apps, the aspire ps and doctor commands, TypeScript AppHost support, .env file exports, dashboard telemetry management, and numerous polyglot improvements.
+description: Aspire 13.2 introduces detached mode for long-running apps, the aspire ps and doctor commands, TypeScript AppHost support, .env file exports, dashboard telemetry management, Azure Virtual Network and private endpoint support, and numerous polyglot improvements.
 sidebar:
   label: Aspire 13.2
   order: 0
@@ -338,6 +338,42 @@ This makes it easier to inspect your Aspire application state during debugging s
 - JSON comments and trailing commas parsed without errors
 
 ## 📦 Integrations updates
+
+### Azure Virtual Network and private endpoint support
+
+When deploying to Azure, securing network access to your resources is critical. The new `Aspire.Hosting.Azure.Network` integration lets you lock down your Azure resources by defining virtual networks, subnets, NAT gateways, network security groups (NSGs), and private endpoints directly in your AppHost—ensuring your cloud infrastructure is secure by default.
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+// Add a subnet with NSG rules
+var subnet = vnet.AddSubnet("web", "10.0.1.0/24")
+    .AllowInbound(
+        port: "443",
+        from: AzureServiceTags.AzureLoadBalancer,
+        protocol: SecurityRuleProtocol.Tcp)
+    .DenyInbound(from: AzureServiceTags.Internet);
+
+// Add a NAT gateway for deterministic outbound IPs
+var natGateway = builder.AddNatGateway("nat");
+subnet.WithNatGateway(natGateway);
+
+// Add private endpoints for secure connectivity
+var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27");
+var storage = builder.AddAzureStorage("storage");
+peSubnet.AddPrivateEndpoint(storage.AddBlobs("blobs"));
+```
+
+Key capabilities include:
+
+- **Virtual networks and subnets**: Create networks with `AddAzureVirtualNetwork` and add subnets with `AddSubnet`.
+- **NAT gateways**: Provide deterministic outbound public IP addresses with `AddNatGateway` and `WithNatGateway`.
+- **Network security groups**: Control traffic flow using shorthand methods (`AllowInbound`, `DenyInbound`, `AllowOutbound`, `DenyOutbound`) or explicit `AddNetworkSecurityGroup` with `WithSecurityRule` for full control.
+- **Private endpoints**: Securely connect to Azure services over private networks with `AddPrivateEndpoint`, which automatically creates private DNS zones, virtual network links, and disables public access on the target resource.
+
+<LearnMore>
+  For more details, see [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/).
+</LearnMore>
 
 ### Azure AI and embedding support
 
