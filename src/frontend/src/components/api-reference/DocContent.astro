@@ -1,0 +1,509 @@
+---
+/**
+ * DocContent — renders rich structured documentation nodes.
+ *
+ * Accepts an array of doc nodes (the new rich format) and renders them
+ * with proper links for cref, styled keywords for langword, inline code,
+ * parameter references, paragraphs, and lists.
+ *
+ * Also accepts a plain string for backward compatibility.
+ */
+import { Code } from '@astrojs/starlight/components';
+import { parseSeeAlso, typeHref, genericArity } from '@utils/packages';
+
+interface Props {
+  content: any;
+  allTypes?: any[];
+  packageName?: string;
+  tag?: string;
+}
+
+const { content, allTypes = [], packageName = '', tag = 'span' } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+if (!content) return;
+
+const isLegacyString = typeof content === 'string';
+const isArray = Array.isArray(content);
+const Tag = tag as any;
+
+function resolveCref(cref: string): { href: string; label: string } | null {
+  const { prefix, fullName, simpleName } = parseSeeAlso(cref);
+
+  // Direct type reference
+  if (prefix === 'T' || prefix === '') {
+    const match = allTypes.find((t: any) => t.fullName === fullName);
+    if (match) {
+      return {
+        href: typeHref(base, packageName, match.name, genericArity(match)),
+        label: simpleName,
+      };
+    }
+  }
+
+  // Member reference (method, property, field, event)
+  if (['M', 'P', 'F', 'E'].includes(prefix)) {
+    // Strip parameter list and generic arity markers for type matching
+    const parenIdx = fullName.indexOf('(');
+    const withoutParams = parenIdx >= 0 ? fullName.slice(0, parenIdx) : fullName;
+    const withoutArity = withoutParams.replace(/``\d+/g, '');
+    const lastDot = withoutArity.lastIndexOf('.');
+    if (lastDot > 0) {
+      const declaringTypeFull = withoutArity.slice(0, lastDot);
+      const memberName = withoutArity.slice(lastDot + 1);
+      const match = allTypes.find((t: any) => t.fullName === declaringTypeFull);
+      if (match) {
+        return {
+          href: typeHref(base, packageName, match.name, genericArity(match)),
+          label: `${match.name}.${memberName}`,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Produce a clean display label for an unresolved cref.
+ * Strips doc-id prefix, parameter lists, and generic arity markers.
+ */
+function cleanCrefLabel(cref: string): string {
+  const { fullName } = parseSeeAlso(cref);
+  const parenIdx = fullName.indexOf('(');
+  const withoutParams = parenIdx >= 0 ? fullName.slice(0, parenIdx) : fullName;
+  const withoutArity = withoutParams.replace(/``\d+/g, '');
+  const lastDot = withoutArity.lastIndexOf('.');
+  if (lastDot >= 0) {
+    // Show DeclaringType.Member for members, or just TypeName for types
+    const secondLast = withoutArity.lastIndexOf('.', lastDot - 1);
+    return secondLast >= 0 ? withoutArity.slice(secondLast + 1) : withoutArity.slice(lastDot + 1);
+  }
+  return withoutArity;
+}
+
+const noteLabels: Record<string, string> = {
+  note: 'Note',
+  tip: 'Tip',
+  caution: 'Caution',
+  warning: 'Warning',
+  important: 'Important',
+};
+
+/**
+ * Dedent a code block: strip the common leading whitespace from all non-empty lines,
+ * and trim leading/trailing blank lines.
+ */
+function dedent(text: string): string {
+  const lines = text.split('\n');
+  // Trim leading/trailing blank lines
+  while (lines.length && lines[0].trim() === '') lines.shift();
+  while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+  if (!lines.length) return '';
+  // Find minimum indentation across non-empty lines
+  let minIndent = Infinity;
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    const match = line.match(/^(\s*)/);
+    if (match && match[1].length < minIndent) {
+      minIndent = match[1].length;
+    }
+  }
+  if (minIndent === Infinity || minIndent === 0) return lines.join('\n');
+  return lines.map(l => l.slice(minIndent)).join('\n');
+}
+
+/**
+ * Reformat C# code to avoid horizontal scrollbars.
+ * Breaks long lines at parameter-list commas and method-chain dots.
+ */
+function reformatCSharp(code: string, maxLen = 80): string {
+  function reformatLine(line: string, depth: number): string {
+    if (line.length <= maxLen || depth > 3) return line;
+
+    const leadWS = (line.match(/^(\s*)/) ?? ['', ''])[1];
+    const body = line.slice(leadWS.length);
+    const cont = leadWS + '    ';
+
+    // Track depths for parens and angle brackets (generics)
+    let parenDepth = 0;
+    let angleDepth = 0;
+    let firstParenPos = -1;
+    const commaBreaks: number[] = [];
+    const chainBreaks: number[] = [];
+
+    for (let i = 0; i < body.length; i++) {
+      const ch = body[i];
+      switch (ch) {
+        case '(':
+          if (parenDepth === 0 && angleDepth === 0 && firstParenPos < 0) firstParenPos = i;
+          parenDepth++;
+          break;
+        case ')':
+          parenDepth--;
+          break;
+        case '<':
+          angleDepth++;
+          break;
+        case '>':
+          if (angleDepth > 0) angleDepth--;
+          break;
+        case ',':
+          if (parenDepth === 1 && angleDepth === 0) commaBreaks.push(i + 1);
+          break;
+        case '.':
+          if (parenDepth === 0 && angleDepth === 0 && i > 0 && i + 1 < body.length && /[A-Z]/.test(body[i + 1])) {
+            chainBreaks.push(i);
+          }
+          break;
+      }
+    }
+
+    // Strategy 1: break at opening paren and parameter-list commas
+    if (firstParenPos >= 0) {
+      const allBreaks = [firstParenPos + 1, ...commaBreaks];
+      const segments: string[] = [];
+      let last = 0;
+      for (const bp of allBreaks) {
+        const seg = body.slice(last, bp);
+        if (seg.trim()) segments.push(seg);
+        last = bp;
+      }
+      const tail = body.slice(last);
+      if (tail.trim()) segments.push(tail);
+
+      const result = segments.map((s, i) =>
+        i === 0 ? leadWS + s.trimEnd() : cont + s.trim()
+      ).join('\n');
+
+      const longest = Math.max(...result.split('\n').map(l => l.length));
+      if (longest < line.length) {
+        // Recursively reformat any still-long lines
+        return result.split('\n').map(l => reformatLine(l, depth + 1)).join('\n');
+      }
+    }
+
+    // Strategy 2: break at method chain dots
+    if (chainBreaks.length > 0) {
+      const segments: string[] = [];
+      let last = 0;
+      for (const bp of chainBreaks) {
+        const seg = body.slice(last, bp);
+        if (seg.trim()) segments.push(seg);
+        last = bp;
+      }
+      const tail = body.slice(last);
+      if (tail.trim()) segments.push(tail);
+
+      const result = segments.map((s, i) =>
+        i === 0 ? leadWS + s.trimEnd() : cont + s.trim()
+      ).join('\n');
+
+      const longest = Math.max(...result.split('\n').map(l => l.length));
+      if (longest < line.length) {
+        return result.split('\n').map(l => reformatLine(l, depth + 1)).join('\n');
+      }
+    }
+
+    return line;
+  }
+
+  return code.split('\n').map(line => reformatLine(line, 0)).join('\n');
+}
+
+function needsSpaceBefore(nodes: any[], idx: number): boolean {
+  if (idx === 0) return false;
+  const prev = nodes[idx - 1];
+  const node = nodes[idx];
+  if (['para', 'list', 'note', 'codeblock'].includes(node.kind)) return false;
+  if (node.kind === 'text' && node.text && /^[\s,.:;!?)}\]]/.test(node.text)) return false;
+  if (prev.kind !== 'text') return true;
+  if (prev.text && !/\s$/.test(prev.text)) return true;
+  return false;
+}
+---
+
+{isLegacyString ? (
+  <Tag>{content}</Tag>
+) : !isArray ? (
+  <Tag>{String(content)}</Tag>
+) : (
+  <Tag class="doc-content">
+    {(content as any[]).map((node: any, idx: number) => {
+      const sp = needsSpaceBefore(content as any[], idx)
+
+      switch (node.kind) {
+        case 'text':
+          return <>{sp && ' '}<Fragment set:text={node.text} /></>;
+
+        case 'code':
+          return <>{sp && ' '}<code class="doc-inline-code">{node.text}</code></>;
+
+        case 'codeblock': {
+          const lang = node.language || 'csharp';
+          const dedented = dedent(node.text ?? '');
+          const formatted = lang === 'csharp' ? reformatCSharp(dedented) : dedented;
+          return (
+            <div class="doc-codeblock-wrap">
+              <Code code={formatted} lang={lang} />
+            </div>
+          );
+        }
+
+        case 'cref': {
+          const link = resolveCref(node.value ?? '');
+          if (link) {
+            return <>{sp && ' '}<a href={link.href} class="type-link"><code class="doc-cref-link">{link.label}</code></a></>;
+          }
+          const label = cleanCrefLabel(node.value ?? '');
+          return <>{sp && ' '}<code class="doc-cref">{label}</code></>;
+        }
+
+        case 'href':
+          return (
+            <a href={node.value} class="doc-href" target="_blank" rel="noopener noreferrer">
+              {node.text ?? node.value}
+            </a>
+          );
+
+        case 'langword':
+          return <>{sp && ' '}<code class="doc-langword">{node.value}</code></>;
+
+        case 'paramref':
+          return <>{sp && ' '}<code class="doc-paramref">{node.value}</code></>;
+
+        case 'typeparamref':
+          return <>{sp && ' '}<code class="doc-typeparamref">{node.value}</code></>;
+
+        case 'para':
+          return (
+            <p class="doc-para">
+              {node.children && (
+                <Astro.self content={node.children} allTypes={allTypes} packageName={packageName} tag="span" />
+              )}
+            </p>
+          );
+
+        case 'note': {
+          const noteType = node.value ?? 'note';
+          return (
+            <aside class={`doc-note doc-note-${noteType}`}>
+              <strong class="doc-note-label">{noteLabels[noteType] ?? noteType}</strong>
+              {node.children && (
+                <Astro.self content={node.children} allTypes={allTypes} packageName={packageName} tag="div" />
+              )}
+            </aside>
+          );
+        }
+
+        case 'list': {
+          const isTable = node.style === 'table';
+          if (isTable) {
+            return (
+              <table class="doc-table">
+                {node.header && (
+                  <thead>
+                    <tr>
+                      <th>
+                        {node.header.term && (
+                          <Astro.self content={node.header.term} allTypes={allTypes} packageName={packageName} tag="span" />
+                        )}
+                      </th>
+                      <th>
+                        <Astro.self content={node.header.description} allTypes={allTypes} packageName={packageName} tag="span" />
+                      </th>
+                    </tr>
+                  </thead>
+                )}
+                <tbody>
+                  {(node.items ?? []).map((item: any) => (
+                    <tr>
+                      <td>
+                        {item.term && (
+                          <Astro.self content={item.term} allTypes={allTypes} packageName={packageName} tag="span" />
+                        )}
+                      </td>
+                      <td>
+                        <Astro.self content={item.description} allTypes={allTypes} packageName={packageName} tag="span" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          }
+          const listTag = node.style === 'number' ? 'ol' : 'ul';
+          const ListTag = listTag as any;
+          return (
+            <ListTag class="doc-list">
+              {(node.items ?? []).map((item: any) => (
+                <li>
+                  {item.term && (
+                    <>
+                      <strong>
+                        <Astro.self content={item.term} allTypes={allTypes} packageName={packageName} tag="span" />
+                      </strong>
+                      {' — '}
+                    </>
+                  )}
+                  <Astro.self content={item.description} allTypes={allTypes} packageName={packageName} tag="span" />
+                </li>
+              ))}
+            </ListTag>
+          );
+        }
+
+        default:
+          return <Fragment set:text={node.text ?? node.value ?? ''} />;
+      }
+    })}
+  </Tag>
+)}
+
+<style>
+  .doc-content {
+    line-height: 1.5;
+  }
+  .doc-inline-code {
+    font-size: 0.9em;
+    padding: 0.15em 0.35em;
+    border-radius: var(--api-radius-sm);
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-gray-1);
+  }
+  .doc-codeblock {
+    margin: 0.75em 0;
+    padding: 0.75rem 1rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--api-border-subtle);
+    border-radius: var(--api-radius-md);
+    font-size: var(--api-text-sm);
+    overflow-x: auto;
+    line-height: 1.55;
+    max-width: 100%;
+  }
+  .doc-codeblock code {
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  .doc-codeblock-wrap {
+    margin-top: 1rem;
+  }
+  .doc-langword {
+    font-size: 0.9em;
+    padding: 0.15em 0.35em;
+    border-radius: var(--api-radius-sm);
+    background: var(--sl-color-gray-5);
+    color: var(--api-accent-text);
+    font-weight: 600;
+  }
+  .doc-cref {
+    font-size: 0.88em;
+    padding: 0.12em 0.3em;
+    border-radius: var(--api-radius-sm);
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+  }
+  .doc-cref-link {
+    font-size: 0.88em;
+    padding: 0.12em 0.3em;
+    border-radius: var(--api-radius-sm);
+    background: color-mix(in srgb, var(--api-accent-text) 10%, transparent);
+    color: inherit;
+  }
+  .doc-href {
+    text-decoration: none;
+    color: var(--api-accent-text);
+  }
+  .doc-href:hover {
+    text-decoration: underline;
+  }
+  .doc-paramref,
+  .doc-typeparamref {
+    font-size: 0.9em;
+    padding: 0.1em 0.3em;
+    border-radius: var(--api-radius-sm);
+    background: var(--sl-color-gray-5);
+    font-style: italic;
+  }
+  .doc-para {
+    margin: 0.5em 0;
+  }
+  .doc-list {
+    margin: 0.5em 0 0.5em 1.5em;
+    font-size: 0.95em;
+  }
+  .doc-list li {
+    margin-bottom: 0.25em;
+  }
+  .doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    font-size: 0.9em;
+  }
+  .doc-table th,
+  .doc-table td {
+    border: 1px solid var(--sl-color-gray-5);
+    padding: 0.4em 0.75em;
+    text-align: left;
+  }
+  .doc-table th {
+    background: var(--api-surface-solid);
+    font-weight: 600;
+  }
+  .doc-note {
+    margin: 0.75em 0;
+    padding: 0.6rem 1rem;
+    border-left: 3px solid var(--api-accent-text);
+    background: var(--api-surface-solid);
+    border-radius: 0 var(--api-radius-sm) var(--api-radius-sm) 0;
+    font-size: 0.9em;
+  }
+  .doc-note-label {
+    display: block;
+    font-size: var(--api-text-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25em;
+    color: var(--api-accent-text);
+  }
+  .doc-note-caution,
+  .doc-note-warning {
+    border-left-color: var(--sl-color-orange);
+  }
+  .doc-note-caution .doc-note-label,
+  .doc-note-warning .doc-note-label {
+    color: var(--sl-color-orange);
+  }
+  .type-link {
+    text-decoration: none;
+    color: var(--api-accent-text);
+  }
+  .type-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Light theme contrast fixes for inline styled elements */
+  :global([data-theme='light']) .doc-inline-code {
+    color: var(--sl-color-gray-1, #24292e);
+    background: var(--sl-color-gray-6, #f0f0f0);
+  }
+  :global([data-theme='light']) .doc-langword {
+    color: var(--sl-color-accent, #7455dd);
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, var(--sl-color-gray-6, #f0f0f0));
+  }
+  :global([data-theme='light']) .doc-paramref,
+  :global([data-theme='light']) .doc-typeparamref {
+    color: var(--sl-color-gray-1, #24292e);
+    background: var(--sl-color-gray-6, #f0f0f0);
+  }
+  :global([data-theme='light']) .doc-cref {
+    color: var(--sl-color-gray-1, #24292e);
+    background: var(--sl-color-gray-6, #f0f0f0);
+  }
+  :global([data-theme='light']) .doc-cref-link {
+    background: color-mix(in srgb, var(--api-accent-text) 12%, var(--sl-color-gray-6, #f0f0f0));
+  }
+</style>

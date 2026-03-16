@@ -6,6 +6,7 @@
 @import '@fontsource-variable/fira-code/wght.css';
 @import './cookieconsent-custom.css';
 @import './utils.css';
+@import './api-reference.css';
 
 :root {
   --aspire-color-purple: #512bd4;
@@ -905,6 +906,104 @@ li a.external-link::after {
   --sl-content-width: 68rem;
 }
 
+/* Widen sidebar for API reference pages (long package names) */
+:root:has(.topics-sidebar[data-api-ref]) {
+  --sl-sidebar-width: 40rem;  
+}
+
+/* Narrower sidebar for TypeScript API reference pages */
+:root:has(.topics-sidebar[data-api-lang="ts"]) {
+  --sl-sidebar-width: 30rem;
+}
+
+/* Remove parent top padding so the sticky wrapper sits flush at the top */
+:root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content {
+  padding-top: 0;
+}
+
+/* ── API sidebar collapse/expand (desktop only, ≥ 72rem) ──────── */
+
+/* Animate the sidebar panel width */
+@media (min-width: 72rem) {
+  :root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    transition: width 0.25s ease;
+  }
+  :root:has(.topics-sidebar[data-api-ref]) .main-frame {
+    transition: padding-inline-start 0.25s ease;
+  }
+}
+
+:root:has(.topics-sidebar[data-api-ref])[data-sidebar-collapsed] {
+  --sl-sidebar-width: 3.75rem;
+}
+
+/* Hide the entire sidebar content; the expand button is a sibling and stays visible.
+   Scoped to ≥ 72rem so the mobile overlay sidebar still works when
+   the user previously collapsed the desktop sidebar. */
+@media (min-width: 72rem) {
+  :root[data-sidebar-collapsed] .topics-sidebar[data-api-ref] {
+    display: none !important;
+  }
+
+  /* Remove internal padding so the expand button can center in the full strip */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content {
+    padding-inline: 0;
+  }
+
+  /* The sidebar border when collapsed */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    border-inline-end: 1px solid var(--sl-color-hairline-light);
+  }
+}
+
+/* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  /* Reset content offset — no fixed sidebar in this range for API ref */
+  :root:has(.topics-sidebar[data-api-ref])[data-has-sidebar] {
+    --sl-content-inline-start: 0;
+  }
+
+  /* Show the hamburger menu button */
+  :root:has(.topics-sidebar[data-api-ref]) starlight-menu-button button {
+    display: flex;
+  }
+
+  /* Keep header padding to make room for hamburger button */
+  :root:has(.topics-sidebar[data-api-ref])[data-has-sidebar] header {
+    padding-inline-end: calc(var(--sl-nav-gap) + var(--sl-nav-pad-x) + var(--sl-menu-button-size));
+  }
+
+  /* Reset inner header back to flex layout — the Starlight grid formula breaks
+     when --sl-content-inline-start is 0 (no fixed sidebar in this range).
+     Use `header > .header` to target only the inner div, not the outer <header>. */
+  :root:has(.topics-sidebar[data-api-ref]) header > .header {
+    display: flex;
+  }
+
+  /* Reset sidebar pane to mobile overlay mode */
+  :root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    --sl-sidebar-visibility: hidden;
+    width: 100%;
+    background-color: var(--sl-color-black);
+    border-inline-end: none;
+  }
+
+  /* Show sidebar when hamburger menu is expanded */
+  :root:has(.topics-sidebar[data-api-ref]) [aria-expanded='true'] ~ #starlight__sidebar {
+    --sl-sidebar-visibility: visible;
+  }
+
+  /* Prevent body scroll when mobile menu is open */
+  :root:has(.topics-sidebar[data-api-ref]) body[data-mobile-menu-expanded] {
+    overflow: hidden;
+  }
+
+  /* Keep MobileMenuFooter visible in mobile sidebar */
+  :root:has(.topics-sidebar[data-api-ref]) .topics-sidebar > .md\:sl-hidden {
+    display: block;
+  }
+}
+
 /* 
 see: https://github.com/withastro/starlight/issues/3513#issuecomment-3638588654
 here the second rem value can be configured to your needs, 
@@ -998,10 +1097,6 @@ table th {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--aspire-color-secondary) var(--sl-color-bg-nav);
-}
-
-#dropdown-menu {
-  min-width: 260px !important;
 }
 
 /* Try Aspire button in header */

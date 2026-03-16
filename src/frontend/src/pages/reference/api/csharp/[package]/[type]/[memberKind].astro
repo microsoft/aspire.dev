@@ -1,0 +1,174 @@
+---
+/**
+ * /reference/api/csharp/[package]/[type]/[memberKind] ΓÇö Member-kind detail page.
+ *
+ * Shows all members of a given kind (constructors, properties, methods, etc.)
+ * for a specific type within a package.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import MemberCard from '@components/api-reference/MemberCard.astro';
+import DocContent from '@components/api-reference/DocContent.astro';
+import {
+  slugify,
+  genericArity,
+  packageSlug,
+  memberKindOrder,
+  memberKindLabels,
+  memberKindSlugs,
+  shortTypeName,
+  typeHref,
+  getPackages,
+  memberSlug,
+  memberDisplayName,
+} from '@utils/packages';
+
+/** Reverse map: slug ΓåÆ kind (e.g. 'properties' ΓåÆ 'property'). */
+const slugToKind = Object.fromEntries(
+  Object.entries(memberKindSlugs).map(([k, v]) => [v, k]),
+);
+
+export async function getStaticPaths() {
+  const packages = await getPackages();
+  const paths: any[] = [];
+
+  for (const pkg of packages) {
+    for (const t of pkg.data.types) {
+      const typeSlug = slugify(t.name, genericArity(t));
+      if (!typeSlug) continue;
+
+      // Only generate paths for member kinds that actually exist on this type
+      const members: any[] = t.members ?? [];
+      for (const kind of memberKindOrder) {
+        const slug = memberKindSlugs[kind];
+        if (!slug) continue;
+        if (!members.some((m: any) => m.kind === kind)) continue;
+
+        paths.push({
+          params: {
+            package: packageSlug(pkg.data.package.name),
+            type: typeSlug,
+            memberKind: slug,
+          },
+          props: {
+            pkg: pkg.data,
+            type: t,
+            allTypes: pkg.data.types,
+            kind,
+          },
+        });
+      }
+    }
+  }
+
+  return paths;
+}
+
+const { pkg, type, allTypes, kind } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const apiSidebar = await getApiReferenceSidebar();
+
+const filteredMembers = (type.members ?? []).filter((m: any) => m.kind === kind);
+const kindLabel = memberKindLabels[kind] ?? kind;
+const displayName = type.name + (type.isGeneric && type.genericParameters?.length
+  ? `<${type.genericParameters.map((g: any) => g.name).join(', ')}>`
+  : '');
+
+const kindLabelMap: Record<string, string> = {
+  class: 'Class',
+  struct: 'Struct',
+  interface: 'Interface',
+  enum: 'Enum',
+  delegate: 'Delegate',
+  record: 'Record',
+  'record struct': 'Record Struct',
+};
+
+/* Build heading list for right-side TOC ΓÇö one entry per member. */
+const headings: { depth: 2 | 3; slug: string; text: string }[] = filteredMembers.map((m: any) => ({
+  depth: 2 as const,
+  slug: memberSlug(m),
+  text: m.name === '.ctor' ? displayName : memberDisplayName(m),
+}));
+---
+
+<StarlightPage
+  frontmatter={{
+    title: `${displayName} ${kindLabel}`,
+    description: `${kindLabel} for ${displayName} in ${pkg.package.name}`,
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    pagefind: false,
+    pageActions: false,
+  }}
+  sidebar={apiSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search C# APIs', href: `${base}/reference/api/csharp/` },
+    { label: pkg.package.name, href: `${base}/reference/api/csharp/${packageSlug(pkg.package.name)}/` },
+    { label: type.name, href: typeHref(base, pkg.package.name, type.name, genericArity(type)) },
+    { label: kindLabel },
+  ]} />
+
+  {/* Header */}
+  <div class="api-hero not-content">
+    <div class="api-hero-header">
+      <span class={`api-kind-pill kind-${type.kind.replace(/\s+/g, '-')}`}>{kindLabelMap[type.kind] ?? type.kind}</span>
+      <span class="api-mod-badge">{kindLabel}</span>
+      <span class="member-count">{filteredMembers.length} {filteredMembers.length === 1 ? 'member' : 'members'}</span>
+    </div>
+    {type.docs?.summary && (
+      <div class="api-hero-summary">
+        <DocContent content={type.docs.summary} allTypes={allTypes} packageName={pkg.package.name} />
+      </div>
+    )}
+  </div>
+
+  {/* Member cards */}
+  <div class="ml">
+    <div class="ml-cards">
+      {filteredMembers.map((m: any) => (
+        <MemberCard
+          member={m}
+          allTypes={allTypes}
+          packageName={pkg.package.name}
+          sourceBaseUrl={pkg.package.sourceRepository && pkg.package.sourceCommit
+            ? `${pkg.package.sourceRepository}/blob/${pkg.package.sourceCommit}`
+            : undefined}
+          parentType={{
+            name: type.name,
+            kind: type.kind,
+            accessibility: type.accessibility,
+            isStatic: type.isStatic,
+            isAbstract: type.isAbstract,
+            isSealed: type.isSealed,
+            isGeneric: type.isGeneric,
+            genericParameters: type.genericParameters,
+          }}
+        />
+      ))}
+    </div>
+  </div>
+</StarlightPage>
+
+<style>
+  .member-count {
+    font-size: var(--api-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+
+  /* Member list */
+  .ml {
+    margin: 0.5rem 0;
+  }
+  .ml-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+</style>

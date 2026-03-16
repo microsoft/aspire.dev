@@ -9,8 +9,10 @@ const EXCLUDED_PACKAGES = [
   'Aspire.Hosting.Azure',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
+  'Aspire.Microsoft.AspNetCore.SystemWebAdapters',
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
+  'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
   'CommunityToolkit.Aspire.Hosting.EventStore',
   'CommunityToolkit.Aspire.EventStore',
 ];

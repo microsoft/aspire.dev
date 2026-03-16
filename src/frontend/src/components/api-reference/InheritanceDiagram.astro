@@ -1,0 +1,91 @@
+---
+/**
+ * InheritanceDiagram — renders a Mermaid class diagram showing the type's
+ * inheritance chain and implemented interfaces.
+ */
+interface Props {
+  type: any;
+  allTypes?: any[];
+}
+
+import { shortTypeName } from '@utils/packages';
+
+const { type, allTypes = [] } = Astro.props;
+
+const hasBase = !!type.baseType;
+const hasInterfaces = type.interfaces?.length > 0;
+const shouldRender = hasBase || hasInterfaces;
+
+function stereotype(t: any): string {
+  if (!t) return '';
+  if (t.isAbstract && t.kind === 'class') return '<<abstract>>';
+  if (t.kind === 'interface') return '<<interface>>';
+  if (t.kind === 'record' || t.kind === 'record struct') return '<<record>>';
+  if (t.kind === 'struct') return '<<struct>>';
+  if (t.kind === 'enum') return '<<enum>>';
+  return '';
+}
+
+function mermaidSafe(name: string): string {
+  return name
+    .replace(/<([^>]+)>/g, '~$1~')
+    .replace(/[^A-Za-z0-9_~]/g, '_');
+}
+
+let diagram = '';
+
+if (shouldRender) {
+  const lines: string[] = ['classDiagram', '    direction TB'];
+
+  const selfLabel = mermaidSafe(type.name + (type.isGeneric && type.genericParameters?.length
+    ? `<${type.genericParameters.map((g: any) => g.name).join(', ')}>`
+    : ''));
+  const selfStereo = stereotype(type);
+  lines.push(`    class ${selfLabel} {`);
+  if (selfStereo) lines.push(`        ${selfStereo}`);
+  lines.push('    }');
+
+  if (hasBase) {
+    const baseName = mermaidSafe(shortTypeName(type.baseType));
+    const baseTypeDef = allTypes.find((t: any) => t.fullName === type.baseType);
+    const baseStereo = baseTypeDef ? stereotype(baseTypeDef) : '';
+    lines.push(`    class ${baseName} {`);
+    if (baseStereo) lines.push(`        ${baseStereo}`);
+    lines.push('    }');
+    lines.push(`    ${baseName} <|-- ${selfLabel}`);
+  }
+
+  if (hasInterfaces) {
+    for (const iface of type.interfaces) {
+      const ifaceName = mermaidSafe(shortTypeName(iface));
+      lines.push(`    class ${ifaceName} {`);
+      lines.push('        <<interface>>');
+      lines.push('    }');
+      lines.push(`    ${ifaceName} <|.. ${selfLabel}`);
+    }
+  }
+
+  diagram = lines.join('\n');
+}
+---
+
+{shouldRender && (
+  <div class="inheritance-diagram">
+    <pre class="mermaid" set:text={diagram} />
+  </div>
+)}
+
+<style>
+  .inheritance-diagram {
+    margin: 1rem 0 1.5rem;
+    border: 1px solid var(--api-border);
+    border-radius: var(--api-radius-lg);
+    padding: 1rem;
+    background: var(--api-surface);
+    overflow-x: auto;
+  }
+  .inheritance-diagram pre {
+    margin: 0;
+    background: transparent;
+  }
+</style>

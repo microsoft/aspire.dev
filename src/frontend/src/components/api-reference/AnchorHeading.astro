@@ -1,0 +1,71 @@
+---
+/**
+ * AnchorHeading — renders an h2 with a Starlight-compatible hover anchor link.
+ */
+interface Props {
+  id: string;
+  text: string;
+}
+
+const { id, text } = Astro.props;
+---
+
+<div class="sl-heading-wrapper level-h2 anchor-heading">
+  <h2 id={id}>{text}<slot /></h2><a class="sl-anchor-link" href={`#${id}`}>
+    <span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span>
+    <span class="sr-only">Section titled {text}</span>
+  </a>
+</div>
+
+<style>
+  .anchor-heading {
+    --sl-anchor-icon-size: 0.8275em;
+    --sl-anchor-icon-gap: 0.25em;
+    --sl-anchor-icon-space: calc(var(--sl-anchor-icon-size) + var(--sl-anchor-icon-gap));
+    line-height: var(--sl-line-height-headings);
+    font-size: var(--sl-text-h2);
+  }
+
+  .anchor-heading > :first-child {
+    display: inline;
+    padding-inline-end: var(--sl-anchor-icon-space);
+  }
+
+  .anchor-heading .sl-anchor-link {
+    position: relative;
+    margin-inline-start: calc(-1 * var(--sl-anchor-icon-size));
+    -webkit-user-select: none;
+    user-select: none;
+    display: inline-flex;
+    text-decoration: none;
+    color: var(--sl-color-gray-3);
+  }
+
+  .anchor-heading .sl-anchor-link::after {
+    content: '';
+    position: absolute;
+    inset: -0.25rem -0.5rem;
+  }
+
+  .anchor-heading .sl-anchor-icon > svg {
+    display: inline;
+    width: var(--sl-anchor-icon-size);
+    vertical-align: top;
+    transform: translateY(
+      calc((var(--sl-line-height-headings) * 1em - var(--sl-anchor-icon-size)) / 2)
+    );
+  }
+
+  @media (hover: hover) {
+    .anchor-heading .sl-anchor-link {
+      opacity: 0;
+    }
+    .anchor-heading .sl-anchor-link:focus,
+    .anchor-heading:hover .sl-anchor-link {
+      opacity: 1;
+    }
+    .anchor-heading .sl-anchor-link:hover {
+      color: var(--sl-color-text-accent);
+    }
+  }
+</style>
