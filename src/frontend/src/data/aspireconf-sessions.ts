@@ -130,7 +130,7 @@ export const sessions: SessionProps[] = [
   {
     title: 'Aspire at OpenCode',
     speakers: [
-      { name: 'Luke Parker', headshot: lukePic, jobTitle: 'Cooking', company: '@ OpenCode' },
+      { name: 'Luke Parker', headshot: lukePic, jobTitle: 'Cooking', company: 'OpenCode' },
     ],
     abstract: 'OpenCode and Aspire make a strong pair for practical, observable agent workflows. In this demo-driven session, I’ll show how Aspire gives both me and an OpenCode agent access to the same OpenTelemetry data, so we can inspect traces, metrics, and runtime behavior from the same human-readable view instead of relying on hidden magic. You’ll learn how to use Aspire as a local observability surface for agent-assisted development, how to ground an agent in the same evidence a human would use, and why that leads to more trustworthy debugging. Surprisingly, OpenCode itself is a distributed application, which makes it an especially compelling system to explore this way.',
     timeslot: '3:30 PM PT',
