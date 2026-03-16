@@ -1,13 +1,33 @@
 ---
 import DefaultSearch from "@astrojs/starlight/components/Search.astro";
+import { Image } from 'astro:assets';
+import csharpIcon from '@assets/icons/csharp.svg';
+import typescriptIcon from '@assets/icons/typescript.svg';
 
 const routeData = Astro.locals.starlightRoute;
 const pageId = routeData?.id ?? '';
 const isApiRefPage = pageId.startsWith('reference/api') || Astro.url.pathname.startsWith('/reference/api');
 const hideSearch = isApiRefPage;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 { hideSearch ? <></> : <DefaultSearch><slot /></DefaultSearch> }
+
+<template id="api-search-notice-tpl">
+  <div class="api-search-notice">
+    <p class="api-search-notice-text">API references are intentionally omitted from this search. To find API references, please search these dedicated API pages instead:</p>
+    <div class="api-search-notice-buttons">
+      <a href={`${base}/reference/api/csharp/`} class="api-search-btn">
+        <Image src={csharpIcon} alt="" width={50} height={50} />
+        <span>C# API Reference</span>
+      </a>
+      <a href={`${base}/reference/api/typescript/`} class="api-search-btn">
+        <Image src={typescriptIcon} alt="" width={50} height={50} />
+        <span>TypeScript API Reference</span>
+      </a>
+    </div>
+  </div>
+</template>
 
 <script>
   // Inject an API search notice into the Starlight/Pagefind search dialog
@@ -19,8 +39,6 @@ const hideSearch = isApiRefPage;
     const existing = (window as any).__apiNoticeObserver as MutationObserver | undefined;
     if (existing) existing.disconnect();
 
-    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-
     const observer = new MutationObserver(() => {
       const dialog = siteSearch.querySelector('dialog');
       if (!dialog) return;
@@ -31,11 +49,10 @@ const hideSearch = isApiRefPage;
       const inner = dialog.querySelector('.dialog-frame');
       if (!inner) return;
 
-      const notice = document.createElement('div');
-      notice.className = 'api-search-notice';
-      notice.innerHTML =
-        `Looking for API docs? Search the <a href="${base}/reference/api/csharp/">C# API Reference</a> or the <a href="${base}/reference/api/typescript/">TypeScript API Reference</a>`;
-      inner.appendChild(notice);
+      const tpl = document.getElementById('api-search-notice-tpl') as HTMLTemplateElement | null;
+      if (!tpl) return;
+
+      inner.appendChild(tpl.content.cloneNode(true));
     });
 
     observer.observe(siteSearch, { childList: true, subtree: true });
@@ -64,7 +81,7 @@ const hideSearch = isApiRefPage;
 
 <style is:global>
   .api-search-notice {
-    padding: 0.5rem 1rem;
+    padding: 1rem;
     font-size: 0.85rem;
     text-align: center;
     color: var(--sl-color-gray-2);
@@ -72,12 +89,51 @@ const hideSearch = isApiRefPage;
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
   }
-  .api-search-notice a {
-    color: var(--sl-color-text-accent);
-    font-weight: 600;
+  .api-search-notice-text {
+    margin: 0 0 1rem;
+  }
+  .api-search-notice-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .api-search-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    font-weight: 700;
+    color: var(--sl-color-white);
+    background: var(--sl-color-black);
+    border: 2px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    text-decoration: none;
+    cursor: pointer;
+    min-width: 13rem;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .api-search-btn:hover {
+    background: var(--sl-color-black);
+    border-color: var(--sl-color-text);
     text-decoration: none;
   }
-  .api-search-notice a:hover {
-    text-decoration: underline;
+  .api-search-btn img {
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 600px) {
+    .api-search-notice {
+      margin-top: 4rem;
+    }
+    .api-search-notice-buttons {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .api-search-btn {
+      min-width: 0;
+    }
   }
 </style>
