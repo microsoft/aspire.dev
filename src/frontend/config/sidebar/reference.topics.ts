@@ -523,6 +523,36 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-publish',
             },
             { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
+            {
+              label: 'aspire secret',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire secret',
+                  slug: 'reference/cli/commands/aspire-secret',
+                },
+                {
+                  label: 'aspire secret set',
+                  slug: 'reference/cli/commands/aspire-secret-set',
+                },
+                {
+                  label: 'aspire secret get',
+                  slug: 'reference/cli/commands/aspire-secret-get',
+                },
+                {
+                  label: 'aspire secret list',
+                  slug: 'reference/cli/commands/aspire-secret-list',
+                },
+                {
+                  label: 'aspire secret delete',
+                  slug: 'reference/cli/commands/aspire-secret-delete',
+                },
+                {
+                  label: 'aspire secret path',
+                  slug: 'reference/cli/commands/aspire-secret-path',
+                },
+              ],
+            },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
               label: 'aspire update',
