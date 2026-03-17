@@ -16,7 +16,7 @@ import dotnetIcon from '@assets/icons/dotnet.svg';
   data-zoom-off
 />
 
-WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop UI frameworks for building Windows desktop applications. While Aspire's primary focus is on cloud-native and web workloads, you can use WPF and Windows Forms applications alongside Aspire for **development-time orchestration** of backend services.
+WPF (Windows Presentation Foundation) and Windows Forms are .NET desktop user interface (UI) frameworks for building Windows desktop applications. While Aspire's primary focus is on cloud-native and web workloads, you can use WPF and Windows Forms applications alongside Aspire for **development-time orchestration** of backend services.
 
 <Aside type="note">
 WPF and Windows Forms applications are **not** containerized or deployed as part of `aspire deploy`. Aspire orchestrates them as local processes during development only. For production deployment, use your existing desktop deployment tooling (MSIX, ClickOnce, and so on).
@@ -36,7 +36,7 @@ In your AppHost `.csproj`, add a project reference to your WPF or Windows Forms 
 </ItemGroup>
 ```
 
-### Step 2: Register the project in AppHost
+### Step 2: Register the project in the Aspire AppHost
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -72,7 +72,7 @@ public partial class App : Application
                 services.AddServiceDiscovery();
                 services.AddHttpClient<ApiClient>(client =>
                 {
-                    // Service name matches the name in AppHost
+                    // Ensure that the service name in the URI matches the name in AppHost
                     client.BaseAddress = new Uri("https+http://api");
                 }).AddServiceDiscovery();
             })
@@ -90,7 +90,7 @@ The `https+http://` scheme tells the HTTP client to prefer HTTPS but fall back t
 
 ## Dev-only resources
 
-A common pattern is to start certain resources (databases, mock services, dev tools) only during local development and skip them in production. Use `builder.Environment.IsDevelopment()` to conditionally add resources:
+A common pattern is to start certain resources, such as databases, mock services, or dev tools, only during local development and skip them in production. Use `builder.Environment.IsDevelopment()` to add resources conditionally:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -122,10 +122,10 @@ builder.Build().Run();
 
 | Feature | WPF / WinForms | .NET MAUI |
 |---------|---------------|-----------|
-| First-class Aspire support | Via `AddProject` (manual) | Via `Aspire.Hosting.Maui` package |
+| First-class Aspire support | From the `AddProject` method (manual) | From the `Aspire.Hosting.Maui` package |
 | Cross-platform | Windows only | Windows, macOS, iOS, Android |
 | Dev Tunnels support | Not applicable | Built-in for iOS/Android |
-| Production deployment via Aspire | Not supported | Not supported |
+| Production deployment with Aspire | Not supported | Not supported |
 
 For cross-platform desktop and mobile scenarios, consider [.NET MAUI integration](/integrations/frameworks/maui/).
 
