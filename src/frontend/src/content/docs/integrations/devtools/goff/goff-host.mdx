@@ -1,0 +1,123 @@
+---
+title: GO Feature Flag Hosting integration reference
+description: Learn how to use the Aspire GO Feature Flag hosting integration to orchestrate and configure GO Feature Flag in your Aspire projects.
+---
+
+import { Badge, Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import goffIcon from '@assets/icons/go-feature-flag.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={goffIcon}
+  dark={goffIcon}
+  alt="goff logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+To get started with the Aspire GO Feature Flag integrations, follow the [Get started with GO Feature Flag integrations](/integrations/devtools/goff/goff-get-started/) guide.
+
+This article includes full details about the Aspire GO Feature Flag Hosting integration.
+
+## Installation
+
+To access the types and APIs for expressing GO Feature Flag as a resource in your AppHost project, install the [📦 CommunityToolkit.Aspire.Hosting.GoFeatureFlag](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.GoFeatureFlag) NuGet package:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.GoFeatureFlag" />
+
+## Add goff server resource
+
+In your app host project, call `AddGoFeatureFlag` on the builder instance to add a goff container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+                  .WithGoffBindMount("./goff");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/gofeatureflag/go-feature-flag` image, it creates a new goff server instance on your local machine. A reference to your goff server (the `goff` variable) is added to the `ExampleProject`.
+
+<Aside type="caution">
+
+The goff container requires a folder source with configuration files. Use the `WithGoffBindMount` method to configure file-based flag synchronization.
+
+</Aside>
+
+## Flag configuration format
+
+goff uses either the `YAML`, `JSON` or `TOML` format to configure feature flags. Here is a simple example for you to get started:
+
+```yaml title="goff/flags.yaml"
+display-banner:
+  variations:
+    enabled: true
+    disabled: false
+  defaultRule:
+    variation: enabled
+```
+
+You can learn more on how to create flags here: [Create flags with goff](https://gofeatureflag.org/docs/configure_flag/create-flags).
+
+## Flag configuration
+
+In the previous section, we created flags via a configuration file. We now need another file to configure the Relay Proxy that will load your flags from the file system. Here is what you need to ingest the previous created file:
+
+```yaml title="goff/goff-proxy.yaml"
+retrievers:
+  - kind: file
+    path: /goff/flags.yaml
+```
+
+## Configure logging
+
+To configure debug logging for the goff container resource, call the `WithLogLevel` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+                  .WithGoffBindMount("./goff")
+                  .WithLogLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+The `WithLogLevel` method enables debug logging in the goff container, which provides verbose output for troubleshooting flag evaluation issues. Currently, only `Debug`, `Information`, `Warning` and `Error` log levels are supported.
+
+## Customize ports
+
+To customize the port used by the goff container resource, provide the `port` parameter to the `AddGoFeatureFlag` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag(name: "goff", port: 1031)
+                  .WithGoffBindMount("./goff");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+The `port` parameter specifies the host port for the goff HTTP endpoint. If this parameter is not provided, a random port is assigned.
+
+## Health checks
+
+The goff hosting integration automatically adds a health check for the goff server resource. The health check verifies that the goff server is running and that a connection can be established to it.
+
+The hosting integration uses the goff `/health` endpoint to perform health checks.

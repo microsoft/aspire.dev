@@ -1,0 +1,53 @@
+---
+title: Azure AI Inference hosting integration
+description: Learn how to use the Aspire Azure AI Inference hosting integration to connect to Azure AI Inference resources.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
+
+<Image
+  src={aiFoundryIcon}
+  alt="Azure AI Inference logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+Although the Azure AI Inference library doesn't currently offer direct hosting integration, you can still integrate it into your AppHost project. Simply add a connection string to establish a reference to an existing Azure AI Foundry resource.
+
+For an introduction to working with the Azure AI Inference hosting integration, see [Get started with the Azure AI Inference integrations](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/).
+
+## Connect to an existing Azure AI Foundry service
+
+If you already have an [Azure AI Foundry](https://ai.azure.com/) service, you can easily connect to it by adding a connection string to your AppHost. This approach uses a simple, string-based configuration. To establish the connection, use the `AddConnectionString` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aiFoundry = builder.AddConnectionString("ai-foundry");
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(aiFoundry);
+
+// After adding all resources, run the app...
+```
+
+> [!NOTE]
+> Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In nomenclature, the term "connection string" is used to represent any kind of connection information.
+
+The connection string is configured in the AppHost's configuration, typically under User Secrets, under the `ConnectionStrings` section:
+
+```json
+{
+  "ConnectionStrings": {
+    "ai-foundry": "Endpoint=https://{endpoint}/;DeploymentId={deploymentName}"
+  }
+}
+```
+
+For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).

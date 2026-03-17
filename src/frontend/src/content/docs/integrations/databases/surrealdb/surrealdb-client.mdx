@@ -1,0 +1,119 @@
+---
+title: SurrealDB Client integration reference
+description: Learn how to use the Aspire SurrealDB client integration to interact with SurrealDB from your Aspire projects.
+next: false
+---
+
+import { Badge, Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import surrealdbIcon from '@assets/icons/surrealdb-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={surrealdbIcon}
+  alt="SurrealDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire SurrealDB integrations, follow the [Get started with SurrealDB integrations](/integrations/databases/surrealdb/surrealdb-get-started/) guide.
+
+This article includes full details about the Aspire SurrealDB Client integration.
+
+## Installation
+
+To install the [📦 CommunityToolkit.Aspire.SurrealDb](https://nuget.org/packages/CommunityToolkit.Aspire.SurrealDb) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.SurrealDb" />
+
+## Add SurrealDB client
+
+In the `Program.cs` file of your client-consuming project, call the `AddSurrealClient` extension method to register a `SurrealDbClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddSurrealClient(connectionName: "db");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the
+  SurrealDB resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `SurrealDbClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(SurrealDbClient client)
+{
+    // Use client...
+}
+```
+
+## Add keyed SurrealDB client
+
+There might be situations where you want to register multiple `SurrealDbClient` instances with different connection names. To register keyed SurrealDB clients, call the `AddKeyedSurrealClient` method:
+
+```csharp
+builder.AddKeyedSurrealClient(name: "products");
+builder.AddKeyedSurrealClient(name: "orders");
+```
+
+Then you can retrieve the `SurrealDbClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("products")] SurrealDbClient productsClient,
+    [FromKeyedServices("orders")] SurrealDbClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+## Configuration
+
+The Aspire SurrealDB client integration provides multiple options to configure the server connection.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name of the connection string:
+
+```csharp
+builder.AddSurrealClient(connectionName: "db");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "db": "Endpoint=ws://localhost:19530/;Namespace=ns;Database=db;Username=root;Password=123456!@#$%"
+  }
+}
+```
+
+### Use configuration providers
+
+The Aspire SurrealDB Client integration supports configuration. It loads the settings from configuration using the `Aspire:Surreal:Client` key:
+
+```json
+{
+  "Aspire": {
+    "Surreal": {
+      "Client": {
+        "Endpoint": "ws://localhost:19530/",
+        "Namespace": "ns",
+        "Database": "db",
+        "Username": "root",
+        "Password": "123456!@#$%"
+      }
+    }
+  }
+}
+```
+
+## Client integration health checks
+
+The Aspire SurrealDB integration uses the configured client to perform a health check.
