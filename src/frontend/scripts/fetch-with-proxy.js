@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpProxyAgent } from 'http-proxy-agent';
 
 const proxyUrl =
   process.env.HTTPS_PROXY ??
@@ -8,13 +9,20 @@ const proxyUrl =
   process.env.http_proxy;
 
 const proxyAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
+const httpProxyAgent = proxyUrl ? new HttpProxyAgent(proxyUrl) : undefined;
 
 function selectAgent(parsedUrl) {
-  return parsedUrl.protocol === 'https:' ? proxyAgent : undefined;
+  if (parsedUrl.protocol === 'https:') {
+    return proxyAgent;
+  }
+  if (parsedUrl.protocol === 'http:') {
+    return httpProxyAgent;
+  }
+  return undefined;
 }
 
 export function fetchWithProxy(url, options = {}) {
-  if (!proxyAgent || options.agent) {
+  if ((!proxyAgent && !httpProxyAgent) || options.agent) {
     return fetch(url, options);
   }
 
