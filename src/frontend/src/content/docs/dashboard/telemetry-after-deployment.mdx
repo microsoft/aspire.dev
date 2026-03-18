@@ -10,7 +10,7 @@ The Aspire dashboard is designed for local development and short-term diagnostic
 
 This article explains what changes when you deploy your app, how to configure production telemetry with Azure Monitor, and how to access the Aspire dashboard if it's included in your deployment.
 
-## Development vs. production telemetry
+## Development versus production telemetry
 
 During development, Aspire automatically starts the dashboard and configures your app's OTEL environment variables to send telemetry to it. This works well for local diagnostics but is not suitable for production for the following reasons:
 
@@ -47,7 +47,7 @@ builder.AddProject<Projects.MyApp_Web>("webfrontend")
 builder.Build().Run();
 ```
 
-When you reference Application Insights, Aspire automatically configures the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable for each service. The `Azure.Monitor.OpenTelemetry.AspNetCore` package (via `UseAzureMonitor()`) reads this variable and sends telemetry to Application Insights.
+When you reference Application Insights, Aspire automatically configures the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable for each service. The `Azure.Monitor.OpenTelemetry.AspNetCore` package uses the `UseAzureMonitor()` method to read this variable and send telemetry to Application Insights.
 
 <Aside type="note">
 The Application Insights resource provisions an Azure Application Insights component. Provisioning requires an active Azure subscription. When running locally, telemetry is sent to the Aspire dashboard as usual unless a real connection string is present.
@@ -67,7 +67,7 @@ builder.Services.AddOpenTelemetry()
     .UseAzureMonitor();
 ```
 
-Aspire's service defaults already configure OpenTelemetry. The `UseAzureMonitor()` call adds Azure Monitor as an additional exporter. When the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable is set (which Aspire does automatically when the resource is referenced), telemetry flows to Azure Monitor.
+Aspire's service defaults already configure OpenTelemetry. The `UseAzureMonitor()` call adds Azure Monitor as an additional exporter. When the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable is set, which Aspire does automatically when you reference the resource, telemetry flows to Azure Monitor.
 
 <LearnMore>
 For more information, see [Azure Monitor OpenTelemetry documentation](https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable).
@@ -79,15 +79,15 @@ If some or all logs don't appear in your telemetry backend after deployment, che
 
 ### OTEL environment variables not set
 
-Verify that the OTEL environment variables are correctly set in your deployed containers. When deploying to Azure Container Apps, Aspire sets these variables automatically when you use `WithReference` for Application Insights or when the OTEL endpoint is configured.
+Verify that the OTEL environment variables are correctly set in your deployed containers. When deploying to Azure Container Apps, Aspire sets these variables automatically when you use `WithReference` for Application Insights or when you configure the OTEL endpoint.
 
 Check for these environment variables in your deployed container:
 
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: The OTLP endpoint receiving telemetry.
-- `OTEL_EXPORTER_OTLP_HEADERS`: Headers including the API key (if required).
-- `APPLICATIONINSIGHTS_CONNECTION_STRING`: Application Insights connection string (when using Azure Monitor).
+- `OTEL_EXPORTER_OTLP_HEADERS`: Headers including the API key, if required.
+- `APPLICATIONINSIGHTS_CONNECTION_STRING`: Application Insights connection string, when using Azure Monitor.
 
-For Azure Container Apps deployments, verify variables in the [Azure Portal](https://portal.azure.com) by navigating to your Container App → **Containers** → **Environment variables**.
+For Azure Container Apps deployments, verify variables in the [Azure Portal](https://portal.azure.com) by navigating to your Container app → **Containers** → **Environment variables**.
 
 ### Telemetry not exported from the app
 
@@ -102,9 +102,9 @@ builder.AddServiceDefaults();
 
 If you're not using Aspire service defaults, ensure your app is configured with the OpenTelemetry SDK and an appropriate exporter.
 
-### Telemetry sampled out
+### Telemetry sampling missed an event
 
-The OpenTelemetry SDK may sample traces, meaning not every request produces a trace. By default, Aspire's service defaults configure 100% sampling for development. In production, check your sampling configuration.
+To ensure that the OpenTelemetry SDK doesn't flood logs with too much data, you can configure it to sample a proportion of traces, so that not every request produces a trace. By default, Aspire's service defaults configure 100% sampling for development. In production, check your sampling configuration.
 
 ### Transport protocol mismatch
 
@@ -123,9 +123,9 @@ The deployed Aspire dashboard stores telemetry in memory. Telemetry is lost each
 
 ### Find the dashboard URL
 
-After a successful `aspire deploy`, the deployment output includes URLs for your deployed resources. Look for a Container App named `aspire-dashboard` (or similar) in the output. The exact format varies depending on the environment name you configured.
+After a successful `aspire deploy`, the deployment output includes URLs for your deployed resources. Look for a Container App named `aspire-dashboard` or similar in the output. The exact format varies depending on the environment name you configured.
 
-You can also find the URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container App for the Aspire dashboard, and finding its **Application URL** on the Overview page.
+You can also find the URL in the [Azure Portal](https://portal.azure.com) by navigating to your resource group, locating the Container App for the Aspire dashboard, and finding its **Application URL** on the **Overview** page.
 
 Alternatively, use the Azure CLI:
 
@@ -174,7 +174,7 @@ Use a secure, randomly generated token. Anyone with the token can view sensitive
 
 ### Use OpenID Connect authentication
 
-For team access to the deployed dashboard, configure OpenID Connect (OIDC) authentication instead of browser token auth. This allows multiple users to log in with their organizational identity provider.
+For team access to the deployed dashboard, configure OpenID Connect (OIDC) authentication instead of browser token authentication. This allows multiple users to log in with their organizational identity provider.
 
 <LearnMore>
 For more information on configuring OIDC, see [Aspire dashboard configuration: Frontend](/dashboard/configuration/#frontend).

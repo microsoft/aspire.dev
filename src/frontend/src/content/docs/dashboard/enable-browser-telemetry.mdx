@@ -365,7 +365,7 @@ Include this component in your `App.razor` or another top-level component so tha
 
 ### Backend-to-frontend trace correlation
 
-To correlate browser spans with server-side traces, include the current trace context in the server-rendered HTML. When the Blazor WASM app is hosted within a server-rendered page (such as a Blazor Web App with prerendering), the server can write the `traceparent` meta tag during prerender:
+To correlate browser spans with server-side traces, include the current trace context in the server-rendered HTML. When the Blazor WASM app is hosted within a server-rendered page, such as a Blazor Web App with prerendering, the server can write the `traceparent` meta tag during prerender:
 
 ```razor title="Razor — App.razor (Server prerender)"
 @using System.Diagnostics
@@ -405,24 +405,29 @@ app.MapPost("/api/telemetry/{**path}", async (
 
     var client = httpClientFactory.CreateClient("otel-proxy");
 
-    // Copy OTLP API key from server environment to forwarded request
+    using var requestBody = new StreamContent(context.Request.Body);
+    requestBody.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue
+        .Parse(context.Request.ContentType ?? "application/x-protobuf");
+
+    using var request = new HttpRequestMessage(
+        HttpMethod.Post,
+        $"{dashboardEndpoint.TrimEnd('/')}/{path}")
+    {
+        Content = requestBody
+    };
+
+    // Copy OTLP API key from server environment to the forwarded request
     var headersEnv = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS") ?? string.Empty;
     foreach (var header in headersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries))
     {
         var parts = header.Split('=', 2);
         if (parts.Length == 2)
         {
-            client.DefaultRequestHeaders.TryAddWithoutValidation(parts[0].Trim(), parts[1].Trim());
+            request.Headers.TryAddWithoutValidation(parts[0].Trim(), parts[1].Trim());
         }
     }
 
-    using var requestBody = new StreamContent(context.Request.Body);
-    requestBody.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue
-        .Parse(context.Request.ContentType ?? "application/x-protobuf");
-
-    var response = await client.PostAsync(
-        $"{dashboardEndpoint.TrimEnd('/')}/{path}",
-        requestBody);
+    var response = await client.SendAsync(request);
 
     context.Response.StatusCode = (int)response.StatusCode;
     await response.Content.CopyToAsync(context.Response.Body);
