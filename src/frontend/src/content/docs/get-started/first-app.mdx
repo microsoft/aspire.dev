@@ -21,7 +21,7 @@ import fastApiIcon from "@assets/icons/fastapi-icon.svg";
     options={[
         { id: "csharp", title: "C#" },
         { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript (coming soon)", disabled: true },
+        { id: "javascript", title: "JavaScript" },
     ]}
 />
 
@@ -67,6 +67,23 @@ architecture-beta
 
 </Pivot>
 <Pivot id="javascript">
+
+This starter template combines a modern JavaScript stack:
+
+- [Express](https://expressjs.com/) for building APIs with Node.js
+- [React](https://react.dev/) for building user interfaces with JavaScript
+- [TypeScript](https://www.typescriptlang.org/) for type-safe development across the entire stack
+
+The following diagram shows the architecture of the sample app you're creating:
+
+```mermaid
+architecture-beta
+  service api(logos:nodejs-icon)[API service]
+  service frontend(logos:react)[React front end]
+
+  frontend:L --> R:api
+```
+
 </Pivot>
 
 ## Create a new app
@@ -94,7 +111,7 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     <Pivot id="javascript">
 
     ```bash title="Create a new aspire solution"
-    aspire new aspire-js-starter -n aspire-app -o aspire-app
+    aspire new aspire-ts-starter -n aspire-app -o aspire-app
     ```
 
     </Pivot>
@@ -114,6 +131,14 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     </LearnMore>
 
     If prompted for additional selections, use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options. Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
+
+    <Pivot id="javascript">
+
+    <Aside type="note" title="AI agent environments">
+    When prompted "Would you like to configure AI agent environments for this project?", select `y`. This sets up workspace configurations (such as MCP server settings and AI skills) for your project, enabling a richer experience with AI coding assistants. For more information, see [Configure the MCP server](/get-started/configure-mcp/) and the [`aspire agent init`](/reference/cli/commands/aspire-agent-init/) reference.
+    </Aside>
+
+    </Pivot>
 
 </Steps>
 
@@ -185,6 +210,36 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
         - NuGet.config
     </FileTree>
     </Pivot>
+    <Pivot id="javascript">
+    <FileTree>
+    - aspire-app/
+        - api/  Express mock weather data API
+            - src/
+                - index.ts
+                - instrumentation.ts
+            - package.json
+            - tsconfig.json
+        - frontend/  Vite + React web front end
+            - public/
+                - Aspire.png
+                - github.svg
+            - src/
+                - App.css
+                - App.tsx
+                - index.css
+                - main.tsx
+                - vite-env.d.ts
+            - .dockerignore
+            - eslint.config.js
+            - index.html
+            - package.json
+            - tsconfig.json
+            - vite.config.ts
+        - **apphost.ts** dev-time orchestrator
+        - aspire.config.json
+        - package.json
+    </FileTree>
+    </Pivot>
 
     This solution structure is based on the Aspire templates. If they're not installed already, the CLI will install them for you.
 
@@ -249,6 +304,44 @@ To create your first Aspire application, use the [Aspire CLI](/get-started/insta
     - `PublishWithContainerFiles` bundles the frontend for production deployment
 
     </Pivot>
+    <Pivot id="javascript">
+    ```typescript title="TypeScript — apphost.ts"
+    import { createBuilder } from './.modules/aspire.js';
+
+    const builder = await createBuilder();
+
+    // Run the Express API and expose its HTTP endpoint externally.
+    const app = await builder
+        .addNodeApp("app", "./api", "src/index.ts")
+        .withHttpEndpoint({ env: "PORT" })
+        .withExternalHttpEndpoints();
+
+    // Run the Vite frontend after the API and inject the API URL for local proxying.
+    const frontend = await builder
+        .addViteApp("frontend", "./frontend")
+        .withReference(app)
+        .waitFor(app);
+
+    // Bundle the frontend build output into the API container for publish/deploy.
+    await app.publishWithContainerFiles(frontend, "./static");
+
+    await builder.build().run();
+    ```
+
+    _What's happening here?_
+
+    - `createBuilder` creates the distributed application builder
+    - `addNodeApp` adds a Node.js application (the Express API)
+    - `addViteApp` registers your React frontend
+    - `withReference` connects the frontend to the API—it injects the API's URL and sets up service discovery
+    - `waitFor` ensures the API is running before starting the frontend, preventing connection errors
+    - `publishWithContainerFiles` bundles the frontend for production deployment
+
+    <LearnMore>
+    This template uses a TypeScript AppHost. To learn more about writing AppHosts in TypeScript, see [Polyglot AppHost](/app-host/polyglot-apphost/).
+    </LearnMore>
+
+    </Pivot>
 
     <Aside type="note" title="Code-first orchestration">
     Your application topology is defined in code, making it easy to understand, modify, and version control. Learn more about the [AppHost](/get-started/app-host/).
@@ -262,6 +355,8 @@ import csharpDashboardLight from '@assets/get-started/csharp-aspire-dashboard-li
 import csharpDashboardDark from '@assets/get-started/csharp-aspire-dashboard-dark.png';
 import pythonDashboardLight from '@assets/get-started/python-aspire-dashboard-light.png';
 import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dark.png';
+import javascriptDashboardLight from '@assets/get-started/javascript-aspire-dashboard-light.png';
+import javascriptDashboardDark from '@assets/get-started/javascript-aspire-dashboard-dark.png';
 
 <Steps>
 
@@ -315,7 +410,7 @@ import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dar
 
     </Pivot>
 
-    <Pivot id="python,javascript">
+    <Pivot id="python">
     ```bash title="Example output" mark={8}
     🔍  Finding apphosts...
     apphost.cs
@@ -327,6 +422,20 @@ import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dar
        Dashboard:  https://localhost:17213/login?t=2b4a2ebc362b7fef9b5ccf73e702647b
 
             Logs:  $HOME/.aspire/cli/logs/apphost-27732-2025-10-31-19-21-27.log
+
+                   Press CTRL+C to stop the apphost and exit.
+    ```
+    </Pivot>
+    <Pivot id="javascript">
+    ```bash title="Example output" mark={6}
+    🔍  Finding apphosts...
+    apphost.ts
+
+         AppHost:  apphost.ts
+
+       Dashboard:  https://localhost:17174/login?t=afb274c630f48b1c4ddfe139011c1cb7
+
+            Logs:  %USERPROFILE%/.aspire/logs/cli_20260318T134627_f31ad598.log
 
                    Press CTRL+C to stop the apphost and exit.
     ```
@@ -351,6 +460,13 @@ import pythonDashboardDark from '@assets/get-started/python-aspire-dashboard-dar
             dark={pythonDashboardDark}
             label='Aspire dashboard Resources page'
             alt={`Aspire dashboard Resources page displaying two running and two finished resources: apiservice and webfrontend. Two resources are marked as Running with green check icons while the two dependent resources show as Finished with gray stop icons. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
+    </Pivot>
+    <Pivot id="javascript">
+        <ThemeImage 
+            light={javascriptDashboardLight}
+            dark={javascriptDashboardDark}
+            label='Aspire dashboard Resources page'
+            alt={`Aspire dashboard Resources page displaying two running and two finished resources: app and frontend. Both app and frontend are marked as Running with green check icons while their installer resources show as Finished. The table lists columns for Name, State, Start time, Source, URLs, and Actions.`} />
     </Pivot>
 
     <LearnMore>
