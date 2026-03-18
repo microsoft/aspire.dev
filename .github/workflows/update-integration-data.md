@@ -17,10 +17,11 @@ steps:
     working-directory: src/frontend
 network:
   allowed:
+    - defaults
     - containers
+    - node
     - dotnet
     - github
-    - playwright
 safe-outputs:
   create-pull-request:
     title-prefix: "chore: "

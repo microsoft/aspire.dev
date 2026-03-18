@@ -1,5 +1,5 @@
 import fs from 'fs';
-import fetch from 'node-fetch';
+import { fetchWithProxy as fetch } from './fetch-with-proxy.js';
 
 const SERVICE_INDEX = 'https://api.nuget.org/v3/index.json';
 const API_QUERIES = ['owner:aspire', 'Aspire.Hosting.', 'CommunityToolkit.Aspire'];
