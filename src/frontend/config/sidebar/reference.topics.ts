@@ -470,10 +470,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                 },
               ],
             },
-            {
-              label: 'aspire doctor',
-              slug: 'reference/cli/commands/aspire-doctor',
-            },
             { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
             {
