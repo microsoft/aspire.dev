@@ -573,6 +573,30 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireats001',
             },
             {
+              label: 'ASPIREEXPORT005',
+              link: '/diagnostics/aspireexport005',
+            },
+            {
+              label: 'ASPIREEXPORT006',
+              link: '/diagnostics/aspireexport006',
+            },
+            {
+              label: 'ASPIREEXPORT007',
+              link: '/diagnostics/aspireexport007',
+            },
+            {
+              label: 'ASPIREEXPORT008',
+              link: '/diagnostics/aspireexport008',
+            },
+            {
+              label: 'ASPIREEXPORT009',
+              link: '/diagnostics/aspireexport009',
+            },
+            {
+              label: 'ASPIREEXPORT010',
+              link: '/diagnostics/aspireexport010',
+            },
+            {
               label: 'ASPIRECERTIFICATES001',
               link: '/diagnostics/aspirecertificates001',
             },
@@ -653,6 +677,22 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIRECOSMOSDB001',
               link: '/diagnostics/aspirecosmosdb001',
+            },
+            {
+              label: 'ASPIREEXPORT001',
+              link: '/diagnostics/aspireexport001',
+            },
+            {
+              label: 'ASPIREEXPORT002',
+              link: '/diagnostics/aspireexport002',
+            },
+            {
+              label: 'ASPIREEXPORT003',
+              link: '/diagnostics/aspireexport003',
+            },
+            {
+              label: 'ASPIREEXPORT004',
+              link: '/diagnostics/aspireexport004',
             },
             {
               label: 'ASPIREHOSTINGPYTHON001',
