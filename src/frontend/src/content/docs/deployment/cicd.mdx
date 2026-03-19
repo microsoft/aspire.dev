@@ -6,7 +6,7 @@ description: Learn how to use aspire publish with GitHub Actions and Azure DevOp
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Deploying Aspire applications from continuous integration and continuous delivery (CI/CD) pipelines follows a consistent pattern regardless of your target platform: generate deployment artifacts, push container images to a registry, then apply the artifacts using your preferred tooling.
+Deploying Aspire applications from continuous integration and continuous delivery (CI/CD) pipelines follows a consistent pattern regardless of your target platform: generate deployment artifacts, push container images to a registry, then apply the artifacts using your preferred tooling. In this article, you learn how to configure the Aspire CLI for non-interactive use, push container images to a registry, and set up complete pipelines for GitHub Actions and Azure DevOps.
 
 ## CI/CD workflow overview
 
@@ -26,11 +26,11 @@ The workflow breaks down into three phases:
 
 <Steps>
 
-1. **Build & publish** — `aspire publish` builds your .NET project container images and generates deployment artifacts (Docker Compose files, Kubernetes manifests, etc.) with image name placeholders.
+1. **Build and publish**: `aspire publish` builds your .NET project container images and generates deployment artifacts with image name placeholders.
 
-1. **Push** — Your pipeline tags the locally-built images and pushes them to a container registry such as GitHub Container Registry, Docker Hub, Amazon ECR, or Azure Container Registry.
+1. **Push**: Your pipeline tags the locally-built images and pushes them to a container registry such as GitHub Container Registry, Docker Hub, Amazon ECR, or Azure Container Registry.
 
-1. **Deploy** — Your pipeline applies the generated artifacts using the appropriate tooling (`kubectl apply`, `docker compose up`, etc.), substituting the image placeholders with the pushed registry addresses.
+1. **Deploy**: Your pipeline applies the generated artifacts using the appropriate tooling (`kubectl apply`, `docker compose up`, and so on), substituting the image placeholders with the pushed registry addresses.
 
 </Steps>
 
@@ -76,21 +76,29 @@ docker push ghcr.io/$GITHUB_REPOSITORY/myapp-api:$GITHUB_SHA
 
 ### Docker Hub
 
+Use a script like this to push your images to Docker Hub:
+
 ```bash title="Bash — Authenticate and push to Docker Hub"
 echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 docker tag myapp-api:latest $DOCKERHUB_USERNAME/myapp-api:$IMAGE_TAG
 docker push $DOCKERHUB_USERNAME/myapp-api:$IMAGE_TAG
 ```
 
-Store `DOCKERHUB_TOKEN` and `DOCKERHUB_USERNAME` as secrets in your pipeline. Generate the token from [hub.docker.com](https://hub.docker.com) under **Account settings > Personal access tokens**.
+Protect the sensitive `DOCKERHUB_TOKEN` and `DOCKERHUB_USERNAME` values by storing them as secrets in your pipeline. Generate the token from [hub.docker.com](https://hub.docker.com) under **Account settings > Personal access tokens**.
 
 ### Other registries
 
-Other container registries (Amazon ECR, Azure Container Registry, Google Artifact Registry, JFrog Artifactory, and self-hosted registries) follow the same pattern: authenticate with `docker login`, tag your image with the registry hostname, and push. Refer to your registry's authentication documentation for the specific login command.
+Other container registries, such as Amazon ECR, Azure Container Registry, Google Artifact Registry, JFrog Artifactory, and self-hosted registries, follow the same pattern:
+
+- Authenticate with `docker login`.
+- Tag your image with the registry hostname.
+- Push your images.
+
+Refer to your registry's authentication documentation for the specific login command.
 
 ## GitHub Actions workflow
 
-The following complete workflow generates artifacts with `aspire publish`, pushes images to GitHub Container Registry, and applies a Docker Compose deployment. Customize the deploy step for your own target (Kubernetes, a cloud provider, etc.).
+The following complete workflow generates artifacts with `aspire publish`, pushes images to GitHub Container Registry, and applies a Docker Compose deployment. Customize the deploy step for your own target (Kubernetes, a cloud provider, or something else).
 
 ```yaml title="GitHub Actions — .github/workflows/deploy.yml"
 name: Build and deploy Aspire app
@@ -224,7 +232,7 @@ Set `REGISTRY_HOST`, `REGISTRY_NAMESPACE`, `REGISTRY_USERNAME`, and `REGISTRY_PA
 
 ### Terminal output and formatting
 
-The Aspire CLI detects whether it's running in a CI environment and adjusts its output accordingly (no interactive prompts, plain-text progress). If you see garbled or ANSI escape codes in logs, set the `NO_COLOR` environment variable:
+The Aspire CLI detects whether it's running in a CI environment and adjusts its output accordingly, with no interactive prompts and plain-text progress. If you see garbled or ANSI escape codes in logs, set the `NO_COLOR` environment variable:
 
 <Tabs>
 <TabItem label="GitHub Actions">
@@ -249,9 +257,9 @@ variables:
 
 Publishing and deploying Aspire apps can take several minutes. Set your pipeline's timeout high enough to allow for:
 
-- .NET container image builds
-- Container registry image push (varies with image size and network speed)
-- Provisioning and startup of deployment targets
+- .NET container image builds.
+- Container registry image pushes. These times can vary with image size and network speed.
+- Provisioning and startup of deployment targets.
 
 <Tabs>
 <TabItem label="GitHub Actions">
