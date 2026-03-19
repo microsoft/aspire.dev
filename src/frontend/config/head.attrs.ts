@@ -24,8 +24,7 @@ export const headAttrs: HeadAttr[] = [
 					.NET, observability, otel, opentelemetry, dashboard, service discovery, integrations,
 					C#, csharp, multi-language, polyglot, python, go, node.js, javascript, typescript,
 					vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis,
-					docker, containers, kubernetes, compose,
-					AI, MCP, model context protocol, AI coding agents, agentic development, copilot, cursor, claude code, vibe coding
+					docker, containers, kubernetes, compose
 				`
         .replace(/\s*\n\s*/g, ' ')
         .trim(),

@@ -1,7 +1,7 @@
 ---
-title: Option AppHost
+title: Option Project
 ---
 
-**`--apphost <apphost>`**
+**`--project`**
 
 The path to the Aspire AppHost project file.

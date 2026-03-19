@@ -3,7 +3,7 @@ title: JavaScript integration
 description: Learn how to orchestrate JavaScript applications with Aspire using the Aspire.Hosting.JavaScript package.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import InstallPackage from '@components/InstallPackage.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -104,14 +104,9 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 
 `AddViteApp` automatically configures:
 
-- **HTTP endpoint**: Registers an `http` endpoint and sets the `PORT` environment variable — you don't need to call `WithHttpEndpoint` yourself
 - **Development script**: Runs the "dev" script (typically `vite`) during local development
 - **Build script**: Runs the "build" script (typically `vite build`) when publishing
 - **Package manager**: Uses npm by default, but can be customized with `WithYarn()`, `WithPnpm()`, or `WithBun()`
-
-:::caution
-Do _not_ call `.WithHttpEndpoint()` on a Vite resource. `AddViteApp` already registers an `http` endpoint with the `PORT` environment variable, and adding another causes a duplicate endpoint error at runtime.
-:::
 
 The method accepts the same parameters as `AddJavaScriptApp`:
 
@@ -276,10 +271,6 @@ var app = builder.AddJavaScriptApp("app", "./app")
 
 JavaScript applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the environment variable:
 
-:::tip
-`AddViteApp` already registers an `http` endpoint with the `PORT` environment variable. The following example applies to `AddJavaScriptApp` and `AddNodeApp` only.
-:::
-
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -331,79 +322,6 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 
 The HTTPS configuration is automatically applied without modifying your `vite.config.js` file. For more information about certificate configuration, see [Certificate configuration](/app-host/certificate-configuration/).
 
-## Pass runtime configuration to SPA frontends
-
-Vite and other SPA build tools bake environment variables (such as `VITE_*`) into the JavaScript bundle at **build time** (for example, when building the client for production). However, Aspire sets environment variables at **runtime**. This means calling `.WithEnvironment("VITE_GOOGLE_CLIENT_ID", parameter)` on a Vite resource won't change values that were already baked into a previously built production bundle.
-
-To bridge this gap, pass the parameter to your API project as a standard environment variable and expose it through a configuration endpoint that the SPA fetches at startup.
-
-<Steps>
-
-1. **Pass the parameter to the API in the AppHost**
-
-    Define the parameter in the AppHost and pass it to the API project using `WithEnvironment`. Then reference the API from the frontend so it can call the endpoint:
-
-    ```csharp title="C# — AppHost.cs"
-    var builder = DistributedApplication.CreateBuilder(args);
-
-    var googleClientId = builder.AddParameter("google-client-id");
-
-    var api = builder.AddProject<Projects.Api>("api")
-        .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
-
-    var frontend = builder.AddViteApp("frontend", "./frontend")
-        .WithPnpm()
-        .WithReference(api);
-
-    // After adding all resources, run the app...
-    ```
-
-2. **Expose a config endpoint in the API**
-
-    Create an endpoint in your API project that reads the environment variable from configuration and returns it to the frontend:
-
-    ```csharp title="C# — Program.cs"
-    app.MapGet("/api/config/google-client-id", (IConfiguration config) =>
-    {
-        var clientId = config["GOOGLE_CLIENT_ID"];
-
-        return string.IsNullOrEmpty(clientId)
-            ? Results.NotFound()
-            : Results.Ok(new { clientId });
-    });
-    ```
-
-    <Aside type="tip">
-    For multiple configuration values, consider grouping them under a single endpoint (such as `GET /api/config`) to reduce network requests.
-
-    Use this pattern only for non-secret/public configuration values (for example OAuth client IDs). Do not expose secrets such as client secrets, API keys, or connection strings via a frontend config endpoint.
-    </Aside>
-
-3. **Fetch the config value in the SPA**
-
-    In your frontend application, fetch the configuration value at startup instead of reading from `import.meta.env`:
-
-    ```typescript title="TypeScript — config.ts"
-    export async function getConfig() {
-        const response = await fetch('/api/config/google-client-id');
-
-        if (!response.ok) {
-            throw new Error('Failed to load configuration');
-        }
-
-        const { clientId } = await response.json();
-        return { googleClientId: clientId };
-    }
-    ```
-
-</Steps>
-
-<Aside type="note">
-This pattern applies to any SPA framework that bakes environment variables at build time, including apps added with `AddViteApp` or `AddJavaScriptApp`. For server-side rendered frameworks (such as Next.js or Nuxt), you can access Aspire environment variables directly with `process.env` at runtime from server-side code paths.
-
-Environment variables that are bundled into client-side code (for example, `NEXT_PUBLIC_*` in Next.js) are still substituted at build time, so they should use a runtime configuration endpoint like the one shown above if they need values defined by Aspire at app startup.
-</Aside>
-
 ## Production builds
 
 When you publish your application using `aspire deploy`, Aspire automatically:
@@ -417,7 +335,6 @@ This ensures your JavaScript applications are built consistently across environm
 
 ## See also
 
-- [External parameters](/fundamentals/external-parameters/) - Learn how to use parameters in Aspire
 - [Node.js hosting extensions](/integrations/frameworks/nodejs-extensions/) - Community Toolkit extensions for Vite, Yarn, and pnpm
 - [What's new in Aspire 13](/whats-new/aspire-13/) - Learn about first-class JavaScript support
 - [Aspire integrations overview](/integrations/overview/)

@@ -405,40 +405,26 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'get-started/add-aspire-existing-app',
         },
         {
-          label: 'Use AI coding agents',
-          collapsed: false,
+          label: 'Configure the MCP server',
           translations: {
-            da: 'AI-kodningsagenter',
-            de: 'KI-Coding-Agenten',
-            en: 'AI coding agents',
-            es: 'Agentes de codificación con IA',
-            fr: 'Agents de codage IA',
-            hi: 'AI कोडिंग एजेंट',
-            id: 'Agen pengkodean AI',
-            it: 'Agenti di codifica IA',
-            ja: 'AI コーディングエージェント',
-            ko: 'AI 코딩 에이전트',
-            'pt-BR': 'Agentes de codificação com IA',
-            'pt-PT': 'Agentes de codificação com IA',
-            ru: 'ИИ-агенты для кодирования',
-            tr: 'AI kodlama ajanları',
-            uk: 'ШІ-агенти для кодування',
-            'zh-CN': 'AI 编码代理',
+            da: 'Konfigurer MCP-serveren',
+            de: 'MCP-Server konfigurieren',
+            en: 'Configure the MCP server',
+            es: 'Configurar el servidor MCP',
+            fr: 'Configurer le serveur MCP',
+            hi: 'MCP सर्वर कॉन्फ़िगर करें',
+            id: 'Konfigurasi server MCP',
+            it: 'Configurare il server MCP',
+            ja: 'MCP サーバーの構成',
+            ko: 'MCP 서버 구성',
+            'pt-BR': 'Configurar o servidor MCP',
+            'pt-PT': 'Configurar o servidor MCP',
+            ru: 'Настройка сервера MCP',
+            tr: 'MCP sunucusunu yapılandırın',
+            uk: 'Налаштування сервера MCP',
+            'zh-CN': '配置 MCP 服务器',
           },
-          items: [
-            {
-              label: 'Overview',
-              slug: 'get-started/ai-coding-agents',
-            },
-            {
-              label: 'Aspire MCP server',
-              slug: 'get-started/aspire-mcp-server',
-            },
-            {
-              label: 'Resource MCP servers',
-              slug: 'get-started/resource-mcp-servers',
-            },
-          ],
+          slug: 'get-started/configure-mcp',
         },
         {
           label: 'Troubleshooting',
@@ -970,10 +956,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               },
             },
             {
-          label: 'Container files',
-          slug: 'app-host/container-files',
-        },
-        {
               label: 'Executable resources',
               slug: 'app-host/executable-resources',
               translations: {
@@ -984,24 +966,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: '.NET tool resources',
               slug: 'app-host/dotnet-tool-resources',
-            },
-          ],
-        },
-        {
-          label: 'TypeScript AppHost',
-          collapsed: false,
-          items: [
-            {
-              label: 'Introduction',
-              slug: 'app-host/typescript-apphost',
-            },
-            {
-              label: 'Migration guide',
-              slug: 'app-host/typescript-apphost-migration',
-            },
-            {
-              label: 'Troubleshooting',
-              slug: 'app-host/typescript-apphost-troubleshooting',
             },
           ],
         },
@@ -1100,10 +1064,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             en: 'Custom resource URLs',
             ja: 'カスタム リソース URL',
           },
-        },
-        {
-          label: 'Multi-language integrations',
-          slug: 'extensibility/multi-language-integration-authoring',
         },
       ],
     },
@@ -1378,6 +1338,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '资源示例',
           },
           slug: 'architecture/resource-examples',
+        },
+        {
+          label: 'Multi-language architecture',
+          slug: 'architecture/multi-language-architecture',
         },
       ],
     },

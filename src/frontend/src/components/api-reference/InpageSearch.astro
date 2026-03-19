@@ -24,14 +24,6 @@ interface Props {
 }
 
 const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
-const searchInputId = id + '-search-input';
-const searchStatusId = id + '-search-status';
-const searchClearId = id + '-search-clear';
-const kindFiltersId = id + '-kind-filters';
-const searchCountId = id + '-search-count';
-const clearFiltersId = id + '-clear-filters';
-const searchResultsId = id + '-search-results';
-const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace(/\s+/g, '-');
 ---
 
 <div class="inpage-search" data-size={size}>
@@ -42,19 +34,19 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
-      <label class="sr-only" for={searchInputId}>{placeholder}</label>
+      <label class="sr-only" for={`${id}-search-input`}>{placeholder}</label>
       <input
         type="search"
-        id={searchInputId}
+        id={`${id}-search-input`}
         class="inpage-search-input"
         placeholder={placeholder}
         autocomplete="off"
-        aria-describedby={searchStatusId}
+        aria-describedby={`${id}-search-status`}
       />
       <button
         type="button"
         class="inpage-search-clear"
-        id={searchClearId}
+        id={`${id}-search-clear`}
         aria-label="Clear search"
         style="display: none;"
       >
@@ -67,7 +59,7 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
   </div>
 
   <!-- Kind filter chips -->
-  <div class="inpage-kind-filters" id={kindFiltersId}>
+  <div class="inpage-kind-filters" id={`${id}-kind-filters`}>
     {kinds.map(kind => (
       <button
         class="api-filter-chip"
@@ -75,23 +67,27 @@ const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace
         type="button"
         aria-pressed="false"
       >
-        <span class={getKindClassName(kind)}></span>
+        <span class={`api-filter-dot kind-${kind.replace(/\s+/g, '-')}`}></span>
         {kind}
       </button>
     ))}
   </div>
 
-  <div id={searchStatusId} class="sr-only" aria-live="polite"></div>
+  <div id={`${id}-search-status`} class="sr-only" aria-live="polite"></div>
 
   <!-- Stats line -->
   <div class="inpage-search-stats">
-    <span id={searchCountId}>{defaultStatsText}</span>
-    <button class="inpage-clear-filters" id={clearFiltersId} type="button" style="display: none;">Clear filters</button>
+    <span id={`${id}-search-count`}>{defaultStatsText}</span>
+    <button class="inpage-clear-filters" id={`${id}-clear-filters`} type="button" style="display: none;">Clear filters</button>
   </div>
 
   <!-- Search results (populated by the page's controller script) -->
-  <div id={searchResultsId} class="api-list" style="display: none;"></div>
+  <div id={`${id}-search-results`} class="api-list" style="display: none;"></div>
 </div>
+
+<script>
+  import './inpage-search-sync';
+</script>
 
 <style>
   /* ── Accessibility ──────────────────────────────────────────── */

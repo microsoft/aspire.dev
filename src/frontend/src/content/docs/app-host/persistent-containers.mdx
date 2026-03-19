@@ -12,10 +12,6 @@ In Aspire, containers follow a typical lifecycle where they're created when the 
 
 This feature is particularly beneficial for containers that have long startup times, such as databases, as it eliminates the need to wait for these services to initialize on every AppHost restart.
 
-<Aside type="caution" title="Persistent container ≠ persistent data">
-  `ContainerLifetime.Persistent` keeps the **container** alive between AppHost runs, but it does **not** guarantee **data durability**. If the container is ever recreated—due to a configuration change, `docker system prune`, or an image update—any data stored inside the container filesystem is lost. To ensure data survives container recreation, also use `WithDataVolume()`. For more information, see [Persist data using volumes](/fundamentals/persist-data-volumes/).
-</Aside>
-
 ## Configure a persistent container
 
 To configure a container resource with a persistent lifetime, use the `WithLifetime` method and pass `ContainerLifetime.Persistent`:
@@ -24,8 +20,7 @@ To configure a container resource with a persistent lifetime, use the `WithLifet
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
-    .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume();
+                      .WithLifetime(ContainerLifetime.Persistent);
 
 var db = postgres.AddDatabase("inventorydb");
 
@@ -35,7 +30,7 @@ builder.AddProject<Projects.InventoryService>("inventory")
 builder.Build().Run();
 ```
 
-In the preceding example, the PostgreSQL container is configured to persist between AppHost runs, and `WithDataVolume()` ensures database data is stored in a named volume that survives container recreation. The `inventory` project references the database as normal.
+In the preceding example, the PostgreSQL container is configured to persist between AppHost runs, while the `inventory` project references the database as normal.
 
 ## Dashboard visualization
 
@@ -114,28 +109,3 @@ Persistent containers are ideal for:
 - **Message brokers**: RabbitMQ, Redis, and similar services that benefit from maintaining state between runs.
 - **Development data**: Containers with test data or configurations that you want to preserve during development iterations.
 - **Shared services**: Services that multiple AppHosts or development team members can share.
-
-## Container lifetime vs. data durability
-
-`ContainerLifetime.Persistent` and `WithDataVolume()` serve different purposes and are often used together. The following table summarizes the behavior of each combination:
-
-| Configuration | Container behavior | Data behavior |
-|---|---|---|
-| Neither (default) | Created on start, destroyed on stop | Lost every time the AppHost stops |
-| `WithLifetime(ContainerLifetime.Persistent)` only | Stays running between AppHost runs | Survives AppHost restarts, but **lost if the container is recreated** (config change, pruning, image update) |
-| `WithDataVolume()` only | Created on start, destroyed on stop | Persists in a named volume—**survives container recreation** |
-| Both (recommended for databases) | Stays running between AppHost runs | Persists in a named volume—survives container recreation |
-
-For **databases and other stateful services**, use both APIs together so you get fast startup (the container stays running) _and_ data safety (a volume protects data even if the container is recreated):
-
-```csharp title="AppHost.cs"
-var postgres = builder.AddPostgres("postgres")
-    .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume();
-```
-
-For **caches or other ephemeral state**, `WithLifetime(ContainerLifetime.Persistent)` alone may be sufficient because losing data on container recreation is acceptable.
-
-<Aside type="tip">
-  For more details on volumes and bind mounts, see [Persist data using volumes](/fundamentals/persist-data-volumes/).
-</Aside>
