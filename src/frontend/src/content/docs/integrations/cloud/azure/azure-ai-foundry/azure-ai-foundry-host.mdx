@@ -52,14 +52,14 @@ The preceding code adds a Microsoft Foundry resource named `foundry` to the AppH
 
 ## Add a Microsoft Foundry deployment resource
 
-To add a Microsoft Foundry deployment resource, call the `AddDeployment` method:
+To add a Microsoft Foundry deployment resource, call the `AddDeployment` method with one of the generated `FoundryModel` entries:
 
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
 
-var chat = foundry.AddDeployment("chat", "Phi-4", "1", "Microsoft");
+var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(chat)
@@ -71,24 +71,18 @@ builder.AddProject<Projects.ExampleProject>()
 The preceding code:
 
 - Adds a Microsoft Foundry resource named `foundry`.
-- Adds a Microsoft Foundry deployment resource named `chat` with a model name of `Phi-4`. The model name must correspond to an [available model](https://learn.microsoft.com/azure/ai-foundry/foundry-models/concepts/models) in the Microsoft Foundry service.
+- Adds a Microsoft Foundry deployment resource named `chat` using the generated `FoundryModel.OpenAI.Gpt5Mini` descriptor.
 
-> [!NOTE]
-> The fourth parameter of the `AddDeployment(...)` method specifies the model publisher or provider. Common values include:
->
-> - `"OpenAI"` for GPT models (e.g., GPT-4o, GPT-4, GPT-3.5 Turbo)
-> - `"Microsoft"` for Phi models (e.g., Phi-4, Phi-3.5)
->
-> For more information, see the [FoundryModel API reference](https://learn.microsoft.com/dotnet/api/aspire.hosting.foundrymodel).
+For more information about the generated model descriptors, see the [FoundryModel API reference](https://learn.microsoft.com/dotnet/api/aspire.hosting.foundrymodel).
 
-You can also use the `FoundryModel` catalog instead of specifying the model name, version, and format explicitly:
+If you need a different generated model descriptor, use the corresponding nested type, such as `FoundryModel.Microsoft.Phi4Reasoning`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
 
-var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+var chat = foundry.AddDeployment("chat", FoundryModel.Microsoft.Phi4Reasoning);
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(chat)
@@ -102,7 +96,7 @@ builder.Build().Run();
 You can customize deployment properties using the `WithProperties` method:
 
 ```csharp
-var chat = foundry.AddDeployment("chat", "Phi-4", "1", "Microsoft")
+var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini)
     .WithProperties(deployment =>
     {
         deployment.SkuName = "Standard";
@@ -230,7 +224,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var foundry = builder.AddFoundry("foundry")
     .RunAsFoundryLocal();
 
-var chat = foundry.AddDeployment("chat", "phi-3.5-mini", "1", "Microsoft");
+var chat = foundry.AddDeployment("chat", FoundryModel.Local.Phi4);
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(chat)
