@@ -428,7 +428,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           items: [
             {
               label: 'Overview',
-              slug: 'get-started/configure-mcp',
+              slug: 'get-started/ai-coding-agents',
             },
             {
               label: 'Aspire MCP server',
