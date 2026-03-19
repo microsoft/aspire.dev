@@ -1,5 +1,5 @@
 import fs from 'fs';
-import fetch from 'node-fetch';
+import { fetchWithProxy as fetch } from './fetch-with-proxy.js';
 
 const REPOS = [
   'dotnet/aspire',
