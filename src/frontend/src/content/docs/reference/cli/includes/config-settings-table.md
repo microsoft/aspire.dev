@@ -11,7 +11,7 @@ title: Config Settings Table
 | `features.minimumSdkCheckEnabled`              | Enforce minimum SDK version.                    |
 | `features.orphanDetectionWithTimestampEnabled` | Use timestamp-based orphan detection.           |
 | `features.packageSearchDiskCachingEnabled`     | Cache package search results on disk.           |
-| `features.polyglotSupportEnabled`              | Enable polyglot (non-.NET) project support.     |
+| `features.polyglotSupportEnabled`              | Enable multi-language (non-.NET) project support. Enabled by default. |
 | `features.runningInstanceDetectionEnabled`     | Enable detection of already running instances.  |
 | `features.showAllTemplates`                    | Show all templates including experimental ones. |
 | `features.showDeprecatedPackages`              | Show deprecated packages.                       |

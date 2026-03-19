@@ -56,4 +56,7 @@ export const redirects = {
   '/reference/cli/commands/aspire-mcp/': '/reference/cli/commands/aspire-agent/',
   '/reference/cli/commands/aspire-mcp-init/': '/reference/cli/commands/aspire-agent-init/',
   '/reference/cli/commands/aspire-mcp-start/': '/reference/cli/commands/aspire-agent-mcp/',
+  '/app-host/polyglot-apphost/': '/app-host/typescript-apphost/',
+  '/app-host/polyglot-migration/': '/app-host/typescript-apphost-migration/',
+  '/app-host/polyglot-troubleshooting/': '/app-host/typescript-apphost-troubleshooting/',
 };
