@@ -11,17 +11,15 @@ runtimes:
 steps:
   - name: Setup pnpm
     run: corepack enable && corepack install
-    working-directory: src/frontend
   - name: Install dependencies
     run: pnpm install --frozen-lockfile
     working-directory: src/frontend
 network:
   allowed:
     - defaults
-    - containers
     - node
-    - dotnet
     - github
+    - "*.nuget.org"
 safe-outputs:
   create-pull-request:
     title-prefix: "chore: "
