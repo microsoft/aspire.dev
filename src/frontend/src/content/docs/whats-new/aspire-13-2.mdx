@@ -589,25 +589,27 @@ This makes it easier to inspect your Aspire application state during debugging s
 
 ### Foundry and hosted agents
 
-Aspire 13.2 replaces the earlier AIFoundry-focused hosting surface with a broader Microsoft Foundry integration.
+Aspire 13.2 replaces the earlier AIFoundry-focused hosting surface with a broader Microsoft Foundry integration. The hosting package is now `Aspire.Hosting.Foundry`, replacing `Aspire.Hosting.Azure.AIFoundry`.
 
-You can now add Foundry resources, attach model deployments, and run against Foundry Local in development:
+You can now add Foundry accounts, create Foundry Projects, attach model deployments with either explicit model values or the `FoundryModel` catalog, and publish hosted agents from the regular Aspire app model:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var foundry = builder.AddFoundry("ai")
-    .RunAsFoundryLocal();
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("agents");
 
-var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
-builder.AddProject<Projects.Api>("api")
-    .WithReference(chat);
+builder.AddPythonApp("agent", "..\\agent", "main:app")
+    .WithReference(project)
+    .WithReference(chat)
+    .PublishAsHostedAgent(project);
 
 builder.Build().Run();
 ```
 
-This release also adds hosted-agent support on top of Foundry, including APIs such as `PublishAsHostedAgent` and `AddAndPublishPromptAgent`, which start to bring agent-centric deployment scenarios into the regular Aspire app model.
+New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsights`, `WithKeyVault`, `WithContainerRegistry`, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. `RunAsFoundryLocal` is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
 
 ### Azure Virtual Network and private endpoint support
 
@@ -874,7 +876,16 @@ A connection property suffix has been added which may require updates to code th
 
 `Aspire.Hosting.Azure.AIFoundry` was replaced by the broader `Aspire.Hosting.Foundry` surface.
 
-If you were using the older API, migrate from `AddAzureAIFoundry()` to `AddFoundry()` and then attach one or more deployments explicitly:
+When upgrading, make both of these changes:
+
+- Replace the `Aspire.Hosting.Azure.AIFoundry` package reference with `Aspire.Hosting.Foundry`.
+- Migrate from `AddAzureAIFoundry()` to `AddFoundry()`, then add deployments explicitly with `AddDeployment()` or `AddModelDeployment()`.
+
+```xml title="XML — AppHost project file"
+<ItemGroup>
+  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
+</ItemGroup>
+```
 
 ```csharp title="C# — Migration example"
 // Before
@@ -882,10 +893,11 @@ var ai = builder.AddAzureAIFoundry("ai");
 
 // After
 var foundry = builder.AddFoundry("ai");
-var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+var project = foundry.AddProject("agents");
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 ```
 
-This aligns the hosting API with the current Foundry branding and unlocks the new deployment and hosted-agent capabilities added in 13.2.
+This aligns the hosting API with the current Foundry branding and unlocks the new project, deployment, and hosted-agent capabilities added in 13.2.
 
 ### `WithSecretBuildArg` renamed to `WithBuildSecret`
 

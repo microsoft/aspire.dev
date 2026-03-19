@@ -19,9 +19,14 @@ import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-The Aspire Microsoft Foundry hosting integration models the Microsoft Foundry project as the `FoundryResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) NuGet package:
+The Aspire Microsoft Foundry hosting integration models a Microsoft Foundry account as the `FoundryResource` type. To access this type and related APIs in your AppHost project, install the [📦 Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) NuGet package:
 
 <InstallPackage packageName="Aspire.Hosting.Foundry" />
+
+<Aside type="note">
+  If you're upgrading from earlier previews, replace the
+  `Aspire.Hosting.Azure.AIFoundry` package with `Aspire.Hosting.Foundry`.
+</Aside>
 
 For an introduction to working with the Microsoft Foundry hosting integration, see [Get started with the Microsoft Foundry integrations](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
 
@@ -35,7 +40,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var foundry = builder.AddFoundry("foundry");
 
 builder.AddProject<Projects.ExampleProject>()
-       .WithReference(foundry);
+    .WithReference(foundry);
 
 // After adding all resources, run the app...
 ```
@@ -76,6 +81,22 @@ The preceding code:
 >
 > For more information, see the [FoundryModel API reference](https://learn.microsoft.com/dotnet/api/aspire.hosting.foundrymodel).
 
+You can also use the `FoundryModel` catalog instead of specifying the model name, version, and format explicitly:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+
+var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(chat)
+    .WaitFor(chat);
+
+builder.Build().Run();
+```
+
 ## Configure deployment properties
 
 You can customize deployment properties using the `WithProperties` method:
@@ -90,6 +111,92 @@ var chat = foundry.AddDeployment("chat", "Phi-4", "1", "Microsoft")
 ```
 
 The preceding code sets the SKU name to `Standard` and capacity to `10` for the deployment.
+
+## Add a Microsoft Foundry project
+
+Use the `AddProject` method to create a Microsoft Foundry project for agents, project-scoped connections, and related Azure resources:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("my-project");
+
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+
+builder.AddProject<Projects.ExampleProject>("api")
+    .WithReference(project)
+    .WithReference(chat)
+    .WaitFor(chat);
+
+builder.Build().Run();
+```
+
+The preceding code creates a Foundry project and adds a deployment through `AddModelDeployment`. When you call `WithReference(project)`, Aspire injects the standard connection string and project-specific connection properties such as the project endpoint and Application Insights connection string into the consuming resource.
+
+### Configure a Foundry project
+
+You can customize the Azure resources associated with a Foundry project:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+var appInsights = builder.AddAzureApplicationInsights("appinsights");
+var keyVault = builder.AddAzureKeyVault("keyvault");
+var registry = builder.AddAzureContainerRegistry("agents");
+
+var project = foundry.AddProject("my-project")
+    .WithAppInsights(appInsights)
+    .WithKeyVault(keyVault)
+    .WithContainerRegistry(registry);
+```
+
+`AddProject` creates a default Azure Container Registry for hosted agents. Use `WithContainerRegistry` when you want to point the project at a different registry.
+
+## Publish a hosted agent to Microsoft Foundry
+
+Use `PublishAsHostedAgent` to publish an executable or containerized app as a hosted agent in a Foundry project:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("my-project");
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+
+builder.AddPythonApp("agent", "..\\agent", "main:app")
+    .WithReference(project)
+    .WithReference(chat)
+    .PublishAsHostedAgent(project);
+
+builder.Build().Run();
+```
+
+In run mode, `PublishAsHostedAgent` configures local HTTP, liveness, and readiness endpoints and enables OpenTelemetry output for the agent. In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the container to the project-associated registry.
+
+If you omit the `project` argument, Aspire uses an existing Foundry project from the app model or creates one automatically.
+
+### Add and publish a prompt agent
+
+For prompt-only scenarios, use `AddAndPublishPromptAgent` on a Foundry project:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("my-project");
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+
+project.AddAndPublishPromptAgent(
+    chat,
+    "support-agent",
+    instructions: "You are a helpful support assistant.");
+
+builder.Build().Run();
+```
+
+This creates an `AzurePromptAgentResource` that uses the specified model deployment in the target Foundry project.
 
 ## Connect to an existing Microsoft Foundry service
 
@@ -135,6 +242,12 @@ builder.AddProject<Projects.ExampleProject>()
 When the AppHost starts up, the local foundry service is also started. This requires the local machine to have [Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started) installed and running.
 
 The `RunAsFoundryLocal` method configures the resource to run as an emulator. It downloads and loads the specified models locally. The method provides health checks for the local service and automatically manages the Foundry Local lifecycle.
+
+<Aside type="caution">
+  Foundry Projects aren't supported when the parent Foundry resource uses
+  `RunAsFoundryLocal()`. Use account-level deployments for local emulator
+  scenarios.
+</Aside>
 
 ## Assign roles to resources
 
