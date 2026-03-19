@@ -50,15 +50,21 @@ The [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages
 </PackageReference>
 ```
 
-The analyzer reports 10 diagnostics (ASPIREEXPORT001–010) that help you get your exports right before users encounter runtime errors.
+The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
 
 ## Export extension methods
 
-Add `[AspireExport]` to your `Add*`, `With*`, and `Run*` extension methods. The attribute takes a method name that becomes the TypeScript API:
+Suppress the experimental diagnostic in your project file:
+
+```xml title="XML — MyIntegration.csproj"
+<PropertyGroup>
+    <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
+</PropertyGroup>
+```
+
+Then annotate your extension methods with `[AspireExport]`:
 
 ```csharp title="C# — MyDatabaseBuilderExtensions.cs"
-#pragma warning disable ASPIREATS001 // ATS types are experimental
-
 [AspireExport("addMyDatabase", Description = "Adds a MyDatabase container resource")]
 public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
     this IDistributedApplicationBuilder builder,
@@ -108,14 +114,23 @@ The export ID becomes the method name in generated SDKs. Use camelCase (e.g., `a
 
 ## Export resource types
 
-Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles:
+Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make the resource's properties accessible as get/set capabilities — most resources should include this:
 
 ```csharp title="C# — MyDatabaseResource.cs"
-[AspireExport]
+[AspireExport(ExposeProperties = true)]
 public sealed class MyDatabaseResource(string name)
     : ContainerResource(name), IResourceWithConnectionString
 {
-    // Your existing implementation...
+    /// <summary>
+    /// Gets the primary endpoint for the database.
+    /// </summary>
+    public EndpointReference PrimaryEndpoint => new(this, "tcp");
+
+    /// <summary>
+    /// Internal implementation detail — not exported.
+    /// </summary>
+    [AspireExportIgnore]
+    public string InternalConnectionPool { get; set; } = "";
 }
 
 [AspireExport]
@@ -123,6 +138,23 @@ public sealed class MyDatabaseDatabaseResource(string name, MyDatabaseResource p
     : Resource(name)
 {
     // Your existing implementation...
+}
+````
+
+When `ExposeProperties = true`, each public property becomes a capability in the generated SDK. Use `[AspireExportIgnore]` on properties that shouldn't be exposed.
+
+You can also set `ExposeMethods = true` to export public instance methods as capabilities:
+
+```csharp title="C# — Context type with exposed methods"
+[AspireExport(ExposeProperties = true, ExposeMethods = true)]
+public class EnvironmentCallbackContext
+{
+    public Dictionary<string, object> EnvironmentVariables { get; }
+
+    public void AddEnvironmentVariable(string key, string value)
+    {
+        EnvironmentVariables[key] = value;
+    }
 }
 ````
 
@@ -212,96 +244,6 @@ The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 
 A clean build with zero analyzer warnings means your integration is ready for multi-language use.
 
-## Third-party integrations
-
-If your integration doesn't reference `Aspire.Hosting` directly (or you want to avoid a version dependency on the attribute types), you can define your own copies of the ATS attributes. The scanner discovers attributes by **full type name**, not by assembly reference.
-
-Copy these attribute definitions into your project. They must be in the `Aspire.Hosting` namespace:
-
-<Tabs syncKey="attribute-defs">
-<TabItem label="AspireExportAttribute">
-
-```csharp title="C# — AspireExportAttribute.cs"
-namespace Aspire.Hosting;
-
-[AttributeUsage(
-    AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Interface
-        | AttributeTargets.Assembly | AttributeTargets.Property,
-    Inherited = false,
-    AllowMultiple = true)]
-public sealed class AspireExportAttribute : Attribute
-{
-    public AspireExportAttribute(string id) => Id = id;
-    public AspireExportAttribute() { }
-    public AspireExportAttribute(Type type) => Type = type;
-
-    public string? Id { get; }
-    public Type? Type { get; set; }
-    public string? Description { get; set; }
-    public string? MethodName { get; set; }
-    public bool ExposeProperties { get; set; }
-    public bool ExposeMethods { get; set; }
-}
-```
-
-</TabItem>
-<TabItem label="AspireExportIgnoreAttribute">
-
-```csharp title="C# — AspireExportIgnoreAttribute.cs"
-namespace Aspire.Hosting;
-
-[AttributeUsage(
-    AttributeTargets.Property | AttributeTargets.Method,
-    Inherited = false,
-    AllowMultiple = false)]
-public sealed class AspireExportIgnoreAttribute : Attribute
-{
-    public string? Reason { get; set; }
-}
-```
-
-</TabItem>
-<TabItem label="AspireDtoAttribute">
-
-```csharp title="C# — AspireDtoAttribute.cs"
-namespace Aspire.Hosting;
-
-[AttributeUsage(
-    AttributeTargets.Class | AttributeTargets.Struct,
-    Inherited = false,
-    AllowMultiple = false)]
-public sealed class AspireDtoAttribute : Attribute
-{
-    public string? DtoTypeId { get; set; }
-}
-```
-
-</TabItem>
-<TabItem label="AspireUnionAttribute">
-
-```csharp title="C# — AspireUnionAttribute.cs"
-namespace Aspire.Hosting;
-
-[AttributeUsage(
-    AttributeTargets.Parameter | AttributeTargets.Property,
-    AllowMultiple = false)]
-public sealed class AspireUnionAttribute : Attribute
-{
-    public AspireUnionAttribute(params Type[] types) => Types = types;
-    public Type[] Types { get; }
-}
-```
-
-</TabItem>
-</Tabs>
-
-<Aside type="caution" title="Namespace and signature requirements">
-  The attributes **must** be in the `Aspire.Hosting` namespace. Constructor
-  signatures must match by arity and argument type. Property names must match
-  exactly. If you later add a reference to `Aspire.Hosting` and both attribute
-  copies exist, the scanner takes the first match — both are recognized.
-</Aside>
-
 ## Local development with project references
 
 You can test your integration locally without publishing to a NuGet feed. In your TypeScript AppHost's `aspire.config.json`, set the package value to a `.csproj` path instead of a version number:
@@ -384,10 +326,12 @@ The following types are ATS-compatible and can be used in exported method signat
 | **Handles**     | `IResourceBuilder<T>`, `IDistributedApplicationBuilder`, resource types marked with `[AspireExport]` |
 | **DTOs**        | Classes/structs marked with `[AspireDto]`                                                            |
 | **Collections** | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible                             |
+| **Delegates**   | `Action<T>`, `Func<T>`, and other delegate types (use `RunSyncOnBackgroundThread = true` for synchronous delegates invoked inline) |
+| **Services**    | `ILogger`, `IServiceProvider`, `IConfiguration` (already exported by the core framework)             |
 | **Special**     | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `CancellationToken`                 |
 | **Nullable**    | Any of the above as nullable (`T?`)                                                                  |
 
-Types that are **not** ATS-compatible include: `Action<T>`, `Func<T>`, `IConfiguration`, `ILogger` (unless explicitly exported), interpolated string handlers, and custom complex types without `[AspireExport]` or `[AspireDto]`.
+Types that are **not** ATS-compatible include: interpolated string handlers and custom complex types without `[AspireExport]` or `[AspireDto]`.
 
 ## See also
 
