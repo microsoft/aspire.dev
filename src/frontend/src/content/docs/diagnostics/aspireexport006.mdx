@@ -1,0 +1,66 @@
+---
+title: Compiler Warning ASPIREEXPORT006
+description: Learn more about compiler Warning ASPIREEXPORT006. A type in an [AspireUnion] attribute is not ATS-compatible.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Type '{0}' in [AspireUnion] is not ATS-compatible. Use primitive types, enums, or supported Aspire types.
+
+This diagnostic warning is reported when one or more types specified in an `[AspireUnion]` attribute cannot be represented across language boundaries by the Aspire Type Specification (ATS). All types in a union must be ATS-compatible (primitive types, enums, or supported Aspire types) so that they can be expressed in generated code for other language runtimes.
+
+## Example
+
+The following code generates `ASPIREEXPORT006`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addResource")]
+public static IResourceBuilder<ContainerResource> AddResource(
+    IDistributedApplicationBuilder builder,
+    [AspireUnion(typeof(string), typeof(Func<string>))] object name)  // Func<string> is not ATS-compatible
+{
+    return builder.AddContainer(name.ToString()!, "myimage");
+}
+```
+
+## To correct this warning
+
+Replace the incompatible type in the union with an ATS-compatible type:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addResource")]
+public static IResourceBuilder<ContainerResource> AddResource(
+    IDistributedApplicationBuilder builder,
+    [AspireUnion(typeof(string), typeof(int))] object name)
+{
+    return builder.AddContainer(name.ToString()!, "myimage");
+}
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT006.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT006</NoWarn>
+  </PropertyGroup>
+  ```
