@@ -79,7 +79,7 @@ import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from 
 Additional commonly used imports:
 
 ```tsx
-import { Kbd } from 'starlight-kbd/components'
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';

@@ -1,0 +1,49 @@
+---
+title: Compiler Error ASPIREAZURE003
+description: Learn more about compiler Error ASPIREAZURE003. Azure Virtual Network types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Azure Virtual Network types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+The Aspire Azure hosting integration now ships with support for Azure Virtual Networks. If you're using any of the `Aspire.Hosting.Azure.Network` APIs such as `AddAzureVirtualNetwork`, you might see a compiler error/warning indicating that the API is experimental. This behavior is expected, as the API is still in preview and the shape of this API is expected to change in the future.
+
+## Example
+
+The following code generates `ASPIREAZURE003`:
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var subnet = vnet.AddSubnet("pe-subnet", "10.0.1.0/24");
+```
+
+## To correct this error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREAZURE003.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREAZURE003</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREAZURE003` directive.

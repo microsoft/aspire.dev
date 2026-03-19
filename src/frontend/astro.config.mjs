@@ -50,6 +50,7 @@ export default defineConfig({
       social: socialConfig,
       customCss: ['@fontsource-variable/outfit', './src/styles/site.css'],
       components: {
+        Banner: './src/components/starlight/Banner.astro',
         EditLink: './src/components/starlight/EditLink.astro',
         Footer: './src/components/starlight/Footer.astro',
         Head: './src/components/starlight/Head.astro',
@@ -95,7 +96,12 @@ export default defineConfig({
         }),
         catppuccin(),
         starlightSidebarTopics(sidebarTopics, {
-          exclude: ['**/includes/**/*', '/support'],
+          exclude: [
+            '**/includes/**/*',
+            '/support', 
+            '/reference/api', 
+            '/reference/api/**'
+          ],
         }),
         starlightLinksValidator({
           errorOnRelativeLinks: false,
@@ -131,7 +137,7 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Aspire',
           description:
-            'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+            'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
           // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
           exclude: [
             'includes/**',
@@ -144,10 +150,10 @@ export default defineConfig({
             'integrations/index',
             'integrations/gallery',
             'reference/overview',
-            'reference/api/browser',
             'community/contributors',
             'community/videos',
             'community/thanks',
+            'reference/api/**',
             'da/**',
             'de/**',
             'es/**',
