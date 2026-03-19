@@ -3,8 +3,15 @@ title: Multi-language integrations
 description: Learn how to annotate your Aspire hosting integration so it works with TypeScript AppHosts.
 ---
 
-import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Badge, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+
+<Badge
+  text="Preview feature"
+  variant="danger"
+  size="large"
+  class:list={'mb-4'}
+/>
 
 Aspire hosting integrations are C# libraries that extend the AppHost with new resource types. By default, these integrations are only available in C# AppHosts. To make them available in TypeScript AppHosts, you annotate your APIs with ATS (Aspire Type System) attributes.
 
@@ -17,7 +24,7 @@ When a TypeScript AppHost adds your integration, the Aspire CLI:
 <Steps>
 
 1. Loads your integration assembly
-2. Scans for `[AspireExport]` attributes on methods, types, and properties
+2. Scans for ATS attributes on methods, types, and properties, such as `[AspireExport]`.
 3. Generates a typed TypeScript SDK with matching methods
 4. The generated SDK communicates with your C# code via JSON-RPC at runtime
 
@@ -27,7 +34,7 @@ Your C# code runs as-is — the TypeScript SDK is a thin client that calls into 
 
 ## Install the analyzer
 
-The `Aspire.Hosting.Integration.Analyzers` package provides build-time validation that catches common export mistakes. Add it to your integration project:
+The [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) package provides build-time validation that catches common export mistakes. Add it to your integration project:
 
 ```xml title="XML — MyIntegration.csproj"
 <PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.2.0">
@@ -72,13 +79,19 @@ public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
 }
 ```
 
-This generates the following TypeScript API:
+This generates the following highlighted TypeScript APIs:
 
-```typescript title="TypeScript — Generated SDK"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
 const db = await builder
     .addMyDatabase("db", { port: 5432 })
     .addDatabase("mydata")
     .withDataVolume();
+
+const app = await builder.build();
+await app.run();
 ```
 
 <Aside type="tip" title="Naming convention">
@@ -120,7 +133,7 @@ public sealed class AddMyDatabaseOptions
 ```
 
 <Aside type="note">
-DTOs must have properties that can be serialized to/from JSON. Don't use complex .NET types like `IConfiguration`, `ILogger`, or delegates in DTOs.
+DTOs should only contain properties that can be serialized to and from JSON. Avoid using complex .NET types—such as `IConfiguration`, `ILogger`, or delegate types like `Action` and `Func<T>`—as they are not serializable and are not suitable for DTOs.
 </Aside>
 
 ## Handle incompatible overloads
