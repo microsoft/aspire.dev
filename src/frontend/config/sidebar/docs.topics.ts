@@ -1083,6 +1083,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             ja: 'カスタム リソース URL',
           },
         },
+        {
+          label: 'Multi-language integrations',
+          slug: 'extensibility/multi-language-integration-authoring',
+        },
       ],
     },
     {
