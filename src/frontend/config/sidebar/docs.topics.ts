@@ -431,6 +431,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'get-started/aspire-mcp-server',
         },
         {
+          label: 'Resource MCP servers',
+          slug: 'get-started/resource-mcp-servers',
+        },
+        {
           label: 'Troubleshooting',
           slug: 'get-started/troubleshooting',
         },
