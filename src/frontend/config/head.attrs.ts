@@ -22,7 +22,7 @@ export const headAttrs: HeadAttr[] = [
 					Aspire, .NET Aspire, dotnet aspire,
 					distributed applications, cloud-native, microservices, orchestration,
 					.NET, observability, otel, opentelemetry, dashboard, service discovery, integrations,
-					C#, csharp, multi-language, python, go, node.js, javascript, typescript,
+					C#, csharp, multi-language, polyglot, python, go, node.js, javascript, typescript,
 					vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis,
 					docker, containers, kubernetes, compose
 				`
