@@ -4,7 +4,7 @@ import type { MarkerDefinition } from '@astrojs/starlight/expressive-code';
 
 export type MarkerValueType = MarkerDefinition | MarkerDefinition[] | undefined;
 export type CollapseValueType = string | string[] | undefined;
-export type LangType = 'csharp' | 'python' | 'nodejs' | 'go' | 'java';
+export type LangType = 'csharp' | 'python' | 'nodejs' | 'go' | 'java' | 'typescript';
 
 interface CodeProps {
   lang?: LangType;
@@ -123,21 +123,45 @@ builder.AddViteApp("frontend", "../frontend")
 builder.Build().Run();
 `;
 
+const typescript = `
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database resource
+const postgres = await builder.addPostgres("db")
+    .addDatabase("appdata")
+    .withDataVolume();
+
+// Add API service and reference the database
+const api = await builder.addNodeApp("api", "../api", "server.js")
+    .withReference(postgres)
+    .waitFor(postgres);
+
+// Add frontend service and reference the API
+await builder.addViteApp("frontend", "../frontend")
+    .withReference(api);
+
+await builder.build().run();
+`;
+
 const codeMap: Record<LangType, string> = {
   csharp,
   python,
   nodejs: javascript,
   go: golang,
   java,
+  typescript,
 };
 
 const code = codeMap[lang];
+const isTypeScript = lang === 'typescript';
 ---
 
 <Code
   code={code}
-  lang="cs"
-  title="AppHost.cs"
+  lang={isTypeScript ? "ts" : "cs"}
+  title={isTypeScript ? "apphost.ts" : "AppHost.cs"}
   mark={mark}
   collapse={collapse}
   collapseStyle={'collapsible-auto'}

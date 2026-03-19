@@ -970,20 +970,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
-          label: 'Polyglot',
+          label: 'TypeScript AppHost',
           collapsed: false,
           items: [
             {
               label: 'Introduction',
-              slug: 'app-host/polyglot-apphost',
+              slug: 'app-host/typescript-apphost',
             },
             {
               label: 'Migration guide',
-              slug: 'app-host/polyglot-migration',
+              slug: 'app-host/typescript-apphost-migration',
             },
             {
               label: 'Troubleshooting',
-              slug: 'app-host/polyglot-troubleshooting',
+              slug: 'app-host/typescript-apphost-troubleshooting',
             },
           ],
         },
