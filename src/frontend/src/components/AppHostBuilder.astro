@@ -1,7 +1,7 @@
 ---
 import { Code, Icon } from '@astrojs/starlight/components';
 
-// Define all possible code combinations
+// Define all possible code combinations — C#
 const codes = {
   empty: `var builder = DistributedApplication.CreateBuilder(args);
 
@@ -442,12 +442,599 @@ var customContainer = builder.AddContainer("mycustomcontainer", "myregistry/myap
 
 builder.Build().Run();`,
 };
+
+// Define all possible code combinations — TypeScript
+const tsCodes: Record<string, string> = {
+  empty: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// This would be a rather boring AppHost ☹️...
+// Toggle the options above to see what an AppHost might look like.
+// For example, select "Front end" to add a frontend service.
+
+await builder.build().run();`,
+
+  frontend: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" });
+
+await builder.build().run();`,
+
+  frontendContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" });
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  databaseFrontend: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" });
+
+await builder.build().run();`,
+
+  databaseFrontendContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" });
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  apiFrontend: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" });
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api);
+
+await builder.build().run();`,
+
+  apiFrontendContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" });
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  databaseApiFrontend: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres);
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api);
+
+await builder.build().run();`,
+
+  databaseApiFrontendContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres);
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  database: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+await builder.build().run();`,
+
+  databaseContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  api: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" });
+
+await builder.build().run();`,
+
+  apiContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" });
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  databaseApi: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres);
+
+await builder.build().run();`,
+
+  databaseApiContainer: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addPostgres("db")
+    .addDatabase("appdata");
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres);
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  container: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 });
+
+await builder.build().run();`,
+
+  frontendDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+await builder.build().run();`,
+
+  frontendContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  databaseFrontendDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+await builder.build().run();`,
+
+  databaseFrontendContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Vite frontend
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  apiFrontendDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api)
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+await builder.build().run();`,
+
+  apiFrontendContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api)
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  databaseApiFrontendDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api)
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+await builder.build().run();`,
+
+  databaseApiFrontendContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+// Add Vite frontend and reference the API
+const frontend = await builder
+    .addViteApp("frontend", "./frontend")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(api)
+    .withNpmPackageInstallation()
+    .publishAsDockerFile();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  databaseDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+await builder.build().run();`,
+
+  databaseContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  apiDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .publishAsAzureContainerApp();
+
+await builder.build().run();`,
+
+  apiContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add Express API
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .publishAsAzureContainerApp();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  databaseApiDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+await builder.build().run();`,
+
+  databaseApiContainerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add database
+const postgres = await builder
+    .addAzurePostgresFlexibleServer("db")
+    .addDatabase("appdata")
+    .withDataVolume()
+    .runAsContainer();
+
+// Add Express API and reference the database
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(postgres)
+    .waitFor(postgres)
+    .publishAsAzureContainerApp();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+  containerDeployment: `import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add custom container
+const customContainer = await builder
+    .addContainer("mycustomcontainer", "myregistry/myapp", "latest")
+    .withHttpEndpoint({ targetPort: 8080 })
+    .publishAsKubernetes();
+
+await builder.build().run();`,
+
+};
 ---
 
 <div class="container">
   <div class="header" dir={Astro.locals.t.dir()}>
     <h3>{Astro.locals.t('appHostBuilder.heading', { appHost: 'AppHost' })}</h3>
     <p>{Astro.locals.t('appHostBuilder.description')}</p>
+
+    <div class="lang-toggles">
+      <button class="lang-toggle active" data-lang="csharp">C#</button>
+      <button class="lang-toggle" data-lang="typescript">TypeScript</button>
+    </div>
 
     <div class="toggles">
       <button
@@ -503,108 +1090,109 @@ builder.Build().Run();`,
   </div>
 
   <div class="code-display" data-disable-copy>
-    <div class="code-variant" data-variant="empty" style="display: none;">
-      <Code code={codes.empty} lang="cs" title="AppHost.cs" />
+    <!-- C# variants -->
+    <div class="code-lang-group" data-code-lang="csharp">
+      <div class="code-variant" data-variant="empty" style="display: none;">
+        <Code code={codes.empty} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="frontend">
+        <Code code={codes.frontend} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="frontendContainer" style="display: none;">
+        <Code code={codes.frontendContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseFrontend" style="display: none;">
+        <Code code={codes.databaseFrontend} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendContainer" style="display: none;">
+        <Code code={codes.databaseFrontendContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiFrontend" style="display: none;">
+        <Code code={codes.apiFrontend} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiFrontendContainer" style="display: none;">
+        <Code code={codes.apiFrontendContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontend" style="display: none;">
+        <Code code={codes.databaseApiFrontend} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendContainer" style="display: none;">
+        <Code code={codes.databaseApiFrontendContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="database" style="display: none;">
+        <Code code={codes.database} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseContainer" style="display: none;">
+        <Code code={codes.databaseContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="api" style="display: none;">
+        <Code code={codes.api} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiContainer" style="display: none;">
+        <Code code={codes.apiContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApi" style="display: none;">
+        <Code code={codes.databaseApi} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiContainer" style="display: none;">
+        <Code code={codes.databaseApiContainer} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="container" style="display: none;">
+        <Code code={codes.container} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="frontendDeployment" style="display: none;">
+        <Code code={codes.frontendDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="frontendContainerDeployment" style="display: none;">
+        <Code code={codes.frontendContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendDeployment" style="display: none;">
+        <Code code={codes.databaseFrontendDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseFrontendContainerDeployment" style="display: none;">
+        <Code code={codes.databaseFrontendContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiFrontendDeployment" style="display: none;">
+        <Code code={codes.apiFrontendDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiFrontendContainerDeployment" style="display: none;">
+        <Code code={codes.apiFrontendContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendDeployment" style="display: none;">
+        <Code code={codes.databaseApiFrontendDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiFrontendContainerDeployment" style="display: none;">
+        <Code code={codes.databaseApiFrontendContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseDeployment" style="display: none;">
+        <Code code={codes.databaseDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseContainerDeployment" style="display: none;">
+        <Code code={codes.databaseContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiDeployment" style="display: none;">
+        <Code code={codes.apiDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="apiContainerDeployment" style="display: none;">
+        <Code code={codes.apiContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiDeployment" style="display: none;">
+        <Code code={codes.databaseApiDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="databaseApiContainerDeployment" style="display: none;">
+        <Code code={codes.databaseApiContainerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
+      <div class="code-variant" data-variant="containerDeployment" style="display: none;">
+        <Code code={codes.containerDeployment} lang="cs" title="AppHost.cs" />
+      </div>
     </div>
-    <div class="code-variant" data-variant="frontend">
-      <Code code={codes.frontend} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="frontendContainer" style="display: none;">
-      <Code code={codes.frontendContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseFrontend" style="display: none;">
-      <Code code={codes.databaseFrontend} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseFrontendContainer" style="display: none;">
-      <Code code={codes.databaseFrontendContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiFrontend" style="display: none;">
-      <Code code={codes.apiFrontend} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiFrontendContainer" style="display: none;">
-      <Code code={codes.apiFrontendContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApiFrontend" style="display: none;">
-      <Code code={codes.databaseApiFrontend} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApiFrontendContainer" style="display: none;">
-      <Code code={codes.databaseApiFrontendContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <!-- Non-frontend variants -->
-    <div class="code-variant" data-variant="database" style="display: none;">
-      <Code code={codes.database} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseContainer" style="display: none;">
-      <Code code={codes.databaseContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="api" style="display: none;">
-      <Code code={codes.api} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiContainer" style="display: none;">
-      <Code code={codes.apiContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApi" style="display: none;">
-      <Code code={codes.databaseApi} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApiContainer" style="display: none;">
-      <Code code={codes.databaseApiContainer} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="container" style="display: none;">
-      <Code code={codes.container} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="frontendDeployment" style="display: none;">
-      <Code code={codes.frontendDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="frontendContainerDeployment" style="display: none;">
-      <Code code={codes.frontendContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseFrontendDeployment" style="display: none;">
-      <Code code={codes.databaseFrontendDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div
-      class="code-variant"
-      data-variant="databaseFrontendContainerDeployment"
-      style="display: none;"
-    >
-      <Code code={codes.databaseFrontendContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiFrontendDeployment" style="display: none;">
-      <Code code={codes.apiFrontendDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiFrontendContainerDeployment" style="display: none;">
-      <Code code={codes.apiFrontendContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApiFrontendDeployment" style="display: none;">
-      <Code code={codes.databaseApiFrontendDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div
-      class="code-variant"
-      data-variant="databaseApiFrontendContainerDeployment"
-      style="display: none;"
-    >
-      <Code code={codes.databaseApiFrontendContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <!-- Non-frontend deployment variants -->
-    <div class="code-variant" data-variant="databaseDeployment" style="display: none;">
-      <Code code={codes.databaseDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseContainerDeployment" style="display: none;">
-      <Code code={codes.databaseContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiDeployment" style="display: none;">
-      <Code code={codes.apiDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="apiContainerDeployment" style="display: none;">
-      <Code code={codes.apiContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApiDeployment" style="display: none;">
-      <Code code={codes.databaseApiDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="databaseApiContainerDeployment" style="display: none;">
-      <Code code={codes.databaseApiContainerDeployment} lang="cs" title="AppHost.cs" />
-    </div>
-    <div class="code-variant" data-variant="containerDeployment" style="display: none;">
-      <Code code={codes.containerDeployment} lang="cs" title="AppHost.cs" />
+    <!-- TypeScript variants -->
+    <div class="code-lang-group" data-code-lang="typescript" style="display: none;">
+      {Object.entries(tsCodes).map(([key, code]) => (
+        <div class="code-variant" data-variant={key} style={key === 'frontend' ? '' : 'display: none;'}>
+          <Code code={code} lang="ts" title="apphost.ts" />
+        </div>
+      ))}
     </div>
   </div>
 </div>
@@ -631,6 +1219,39 @@ builder.Build().Run();`,
     color: var(--sl-color-text);
     font-size: 1.25rem;
     font-weight: 600;
+  }
+
+  .lang-toggles {
+    display: inline-flex;
+    align-items: center;
+    background: var(--sl-color-bg);
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 0.5rem;
+    padding: 0.2rem;
+    gap: 0.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .lang-toggle {
+    padding: 0.25rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--sl-color-text);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-top: 0;
+  }
+
+  .lang-toggle:hover {
+    background: var(--sl-color-gray-5);
+  }
+
+  .lang-toggle.active {
+    background: var(--aspire-color-secondary);
+    color: var(--sl-color-black);
   }
 
   .header p {
@@ -712,7 +1333,24 @@ builder.Build().Run();`,
 <script type="module" is:inline>
   document.addEventListener('DOMContentLoaded', () => {
     const toggleButtons = document.querySelectorAll('.toggle');
-    const codeVariants = document.querySelectorAll('.code-variant');
+    const langButtons = document.querySelectorAll('.lang-toggle');
+    let currentLang = 'csharp';
+
+    // Language toggle handling
+    langButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        langButtons.forEach((b) => b.classList.remove('active'));
+        button.classList.add('active');
+        currentLang = button.dataset.lang;
+
+        // Show/hide language groups
+        document.querySelectorAll('.code-lang-group').forEach((group) => {
+          group.style.display = group.dataset.codeLang === currentLang ? '' : 'none';
+        });
+
+        updateCodeDisplay();
+      });
+    });
 
     toggleButtons.forEach((button) => {
       button.addEventListener('click', () => {
@@ -761,7 +1399,6 @@ builder.Build().Run();`,
       } else if (!hasDatabase && !hasApi && hasFrontend) {
         variant = 'frontend';
       } else if (!hasDatabase && !hasApi && !hasFrontend && hasContainer) {
-        // Only container selected
         variant = 'container';
       }
 
@@ -775,29 +1412,21 @@ builder.Build().Run();`,
         variant += 'Deployment';
       }
 
-      console.debug('Generated variant:', variant); // Debug logging
       return variant;
     }
 
     function updateCodeDisplay() {
       const targetVariant = getVariantKey();
+      const activeGroup = document.querySelector(`.code-lang-group[data-code-lang="${currentLang}"]`);
+      if (!activeGroup) return;
 
-      console.debug('Looking for variant:', targetVariant); // Debug logging
-
-      codeVariants.forEach((variant) => {
+      activeGroup.querySelectorAll('.code-variant').forEach((variant) => {
         variant.style.display = 'none';
       });
 
-      const targetElement = document.querySelector(`[data-variant="${targetVariant}"]`);
+      const targetElement = activeGroup.querySelector(`[data-variant="${targetVariant}"]`);
       if (targetElement) {
         targetElement.style.display = 'block';
-        console.debug('Found and displayed variant:', targetVariant); // Debug logging
-      } else {
-        console.debug('Variant not found:', targetVariant); // Debug logging
-        console.debug(
-          'Available variants:',
-          Array.from(codeVariants).map((v) => v.dataset.variant)
-        ); // Debug logging
       }
     }
   });
