@@ -414,10 +414,10 @@ aspire do diagnostics
 ```
 
 This command displays:
-- All available steps and their dependencies
-- Execution order with parallelization indicators
-- Step dependencies and target resources
-- Configuration issues like orphaned steps or circular dependencies
+- All available steps and their dependencies.
+- Execution order with parallelization indicators.
+- Step dependencies and target resources.
+- Configuration issues like orphaned steps or circular dependencies.
 
 The output includes several sections:
 
@@ -503,10 +503,10 @@ dependsOn: ["provision-database"],
 requiredBy: ["deploy-apiservice"]);
 ```
 
-**Dependency types:**
+You can choose from two dependency types to fix the step order:
 
-- **`dependsOn`**: This step runs after the specified steps complete
-- **`requiredBy`**: This step must complete before the specified steps run
+- **`dependsOn`**: This step runs after the specified steps complete.
+- **`requiredBy`**: This step must complete before the specified steps run.
 
 ### Pipeline configuration
 
@@ -518,9 +518,11 @@ The `WithPipelineConfiguration` API is experimental and may change in future rel
 
 ## Common use cases
 
+To deepen your understanding of pipelines, let's examine scenarios where you might use them.
+
 ### Multi-environment deployments
 
-Create environment-specific pipeline steps:
+If you're deploying to testing, staging, production, or other environments, you might want to take different deployment actions in each case. You can use the pipeline context to create environment-specific pipeline steps:
 
 ```csharp title="C# — Multi-environment deployment"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -546,7 +548,7 @@ dependsOn: [WellKnownPipelineSteps.Deploy]);
 builder.Build().Run();
 ```
 
-Deploy to different environments:
+You can deploy to different environments, and trigger the above environment-specific steps, by using the `--environment` option:
 
 ```bash title="Aspire CLI — Deploy to specific environment"
 # Deploy to staging
@@ -584,7 +586,7 @@ builder.Build().Run();
 
 ### Database migrations
 
-Integrate database migrations into the deployment pipeline:
+If you want to ensure a database is populated as part of your deployment, you can create a step that integrates database migrations into the deployment pipeline:
 
 ```csharp title="C# — Database migrations step"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -633,16 +635,20 @@ The old publishing callback system has been removed and replaced with pipeline s
 
 ### Migration steps
 
+Follow these steps to replace your Aspire 9.x publishing code with Aspire 13.x pipelines:
+
 <Steps>
 
-1. **Identify publishing callbacks** in your code that use `WithPublishingCallback`
-2. **Convert to pipeline steps** using `WithPipelineStepFactory` or `builder.Pipeline.AddStep`
-3. **Update dependencies**: when using `builder.Pipeline.AddStep`, configure dependencies via the `dependsOn` / `requiredBy` parameters; when creating `PipelineStep` instances directly, use the `DependsOn` and `RequiredBySteps` properties
-4. **Test the migration** using `aspire do diagnostics` and `aspire do deploy`
+1. **Identify publishing callbacks** in your code that use `WithPublishingCallback`.
+2. **Convert callbacks to pipeline steps** using `WithPipelineStepFactory` or `builder.Pipeline.AddStep`.
+3. **Update dependencies** with parameters or properties. When using `builder.Pipeline.AddStep`, configure dependencies with the `dependsOn` / `requiredBy` parameters. When creating `PipelineStep` instances directly, use the `DependsOn` and `RequiredBySteps` properties.
+4. **Test the migration** using `aspire do diagnostics` and `aspire do deploy`.
 
 </Steps>
 
 ### Before and after examples
+
+Here are some code examples that show Aspire 9.x code and the Aspire 13.x equivalent.
 
 #### Resource-level callback
 
@@ -760,12 +766,12 @@ builder.Pipeline.AddStep("smoke-tests", async (context) =>
 
 The pipeline system provides several advantages over publishing callbacks:
 
-- **Better visibility**: Use `aspire do diagnostics` to see all steps and their dependencies
-- **Selective execution**: Run specific steps with `aspire do <step-name>`
-- **Parallel execution**: Independent steps run concurrently automatically
-- **Clearer dependencies**: Explicit dependency declaration with `DependsOn` and `RequiredBySteps`
-- **Better error handling**: Failed steps don't block unrelated operations
-- **Reusability**: Steps can be reused across different deployment scenarios
+- **Better visibility**: Use `aspire do diagnostics` to see all steps and their dependencies.
+- **Selective execution**: Run specific steps with `aspire do <step-name>`.
+- **Parallel execution**: Independent steps run concurrently automatically.
+- **Clearer dependencies**: Explicit dependency declaration with `DependsOn` and `RequiredBySteps`.
+- **Better error handling**: Failed steps don't block unrelated operations.
+- **Reusability**: Steps can be reused across different deployment scenarios.
 
 <Aside type="tip">
 After migrating, use `aspire do diagnostics` to verify that your pipeline steps are correctly configured and that dependencies are properly declared.
