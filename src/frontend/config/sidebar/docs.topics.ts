@@ -405,7 +405,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'get-started/add-aspire-existing-app',
         },
         {
-          label: 'AI coding agents',
+          label: 'Use AI coding agents',
           collapsed: false,
           translations: {
             da: 'AI-kodningsagenter',
