@@ -406,6 +406,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'AI coding agents',
+          collapsed: false,
           translations: {
             da: 'AI-kodningsagenter',
             de: 'KI-Coding-Agenten',
@@ -424,15 +425,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'ШІ-агенти для кодування',
             'zh-CN': 'AI 编码代理',
           },
-          slug: 'get-started/configure-mcp',
-        },
-        {
-          label: 'Aspire MCP server',
-          slug: 'get-started/aspire-mcp-server',
-        },
-        {
-          label: 'Resource MCP servers',
-          slug: 'get-started/resource-mcp-servers',
+          items: [
+            {
+              label: 'Overview',
+              slug: 'get-started/configure-mcp',
+            },
+            {
+              label: 'Aspire MCP server',
+              slug: 'get-started/aspire-mcp-server',
+            },
+            {
+              label: 'Resource MCP servers',
+              slug: 'get-started/resource-mcp-servers',
+            },
+          ],
         },
         {
           label: 'Troubleshooting',
