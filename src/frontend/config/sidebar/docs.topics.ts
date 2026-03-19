@@ -1084,7 +1084,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
-          label: 'Multi-language integration authoring',
+          label: 'Multi-language integrations',
           slug: 'extensibility/multi-language-integration-authoring',
         },
       ],
