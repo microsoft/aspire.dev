@@ -3,7 +3,14 @@ title: Multi-language integrations
 description: Learn how to annotate your Aspire hosting integration so it works with TypeScript AppHosts.
 ---
 
-import { Aside, Badge, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import {
+  Aside,
+  Badge,
+  Code,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 <Badge
@@ -81,6 +88,7 @@ public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
 
 This generates the following highlighted TypeScript APIs:
 
+```typescript title="TypeScript — Generated SDK" {5-8}
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -92,7 +100,7 @@ const db = await builder
 
 const app = await builder.build();
 await app.run();
-```
+````
 
 <Aside type="tip" title="Naming convention">
 The export ID becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`). The full capability ID is computed as `{AssemblyName}/{methodName}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
@@ -116,7 +124,7 @@ public sealed class MyDatabaseDatabaseResource(string name, MyDatabaseResource p
 {
     // Your existing implementation...
 }
-```
+````
 
 ## Export configuration DTOs
 
@@ -161,7 +169,9 @@ public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
 ```
 
 <Aside type="caution">
-The analyzer (ASPIREEXPORT008) warns when public extension methods on exported types lack either `[AspireExport]` or `[AspireExportIgnore]`. Every public method must be explicitly exported or excluded.
+  The analyzer (ASPIREEXPORT008) warns when public extension methods on exported
+  types lack either `[AspireExport]` or `[AspireExportIgnore]`. Every public
+  method must be explicitly exported or excluded.
 </Aside>
 
 ## Union types
@@ -187,18 +197,18 @@ All types in the union must be ATS-compatible. The analyzer (ASPIREEXPORT005, AS
 
 The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 
-| ID | Severity | Description |
-|----|----------|-------------|
-| ASPIREEXPORT001 | Error | `[AspireExport]` method must be static |
-| ASPIREEXPORT002 | Error | Invalid export ID format (must match `[a-zA-Z][a-zA-Z0-9.]*`) |
-| ASPIREEXPORT003 | Error | Return type is not ATS-compatible |
-| ASPIREEXPORT004 | Error | Parameter type is not ATS-compatible |
-| ASPIREEXPORT005 | Warning | `[AspireUnion]` requires at least 2 types |
-| ASPIREEXPORT006 | Warning | Union type is not ATS-compatible |
-| ASPIREEXPORT007 | Warning | Duplicate export ID for the same target type |
-| ASPIREEXPORT008 | Warning | Public extension method on exported type missing `[AspireExport]` or `[AspireExportIgnore]` |
-| ASPIREEXPORT009 | Warning | Export name may collide with other integrations |
-| ASPIREEXPORT010 | Warning | Synchronous callback invoked inline — may deadlock in multi-language app hosts |
+| ID              | Severity | Description                                                                                 |
+| --------------- | -------- | ------------------------------------------------------------------------------------------- |
+| ASPIREEXPORT001 | Error    | `[AspireExport]` method must be static                                                      |
+| ASPIREEXPORT002 | Error    | Invalid export ID format (must match `[a-zA-Z][a-zA-Z0-9.]*`)                               |
+| ASPIREEXPORT003 | Error    | Return type is not ATS-compatible                                                           |
+| ASPIREEXPORT004 | Error    | Parameter type is not ATS-compatible                                                        |
+| ASPIREEXPORT005 | Warning  | `[AspireUnion]` requires at least 2 types                                                   |
+| ASPIREEXPORT006 | Warning  | Union type is not ATS-compatible                                                            |
+| ASPIREEXPORT007 | Warning  | Duplicate export ID for the same target type                                                |
+| ASPIREEXPORT008 | Warning  | Public extension method on exported type missing `[AspireExport]` or `[AspireExportIgnore]` |
+| ASPIREEXPORT009 | Warning  | Export name may collide with other integrations                                             |
+| ASPIREEXPORT010 | Warning  | Synchronous callback invoked inline — may deadlock in multi-language app hosts              |
 
 A clean build with zero analyzer warnings means your integration is ready for multi-language use.
 
@@ -286,7 +296,10 @@ public sealed class AspireUnionAttribute : Attribute
 </Tabs>
 
 <Aside type="caution" title="Namespace and signature requirements">
-The attributes **must** be in the `Aspire.Hosting` namespace. Constructor signatures must match by arity and argument type. Property names must match exactly. If you later add a reference to `Aspire.Hosting` and both attribute copies exist, the scanner takes the first match — both are recognized.
+  The attributes **must** be in the `Aspire.Hosting` namespace. Constructor
+  signatures must match by arity and argument type. Property names must match
+  exactly. If you later add a reference to `Aspire.Hosting` and both attribute
+  copies exist, the scanner takes the first match — both are recognized.
 </Aside>
 
 ## Local development with project references
@@ -309,7 +322,8 @@ You can test your integration locally without publishing to a NuGet feed. In you
 When the CLI detects a `.csproj` path, it builds the project locally and generates the TypeScript SDK from the resulting assemblies. This lets you iterate on your exports without publishing to a feed.
 
 <Aside type="note">
-Project references require the .NET SDK to be installed (for `dotnet build`). The NuGet-only path (version strings) does not require the .NET SDK.
+  Project references require the .NET SDK to be installed (for `dotnet build`).
+  The NuGet-only path (version strings) does not require the .NET SDK.
 </Aside>
 
 ## Test your exports
@@ -318,43 +332,43 @@ Project references require the .NET SDK to be installed (for `dotnet build`). Th
 
 1. Create a TypeScript AppHost for testing:
 
-    ```bash title="Create test AppHost"
-    mkdir test-apphost && cd test-apphost
-    aspire init --language typescript
-    ```
+   ```bash title="Create test AppHost"
+   mkdir test-apphost && cd test-apphost
+   aspire init --language typescript
+   ```
 
 2. Add your integration via project reference in `aspire.config.json`:
 
-    ```json title="JSON — aspire.config.json (packages section)"
-    {
-      "packages": {
-        "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
-      }
-    }
-    ```
+   ```json title="JSON — aspire.config.json (packages section)"
+   {
+     "packages": {
+       "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
+     }
+   }
+   ```
 
 3. Run `aspire run` to generate the TypeScript SDK:
 
-    ```bash title="Generate SDK and start"
-    aspire run
-    ```
+   ```bash title="Generate SDK and start"
+   aspire run
+   ```
 
 4. Check the generated `.modules/` directory for your integration's TypeScript types. Verify that your exported methods appear with the correct signatures.
 
 5. Use the generated API in `apphost.ts`:
 
-    ```typescript title="TypeScript — apphost.ts"
-    import { createBuilder } from './.modules/aspire.js';
+   ```typescript title="TypeScript — apphost.ts"
+   import { createBuilder } from './.modules/aspire.js';
 
-    const builder = await createBuilder();
+   const builder = await createBuilder();
 
-    const db = await builder
-        .addMyDatabase("db", { port: 5432 })
-        .addDatabase("mydata")
-        .withDataVolume();
+   const db = await builder
+     .addMyDatabase('db', { port: 5432 })
+     .addDatabase('mydata')
+     .withDataVolume();
 
-    await builder.build().run();
-    ```
+   await builder.build().run();
+   ```
 
 </Steps>
 
@@ -362,16 +376,16 @@ Project references require the .NET SDK to be installed (for `dotnet build`). Th
 
 The following types are ATS-compatible and can be used in exported method signatures:
 
-| Category | Types |
-|----------|-------|
-| **Primitives** | `string`, `bool`, `int`, `long`, `float`, `double`, `decimal` |
-| **Value types** | `DateTime`, `TimeSpan`, `Guid`, `Uri` |
-| **Enums** | Any enum type |
-| **Handles** | `IResourceBuilder<T>`, `IDistributedApplicationBuilder`, resource types marked with `[AspireExport]` |
-| **DTOs** | Classes/structs marked with `[AspireDto]` |
-| **Collections** | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible |
-| **Special** | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `CancellationToken` |
-| **Nullable** | Any of the above as nullable (`T?`) |
+| Category        | Types                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| **Primitives**  | `string`, `bool`, `int`, `long`, `float`, `double`, `decimal`                                        |
+| **Value types** | `DateTime`, `TimeSpan`, `Guid`, `Uri`                                                                |
+| **Enums**       | Any enum type                                                                                        |
+| **Handles**     | `IResourceBuilder<T>`, `IDistributedApplicationBuilder`, resource types marked with `[AspireExport]` |
+| **DTOs**        | Classes/structs marked with `[AspireDto]`                                                            |
+| **Collections** | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible                             |
+| **Special**     | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `CancellationToken`                 |
+| **Nullable**    | Any of the above as nullable (`T?`)                                                                  |
 
 Types that are **not** ATS-compatible include: `Action<T>`, `Func<T>`, `IConfiguration`, `ILogger` (unless explicitly exported), interpolated string handlers, and custom complex types without `[AspireExport]` or `[AspireDto]`.
 
