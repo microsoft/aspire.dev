@@ -67,4 +67,5 @@ export const redirects = {
   '/app-host/polyglot-apphost/': '/app-host/typescript-apphost/',
   '/app-host/polyglot-migration/': '/app-host/typescript-apphost-migration/',
   '/app-host/polyglot-troubleshooting/': '/app-host/typescript-apphost-troubleshooting/',
+  '/get-started/configure-mcp/': '/get-started/ai-coding-agents/',
 };
