@@ -1,0 +1,145 @@
+---
+title: Container networking
+description: Learn how the DCP container tunnel enables reliable container-to-host communication in Aspire.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
+During local development, your Aspire app model often includes a mix of container resources and host-based services (such as C#, Python, or TypeScript projects). Container-to-container communication works naturally over the bridge network, but containers that need to reach services running on the host require a different approach. Aspire solves this with the **container tunnel**, a [Developer Control Plane (DCP)](/architecture/overview/#developer-control-plane) capability that provides reliable, transparent container-to-host connectivity.
+
+## The container-to-host problem
+
+When Aspire runs your application locally, DCP creates a dedicated bridge network so that containers can discover and communicate with each other by name. However, host-based services—such as projects started by the AppHost—run directly on your machine, outside the container network.
+
+Without special handling, a container trying to reach a host service faces networking barriers:
+
+- The host IP address varies across operating systems (Docker Desktop exposes `host.docker.internal` on Windows and macOS, but Linux requires additional configuration).
+- Port mappings and firewall rules may block traffic from the container network to the host.
+- Different container runtimes (Docker, Podman) handle host connectivity differently.
+
+These inconsistencies make container-to-host communication fragile and error-prone. The container tunnel removes these issues by providing a single, consistent mechanism that works across all supported platforms and container runtimes.
+
+## How the container tunnel works
+
+Once enabled, the container tunnel is managed by DCP and operates transparently—you don't need to configure it directly. When a container resource references an endpoint on a host-based service (via `WithReference`), Aspire detects that the container needs to reach the host and sets up a tunnel automatically.
+
+At a high level, the tunnel works as follows:
+
+<Steps>
+
+1. **Dependency detection**: When the AppHost builds the app model, it identifies which containers reference endpoints on host-based resources.
+
+2. **Tunnel setup**: DCP creates a network path from the container bridge network to the host, so containers can reach host-bound ports.
+
+3. **Endpoint injection**: The correct host endpoints are injected into the container as environment variables, using addresses that are reachable from within the container network.
+
+4. **Automatic cleanup**: When the AppHost process stops, DCP tears down the tunnel along with the rest of the orchestrated resources.
+
+</Steps>
+
+This means that when you write code like the following, the container tunnel ensures `mycontainer` can reach the `api` project regardless of your operating system or container runtime:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+builder.AddContainer("mycontainer", "myimage")
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+## Network identifiers
+
+Aspire uses **network identifiers** to provide context-aware endpoint resolution. When an endpoint is resolved, the result depends on the network context of the caller—whether it's on the host, on the container bridge network, or on the public internet.
+
+The `KnownNetworkIdentifiers` class provides predefined identifiers for common scenarios:
+
+- `KnownNetworkIdentifiers.LocalhostNetwork` — resolves the endpoint as reachable from the host machine (for example, `localhost:5000`).
+- `KnownNetworkIdentifiers.DefaultAspireContainerNetwork` — resolves the endpoint as reachable from within the Aspire container bridge network.
+- `KnownNetworkIdentifiers.PublicInternet` — resolves the endpoint as reachable from external networks.
+
+You can use these identifiers when you need to obtain an endpoint for a specific network context:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+// Resolve the HTTP endpoint for the host network
+var localhostEndpoint = api.GetEndpoint(
+    "http", KnownNetworkIdentifiers.LocalhostNetwork);
+
+// Resolve the HTTP endpoint for the container network
+var containerEndpoint = api.GetEndpoint(
+    "http", KnownNetworkIdentifiers.DefaultAspireContainerNetwork);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+In most cases you don't need to use network identifiers directly. When you call `WithReference`, Aspire automatically resolves endpoints using the correct network context for the consuming resource.
+</Aside>
+
+## Enable the container tunnel
+
+<Aside type="caution">
+The container tunnel is an experimental feature. Its behavior may change in future releases.
+</Aside>
+
+To enable the container tunnel, set the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `true` before running your AppHost. You can set this in your AppHost _launchSettings.json_:
+
+```json title="JSON — Properties/launchSettings.json"
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPIRE_ENABLE_CONTAINER_TUNNEL": "true"
+      }
+    }
+  }
+}
+```
+
+Alternatively, set the variable in your shell before running:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+export ASPIRE_ENABLE_CONTAINER_TUNNEL=true
+aspire run
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "true"
+aspire run
+```
+
+</div>
+</OsAwareTabs>
+
+When the tunnel is enabled, containers can reach host-based services without relying on platform-specific workarounds like `host.docker.internal`.
+
+## When to use the container tunnel
+
+The container tunnel is useful whenever containers need to communicate with host-based services. Common scenarios include:
+
+- **A containerized frontend calling a host-based API**: For example, an Nginx or Node.js container that calls a .NET API project running on the host.
+- **Database tools in containers connecting to host databases**: For example, pgAdmin running in a container connecting to a PostgreSQL instance running as a host process.
+- **Testing containers against local services**: Integration test containers that need to reach services running directly on the development machine.
+
+For container-to-container communication, the bridge network handles connectivity automatically, and the tunnel is not involved. For more information on how Aspire manages container networks, see [How container networks are managed](/fundamentals/networking-overview/#how-container-networks-are-managed).
+
+## See also
+
+- [Inner-loop networking overview](/fundamentals/networking-overview/)
+- [Service discovery](/fundamentals/service-discovery/)
+- [Architecture overview — Developer Control Plane](/architecture/overview/#developer-control-plane)
+- [What's new in Aspire 13 — Universal container-to-host communication](/whats-new/aspire-13/#universal-container-to-host-communication)
