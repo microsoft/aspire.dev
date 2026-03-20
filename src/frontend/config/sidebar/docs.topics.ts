@@ -976,6 +976,16 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
+          label: 'TypeScript AppHost',
+          collapsed: true,
+          items: [
+            {
+              label: 'Project structure',
+              slug: 'app-host/typescript-apphost',
+            },
+          ],
+        },
+        {
           label: 'Docker Compose',
           collapsed: true,
           items: [
