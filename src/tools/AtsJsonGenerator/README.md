@@ -6,6 +6,8 @@ Transforms `aspire sdk dump --format json` output into structured JSON files for
 
 The Aspire CLI can emit a JSON description of all TypeScript-accessible capabilities for any hosting package via `aspire sdk dump --format json`. This tool transforms that output into a docs-friendly JSON format suitable for consumption by Astro's content collections.
 
+The companion `generate-ts-api-json.ps1` script reads the generated C# package JSON files in `src/frontend/src/data/pkgs/` and regenerates TypeScript API JSON using the same `Aspire.Hosting*` package/version set.
+
 ## Usage
 
 ### Single file

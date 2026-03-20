@@ -29,6 +29,8 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
 
     private CanonicalType BuildType(INamedTypeSymbol symbol)
     {
+        var isEnum = symbol.TypeKind == TypeKind.Enum;
+
         var type = new CanonicalType
         {
             Name = symbol.Name,
@@ -37,7 +39,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
             Kind = CanonicalType.GetTypeKind(symbol),
             Accessibility = symbol.DeclaredAccessibility.ToString().ToLowerInvariant(),
             IsAbstract = symbol.IsAbstract && symbol.TypeKind != TypeKind.Interface,
-            IsSealed = symbol.IsSealed,
+            IsSealed = symbol.IsSealed && !isEnum,
             IsStatic = symbol.IsStatic,
             IsGeneric = symbol.IsGenericType,
             IsReadOnly = symbol.IsReadOnly && symbol.IsValueType,
@@ -70,7 +72,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         type.Docs = ExtractDocumentation(symbol);
 
         // Enum members
-        if (symbol.TypeKind == TypeKind.Enum)
+        if (isEnum)
         {
             type.EnumMembers = [.. symbol.GetMembers()
                 .OfType<IFieldSymbol>()
@@ -87,14 +89,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         if (symbol.TypeKind == TypeKind.Delegate && symbol.DelegateInvokeMethod is { } invokeMethod)
         {
             type.DelegateReturnType = invokeMethod.ReturnsVoid ? "void" : invokeMethod.ReturnType.ToDisplayString();
-            type.DelegateParameters = [.. invokeMethod.Parameters.Select(p => new CanonicalParameter
-            {
-                Name = p.Name,
-                Type = p.Type.ToDisplayString(),
-                IsNullable = p.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                IsOptional = p.IsOptional,
-                DefaultValue = p.HasExplicitDefaultValue ? p.ExplicitDefaultValue?.ToString() : null,
-            })];
+            type.DelegateParameters = [.. invokeMethod.Parameters.Select(parameter => BuildParameter(parameter))];
         }
 
         // Attributes
@@ -156,24 +151,8 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         ReturnType = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(),
         IsReturnNullable = method.ReturnType.NullableAnnotation == NullableAnnotation.Annotated,
         Parameters = [.. method.Parameters
-            .Select((p, i) => new CanonicalParameter
-            {
-                Name = p.Name,
-                Type = p.Type.ToDisplayString(),
-                IsNullable = p.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                IsOptional = p.IsOptional,
-                DefaultValue = p.HasExplicitDefaultValue ? p.ExplicitDefaultValue?.ToString() : null,
-                Modifier = i == 0 && method.IsExtensionMethod
-                    ? "this"
-                    : p.RefKind switch
-                    {
-                        RefKind.Ref => "ref",
-                        RefKind.Out => "out",
-                        RefKind.In => "in",
-                        RefKind.RefReadOnlyParameter => "ref readonly",
-                        _ => p.IsParams ? "params" : null,
-                    },
-            })],
+            .AsEnumerable()
+            .Select((parameter, index) => BuildParameter(parameter, index == 0 && method.IsExtensionMethod))],
         GenericParameters = method.IsGenericMethod
             ? [.. method.TypeParameters.Select(BuildGenericParameter)]
             : null,
@@ -197,12 +176,7 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         ReturnType = property.Type.ToDisplayString(),
         IsReturnNullable = property.Type.NullableAnnotation == NullableAnnotation.Annotated,
         Parameters = property.IsIndexer
-            ? [.. property.Parameters.Select(p => new CanonicalParameter
-            {
-                Name = p.Name,
-                Type = p.Type.ToDisplayString(),
-                IsNullable = p.Type.NullableAnnotation == NullableAnnotation.Annotated,
-            })]
+            ? [.. property.Parameters.Select(parameter => BuildParameter(parameter))]
             : null,
         Signature = PrependModifiers(
             property.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
@@ -210,6 +184,26 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
             property.IsVirtual, property.IsOverride),
         Docs = ExtractDocumentation(property),
         Attributes = ExtractRelevantAttributes(property),
+    };
+
+    private static CanonicalParameter BuildParameter(IParameterSymbol parameter, bool isExtensionReceiver = false) => new()
+    {
+        Name = parameter.Name,
+        Type = parameter.Type.ToDisplayString(),
+        IsNullable = parameter.Type.NullableAnnotation == NullableAnnotation.Annotated,
+        IsOptional = parameter.IsOptional,
+        DefaultValue = parameter.HasExplicitDefaultValue ? parameter.ExplicitDefaultValue?.ToString() : null,
+        Modifier = isExtensionReceiver
+            ? "this"
+            : parameter.RefKind switch
+            {
+                RefKind.Ref => "ref",
+                RefKind.Out => "out",
+                RefKind.In => "in",
+                RefKind.RefReadOnlyParameter => "ref readonly",
+                _ => parameter.IsParams ? "params" : null,
+            },
+        Attributes = ExtractRelevantAttributes(parameter),
     };
 
     private CanonicalMember BuildField(IFieldSymbol field) => new()
@@ -801,22 +795,14 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
                             var headerElem = child.Element("listheader");
                             if (headerElem is not null)
                             {
-                                listNode.Header = new DocListItem
-                                {
-                                    Term = ExtractDocNodes(headerElem.Element("term")),
-                                    Description = ExtractDocNodes(headerElem.Element("description")),
-                                };
+                                listNode.Header = BuildDocListItem(headerElem);
                             }
 
                             // Items
                             var items = child.Elements("item").ToList();
                             if (items.Count > 0)
                             {
-                                listNode.Items = items.Select(item => new DocListItem
-                                {
-                                    Term = ExtractDocNodes(item.Element("term")),
-                                    Description = ExtractDocNodes(item.Element("description")),
-                                }).ToList();
+                                listNode.Items = items.Select(BuildDocListItem).ToList();
                             }
 
                             nodes.Add(listNode);
@@ -858,6 +844,25 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         }
 
         return nodes;
+    }
+
+    private static DocListItem BuildDocListItem(XElement element)
+    {
+        var term = ExtractDocNodes(element.Element("term"));
+        var description = ExtractDocNodes(element.Element("description"));
+
+        // Support XML doc list items that contain plain text/paragraph content
+        // directly inside <item> instead of nested <description> nodes.
+        if (term is null && description is null)
+        {
+            description = ExtractDocNodes(element);
+        }
+
+        return new DocListItem
+        {
+            Term = term,
+            Description = description,
+        };
     }
 
     /// <summary>
@@ -1061,12 +1066,8 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
             .Select(a => new CanonicalAttribute
             {
                 Name = a.AttributeClass?.ToDisplayString() ?? "",
-                ConstructorArguments = a.ConstructorArguments.Length > 0
-                    ? [.. a.ConstructorArguments.Select(c => c.Value?.ToString() ?? "")]
-                    : null,
-                Arguments = a.NamedArguments.Length > 0
-                    ? a.NamedArguments.ToDictionary(n => n.Key, n => n.Value.Value?.ToString() ?? "")
-                    : null,
+                ConstructorArguments = ExtractConstructorArguments(a),
+                Arguments = ExtractNamedArguments(a),
             })
             .ToList();
 
@@ -1074,6 +1075,10 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
     }
 
     private static bool IsRelevantAttribute(string name) => name is
+        "AspireDtoAttribute" or
+        "AspireExportAttribute" or
+        "AspireExportIgnoreAttribute" or
+        "AspireUnionAttribute" or
         "ObsoleteAttribute" or
         "ExperimentalAttribute" or
         "FlagsAttribute" or
@@ -1084,6 +1089,66 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         "JsonRequiredAttribute" or
         "RequiredAttribute" or
         "DefaultValueAttribute";
+
+    private static List<string>? ExtractConstructorArguments(AttributeData attribute)
+    {
+        if (attribute.ConstructorArguments.Length == 0)
+        {
+            return null;
+        }
+
+        var values = attribute.ConstructorArguments
+            .SelectMany(FlattenTypedConstant)
+            .ToList();
+
+        return values.Count > 0 ? values : null;
+    }
+
+    private static Dictionary<string, string>? ExtractNamedArguments(AttributeData attribute)
+    {
+        if (attribute.NamedArguments.Length == 0)
+        {
+            return null;
+        }
+
+        var values = attribute.NamedArguments
+            .ToDictionary(n => n.Key, n => FormatTypedConstant(n.Value));
+
+        return values.Count > 0 ? values : null;
+    }
+
+    private static IEnumerable<string> FlattenTypedConstant(TypedConstant constant)
+    {
+        if (constant.Kind == TypedConstantKind.Array)
+        {
+            foreach (var item in constant.Values)
+            {
+                foreach (var nested in FlattenTypedConstant(item))
+                {
+                    yield return nested;
+                }
+            }
+
+            yield break;
+        }
+
+        yield return FormatTypedConstant(constant);
+    }
+
+    private static string FormatTypedConstant(TypedConstant constant)
+    {
+        if (constant.Kind == TypedConstantKind.Array)
+        {
+            return string.Join(", ", constant.Values.SelectMany(FlattenTypedConstant));
+        }
+
+        return constant.Value switch
+        {
+            ITypeSymbol typeSymbol => typeSymbol.ToDisplayString(),
+            null => "null",
+            _ => constant.Value.ToString() ?? "",
+        };
+    }
 
     /// <summary>
     /// Normalizes XML doc language identifiers to lowercase aliases expected by

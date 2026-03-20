@@ -140,6 +140,15 @@ internal static class SchemaEmitter
                     writer.WriteBoolean("isOptional", true);
                     if (p.DefaultValue is not null) writer.WriteString("defaultValue", p.DefaultValue);
                 }
+                if (p.Attributes is { Count: > 0 })
+                {
+                    writer.WriteStartArray("attributes");
+                    foreach (var attr in p.Attributes)
+                    {
+                        EmitAttribute(writer, attr);
+                    }
+                    writer.WriteEndArray();
+                }
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
@@ -176,27 +185,7 @@ internal static class SchemaEmitter
             writer.WriteStartArray("attributes");
             foreach (var attr in type.Attributes)
             {
-                writer.WriteStartObject();
-                writer.WriteString("name", attr.Name);
-                if (attr.ConstructorArguments is { Count: > 0 })
-                {
-                    writer.WriteStartArray("constructorArguments");
-                    foreach (var arg in attr.ConstructorArguments)
-                    {
-                        writer.WriteStringValue(arg);
-                    }
-                    writer.WriteEndArray();
-                }
-                if (attr.Arguments is { Count: > 0 })
-                {
-                    writer.WriteStartObject("arguments");
-                    foreach (var kvp in attr.Arguments.OrderBy(a => a.Key))
-                    {
-                        writer.WriteString(kvp.Key, kvp.Value);
-                    }
-                    writer.WriteEndObject();
-                }
-                writer.WriteEndObject();
+                EmitAttribute(writer, attr);
             }
             writer.WriteEndArray();
         }
@@ -272,6 +261,15 @@ internal static class SchemaEmitter
                     if (p.DefaultValue is not null) writer.WriteString("defaultValue", p.DefaultValue);
                 }
                 if (p.Modifier is not null) writer.WriteString("modifier", p.Modifier);
+                if (p.Attributes is { Count: > 0 })
+                {
+                    writer.WriteStartArray("attributes");
+                    foreach (var attr in p.Attributes)
+                    {
+                        EmitAttribute(writer, attr);
+                    }
+                    writer.WriteEndArray();
+                }
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
@@ -305,27 +303,7 @@ internal static class SchemaEmitter
             writer.WriteStartArray("attributes");
             foreach (var attr in member.Attributes)
             {
-                writer.WriteStartObject();
-                writer.WriteString("name", attr.Name);
-                if (attr.ConstructorArguments is { Count: > 0 })
-                {
-                    writer.WriteStartArray("constructorArguments");
-                    foreach (var arg in attr.ConstructorArguments)
-                    {
-                        writer.WriteStringValue(arg);
-                    }
-                    writer.WriteEndArray();
-                }
-                if (attr.Arguments is { Count: > 0 })
-                {
-                    writer.WriteStartObject("arguments");
-                    foreach (var kvp in attr.Arguments.OrderBy(a => a.Key))
-                    {
-                        writer.WriteString(kvp.Key, kvp.Value);
-                    }
-                    writer.WriteEndObject();
-                }
-                writer.WriteEndObject();
+                EmitAttribute(writer, attr);
             }
             writer.WriteEndArray();
         }
@@ -522,6 +500,31 @@ internal static class SchemaEmitter
             writer.WriteEndArray();
         }
 
+        writer.WriteEndObject();
+    }
+
+    private static void EmitAttribute(Utf8JsonWriter writer, CanonicalAttribute attr)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("name", attr.Name);
+        if (attr.ConstructorArguments is { Count: > 0 })
+        {
+            writer.WriteStartArray("constructorArguments");
+            foreach (var arg in attr.ConstructorArguments)
+            {
+                writer.WriteStringValue(arg);
+            }
+            writer.WriteEndArray();
+        }
+        if (attr.Arguments is { Count: > 0 })
+        {
+            writer.WriteStartObject("arguments");
+            foreach (var kvp in attr.Arguments.OrderBy(a => a.Key))
+            {
+                writer.WriteString(kvp.Key, kvp.Value);
+            }
+            writer.WriteEndObject();
+        }
         writer.WriteEndObject();
     }
 }

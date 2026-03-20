@@ -5,6 +5,7 @@ A tool for generating Package.{version}.json files that contain detailed API sch
 ## Overview
 
 This tool analyzes .NET assemblies using Roslyn and generates a JSON file containing:
+
 - All public types (classes, structs, interfaces, enums, delegates)
 - Type member details (methods, properties, fields, events)
 - XML documentation comments
@@ -66,10 +67,12 @@ The generated JSON follows this schema:
 ## Implementation Details
 
 This tool is based on:
+
 - `ConfigurationSchemaGenerator` from `dotnet/aspire` - for the command-line tool structure
 - `ApiSchemaGenerator` from `api.contracts` - for the JSON schema generation approach
 
 The tool uses:
+
 - **Microsoft.CodeAnalysis.CSharp.Workspaces** - for loading and analyzing assemblies
 - **System.CommandLine** - for CLI argument parsing
 - **System.Text.Json** - for deterministic JSON output
@@ -104,3 +107,6 @@ dotnet run --project ../PackageJsonGenerator/PackageJsonGenerator.csproj -- \
 - Output is deterministically formatted (alphabetically sorted) for version control friendliness
 - Only `public` types and members are included in the output
 - Compiler-generated types (e.g., closure classes) are automatically filtered out
+- The emitted `targetFramework` should match the selected `lib/<tfm>` folder for the analyzed package
+- The companion `generate-package-json.ps1` script resolves official `Aspire.*` packages from a branch-specific Azure Artifacts feed on `release/*` branches and uses nuget.org elsewhere
+- When the matching `dotnet/aspire` release branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running the script

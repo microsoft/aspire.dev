@@ -39,4 +39,7 @@ internal sealed class BatchPackageEntry
 
     [JsonPropertyName("sourceCommit")]
     public string? SourceCommit { get; set; }
+
+    [JsonPropertyName("targetFramework")]
+    public string? TargetFramework { get; set; }
 }

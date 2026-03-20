@@ -22,7 +22,8 @@
     Defaults to <repo-root>/src/frontend/src/data/packages.
 
 .PARAMETER Framework
-    The target framework moniker to prefer when selecting lib folders.
+    Fallback target framework moniker used when restoring packages or when a
+    lib folder/framework cannot be inferred automatically.
     Defaults to "net10.0".
 
 .PARAMETER Parallelism
@@ -53,6 +54,14 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json"
+$AspireRepoCandidates = @(
+    $env:ASPIRE_GITHUB_REPO_URL,
+    "https://github.com/dotnet/aspire",
+    "https://github.com/microsoft/aspire"
+) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+$script:NuGetSourceMetadataCache = @{}
 
 # ── Resolve paths ──────────────────────────────────────────────────────────────
 
@@ -98,12 +107,245 @@ else {
 
 # ── NuGet API helpers ─────────────────────────────────────────────────────────
 
-function Get-LatestNuGetVersion {
+function Normalize-BranchName {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    if ([string]::IsNullOrWhiteSpace($BranchName)) {
+        return ""
+    }
+
+    return $BranchName -replace '^refs/heads/', ''
+}
+
+function Get-CurrentBranchName {
+    [CmdletBinding()]
+    param()
+
+    $candidates = @(
+        $env:BUILD_SOURCEBRANCH,
+        $env:GITHUB_HEAD_REF,
+        $env:GITHUB_REF_NAME
+    )
+
+    foreach ($candidate in $candidates) {
+        $normalized = Normalize-BranchName $candidate
+        if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+            return $normalized
+        }
+    }
+
+    try {
+        $branch = (& git rev-parse --abbrev-ref HEAD 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+            return (Normalize-BranchName (($branch | Out-String).Trim()))
+        }
+    }
+    catch {
+    }
+
+    return ""
+}
+
+function Test-IsReleaseBranch {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    return $BranchName.StartsWith("release/", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-IsOfficialAspirePackage {
     [CmdletBinding()]
     param([string]$PackageId)
 
+    return $PackageId.StartsWith("Aspire.", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-ReleaseFeedNameFromCommit {
+    [CmdletBinding()]
+    param([string]$Commit)
+
+    if ([string]::IsNullOrWhiteSpace($Commit)) {
+        return $null
+    }
+
+    $normalizedCommit = $Commit.Trim()
+    $length = [Math]::Min(8, $normalizedCommit.Length)
+    return "darc-pub-dotnet-aspire-$($normalizedCommit.Substring(0, $length))"
+}
+
+function ConvertTo-ReleaseFeedServiceIndex {
+    [CmdletBinding()]
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -match '^https?://' -and $trimmed -match '/nuget/v3/index\.json/?$') {
+        return $trimmed.TrimEnd('/')
+    }
+
+    $feedName = $null
+    if ($trimmed -match '/_artifacts/feed/([^/?#]+)') {
+        $feedName = $Matches[1]
+    }
+    elseif ($trimmed -match '/_packaging/([^/?#]+)') {
+        $feedName = $Matches[1]
+    }
+    elseif ($trimmed -match '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
+        $feedName = $trimmed
+    }
+
+    if ($feedName) {
+        return "https://pkgs.dev.azure.com/dnceng/public/_packaging/$feedName/nuget/v3/index.json"
+    }
+
+    return $null
+}
+
+function Resolve-ReleaseBranchCommit {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    foreach ($repositoryUrl in $AspireRepoCandidates) {
+        try {
+            $output = (& git ls-remote $repositoryUrl "refs/heads/$BranchName" 2>$null)
+            if ($LASTEXITCODE -ne 0) {
+                continue
+            }
+
+            $text = ($output | Out-String).Trim()
+            if ($text -match '^([0-9a-f]{40})\s+') {
+                return [PSCustomObject]@{
+                    Repository = $repositoryUrl
+                    Commit     = $Matches[1]
+                }
+            }
+        }
+        catch {
+        }
+    }
+
+    return $null
+}
+
+function Resolve-OfficialAspireFeed {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    if (-not (Test-IsReleaseBranch -BranchName $BranchName)) {
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $false
+            ServiceIndex = $NuGetOrgServiceIndex
+            FeedName     = $null
+            Resolution   = "default"
+            DisplayName  = "nuget.org"
+        }
+    }
+
+    $explicitFeedUrl = ConvertTo-ReleaseFeedServiceIndex -Value $env:ASPIRE_RELEASE_FEED_URL
+    if ($explicitFeedUrl) {
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $true
+            ServiceIndex = $explicitFeedUrl
+            FeedName     = $null
+            Resolution   = "ASPIRE_RELEASE_FEED_URL"
+            DisplayName  = $explicitFeedUrl
+        }
+    }
+
+    $explicitFeedName = $env:ASPIRE_RELEASE_FEED_NAME
+    if (-not [string]::IsNullOrWhiteSpace($explicitFeedName)) {
+        $serviceIndex = ConvertTo-ReleaseFeedServiceIndex -Value $explicitFeedName
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $true
+            ServiceIndex = $serviceIndex
+            FeedName     = $explicitFeedName.Trim()
+            Resolution   = "ASPIRE_RELEASE_FEED_NAME"
+            DisplayName  = $explicitFeedName.Trim()
+        }
+    }
+
+    $explicitCommit = $env:ASPIRE_RELEASE_COMMIT
+    if ([string]::IsNullOrWhiteSpace($explicitCommit)) {
+        $explicitCommit = $env:ASPIRE_RELEASE_COMMIT_SHA
+    }
+    if ([string]::IsNullOrWhiteSpace($explicitCommit)) {
+        $explicitCommit = $env:ASPIRE_RELEASE_SOURCE_COMMIT
+    }
+    if (-not [string]::IsNullOrWhiteSpace($explicitCommit)) {
+        $feedName = Get-ReleaseFeedNameFromCommit -Commit $explicitCommit
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $true
+            ServiceIndex = ConvertTo-ReleaseFeedServiceIndex -Value $feedName
+            FeedName     = $feedName
+            Resolution   = "ASPIRE_RELEASE_COMMIT"
+            DisplayName  = $feedName
+            SourceCommit = $explicitCommit.Trim()
+        }
+    }
+
+    $branchCommit = Resolve-ReleaseBranchCommit -BranchName $BranchName
+    if (-not $branchCommit) {
+        throw "Unable to resolve the official Aspire release feed for branch '$BranchName'. Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT while dotnet/aspire is still the active source repo."
+    }
+
+    $feedName = Get-ReleaseFeedNameFromCommit -Commit $branchCommit.Commit
+    return [PSCustomObject]@{
+        BranchName      = $BranchName
+        IsRelease       = $true
+        ServiceIndex    = ConvertTo-ReleaseFeedServiceIndex -Value $feedName
+        FeedName        = $feedName
+        Resolution      = "branch head"
+        DisplayName     = $feedName
+        SourceCommit    = $branchCommit.Commit
+        SourceRepository = $branchCommit.Repository
+    }
+}
+
+function Get-NuGetSourceMetadata {
+    [CmdletBinding()]
+    param([string]$ServiceIndex)
+
+    if ($script:NuGetSourceMetadataCache.ContainsKey($ServiceIndex)) {
+        return $script:NuGetSourceMetadataCache[$ServiceIndex]
+    }
+
+    $index = Invoke-RestMethod -Uri $ServiceIndex
+    $packageBase = @($index.resources | Where-Object { $_.'@type' -like 'PackageBaseAddress*' } | Select-Object -First 1)
+    if (-not $packageBase) {
+        throw "PackageBaseAddress not found in service index '$ServiceIndex'."
+    }
+
+    $packageBaseAddress = $packageBase.'@id'
+    if (-not $packageBaseAddress.EndsWith('/')) {
+        $packageBaseAddress += '/'
+    }
+
+    $metadata = [PSCustomObject]@{
+        ServiceIndex       = $ServiceIndex
+        PackageBaseAddress = $packageBaseAddress
+    }
+
+    $script:NuGetSourceMetadataCache[$ServiceIndex] = $metadata
+    return $metadata
+}
+
+function Get-LatestNuGetVersion {
+    [CmdletBinding()]
+    param(
+        [string]$PackageId,
+        [string]$PackageBaseAddress
+    )
+
     # Use the flat versions endpoint — simple and reliable across all packages
-    $versionsUrl = "https://api.nuget.org/v3-flatcontainer/$($PackageId.ToLowerInvariant())/index.json"
+    $versionsUrl = "$PackageBaseAddress$($PackageId.ToLowerInvariant())/index.json"
 
     try {
         $response = Invoke-RestMethod -Uri $versionsUrl
@@ -161,7 +403,8 @@ function Install-NuGetPackage {
     [CmdletBinding()]
     param(
         [string]$PackageId,
-        [string]$Version
+        [string]$Version,
+        [string[]]$RestoreSources
     )
 
     # Create a temp project to restore the package into the global cache
@@ -180,8 +423,32 @@ function Install-NuGetPackage {
   </ItemGroup>
 </Project>
 "@
-        $csproj | Set-Content (Join-Path $tempDir "Temp.csproj") -Encoding UTF8
-        $restoreResult = & dotnet restore (Join-Path $tempDir "Temp.csproj") --verbosity quiet 2>&1
+        $csprojPath = Join-Path $tempDir "Temp.csproj"
+        $nugetConfigPath = Join-Path $tempDir "NuGet.config"
+        $csproj | Set-Content $csprojPath -Encoding UTF8
+
+        $sourceEntries = @($RestoreSources | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+        if ($sourceEntries.Count -eq 0) {
+            throw "No restore sources were provided for $PackageId."
+        }
+
+        $configLines = @(
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<configuration>',
+            '  <packageSources>',
+            '    <clear />'
+        )
+
+        for ($sourceIndex = 0; $sourceIndex -lt $sourceEntries.Count; $sourceIndex++) {
+            $source = [System.Security.SecurityElement]::Escape($sourceEntries[$sourceIndex])
+            $configLines += "    <add key=`"source$sourceIndex`" value=`"$source`" />"
+        }
+
+        $configLines += '  </packageSources>'
+        $configLines += '</configuration>'
+        $configLines | Set-Content $nugetConfigPath -Encoding UTF8
+
+        $restoreResult = & dotnet restore $csprojPath --configfile $nugetConfigPath --verbosity quiet 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "dotnet restore failed for $PackageId $Version`n$restoreResult"
             return $false
@@ -198,8 +465,7 @@ function Install-NuGetPackage {
 function Get-BestLibFolder {
     [CmdletBinding()]
     param(
-        [string]$PackagePath,
-        [string]$PreferredTfm
+        [string]$PackagePath
     )
 
     $libDir = Join-Path $PackagePath "lib"
@@ -209,30 +475,53 @@ function Get-BestLibFolder {
 
     $tfmFolders = @(Get-ChildItem -Directory $libDir | Select-Object -ExpandProperty Name)
 
-    # Exact match first
-    if ($tfmFolders -contains $PreferredTfm) {
-        return Join-Path $libDir $PreferredTfm
+    if ($tfmFolders.Count -eq 0) {
+        return $null
     }
 
-    # Try descending net versions: net10.0, net9.0, net8.0, ...
-    $netVersions = @("net10.0", "net9.0", "net8.0", "net7.0", "net6.0")
-    foreach ($tfm in $netVersions) {
-        if ($tfmFolders -contains $tfm) {
-            return Join-Path $libDir $tfm
-        }
+    $bestTfm = $tfmFolders |
+        Sort-Object -Property @(
+            @{ Expression = {
+                $normalized = $_.TrimStart('.').ToLowerInvariant()
+                if ($normalized -match '^net(\d+)(?:\.(\d+))?$') { return 0 }
+                if ($normalized -match '^netcoreapp(\d+)(?:\.(\d+))?$') { return 1 }
+                if ($normalized -match '^netstandard(\d+)(?:\.(\d+))?$') { return 2 }
+                return 9
+            }; Ascending = $true },
+            @{ Expression = {
+                $normalized = $_.TrimStart('.').ToLowerInvariant()
+                if ($normalized -match '^(?:net|netcoreapp|netstandard)(\d+)(?:\.(\d+))?$') { return [int]$Matches[1] }
+                return -1
+            }; Descending = $true },
+            @{ Expression = {
+                $normalized = $_.TrimStart('.').ToLowerInvariant()
+                if ($normalized -match '^(?:net|netcoreapp|netstandard)(\d+)(?:\.(\d+))?$' -and $Matches[2]) { return [int]$Matches[2] }
+                return -1
+            }; Descending = $true },
+            @{ Expression = { $_.ToLowerInvariant() }; Descending = $true }
+        ) |
+        Select-Object -First 1
+
+    return Join-Path $libDir $bestTfm
+}
+
+function Get-PreferredTfm {
+    [CmdletBinding()]
+    param(
+        [string]$Tfm,
+        [string]$FallbackTfm
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Tfm)) {
+        return $FallbackTfm
     }
 
-    # Fallback: netstandard2.1, netstandard2.0
-    foreach ($tfm in @("netstandard2.1", "netstandard2.0")) {
-        if ($tfmFolders -contains $tfm) {
-            return Join-Path $libDir $tfm
-        }
+    $normalized = $Tfm.TrimStart('.').ToLowerInvariant()
+    if ($normalized -match '^(net\d+(?:\.\d+)?|netcoreapp\d+(?:\.\d+)?|netstandard\d+(?:\.\d+)?)$') {
+        return $normalized
     }
 
-    # Last resort: first available
-    if ($tfmFolders.Count -gt 0) {
-        return Join-Path $libDir $tfmFolders[0]
-    }
+    return $FallbackTfm
 
     return $null
 }
@@ -346,7 +635,7 @@ function Get-PackageDependencyDlls {
             if ($versions.Count -gt 0) {
                 $selectedVersion = $versions[0]
                 $depPkgPath = Join-Path $depCacheDir $selectedVersion
-                $depLibFolder = Get-BestLibFolder -PackagePath $depPkgPath -PreferredTfm $PreferredTfm
+                $depLibFolder = Get-BestLibFolder -PackagePath $depPkgPath
                 if ($depLibFolder) {
                     $depDlls = Get-ChildItem -Path $depLibFolder -Filter "*.dll" -ErrorAction SilentlyContinue
                     $dlls += $depDlls | Select-Object -ExpandProperty FullName
@@ -358,7 +647,37 @@ function Get-PackageDependencyDlls {
     return $dlls
 }
 
+function Get-CachedRuntimeReferenceAssemblies {
+    [CmdletBinding()]
+    param(
+        [string]$Tfm,
+        [hashtable]$Cache
+    )
+
+    if (-not $Cache.ContainsKey($Tfm)) {
+        Write-Host "Locating runtime reference assemblies for $Tfm..." -ForegroundColor Cyan
+        $Cache[$Tfm] = @(Get-RuntimeReferenceAssemblies -Tfm $Tfm)
+        Write-Host "Found $($Cache[$Tfm].Count) runtime reference assemblies for $Tfm."
+    }
+
+    return @($Cache[$Tfm])
+}
+
 # ── Build the tool first ──────────────────────────────────────────────────────
+
+$branchName = Get-CurrentBranchName
+$officialFeed = Resolve-OfficialAspireFeed -BranchName $branchName
+$nugetOrgSource = Get-NuGetSourceMetadata -ServiceIndex $NuGetOrgServiceIndex
+$officialAspireSource = if ($officialFeed.IsRelease) {
+    Get-NuGetSourceMetadata -ServiceIndex $officialFeed.ServiceIndex
+}
+else {
+    $nugetOrgSource
+}
+
+if ($officialFeed.IsRelease) {
+    Write-Host "Release branch detected ($($officialFeed.BranchName)). Official Aspire packages will resolve from $($officialFeed.DisplayName)." -ForegroundColor Cyan
+}
 
 Write-Host "Building PackageJsonGenerator..." -ForegroundColor Cyan
 $buildResult = & dotnet build $ToolProject --configuration Release --verbosity quiet 2>&1
@@ -368,29 +687,44 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Build succeeded." -ForegroundColor Green
 
-# ── Get runtime reference assemblies ──────────────────────────────────────────
-
-Write-Host "Locating runtime reference assemblies for $Framework..." -ForegroundColor Cyan
-$runtimeRefs = Get-RuntimeReferenceAssemblies -Tfm $Framework
-Write-Host "Found $($runtimeRefs.Count) runtime reference assemblies."
-
 # ── Process packages ──────────────────────────────────────────────────────────
 
 $successCount = 0
 $failCount = 0
 $skipCount = 0
+$runtimeRefsByTfm = @{}
 
 # Phase 1: Resolve versions and prepare package info
 # Use parallel NuGet resolution when processing many packages
 Write-Host "`nResolving package versions..." -ForegroundColor Cyan
 
 $packageInfos = @()
+$packageSourceMetadata = @{}
+
+foreach ($packageId in $Packages) {
+    if ($officialFeed.IsRelease -and (Test-IsOfficialAspirePackage -PackageId $packageId)) {
+        $packageSourceMetadata[$packageId] = [PSCustomObject]@{
+            PackageBaseAddress = $officialAspireSource.PackageBaseAddress
+            RestoreSources     = @($officialFeed.ServiceIndex, $NuGetOrgServiceIndex)
+            DisplaySource      = $officialFeed.DisplayName
+        }
+        continue
+    }
+
+    $packageSourceMetadata[$packageId] = [PSCustomObject]@{
+        PackageBaseAddress = $nugetOrgSource.PackageBaseAddress
+        RestoreSources     = @($NuGetOrgServiceIndex)
+        DisplaySource      = "nuget.org"
+    }
+}
 
 if ($Packages.Count -gt 3 -and -not $Sequential) {
     # Parallel NuGet version resolution
     $resolvedVersions = $Packages | ForEach-Object -Parallel {
+        $sourceMap = $using:packageSourceMetadata
         $packageId = $_
-        $versionsUrl = "https://api.nuget.org/v3-flatcontainer/$($packageId.ToLowerInvariant())/index.json"
+        $sourceInfo = $sourceMap[$packageId]
+        $versionsUrl = "$($sourceInfo.PackageBaseAddress)$($packageId.ToLowerInvariant())/index.json"
         try {
             $response = Invoke-RestMethod -Uri $versionsUrl
             $allVersions = @($response.versions)
@@ -409,15 +743,15 @@ if ($Packages.Count -gt 3 -and -not $Sequential) {
                 $version = $preview[-1]
             }
 
-            [PSCustomObject]@{ PackageId = $packageId; Version = $version }
+            [PSCustomObject]@{ PackageId = $packageId; Version = $version; Source = $sourceInfo.DisplaySource }
         } catch {
-            [PSCustomObject]@{ PackageId = $packageId; Version = $null }
+            [PSCustomObject]@{ PackageId = $packageId; Version = $null; Source = $sourceInfo.DisplaySource }
         }
     } -ThrottleLimit 16
 
     foreach ($resolved in $resolvedVersions) {
         if (-not $resolved.Version) {
-            Write-Warning "Could not resolve version for $($resolved.PackageId) — skipping."
+            Write-Warning "Could not resolve version for $($resolved.PackageId) from $($resolved.Source) — skipping."
             $skipCount++
             continue
         }
@@ -426,9 +760,10 @@ if ($Packages.Count -gt 3 -and -not $Sequential) {
 } else {
     # Sequential resolution (small batch or forced)
     foreach ($packageId in $Packages) {
-        $version = Get-LatestNuGetVersion -PackageId $packageId
+        $sourceInfo = $packageSourceMetadata[$packageId]
+        $version = Get-LatestNuGetVersion -PackageId $packageId -PackageBaseAddress $sourceInfo.PackageBaseAddress
         if (-not $version) {
-            Write-Warning "Could not resolve version for $packageId — skipping."
+            Write-Warning "Could not resolve version for $packageId from $($sourceInfo.DisplaySource) — skipping."
             $skipCount++
             continue
         }
@@ -446,12 +781,13 @@ $manifestEntries = @()
 foreach ($info in $packageInfos) {
     $packageId = $info.PackageId
     $version = $info.Version
+    $sourceInfo = $packageSourceMetadata[$packageId]
 
     # Check cache / download
     $cachedPath = Get-CachedPackagePath -PackageId $packageId -Version $version
     if (-not $cachedPath) {
-        Write-Host "  Downloading: $packageId $version" -ForegroundColor Yellow
-        $installed = Install-NuGetPackage -PackageId $packageId -Version $version
+        Write-Host "  Downloading: $packageId $version from $($sourceInfo.DisplaySource)" -ForegroundColor Yellow
+        $installed = Install-NuGetPackage -PackageId $packageId -Version $version -RestoreSources $sourceInfo.RestoreSources
         if (-not $installed) {
             Write-Warning "Failed to download $packageId $version — skipping."
             $failCount++
@@ -466,12 +802,15 @@ foreach ($info in $packageInfos) {
     }
 
     # Find the lib folder with DLLs
-    $libFolder = Get-BestLibFolder -PackagePath $cachedPath -PreferredTfm $Framework
+    $libFolder = Get-BestLibFolder -PackagePath $cachedPath
     if (-not $libFolder) {
         Write-Warning "No lib folder found for $packageId $version — skipping."
         $skipCount++
         continue
     }
+
+    $selectedTfm = Split-Path $libFolder -Leaf
+    $preferredTfm = Get-PreferredTfm -Tfm $selectedTfm -FallbackTfm $Framework
 
     # Find the main assembly
     $mainDll = Join-Path $libFolder "$packageId.dll"
@@ -489,14 +828,14 @@ foreach ($info in $packageInfos) {
 
     # Collect references: runtime refs + package dependency DLLs + sibling DLLs
     $references = @()
-    $references += $runtimeRefs
+    $references += Get-CachedRuntimeReferenceAssemblies -Tfm $preferredTfm -Cache $runtimeRefsByTfm
 
     $siblingDlls = @(Get-ChildItem -Path $libFolder -Filter "*.dll" |
         Where-Object { $_.FullName -ne $mainDll } |
         Select-Object -ExpandProperty FullName)
     $references += $siblingDlls
 
-    $depDlls = @(Get-PackageDependencyDlls -PackagePath $cachedPath -PreferredTfm $Framework)
+    $depDlls = @(Get-PackageDependencyDlls -PackagePath $cachedPath -PreferredTfm $preferredTfm)
     $references += $depDlls
 
     # Deduplicate
@@ -515,6 +854,7 @@ foreach ($info in $packageInfos) {
         packageName    = $packageId
         sourceRepo     = $null
         sourceCommit   = $null
+        targetFramework = $selectedTfm
     }
 }
 
@@ -578,7 +918,8 @@ else {
             @refArgs `
             --output $entry.output `
             --package-version $entry.packageVersion `
-            --package-name $entry.packageName 2>&1 | ForEach-Object {
+            --package-name $entry.packageName `
+            --target-framework $entry.targetFramework 2>&1 | ForEach-Object {
             if ($_ -match "^Generated:") {
                 Write-Host "  $_" -ForegroundColor Green
             }

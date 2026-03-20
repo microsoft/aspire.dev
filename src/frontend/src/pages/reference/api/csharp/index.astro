@@ -124,7 +124,7 @@ const indexJson = JSON.stringify(index);
   <div class="api-ref-landing not-content">
     <p class="csharp-api-intro">
       Browse the C# API reference for Aspire packages, including <a href={`${base}/integrations/overview/#hosting-integrations`}>hosting integrations</a>,
-      <a href={`${base}/integrations/overview/#client-integrations`}>client integrations</a>, and the Community Toolkit.
+      <a href={`${base}/integrations/overview/#client-integrations`}>client integrations</a>, and the <a href={`${base}/integrations/gallery/?official=false`}>Community Toolkit</a>.
     </p>
 
     <ApiSearchBar
@@ -253,6 +253,9 @@ const indexJson = JSON.stringify(index);
 
       this.init();
       this.restoreFromUrl();
+      this.syncVersionStateFromDom();
+      this.filterPackageList();
+      this.applySearch();
 
       // Listen for version filter changes
       document.addEventListener('version-filter-change', (e: Event) => {
@@ -273,13 +276,41 @@ const indexJson = JSON.stringify(index);
           this.clearFiltersBtn.style.display = 'none';
         }
 
-        // When no versions selected, force search view to show empty state
-        if (detail.none) {
-          this.showSearchResults();
-        } else {
-          this.applySearch();
-        }
+        this.applySearch();
       });
+    }
+
+    private syncVersionStateFromDom(): void {
+      const vfContainer = document.querySelector('.version-filter');
+      if (!vfContainer) {
+        this.activeVersions = null;
+        return;
+      }
+
+      const versionCheckboxes = Array.from(
+        vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb:not([data-version="__all__"])')
+      );
+      const selected = versionCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!).filter(Boolean);
+
+      this.activeVersions = selected.length === versionCheckboxes.length
+        ? null
+        : new Set(selected);
+
+      if (this.activeVersions !== null || this.activeKinds.size > 0) {
+        this.clearFiltersBtn.style.display = '';
+      }
+    }
+
+    private getVisiblePackageStats(): { packageCount: number; typeCount: number; memberCount: number } {
+      const visibleEntries = this.activeVersions === null
+        ? this.index
+        : this.index.filter(entry => entry.v && this.activeVersions!.has(entry.v));
+
+      return {
+        packageCount: new Set(visibleEntries.map(entry => entry.p)).size,
+        typeCount: visibleEntries.filter(entry => !entry.t).length,
+        memberCount: visibleEntries.filter(entry => !!entry.t).length,
+      };
     }
 
     private init(): void {
@@ -352,7 +383,9 @@ const indexJson = JSON.stringify(index);
       this.resultsEl.style.display = 'none';
       this.resultsEl.innerHTML = '';
       this.packageList.style.display = '';
-      this.countEl.textContent = `${fmtNum(this.typeCount)} types and ${fmtNum(this.memberCount)} members across ${fmtNum(this.packageCount)} packages`;
+
+      const stats = this.getVisiblePackageStats();
+      this.countEl.textContent = `${fmtNum(stats.typeCount)} types and ${fmtNum(stats.memberCount)} members across ${fmtNum(stats.packageCount)} packages`;
     }
 
     private handleInput(): void {
@@ -392,14 +425,11 @@ const indexJson = JSON.stringify(index);
         this.clearFiltersBtn.style.display = '';
       }
 
-      if (q || kinds.size > 0) {
-        this.applySearch();
-      }
     }
 
     private applySearch(): void {
       const q = this.input.value.trim();
-      if (!q && this.activeKinds.size === 0 && this.activeVersions === null) {
+      if (!q && this.activeKinds.size === 0) {
         this.showPackages();
         return;
       }
