@@ -962,7 +962,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
-          label: 'C# AppHost',
+          label: 'C#',
           collapsed: true,
           items: [
             {
@@ -976,7 +976,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
-          label: 'TypeScript AppHost',
+          label: 'TypeScript',
           collapsed: true,
           items: [
             {
