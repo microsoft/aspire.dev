@@ -19,6 +19,8 @@ import lukePic from '@assets/aspireconf/lukeParker.png';
 import chuanboPic from '@assets/aspireconf/chuanbo.jpeg';
 import yongyuPic from '@assets/aspireconf/yongyuchen.jpeg';
 import jishengPic from '@assets/aspireconf/jisheng.jpeg';
+import adamPic from '@assets/aspireconf/adam.png';
+import josePic from '@assets/aspireconf/jose.png';
 
 export const sessions: SessionProps[] = [
   {
@@ -139,8 +141,8 @@ export const sessions: SessionProps[] = [
   {
     title: 'Contributing to Aspire',
     speakers: [
-      { name: 'Jose Perez Rodriguez', jobTitle: 'Principal Engineering Lead', company: 'Aspire @ Microsoft' },
-      { name: 'Adam Ratzman', jobTitle: 'Senior Software Engineer', company: 'Aspire @ Microsoft' },
+      { name: 'Jose Perez Rodriguez', headshot: josePic, jobTitle: 'Principal Engineering Lead', company: 'Aspire @ Microsoft' },
+      { name: 'Adam Ratzman', headshot: adamPic, jobTitle: 'Senior Software Engineer', company: 'Aspire @ Microsoft' },
     ],
     abstract: 'Aspire is open-source, and our community is the best in the game. Getting involved is easier than you think — whether that\'s filing an issue, contributing code to the core repo, helping build out aspire.dev, or shipping integrations in the Community Toolkit. In this session, Jose (Aspire\'s engineering manager) and Adam (one of the devs on the team) will break down all the ways you can contribute and pull back the curtain on how our code gets reviewed, tested, and released.',
     timeslot: '4:00 PM PT',
