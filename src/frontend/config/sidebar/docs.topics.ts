@@ -955,10 +955,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 ja: '実行可能リソース',
               },
             },
-            {
-              label: '.NET tool resources',
-              slug: 'app-host/dotnet-tool-resources',
-            },
           ],
         },
         {
