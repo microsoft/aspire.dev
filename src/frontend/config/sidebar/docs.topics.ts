@@ -267,32 +267,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               label: 'GitHub Codespaces',
               slug: 'get-started/github-codespaces',
             },
-            {
-              label: 'Aspire SDK',
-              slug: 'get-started/aspire-sdk',
-            },
-            {
-              label: 'Aspire templates',
-              translations: {
-                da: 'Aspire-skabeloner',
-                de: 'Aspire-Vorlagen',
-                en: 'Aspire templates',
-                es: 'Plantillas de Aspire',
-                fr: 'Modèles Aspire',
-                hi: 'Aspire टेम्प्लेट',
-                id: 'Template Aspire',
-                it: 'Modelli Aspire',
-                ja: 'Aspire テンプレート',
-                ko: 'Aspire 템플릿',
-                'pt-BR': 'Modelos do Aspire',
-                'pt-PT': 'Modelos do Aspire',
-                ru: 'Шаблоны Aspire',
-                tr: 'Aspire şablonları',
-                uk: 'Шаблони Aspire',
-                'zh-CN': 'Aspire 模板',
-              },
-              slug: 'get-started/aspire-sdk-templates',
-            },
           ],
         },
         {
@@ -984,6 +958,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: '.NET tool resources',
               slug: 'app-host/dotnet-tool-resources',
+            },
+          ],
+        },
+        {
+          label: 'C# AppHost',
+          collapsed: true,
+          items: [
+            {
+              label: 'Aspire SDK',
+              slug: 'get-started/aspire-sdk',
+            },
+            {
+              label: 'Templates',
+              slug: 'get-started/aspire-sdk-templates',
             },
           ],
         },
