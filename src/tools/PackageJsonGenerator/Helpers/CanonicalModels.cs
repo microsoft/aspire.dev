@@ -91,6 +91,7 @@ internal sealed class CanonicalParameter
     public bool IsOptional { get; set; }
     public string? DefaultValue { get; set; }
     public string? Modifier { get; set; }
+    public List<CanonicalAttribute>? Attributes { get; set; }
 }
 
 /// <summary>Canonical enum member.</summary>

@@ -12,7 +12,7 @@ namespace PackageJsonGenerator;
 
 public static class PackageJsonGenerator
 {
-    public static void GeneratePackageJson(string? inputAssembly, string[]? references, string? outputFile, string? versionOverride = null, string? packageNameOverride = null, string? sourceRepoOverride = null, string? sourceCommitOverride = null, ConcurrentDictionary<string, PortableExecutableReference>? referenceCache = null)
+    public static void GeneratePackageJson(string? inputAssembly, string[]? references, string? outputFile, string? versionOverride = null, string? packageNameOverride = null, string? sourceRepoOverride = null, string? sourceCommitOverride = null, string? targetFrameworkOverride = null, ConcurrentDictionary<string, PortableExecutableReference>? referenceCache = null)
     {
         if (string.IsNullOrEmpty(inputAssembly))
         {
@@ -55,6 +55,9 @@ public static class PackageJsonGenerator
         var assemblyVersion = !string.IsNullOrEmpty(versionOverride)
             ? versionOverride
             : assemblySymbol.Identity.Version.ToString();
+        var targetFramework = !string.IsNullOrEmpty(targetFrameworkOverride)
+            ? targetFrameworkOverride
+            : "net10.0";
 
         // Resolve source link info from assembly metadata or CLI overrides
         var sourceRepo = sourceRepoOverride;
@@ -143,16 +146,16 @@ public static class PackageJsonGenerator
             }
         }
 
-        // For files with multiple types, the PDB-based StartLine points to the first
-        // method body rather than the type declaration. Fetch actual source from the
-        // repository to find exact declaration lines.
-        AdjustSourceLinesForMultiTypeFiles(typeModels, sourceRepo, sourceCommit);
+        // PDB-based type line info often points at the first method body rather than
+        // the type declaration. Fetch the source file and resolve declaration lines
+        // for all types when source information is available.
+        AdjustSourceLinesForTypeDeclarations(typeModels, sourceRepo, sourceCommit);
 
         // Emit JSON schema
         var schemaJson = SchemaEmitter.EmitAssemblySchema(
             assemblyName,
             assemblyVersion,
-            "net10.0",
+            targetFramework,
             typeModels,
             sourceRepo,
             sourceCommit);
@@ -226,7 +229,7 @@ public static class PackageJsonGenerator
     /// points only cover method bodies, so the aggregated StartLine can overshoot
     /// the real <c>class</c>/<c>interface</c>/<c>struct</c>/etc. keyword by several lines.
     /// </summary>
-    private static void AdjustSourceLinesForMultiTypeFiles(
+    private static void AdjustSourceLinesForTypeDeclarations(
         List<CanonicalType> typeModels,
         string? sourceRepo,
         string? sourceCommit)
@@ -234,17 +237,15 @@ public static class PackageJsonGenerator
         if (string.IsNullOrEmpty(sourceRepo) || string.IsNullOrEmpty(sourceCommit))
             return;
 
-        // Only process files that contain multiple types with PDB-based source info
-        var multiTypeFiles = typeModels
-            .Where(t => t.SourceFile is not null && t.SourceLines is not null)
+        var sourceFiles = typeModels
+            .Where(t => t.SourceFile is not null)
             .GroupBy(t => t.SourceFile!)
-            .Where(g => g.Count() > 1)
             .ToList();
 
-        if (multiTypeFiles.Count == 0) return;
+        if (sourceFiles.Count == 0) return;
 
         // Cache fetched source files so each file is downloaded at most once
-        // (a single assembly may have several multi-type files).
+        // (a single assembly may have several types per file).
         var sourceCache = new Dictionary<string, string[]?>();
 
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
@@ -257,16 +258,19 @@ public static class PackageJsonGenerator
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
-        foreach (var group in multiTypeFiles)
+        foreach (var group in sourceFiles)
         {
             var lines = GetSourceLines(http, sourceCache, sourceRepo, sourceCommit, group.Key);
             if (lines is null)
             {
-                // Source unavailable — the PDB-based lines point to method bodies,
-                // not type declarations, so drop them rather than link to a wrong line.
+                // Source unavailable — keep any existing PDB-based values rather than
+                // inventing a new line anchor.
                 foreach (var typeModel in group)
                 {
-                    typeModel.SourceLines = null;
+                    if (typeModel.SourceLines is null)
+                    {
+                        typeModel.SourceLines = null;
+                    }
                 }
                 continue;
             }
@@ -285,7 +289,7 @@ public static class PackageJsonGenerator
                 {
                     typeModel.SourceLines = $"{declarationLine}-{declarationLine}";
                 }
-                else
+                else if (typeModel.SourceLines is not null)
                 {
                     // Regex found no match — drop the PDB-based line so the link
                     // points to the source file itself rather than a wrong line.
@@ -328,7 +332,7 @@ public static class PackageJsonGenerator
         return lines;
     }
 
-    private static string? BuildRawGitHubUrl(string sourceRepo, string sourceCommit, string filePath)
+    internal static string? BuildRawGitHubUrl(string sourceRepo, string sourceCommit, string filePath)
     {
         if (!Uri.TryCreate(sourceRepo, UriKind.Absolute, out var repoUri))
             return null;
@@ -348,7 +352,7 @@ public static class PackageJsonGenerator
     /// When multiple matches exist (e.g. a nested type reusing a common name),
     /// the match closest to <paramref name="pdbHintLine"/> wins.
     /// </summary>
-    private static int FindTypeDeclarationLine(string[] lines, string typeName, int pdbHintLine)
+    internal static int FindTypeDeclarationLine(string[] lines, string typeName, int pdbHintLine)
     {
         var escapedName = Regex.Escape(typeName);
         var pattern = new Regex(
@@ -381,7 +385,7 @@ public static class PackageJsonGenerator
         return bestLine;
     }
 
-    private static int ParseStartLine(string? sourceLines)
+    internal static int ParseStartLine(string? sourceLines)
     {
         if (sourceLines is null) return 0;
         var dash = sourceLines.IndexOf('-');

@@ -8,6 +8,7 @@
  */
 import AnchorHeading from './AnchorHeading.astro';
 import DocContent from './DocContent.astro';
+import { hasAttribute } from '@utils/api-attributes';
 import {
   groupMembersByKind,
   memberKindLabels,
@@ -62,8 +63,10 @@ function kindPageHref(kind: string): string {
                 ? resolveTypeLink(m.returnType, allTypes, base, packageName)
                 : null;
               const summary = m.docs?.summary;
-              const isObsolete = m.attributes?.some((a: any) => a.name.includes('Obsolete'));
-              const isExperimental = m.attributes?.some((a: any) => a.name.includes('Experimental'));
+              const isObsolete = hasAttribute(m.attributes, 'Obsolete');
+              const isExperimental = hasAttribute(m.attributes, 'Experimental');
+              const isPolyglotExport = hasAttribute(m.attributes, 'AspireExport');
+              const isPolyglotIgnored = hasAttribute(m.attributes, 'AspireExportIgnore');
 
               // Badges
               const badges: string[] = [];
@@ -90,6 +93,8 @@ function kindPageHref(kind: string): string {
                     {badges.map(b => <span class={`api-mod-badge mol-badge${b === 'extension' ? ' api-ext-badge' : ''}`}>{b}</span>)}
                     {isObsolete && <span class="api-mod-badge mol-badge mol-badge-obsolete">obsolete</span>}
                     {isExperimental && <span class="api-mod-badge mol-badge mol-badge-experimental">experimental</span>}
+                    {isPolyglotExport && <span class="api-mod-badge mol-badge">ats export</span>}
+                    {isPolyglotIgnored && <span class="api-mod-badge mol-badge">ats ignored</span>}
                   </div>
                   {returnShort && (
                     <div class="mol-type-col" role="cell">

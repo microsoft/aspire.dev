@@ -4,15 +4,15 @@
  * Runs the AtsJsonGenerator tool against the aspire sdk dump output.
  * Requires: dotnet SDK and aspire CLI.
  *
- * By default, auto-detects the installed Aspire CLI version and generates
- * data for all known Aspire.Hosting.* packages from aspire-integrations.json.
+ * By default, reads the generated C# package JSON files and generates
+ * data for the matching Aspire.Hosting.* package/version set.
  *
  * Optionally pass an Aspire repo clone path to discover packages from source:
  *   node ./scripts/update-ts-api.js /path/to/aspire
  *   ASPIRE_REPO_PATH=../../../aspire node ./scripts/update-ts-api.js
  *
  * Usage:
- *   node ./scripts/update-ts-api.js              # auto-detect from CLI
+ *   node ./scripts/update-ts-api.js              # auto-detect from C# package JSON
  *   node ./scripts/update-ts-api.js /path/aspire  # from repo clone
  */
 

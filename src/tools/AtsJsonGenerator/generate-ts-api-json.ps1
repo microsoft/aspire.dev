@@ -63,6 +63,13 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json"
+$AspireRepoCandidates = @(
+    $env:ASPIRE_GITHUB_REPO_URL,
+    "https://github.com/dotnet/aspire",
+    "https://github.com/microsoft/aspire"
+) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
 $ScriptDir = $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..\..")).Path
 $ToolProject = Join-Path $ScriptDir "AtsJsonGenerator.csproj"
@@ -80,41 +87,300 @@ if (-not (Test-Path $TempDir)) {
     New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 }
 
-# ── Route 0: Auto-detect from installed CLI ────────────────────────────────────
-if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersion.Count -eq 0)) {
-    Write-Host "No -AspireRepoPath or -NuGetPackageVersion provided. Auto-detecting from installed Aspire CLI..." -ForegroundColor Cyan
+function Remove-StaleTsModuleFiles {
+    param(
+        [string]$PackageName,
+        [string]$CurrentOutputFile,
+        [string]$OutputDirectory
+    )
 
-    # Get the CLI version
+    if ([string]::IsNullOrWhiteSpace($PackageName) -or [string]::IsNullOrWhiteSpace($CurrentOutputFile)) {
+        return
+    }
+
+    $namePattern = "^{0}\.\d.*\.json$" -f [regex]::Escape($PackageName)
+    $currentPath = [System.IO.Path]::GetFullPath($CurrentOutputFile)
+
+    Get-ChildItem -Path $OutputDirectory -File -Filter '*.json' | Where-Object {
+        $_.Name -match $namePattern -and [System.IO.Path]::GetFullPath($_.FullName) -ne $currentPath
+    } | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+function Normalize-BranchName {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    if ([string]::IsNullOrWhiteSpace($BranchName)) {
+        return ""
+    }
+
+    return $BranchName -replace '^refs/heads/', ''
+}
+
+function Get-CurrentBranchName {
+    [CmdletBinding()]
+    param()
+
+    $candidates = @(
+        $env:BUILD_SOURCEBRANCH,
+        $env:GITHUB_HEAD_REF,
+        $env:GITHUB_REF_NAME
+    )
+
+    foreach ($candidate in $candidates) {
+        $normalized = Normalize-BranchName $candidate
+        if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+            return $normalized
+        }
+    }
+
     try {
-        $cliVersion = & aspire --version 2>&1
-        # Strip build metadata (+sha) — NuGet versions don't include it
-        $cliVersion = ($cliVersion -replace '\+.*$', '').Trim()
-        Write-Host "  Detected Aspire CLI version: $cliVersion" -ForegroundColor DarkGray
+        $branch = (& git rev-parse --abbrev-ref HEAD 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+            return (Normalize-BranchName (($branch | Out-String).Trim()))
+        }
     }
     catch {
-        Write-Error "Could not detect Aspire CLI version. Is the 'aspire' CLI installed?"
+    }
+
+    return ""
+}
+
+function Test-IsReleaseBranch {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    return $BranchName.StartsWith("release/", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-ReleaseFeedNameFromCommit {
+    [CmdletBinding()]
+    param([string]$Commit)
+
+    if ([string]::IsNullOrWhiteSpace($Commit)) {
+        return $null
+    }
+
+    $normalizedCommit = $Commit.Trim()
+    $length = [Math]::Min(8, $normalizedCommit.Length)
+    return "darc-pub-dotnet-aspire-$($normalizedCommit.Substring(0, $length))"
+}
+
+function ConvertTo-ReleaseFeedServiceIndex {
+    [CmdletBinding()]
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -match '^https?://' -and $trimmed -match '/nuget/v3/index\.json/?$') {
+        return $trimmed.TrimEnd('/')
+    }
+
+    $feedName = $null
+    if ($trimmed -match '/_artifacts/feed/([^/?#]+)') {
+        $feedName = $Matches[1]
+    }
+    elseif ($trimmed -match '/_packaging/([^/?#]+)') {
+        $feedName = $Matches[1]
+    }
+    elseif ($trimmed -match '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
+        $feedName = $trimmed
+    }
+
+    if ($feedName) {
+        return "https://pkgs.dev.azure.com/dnceng/public/_packaging/$feedName/nuget/v3/index.json"
+    }
+
+    return $null
+}
+
+function Resolve-ReleaseBranchCommit {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    foreach ($repositoryUrl in $AspireRepoCandidates) {
+        try {
+            $output = (& git ls-remote $repositoryUrl "refs/heads/$BranchName" 2>$null)
+            if ($LASTEXITCODE -ne 0) {
+                continue
+            }
+
+            $text = ($output | Out-String).Trim()
+            if ($text -match '^([0-9a-f]{40})\s+') {
+                return [PSCustomObject]@{
+                    Repository = $repositoryUrl
+                    Commit     = $Matches[1]
+                }
+            }
+        }
+        catch {
+        }
+    }
+
+    return $null
+}
+
+function Resolve-OfficialAspireFeed {
+    [CmdletBinding()]
+    param([string]$BranchName)
+
+    if (-not (Test-IsReleaseBranch -BranchName $BranchName)) {
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $false
+            ServiceIndex = $NuGetOrgServiceIndex
+            FeedName     = $null
+            Resolution   = "default"
+            DisplayName  = "nuget.org"
+        }
+    }
+
+    $explicitFeedUrl = ConvertTo-ReleaseFeedServiceIndex -Value $env:ASPIRE_RELEASE_FEED_URL
+    if ($explicitFeedUrl) {
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $true
+            ServiceIndex = $explicitFeedUrl
+            FeedName     = $null
+            Resolution   = "ASPIRE_RELEASE_FEED_URL"
+            DisplayName  = $explicitFeedUrl
+        }
+    }
+
+    $explicitFeedName = $env:ASPIRE_RELEASE_FEED_NAME
+    if (-not [string]::IsNullOrWhiteSpace($explicitFeedName)) {
+        $serviceIndex = ConvertTo-ReleaseFeedServiceIndex -Value $explicitFeedName
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $true
+            ServiceIndex = $serviceIndex
+            FeedName     = $explicitFeedName.Trim()
+            Resolution   = "ASPIRE_RELEASE_FEED_NAME"
+            DisplayName  = $explicitFeedName.Trim()
+        }
+    }
+
+    $explicitCommit = $env:ASPIRE_RELEASE_COMMIT
+    if ([string]::IsNullOrWhiteSpace($explicitCommit)) {
+        $explicitCommit = $env:ASPIRE_RELEASE_COMMIT_SHA
+    }
+    if ([string]::IsNullOrWhiteSpace($explicitCommit)) {
+        $explicitCommit = $env:ASPIRE_RELEASE_SOURCE_COMMIT
+    }
+    if (-not [string]::IsNullOrWhiteSpace($explicitCommit)) {
+        $feedName = Get-ReleaseFeedNameFromCommit -Commit $explicitCommit
+        return [PSCustomObject]@{
+            BranchName   = $BranchName
+            IsRelease    = $true
+            ServiceIndex = ConvertTo-ReleaseFeedServiceIndex -Value $feedName
+            FeedName     = $feedName
+            Resolution   = "ASPIRE_RELEASE_COMMIT"
+            DisplayName  = $feedName
+            SourceCommit = $explicitCommit.Trim()
+        }
+    }
+
+    $branchCommit = Resolve-ReleaseBranchCommit -BranchName $BranchName
+    if (-not $branchCommit) {
+        throw "Unable to resolve the official Aspire release feed for branch '$BranchName'. Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT while dotnet/aspire is still the active source repo."
+    }
+
+    $feedName = Get-ReleaseFeedNameFromCommit -Commit $branchCommit.Commit
+    return [PSCustomObject]@{
+        BranchName       = $BranchName
+        IsRelease        = $true
+        ServiceIndex     = ConvertTo-ReleaseFeedServiceIndex -Value $feedName
+        FeedName         = $feedName
+        Resolution       = "branch head"
+        DisplayName      = $feedName
+        SourceCommit     = $branchCommit.Commit
+        SourceRepository = $branchCommit.Repository
+    }
+}
+
+function New-TemporaryNuGetConfigDirectory {
+    [CmdletBinding()]
+    param([string[]]$RestoreSources)
+
+    $sourceEntries = @($RestoreSources | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    if ($sourceEntries.Count -eq 0) {
+        return $null
+    }
+
+    $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "atsjson-nuget-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+
+    $configLines = @(
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<configuration>',
+        '  <packageSources>',
+        '    <clear />'
+    )
+
+    for ($sourceIndex = 0; $sourceIndex -lt $sourceEntries.Count; $sourceIndex++) {
+        $source = [System.Security.SecurityElement]::Escape($sourceEntries[$sourceIndex])
+        $configLines += "    <add key=`"source$sourceIndex`" value=`"$source`" />"
+    }
+
+    $configLines += '  </packageSources>'
+    $configLines += '</configuration>'
+    $configLines | Set-Content (Join-Path $tempDir 'NuGet.Config') -Encoding UTF8
+
+    return $tempDir
+}
+
+# ── Route 0: Auto-detect from generated C# package JSON ───────────────────────
+if (-not $AspireRepoPath -and (-not $NuGetPackageVersion -or $NuGetPackageVersion.Count -eq 0)) {
+    Write-Host "No -AspireRepoPath or -NuGetPackageVersion provided. Auto-detecting from generated C# package JSON..." -ForegroundColor Cyan
+
+    $packageJsonDir = Join-Path $RepoRoot "src\frontend\src\data\pkgs"
+    if (-not (Test-Path $packageJsonDir)) {
+        Write-Error "C# package JSON directory not found at $packageJsonDir"
         return
     }
 
-    # Read the integration package list from aspire-integrations.json
-    $integrationsJson = Join-Path $RepoRoot "src\frontend\src\data\aspire-integrations.json"
-    if (-not (Test-Path $integrationsJson)) {
-        Write-Error "Integration list not found at $integrationsJson"
+    $packageFiles = @(Get-ChildItem -Path $packageJsonDir -Filter '*.json' -File)
+    if ($packageFiles.Count -eq 0) {
+        Write-Error "No generated C# package JSON files found in $packageJsonDir"
         return
     }
 
-    $integrations = Get-Content $integrationsJson -Raw | ConvertFrom-Json
-    $hostingPackages = @($integrations | Where-Object {
-        $_.title -eq "Aspire.Hosting" -or $_.title -like "Aspire.Hosting.*"
-    })
+    $hostingPackages = @(
+        $packageFiles |
+            ForEach-Object {
+                $json = Get-Content $_.FullName -Raw | ConvertFrom-Json
+                [PSCustomObject]@{
+                    Name         = $json.package.name
+                    Version      = $json.package.version
+                    LastWriteUtc = $_.LastWriteTimeUtc
+                }
+            } |
+            Where-Object {
+                ($_.Name -eq "Aspire.Hosting" -or $_.Name -like "Aspire.Hosting.*") -and
+                -not [string]::IsNullOrWhiteSpace($_.Version)
+            } |
+            Group-Object Name |
+            ForEach-Object {
+                $_.Group | Sort-Object LastWriteUtc -Descending | Select-Object -First 1
+            }
+    )
 
     if ($hostingPackages.Count -eq 0) {
-        Write-Error "No Aspire.Hosting.* packages found in $integrationsJson"
+        Write-Error "No Aspire.Hosting package JSON files found in $packageJsonDir"
         return
     }
 
-    # Build NuGet package version entries using the CLI version
-    $NuGetPackageVersion = @($hostingPackages | ForEach-Object { "$($_.title)@$cliVersion" })
+    # Build Name@Version entries directly from the generated C# package data.
+    $NuGetPackageVersion = @($hostingPackages | ForEach-Object { "$($_.Name)@$($_.Version)" })
+
+    if ($NuGetPackageVersion.Count -eq 0) {
+        Write-Error "No versioned Aspire.Hosting package JSON files found in $packageJsonDir"
+        return
+    }
+
     Write-Host "  Found $($NuGetPackageVersion.Count) Aspire.Hosting packages to process" -ForegroundColor DarkGray
 }
 
@@ -168,12 +434,18 @@ if ($AspireRepoPath) {
         return
     }
 
-    # Core Aspire.Hosting (no integration argument)
+    # Core Aspire.Hosting must be passed explicitly; the default dump is empty.
     $coreDir = Join-Path $SrcDir "Aspire.Hosting"
     if (Test-Path $coreDir) {
+        $coreCsproj = Join-Path $coreDir "Aspire.Hosting.csproj"
+        if (-not (Test-Path $coreCsproj)) {
+            Write-Warning "Skipping Aspire.Hosting — project file not found at $coreCsproj"
+        }
+        else {
         $Packages += @{
             Name = "Aspire.Hosting"
-            DumpArgs = @()  # No extra args for core
+            DumpArgs = @($coreCsproj)
+        }
         }
     }
 
@@ -225,17 +497,35 @@ if ($NuGetPackageVersion -and $NuGetPackageVersion.Count -gt 0) {
             continue
         }
 
-        # Core Aspire.Hosting uses no integration argument (CLI dumps core by default)
         $Packages += @{
             Name = $pkgName
             Version = $pkgVersion
-            DumpArgs = if ($pkgName -eq "Aspire.Hosting") { @() } else { @("$pkgName@$pkgVersion") }
+            DumpArgs = @("$pkgName@$pkgVersion")
         }
     }
 }
 
 if ($PackageFilter) {
     $Packages = $Packages | Where-Object { $_.Name -like $PackageFilter }
+}
+
+$branchName = Get-CurrentBranchName
+$officialFeed = Resolve-OfficialAspireFeed -BranchName $branchName
+$aspireCliWorkingDirectory = $null
+
+if (-not $AspireRepoPath) {
+    $restoreSources = if ($officialFeed.IsRelease) {
+        @($officialFeed.ServiceIndex, $NuGetOrgServiceIndex)
+    }
+    else {
+        @($NuGetOrgServiceIndex)
+    }
+
+    $aspireCliWorkingDirectory = New-TemporaryNuGetConfigDirectory -RestoreSources $restoreSources
+
+    if ($officialFeed.IsRelease) {
+        Write-Host "Release branch detected ($($officialFeed.BranchName)). TypeScript module generation will resolve official Aspire packages from $($officialFeed.DisplayName)." -ForegroundColor Cyan
+    }
 }
 
 Write-Host "Found $($Packages.Count) packages to process"
@@ -281,7 +571,7 @@ foreach ($pkg in $corePackages) {
         $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
         $dumpArgs += $pkg.DumpArgs
 
-        $workDir = if ($AspireRepoPath) { $AspireRepoPath } else { $PWD.Path }
+        $workDir = if ($AspireRepoPath) { $AspireRepoPath } elseif ($aspireCliWorkingDirectory) { $aspireCliWorkingDirectory } else { $PWD.Path }
         $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
             -StderrFile (Join-Path $TempDir "$name.stderr.txt")
 
@@ -331,6 +621,9 @@ foreach ($pkg in $corePackages) {
         if ($LASTEXITCODE -eq 0) {
             $success++
             $coreOutputFile = $outputFile
+            if ($version) {
+                Remove-StaleTsModuleFiles -PackageName $name -CurrentOutputFile $outputFile -OutputDirectory $OutputDir
+            }
         } else {
             Write-Warning "  Transform failed"
             $failed++
@@ -365,7 +658,7 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
         $dumpArgs = @("sdk", "dump", "--format", "json", "--non-interactive", "--nologo", "-o", $dumpFile)
         $dumpArgs += $pkg.DumpArgs
 
-        $workDir = if ($AspireRepoPath) { $AspireRepoPath } else { $PWD.Path }
+        $workDir = if ($AspireRepoPath) { $AspireRepoPath } elseif ($aspireCliWorkingDirectory) { $aspireCliWorkingDirectory } else { $PWD.Path }
         $proc = Invoke-AspireCli -Arguments $dumpArgs -WorkingDirectory $workDir `
             -StderrFile (Join-Path $TempDir "$name.stderr.txt")
 
@@ -419,6 +712,9 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
 
         if ($LASTEXITCODE -eq 0) {
             $success++
+            if ($version) {
+                Remove-StaleTsModuleFiles -PackageName $name -CurrentOutputFile $outputFile -OutputDirectory $OutputDir
+            }
         } else {
             Write-Warning "  Transform failed"
             $failed++
@@ -439,4 +735,8 @@ Write-Host "Complete: $success succeeded, $failed failed, $skipped skipped" -For
 # Clean up temp files
 if (Test-Path $TempDir) {
     Remove-Item $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+if ($aspireCliWorkingDirectory -and (Test-Path $aspireCliWorkingDirectory)) {
+    Remove-Item $aspireCliWorkingDirectory -Recurse -Force -ErrorAction SilentlyContinue
 }

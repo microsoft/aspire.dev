@@ -14,6 +14,7 @@ import Expand from '@components/Expand.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
 import NuGetButton from '@components/api-reference/NuGetButton.astro';
+import { hasAttribute } from '@utils/api-attributes';
 
 export async function getStaticPaths() {
   const packages = await getPackages();
@@ -108,6 +109,38 @@ for (const type of validTypes) {
 const allKinds = [...new Set(pkgIndex.map(e => e.k))].sort();
 const pkgIndexJson = JSON.stringify(pkgIndex);
 const pkgName = pkg.package.name;
+
+function getCommonSourceDirectory(types: any[]): string | null {
+  const directories = types
+    .map((type: any) => type.sourceFile as string | undefined)
+    .filter((path): path is string => !!path)
+    .map((path) => path.split('/').slice(0, -1));
+
+  if (directories.length === 0) {
+    return null;
+  }
+
+  let common = directories[0];
+  for (const directory of directories.slice(1)) {
+    let index = 0;
+    while (index < common.length && index < directory.length && common[index] === directory[index]) {
+      index++;
+    }
+    common = common.slice(0, index);
+    if (common.length === 0) {
+      return null;
+    }
+  }
+
+  return common.join('/');
+}
+
+const packageSourcePath = getCommonSourceDirectory(validTypes);
+const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceCommit
+  ? packageSourcePath
+    ? `${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}/${packageSourcePath}`
+    : `${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}`
+  : null;
 ---
 
 <StarlightPage
@@ -156,9 +189,9 @@ const pkgName = pkg.package.name;
         </div>
       </div>
       <div class="pkg-hero-actions">
-        {pkg.package.sourceRepository && pkg.package.sourceCommit && (
+        {packageSourceHref && (
           <a
-            href={`${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}`}
+            href={packageSourceHref}
             target="_blank"
             rel="noopener noreferrer"
             class="api-source-link"
@@ -200,7 +233,10 @@ const pkgName = pkg.package.name;
                 {t.isStatic && <span class="api-mini-badge">static</span>}
                 {t.isSealed && !['enum', 'delegate', 'struct', 'record struct'].includes(t.kind) && <span class="api-mini-badge">sealed</span>}
                 {t.isReadOnly && <span class="api-mini-badge">readonly</span>}
-                {t.attributes?.some((a: any) => a.name.includes('Obsolete')) && <span class="api-mini-badge obsolete">obsolete</span>}
+                {hasAttribute(t.attributes, 'Obsolete') && <span class="api-mini-badge obsolete">obsolete</span>}
+                {hasAttribute(t.attributes, 'AspireExport') && <span class="api-mini-badge">ats export</span>}
+                {hasAttribute(t.attributes, 'AspireDto') && <span class="api-mini-badge">dto</span>}
+                {hasAttribute(t.attributes, 'AspireExportIgnore') && <span class="api-mini-badge">ats ignored</span>}
               </div>
               {t.docs?.summary && (
                 <div class="api-list-desc">

@@ -179,6 +179,7 @@ const indexJson = JSON.stringify(index);
     p: string;
     s: string;
     t?: string;
+    v?: string;
   }
 
   const PAGE_SIZE = 10;
@@ -233,6 +234,9 @@ const indexJson = JSON.stringify(index);
 
       this.init();
       this.restoreFromUrl();
+      this.syncVersionStateFromDom();
+      this.filterPackageList();
+      this.applySearch();
 
       // Listen for version filter changes
       document.addEventListener('version-filter-change', (e: Event) => {
@@ -253,12 +257,42 @@ const indexJson = JSON.stringify(index);
           this.clearFiltersBtn.style.display = 'none';
         }
 
-        if (detail.none) {
-          this.showSearchResults();
-        } else {
-          this.applySearch();
-        }
+        this.applySearch();
       });
+    }
+
+    private syncVersionStateFromDom(): void {
+      const vfContainer = document.querySelector('.version-filter');
+      if (!vfContainer) {
+        this.activeVersions = null;
+        return;
+      }
+
+      const versionCheckboxes = Array.from(
+        vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb:not([data-version="__all__"])')
+      );
+      const selected = versionCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!).filter(Boolean);
+
+      this.activeVersions = selected.length === versionCheckboxes.length
+        ? null
+        : new Set(selected);
+
+      if (this.activeVersions !== null || this.activeKinds.size > 0) {
+        this.clearFiltersBtn.style.display = '';
+      }
+    }
+
+    private getVisiblePackageStats(): { packageCount: number; functionCount: number; typeCount: number } {
+      const visibleEntries = this.activeVersions === null
+        ? this.index
+        : this.index.filter(entry => entry.v && this.activeVersions!.has(entry.v));
+      const functionKinds = new Set(['method', 'property']);
+
+      return {
+        packageCount: new Set(visibleEntries.map(entry => entry.p)).size,
+        functionCount: visibleEntries.filter(entry => functionKinds.has(entry.k)).length,
+        typeCount: visibleEntries.filter(entry => !functionKinds.has(entry.k)).length,
+      };
     }
 
     private init(): void {
@@ -329,7 +363,9 @@ const indexJson = JSON.stringify(index);
       this.resultsEl.style.display = 'none';
       this.resultsEl.innerHTML = '';
       this.packageList.style.display = '';
-      this.countEl.textContent = `${fmtNum(this.functionCount)} functions and ${fmtNum(this.typeCount)} types across ${fmtNum(this.packageCount)} modules`;
+
+      const stats = this.getVisiblePackageStats();
+      this.countEl.textContent = `${fmtNum(stats.functionCount)} functions and ${fmtNum(stats.typeCount)} types across ${fmtNum(stats.packageCount)} modules`;
     }
 
     private handleInput(): void {
@@ -369,14 +405,11 @@ const indexJson = JSON.stringify(index);
         this.clearFiltersBtn.style.display = '';
       }
 
-      if (q || kinds.size > 0) {
-        this.applySearch();
-      }
     }
 
     private applySearch(): void {
       const q = this.input.value.trim();
-      if (!q && this.activeKinds.size === 0 && this.activeVersions === null) {
+      if (!q && this.activeKinds.size === 0) {
         this.showPackages();
         return;
       }
