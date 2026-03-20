@@ -988,24 +988,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
-          label: 'TypeScript AppHost',
-          collapsed: false,
-          items: [
-            {
-              label: 'Introduction',
-              slug: 'app-host/typescript-apphost',
-            },
-            {
-              label: 'Migration guide',
-              slug: 'app-host/typescript-apphost-migration',
-            },
-            {
-              label: 'Troubleshooting',
-              slug: 'app-host/typescript-apphost-troubleshooting',
-            },
-          ],
-        },
-        {
           label: 'Docker Compose',
           collapsed: true,
           items: [
@@ -1268,6 +1250,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '概述',
           },
           slug: 'architecture/overview',
+        },
+        {
+          label: 'Multi-language architecture',
+          slug: 'architecture/multi-language-architecture',
         },
         {
           label: 'Resource model',
