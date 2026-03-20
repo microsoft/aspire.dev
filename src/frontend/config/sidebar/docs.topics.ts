@@ -962,25 +962,19 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         {
-          label: 'C#',
+          label: 'Language support',
           collapsed: true,
           items: [
             {
-              label: 'Aspire SDK',
+              label: 'C# SDK',
               slug: 'get-started/aspire-sdk',
             },
             {
-              label: 'Templates',
+              label: 'C# templates',
               slug: 'get-started/aspire-sdk-templates',
             },
-          ],
-        },
-        {
-          label: 'TypeScript',
-          collapsed: true,
-          items: [
             {
-              label: 'Project structure',
+              label: 'TypeScript project structure',
               slug: 'app-host/typescript-apphost',
             },
           ],
