@@ -342,7 +342,7 @@ const database = (await builder.addPostgres("db"))
 
 const cache = await builder.addRedis("cache");
 
-const app = await builder.addContainer("app", "myapp", "latest")
+const app = await builder.addContainer("app", "myapp:latest")
     .withReference(database)
     .withReference(cache)
     .withEnvironment("API_KEY", apiKey)
@@ -388,7 +388,7 @@ const dbPassword = builder.addParameter("dbPassword", { secret: true });
 const db = (await builder.addPostgres("db", { password: dbPassword }))
     .addDatabase("myapp");
 
-const app = await builder.addContainer("app", "myapp", "latest")
+const app = await builder.addContainer("app", "myapp:latest")
     .withReference(db)
     .withEnvironment("DATABASE_URL",
         builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`)
@@ -448,11 +448,11 @@ const builder = await createBuilder();
 // Create a named volume for sharing data
 const appData = builder.addVolume("app-data");
 
-const app = await builder.addContainer("app", "myapp", "latest")
+const app = await builder.addContainer("app", "myapp:latest")
     .withVolume(appData, "/data")
     .withBindMount("./config", "/app/config", { isReadOnly: true });
 
-const worker = await builder.addContainer("worker", "myworker", "latest")
+const worker = await builder.addContainer("worker", "myworker:latest")
     .withVolume(appData, "/shared");
 
 await builder.build().run();
@@ -587,7 +587,7 @@ const dbPassword = builder.addParameter("dbPassword", { secret: true });
 const postgres = (await builder.addPostgres("db", { password: dbPassword }))
     .addDatabase("myapp");
 
-const app = await builder.addContainer("app", "myapp", "latest")
+const app = await builder.addContainer("app", "myapp:latest")
     .withReference(postgres)
     .withEnvironment("DATABASE_URL",
         builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`);

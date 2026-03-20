@@ -49,11 +49,10 @@ import { createBuilder } from './.modules/aspire.js';
 const builder = await createBuilder();
 
 // Basic executable without arguments
-const nodeApp = await builder.addExecutable("frontend", "node", ".", "server.js");
+const nodeApp = await builder.addExecutable("frontend", "node", ".", ["server.js"]);
 
 // Executable with command-line arguments
-const pythonApp = await builder.addExecutable(
-    "api", "python", ".", "-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000");
+const pythonApp = await builder.addExecutable("api", "python", ".", ["-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]);
 
 await builder.build().run();
 ```
@@ -85,8 +84,7 @@ import { createBuilder } from './.modules/aspire.js';
 const builder = await createBuilder();
 
 // Arguments provided directly in addExecutable
-const app = await builder.addExecutable(
-    "vercel-dev", "vercel", ".", "dev", "--listen", "3000");
+const app = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--listen", "3000"]);
 ```
 </TabItem>
 </Tabs>
@@ -117,7 +115,7 @@ const builder = await createBuilder();
 const redis = await builder.addRedis("cache");
 const postgres = (await builder.addPostgres("postgres")).addDatabase("appdb");
 
-const app = await builder.addExecutable("worker", "python", ".", "worker.py")
+const app = await builder.addExecutable("worker", "python", ".", ["worker.py"])
     .withReference(redis)      // Provides ConnectionStrings__cache
     .withReference(postgres);  // Provides ConnectionStrings__appdb
 ```
@@ -155,7 +153,7 @@ const builder = await createBuilder();
 
 const redis = await builder.addRedis("cache");
 
-const app = await builder.addExecutable("app", "node", ".", "app.js")
+const app = await builder.addExecutable("app", "node", ".", ["app.js"])
     .withReference(redis)
     .withEnvironment("REDIS_HOST", redis.resource.primaryEndpoint.property("host"))
     .withEnvironment("REDIS_PORT", redis.resource.primaryEndpoint.property("port"));
@@ -196,8 +194,7 @@ const api = await builder.addProject("api", "./Api/Api.csproj")
     .withExternalHttpEndpoints();
 
 // Frontend with Vercel CLI
-const frontend = await builder.addExecutable(
-        "vercel-dev", "vercel", ".", "dev", "--listen", "3000")
+const frontend = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--listen", "3000"])
     .withEnvironment("API_URL", api.getEndpoint("http"))
     .withHttpEndpoint({ port: 3000, name: "http" });
 
@@ -230,12 +227,11 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const frontend = await builder.addExecutable(
-        "webpack-dev", "npx", ".", "webpack", "serve", "--port", "8080", "--host", "0.0.0.0")
+const frontend = await builder.addExecutable("webpack-dev", "npx", ".", ["webpack", "serve", "--port", "8080", "--host", "0.0.0.0"])
     .withHttpEndpoint({ port: 8080, name: "http" });
 
 // Another service can reference the frontend
-const e2eTests = await builder.addExecutable("playwright", "npx", ".", "playwright", "test")
+const e2eTests = await builder.addExecutable("playwright", "npx", ".", ["playwright", "test"])
     .withEnvironment("BASE_URL", frontend.getEndpoint("http"));
 ```
 </TabItem>
@@ -267,8 +263,7 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const app = await builder.addExecutable(
-        "api", "uvicorn", ".", "main:app", "--reload", "--host", "0.0.0.0")
+const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--reload", "--host", "0.0.0.0"])
     .withEnvironment("DEBUG", "true")
     .withEnvironment("LOG_LEVEL", "info")
     .withEnvironment("START_TIME", new Date().toISOString());
@@ -296,8 +291,7 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const app = await builder.addExecutable(
-        "frontend", "npm", ".", "start", "--port", "3000")
+const app = await builder.addExecutable("frontend", "npm", ".", ["start", "--port", "3000"])
     .publishAsDockerFile();
 ```
 </TabItem>
@@ -336,7 +330,7 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const app = await builder.addExecutable("frontend", "npm", ".", "start")
+const app = await builder.addExecutable("frontend", "npm", ".", ["start"])
     .publishAsDockerFile([{ name: "NODE_ENV", value: "production" }]);
 ```
 </TabItem>
