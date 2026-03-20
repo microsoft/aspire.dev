@@ -111,6 +111,28 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/custom-deployments',
     },
     {
+      label: 'CI/CD pipelines',
+      translations: {
+        da: 'CI/CD-pipelines',
+        de: 'CI/CD-Pipelines',
+        en: 'CI/CD pipelines',
+        es: 'Canalizaciones de CI/CD',
+        fr: 'Pipelines CI/CD',
+        hi: 'CI/CD पाइपलाइन',
+        id: 'Pipeline CI/CD',
+        it: 'Pipeline CI/CD',
+        ja: 'CI/CD パイプライン',
+        ko: 'CI/CD 파이프라인',
+        'pt-BR': 'Pipelines de CI/CD',
+        'pt-PT': 'Pipelines de CI/CD',
+        ru: 'Конвейеры CI/CD',
+        tr: 'CI/CD işlem hatları',
+        uk: 'Конвеєри CI/CD',
+        'zh-CN': 'CI/CD 管道',
+      },
+      slug: 'deployment/cicd',
+    },
+    {
       label: 'Deploy to Azure',
       collapsed: false,
       translations: {
