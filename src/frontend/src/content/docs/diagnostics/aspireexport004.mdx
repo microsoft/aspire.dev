@@ -1,0 +1,46 @@
+---
+title: Compiler Error ASPIREEXPORT004
+description: Learn more about compiler Error ASPIREEXPORT004. A parameter type in an [AspireExport] method is not ATS-compatible.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Parameter '{0}' of type '{1}' in method '{2}' is not ATS-compatible. Use primitive types, enums, or supported Aspire types.
+
+This diagnostic error is reported when a method decorated with `[AspireExport]` has a parameter whose type cannot be represented across language boundaries by the Aspire Type Specification (ATS). ATS-compatible parameter types include primitive types (such as `string`, `int`, `bool`, `double`), enums, and supported Aspire types such as `IResourceBuilder<T>`. Types that are not ATS-compatible include `out` parameters, open generic type parameters, `params` arrays, raw `IResource` instances, and arbitrary delegate types.
+
+## Example
+
+The following code generates `ASPIREEXPORT004`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    IResourceBuilder<IResourceWithEnvironment> builder,
+    out string connectionString)  // 'out' parameters are not ATS-compatible
+{
+    connectionString = "...";
+    return builder.WithReference(...);
+}
+```
+
+## To correct this error
+
+Remove or replace the incompatible parameter type with an ATS-compatible type. Use primitive types, enums, or supported Aspire types:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addRedis")]
+public static IResourceBuilder<RedisResource> AddRedis(
+    IResourceBuilder<IResourceWithEnvironment> builder,
+    int port = 6379)
+{
+    return builder.WithReference(...);
+}
+```
