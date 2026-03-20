@@ -136,14 +136,14 @@ const database = (await builder.addPostgres("postgres")
     .addDatabase("myapp");
 
 // Add the API project with proper dependencies
-const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
+const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj", "https")
     .withHttpEndpoint({ port: 5000 })
     .withHttpHealthCheck("/health")
     .withReference(database, "DefaultConnection")
     .waitFor(database);
 
 // Add the frontend project with dependencies
-const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
+const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj", "https")
     .withHttpEndpoint({ port: 3000 })
     .withReference(api)
     .withEnvironment("API_URL", api.getEndpoint("http"))
@@ -611,7 +611,7 @@ var api = builder.AddProject<Projects.Api>("api")
 </TabItem>
 <TabItem label="TypeScript">
 ```typescript title="TypeScript — app.host.ts"
-const api = await builder.addProject("api", "./Api/Api.csproj")
+const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withReference(database)  // Service discovery
     .waitFor(database);       // Startup ordering
 ```
@@ -660,7 +660,7 @@ var api = builder.AddProject<Projects.Api>("api")
 </TabItem>
 <TabItem label="TypeScript">
 ```typescript title="TypeScript — app.host.ts"
-const api = await builder.addProject("api", "./Api/Api.csproj")
+const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withHttpHealthCheck("/health");
 ```
 </TabItem>
@@ -693,7 +693,7 @@ const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-managem
     .withHealthCheck("rabbitmq-health");
 
 // WaitFor uses the registered health check to determine readiness
-const app = await builder.addProject("app", "./App/App.csproj")
+const app = await builder.addProject("app", "./App/App.csproj", "https")
     .waitFor(rabbit);
 ```
 </TabItem>
