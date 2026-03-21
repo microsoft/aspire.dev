@@ -19,7 +19,7 @@ internal static class BatchGenerateCommand
 
     private static readonly Option<string?> s_aspireRepoOption = new("--aspire-repo")
     {
-        Description = "Path to a local dotnet/aspire repo clone. When provided, discovers integration csproj files and dumps each.",
+        Description = "Path to a local microsoft/aspire repo clone. When provided, discovers integration csproj files and dumps each.",
     };
 
     private static readonly Option<string[]> s_inputFilesOption = new("--input")
@@ -149,7 +149,7 @@ internal static class BatchGenerateCommand
     }
 
     /// <summary>
-    /// Discover integration projects in a dotnet/aspire repo clone and run
+    /// Discover integration projects in a microsoft/aspire repo clone and run
     /// <c>aspire sdk dump --format json</c> for each.
     /// </summary>
     private static List<(string path, string packageName)> DiscoverAndDump(

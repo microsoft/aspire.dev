@@ -58,7 +58,6 @@ $ErrorActionPreference = "Stop"
 $NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json"
 $AspireRepoCandidates = @(
     $env:ASPIRE_GITHUB_REPO_URL,
-    "https://github.com/dotnet/aspire",
     "https://github.com/microsoft/aspire"
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 $script:NuGetSourceMetadataCache = @{}
@@ -293,7 +292,7 @@ function Resolve-OfficialAspireFeed {
 
     $branchCommit = Resolve-ReleaseBranchCommit -BranchName $BranchName
     if (-not $branchCommit) {
-        throw "Unable to resolve the official Aspire release feed for branch '$BranchName'. Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT while dotnet/aspire is still the active source repo."
+        throw "Unable to resolve the official Aspire release feed for branch '$BranchName'. Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT while microsoft/aspire is the active source repo."
     }
 
     $feedName = Get-ReleaseFeedNameFromCommit -Commit $branchCommit.Commit

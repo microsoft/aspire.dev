@@ -22,7 +22,7 @@ dotnet run --project AtsJsonGenerator.csproj -- \
   --output ../../frontend/src/data/ts-pkgs/Aspire.Hosting.json \
   --package-name "Aspire.Hosting" \
   --version "13.2.0" \
-  --source-repo "https://github.com/dotnet/aspire"
+  --source-repo "https://github.com/microsoft/aspire"
 ```
 
 ### Batch mode
@@ -39,7 +39,7 @@ Or discover and dump all integration packages from a local Aspire repo clone:
 
 ```bash
 dotnet run --project AtsJsonGenerator.csproj -- batch \
-  --aspire-repo /path/to/dotnet/aspire \
+  --aspire-repo /path/to/microsoft/aspire \
   --output-dir ../../frontend/src/data/ts-pkgs/ \
   --version "13.2.0"
 ```
@@ -54,7 +54,7 @@ The generated JSON follows this schema:
     "name": "Aspire.Hosting",
     "version": "13.2.0",
     "language": "typescript",
-    "sourceRepository": "https://github.com/dotnet/aspire"
+    "sourceRepository": "https://github.com/microsoft/aspire"
   },
   "functions": [
     {

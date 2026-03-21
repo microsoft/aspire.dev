@@ -6,12 +6,12 @@ public sealed class PackageJsonGeneratorHelperTests
     public void BuildRawGitHubUrl_StripsGitSuffix()
     {
         var rawUrl = PackageJsonGenerator.BuildRawGitHubUrl(
-            "https://github.com/dotnet/aspire.git",
+            "https://github.com/microsoft/aspire.git",
             "abc123",
             "src/Aspire.Hosting/Foo.cs");
 
         Assert.Equal(
-            "https://raw.githubusercontent.com/dotnet/aspire/abc123/src/Aspire.Hosting/Foo.cs",
+            "https://raw.githubusercontent.com/microsoft/aspire/abc123/src/Aspire.Hosting/Foo.cs",
             rawUrl);
     }
 

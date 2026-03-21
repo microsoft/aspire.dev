@@ -595,7 +595,7 @@ You can also access this via the download icon on aspire.dev and selecting "Dev"
 
 For documenting features in specific pull requests before they merge:
 
-1. Go to the PR in [dotnet/aspire](https://github.com/dotnet/aspire)
+1. Go to the PR in [microsoft/aspire](https://github.com/microsoft/aspire)
 2. Find the build artifacts in the Checks/Actions section
 3. Download and install the CLI from the PR artifacts
 

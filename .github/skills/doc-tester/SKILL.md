@@ -22,7 +22,7 @@ This skill provides guidelines for AI agents to systematically validate the aspi
 
 ❌ **DO NOT:**
 - Read Aspire source code to understand behavior
-- Check implementation details in the dotnet/aspire repository
+- Check implementation details in the microsoft/aspire repository
 - Look at test files to understand expected behavior
 - Use internal knowledge of the codebase
 - Silently fill gaps with your built-in knowledge - flag them instead
@@ -164,7 +164,7 @@ Dev builds are the latest from the main branch and may be unstable. Only use for
 
 For testing documentation of features in specific pull requests (before they're merged), you need to install the CLI from the PR artifacts:
 
-1. Navigate to the PR in the [dotnet/aspire](https://github.com/dotnet/aspire) repository
+1. Navigate to the PR in the [microsoft/aspire](https://github.com/microsoft/aspire) repository
 2. Find the "Checks" or "Actions" section of the PR
 3. Look for the build artifacts that contain the CLI
 4. Download and install the CLI from the PR-specific build artifacts

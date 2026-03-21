@@ -34,7 +34,7 @@ internal static class GenerateCommand
 
     private static readonly Option<string?> s_sourceRepoOption = new("--source-repo")
     {
-        Description = "Source repository URL (e.g. https://github.com/dotnet/aspire).",
+        Description = "Source repository URL (e.g. https://github.com/microsoft/aspire).",
     };
 
     private static readonly Option<string?> s_sourceCommitOption = new("--source-commit")

@@ -1,6 +1,6 @@
 ---
 description: 'Verifies that a release branch is ready for publication by validating the build, site content, whats-new entry, version references, and integration docs.'
-tools: ['read/terminalSelection', 'read/terminalLastCommand', 'read/problems', 'read/readFile', 'search', 'web', 'todo', 'terminal']
+tools: [read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, search, web, todo]
 name: Release Verifier
 ---
 
@@ -169,7 +169,7 @@ Run the **update-integrations** skill to ensure integration documentation links 
    cd src/frontend && node scripts/update-integrations.js
    ```
 
-   On `release/*` branches, this automatically uses the branch-specific official Aspire release feed for `Aspire.*` packages. If the matching `dotnet/aspire` branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running it.
+   On `release/*` branches, this automatically uses the branch-specific official Aspire release feed for `Aspire.*` packages. If the matching `microsoft/aspire` branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running it.
 
 2. Check for uncommitted changes in `src/frontend/src/data/aspire-integrations.json` and `src/frontend/src/data/integration-docs.json`. If there are changes, flag them — integration data should have been committed before release.
 

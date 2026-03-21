@@ -68,7 +68,7 @@ The generated JSON follows this schema:
 
 This tool is based on:
 
-- `ConfigurationSchemaGenerator` from `dotnet/aspire` - for the command-line tool structure
+- `ConfigurationSchemaGenerator` from `microsoft/aspire` - for the command-line tool structure
 - `ApiSchemaGenerator` from `api.contracts` - for the JSON schema generation approach
 
 The tool uses:
@@ -109,4 +109,4 @@ dotnet run --project ../PackageJsonGenerator/PackageJsonGenerator.csproj -- \
 - Compiler-generated types (e.g., closure classes) are automatically filtered out
 - The emitted `targetFramework` should match the selected `lib/<tfm>` folder for the analyzed package
 - The companion `generate-package-json.ps1` script resolves official `Aspire.*` packages from a branch-specific Azure Artifacts feed on `release/*` branches and uses nuget.org elsewhere
-- When the matching `dotnet/aspire` release branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running the script
+- When the matching `microsoft/aspire` release branch is not publicly reachable yet, set `ASPIRE_RELEASE_FEED_URL`, `ASPIRE_RELEASE_FEED_NAME`, or `ASPIRE_RELEASE_COMMIT` before running the script

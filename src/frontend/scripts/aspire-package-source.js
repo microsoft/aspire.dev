@@ -7,7 +7,6 @@ const AZURE_ARTIFACTS_PACKAGING_BASE =
   'https://pkgs.dev.azure.com/dnceng/public/_packaging';
 const ASPIRE_REPO_CANDIDATES = [
   process.env.ASPIRE_GITHUB_REPO_URL,
-  'https://github.com/dotnet/aspire',
   'https://github.com/microsoft/aspire',
 ].filter(Boolean);
 
@@ -188,7 +187,7 @@ export function resolveOfficialAspirePackageSource() {
   if (!branchCommit) {
     throw new Error(
       `Unable to resolve the official Aspire release feed for branch "${branchName}". ` +
-        'Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT to override the feed while dotnet/aspire is still the active source repo.'
+        'Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT to override the feed while microsoft/aspire is the active source repo.'
     );
   }
 

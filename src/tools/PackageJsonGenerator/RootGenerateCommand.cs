@@ -35,7 +35,7 @@ internal static class RootGenerateCommand
 
     private static readonly Option<string?> s_sourceRepoOption = new("--source-repo")
     {
-        Description = "The source repository URL (e.g. https://github.com/dotnet/aspire). Falls back to assembly RepositoryUrl metadata.",
+        Description = "The source repository URL (e.g. https://github.com/microsoft/aspire). Falls back to assembly RepositoryUrl metadata.",
     };
 
     private static readonly Option<string?> s_sourceCommitOption = new("--source-commit")

@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Supports two input modes:
-    1. -AspireRepoPath: Discovers .csproj files in a local dotnet/aspire clone
+    1. -AspireRepoPath: Discovers .csproj files in a local microsoft/aspire clone
     2. -NuGetPackageVersion: Uses Name@Version syntax to resolve packages via NuGet
 
     For each eligible package, this script:
@@ -15,7 +15,7 @@
     3. Outputs to src/frontend/src/data/ts-modules/
 
 .PARAMETER AspireRepoPath
-    Path to a local dotnet/aspire repository clone. Discovers projects with
+    Path to a local microsoft/aspire repository clone. Discovers projects with
     [AspireExport] attributes automatically.
 
 .PARAMETER NuGetPackageVersion
@@ -66,7 +66,6 @@ $ErrorActionPreference = "Stop"
 $NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json"
 $AspireRepoCandidates = @(
     $env:ASPIRE_GITHUB_REPO_URL,
-    "https://github.com/dotnet/aspire",
     "https://github.com/microsoft/aspire"
 ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 
@@ -285,7 +284,7 @@ function Resolve-OfficialAspireFeed {
 
     $branchCommit = Resolve-ReleaseBranchCommit -BranchName $BranchName
     if (-not $branchCommit) {
-        throw "Unable to resolve the official Aspire release feed for branch '$BranchName'. Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT while dotnet/aspire is still the active source repo."
+        throw "Unable to resolve the official Aspire release feed for branch '$BranchName'. Set ASPIRE_RELEASE_FEED_URL, ASPIRE_RELEASE_FEED_NAME, or ASPIRE_RELEASE_COMMIT while microsoft/aspire is the active source repo."
     }
 
     $feedName = Get-ReleaseFeedNameFromCommit -Commit $branchCommit.Commit
@@ -607,7 +606,7 @@ foreach ($pkg in $corePackages) {
             "--input", $dumpFile,
             "--output", $outputFile,
             "--package-name", $name,
-            "--source-repo", "https://github.com/dotnet/aspire"
+            "--source-repo", "https://github.com/microsoft/aspire"
         )
 
         & dotnet @transformArgs 2>&1 | ForEach-Object {
@@ -694,7 +693,7 @@ foreach ($pkg in $integrationPackages | Sort-Object { $_.Name }) {
             "--input", $dumpFile,
             "--output", $outputFile,
             "--package-name", $name,
-            "--source-repo", "https://github.com/dotnet/aspire"
+            "--source-repo", "https://github.com/microsoft/aspire"
         )
 
         # Dedup against core if available

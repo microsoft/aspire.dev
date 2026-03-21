@@ -205,7 +205,7 @@ public sealed class AtsJsonGeneratorTests
             outputPath,
             packageName: null,
             version: null,
-            sourceRepo: "https://github.com/dotnet/aspire",
+            sourceRepo: "https://github.com/microsoft/aspire",
             sourceCommit: "abc123",
             basePath: basePath);
 
@@ -216,7 +216,7 @@ public sealed class AtsJsonGeneratorTests
         Assert.NotNull(result);
         Assert.Equal("Contoso.Tools", result.Package.Name);
         Assert.Equal("2.4.0", result.Package.Version);
-        Assert.Equal("https://github.com/dotnet/aspire", result.Package.SourceRepository);
+        Assert.Equal("https://github.com/microsoft/aspire", result.Package.SourceRepository);
         Assert.Equal("abc123", result.Package.SourceCommit);
 
         var function = Assert.Single(result.Functions);

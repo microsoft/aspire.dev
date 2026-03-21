@@ -31,7 +31,7 @@ This skill keeps the documentation mappings in sync with the package catalog and
 - On `main` and all non-`release/*` branches, official Aspire packages resolve from `https://api.nuget.org/v3/index.json`
 - On `release/*` branches, official packages (`Aspire.*`) must resolve from the branch-specific public Azure Artifacts feed instead of nuget.org
 - Community Toolkit packages (`CommunityToolkit.Aspire.*`) always resolve from nuget.org
-- The branch name in this repo is expected to match the corresponding branch in `dotnet/aspire` (for example `release/13.2`)
+- The branch name in this repo is expected to match the corresponding branch in `microsoft/aspire` (for example `release/13.2`)
 - The release feed name follows `darc-pub-dotnet-aspire-{shortSha}` where `{shortSha}` is the first 8 characters of the head commit SHA for the matching Aspire release branch
 - The automation derives the NuGet service index from that feed name as `https://pkgs.dev.azure.com/dnceng/public/_packaging/{feed-name}/nuget/v3/index.json`
 
@@ -42,7 +42,7 @@ The scripts use this precedence on `release/*` branches:
 1. `ASPIRE_RELEASE_FEED_URL` — accepts the full NuGet service index URL, the Azure DevOps feed page URL, or the raw feed name
 2. `ASPIRE_RELEASE_FEED_NAME` — explicit feed name such as `darc-pub-dotnet-aspire-aad16017`
 3. `ASPIRE_RELEASE_COMMIT` / `ASPIRE_RELEASE_COMMIT_SHA` — derives the feed name from the commit SHA prefix
-4. Automatic lookup of the matching branch head via `git ls-remote` against `https://github.com/dotnet/aspire` (falling back to `https://github.com/microsoft/aspire` during the transition)
+4. Automatic lookup of the matching branch head via `git ls-remote` against `https://github.com/microsoft/aspire`
 
 If the Aspire release branch is not publicly reachable yet, set one of the override environment variables above. The scripts intentionally fail on `release/*` if the official release feed cannot be resolved, to avoid accidentally ingesting stale nuget.org packages.
 

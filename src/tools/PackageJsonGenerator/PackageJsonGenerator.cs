@@ -12,6 +12,8 @@ namespace PackageJsonGenerator;
 
 public static class PackageJsonGenerator
 {
+    private const string NewAspireRepositoryUrl = "https://github.com/microsoft/aspire";
+
     public static void GeneratePackageJson(string? inputAssembly, string[]? references, string? outputFile, string? versionOverride = null, string? packageNameOverride = null, string? sourceRepoOverride = null, string? sourceCommitOverride = null, string? targetFrameworkOverride = null, ConcurrentDictionary<string, PortableExecutableReference>? referenceCache = null)
     {
         if (string.IsNullOrEmpty(inputAssembly))
@@ -96,6 +98,8 @@ public static class PackageJsonGenerator
                 }
             }
         }
+
+        sourceRepo = NormalizeSourceRepository(sourceRepo);
 
         // Build canonical models
         var modelBuilder = new CanonicalModelBuilder(compilation);
@@ -334,6 +338,8 @@ public static class PackageJsonGenerator
 
     internal static string? BuildRawGitHubUrl(string sourceRepo, string sourceCommit, string filePath)
     {
+        sourceRepo = NormalizeSourceRepository(sourceRepo) ?? sourceRepo;
+
         if (!Uri.TryCreate(sourceRepo, UriKind.Absolute, out var repoUri))
             return null;
 
@@ -345,6 +351,31 @@ public static class PackageJsonGenerator
             repoPath = repoPath[..^4];
 
         return $"https://raw.githubusercontent.com{repoPath}/{sourceCommit}/{filePath}";
+    }
+
+    internal static string? NormalizeSourceRepository(string? sourceRepo)
+    {
+        if (string.IsNullOrWhiteSpace(sourceRepo))
+        {
+            return sourceRepo;
+        }
+
+        var trimmed = sourceRepo.Trim();
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var repoUri) &&
+            repoUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var segments = repoUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 2 &&
+                segments[0].Equals("dotnet", StringComparison.OrdinalIgnoreCase) &&
+                (segments[1].Equals("aspire", StringComparison.OrdinalIgnoreCase) ||
+                 segments[1].Equals("aspire.git", StringComparison.OrdinalIgnoreCase)))
+            {
+                return NewAspireRepositoryUrl;
+            }
+        }
+
+        return trimmed;
     }
 
     /// <summary>

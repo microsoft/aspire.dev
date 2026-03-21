@@ -5,6 +5,8 @@ namespace AtsJsonGenerator.Helpers;
 /// </summary>
 internal static class AtsTransformer
 {
+    private const string NewAspireRepositoryUrl = "https://github.com/microsoft/aspire";
+
     /// <summary>
     /// Transform the deserialized dump output into a <see cref="TsPackageModel"/>.
     /// </summary>
@@ -15,6 +17,8 @@ internal static class AtsTransformer
         string? sourceRepository = null,
         string? sourceCommit = null)
     {
+        sourceRepository = NormalizeSourceRepository(sourceRepository);
+
         // Fall back to the version from the dump's Packages metadata if not explicitly provided
         version ??= dump.Packages
             .FirstOrDefault(p => string.Equals(p.Name, packageName, StringComparison.OrdinalIgnoreCase))
@@ -76,6 +80,31 @@ internal static class AtsTransformer
             DtoTypes = dtoModels,
             EnumTypes = enumModels,
         };
+    }
+
+    private static string? NormalizeSourceRepository(string? sourceRepository)
+    {
+        if (string.IsNullOrWhiteSpace(sourceRepository))
+        {
+            return sourceRepository;
+        }
+
+        var trimmed = sourceRepository.Trim();
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var repoUri) &&
+            repoUri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var segments = repoUri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 2 &&
+                segments[0].Equals("dotnet", StringComparison.OrdinalIgnoreCase) &&
+                (segments[1].Equals("aspire", StringComparison.OrdinalIgnoreCase) ||
+                 segments[1].Equals("aspire.git", StringComparison.OrdinalIgnoreCase)))
+            {
+                return NewAspireRepositoryUrl;
+            }
+        }
+
+        return trimmed;
     }
 
     private static TsHandleTypeModel TransformHandle(AtsDumpHandleType h)
