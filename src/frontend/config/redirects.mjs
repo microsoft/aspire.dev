@@ -61,8 +61,8 @@ export const redirects = {
   '/integrations/devtools/flagd/': '/integrations/devtools/flagd/flagd-get-started/',
   '/integrations/devtools/goff/': '/integrations/devtools/goff/goff-get-started/',
   '/integrations/devtools/mailpit/': '/integrations/devtools/mailpit/mailpit-get-started/',
-  '/reference/cli/commands/aspire-mcp/': '/reference/cli/commands/aspire-agent/',
   '/reference/cli/commands/aspire-mcp-init/': '/reference/cli/commands/aspire-agent-init/',
   '/reference/cli/commands/aspire-mcp-start/': '/reference/cli/commands/aspire-agent-mcp/',
+  '/reference/cli/commands/aspire-exec/': '/reference/cli/commands/aspire-resource/',
   '/get-started/configure-mcp/': '/get-started/ai-coding-agents/',
 };

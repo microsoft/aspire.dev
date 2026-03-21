@@ -404,6 +404,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'aspire', slug: 'reference/cli/commands/aspire' },
             { label: 'aspire add', slug: 'reference/cli/commands/aspire-add' },
             {
+              label: 'aspire agent',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire agent',
+                  slug: 'reference/cli/commands/aspire-agent',
+                },
+                {
+                  label: 'aspire agent init',
+                  slug: 'reference/cli/commands/aspire-agent-init',
+                },
+                {
+                  label: 'aspire agent mcp',
+                  slug: 'reference/cli/commands/aspire-agent-mcp',
+                },
+              ],
+            },
+            {
               label: 'aspire cache',
               collapsed: true,
               items: [
@@ -418,6 +436,24 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire certs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire certs',
+                  slug: 'reference/cli/commands/aspire-certs',
+                },
+                {
+                  label: 'aspire certs clean',
+                  slug: 'reference/cli/commands/aspire-certs-clean',
+                },
+                {
+                  label: 'aspire certs trust',
+                  slug: 'reference/cli/commands/aspire-certs-trust',
+                },
+              ],
+            },
+            {
               label: 'aspire config',
               collapsed: true,
               items: [
@@ -426,20 +462,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   slug: 'reference/cli/commands/aspire-config',
                 },
                 {
-                  label: 'aspire config list',
-                  slug: 'reference/cli/commands/aspire-config-list',
+                  label: 'aspire config delete',
+                  slug: 'reference/cli/commands/aspire-config-delete',
                 },
                 {
                   label: 'aspire config get',
                   slug: 'reference/cli/commands/aspire-config-get',
                 },
                 {
-                  label: 'aspire config set',
-                  slug: 'reference/cli/commands/aspire-config-set',
+                  label: 'aspire config list',
+                  slug: 'reference/cli/commands/aspire-config-list',
                 },
                 {
-                  label: 'aspire config delete',
-                  slug: 'reference/cli/commands/aspire-config-delete',
+                  label: 'aspire config set',
+                  slug: 'reference/cli/commands/aspire-config-set',
                 },
               ],
             },
@@ -461,6 +497,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   slug: 'reference/cli/commands/aspire-docs',
                 },
                 {
+                  label: 'aspire docs get',
+                  slug: 'reference/cli/commands/aspire-docs-get',
+                },
+                {
                   label: 'aspire docs list',
                   slug: 'reference/cli/commands/aspire-docs-list',
                 },
@@ -468,29 +508,36 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   label: 'aspire docs search',
                   slug: 'reference/cli/commands/aspire-docs-search',
                 },
-                {
-                  label: 'aspire docs get',
-                  slug: 'reference/cli/commands/aspire-docs-get',
-                },
               ],
             },
-            { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
+            {
+              label: 'aspire doctor',
+              slug: 'reference/cli/commands/aspire-doctor',
+            },
+            {
+              label: 'aspire export',
+              slug: 'reference/cli/commands/aspire-export',
+            },
             { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
             {
-              label: 'aspire agent',
+              label: 'aspire logs',
+              slug: 'reference/cli/commands/aspire-logs',
+            },
+            {
+              label: 'aspire mcp',
               collapsed: true,
               items: [
                 {
-                  label: 'aspire agent',
-                  slug: 'reference/cli/commands/aspire-agent',
+                  label: 'aspire mcp',
+                  slug: 'reference/cli/commands/aspire-mcp',
                 },
                 {
-                  label: 'aspire agent init',
-                  slug: 'reference/cli/commands/aspire-agent-init',
+                  label: 'aspire mcp call',
+                  slug: 'reference/cli/commands/aspire-mcp-call',
                 },
                 {
-                  label: 'aspire agent mcp',
-                  slug: 'reference/cli/commands/aspire-agent-mcp',
+                  label: 'aspire mcp tools',
+                  slug: 'reference/cli/commands/aspire-mcp-tools',
                 },
               ],
             },
@@ -522,6 +569,14 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               label: 'aspire publish',
               slug: 'reference/cli/commands/aspire-publish',
             },
+            {
+              label: 'aspire resource',
+              slug: 'reference/cli/commands/aspire-resource',
+            },
+            {
+              label: 'aspire restore',
+              slug: 'reference/cli/commands/aspire-restore',
+            },
             { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
             {
               label: 'aspire secret',
@@ -532,8 +587,8 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   slug: 'reference/cli/commands/aspire-secret',
                 },
                 {
-                  label: 'aspire secret set',
-                  slug: 'reference/cli/commands/aspire-secret-set',
+                  label: 'aspire secret delete',
+                  slug: 'reference/cli/commands/aspire-secret-delete',
                 },
                 {
                   label: 'aspire secret get',
@@ -544,14 +599,18 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   slug: 'reference/cli/commands/aspire-secret-list',
                 },
                 {
-                  label: 'aspire secret delete',
-                  slug: 'reference/cli/commands/aspire-secret-delete',
-                },
-                {
                   label: 'aspire secret path',
                   slug: 'reference/cli/commands/aspire-secret-path',
                 },
+                {
+                  label: 'aspire secret set',
+                  slug: 'reference/cli/commands/aspire-secret-set',
+                },
               ],
+            },
+            {
+              label: 'aspire start',
+              slug: 'reference/cli/commands/aspire-start',
             },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
