@@ -33,7 +33,7 @@ It's important to note that Aspire releases out-of-band from .NET releases. Whil
 
 ## 🆙 Upgrade to Aspire 13.2
 
-<span id='upgrade-to-aspire-13-2'></span>
+<span id="upgrade-to-aspire-13-2"></span>
 
 <Aside type="caution">
   Aspire 13.2 includes breaking changes to configuration files, resource
@@ -74,13 +74,11 @@ Or install the CLI from scratch:
 <OsAwareTabs>
   <Fragment slot="unix">
     ```bash title="Aspire CLI — Install Aspire CLI" curl -sSL
-    https://aspire.dev/install.sh | bash
-    ```
+    https://aspire.dev/install.sh | bash ```
   </Fragment>
   <Fragment slot="windows">
     ```powershell title="Aspire CLI — Install Aspire CLI" irm
-    https://aspire.dev/install.ps1 | iex
-    ```
+    https://aspire.dev/install.ps1 | iex ```
   </Fragment>
 </OsAwareTabs>
 
@@ -176,6 +174,23 @@ aspire run --isolated
 ```
 
 Isolated mode assigns random ports and creates separate user secrets for each run, preventing port conflicts and configuration collisions. This is particularly useful when switching between different Aspire projects or running integration tests that need dedicated ports.
+
+### Resource monitoring with `aspire describe`
+
+The `aspire resources` command has been renamed to `aspire describe` (with `resources` kept as a backward-compatible alias) to better align with `kubectl`-style conventions. The `--watch` flag has also been renamed to `--follow`/`-f` for consistency with `aspire logs --follow`.
+
+```bash title="Aspire CLI — Describe resources"
+# Show all resources in a running AppHost
+aspire describe
+
+# Continuously stream resource state changes
+aspire describe --follow
+```
+
+<LearnMore>
+  Command reference: [`aspire
+  describe`](/reference/cli/commands/aspire-describe/).
+</LearnMore>
 
 ### Environment diagnostics with `aspire doctor`
 
@@ -375,7 +390,8 @@ Aspire 13.2 continues to expand multi-language capabilities with improved TypeSc
 - Multi-language AppHost refactoring for better extensibility
 
 <LearnMore>
-  For more details, see [Multi-language architecture](/architecture/multi-language-architecture/).
+  For more details, see [Multi-language
+  architecture](/architecture/multi-language-architecture/).
 </LearnMore>
 
 ### JavaScript and TypeScript AppHost debugging
@@ -583,29 +599,104 @@ This makes it easier to inspect your Aspire application state during debugging s
 - Trailing commas now allowed in `launchSettings.json`
 - JSON comments and trailing commas parsed without errors
 
+### Contextual endpoint resolution
+
+Aspire 13.2 introduces enhanced contextual endpoint resolution APIs that allow you to resolve endpoints from the perspective of specific resources or networks. This enables you to get the correct URL for a resource depending on where you're accessing it from, whether it's from a container, a host service, or a specific network.
+
+The same resource can have different URLs depending on the context:
+
+- From localhost: `http://localhost:1234`
+- From a container on the host Docker network: `http://host.docker.internal:1234`
+- From a container on the Aspire container network: `http://resource.dev.internal:4567`
+
+#### Resolve from a specific resource (Caller)
+
+You can resolve an endpoint URL from the perspective of a specific calling resource using the `Caller` property on `ValueProviderContext`:
+
+```csharp title="C# — Resolve endpoint from a resource's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var containerApp = builder.AddContainer("worker", "myimage");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL from the container's perspective
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Caller = containerApp.Resource,
+});
+
+// The URL will be appropriate for container-to-container communication
+// e.g., "redis:6379" or "cache:6379"
+```
+
+This is particularly useful when you need to pass connection information between resources that may be running in different contexts (containers vs. host processes).
+
+#### Resolve from a specific network
+
+You can also resolve an endpoint URL from the perspective of a specific network using the `Network` property on `ValueProviderContext`:
+
+```csharp title="C# — Resolve endpoint from a network's perspective"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// Get the endpoint reference
+var endpoint = redis.GetEndpoint("tcp");
+
+// Resolve the URL for the default Aspire container network
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+});
+
+// The URL will be appropriate for the container network
+// e.g., "cache:6379" using the resource name as the hostname
+```
+
+The `KnownNetworkIdentifiers` class provides predefined network identifiers:
+
+- `LocalhostNetwork`: Resolves to localhost-based URLs
+- `DefaultAspireContainerNetwork`: Resolves to container network URLs using resource names
+- `PublicInternet`: Resolves to externally accessible URLs
+
+<Aside type="note">
+  These APIs existed in Aspire 13.1 but did not behave as expected. In Aspire
+  13.2, they now correctly resolve endpoints based on the specified context.
+</Aside>
+
+<LearnMore>
+  For more details, see: - [GitHub Issue
+  #7153](https://github.com/dotnet/aspire/issues/7153) - [GitHub PR
+  #14278](https://github.com/dotnet/aspire/pull/14278) - [Context-based endpoint
+  resolution](/architecture/resource-hierarchies/#context-based-endpoint-resolution)
+</LearnMore>
+
 ## 📦 Integrations updates
 
 ### Foundry and hosted agents
 
-Aspire 13.2 replaces the earlier AIFoundry-focused hosting surface with a broader Microsoft Foundry integration.
+Aspire 13.2 replaces the earlier AIFoundry-focused hosting surface with a broader Microsoft Foundry integration. The hosting package is now `Aspire.Hosting.Foundry`, replacing `Aspire.Hosting.Azure.AIFoundry`.
 
-You can now add Foundry resources, attach model deployments, and run against Foundry Local in development:
+You can now add Foundry accounts, create Foundry Projects, attach model deployments with the generated `FoundryModel` catalog, and publish hosted agents from the regular Aspire app model:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var foundry = builder.AddFoundry("ai")
-    .RunAsFoundryLocal();
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("agents");
 
-var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
-builder.AddProject<Projects.Api>("api")
-    .WithReference(chat);
+builder.AddPythonApp("agent", "..\\agent", "main:app")
+    .WithReference(project)
+    .WithReference(chat)
+    .PublishAsHostedAgent(project);
 
 builder.Build().Run();
 ```
 
-This release also adds hosted-agent support on top of Foundry, including APIs such as `PublishAsHostedAgent` and `AddAndPublishPromptAgent`, which start to bring agent-centric deployment scenarios into the regular Aspire app model.
+New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsights`, `WithKeyVault`, `WithContainerRegistry`, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. `RunAsFoundryLocal` is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
 
 ### Azure Virtual Network and private endpoint support
 
@@ -640,7 +731,8 @@ Key capabilities include:
 - **Private endpoints**: Securely connect to Azure services over private networks with `AddPrivateEndpoint`, which automatically creates private DNS zones, virtual network links, and disables public access on the target resource.
 
 <LearnMore>
-  For more details, see [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/).
+  For more details, see [Azure Virtual Network
+  integration](/integrations/cloud/azure/azure-virtual-network/).
 </LearnMore>
 
 ### Azure AI and embedding support
@@ -834,8 +926,8 @@ aspire resource api restart
 ```
 
 <Aside type="note">
-  `--apphost` is also now the preferred option name across commands, although the
-  legacy `--project` alias is still accepted for compatibility.
+  `--apphost` is also now the preferred option name across commands, although
+  the legacy `--project` alias is still accepted for compatibility.
 </Aside>
 
 ### Dashboard telemetry API now opt-in
@@ -872,7 +964,16 @@ A connection property suffix has been added which may require updates to code th
 
 `Aspire.Hosting.Azure.AIFoundry` was replaced by the broader `Aspire.Hosting.Foundry` surface.
 
-If you were using the older API, migrate from `AddAzureAIFoundry()` to `AddFoundry()` and then attach one or more deployments explicitly:
+When upgrading, make both of these changes:
+
+- Replace the `Aspire.Hosting.Azure.AIFoundry` package reference with `Aspire.Hosting.Foundry`.
+- Migrate from `AddAzureAIFoundry()` to `AddFoundry()`, then add deployments explicitly with `AddDeployment()` or `AddModelDeployment()`.
+
+```xml title="XML — AppHost project file"
+<ItemGroup>
+  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
+</ItemGroup>
+```
 
 ```csharp title="C# — Migration example"
 // Before
@@ -880,10 +981,11 @@ var ai = builder.AddAzureAIFoundry("ai");
 
 // After
 var foundry = builder.AddFoundry("ai");
-var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+var project = foundry.AddProject("agents");
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 ```
 
-This aligns the hosting API with the current Foundry branding and unlocks the new deployment and hosted-agent capabilities added in 13.2.
+This aligns the hosting API with the current Foundry branding and unlocks the new project, deployment, and hosted-agent capabilities added in 13.2.
 
 ### `WithSecretBuildArg` renamed to `WithBuildSecret`
 
