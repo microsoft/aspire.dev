@@ -3,17 +3,18 @@ title: AppHost configuration
 description: Learn about the Aspire AppHost configuration options.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dashboardUpdateNotification from '@assets/whats-new/dashboard-update-notification.png';
 
-The AppHost project configures and starts your distributed application. When a `DistributedApplication` runs it reads configuration from the AppHost. Configuration is loaded from environment variables that are set on the AppHost and `DistributedApplicationOptions`. Configuration includes:
+The AppHost project configures and starts your distributed application. Configuration includes settings for the resource service, the [Aspire dashboard](/dashboard/overview/), and internal settings used by integrations.
 
-- Settings for hosting the resource service, such as the address and authentication options.
-- Settings used to start the [Aspire dashboard](/dashboard/overview/), such the dashboard's frontend and OpenTelemetry Protocol (OTLP) addresses.
-- Internal settings that Aspire uses to run the AppHost. These are set internally but can be accessed by integrations that extend Aspire.
+AppHost configuration is provided through launch profiles:
 
-AppHost configuration is provided by the AppHost launch profile. The AppHost has a launch settings file call _launchSettings.json_ which has a list of launch profiles. Each launch profile is a collection of related options which defines how you would like `dotnet` to start your application.
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+In C# AppHosts, profiles live in `launchSettings.json`:
 
 ```json title="launchSettings.json"
 {
@@ -35,14 +36,31 @@ AppHost configuration is provided by the AppHost launch profile. The AppHost has
 }
 ```
 
-The preceding launch settings file:
+</TabItem>
+<TabItem label="TypeScript">
 
-- Has one launch profile named `https`.
-- Configures an Aspire AppHost project:
-  - The `applicationUrl` property configures the dashboard launch address (`ASPNETCORE_URLS`).
-  - Environment variables such as `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL` and `ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL` are set on the AppHost.
+In TypeScript AppHosts, profiles live in `aspire.config.json`:
 
-For more information, see [Launch profiles](/fundamentals/launch-profiles/).
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.ts",
+    "language": "typescript/nodejs"
+  },
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17134;http://localhost:15170",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21030",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22057"
+      }
+    }
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="note">
   Configuration described on this page is for the Aspire AppHost project. To

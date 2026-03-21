@@ -1336,6 +1336,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'Go', slug: 'integrations/frameworks/go-apps' },
         { label: 'Java', slug: 'integrations/frameworks/java' },
         { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
+        { label: '.NET CLI tools', slug: 'app-host/dotnet-tool-resources' },
         { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
         { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },

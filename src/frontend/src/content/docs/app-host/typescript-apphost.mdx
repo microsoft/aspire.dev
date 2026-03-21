@@ -1,0 +1,165 @@
+---
+title: TypeScript AppHost project structure
+description: Learn about the files and configuration that make up a TypeScript AppHost project.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+When you create a TypeScript AppHost with `aspire new` or `aspire init --language typescript`, the CLI scaffolds a project with the following structure:
+
+<FileTree>
+
+- my-apphost/
+  - .modules/  Generated TypeScript SDK (do not edit)
+    - aspire.ts
+    - base.ts
+    - transport.ts
+  - apphost.ts  Your AppHost entry point
+  - aspire.config.json  Aspire configuration
+  - package.json
+  - tsconfig.json
+
+</FileTree>
+
+## aspire.config.json
+
+The `aspire.config.json` file is the central configuration for your AppHost. It replaces the older `.aspire/settings.json` and `apphost.run.json` files.
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.ts",
+    "language": "typescript/nodejs"
+  },
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.2.0"
+  },
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17127;http://localhost:15118",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21169",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22260"
+      }
+    }
+  }
+}
+```
+
+### Key sections
+
+| Section | Description |
+|---------|-------------|
+| `appHost.path` | Path to your AppHost entry point (`apphost.ts`) |
+| `appHost.language` | Language runtime (`typescript/nodejs`) |
+| `packages` | Hosting integration packages and their versions. Added automatically by `aspire add`. |
+| `profiles` | Launch profiles with dashboard URLs and environment variables |
+
+### Adding integrations
+
+When you run `aspire add`, the CLI adds the package to the `packages` section and regenerates the TypeScript SDK:
+
+```bash title="Add an integration"
+aspire add redis
+```
+
+This updates `aspire.config.json`:
+
+```json title="aspire.config.json" ins={4}
+{
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.2.0",
+    "Aspire.Hosting.Redis": "13.2.0"
+  }
+}
+```
+
+### Project references for local development
+
+You can reference a local hosting integration project by using a `.csproj` path instead of a version:
+
+```json title="aspire.config.json"
+{
+  "packages": {
+    "MyIntegration": "../src/MyIntegration/MyIntegration.csproj"
+  }
+}
+```
+
+<LearnMore>
+  See [Multi-language integrations](/extensibility/multi-language-integration-authoring/) for details on building hosting integrations that work with TypeScript AppHosts.
+</LearnMore>
+
+## .modules/ directory
+
+The `.modules/` directory contains the generated TypeScript SDK. It's created and updated automatically by the Aspire CLI — **do not edit these files**.
+
+| File | Purpose |
+|------|---------|
+| `aspire.ts` | Generated typed API for all your installed integrations |
+| `base.ts` | Base types and handle infrastructure |
+| `transport.ts` | JSON-RPC transport layer |
+
+The SDK regenerates when:
+
+- You run `aspire add` to add or update an integration
+- You run `aspire run` or `aspire start` and the package list has changed
+- You run `aspire restore` to manually regenerate
+
+Your `apphost.ts` imports from this SDK:
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+```
+
+<Aside type="tip">
+Add `.modules/` to your `.gitignore` — it's generated and can be recreated from `aspire.config.json` at any time.
+</Aside>
+
+## apphost.ts
+
+The entry point for your AppHost. This is where you define your application's resources and their relationships:
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(cache);
+
+await builder.build().run();
+```
+
+## package.json
+
+The scaffolded `package.json` includes convenience scripts and the required Node.js version:
+
+```json title="package.json"
+{
+  "name": "my-apphost",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "aspire run",
+    "build": "tsc",
+    "lint": "eslint apphost.ts"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+The `dev` script means you can also start your AppHost with `npm run dev`.
+
+## See also
+
+- [Build your first app](/get-started/first-app/?lang=javascript)
+- [AppHost overview](/get-started/app-host/)
+- [Multi-language architecture](/architecture/multi-language-architecture/)
