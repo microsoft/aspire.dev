@@ -1,0 +1,119 @@
+---
+title: RavenDB Hosting integration reference
+description: Learn how to use the Aspire RavenDB hosting integration to orchestrate and configure RavenDB in your Aspire projects.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import ravendbIcon from '@assets/icons/ravendb-icon.png';
+import ravendbLightIcon from '@assets/icons/ravendb-light-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={ravendbLightIcon}
+  dark={ravendbIcon}
+  alt="RavenDB logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+To get started with the Aspire RavenDB integrations, follow the [Get started with RavenDB integrations](/integrations/databases/ravendb/ravendb-get-started/) guide.
+
+This article includes full details about the Aspire RavenDB Hosting integration.
+
+## Installation
+
+The Aspire RavenDB hosting integration models the RavenDB server as the `RavenDBServerResource` type and the database as the `RavenDBDatabaseResource` type. To access these types and APIs, install the [📦 CommunityToolkit.Aspire.Hosting.RavenDB](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.RavenDB) NuGet package in the AppHost project:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.RavenDB" />
+
+## Add RavenDB server resource and database resource
+
+To set up RavenDB in your AppHost project, call the `AddRavenDB` extension method to add a RavenDB server resource, then call `AddDatabase` on the server resource to add a database:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var ravenServer = builder.AddRavenDB("ravenServer");
+var ravendb = ravenServer.AddDatabase("ravendb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(ravendb)
+       .WaitFor(ravendb);
+
+// After adding all resources, build and run the app...
+```
+
+<Aside type="caution">
+  A valid RavenDB license is required. If you don't have one yet, you can
+  request a free Community license at
+  [ravendb.net/license/request/community](https://ravendb.net/license/request/community).
+</Aside>
+
+## Add RavenDB server resource with data volume
+
+To add a data volume to the RavenDB server resource, call the `WithDataVolume` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var ravenServer = builder.AddRavenDB("ravenServer")
+                         .WithDataVolume();
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(ravenServer)
+       .WaitFor(ravenServer);
+```
+
+The data volume remains available after the container's lifecycle ends, preserving RavenDB data. The data volume is mounted at the `/var/lib/ravendb/data` path in the RavenDB container and when a `name` parameter isn't provided, the name is generated at random.
+
+## Add RavenDB server resource with data bind mount
+
+To add a data bind mount to the RavenDB server resource, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var ravenServer = builder.AddRavenDB("ravenServer")
+                         .WithDataBindMount(source: @"C:\RavenDb\Data");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(ravenServer)
+       .WaitFor(ravenServer);
+```
+
+Data bind mounts rely on the host machine's filesystem to persist the RavenDB data across container restarts.
+
+## Add secured RavenDB server resource
+
+To create a new secured RavenDB instance using settings from a pre-configured `settings.json` file or a self-signed certificate, use the `RavenDBServerSettings.Secured` method or `RavenDBServerSettings.SecuredWithLetsEncrypt` for Let's Encrypt configurations:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var serverSettings = RavenDBServerSettings.SecuredWithLetsEncrypt(
+    domainUrl: "https://mycontainer.development.run",
+    certificatePath: "/etc/ravendb/security/cluster.server.certificate.mycontainer.pfx");
+
+var ravendb = builder.AddRavenDB("ravenSecuredServer", serverSettings)
+    .WithBindMount("C:/RavenDB/Server/Security", "/etc/ravendb/security", false)
+    .AddDatabase("ravendbSecured");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(ravendb)
+       .WaitFor(ravendb);
+```
+
+<Aside type="caution">
+  Ensure the certificate path is accessible to the container by bind-mounting it
+  to `/etc/ravendb/security`.
+</Aside>
+
+## Hosting integration health checks
+
+The RavenDB hosting integration automatically adds a health check for the RavenDB server resource, verifying that the server is running and reachable.

@@ -24,9 +24,18 @@ interface Props {
 }
 
 const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
+const searchInputId = id + '-search-input';
+const searchStatusId = id + '-search-status';
+const searchClearId = id + '-search-clear';
+const kindFiltersId = id + '-kind-filters';
+const searchCountId = id + '-search-count';
+const clearFiltersId = id + '-clear-filters';
+const searchResultsId = id + '-search-results';
+const getKindClassName = (kind: string) => 'api-filter-dot kind-' + kind.replace(/\s+/g, '-');
+const showKindFilters = kinds.length > 1;
 ---
 
-<div class="inpage-search" data-size={size}>
+<div class="inpage-search" data-size={size} data-has-kind-filters={showKindFilters ? 'true' : 'false'}>
   <!-- Search bar -->
   <div class="inpage-search-bar">
     <div class="inpage-search-input-wrap">
@@ -34,19 +43,19 @@ const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
-      <label class="sr-only" for={`${id}-search-input`}>{placeholder}</label>
+      <label class="sr-only" for={searchInputId}>{placeholder}</label>
       <input
         type="search"
-        id={`${id}-search-input`}
+        id={searchInputId}
         class="inpage-search-input"
         placeholder={placeholder}
         autocomplete="off"
-        aria-describedby={`${id}-search-status`}
+        aria-describedby={searchStatusId}
       />
       <button
         type="button"
         class="inpage-search-clear"
-        id={`${id}-search-clear`}
+        id={searchClearId}
         aria-label="Clear search"
         style="display: none;"
       >
@@ -59,35 +68,31 @@ const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
   </div>
 
   <!-- Kind filter chips -->
-  <div class="inpage-kind-filters" id={`${id}-kind-filters`}>
-    {kinds.map(kind => (
+  <div class="inpage-kind-filters" id={kindFiltersId}>
+    {showKindFilters && kinds.map(kind => (
       <button
         class="api-filter-chip"
         data-kind={kind}
         type="button"
         aria-pressed="false"
       >
-        <span class={`api-filter-dot kind-${kind.replace(/\s+/g, '-')}`}></span>
+        <span class={getKindClassName(kind)}></span>
         {kind}
       </button>
     ))}
   </div>
 
-  <div id={`${id}-search-status`} class="sr-only" aria-live="polite"></div>
+  <div id={searchStatusId} class="sr-only" aria-live="polite"></div>
 
   <!-- Stats line -->
   <div class="inpage-search-stats">
-    <span id={`${id}-search-count`}>{defaultStatsText}</span>
-    <button class="inpage-clear-filters" id={`${id}-clear-filters`} type="button" style="display: none;">Clear filters</button>
+    <span id={searchCountId}>{defaultStatsText}</span>
+    <button class="inpage-clear-filters" id={clearFiltersId} type="button" style="display: none;">Clear filters</button>
   </div>
 
   <!-- Search results (populated by the page's controller script) -->
-  <div id={`${id}-search-results`} class="api-list" style="display: none;"></div>
+  <div id={searchResultsId} class="api-list" style="display: none;"></div>
 </div>
-
-<script>
-  import './inpage-search-sync';
-</script>
 
 <style>
   /* ── Accessibility ──────────────────────────────────────────── */
@@ -202,6 +207,11 @@ const { id, placeholder, kinds, defaultStatsText, size = 'lg' } = Astro.props;
     flex-wrap: wrap;
     gap: 0.375rem;
     margin-top: 0.5rem;
+  }
+
+  .inpage-search[data-has-kind-filters='false'] .inpage-kind-filters,
+  .inpage-search[data-has-kind-filters='false'] .inpage-clear-filters {
+    display: none !important;
   }
 
   .api-filter-chip {

@@ -92,6 +92,7 @@ internal static class BatchGenerateCommand
                         pkg.PackageName,
                         pkg.SourceRepo,
                         pkg.SourceCommit,
+                        pkg.TargetFramework,
                         referenceCache);
 
                     Interlocked.Increment(ref success);

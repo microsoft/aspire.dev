@@ -173,15 +173,19 @@ const memberCount = getters.length + setters.length + methods.length +
   (itemKind === 'enum' ? (item.members ?? []).length : 0);
 const hasSearchableMembers = memberCount >= 5;
 
-interface TypeIndexEntry { n: string; k: string; s: string; }
+function memberAnchor(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+}
+
+interface TypeIndexEntry { n: string; k: string; s: string; r?: string; a: string; }
 const typeIndex: TypeIndexEntry[] = [];
 if (itemKind === 'handle') {
-  for (const g of getters) typeIndex.push({ n: g.name, k: 'property', s: g.description ?? '' });
-  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '' });
+  for (const g of getters) typeIndex.push({ n: g.name, k: 'property', s: g.description ?? '', r: g.returnType, a: memberAnchor(g.name) });
+  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', r: m.returnType, a: memberAnchor(m.name) });
 } else if (itemKind === 'dto') {
-  for (const f of (item.fields ?? [])) typeIndex.push({ n: f.name, k: 'field', s: '' });
+  for (const f of (item.fields ?? [])) typeIndex.push({ n: f.name, k: 'field', s: '', r: f.type, a: memberAnchor(f.name) });
 } else if (itemKind === 'enum') {
-  for (const m of (item.members ?? [])) typeIndex.push({ n: m, k: 'enum member', s: '' });
+  for (const m of (item.members ?? [])) typeIndex.push({ n: m, k: 'enum member', s: '', a: memberAnchor(m) });
 }
 const typeSearchKinds = [...new Set(typeIndex.map((e: TypeIndexEntry) => e.k))].sort();
 const typeIndexJson = JSON.stringify(typeIndex);
@@ -282,23 +286,27 @@ if (itemKind === 'handle') {
         {(getters.length > 0 || setters.length > 0) && (
           <section>
             <h2 id="properties">Properties</h2>
-            <div class="api-list">
+               <div class="api-list ts-member-stack">
               {getters.map((g: any) => {
                 const hasSetter = setters.some((s: any) => s.name.replace(/^set/, '').toLowerCase() === g.name.toLowerCase());
                 return (
-                  <TsMemberCard
-                    member={{ ...g, accessorLabel: hasSetter ? 'get · set' : 'get' }}
-                    variant="property"
-                  />
+                  <div id={memberAnchor(g.name)}>
+                    <TsMemberCard
+                      member={{ ...g, accessorLabel: hasSetter ? 'get · set' : 'get' }}
+                      variant="property"
+                    />
+                  </div>
                 );
               })}
               {setters.filter((s: any) =>
                 !getters.some((g: any) => g.name.toLowerCase() === s.name.replace(/^set/, '').toLowerCase())
               ).map((s: any) => (
-                <TsMemberCard
-                  member={{ ...s, accessorLabel: 'set' }}
-                  variant="property"
-                />
+                <div id={memberAnchor(s.name)}>
+                  <TsMemberCard
+                    member={{ ...s, accessorLabel: 'set' }}
+                    variant="property"
+                  />
+                </div>
               ))}
             </div>
           </section>
@@ -308,13 +316,15 @@ if (itemKind === 'handle') {
         {methods.length > 0 && (
           <section>
             <h2 id="methods">Methods</h2>
-            <div class="api-list">
+               <div class="api-list ts-member-stack">
               {methods.sort((a: any, b: any) => a.name.localeCompare(b.name)).map((m: any) => (
-                <TsMemberCard
-                  member={m}
-                  variant="method"
-                  href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(item.name)}/${tsSlugify(m.name)}/`}
-                />
+                <div id={memberAnchor(m.name)}>
+                  <TsMemberCard
+                    member={m}
+                    variant="method"
+                    href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(item.name)}/${tsSlugify(m.name)}/`}
+                  />
+                </div>
               ))}
             </div>
           </section>
@@ -327,12 +337,14 @@ if (itemKind === 'handle') {
     {itemKind === 'dto' && (item.fields ?? []).length > 0 && (
       <section>
         <h2 id="fields">Fields</h2>
-        <div class="api-list">
+           <div class="api-list ts-member-stack">
           {item.fields.map((f: any) => (
-            <TsMemberCard
-              member={{ name: f.name, returnType: f.type, isOptional: f.isOptional, description: null }}
-              variant="field"
-            />
+            <div id={memberAnchor(f.name)}>
+              <TsMemberCard
+                member={{ name: f.name, returnType: f.type, isOptional: f.isOptional, description: null }}
+                variant="field"
+              />
+            </div>
           ))}
         </div>
       </section>
@@ -342,12 +354,14 @@ if (itemKind === 'handle') {
     {itemKind === 'enum' && (item.members ?? []).length > 0 && (
       <section>
         <h2 id="values">Values</h2>
-        <div class="api-list">
+           <div class="api-list ts-member-stack">
           {item.members.map((m: string, i: number) => (
-            <div class="api-list-item mc">
-              <div class="api-list-header">
-                <code class="mc-param-name">{m}</code>
-                <span class="mc-param-type mc-param-type-1"><code>{i}</code></span>
+            <div id={memberAnchor(m)}>
+              <div class="api-list-item mc">
+                <div class="api-list-header">
+                  <code class="mc-param-name">{m}</code>
+                  <span class="mc-param-type mc-param-type-1"><code>{i}</code></span>
+                </div>
               </div>
             </div>
           ))}
@@ -361,7 +375,7 @@ if (itemKind === 'handle') {
         {/* Full function rendered as a member card with signature, params, return */}
         <section>
           <h2 id="signature">Signature</h2>
-          <div class="api-list">
+           <div class="api-list ts-member-stack">
             <TsMemberCard
               member={{
                 name: item.name,
@@ -401,6 +415,339 @@ if (itemKind === 'handle') {
     </div>{/* close type-content-sections */}
   </div>{/* close not-content kind-tint */}
 </StarlightPage>
+
+{hasSearchableMembers && (
+  <script define:vars={{ typeIndexJson, memberCount }}>
+    window.__typeSearchIndex = JSON.parse(typeIndexJson);
+    window.__typeMemberCount = memberCount;
+  </script>
+)}
+
+{hasSearchableMembers && (
+  <script>
+    import '@components/api-reference/inpage-search-sync';
+
+    interface TypeIndexEntry {
+      n: string;
+      k: string;
+      s: string;
+      r?: string;
+      a: string;
+    }
+
+    const PAGE_SIZE = 10;
+    const DEBOUNCE_MS = 200;
+
+    function fmtNum(n: number): string { return n.toLocaleString(); }
+
+    const KIND_COLORS: Record<string, string> = {
+      'method': '#3b82f6',
+      'property': '#10b981',
+      'field': '#f59e0b',
+      'enum member': '#d97706',
+    };
+
+    class TypeSearchController {
+      private input: HTMLInputElement;
+      private resultsEl: HTMLElement;
+      private status: HTMLElement;
+      private countEl: HTMLElement;
+      private filtersEl: HTMLElement;
+      private clearFiltersBtn: HTMLElement;
+      private index: TypeIndexEntry[];
+      private memberCount: number;
+      private activeKinds = new Set<string>();
+      private debounceTimer: number | null = null;
+      private lastScored: { entry: TypeIndexEntry; score: number }[] = [];
+      private lastTokens: string[] = [];
+      private visibleCount = 0;
+      private sync: any;
+
+      constructor() {
+        this.input = document.getElementById('type-search-input') as HTMLInputElement;
+        this.resultsEl = document.getElementById('type-search-results') as HTMLElement;
+        this.status = document.getElementById('type-search-status') as HTMLElement;
+        this.countEl = document.getElementById('type-search-count') as HTMLElement;
+        this.filtersEl = document.getElementById('type-kind-filters') as HTMLElement;
+        this.clearFiltersBtn = document.getElementById('type-clear-filters') as HTMLElement;
+        this.index = (window as any).__typeSearchIndex ?? [];
+        this.memberCount = (window as any).__typeMemberCount ?? 0;
+
+        if (!this.input || !this.resultsEl) return;
+
+        this.sync = new (window as any).InpageSearchSync('type', () => this.clear());
+
+        this.init();
+        this.restoreFromUrl();
+      }
+
+      private init(): void {
+        this.input.addEventListener('input', () => this.handleInput());
+        this.input.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') this.clear();
+        });
+
+        this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const kind = (chip as HTMLElement).dataset.kind!;
+            if (this.activeKinds.has(kind)) {
+              this.activeKinds.delete(kind);
+              chip.classList.remove('active');
+              chip.setAttribute('aria-pressed', 'false');
+            } else {
+              this.activeKinds.add(kind);
+              chip.classList.add('active');
+              chip.setAttribute('aria-pressed', 'true');
+            }
+            this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+            this.syncUrl();
+            this.applySearch();
+          });
+        });
+
+        this.clearFiltersBtn?.addEventListener('click', () => {
+          this.activeKinds.clear();
+          this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(c => {
+            c.classList.remove('active');
+            c.setAttribute('aria-pressed', 'false');
+          });
+          this.clearFiltersBtn.style.display = 'none';
+          this.syncUrl();
+          this.applySearch();
+        });
+
+        this.resultsEl.addEventListener('click', (e) => {
+          const link = (e.target as HTMLElement).closest('a.api-search-result');
+          if (!link) return;
+          const href = link.getAttribute('href');
+          if (!href || !href.startsWith('#')) return;
+          e.preventDefault();
+          const target = document.getElementById(href.slice(1));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.classList.add('search-highlight');
+            setTimeout(() => target.classList.remove('search-highlight'), 1500);
+            history.replaceState(null, '', href);
+          }
+        });
+      }
+
+      private clear(): void {
+        this.input.value = '';
+        this.sync.updateClearButton();
+        this.syncUrl();
+        this.showContent();
+      }
+
+      private showContent(): void {
+        if (this.activeKinds.size > 0) {
+          this.search('');
+          return;
+        }
+        this.resultsEl.style.display = 'none';
+        this.resultsEl.innerHTML = '';
+        this.countEl.textContent = `${fmtNum(this.memberCount)} member${this.memberCount !== 1 ? 's' : ''}`;
+      }
+
+      private handleInput(): void {
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = window.setTimeout(() => {
+          this.syncUrl();
+          this.applySearch();
+        }, DEBOUNCE_MS);
+      }
+
+      private syncUrl(): void {
+        this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+      }
+
+      private restoreFromUrl(): void {
+        const q = this.sync.readQuery();
+        const validKinds = new Set(
+          Array.from(this.filtersEl?.querySelectorAll('.api-filter-chip') ?? [])
+            .map(c => (c as HTMLElement).dataset.kind!)
+        );
+        const kinds = this.sync.readKinds(validKinds);
+
+        if (q) {
+          this.input.value = q;
+          this.sync.updateClearButton();
+        }
+
+        if (kinds.size > 0) {
+          this.activeKinds = kinds;
+          this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
+            const kind = (chip as HTMLElement).dataset.kind!;
+            if (kinds.has(kind)) {
+              chip.classList.add('active');
+              chip.setAttribute('aria-pressed', 'true');
+            }
+          });
+          this.clearFiltersBtn.style.display = '';
+        }
+
+        if (q || kinds.size > 0) {
+          this.applySearch();
+        }
+      }
+
+      private applySearch(): void {
+        const q = this.input.value.trim();
+        if (!q && this.activeKinds.size === 0) {
+          this.showContent();
+          return;
+        }
+        this.search(q);
+      }
+
+      private search(query: string): void {
+        const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const hasKindFilter = this.activeKinds.size > 0;
+
+        type Scored = { entry: TypeIndexEntry; score: number };
+        const scored: Scored[] = [];
+
+        for (const entry of this.index) {
+          if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+
+          if (tokens.length === 0) {
+            scored.push({ entry, score: 50 });
+            continue;
+          }
+
+          const nameLower = entry.n.toLowerCase();
+          const summaryLower = entry.s.toLowerCase();
+          const returnLower = (entry.r ?? '').toLowerCase();
+
+          let score = 0;
+          for (const token of tokens) {
+            if (nameLower === token) {
+              score += 100;
+            } else if (nameLower.startsWith(token)) {
+              score += 60;
+            } else if (nameLower.includes(token)) {
+              score += 40;
+            } else if (this.camelMatch(entry.n, token)) {
+              score += 55;
+            } else if (returnLower.includes(token)) {
+              score += 25;
+            } else if (summaryLower.includes(token)) {
+              score += 10;
+            } else {
+              score = 0;
+              break;
+            }
+          }
+
+          if (score > 0) scored.push({ entry, score });
+        }
+
+        scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+        this.lastScored = scored;
+        this.lastTokens = tokens;
+        this.visibleCount = 0;
+
+        const total = scored.length;
+
+        this.resultsEl.style.display = '';
+
+        if (total === 0) {
+          const hint = query
+            ? `No results for "<strong>${this.esc(query)}</strong>"`
+            : 'No results match the selected filters';
+          this.resultsEl.innerHTML = `
+            <div class="api-search-empty">
+              <p>${hint}</p>
+              <p class="api-search-empty-hint">Try a different name or keyword.</p>
+            </div>`;
+          this.countEl.textContent = '0 results';
+          this.status.textContent = 'No results';
+          return;
+        }
+
+        this.resultsEl.innerHTML = '';
+        this.loadMore();
+      }
+
+      private loadMore(): void {
+        const total = this.lastScored.length;
+        const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+        this.visibleCount += nextBatch.length;
+
+        const existingBtn = this.resultsEl.querySelector('.api-load-more');
+        if (existingBtn) existingBtn.remove();
+
+        const fragment = document.createDocumentFragment();
+        for (const s of nextBatch) {
+          const div = document.createElement('div');
+          div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+          while (div.firstChild) fragment.appendChild(div.firstChild);
+        }
+        this.resultsEl.appendChild(fragment);
+
+        this.countEl.textContent = this.visibleCount < total
+          ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+          : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+        this.status.textContent = this.countEl.textContent ?? '';
+
+        const remaining = total - this.visibleCount;
+        if (remaining > 0) {
+          const btn = document.createElement('button');
+          btn.className = 'api-load-more';
+          btn.type = 'button';
+          const nextCount = Math.min(remaining, PAGE_SIZE);
+          btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
+          btn.addEventListener('click', () => this.loadMore());
+          this.resultsEl.appendChild(btn);
+        }
+      }
+
+      private renderResult(entry: TypeIndexEntry, tokens: string[]): string {
+        const kindClass = `kind-${entry.k.replace(/\s+/g, '-')}`;
+        const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS.method;
+        const returnInfo = entry.r
+          ? `<span class="api-list-meta"><code>${this.esc(entry.r)}</code></span>`
+          : '';
+
+        return `<a href="#${entry.a}" class="api-list-item api-search-result" title="${this.esc(entry.n)}">
+          <div class="api-list-header">
+            <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
+            <span class="api-kind-micro ${kindClass}">${this.esc(entry.k)}</span>
+            <div class="trailing">
+              ${returnInfo}
+            </div>
+          </div>
+          ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+        </a>`;
+      }
+
+      private highlight(text: string, tokens: string[]): string {
+        if (!tokens.length) return this.esc(text);
+        const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+        return text.replace(/[&<>"']/g, ch =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+          .replace(re, '<mark>$1</mark>');
+      }
+
+      private camelMatch(name: string, token: string): boolean {
+        const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+        if (uppers.length < 2) return false;
+        return uppers.startsWith(token) || uppers.includes(token);
+      }
+
+      private esc(text: string): string {
+        return text.replace(/[&<>"']/g, ch =>
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      new TypeSearchController();
+    });
+  </script>
+)}
 
 <style>
   /* Kind-tinted page wrapper — sets --kind-tint for the top border accent */
@@ -442,5 +789,9 @@ if (itemKind === 'handle') {
     color: var(--sl-color-gray-3);
     font-size: var(--sl-text-sm);
     margin-bottom: 0.75rem;
+  }
+
+  .ts-member-stack {
+    gap: 1rem;
   }
 </style>

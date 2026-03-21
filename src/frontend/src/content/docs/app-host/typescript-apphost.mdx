@@ -1,302 +1,165 @@
 ---
-title: TypeScript AppHost (Preview)
-description: Learn how to write Aspire AppHosts in TypeScript to orchestrate your cloud-native applications.
-lastUpdated: true
-tableOfContents: true
+title: TypeScript AppHost project structure
+description: Learn about the files and configuration that make up a TypeScript AppHost project.
 ---
 
-import {
-  Aside,
-  Badge,
-  Code,
-  Steps,
-  Tabs,
-  TabItem,
-  FileTree,
-} from '@astrojs/starlight/components';
-import { Kbd } from 'starlight-kbd/components';
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import OsAwareTabs from '@components/OsAwareTabs.astro';
 
-<Badge
-  text="Preview feature"
-  variant="danger"
-  size="large"
-  class:list={'mb-4'}
-/>
+When you create a TypeScript AppHost with `aspire new` or `aspire init --language typescript`, the CLI scaffolds a project with the following structure:
 
-Aspire's TypeScript AppHost support allows you to write AppHosts in TypeScript instead of C#. This enables teams to use TypeScript while still benefiting from Aspire's orchestration capabilities, including access to 40+ hosting integrations (Redis, PostgreSQL, Azure services, and more).
+<FileTree>
 
-## How it works
+- my-apphost/
+  - .modules/  Generated TypeScript SDK (do not edit)
+    - aspire.ts
+    - base.ts
+    - transport.ts
+  - apphost.ts  Your AppHost entry point
+  - aspire.config.json  Aspire configuration
+  - package.json
+  - tsconfig.json
 
-When you create a TypeScript AppHost:
+</FileTree>
 
-<Steps>
+## aspire.config.json
 
-1. The Aspire CLI scaffolds a TypeScript AppHost project
-2. A .NET AppHost Server runs in the background, handling orchestration
-3. Your code communicates with the server via JSON-RPC over Unix sockets (or named pipes on Windows)
-4. The server manages containers, service discovery, and the Aspire Dashboard
+The `aspire.config.json` file is the central configuration for your AppHost. It replaces the older `.aspire/settings.json` and `apphost.run.json` files.
 
-</Steps>
-
-```mermaid
-flowchart LR
-    subgraph YourCode["Your Code"]
-        TS["TypeScript AppHost"]
-    end
-
-    subgraph Server[".NET AppHost Server"]
-        RPC["JSON-RPC"]
-        ORCH["Orchestration"]
-        SD["Service Discovery"]
-    end
-
-    subgraph Resources["Managed Resources"]
-        DASH["Aspire Dashboard"]
-        CONT["Containers"]
-        INT["140+ Integrations"]
-    end
-
-    TS --> RPC
-    RPC --> ORCH
-    ORCH --> SD
-    SD --> DASH & CONT & INT
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.ts",
+    "language": "typescript/nodejs"
+  },
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.2.0"
+  },
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17127;http://localhost:15118",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21169",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22260"
+      }
+    }
+  }
+}
 ```
 
-This architecture gives you access to the full power of Aspire's orchestration while writing code in TypeScript.
+### Key sections
 
-## Prerequisites
+| Section | Description |
+|---------|-------------|
+| `appHost.path` | Path to your AppHost entry point (`apphost.ts`) |
+| `appHost.language` | Language runtime (`typescript/nodejs`) |
+| `packages` | Hosting integration packages and their versions. Added automatically by `aspire add`. |
+| `profiles` | Launch profiles with dashboard URLs and environment variables |
 
-Before creating a TypeScript AppHost, ensure you have the following installed:
+### Adding integrations
 
-| Requirement                                                   | Version | Notes                            |
-| ------------------------------------------------------------- | ------- | -------------------------------- |
-| [Aspire CLI](/get-started/install-cli/)                       | Latest  | Install using the install script |
-| [Docker](https://docs.docker.com/get-docker/)                 | Latest  | Required for container resources |
-| [Node.js](https://nodejs.org/)                                | 20+     | LTS version recommended          |
-| npm or pnpm                                                   | Latest  | Package manager                  |
+When you run `aspire add`, the CLI adds the package to the `packages` section and regenerates the TypeScript SDK:
 
-## Create an AppHost
-
-The following steps demonstrate how to create a new TypeScript AppHost.
-
-<Steps>
-
-1.  Create and initialize the AppHost:
-
-    ```bash title="Initialize TypeScript AppHost"
-    aspire new --name my-apphost
-    ```
-
-    Use the <Kbd windows="↑" mac="↑" /> and <Kbd windows="↓" mac="↓" /> keys to navigate the options, look for `Empty (TypeScript AppHost)`. Press <Kbd windows="Enter" mac="Return" /> to confirm your selection.
-
-    :::tip
-    You can also initialize a TypeScript AppHost in an existing directory:
-
-    ```bash title="Initialize in existing directory"
-    mkdir my-apphost && cd my-apphost
-    aspire init --language typescript
-    ```
-
-    :::
-
-2.  The following project structure is created:
-
-      <FileTree>
-
-      - my-apphost/
-        - .aspire/
-          - settings.json
-        - .modules/  Generated SDK
-        - apphost.ts
-        - apphost.run.json
-        - package.json
-        - tsconfig.json
-
-      </FileTree>
-
-3.  Review the generated `apphost.ts`:
-
-    ```typescript title="apphost.ts"
-    import { createBuilder } from './.modules/aspire.js';
-
-    const builder = await createBuilder();
-
-    // Add your resources here, for example:
-    // const redis = await builder.addRedis("cache");
-    // const postgres = await builder.addPostgres("db");
-
-    const app = await builder.build();
-    await app.run();
-    ```
-
-</Steps>
-
-## Add integrations
-
-To add Aspire hosting integrations to your TypeScript AppHost, use the `aspire add` command. The following example adds Redis and Azure Storage integrations.
-
-<Steps>
-
-1. Add the Redis and Azure Storage integrations:
-
-   ```bash title="Add integrations"
-   aspire add redis
-   aspire add azure-storage
-   ```
-
-   When you add an integration, the Aspire CLI updates `.aspire/settings.json` with the package reference, regenerates the TypeScript SDK in the `.modules` directory, and makes the new APIs available in your AppHost code.
-
-2. Update `apphost.ts` to use the integrations:
-
-   ```typescript title="apphost.ts" ins={5-9}
-   import { createBuilder } from './.modules/aspire.js';
-
-   const builder = await createBuilder();
-
-   // Add a Redis cache
-   const cache = await builder.addRedis('cache');
-
-   // Add Azure Storage running as a local emulator
-   const storage = await builder.addAzureStorage('storage').runAsEmulator();
-
-   const app = builder.build();
-   await app.run();
-   ```
-
-3. Run the AppHost:
-
-   ```bash title="Run AppHost"
-   aspire run
-   ```
-
-   The Aspire CLI starts the .NET AppHost server, pulls the required container images for Redis and the Azure Storage emulator, and opens the Aspire Dashboard.
-
-</Steps>
-
-<LearnMore>
-  Explore all [available integrations](/integrations/overview/) or see the
-  [aspire add reference](/reference/cli/commands/aspire-add/).
-</LearnMore>
-
-## Add a JavaScript application
-
-You can add JavaScript or Node.js applications to your AppHost and have them participate in Aspire's orchestration, including service discovery and resource references.
-
-<Steps>
-
-1. Add the JavaScript hosting integration:
-
-   ```bash title="Add JavaScript integration"
-   aspire add javascript
-   ```
-
-2. Update `apphost.ts` to reference your JavaScript application:
-
-   ```typescript title="apphost.ts" ins={11-15}
-   import { createBuilder } from './.modules/aspire.js';
-
-   const builder = await createBuilder();
-
-   // Add a Redis cache
-   const cache = await builder.addRedis('cache');
-
-   // Add Azure Storage running as a local emulator
-   const storage = await builder.addAzureStorage('storage').runAsEmulator();
-
-   // Add a Node.js application
-   const api = await builder
-     .addNodeApp('api', '../api', 'server.js')
-     .withHttpEndpoint({ port: 3000, env: 'PORT' })
-     .withReference(cache);
-
-   const app = builder.build();
-   await app.run();
-   ```
-
-   In this example, the Node.js application at `../api/server.js` is registered as a resource named `api`. It receives a connection string for the Redis cache through service discovery.
-
-   <LearnMore>
-     See the [JavaScript integration](/integrations/frameworks/javascript/) for
-     more configuration options.
-   </LearnMore>
-
-</Steps>
-
-:::note
-The JavaScript application itself is for you to create. Aspire orchestrates it
-alongside your other resources, providing service discovery and environment
-variables for any referenced resources.
-:::
-
-## Troubleshooting
-
-If you encounter issues with your TypeScript AppHost, this section provides guidance on diagnosing and resolving common problems.
-
-### Common issues
-
-Here are solutions to common problems you may encounter when working with TypeScript AppHosts.
-
-#### "Command not found" errors
-
-Ensure Node.js is installed and available in your PATH:
-
-```bash title="Verify Node.js installation"
-node --version
-npm --version
+```bash title="Add an integration"
+aspire add redis
 ```
 
-#### SDK compilation errors
+This updates `aspire.config.json`:
 
-If you encounter compilation errors in the generated SDK:
+```json title="aspire.config.json" ins={4}
+{
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.2.0",
+    "Aspire.Hosting.Redis": "13.2.0"
+  }
+}
+```
 
-<Steps>
+### Project references for local development
 
-1. Ensure you have the latest version of the Aspire CLI installed
-2. Delete the `.modules` directory and run `aspire run` again to regenerate the SDK
-3. Check the [Aspire GitHub issues](https://github.com/dotnet/aspire/issues) for known problems
+You can reference a local hosting integration project by using a `.csproj` path instead of a version:
 
-</Steps>
-
-### Debug mode
-
-Run with debug output to diagnose issues:
-
-```bash title="Run with debug output"
-aspire run --log-level Debug
+```json title="aspire.config.json"
+{
+  "packages": {
+    "MyIntegration": "../src/MyIntegration/MyIntegration.csproj"
+  }
+}
 ```
 
 <LearnMore>
-  See the [aspire run command reference](/reference/cli/commands/aspire-run/).
+  See [Multi-language integrations](/extensibility/multi-language-integration-authoring/) for details on building hosting integrations that work with TypeScript AppHosts.
 </LearnMore>
 
-### Check logs
+## .modules/ directory
 
-Aspire CLI logs are stored at:
+The `.modules/` directory contains the generated TypeScript SDK. It's created and updated automatically by the Aspire CLI — **do not edit these files**.
 
-<OsAwareTabs syncKey="terminal">
-  <Code slot="unix" lang="bash" code="$HOME/.aspire/cli/logs/" />
-  <Code slot="windows" lang="powershell" code="$HOME\.aspire\cli\logs\" />
-</OsAwareTabs>
+| File | Purpose |
+|------|---------|
+| `aspire.ts` | Generated typed API for all your installed integrations |
+| `base.ts` | Base types and handle infrastructure |
+| `transport.ts` | JSON-RPC transport layer |
 
-## Feedback
+The SDK regenerates when:
 
-TypeScript AppHost support is a preview feature. Your feedback helps us improve language support and prioritize new features. Please share your experiences, suggestions, and bug reports on the [Aspire GitHub repository](https://github.com/dotnet/aspire/issues).
+- You run `aspire add` to add or update an integration
+- You run `aspire run` or `aspire start` and the package list has changed
+- You run `aspire restore` to manually regenerate
 
-When reporting issues, please include:
+Your `apphost.ts` imports from this SDK:
 
-- The Aspire CLI version (`aspire --version`)
-- The Node.js version (`node --version`)
-- Steps to reproduce the issue
-- Any error messages or logs
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+```
+
+<Aside type="tip">
+Add `.modules/` to your `.gitignore` — it's generated and can be recreated from `aspire.config.json` at any time.
+</Aside>
+
+## apphost.ts
+
+The entry point for your AppHost. This is where you define your application's resources and their relationships:
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(cache);
+
+await builder.build().run();
+```
+
+## package.json
+
+The scaffolded `package.json` includes convenience scripts and the required Node.js version:
+
+```json title="package.json"
+{
+  "name": "my-apphost",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "aspire run",
+    "build": "tsc",
+    "lint": "eslint apphost.ts"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+The `dev` script means you can also start your AppHost with `npm run dev`.
 
 ## See also
 
-- [Migrate from C# to TypeScript AppHost](/app-host/typescript-apphost-migration/)
-- [TypeScript AppHost troubleshooting](/app-host/typescript-apphost-troubleshooting/)
-- [Provide feedback on GitHub](https://github.com/dotnet/aspire/issues)
+- [Build your first app](/get-started/first-app/?lang=javascript)
 - [AppHost overview](/get-started/app-host/)
-- [Aspire CLI reference](/reference/cli/overview/)
-- [Integrations overview](/integrations/overview/)
-- [Multi-language integrations](/extensibility/multi-language-integration-authoring/) — make your integration work with TypeScript AppHosts
+- [Multi-language architecture](/architecture/multi-language-architecture/)

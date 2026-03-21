@@ -7,9 +7,11 @@
  */
 import { Code, Icon } from '@astrojs/starlight/components';
 import { typeHref, genericArity, resolveTypeLink, parseSeeAlso, formatSignature, cleanMemberSignature, buildClassBodySignature, shortTypeName, memberSlug, memberDisplayName } from '@utils/packages';
+import { findAttribute } from '@utils/api-attributes';
 import type { ParentTypeInfo } from '@utils/packages';
 import DocContent from './DocContent.astro';
 import Examples from './Examples.astro';
+import PolyglotAttributePanel from './PolyglotAttributePanel.astro';
 
 interface Props {
   member: any;
@@ -47,12 +49,12 @@ if (member.kind === 'property' || member.kind === 'indexer') {
 }
 
 // Obsolete detection
-const obsoleteAttr = member.attributes?.find((a: any) => a.name.includes('Obsolete'));
+const obsoleteAttr = findAttribute(member.attributes, 'Obsolete');
 const isObsolete = !!obsoleteAttr;
 const obsoleteMessage = obsoleteAttr?.constructorArguments?.[0] ?? null;
 
 // Experimental detection
-const experimentalAttr = member.attributes?.find((a: any) => a.name.includes('Experimental'));
+const experimentalAttr = findAttribute(member.attributes, 'Experimental');
 const isExperimental = !!experimentalAttr;
 const experimentalId = experimentalAttr?.constructorArguments?.[0] ?? null;
 const experimentalSlug = experimentalId ? experimentalId.toLowerCase() : null;
@@ -238,6 +240,13 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
                   <DocContent content={paramDocs[p.name]} allTypes={allTypes} packageName={packageName} tag="span" />
                 </span>
               )}
+              <PolyglotAttributePanel
+                attributes={p.attributes}
+                context="parameter"
+                entityName={p.name}
+                packageName={packageName}
+                allTypes={allTypes}
+              />
             </div>
           );
         })}
@@ -249,7 +258,7 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
   {hasReturns && (
     <div class="mc-section">
       <h5 class="api-section-label">Returns</h5>
-      <div class="mc-returns">
+      <div class="mc-section-body mc-returns">
         {member.returnType && (
           <code class="mc-return-inline">
             {returnLink ? (
@@ -308,19 +317,36 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
       <Examples examples={member.docs.examples} allTypes={allTypes} packageName={packageName} />
     </div>
   )}
+
+  <PolyglotAttributePanel
+    attributes={member.attributes}
+    context="member"
+    entityName={displayName}
+    packageName={packageName}
+    allTypes={allTypes}
+  />
 </div>
 
 <style>
   /* ---------- Card container ---------- */
   .mc {
-    border-bottom: 1px solid var(--api-border-subtle);
-    padding: 1.25rem 0;
+    position: relative;
+    padding: 1.1rem 1.2rem 1.2rem;
+    border: 1px solid var(--api-border);
+    border-radius: var(--api-radius-lg);
+    background: var(--api-surface);
+    scroll-margin-top: calc(var(--sl-nav-height, 0px) + var(--sl-mobile-toc-height, 0px) + 1rem);
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
   }
-  .mc:first-child {
-    padding-top: 0;
+  .mc:hover {
+    border-color: var(--api-border-hover);
+    box-shadow:
+      0 12px 28px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
   }
-  .mc:last-child {
-    border-bottom: none;
+  .mc:target {
+    border-color: color-mix(in srgb, var(--sl-color-accent-high) 40%, var(--api-border));
+    background: color-mix(in srgb, var(--sl-color-accent) 4%, var(--api-surface));
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
   }
 
   /* ---------- Header ---------- */
@@ -329,6 +355,8 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--api-border-subtle);
   }
   .mc-name {
     font-weight: 700;
@@ -431,7 +459,7 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
 
   /* ---------- Summary ---------- */
   .mc-summary {
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
     font-size: var(--api-text-base);
     color: var(--sl-color-gray-2);
     line-height: 1.6;
@@ -441,6 +469,13 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
   /* ---------- Sections (Parameters, Returns, etc.) ---------- */
   .mc-section {
     margin-top: 0.65rem;
+  }
+  .mc-section-body {
+    padding: 0.3rem 0.6rem;
+  }
+  .mc > :global(.polyglot-panel) {
+    margin-top: 1.5rem;
+    margin-bottom: 0;
   }
 
   /* ---------- Parameters ---------- */
@@ -594,7 +629,7 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
   }
   @media (max-width: 480px) {
     .mc {
-      padding: 0.85rem 0;
+      padding: 0.95rem 0.9rem 1rem;
     }
     .mc-name {
       font-size: var(--api-text-base);

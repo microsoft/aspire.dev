@@ -69,29 +69,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
-          label: 'Integration gallery',
-          translations: {
-            da: 'Integrationsgalleri',
-            de: 'Integrationsgalerie',
-            en: 'Integration gallery',
-            es: 'Galería de integraciones',
-            fr: "Galerie d'intégrations",
-            hi: 'इंटीग्रेशन गैलरी',
-            id: 'Galeri integrasi',
-            it: 'Galleria delle integrazioni',
-            ja: 'インテグレーションギャラリー',
-            ko: '통합 갤러리',
-            pt: 'Galeria de integrações',
-            'pt-BR': 'Galeria de integrações',
-            'pt-PT': 'Galeria de integrações',
-            ru: 'Галерея интеграций',
-            tr: 'Entegrasyon galerisi',
-            uk: 'Галерея інтеграцій',
-            'zh-CN': '集成图库',
-          },
-          slug: 'integrations/gallery',
-        },
-        {
           label: 'Overview',
           translations: {
             da: 'Oversigt',
@@ -113,6 +90,29 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '概述',
           },
           slug: 'integrations/overview',
+        },
+        {
+          label: 'Integration gallery',
+          translations: {
+            da: 'Integrationsgalleri',
+            de: 'Integrationsgalerie',
+            en: 'Integration gallery',
+            es: 'Galería de integraciones',
+            fr: "Galerie d'intégrations",
+            hi: 'इंटीग्रेशन गैलरी',
+            id: 'Galeri integrasi',
+            it: 'Galleria delle integrazioni',
+            ja: 'インテグレーションギャラリー',
+            ko: '통합 갤러리',
+            pt: 'Galeria de integrações',
+            'pt-BR': 'Galeria de integrações',
+            'pt-PT': 'Galeria de integrações',
+            ru: 'Галерея интеграций',
+            tr: 'Entegrasyon galerisi',
+            uk: 'Галерея інтеграцій',
+            'zh-CN': '集成图库',
+          },
+          slug: 'integrations/gallery',
         },
       ],
     },
@@ -157,7 +157,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'Ollama', slug: 'integrations/ai/ollama' },
+        {
+          label: 'Ollama',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/ai/ollama/ollama-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/ai/ollama/ollama-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/ai/ollama/ollama-client',
+            },
+          ],
+        },
         {
           label: 'OpenAI',
           collapsed: true,
@@ -896,6 +913,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
+          label: 'ClickHouse',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/clickhouse/clickhouse-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/clickhouse/clickhouse-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/clickhouse/clickhouse-client',
+            },
+          ],
+        },
+        {
           label: 'Elasticsearch',
           collapsed: true,
           items: [
@@ -1054,8 +1089,42 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'KurrentDB', slug: 'integrations/databases/kurrentdb' },
-        { label: 'Meilisearch', slug: 'integrations/databases/meilisearch' },
+        {
+          label: 'KurrentDB',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/kurrentdb/kurrentdb-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/kurrentdb/kurrentdb-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/kurrentdb/kurrentdb-client',
+            },
+          ],
+        },
+        {
+          label: 'Meilisearch',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/meilisearch/meilisearch-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/meilisearch/meilisearch-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/meilisearch/meilisearch-client',
+            },
+          ],
+        },
         {
           label: 'Milvus',
           collapsed: true,
@@ -1158,7 +1227,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'RavenDB', slug: 'integrations/databases/ravendb' },
+        {
+          label: 'RavenDB',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/ravendb/ravendb-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/ravendb/ravendb-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/ravendb/ravendb-client',
+            },
+          ],
+        },
         {
           label: 'SQL Server',
           collapsed: true,
@@ -1199,7 +1285,24 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { label: 'SurrealDB', slug: 'integrations/databases/surrealdb' },
+        {
+          label: 'SurrealDB',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/databases/surrealdb/surrealdb-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/databases/surrealdb/surrealdb-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/databases/surrealdb/surrealdb-client',
+            },
+          ],
+        },
       ],
     },
     {
@@ -1226,13 +1329,14 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         { label: '.NET MAUI', slug: 'integrations/frameworks/maui' },
-        { label: 'Bun apps', slug: 'integrations/frameworks/bun-apps' },
+        { label: 'Bun', slug: 'integrations/frameworks/bun-apps' },
         { label: 'C# file-based apps', slug: 'integrations/frameworks/csharp-file-based-apps' },
         { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
-        { label: 'Deno apps', slug: 'integrations/frameworks/deno-apps' },
-        { label: 'Go apps', slug: 'integrations/frameworks/go-apps' },
+        { label: 'Deno', slug: 'integrations/frameworks/deno-apps' },
+        { label: 'Go', slug: 'integrations/frameworks/go-apps' },
         { label: 'Java', slug: 'integrations/frameworks/java' },
         { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
+        { label: '.NET CLI tools', slug: 'app-host/dotnet-tool-resources' },
         { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
         { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
@@ -1441,10 +1545,61 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
-        { label: 'flagd', slug: 'integrations/devtools/flagd' },
-        { label: 'goff', slug: 'integrations/devtools/goff' },
+        {
+          label: 'flagd',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/flagd/flagd-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/devtools/flagd/flagd-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/devtools/flagd/flagd-client',
+            },
+          ],
+        },
+        {
+          label: 'goff',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/goff/goff-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/devtools/goff/goff-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/devtools/goff/goff-client',
+            },
+          ],
+        },
         { label: 'k6', slug: 'integrations/devtools/k6' },
-        { label: 'MailPit', slug: 'integrations/devtools/mailpit' },
+        {
+          label: 'MailPit',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/devtools/mailpit/mailpit-get-started',
+            },
+            {
+              label: 'Hosting integration (AppHost)',
+              slug: 'integrations/devtools/mailpit/mailpit-host',
+            },
+            {
+              label: 'Client integration (Your app)',
+              slug: 'integrations/devtools/mailpit/mailpit-client',
+            },
+          ],
+        },
         {
           label: 'SQL Database Projects',
           slug: 'integrations/devtools/sql-projects',

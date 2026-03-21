@@ -43,6 +43,11 @@ internal static class RootGenerateCommand
         Description = "The source commit SHA. Falls back to assembly RepositoryCommit metadata.",
     };
 
+    private static readonly Option<string?> s_targetFrameworkOption = new("--target-framework")
+    {
+        Description = "The target framework moniker for the analyzed lib folder. Written into package metadata.",
+    };
+
     public static RootCommand GetCommand()
     {
         var formatCommand = new RootCommand("Generates Package.{version}.json files.")
@@ -54,6 +59,7 @@ internal static class RootGenerateCommand
             s_packageNameOption,
             s_sourceRepoOption,
             s_sourceCommitOption,
+            s_targetFrameworkOption,
         };
 
         formatCommand.SetAction(static parseResult =>
@@ -65,8 +71,9 @@ internal static class RootGenerateCommand
             var packageName = parseResult.GetValue(s_packageNameOption);
             var sourceRepo = parseResult.GetValue(s_sourceRepoOption);
             var sourceCommit = parseResult.GetValue(s_sourceCommitOption);
+            var targetFramework = parseResult.GetValue(s_targetFrameworkOption);
 
-            PackageJsonGenerator.GeneratePackageJson(inputAssembly, references, outputFile, version, packageName, sourceRepo, sourceCommit);
+            PackageJsonGenerator.GeneratePackageJson(inputAssembly, references, outputFile, version, packageName, sourceRepo, sourceCommit, targetFramework);
             return 0;
         });
 

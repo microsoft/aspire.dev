@@ -14,6 +14,8 @@ import Examples from '@components/api-reference/Examples.astro';
 import DocContent from '@components/api-reference/DocContent.astro';
 import AnchorHeading from '@components/api-reference/AnchorHeading.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import PolyglotAttributePanel from '@components/api-reference/PolyglotAttributePanel.astro';
+import { findAttribute } from '@utils/api-attributes';
 import {
   slugify,
   genericArity,
@@ -83,7 +85,7 @@ const hasTypeParams = type.docs?.typeParameters && Object.keys(type.docs.typePar
 const hasPermissions = type.docs?.permissions?.length > 0;
 const hasSeeAlso = type.docs?.seeAlso?.length > 0;
 const hasExamples = type.docs?.examples?.length > 0;
-const hasFlags = type.attributes?.some((a: any) => a.name === 'FlagsAttribute');
+const hasFlags = !!findAttribute(type.attributes, 'Flags');
 
 const summaryText = flattenToText(type.docs?.summary) || `${type.kind} ${type.name}`;
 
@@ -95,12 +97,12 @@ if (type.isReadOnly) modifierBadges.push('readonly');
 if (type.accessibility && type.accessibility !== 'public') modifierBadges.push(type.accessibility);
 
 // Obsolete detection for type
-const typeObsoleteAttr = type.attributes?.find((a: any) => a.name.includes('Obsolete'));
+const typeObsoleteAttr = findAttribute(type.attributes, 'Obsolete');
 const isTypeObsolete = !!typeObsoleteAttr;
 const typeObsoleteMessage = typeObsoleteAttr?.constructorArguments?.[0] ?? null;
 
 // Experimental detection for type
-const typeExperimentalAttr = type.attributes?.find((a: any) => a.name.includes('Experimental'));
+const typeExperimentalAttr = findAttribute(type.attributes, 'Experimental');
 const isTypeExperimental = !!typeExperimentalAttr;
 const typeExperimentalId = typeExperimentalAttr?.constructorArguments?.[0] ?? null;
 
@@ -313,6 +315,14 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
     interfaces={resolvedInterfaces}
   />
 
+  <PolyglotAttributePanel
+    attributes={type.attributes}
+    context="type"
+    entityName={type.name}
+    packageName={pkg.package.name}
+    allTypes={allTypes}
+  />
+
   {/* Type-scoped search */}
   {hasSearchableMembers && (
     <div class="type-search-section not-content">
@@ -355,6 +365,13 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
                   <DocContent content={type.docs.parameters[p.name]} allTypes={allTypes} packageName={pkg.package.name} tag="span" />
                 </div>
               )}
+              <PolyglotAttributePanel
+                attributes={p.attributes}
+                context="parameter"
+                entityName={p.name}
+                packageName={pkg.package.name}
+                allTypes={allTypes}
+              />
             </div>
           );
         })}
@@ -478,6 +495,8 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
 )}
 
 <script>
+  import '@components/api-reference/inpage-search-sync';
+
   interface TypeIndexEntry {
     n: string;
     k: string;
