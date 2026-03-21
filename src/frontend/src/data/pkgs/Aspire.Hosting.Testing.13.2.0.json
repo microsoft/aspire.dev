@@ -433,10 +433,7 @@
           ],
           "attributes": [
             {
-              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
-              "arguments": {
-                "Reason": "HttpClient is not ATS-compatible."
-              }
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute"
             }
           ],
           "docs": {
@@ -524,10 +521,7 @@
           ],
           "attributes": [
             {
-              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
-              "arguments": {
-                "Reason": "Use the exported getConnectionString overload without a cancellation token."
-              }
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute"
             }
           ],
           "docs": {
@@ -619,13 +613,7 @@
           ],
           "attributes": [
             {
-              "name": "Aspire.Hosting.AspireExportAttribute",
-              "constructorArguments": [
-                "getEndpoint"
-              ],
-              "arguments": {
-                "Description": "Gets the endpoint for the specified resource."
-              }
+              "name": "Aspire.Hosting.AspireExportAttribute"
             }
           ],
           "docs": {
@@ -717,10 +705,7 @@
           ],
           "attributes": [
             {
-              "name": "Aspire.Hosting.AspireExportIgnoreAttribute",
-              "arguments": {
-                "Reason": "Use the ATS-friendly overload that accepts a network identifier string."
-              }
+              "name": "Aspire.Hosting.AspireExportIgnoreAttribute"
             }
           ],
           "docs": {
@@ -1725,47 +1710,50 @@
                   },
                   {
                     "kind": "text",
-                    "text": " properties. Developers building Aspire based applications may whish to change the application model depending on whether they are running locally, or whether they are publishing to the cloud. "
+                    "text": " properties. Developers building .NET Aspire based applications may whish to change the application model depending on whether they are running locally, or whether they are publishing to the cloud. "
                   }
                 ]
-              },
+              }
+            ],
+            "examples": [
               {
-                "kind": "para",
-                "children": [
+                "code": "\n            private static IResourceBuilder<RabbitMQServerResource> RunWithStableNodeName(this IResourceBuilder<RabbitMQServerResource> builder)\n            {\n                if (builder.ApplicationBuilder.ExecutionContext.IsRunMode)\n                {\n                    builder.WithEnvironment(context =>\n                    {\n                        // Set a stable node name so queue storage is consistent between sessions\n                        var nodeName = $\"{builder.Resource.Name}@localhost\";\n                        context.EnvironmentVariables[\"RABBITMQ_NODENAME\"] = nodeName;\n                    });\n                }\n            \n                return builder;\n            }\n            ",
+                "language": "csharp",
+                "description": [
                   {
-                    "kind": "text",
-                    "text": " An example of using the "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "P:Aspire.Hosting.DistributedApplicationExecutionContext.IsRunMode"
-                  },
-                  {
-                    "kind": "text",
-                    "text": " property on the "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
-                  },
-                  {
-                    "kind": "text",
-                    "text": " via the "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "P:Aspire.Hosting.ApplicationModel.IResourceBuilder`1.ApplicationBuilder"
-                  },
-                  {
-                    "kind": "text",
-                    "text": ". In this case an extension method is used to generate a stable node name for RabbitMQ for local development runs. "
+                    "kind": "para",
+                    "children": [
+                      {
+                        "kind": "text",
+                        "text": " An example of using the "
+                      },
+                      {
+                        "kind": "cref",
+                        "value": "P:Aspire.Hosting.DistributedApplicationExecutionContext.IsRunMode"
+                      },
+                      {
+                        "kind": "text",
+                        "text": " property on the "
+                      },
+                      {
+                        "kind": "cref",
+                        "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+                      },
+                      {
+                        "kind": "text",
+                        "text": " via the "
+                      },
+                      {
+                        "kind": "cref",
+                        "value": "P:Aspire.Hosting.ApplicationModel.IResourceBuilder`1.ApplicationBuilder"
+                      },
+                      {
+                        "kind": "text",
+                        "text": ". In this case an extension method is used to generate a stable node name for RabbitMQ for local development runs. "
+                      }
+                    ]
                   }
                 ]
-              },
-              {
-                "kind": "codeblock",
-                "text": "\n             private static IResourceBuilder<RabbitMQServerResource> RunWithStableNodeName(this IResourceBuilder<RabbitMQServerResource> builder)\n             {\n                 if (builder.ApplicationBuilder.ExecutionContext.IsRunMode)\n                 {\n                     builder.WithEnvironment(context =>\n                     {\n                         // Set a stable node name so queue storage is consistent between sessions\n                         var nodeName = $\"{builder.Resource.Name}@localhost\";\n                         context.EnvironmentVariables[\"RABBITMQ_NODENAME\"] = nodeName;\n                     });\n                 }\n            \n                 return builder;\n             }\n             ",
-                "language": "csharp"
               }
             ]
           },
@@ -1780,58 +1768,7 @@
           "returnType": "Aspire.Hosting.IFileSystemService",
           "isVirtual": true,
           "hasGet": true,
-          "docs": {
-            "summary": [
-              {
-                "kind": "text",
-                "text": " Gets the service for managing Aspire file system operations. "
-              }
-            ],
-            "remarks": [
-              {
-                "kind": "para",
-                "children": [
-                  {
-                    "kind": "text",
-                    "text": " The "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "P:Aspire.Hosting.IDistributedApplicationBuilder.FileSystemService"
-                  },
-                  {
-                    "kind": "text",
-                    "text": " provides a centralized way to manage temporary files and directories used by Aspire, enabling testability and consistent temp file management. "
-                  }
-                ]
-              },
-              {
-                "kind": "para",
-                "children": [
-                  {
-                    "kind": "text",
-                    "text": " Resources and infrastructure code should use this service instead of static methods like "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "M:System.IO.Path.GetTempPath"
-                  },
-                  {
-                    "kind": "text",
-                    "text": " or "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "M:System.IO.Directory.CreateTempSubdirectory(System.String)"
-                  },
-                  {
-                    "kind": "text",
-                    "text": " to ensure consistent directory management across the application. "
-                  }
-                ]
-              }
-            ]
-          },
+          "docs": {},
           "sourceFile": "src/Aspire.Hosting.Testing/DistributedApplicationTestingBuilder.cs",
           "sourceLines": "496-496"
         },
@@ -1843,20 +1780,7 @@
           "returnType": "Aspire.Hosting.Pipelines.IDistributedApplicationPipeline",
           "isVirtual": true,
           "hasGet": true,
-          "docs": {
-            "summary": [
-              {
-                "kind": "text",
-                "text": " Gets the deployment pipeline for this distributed application. "
-              }
-            ],
-            "remarks": [
-              {
-                "kind": "text",
-                "text": " The pipeline allows adding custom deployment steps that execute during the deploy process. Steps can declare dependencies on other steps to control execution order. "
-              }
-            ]
-          },
+          "docs": {},
           "sourceFile": "src/Aspire.Hosting.Testing/DistributedApplicationTestingBuilder.cs",
           "sourceLines": "490-490"
         },
@@ -1912,33 +1836,7 @@
           "returnType": "Aspire.Hosting.IUserSecretsManager",
           "isVirtual": true,
           "hasGet": true,
-          "docs": {
-            "summary": [
-              {
-                "kind": "text",
-                "text": " Gets the service for managing user secrets. "
-              }
-            ],
-            "remarks": [
-              {
-                "kind": "para",
-                "children": [
-                  {
-                    "kind": "text",
-                    "text": " The "
-                  },
-                  {
-                    "kind": "cref",
-                    "value": "P:Aspire.Hosting.IDistributedApplicationBuilder.UserSecretsManager"
-                  },
-                  {
-                    "kind": "text",
-                    "text": " provides a centralized way to manage user secrets used by Aspire, enabling testability and consistent secret management. "
-                  }
-                ]
-              }
-            ]
-          },
+          "docs": {},
           "sourceFile": "src/Aspire.Hosting.Testing/DistributedApplicationTestingBuilder.cs",
           "sourceLines": "499-499"
         }

@@ -252,6 +252,120 @@ public sealed class AtsJsonGeneratorTests
         Assert.Equal(1, exitCode);
     }
 
+    [Fact]
+    public void TransformFile_NormalizesToLfAndSkipsRewritingUnchangedOutput()
+    {
+        using var tempDirectory = new TempDirectory();
+
+        var inputPath = Path.Combine(tempDirectory.Path, "Contoso.Tools.json");
+        var outputPath = Path.Combine(tempDirectory.Path, "output", "Contoso.Tools.json");
+
+        var dump = new AtsDumpRoot
+        {
+            Packages =
+            [
+                new AtsDumpPackageRef
+                {
+                    Name = "Contoso.Tools",
+                    Version = "2.4.0",
+                },
+            ],
+            Capabilities =
+            [
+                new AtsDumpCapability
+                {
+                    CapabilityId = "unique-capability",
+                    MethodName = "UseUnique",
+                    QualifiedMethodName = "Contoso.Builder.UseUnique",
+                    CapabilityKind = "method",
+                    TargetTypeId = "Contoso.Assembly/Contoso.Builder",
+                    TargetParameterName = "builder",
+                    Parameters =
+                    [
+                        new AtsDumpParameter
+                        {
+                            Name = "builder",
+                            Type = new AtsDumpTypeRef
+                            {
+                                TypeId = "Contoso.Assembly/Contoso.Builder",
+                                Category = "Type",
+                            },
+                        },
+                    ],
+                    ReturnType = new AtsDumpTypeRef
+                    {
+                        TypeId = "void",
+                        Category = "Primitive",
+                    },
+                    ExpandedTargetTypes =
+                    [
+                        new AtsDumpTypeRef
+                        {
+                            TypeId = "Contoso.Assembly/Contoso.Builder",
+                            Category = "Type",
+                        },
+                    ],
+                },
+            ],
+            HandleTypes =
+            [
+                new AtsDumpHandleType
+                {
+                    AtsTypeId = "Contoso.Assembly/Contoso.Builder",
+                    ExposeMethods = true,
+                    ExposeProperties = true,
+                },
+            ],
+        };
+
+        File.WriteAllText(inputPath, JsonSerializer.Serialize(dump));
+
+        var firstExitCode = GenerateCommand.TransformFile(
+            inputPath,
+            outputPath,
+            packageName: null,
+            version: null,
+            sourceRepo: "https://github.com/microsoft/aspire",
+            sourceCommit: "abc123");
+
+        Assert.Equal(0, firstExitCode);
+
+        var initialContent = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("\r", initialContent);
+
+        File.WriteAllText(outputPath, initialContent.Replace("\n", "\r\n", StringComparison.Ordinal));
+        File.SetLastWriteTimeUtc(outputPath, new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var crlfWriteTime = File.GetLastWriteTimeUtc(outputPath);
+
+        var secondExitCode = GenerateCommand.TransformFile(
+            inputPath,
+            outputPath,
+            packageName: null,
+            version: null,
+            sourceRepo: "https://github.com/microsoft/aspire",
+            sourceCommit: "abc123");
+
+        Assert.Equal(0, secondExitCode);
+
+        var normalizedContent = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("\r", normalizedContent);
+        Assert.NotEqual(crlfWriteTime, File.GetLastWriteTimeUtc(outputPath));
+
+        File.SetLastWriteTimeUtc(outputPath, new DateTime(2001, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+        var unchangedWriteTime = File.GetLastWriteTimeUtc(outputPath);
+
+        var thirdExitCode = GenerateCommand.TransformFile(
+            inputPath,
+            outputPath,
+            packageName: null,
+            version: null,
+            sourceRepo: "https://github.com/microsoft/aspire",
+            sourceCommit: "abc123");
+
+        Assert.Equal(0, thirdExitCode);
+        Assert.Equal(unchangedWriteTime, File.GetLastWriteTimeUtc(outputPath));
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public TempDirectory()

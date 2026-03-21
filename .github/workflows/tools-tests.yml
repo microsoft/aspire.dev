@@ -19,8 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  package-json-generator-tests:
-    name: PackageJsonGenerator Tests
+  tools-generator-tests:
+    name: Tools Generator Tests
     runs-on: ubuntu-latest
     env:
       TEST_RESULTS_DIR: ${{ github.workspace }}/testresults
@@ -33,9 +33,11 @@ jobs:
           global-json-file: global.json
 
       - name: Restore tests
-        run: dotnet restore tests/PackageJsonGenerator.Tests/PackageJsonGenerator.Tests.csproj
+        run: |
+          dotnet restore tests/PackageJsonGenerator.Tests/PackageJsonGenerator.Tests.csproj
+          dotnet restore tests/AtsJsonGenerator.Tests/AtsJsonGenerator.Tests.csproj
 
-      - name: Run tests
+      - name: Run PackageJsonGenerator tests
         run: >
           dotnet test tests/PackageJsonGenerator.Tests/PackageJsonGenerator.Tests.csproj
           --configuration Release
@@ -43,14 +45,24 @@ jobs:
           --verbosity normal
           --results-directory "$TEST_RESULTS_DIR"
           --logger "trx;LogFileName=PackageJsonGenerator.Tests.trx"
-          -bl:"$TEST_RESULTS_DIR/test.binlog"
+          -bl:"$TEST_RESULTS_DIR/PackageJsonGenerator.Tests.binlog"
+
+      - name: Run AtsJsonGenerator tests
+        run: >
+          dotnet test tests/AtsJsonGenerator.Tests/AtsJsonGenerator.Tests.csproj
+          --configuration Release
+          --no-restore
+          --verbosity normal
+          --results-directory "$TEST_RESULTS_DIR"
+          --logger "trx;LogFileName=AtsJsonGenerator.Tests.trx"
+          -bl:"$TEST_RESULTS_DIR/AtsJsonGenerator.Tests.binlog"
 
       - name: Upload test results
         id: upload-test-results
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: logs-PackageJsonGenerator-ubuntu-latest
+          name: logs-ToolsGenerator-ubuntu-latest
           path: |
             testresults/**/*.trx
             testresults/**/*.binlog
@@ -63,4 +75,4 @@ jobs:
             -TestResultsFolder $env:TEST_RESULTS_DIR `
             -SummaryOutputPath $env:GITHUB_STEP_SUMMARY `
             -ArtifactUrl "${{ steps.upload-test-results.outputs.artifact-url }}" `
-            -SummaryTitle "PackageJsonGenerator Tests"
+            -SummaryTitle "Tools Generator Tests"

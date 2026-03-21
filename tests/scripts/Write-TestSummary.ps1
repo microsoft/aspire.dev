@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$TestResultsFolder,
+    [string[]]$TestResultsFolder,
 
     [Parameter(Mandatory = $false)]
     [string]$SummaryOutputPath = $env:GITHUB_STEP_SUMMARY,
@@ -45,14 +45,22 @@ function Get-ErrorText {
     return "No error details found in TRX output."
 }
 
-if (-not (Test-Path $TestResultsFolder)) {
-    Write-Host "No test results directory found at $TestResultsFolder"
+if (-not $TestResultsFolder -or $TestResultsFolder.Count -eq 0) {
+    Write-Host "No test results directory was provided."
     exit 0
 }
 
-$trxFiles = @(Get-ChildItem -Path $TestResultsFolder -Filter *.trx -Recurse -ErrorAction SilentlyContinue)
+$existingTestResultsFolders = @($TestResultsFolder | Where-Object { Test-Path $_ })
+if (-not $existingTestResultsFolders -or $existingTestResultsFolders.Count -eq 0) {
+    Write-Host ("No test results directories found. Looked in: {0}" -f ($TestResultsFolder -join ', '))
+    exit 0
+}
+
+$trxFiles = @($existingTestResultsFolders | ForEach-Object {
+    Get-ChildItem -Path $_ -Filter *.trx -Recurse -ErrorAction SilentlyContinue
+} | Sort-Object FullName -Unique)
 if (-not $trxFiles -or $trxFiles.Count -eq 0) {
-    Write-Host "No .trx files found under $TestResultsFolder"
+    Write-Host ("No .trx files found under: {0}" -f ($existingTestResultsFolders -join ', '))
     exit 0
 }
 
@@ -75,7 +83,7 @@ $totalFailed = 0
 $totalSkipped = 0
 $totalTests = 0
 
-foreach ($trxFile in ($trxFiles | Sort-Object FullName)) {
+foreach ($trxFile in $trxFiles) {
     try {
         [xml]$trx = Get-Content -Path $trxFile.FullName -Raw
         $counters = $trx.TestRun.ResultSummary.Counters

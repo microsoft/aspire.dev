@@ -76,6 +76,26 @@ if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 
+function Remove-StalePackageJsonFiles {
+    [CmdletBinding()]
+    param(
+        [string]$PackageName,
+        [string]$CurrentOutputFile,
+        [string]$OutputDirectory
+    )
+
+    if ([string]::IsNullOrWhiteSpace($PackageName) -or [string]::IsNullOrWhiteSpace($CurrentOutputFile)) {
+        return
+    }
+
+    $namePattern = "^{0}\.\d.*\.json$" -f [regex]::Escape($PackageName)
+    $currentPath = [System.IO.Path]::GetFullPath($CurrentOutputFile)
+
+    Get-ChildItem -Path $OutputDirectory -File -Filter '*.json' | Where-Object {
+        $_.Name -match $namePattern -and [System.IO.Path]::GetFullPath($_.FullName) -ne $currentPath
+    } | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
 # ── Default package list ───────────────────────────────────────────────────────
 
 if (-not $Packages -or $Packages.Count -eq 0) {
@@ -895,6 +915,12 @@ if (-not $Sequential -and $manifestEntries.Count -gt 1) {
 
     if ($LASTEXITCODE -eq 0) {
         $successCount = $manifestEntries.Count
+
+        foreach ($entry in $manifestEntries) {
+            if (Test-Path $entry.output) {
+                Remove-StalePackageJsonFiles -PackageName $entry.packageName -CurrentOutputFile $entry.output -OutputDirectory $OutputDir
+            }
+        }
     }
     else {
         # Parse output for success/fail counts if available
@@ -929,6 +955,7 @@ else {
 
         if ($LASTEXITCODE -eq 0 -and (Test-Path $entry.output)) {
             $successCount++
+            Remove-StalePackageJsonFiles -PackageName $entry.packageName -CurrentOutputFile $entry.output -OutputDirectory $OutputDir
         }
         else {
             Write-Warning "Tool exited with code $LASTEXITCODE for $($entry.packageName)"

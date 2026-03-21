@@ -138,6 +138,62 @@ public sealed class PackageJsonGeneratorTests
             .GetString());
     }
 
+    [Fact]
+    public void GeneratePackageJson_NormalizesToLfAndSkipsRewritingUnchangedOutput()
+    {
+        using var assembly = TestAssembly.Create(
+            """
+            namespace Sample.Library;
+
+            public sealed class Widget
+            {
+                public string Name => "demo";
+            }
+            """);
+
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        var initialContent = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("\r", initialContent);
+
+        File.WriteAllText(outputPath, initialContent.Replace("\n", "\r\n", StringComparison.Ordinal));
+        File.SetLastWriteTimeUtc(outputPath, new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var crlfWriteTime = File.GetLastWriteTimeUtc(outputPath);
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        var normalizedContent = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("\r", normalizedContent);
+        Assert.NotEqual(crlfWriteTime, File.GetLastWriteTimeUtc(outputPath));
+
+        File.SetLastWriteTimeUtc(outputPath, new DateTime(2001, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+        var unchangedWriteTime = File.GetLastWriteTimeUtc(outputPath);
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        Assert.Equal(unchangedWriteTime, File.GetLastWriteTimeUtc(outputPath));
+    }
+
     private sealed class TestAssembly : IDisposable
     {
         private TestAssembly(string directoryPath, string assemblyPath, string[] references)

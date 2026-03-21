@@ -171,9 +171,8 @@ public static class PackageJsonGenerator
             Directory.CreateDirectory(outputDir);
         }
 
-        // Write the output file
-        File.WriteAllText(outputFile, schemaJson);
-        Console.WriteLine($"Generated: {outputFile}");
+        var wroteFile = StableFileWriter.WriteIfChanged(outputFile, schemaJson);
+        Console.WriteLine($"{(wroteFile ? "Generated" : "Unchanged")}: {outputFile}");
     }
 
     internal static PortableExecutableReference CreateMetadataReference(string path)
