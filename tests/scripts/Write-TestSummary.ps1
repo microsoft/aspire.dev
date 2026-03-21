@@ -50,7 +50,7 @@ if (-not (Test-Path $TestResultsFolder)) {
     exit 0
 }
 
-$trxFiles = Get-ChildItem -Path $TestResultsFolder -Filter *.trx -Recurse -ErrorAction SilentlyContinue
+$trxFiles = @(Get-ChildItem -Path $TestResultsFolder -Filter *.trx -Recurse -ErrorAction SilentlyContinue)
 if (-not $trxFiles -or $trxFiles.Count -eq 0) {
     Write-Host "No .trx files found under $TestResultsFolder"
     exit 0
@@ -104,29 +104,29 @@ foreach ($trxFile in ($trxFiles | Sort-Object FullName)) {
 
         if ($failed -gt 0 -and $null -ne $trx.TestRun.Results.UnitTestResult) {
             [void]$summary.AppendLine()
-            [void]$summary.AppendLine("### Failed tests in $($trxFile.BaseName)")
+            [void]$summary.AppendLine(('### Failed tests in {0}' -f $trxFile.BaseName))
 
             foreach ($failedTest in @($trx.TestRun.Results.UnitTestResult) | Where-Object { $_.outcome -eq 'Failed' }) {
                 [void]$summary.AppendLine()
-                [void]$summary.AppendLine("<details><summary>$($failedTest.testName)</summary>")
+                [void]$summary.AppendLine(('<details><summary>{0}</summary>' -f $failedTest.testName))
                 [void]$summary.AppendLine()
-                [void]$summary.AppendLine("```text")
+                [void]$summary.AppendLine('```text')
                 [void]$summary.AppendLine((Get-ErrorText -FailedTest $failedTest))
 
                 if ($null -ne $failedTest.Output -and $null -ne $failedTest.Output.StdOut -and -not [string]::IsNullOrWhiteSpace([string]$failedTest.Output.StdOut)) {
                     [void]$summary.AppendLine()
-                    [void]$summary.AppendLine("StdOut:")
+                    [void]$summary.AppendLine('StdOut:')
                     [void]$summary.AppendLine([string]$failedTest.Output.StdOut)
                 }
 
-                [void]$summary.AppendLine("```")
+                [void]$summary.AppendLine('```')
                 [void]$summary.AppendLine()
-                [void]$summary.AppendLine("</details>")
+                [void]$summary.AppendLine('</details>')
             }
         }
     }
     catch {
-        Write-Warning "Failed to parse $($trxFile.FullName): $_"
+        Write-Warning ('Failed to parse {0}: {1}' -f $trxFile.FullName, $_)
     }
 }
 
