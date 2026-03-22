@@ -641,28 +641,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'fundamentals/service-discovery',
             },
             {
-              label: 'Service defaults',
-              translations: {
-                da: 'Tjenestestandarder',
-                de: 'Dienst-Standardeinstellungen',
-                en: 'Service defaults',
-                es: 'Valores predeterminados del servicio',
-                fr: 'Paramètres par défaut du service',
-                hi: 'सेवा डिफ़ॉल्ट',
-                id: 'Default layanan',
-                it: 'Impostazioni predefinite del servizio',
-                ja: 'サービスの既定値',
-                ko: '서비스 기본값',
-                'pt-BR': 'Padrões de serviço',
-                'pt-PT': 'Padrões de serviço',
-                ru: 'Значения по умолчанию для служб',
-                tr: 'Hizmet varsayılanları',
-                uk: 'Значення за замовчуванням служби',
-                'zh-CN': '服务默认值',
-              },
-              slug: 'fundamentals/service-defaults',
-            },
-            {
               label: 'Networking overview',
               slug: 'fundamentals/networking-overview',
               translations: {
@@ -707,28 +685,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '配置',
           },
           items: [
-            {
-              label: 'Launch profiles',
-              translations: {
-                da: 'Start profiler',
-                de: 'Startprofile',
-                en: 'Launch profiles',
-                es: 'Perfiles de inicio',
-                fr: 'Profils de lancement',
-                hi: 'लॉन्च प्रोफ़ाइल',
-                id: 'Profil peluncuran',
-                it: 'Profili di avvio',
-                ja: '起動プロファイル',
-                ko: '시작 프로필',
-                'pt-BR': 'Perfis de inicialização',
-                'pt-PT': 'Perfis de inicialização',
-                ru: 'Профили запуска',
-                tr: 'Başlatma profilleri',
-                uk: 'Профілі запуску',
-                'zh-CN': '启动配置文件',
-              },
-              slug: 'fundamentals/launch-profiles',
-            },
             {
               label: 'External parameters',
               slug: 'fundamentals/external-parameters',
@@ -963,7 +919,39 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           items: [
             {
               label: 'C#',
-              slug: 'get-started/aspire-sdk',
+              collapsed: false,
+              items: [
+                {
+                  label: 'Aspire SDK',
+                  slug: 'get-started/aspire-sdk',
+                },
+                {
+                  label: 'Aspire templates',
+                  slug: 'get-started/aspire-sdk-templates',
+                },
+                {
+                  label: 'Service Defaults',
+                  translations: {
+                    da: 'Tjenestestandarder',
+                    de: 'Dienst-Standardeinstellungen',
+                    en: 'Service Defaults',
+                    es: 'Valores predeterminados del servicio',
+                    fr: 'Paramètres par défaut du service',
+                    hi: 'सेवा डिफ़ॉल्ट',
+                    id: 'Default layanan',
+                    it: 'Impostazioni predefinite del servizio',
+                    ja: 'サービスの既定値',
+                    ko: '서비스 기본값',
+                    'pt-BR': 'Padrões de serviço',
+                    'pt-PT': 'Padrões de serviço',
+                    ru: 'Значения по умолчанию для служб',
+                    tr: 'Hizmet varsayılanları',
+                    uk: 'Значення за замовчуванням служби',
+                    'zh-CN': '服务默认值',
+                  },
+                  slug: 'get-started/csharp-service-defaults',
+                },
+              ],
             },
             {
               label: 'TypeScript',
