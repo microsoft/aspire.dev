@@ -1200,7 +1200,11 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/postgres/postgres-host',
             },
             {
-              label: 'Client integration (Your app)',
+              label: 'Connect to PostgreSQL',
+              slug: 'integrations/databases/postgres/postgres-connect',
+            },
+            {
+              label: 'Client integration (.NET)',
               slug: 'integrations/databases/postgres/postgres-client',
             },
             {
