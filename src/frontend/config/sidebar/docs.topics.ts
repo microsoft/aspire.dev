@@ -271,6 +271,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Build your first app',
+          collapsed: false,
           translations: {
             da: 'Byg din første app',
             de: 'Erstellen Sie Ihre erste App',
@@ -289,7 +290,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Створіть свій перший додаток',
             'zh-CN': '构建您的第一个应用',
           },
-          slug: 'get-started/first-app',
           badge: {
             text: 'Quickstart',
             variant: 'tip',
@@ -312,6 +312,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               'zh-CN': '快速开始',
             },
           },
+          items: [
+            {
+              label: 'Overview',
+              slug: 'get-started/first-app',
+            },
+            {
+              label: 'C# AppHost',
+              slug: 'get-started/first-app-csharp-apphost',
+            },
+            {
+              label: 'TypeScript AppHost',
+              slug: 'get-started/first-app-typescript-apphost',
+            },
+          ],
         },
         {
           label: 'Deploy your first app',
@@ -358,6 +372,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Aspireify an existing app',
+          collapsed: false,
           translations: {
             da: 'Aspireify en eksisterende app',
             de: 'Eine bestehende App Aspireify',
@@ -376,7 +391,20 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             uk: 'Aspireify наявний застосунок',
             'zh-CN': '对现有应用进行 Aspireify',
           },
-          slug: 'get-started/add-aspire-existing-app',
+          items: [
+            {
+              label: 'Overview',
+              slug: 'get-started/add-aspire-existing-app',
+            },
+            {
+              label: 'C# AppHost',
+              slug: 'get-started/add-aspire-existing-app-csharp-apphost',
+            },
+            {
+              label: 'TypeScript AppHost',
+              slug: 'get-started/add-aspire-existing-app-typescript-apphost',
+            },
+          ],
         },
         {
           label: 'Use AI coding agents',
