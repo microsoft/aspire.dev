@@ -1,0 +1,197 @@
+---
+/**
+ * MemberCardBase — shared layout shell for rendering a single API member
+ * (method, property, field) across both C# and TypeScript.
+ *
+ * Provides the visual structure: header, description, signature code block,
+ * parameter list, and return type. Language-specific details are handled
+ * by the caller or passed as props.
+ *
+ * Used by:
+ * - MemberCard.astro (C# — adds Roslyn signatures, XML docs, source links)
+ * - TsMemberCard.astro (TypeScript — adds TS signatures, capability data)
+ */
+import { Code } from '@astrojs/starlight/components';
+import { formatTsSignature } from '@utils/ts-modules';
+
+interface Param {
+  name: string;
+  type: string;
+  isOptional?: boolean;
+  defaultValue?: string;
+  description?: string;
+}
+
+interface Props {
+  /** Member display name */
+  name: string;
+  /** Kind pill label (e.g. 'method', 'property', 'field') */
+  kindLabel?: string;
+  /** CSS class for the kind pill (e.g. 'kind-method') */
+  kindClass?: string;
+  /** Modifier/accessor badges (e.g. ['get · set'], ['builder']) */
+  badges?: string[];
+  /** Description text (plain string) */
+  description?: string | null;
+  /** Syntax-highlighted code signature */
+  signature?: string | null;
+  /** Language for syntax highlighting */
+  lang?: 'typescript' | 'csharp';
+  /** Return type display string */
+  returnType?: string | null;
+  /** Parameter list */
+  parameters?: Param[];
+  /** Whether return type should show as colored inline */
+  showReturnInHeader?: boolean;
+  /** Optional link URL — makes the member name a clickable link */
+  href?: string | null;
+}
+
+const {
+  name,
+  kindLabel,
+  kindClass = 'kind-method',
+  badges = [],
+  description,
+  signature,
+  lang = 'typescript',
+  returnType,
+  parameters = [],
+  showReturnInHeader = false,
+  href,
+} = Astro.props;
+
+/** Simple string hash → 0–3 for type color assignment. */
+function typeColorIndex(s: string): number {
+  let h = 0;
+  for (const c of s) h = ((h * 31) + c.charCodeAt(0)) | 0;
+  return Math.abs(h) % 4;
+}
+
+const hasParams = parameters.length > 0;
+const hasReturn = returnType && returnType !== 'void';
+const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
+---
+
+<div class="mc mcb not-content">
+  {/* Header */}
+  <div class="mc-header">
+    {kindLabel && <span class={`api-kind-pill ${kindClass}`}>{kindLabel}</span>}
+    {href
+      ? <a href={href} class="mc-name-link"><code class="mc-param-name">{name}</code></a>
+      : <code class="mc-param-name">{name}</code>
+    }
+    {showReturnInHeader && hasReturn && (
+      <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
+        <code>{returnType}</code>
+      </span>
+    )}
+    {badges.map(b => <span class="api-mod-badge">{b}</span>)}
+  </div>
+
+  {/* Description */}
+  {description && <div class="mc-summary">{description}</div>}
+
+  {/* Slot: extra content between description and signature (e.g. C# DocContent) */}
+  <slot name="after-description" />
+
+  {/* Syntax-highlighted signature */}
+  {signature && (
+    <div class="mc-sig">
+      <Code code={lang === 'typescript' ? formatTsSignature(signature) : signature} lang={lang} showLineNumbers={false} />
+    </div>
+  )}
+
+  {/* Slot: extra content after signature (e.g. source link) */}
+  <slot name="after-signature" />
+
+  {/* Parameters */}
+  {hasParams && (
+    <div class="mc-section">
+      <h5 class="api-section-label">Parameters</h5>
+      <div class="mc-params">
+        {parameters.map((p) => {
+          const colorIdx = typeColorIndex(p.type);
+          return (
+            <div class="mc-param">
+              <span class="mc-param-header">
+                <code class="mc-param-name">{p.name}</code>
+                <span class={`mc-param-type mc-param-type-${colorIdx}`}>
+                  <code>{p.type}</code>
+                </span>
+                {p.isOptional && <span class="api-mod-badge">optional</span>}
+                {p.defaultValue && <span class="api-mod-badge">= {p.defaultValue}</span>}
+              </span>
+              {p.description && <span class="mc-param-desc">{p.description}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  )}
+
+  {/* Returns */}
+  {hasReturn && !showReturnInHeader && (
+    <div class="mc-section">
+      <h5 class="api-section-label">Returns</h5>
+      <div class="mc-section-body mc-returns">
+        <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
+          <code class="mc-return-inline">{returnType}</code>
+        </span>
+      </div>
+    </div>
+  )}
+
+  {/* Slot: extra sections (e.g. Exceptions, Remarks, Examples) */}
+  <slot name="extra-sections" />
+</div>
+
+<style>
+  .mcb {
+    position: relative;
+    padding: 1.1rem 1.2rem 1.2rem;
+    border: 1px solid var(--api-border);
+    border-radius: var(--api-radius-lg);
+    background: var(--api-surface);
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .mcb:hover {
+    border-color: var(--api-border-hover);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+  }
+
+  .mcb .mc-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--api-border-subtle);
+  }
+
+  .mcb .mc-name-link {
+    text-decoration: none;
+  }
+
+  .mcb .mc-name-link:hover {
+    text-decoration: underline;
+  }
+
+  .mcb .mc-summary {
+    margin-top: 0.75rem;
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+    line-height: 1.6;
+  }
+
+  .mcb .mc-section-body {
+    padding: 0.3rem 0.6rem;
+  }
+
+  @media (max-width: 480px) {
+    .mcb {
+      padding: 0.95rem 0.9rem 1rem;
+    }
+  }
+</style>

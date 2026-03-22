@@ -2,7 +2,7 @@ import fs from 'fs';
 import { fetchWithProxy as fetch } from './fetch-with-proxy.js';
 
 const REPOS = [
-  'dotnet/aspire',
+  'microsoft/aspire',
   'dotnet/aspire-samples',
   'CommunityToolkit/Aspire',
   'microsoft/aspire.dev',

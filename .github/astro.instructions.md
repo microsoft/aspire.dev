@@ -1,214 +1,285 @@
 ---
-description: 'Astro development standards and best practices for content-driven websites'
+description: 'Astro Starlight development standards for aspire.dev documentation site'
 applyTo: '**/*.astro, **/*.ts, **/*.js, **/*.md, **/*.mdx'
 ---
 
-# Astro Development Instructions
+# aspire.dev Development Instructions
 
-Instructions for building high-quality Astro applications following the content-driven, server-first architecture with modern best practices.
+This is the aspire.dev documentation site, built with [Astro Starlight](https://starlight.astro.build/). All source lives under `src/frontend/`.
 
-## Project Context
-- Astro 5.x with Islands Architecture and Content Layer API
-- TypeScript for type safety and better DX with auto-generated types
-- Content-driven websites (blogs, marketing, e-commerce, documentation)
-- Server-first rendering with selective client-side hydration
-- Support for multiple UI frameworks (React, Vue, Svelte, Solid, etc.)
-- Static site generation (SSG) by default with optional server-side rendering (SSR)
-- Enhanced performance with modern content loading and build optimizations
+## Project Stack
 
-## Development Standards
+- **Astro 5.x** with **Starlight** documentation theme
+- **TypeScript** (strict mode, `astro/tsconfigs/strict`)
+- **Static site generation** (SSG) — zero client-side JS by default
+- **pnpm** as the package manager (`pnpm install`, `pnpm dev`, `pnpm build`)
+- **15 locales** with Lunaria translation tracking
 
-### Architecture
-- Embrace the Islands Architecture: server-render by default, hydrate selectively
-- Organize content with Content Collections for type-safe Markdown/MDX management
-- Structure projects by feature or content type for scalability
-- Use component-based architecture with clear separation of concerns
-- Implement progressive enhancement patterns
-- Follow Multi-Page App (MPA) approach over Single-Page App (SPA) patterns
+## Running Locally
 
-### TypeScript Integration
-- Configure `tsconfig.json` with recommended v5.0 settings:
-```json
-{
-  "extends": "astro/tsconfigs/base",
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
-}
-```
-- Types auto-generated in `.astro/types.d.ts` (replaces `src/env.d.ts`)
-- Run `astro sync` to generate/update type definitions
-- Define component props with TypeScript interfaces
-- Leverage auto-generated types for content collections and Content Layer API
-
-### Component Design
-- Use `.astro` components for static, server-rendered content
-- Import framework components (React, Vue, Svelte) only when interactivity is needed
-- Follow Astro's component script structure: frontmatter at top, template below
-- Use meaningful component names following PascalCase convention
-- Keep components focused and composable
-- Implement proper prop validation and default values
-
-### Content Collections
-
-#### Modern Content Layer API (v5.0+)
-- Define collections in `src/content.config.ts` using the new Content Layer API
-- Use built-in loaders: `glob()` for file-based content, `file()` for single files
-- Leverage enhanced performance and scalability with the new loading system
-- Example with Content Layer API:
-```typescript
-import { defineCollection, z } from 'astro:content';
-import { glob } from 'astro/loaders';
-
-const blog = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
-  schema: z.object({
-    title: z.string(),
-    pubDate: z.date(),
-    tags: z.array(z.string()).optional()
-  })
-});
+```bash
+cd src/frontend
+pnpm install
+pnpm dev        # starts dev server at http://localhost:4321
 ```
 
-#### Legacy Collections (backward compatible)
-- Legacy `type: 'content'` collections still supported via automatic glob() implementation
-- Migrate existing collections by adding explicit `loader` configuration
-- Use type-safe queries with `getCollection()` and `getEntry()`
-- Structure content with frontmatter validation and auto-generated types
+Search is disabled in dev mode — use `pnpm build && pnpm preview` to test search. Running `pnpm dev` is sufficient to verify documentation rendering changes; a full `pnpm build` is not required.
 
-### View Transitions & Client-Side Routing
-- Enable with `<ClientRouter />` component in layout head (renamed from `<ViewTransitions />` in v5.0)
-- Import from `astro:transitions`: `import { ClientRouter } from 'astro:transitions'`
-- Provides SPA-like navigation without full page reloads
-- Customize transition animations with CSS and view-transition-name
-- Maintain state across page navigations with persistent islands
-- Use `transition:persist` directive to preserve component state
+## Project Structure
 
-### Performance Optimization
-- Default to zero JavaScript - only add interactivity where needed
-- Use client directives strategically (`client:load`, `client:idle`, `client:visible`)
-- Implement lazy loading for images and components
-- Optimize static assets with Astro's built-in optimization
-- Leverage Content Layer API for faster content loading and builds
-- Minimize bundle size by avoiding unnecessary client-side JavaScript
-
-### Styling
-- Use scoped styles in `.astro` components by default
-- Implement CSS preprocessing (Sass, Less) when needed
-- Use CSS custom properties for theming and design systems
-- Follow mobile-first responsive design principles
-- Ensure accessibility with semantic HTML and proper ARIA attributes
-- Consider utility-first frameworks (Tailwind CSS) for rapid development
-
-### Client-Side Interactivity
-- Use framework components (React, Vue, Svelte) for interactive elements
-- Choose the right hydration strategy based on user interaction patterns
-- Implement state management within framework boundaries
-- Handle client-side routing carefully to maintain MPA benefits
-- Use Web Components for framework-agnostic interactivity
-- Share state between islands using stores or custom events
-
-### API Routes and SSR
-- Create API routes in `src/pages/api/` for dynamic functionality
-- Use proper HTTP methods and status codes
-- Implement request validation and error handling
-- Enable SSR mode for dynamic content requirements
-- Use middleware for authentication and request processing
-- Handle environment variables securely
-
-### SEO and Meta Management
-- Use Astro's built-in SEO components and meta tag management
-- Implement proper Open Graph and Twitter Card metadata
-- Generate sitemaps automatically for better search indexing
-- Use semantic HTML structure for better accessibility and SEO
-- Implement structured data (JSON-LD) for rich snippets
-- Optimize page titles and descriptions for search engines
-
-### Inclusive and Accessible Content
-
-#### Writing with Inclusivity
-- **Use inclusive language**: Respect all readers regardless of ability, background, identity, or experience level
-- **People-first language**: Say "person who uses a screen reader" not "blind user"
-- **Avoid assumptions**: Don't use phrases like "as you can see" or "simply click"
-- **No ableist language**: Avoid terms like "blind to," "crippled by," "crazy," "insane," "lame"
-- **Gender-neutral language**: Use "they/them" or rewrite to avoid gendered pronouns
-- **Global perspective**: Avoid idioms, colloquialisms, and culturally-specific references
-
-#### Plain Language Principles
-- **Write short sentences**: Aim for 15-20 words conveying one main idea
-- **Use common words**: Avoid jargon or define technical terms on first use
-- **Active voice**: Prefer "The system processes" over "is processed by"
-- **Break up text**: Keep paragraphs to 3-5 sentences
-- **Descriptive headings**: Make section purposes clear for scanning
-
-#### Accessible Content Structure
-- **Proper heading hierarchy**: Use H1 → H2 → H3 without skipping levels
-- **One H1 per page**: Establish clear document hierarchy
-- **Meaningful link text**: Use "Read the deployment guide" not "Click here"
-- **Alt text for images**: Describe informative images, use `alt=""` for decorative ones
-- **Lists for structure**: Use bulleted/numbered lists to break up dense text
-- **Table headers**: Always include `<th>` elements for column and row headers
-
-#### Global and Cultural Considerations
-- **Universal dates**: Write "January 15, 2025" not "1/15/25"
-- **Time zones**: Specify zones when referencing specific times
-- **Measurements**: Use metric alongside imperial when relevant
-- **Diverse examples**: Use varied names and scenarios reflecting global audiences
-- **Avoid stereotypes**: Represent different contexts and industries in examples
-
-### Image Optimization
-- Use Astro's `<Image />` component for automatic optimization
-- Implement responsive images with proper srcset generation
-- Use WebP and AVIF formats for modern browsers
-- Lazy load images below the fold
-- Provide proper alt text for accessibility
-- Optimize images at build time for better performance
-
-### Data Fetching
-- Fetch data at build time in component frontmatter
-- Use dynamic imports for conditional data loading
-- Implement proper error handling for external API calls
-- Cache expensive operations during build process
-- Use Astro's built-in fetch with automatic TypeScript inference
-- Handle loading states and fallbacks appropriately
-
-### Build & Deployment
-- Optimize static assets with Astro's built-in optimizations
-- Configure deployment for static (SSG) or hybrid (SSR) rendering
-- Use environment variables for configuration management
-- Enable compression and caching for production builds
-
-## Key Astro v5.0 Updates
-
-### Breaking Changes
-- **ClientRouter**: Use `<ClientRouter />` instead of `<ViewTransitions />`
-- **TypeScript**: Auto-generated types in `.astro/types.d.ts` (run `astro sync`)
-- **Content Layer API**: New `glob()` and `file()` loaders for enhanced performance
-
-### Migration Example
-```typescript
-// Modern Content Layer API
-import { defineCollection, z } from 'astro:content';
-import { glob } from 'astro/loaders';
-
-const blog = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
-  schema: z.object({ title: z.string(), pubDate: z.date() })
-});
+```
+src/frontend/
+├── astro.config.mjs          # Starlight config, plugins, integrations
+├── ec.config.mjs              # Expressive Code config (themes, plugins)
+├── tsconfig.json              # TypeScript config with path aliases
+├── config/                    # Sidebar topics, locales, redirects, cookies, SEO head
+│   └── sidebar/               # Sidebar topic modules (7 files)
+├── src/
+│   ├── content.config.ts      # Content collections (docs, i18n, packages)
+│   ├── route-data-middleware.ts
+│   ├── assets/                # Images, icons, logos
+│   ├── components/            # Custom Astro components
+│   │   └── starlight/         # Starlight component overrides
+│   ├── content/docs/          # All documentation pages (MDX/MD)
+│   ├── data/                  # JSON data files + pkgs/ API reference
+│   ├── expressive-code-plugins/  # Custom EC plugins (disable-copy)
+│   ├── pages/                 # Astro page routes
+│   ├── styles/                # Global CSS (site.css)
+│   └── utils/                 # Helpers, package utils, sample tags
 ```
 
-## Implementation Guidelines
+## Import Aliases
 
-### Development Workflow
-1. Use `npm create astro@latest` with TypeScript template
-2. Configure Content Layer API with appropriate loaders
-3. Set up TypeScript with `astro sync` for type generation
-4. Create layout components with Islands Architecture
-5. Implement content pages with SEO and performance optimization
+Always use these path aliases (defined in `tsconfig.json`) instead of relative paths:
 
-### Astro-Specific Best Practices
-- **Islands Architecture**: Server-first with selective hydration using client directives
-- **Content Layer API**: Use `glob()` and `file()` loaders for scalable content management
-- **Zero JavaScript**: Default to static rendering, add interactivity only when needed
-- **View Transitions**: Enable SPA-like navigation with `<ClientRouter />`
-- **Type Safety**: Leverage auto-generated types from Content Collections
-- **Performance**: Optimize with built-in image optimization and minimal client bundles
+| Alias | Resolves to |
+|---|---|
+| `@assets/*` | `./src/assets/*` |
+| `@components/*` | `./src/components/*` |
+| `@data/*` | `./src/data/*` |
+| `@utils/*` | `./src/utils/*` |
+
+Example usage in MDX frontmatter imports:
+
+```mdx
+import LearnMore from '@components/LearnMore.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import { Aside, Code, Steps, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
+```
+
+## Starlight Plugins
+
+The site uses these Starlight plugins (configured in `astro.config.mjs`):
+
+| Plugin | Purpose |
+|---|---|
+| `starlight-sidebar-topics` | Dynamic sidebar organized by topic areas |
+| `starlight-page-actions` | Share + AI action buttons (Copilot, Claude, ChatGPT) |
+| `starlight-image-zoom` | Click-to-zoom images with captions |
+| `starlight-kbd` | OS-aware keyboard shortcut display |
+| `starlight-github-alerts` | GitHub-style `> [!NOTE]` callout syntax |
+| `starlight-links-validator` | Build-time link checking |
+| `starlight-scroll-to-top` | Scroll-to-top button |
+| `starlight-llms-txt` | AI training data formatting |
+| `@lunariajs/starlight` | i18n translation dashboard |
+| `@catppuccin/starlight` | Theme integration |
+| `astro-mermaid` | Mermaid diagram rendering |
+
+## Starlight Component Overrides
+
+Custom overrides live in `src/components/starlight/` and are registered in `astro.config.mjs` under `components:`:
+
+- `EditLink.astro` — adds translation link
+- `Footer.astro` — custom 4-column footer layout
+- `Head.astro` — git metadata, auto-language detection, accessibility
+- `Header.astro` — custom nav with cookie/CLI buttons
+- `Hero.astro` — enhanced hero with image variants
+- `MarkdownContent.astro` — image zoom wrapper
+- `Search.astro` — search with API docs notice
+- `Sidebar.astro` — enhanced sidebar with API filter & collapse
+- `SocialIcons.astro` — additional social/misc buttons
+
+When modifying these, study the corresponding Starlight source component to understand the expected props and slots.
+
+## Custom Components
+
+Many reusable components exist in `src/components/`. Before creating a new component, check what already exists. Key categories:
+
+- **Layout/UI**: `HeroSection`, `TopicHero`, `IconLinkCard`, `MediaCard`, `SimpleCard`, `FluidGrid`, `Pivot`, `Expand`
+- **Integrations**: `IntegrationCard`, `IntegrationGrid`, `Integrations`, `IntegrationTotals`
+- **Media**: `LoopingImage`, `LoopingVideo`, `VimeoCard`, `YouTubeCard`, `TerminalShowcase`
+- **Content helpers**: `Include`, `Placeholder`, `InstallAspireCLI`, `CodespacesButton`, `LearnMore`
+- **Interactive**: `OsAwareTabs`, `AppHostBuilder`, `QuickStartJourney`, `TestimonialCarousel`
+- **API reference**: `TypeHero`, `TypeSignature`, `MemberCard`, `MemberList`, `EnumTable`, `InheritanceDiagram`
+
+Always follow existing component patterns: `.astro` files with frontmatter props at top, scoped styles, and PascalCase naming.
+
+## Content Collections
+
+Defined in `src/content.config.ts`:
+
+- **docs** — uses Starlight's docs loader with extended schema fields: `renderBlocking`, `giscus`, `category`, `pageActions`
+- **i18n** — Starlight i18n loader for 15 locales
+- **packages** — auto-generated API reference JSON from `src/data/pkgs/`
+
+## Writing Documentation (MDX)
+
+### Frontmatter
+
+Every page needs at minimum a `title`. Custom fields include:
+
+```yaml
+---
+title: My page title
+category: conceptual  # conceptual | quickstart | tutorial | blog | reference | sample
+giscus: true          # enable comments
+pageActions: false    # disable AI/share actions
+---
+```
+
+### Key Conventions
+
+- **Heading 1 is reserved** for the page title from frontmatter — start content headings at `##`
+- **Use sentence case** for all headings and sidebar labels
+- **Use active voice** and clear, concise language
+- **Site-relative links** must include a trailing slash: `[First app](/get-started/first-app/)`
+- **Unordered lists** use `-` (not `*`)
+- **Italic text** uses `_` (not `*`)
+- **Code blocks** use triple backticks with language identifier and optional `title`:
+  ````md
+  ```csharp title="Program.cs"
+  var builder = DistributedApplication.CreateBuilder(args);
+  ```
+  ````
+
+### Starlight Components in MDX
+
+Import from `@astrojs/starlight/components`:
+
+```mdx
+import { Aside, Code, Steps, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
+```
+
+- **`<Aside>`** — callout boxes with `type="note"`, `"tip"`, `"caution"`, or `"danger"`
+- **`<Steps>`** — ordered step lists. Always leave a blank line between each step item (Prettier limitation)
+- **`<Tabs>` / `<TabItem>`** — tabbed content sections
+- **`<LinkButton>`** — styled link buttons with `variant` prop
+- **`<Code>`** — code blocks from imported raw strings
+
+### GitHub Alerts Syntax
+
+Supported via `starlight-github-alerts` plugin:
+
+```md
+> [!NOTE]
+> Useful information that users should know.
+
+> [!TIP]
+> Helpful advice for doing things better.
+
+> [!CAUTION]
+> Advises about risks or negative outcomes.
+```
+
+### Mermaid Diagrams
+
+Write as fenced code blocks with `mermaid` language:
+
+````md
+```mermaid
+graph TD
+    A[Step 1] --> B[Step 2]
+```
+````
+
+## Expressive Code
+
+Configured in `ec.config.mjs` with:
+
+- **Themes**: `laserwave` (dark) and `slack-ochin` (light)
+- **Plugins**: `pluginCollapsibleSections()`, `pluginLineNumbers()`, and custom `pluginDisableCopy()`
+- Line numbers are off by default — enable per-block with `showLineNumbers`
+- Use `disable-copy` meta to prevent copying specific code blocks
+
+## Styling
+
+- Global styles in `src/styles/site.css`
+- Custom font: `@fontsource-variable/outfit`
+- Scoped `<style>` blocks in `.astro` components
+- **WCAG AA contrast** required in both light and dark themes
+- **Starlight breakpoints**: `50em` (800px) and `72rem` (1152px) — use these for consistency
+- Mobile-first approach with `min-width` media queries
+
+## Sidebar Configuration
+
+Sidebar topics are defined in `config/sidebar/` as separate modules and aggregated in `sidebar.topics.ts`. Each topic supports multi-language labels (15 locales) and icon associations. The `reference.topics.ts` dynamically reads API reference JSON files from `src/data/pkgs/`.
+
+## Data Files
+
+| File | Purpose |
+|---|---|
+| `aspire-integrations.json` | Integration metadata (title, description, icon, downloads) |
+| `integration-docs.json` | Package-to-doc-page mapping |
+| `samples.json` | Sample app definitions with tags and thumbnails |
+| `testimonials.json` | Developer testimonials |
+| `github-stats.json` | GitHub repository statistics |
+| `pkgs/*.json` | Per-package API reference schemas |
+
+## Cookie Consent
+
+The site uses `@jop-software/astro-cookieconsent` with a box modal at bottom-right. The consent modal has three buttons: **"Accept all"**, **"Reject all"**, and **"Manage preferences"**. This is relevant when automating browser interactions — always dismiss the cookie modal first.
+
+## Screenshots and Visual Verification with playwright-cli
+
+When making visual changes or preparing PR screenshots, use the `playwright-cli` skill to automate browser interaction. This site has a cookie consent modal that appears on first visit and **must be dismissed before taking screenshots**.
+
+### Workflow for Taking Screenshots
+
+1. Start the dev server (`pnpm dev`) in the background
+2. Open the browser and navigate to the page:
+   ```bash
+   playwright-cli open http://localhost:4321
+   playwright-cli goto http://localhost:4321/path/to/page/
+   ```
+3. **Dismiss the cookie consent modal first** — click the "Reject all" button:
+   ```bash
+   playwright-cli snapshot
+   # Find the ref for the "Reject all" button in the snapshot
+   playwright-cli click <ref>
+   ```
+4. Take the screenshot:
+   ```bash
+   playwright-cli screenshot --filename=my-change.png
+   ```
+5. For responsive screenshots, resize the viewport first:
+   ```bash
+   playwright-cli resize 1440 900
+   playwright-cli screenshot --filename=desktop.png
+   playwright-cli resize 375 812
+   playwright-cli screenshot --filename=mobile.png
+   ```
+
+Always dismiss the cookie modal before any screenshot or visual verification. The "Reject all" button avoids setting unnecessary cookies during development.
+
+## Accessibility and Inclusive Writing
+
+- **WCAG AA contrast** for all text and interactive elements (4.5:1 normal text, 3:1 large text)
+- **Heading hierarchy**: H1 from frontmatter, then H2 → H3 → H4 without skipping
+- **Meaningful link text**: "Read the deployment guide" not "Click here"
+- **Alt text**: describe informative images, use `alt=""` for decorative ones
+- **Inclusive language**: gender-neutral, no ableist terms, people-first
+- **Active voice**: prefer "The system processes" over "is processed by"
+- **Universal date formats**: "January 15, 2025" not "1/15/25"
+
+## Scripts Reference
+
+| Script | Purpose |
+|---|---|
+| `pnpm dev` | Start dev server with hot reload |
+| `pnpm build` | Production build |
+| `pnpm preview` | Preview production build |
+| `pnpm lint` | ESLint (zero warnings allowed) |
+| `pnpm format` | Prettier formatting |
+| `pnpm update:integrations` | Sync NuGet integration data |
+| `pnpm update:samples` | Sync sample data from GitHub |
+| `pnpm update:all` | Run all data updates |

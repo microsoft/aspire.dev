@@ -1,0 +1,764 @@
+{
+  "package": {
+    "name": "CommunityToolkit.Aspire.Hosting.Minio",
+    "version": "13.1.1",
+    "targetFramework": "net10.0",
+    "sourceRepository": "https://github.com/CommunityToolkit/Aspire",
+    "sourceCommit": "67afcca30f02c18687f9c5219313710af9706630"
+  },
+  "types": [
+    {
+      "name": "MinioBuilderExtensions",
+      "fullName": "Aspire.Hosting.MinioBuilderExtensions",
+      "namespace": "Aspire.Hosting",
+      "kind": "class",
+      "accessibility": "public",
+      "isStatic": true,
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " Provides extension methods for adding MinIO resources to an "
+          },
+          {
+            "kind": "cref",
+            "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+          },
+          {
+            "kind": "text",
+            "text": ". "
+          }
+        ]
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+      "sourceLines": "11-11",
+      "members": [
+        {
+          "name": "AddMinioContainer",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<MinioContainerResource> MinioBuilderExtensions.AddMinioContainer(this IDistributedApplicationBuilder builder, string name, IResourceBuilder<ParameterResource>? rootUser = null, IResourceBuilder<ParameterResource>? rootPassword = null, int? port = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.IDistributedApplicationBuilder",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "rootUser",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>?",
+              "isNullable": true,
+              "isOptional": true
+            },
+            {
+              "name": "rootPassword",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>?",
+              "isNullable": true,
+              "isOptional": true
+            },
+            {
+              "name": "port",
+              "type": "int?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a MinIO container to the application model. The default image is \"minio/minio\" and the tag is \"latest\". "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A reference to the "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The "
+                },
+                {
+                  "kind": "cref",
+                  "value": "T:Aspire.Hosting.IDistributedApplicationBuilder"
+                },
+                {
+                  "kind": "text",
+                  "text": "."
+                }
+              ],
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
+                }
+              ],
+              "port": [
+                {
+                  "kind": "text",
+                  "text": "The host port for MinIO."
+                }
+              ],
+              "rootPassword": [
+                {
+                  "kind": "text",
+                  "text": "The parameter used to provide the administrator password for the MinIO resource. If "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " a random password will be generated."
+                }
+              ],
+              "rootUser": [
+                {
+                  "kind": "text",
+                  "text": "The parameter used to provide the root user name for the MinIO resource. If "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " a default value will be used."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+          "sourceLines": "32-67"
+        },
+        {
+          "name": "WithDataBindMount",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<MinioContainerResource> MinioBuilderExtensions.WithDataBindMount(this IResourceBuilder<MinioContainerResource> builder, string source)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "source",
+              "type": "string"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a bind mount for the data folder to a MinIO container resource. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Add an MinIO container to the application model and reference it in a .NET project. Additionally, in this example a bind mount is added to the container to allow data to be persisted across container restarts. "
+              },
+              {
+                "kind": "codeblock",
+                "text": "\n             var builder = DistributedApplication.CreateBuilder(args);\n            \n             var minio = builder.AddMinio(\"minio\")\n             .WithDataBindMount(\"./data/minio/data\");\n             var api = builder.AddProject<Projects.Api>(\"api\")\n               .WithReference(minio);\n              \n             builder.Build().Run(); \n             ",
+                "language": "csharp"
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "source": [
+                {
+                  "kind": "text",
+                  "text": "The source directory on the host to mount into the container."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+          "sourceLines": "169-172"
+        },
+        {
+          "name": "WithDataVolume",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<MinioContainerResource> MinioBuilderExtensions.WithDataVolume(this IResourceBuilder<MinioContainerResource> builder, string? name = null)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "name",
+              "type": "string?",
+              "isNullable": true,
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Adds a named volume for the data folder to a MinIO container resource. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Add an MinIO container to the application model and reference it in a .NET project. Additionally, in this example a data volume is added to the container to allow data to be persisted across container restarts. "
+              },
+              {
+                "kind": "codeblock",
+                "text": "\n             var builder = DistributedApplication.CreateBuilder(args);\n            \n             var minio = builder.AddMinio(\"minio\")\n             .WithDataVolume();\n             var api = builder.AddProject<Projects.Api>(\"api\")\n               .WithReference(minio);\n              \n             builder.Build().Run(); \n             ",
+                "language": "csharp"
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+          "sourceLines": "140-142"
+        },
+        {
+          "name": "WithHostPort",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<MinioContainerResource> MinioBuilderExtensions.WithHostPort(this IResourceBuilder<MinioContainerResource> builder, int? port)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "port",
+              "type": "int?",
+              "isNullable": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the host port that the MinIO resource is exposed on instead of using randomly assigned port. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The resource builder for MinIO."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder for MinIO."
+                }
+              ],
+              "port": [
+                {
+                  "kind": "text",
+                  "text": "The port to bind on the host. If "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": " is used, a random port will be assigned."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+          "sourceLines": "108-113"
+        },
+        {
+          "name": "WithPassword",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<MinioContainerResource> MinioBuilderExtensions.WithPassword(this IResourceBuilder<MinioContainerResource> builder, IResourceBuilder<ParameterResource> password)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "password",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the password that the MinIO resource is used. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "password": [
+                {
+                  "kind": "text",
+                  "text": "The parameter used to provide the password for the MinIO resource. If "
+                },
+                {
+                  "kind": "langword",
+                  "value": "null"
+                },
+                {
+                  "kind": "text",
+                  "text": ", no password will be configured."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+          "sourceLines": "94-97"
+        },
+        {
+          "name": "WithUserName",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public static IResourceBuilder<MinioContainerResource> MinioBuilderExtensions.WithUserName(this IResourceBuilder<MinioContainerResource> builder, IResourceBuilder<ParameterResource> userName)",
+          "returnType": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+          "isStatic": true,
+          "isExtension": true,
+          "parameters": [
+            {
+              "name": "builder",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.MinioContainerResource>",
+              "modifier": "this"
+            },
+            {
+              "name": "userName",
+              "type": "Aspire.Hosting.ApplicationModel.IResourceBuilder<Aspire.Hosting.ApplicationModel.ParameterResource>"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Configures the user name that the MinIO resource uses. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "The "
+              },
+              {
+                "kind": "cref",
+                "value": "T:Aspire.Hosting.ApplicationModel.IResourceBuilder`1"
+              },
+              {
+                "kind": "text",
+                "text": "."
+              }
+            ],
+            "parameters": {
+              "builder": [
+                {
+                  "kind": "text",
+                  "text": "The resource builder."
+                }
+              ],
+              "userName": [
+                {
+                  "kind": "text",
+                  "text": "The parameter used to provide the user name for the MinIO resource."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioBuilderExtensions.cs",
+          "sourceLines": "79-83"
+        }
+      ]
+    },
+    {
+      "name": "MinioContainerResource",
+      "fullName": "Aspire.Hosting.ApplicationModel.MinioContainerResource",
+      "namespace": "Aspire.Hosting.ApplicationModel",
+      "kind": "class",
+      "accessibility": "public",
+      "isSealed": true,
+      "baseType": "Aspire.Hosting.ApplicationModel.ContainerResource",
+      "interfaces": [
+        "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
+        "Aspire.Hosting.ApplicationModel.IResource",
+        "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
+        "Aspire.Hosting.ApplicationModel.IValueProvider",
+        "Aspire.Hosting.ApplicationModel.IValueWithReferences"
+      ],
+      "docs": {
+        "summary": [
+          {
+            "kind": "text",
+            "text": " A resource that represents a MinIO storage "
+          }
+        ],
+        "parameters": {
+          "name": [
+            {
+              "kind": "text",
+              "text": "The name of the resource."
+            }
+          ],
+          "passwordParameter": [
+            {
+              "kind": "text",
+              "text": "A parameter that contains the MinIO server root password."
+            }
+          ],
+          "rootUser": [
+            {
+              "kind": "text",
+              "text": "A parameter that contains the MinIO server root username."
+            }
+          ]
+        }
+      },
+      "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+      "sourceLines": "9-9",
+      "members": [
+        {
+          "name": ".ctor",
+          "kind": "constructor",
+          "accessibility": "public",
+          "signature": "public MinioContainerResource.MinioContainerResource(string name, ParameterResource rootUser, ParameterResource passwordParameter)",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "rootUser",
+              "type": "Aspire.Hosting.ApplicationModel.ParameterResource"
+            },
+            {
+              "name": "passwordParameter",
+              "type": "Aspire.Hosting.ApplicationModel.ParameterResource"
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " A resource that represents a MinIO storage "
+              }
+            ],
+            "parameters": {
+              "name": [
+                {
+                  "kind": "text",
+                  "text": "The name of the resource."
+                }
+              ],
+              "passwordParameter": [
+                {
+                  "kind": "text",
+                  "text": "A parameter that contains the MinIO server root password."
+                }
+              ],
+              "rootUser": [
+                {
+                  "kind": "text",
+                  "text": "A parameter that contains the MinIO server root username."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "9-24"
+        },
+        {
+          "name": "GetConnectionStringAsync",
+          "kind": "method",
+          "accessibility": "public",
+          "signature": "public ValueTask<string?> MinioContainerResource.GetConnectionStringAsync(CancellationToken cancellationToken = default(CancellationToken))",
+          "returnType": "System.Threading.Tasks.ValueTask<string?>",
+          "parameters": [
+            {
+              "name": "cancellationToken",
+              "type": "System.Threading.CancellationToken",
+              "isOptional": true
+            }
+          ],
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the connection string for the MinIO server. "
+              }
+            ],
+            "returns": [
+              {
+                "kind": "text",
+                "text": "A connection string for the MinIO server in the form \"Host=host;Port=port;Username=postgres;Password=password\"."
+              }
+            ],
+            "parameters": {
+              "cancellationToken": [
+                {
+                  "kind": "text",
+                  "text": " A "
+                },
+                {
+                  "kind": "cref",
+                  "value": "T:System.Threading.CancellationToken"
+                },
+                {
+                  "kind": "text",
+                  "text": " to observe while waiting for the task to complete."
+                }
+              ]
+            }
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "63-68"
+        },
+        {
+          "name": "ConnectionStringExpression",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public ReferenceExpression MinioContainerResource.ConnectionStringExpression",
+          "returnType": "Aspire.Hosting.ApplicationModel.ReferenceExpression",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the connection string expression for the Minio "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "46-46"
+        },
+        {
+          "name": "Host",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public EndpointReferenceExpression MinioContainerResource.Host",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReferenceExpression",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the host endpoint reference for this resource. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "36-36"
+        },
+        {
+          "name": "PasswordParameter",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public ParameterResource MinioContainerResource.PasswordParameter",
+          "returnType": "Aspire.Hosting.ApplicationModel.ParameterResource",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " The MinIO root password. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs"
+        },
+        {
+          "name": "Port",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public EndpointReferenceExpression MinioContainerResource.Port",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReferenceExpression",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the port endpoint reference for this resource. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "41-41"
+        },
+        {
+          "name": "PrimaryEndpoint",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public EndpointReference MinioContainerResource.PrimaryEndpoint",
+          "returnType": "Aspire.Hosting.ApplicationModel.EndpointReference",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the primary endpoint for the MinIO. This endpoint is used for all API calls over HTTP. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "31-31"
+        },
+        {
+          "name": "RootUser",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public ParameterResource MinioContainerResource.RootUser",
+          "returnType": "Aspire.Hosting.ApplicationModel.ParameterResource",
+          "hasGet": true,
+          "hasSet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " The MinIO root user. "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs"
+        },
+        {
+          "name": "UriExpression",
+          "kind": "property",
+          "accessibility": "public",
+          "signature": "public ReferenceExpression MinioContainerResource.UriExpression",
+          "returnType": "Aspire.Hosting.ApplicationModel.ReferenceExpression",
+          "hasGet": true,
+          "docs": {
+            "summary": [
+              {
+                "kind": "text",
+                "text": " Gets the connection URI expression for the MinIO server. "
+              }
+            ],
+            "remarks": [
+              {
+                "kind": "text",
+                "text": " Format: "
+              },
+              {
+                "kind": "code",
+                "text": "http://{host}:{port}"
+              },
+              {
+                "kind": "text",
+                "text": ". "
+              }
+            ]
+          },
+          "sourceFile": "src/CommunityToolkit.Aspire.Hosting.Minio/MinioContainerResource.cs",
+          "sourceLines": "54-54"
+        }
+      ]
+    }
+  ]
+}

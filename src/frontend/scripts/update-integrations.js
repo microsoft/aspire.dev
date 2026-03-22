@@ -1,16 +1,22 @@
 import fs from 'fs';
 import { fetchWithProxy as fetch } from './fetch-with-proxy.js';
+import {
+  NUGET_ORG_SERVICE_INDEX,
+  isOfficialAspirePackage,
+  resolveOfficialAspirePackageSource,
+} from './aspire-package-source.js';
 
-const SERVICE_INDEX = 'https://api.nuget.org/v3/index.json';
-const API_QUERIES = ['owner:aspire', 'Aspire.Hosting.', 'CommunityToolkit.Aspire'];
+const OFFICIAL_NUGET_ORG_QUERIES = ['owner:aspire', 'Aspire.Hosting.'];
+const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
+const COMMUNITY_TOOLKIT_QUERIES = ['CommunityToolkit.Aspire'];
 const EXCLUDED_PACKAGES = [
   'Aspire.Cli',
-  'Aspire.Hosting',
-  'Aspire.Hosting.Azure',
   'Aspire.Hosting.IncrementalMigration',
   'Aspire.Hosting.NodeJs',
+  'Aspire.Microsoft.AspNetCore.SystemWebAdapters',
   'Aspire.MongoDB.Driver.v3',
   'Aspire.RabbitMQ.Client.v7',
+  'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
   'CommunityToolkit.Aspire.Hosting.EventStore',
   'CommunityToolkit.Aspire.EventStore',
 ];
@@ -22,16 +28,16 @@ const OUTPUT_PATH = './src/data/aspire-integrations.json';
 const TAKE = 1000;
 const MAX_SKIP = 3000;
 
-async function discoverBase() {
-  const res = await fetch(SERVICE_INDEX);
+async function discoverBase(serviceIndex) {
+  const res = await fetch(serviceIndex);
   const idx = await res.json();
   const svc = idx.resources.find((r) => r['@type']?.startsWith('SearchQueryService'));
   if (!svc) throw new Error('SearchQueryService not in service index');
   return svc['@id'];
 }
 
-async function discoverRegistrationBase() {
-  const res = await fetch(SERVICE_INDEX);
+async function discoverRegistrationBase(serviceIndex) {
+  const res = await fetch(serviceIndex);
   const idx = await res.json();
   const regs = (idx.resources || []).filter((r) => r['@type']?.startsWith('RegistrationsBaseUrl'));
   if (!regs.length) throw new Error('RegistrationsBaseUrl not in service index');
@@ -54,7 +60,7 @@ async function discoverRegistrationBase() {
   return id.endsWith('/') ? id : id + '/';
 }
 
-async function fetchAllFromQuery(base, q) {
+async function fetchAllFromQuery(base, q, sourceLabel) {
   const all = [];
   let skip = 0;
   let total = null;
@@ -66,7 +72,7 @@ async function fetchAllFromQuery(base, q) {
     const json = await res.json();
 
     if (total === null) total = json.totalHits;
-    console.debug(`📦 "${q}" → got ${json.data.length}/${total} (skip=${skip})`);
+    console.debug(`📦 [${sourceLabel}] "${q}" → got ${json.data.length}/${total} (skip=${skip})`);
     all.push(...json.data);
 
     if (skip >= MAX_SKIP) {
@@ -86,14 +92,54 @@ async function fetchAllFromQuery(base, q) {
   return all;
 }
 
+function buildNuGetIconUrl(packageId, version) {
+  const normalizedPackageId = packageId?.trim().toLowerCase();
+  const normalizedVersion = version?.trim().toLowerCase();
+
+  if (!normalizedPackageId || !normalizedVersion) {
+    return null;
+  }
+
+  return `https://www.nuget.org/api/v2/package/${encodeURIComponent(normalizedPackageId)}/${encodeURIComponent(normalizedVersion)}?packageIcon=true`;
+}
+
+function buildNuGetFlatContainerIconUrl(packageId, version) {
+  const normalizedPackageId = packageId?.trim().toLowerCase();
+  const normalizedVersion = version?.trim().toLowerCase();
+
+  if (!normalizedPackageId || !normalizedVersion) {
+    return null;
+  }
+
+  return `https://api.nuget.org/v3-flatcontainer/${encodeURIComponent(normalizedPackageId)}/${encodeURIComponent(normalizedVersion)}/icon`;
+}
+
+function resolveIconUrl(pkg) {
+  if (isOfficialAspirePackage(pkg.id)) {
+    return (
+      buildNuGetFlatContainerIconUrl(pkg.id, pkg.__iconVersion) ||
+      buildNuGetIconUrl(pkg.id, pkg.__iconVersion) ||
+      'https://www.nuget.org/Content/gallery/img/default-package-icon.svg'
+    );
+  }
+
+  return (
+    pkg.iconUrl ||
+    buildNuGetFlatContainerIconUrl(pkg.id, pkg.__iconVersion ?? pkg.version) ||
+    buildNuGetIconUrl(pkg.id, pkg.__iconVersion ?? pkg.version) ||
+    'https://www.nuget.org/Content/gallery/img/default-package-icon.svg'
+  );
+}
+
 function filterAndTransform(pkgs) {
+  const excludedLower = EXCLUDED_PACKAGES.map((p) => p.toLowerCase());
+
   return pkgs
     .filter((pkg) => {
       const id = pkg.id.toLowerCase();
-      const excludedLower = EXCLUDED_PACKAGES.map((p) => p.toLowerCase());
       return (
         (id.startsWith('aspire.') || id.startsWith('communitytoolkit.aspire')) &&
-        pkg.verified === true &&
+        (pkg.__trustedSource || pkg.verified === true) &&
         // Some search responses may include 'deprecated' boolean or 'deprecation' object
         pkg.deprecated !== true &&
         !pkg.deprecation &&
@@ -103,8 +149,10 @@ function filterAndTransform(pkgs) {
     })
     .map((pkg) => ({
       title: pkg.id,
-      description: pkg.description,
-      icon: pkg.iconUrl || 'https://www.nuget.org/Content/gallery/img/default-package-icon.svg',
+      description: pkg.description
+        ?.replace(/\bA \.NET Aspire\b/gi, 'An Aspire')
+        .replace(/\.NET Aspire/gi, 'Aspire'),
+      icon: resolveIconUrl(pkg),
       href: `https://www.nuget.org/packages/${pkg.id}`,
       tags: pkg.tags?.map((t) => t.toLowerCase()) ?? [],
       downloads: pkg.totalDownloads,
@@ -113,8 +161,6 @@ function filterAndTransform(pkgs) {
 }
 
 async function filterOutDeprecatedWithRegistration(pkgs) {
-  const regBase = await discoverRegistrationBase();
-  console.log('🔗 Registration base:', regBase);
   // Light pre-filter in case search already flags deprecated
   const prefiltered = pkgs.filter((p) => p.deprecated !== true && !p.deprecation);
 
@@ -125,7 +171,7 @@ async function filterOutDeprecatedWithRegistration(pkgs) {
     while (i < prefiltered.length) {
       const idx = i++;
       const p = prefiltered[idx];
-      const preferred = await getPreferredNonDeprecatedVersion(regBase, p.id);
+      const preferred = await getPreferredNonDeprecatedVersion(p.__registrationBase, p.id);
       if (preferred) {
         out.push({ ...p, version: preferred });
       }
@@ -248,18 +294,151 @@ async function getPreferredNonDeprecatedVersion(regBase, id) {
   }
 }
 
+async function fetchPackagesFromSource(source) {
+  const [searchBase, registrationBase] = await Promise.all([
+    discoverBase(source.serviceIndex),
+    discoverRegistrationBase(source.serviceIndex),
+  ]);
+
+  console.log(`🔗 ${source.label}: ${searchBase}`);
+
+  const results = await Promise.all(
+    source.queries.map((query) => fetchAllFromQuery(searchBase, query, source.label))
+  );
+
+  return results.flat().map((pkg) => ({
+    ...pkg,
+    __registrationBase: registrationBase,
+    __trustedSource: source.trusted,
+    __sourcePriority: source.priority,
+  }));
+}
+
+async function fetchNuGetOrgMetadata(packageIds) {
+  const ids = [...new Set(packageIds.filter(Boolean))];
+  const metadataById = new Map();
+
+  if (ids.length === 0) {
+    return metadataById;
+  }
+
+  const searchBase = await discoverBase(NUGET_ORG_SERVICE_INDEX);
+  const concurrency = 10;
+  let nextIndex = 0;
+
+  async function findPackageMetadata(packageId) {
+    const queries = [`packageid:${packageId}`, `"${packageId}"`, packageId];
+
+    for (const query of queries) {
+      const url = `${searchBase}?q=${encodeURIComponent(query)}&prerelease=true&semVerLevel=2.0.0&skip=0&take=20`;
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        continue;
+      }
+
+      const json = await res.json();
+      const match = (json.data || []).find(
+        (pkg) => pkg.id?.toLowerCase() === packageId.toLowerCase()
+      );
+
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  async function worker() {
+    while (nextIndex < ids.length) {
+      const packageId = ids[nextIndex++];
+
+      try {
+        const metadata = await findPackageMetadata(packageId);
+        if (metadata) {
+          metadataById.set(packageId.toLowerCase(), metadata);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Unable to backfill nuget.org metadata for ${packageId}:`, error.message || error);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }, () => worker()));
+
+  return metadataById;
+}
+
+function mergeFallbackPackageMetadata(packages, metadataById) {
+  return packages.map((pkg) => {
+    if (!isOfficialAspirePackage(pkg.id)) {
+      return pkg;
+    }
+
+    const fallback = metadataById.get(pkg.id.toLowerCase());
+    if (!fallback) {
+      return pkg;
+    }
+
+    return {
+      ...pkg,
+      totalDownloads: fallback.totalDownloads ?? pkg.totalDownloads,
+      description: pkg.description ?? fallback.description,
+      tags: pkg.tags?.length ? pkg.tags : fallback.tags,
+      iconUrl: fallback.iconUrl ?? pkg.iconUrl,
+      __iconVersion: fallback.version ?? pkg.version,
+    };
+  });
+}
+
 (async () => {
   try {
-    const base = await discoverBase();
-    console.log('🔗 Using:', base);
+    const officialSource = resolveOfficialAspirePackageSource();
+    if (officialSource.isReleaseBranch) {
+      console.log(
+        `🌿 Release branch detected (${officialSource.branchName}). Official Aspire packages will resolve from ${officialSource.displayName}.`
+      );
+    }
 
-    const results = await Promise.all(API_QUERIES.map((q) => fetchAllFromQuery(base, q)));
+    const sources = [
+      {
+        label: officialSource.isReleaseBranch ? 'official Aspire release feed' : 'official Aspire (nuget.org)',
+        priority: officialSource.isReleaseBranch ? 2 : 1,
+        trusted: officialSource.isReleaseBranch,
+        serviceIndex: officialSource.serviceIndex,
+        queries: officialSource.isReleaseBranch
+          ? OFFICIAL_RELEASE_FEED_QUERIES
+          : OFFICIAL_NUGET_ORG_QUERIES,
+      },
+      {
+        label: 'Community Toolkit (nuget.org)',
+        priority: 0,
+        trusted: false,
+        serviceIndex: NUGET_ORG_SERVICE_INDEX,
+        queries: COMMUNITY_TOOLKIT_QUERIES,
+      },
+    ];
+
+    const results = await Promise.all(sources.map((source) => fetchPackagesFromSource(source)));
     const merged = results.flat();
-    const unique = Object.values(merged.reduce((acc, pkg) => ((acc[pkg.id] = pkg), acc), {})).sort(
-      (a, b) => a.id.localeCompare(b.id)
-    );
+    let unique = Object.values(
+      merged.reduce((acc, pkg) => {
+        const existing = acc[pkg.id];
+        if (!existing || (pkg.__sourcePriority ?? 0) >= (existing.__sourcePriority ?? 0)) {
+          acc[pkg.id] = pkg;
+        }
+        return acc;
+      }, {})
+    ).sort((a, b) => a.id.localeCompare(b.id));
 
-    // Exclude deprecated packages using registration metadata
+    if (officialSource.isReleaseBranch) {
+      const nugetOrgMetadata = await fetchNuGetOrgMetadata(
+        unique.filter((pkg) => isOfficialAspirePackage(pkg.id)).map((pkg) => pkg.id)
+      );
+      unique = mergeFallbackPackageMetadata(unique, nugetOrgMetadata);
+    }
+
     const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
     const output = filterAndTransform(nonDeprecated);
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));

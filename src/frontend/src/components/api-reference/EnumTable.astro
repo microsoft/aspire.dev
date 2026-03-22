@@ -1,0 +1,65 @@
+---
+/**
+ * EnumTable — renders a list of enum members.
+ */
+interface Props {
+  enumMembers: any[];
+  hasFlags?: boolean;
+}
+
+const { enumMembers = [], hasFlags = false } = Astro.props;
+---
+
+{enumMembers.length > 0 && (
+  <div class="enum-list-wrap">
+    {hasFlags && (
+      <p class="enum-flags-note">
+        <span class="api-kind-pill kind-enum">[Flags]</span> Values can be combined with bitwise OR.
+      </p>
+    )}
+    <div class="api-list not-content">
+      {enumMembers.map((em: any) => (
+        <div class="api-list-item">
+          <div class="api-list-header">
+            <code class="enum-name">{em.name}</code>
+            <span class="api-list-meta">
+              = <code>{em.value}</code>
+              {hasFlags && em.value > 0 && (
+                <span class="binary-hint" title={`0b${em.value.toString(2).padStart(4, '0')}`}>
+                  {`0x${em.value.toString(16).toUpperCase()}`}
+                </span>
+              )}
+            </span>
+          </div>
+          {em.description && em.description !== '—' && (
+            <div class="api-list-desc">{em.description}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+<style>
+  .enum-list-wrap {
+    margin: 1rem 0;
+  }
+  .enum-flags-note {
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-1);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .enum-name {
+    font-weight: 600;
+    font-size: var(--api-text-md);
+  }
+  .binary-hint {
+    display: inline-block;
+    font-size: var(--api-text-xs);
+    color: var(--sl-color-gray-2);
+    margin-left: 0.35rem;
+  }
+</style>

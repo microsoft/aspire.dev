@@ -1,0 +1,114 @@
+---
+/**
+ * RemarksBlock — shared component for rendering doc remarks content
+ * with proper paragraph spacing, list styling, and inline element handling.
+ *
+ * Used by both MemberCard (member-level remarks) and the type index page
+ * (type-level remarks) for consistent presentation.
+ */
+import DocContent from './DocContent.astro';
+
+interface Props {
+  content: any;
+  allTypes?: any[];
+  packageName?: string;
+}
+
+const { content, allTypes = [], packageName = '' } = Astro.props;
+---
+
+<div class="remarks-block">
+  <DocContent content={content} allTypes={allTypes} packageName={packageName} tag="div" />
+</div>
+
+<style>
+  .remarks-block {
+    font-size: var(--api-text-base);
+    line-height: 1.7;
+    color: var(--sl-color-gray-1);
+    padding: 0.85rem 1rem;
+    background: var(--api-surface);
+    border-left: 3px solid var(--kind-tint, var(--api-border));
+    border-radius: 0 var(--api-radius-md) var(--api-radius-md) 0;
+  }
+
+  /* Paragraphs */
+  .remarks-block :global(p) {
+    margin: 0;
+  }
+  .remarks-block :global(p + p) {
+    margin-top: 0.75em;
+  }
+
+  /* Lists */
+  .remarks-block :global(ul),
+  .remarks-block :global(ol) {
+    margin: 0.65em 0;
+    padding-left: 1.5em;
+  }
+  .remarks-block :global(li) {
+    margin-bottom: 0.35em;
+    line-height: 1.6;
+  }
+  .remarks-block :global(li:last-child) {
+    margin-bottom: 0;
+  }
+  .remarks-block :global(li p) {
+    margin: 0;
+  }
+  .remarks-block :global(li p + p) {
+    margin-top: 0.4em;
+  }
+
+  /* Nested lists */
+  .remarks-block :global(li > ul),
+  .remarks-block :global(li > ol) {
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
+  }
+
+  /* Doc-lists from DocContent */
+  .remarks-block :global(.doc-list) {
+    margin: 0.65em 0 0.65em 1.5em;
+  }
+  .remarks-block :global(.doc-list li) {
+    margin-bottom: 0.35em;
+    line-height: 1.6;
+  }
+
+  /* Tables */
+  .remarks-block :global(.doc-table) {
+    margin: 0.75em 0;
+  }
+
+  /* Code blocks */
+  .remarks-block :global(.doc-codeblock-wrap) {
+    margin: 0.75em 0;
+  }
+
+  /* Inline code: prevent wrapping artifacts */
+  .remarks-block :global(code) {
+    white-space: nowrap;
+  }
+  /* But code blocks should wrap */
+  .remarks-block :global(pre code) {
+    white-space: pre;
+  }
+
+  /* Notes inside remarks */
+  .remarks-block :global(.doc-note) {
+    margin: 0.75em 0;
+  }
+
+  /* Spacing between block elements (paragraphs followed by lists, etc.) */
+  .remarks-block :global(p + ul),
+  .remarks-block :global(p + ol),
+  .remarks-block :global(p + .doc-list) {
+    margin-top: 0.4em;
+  }
+  .remarks-block :global(ul + p),
+  .remarks-block :global(ol + p),
+  .remarks-block :global(.doc-list + p) {
+    margin-top: 0.65em;
+  }
+</style>

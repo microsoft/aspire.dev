@@ -20,9 +20,32 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
     tr: 'Entegrasyonlar',
     uk: 'Інтеграції',
   },
-  link: '/integrations/gallery',
+  link: '/integrations/',
   icon: 'puzzle',
   items: [
+    {
+      label: 'Integrations',
+      translations: {
+        da: 'Integrationer',
+        de: 'Integrationen',
+        en: 'Integrations',
+        es: 'Integraciones',
+        fr: 'Intégrations',
+        hi: 'इंटीग्रेशन',
+        id: 'Integrasi',
+        it: 'Integrazioni',
+        ja: 'インテグレーション',
+        ko: '통합',
+        pt: 'Integrações',
+        'pt-BR': 'Integrações',
+        'pt-PT': 'Integrações',
+        ru: 'Интеграции',
+        tr: 'Entegrasyonlar',
+        uk: 'Інтеграції',
+        'zh-CN': '集成',
+      },
+      slug: 'integrations',
+    },
     {
       label: 'Explore',
       translations: {
@@ -46,29 +69,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
       },
       items: [
         {
-          label: 'Integration gallery',
-          translations: {
-            da: 'Integrationsgalleri',
-            de: 'Integrationsgalerie',
-            en: 'Integration gallery',
-            es: 'Galería de integraciones',
-            fr: 'Galerie d’intégrations',
-            hi: 'इंटीग्रेशन गैलरी',
-            id: 'Galeri integrasi',
-            it: 'Galleria delle integrazioni',
-            ja: 'インテグレーションギャラリー',
-            ko: '통합 갤러리',
-            pt: 'Galeria de integrações',
-            'pt-BR': 'Galeria de integrações',
-            'pt-PT': 'Galeria de integrações',
-            ru: 'Галерея интеграций',
-            tr: 'Entegrasyon galerisi',
-            uk: 'Галерея інтеграцій',
-            'zh-CN': '集成图库',
-          },
-          slug: 'integrations/gallery',
-        },
-        {
           label: 'Overview',
           translations: {
             da: 'Oversigt',
@@ -90,6 +90,29 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '概述',
           },
           slug: 'integrations/overview',
+        },
+        {
+          label: 'Integration gallery',
+          translations: {
+            da: 'Integrationsgalleri',
+            de: 'Integrationsgalerie',
+            en: 'Integration gallery',
+            es: 'Galería de integraciones',
+            fr: "Galerie d'intégrations",
+            hi: 'इंटीग्रेशन गैलरी',
+            id: 'Galeri integrasi',
+            it: 'Galleria delle integrazioni',
+            ja: 'インテグレーションギャラリー',
+            ko: '통합 갤러리',
+            pt: 'Galeria de integrações',
+            'pt-BR': 'Galeria de integrações',
+            'pt-PT': 'Galeria de integrações',
+            ru: 'Галерея интеграций',
+            tr: 'Entegrasyon galerisi',
+            uk: 'Галерея інтеграцій',
+            'zh-CN': '集成图库',
+          },
+          slug: 'integrations/gallery',
         },
       ],
     },
@@ -311,6 +334,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/cloud/azure/configure-container-apps',
             },
             {
+              label: 'Default Azure credential',
+              slug: 'integrations/cloud/azure/azure-default-credential',
+            },
+            {
               label: 'Azure AI',
               collapsed: true,
               items: [
@@ -319,7 +346,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/ai-compatibility-matrix',
                 },
                 {
-                  label: 'Azure AI Foundry',
+                  label: 'Microsoft Foundry',
                   collapsed: true,
                   items: [
                     {
@@ -429,6 +456,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Application Insights',
+              slug: 'integrations/cloud/azure/azure-application-insights',
+            },
+            {
               label: 'Azure Cache for Redis',
               collapsed: true,
               items: [
@@ -483,6 +514,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Data Explorer',
+              slug: 'integrations/cloud/azure/azure-data-explorer',
+            },
+            {
               label: 'Azure Event Hubs',
               collapsed: true,
               items: [
@@ -535,6 +570,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-client',
                 },
               ],
+            },
+            {
+              label: 'Azure Log Analytics',
+              slug: 'integrations/cloud/azure/azure-log-analytics',
             },
             {
               label: 'Azure PostgreSQL',
@@ -627,6 +666,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Data Lake Storage',
+              slug: 'integrations/cloud/azure/azure-storage-datalake',
+            },
+            {
               label: 'Azure Storage Queues',
               collapsed: true,
               items: [
@@ -661,6 +704,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-client',
                 },
               ],
+            },
+            {
+              label: 'Azure Virtual Network',
+              slug: 'integrations/cloud/azure/azure-virtual-network',
             },
             {
               label: 'Azure Web PubSub',
@@ -981,6 +1028,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'MongoDB',
+              collapsed: true,
+              items: [
+                {
+                  label: 'Get started',
+                  slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-get-started',
+                },
+                {
+                  label: 'Client integration (Your app)',
+                  slug: 'integrations/databases/efcore/mongodb/mongodb-efcore-client',
+                },
+              ],
+            },
+            {
               label: 'Oracle',
               collapsed: true,
               items: [
@@ -1275,6 +1336,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'Go', slug: 'integrations/frameworks/go-apps' },
         { label: 'Java', slug: 'integrations/frameworks/java' },
         { label: 'JavaScript', slug: 'integrations/frameworks/javascript' },
+        { label: '.NET CLI tools', slug: 'app-host/dotnet-tool-resources' },
         { label: 'Node.js extensions', slug: 'integrations/frameworks/nodejs-extensions' },
         { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },

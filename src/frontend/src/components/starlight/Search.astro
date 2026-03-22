@@ -1,27 +1,139 @@
 ---
 import DefaultSearch from "@astrojs/starlight/components/Search.astro";
+import { Image } from 'astro:assets';
+import csharpIcon from '@assets/icons/csharp.svg';
+import typescriptIcon from '@assets/icons/typescript.svg';
 
-import { isHomepage } from "@utils/helpers";
+const routeData = Astro.locals.starlightRoute;
+const pageId = routeData?.id ?? '';
+const isApiRefPage = pageId.startsWith('reference/api') || Astro.url.pathname.startsWith('/reference/api');
+const hideSearch = isApiRefPage;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
-{
-    isHomepage(Astro) ? (
-        <></>
-    ) : (
-        <DefaultSearch><slot /></DefaultSearch>
-    )
-}
+{ hideSearch ? <></> : <DefaultSearch><slot /></DefaultSearch> }
 
-<style>
-    :root {
-        site-search > button,
-        site-search > button > svg {
-            color: var(--sl-color-gray-1);
-        }
+<template id="api-search-notice-tpl">
+  <div class="api-search-notice">
+    <p class="api-search-notice-text">API references are intentionally omitted from this search. To find API references, please search these dedicated API pages instead:</p>
+    <div class="api-search-notice-buttons">
+      <a href={`${base}/reference/api/csharp/`} class="api-search-btn">
+        <Image src={csharpIcon} alt="" width={50} height={50} />
+        <span>C# API Reference</span>
+      </a>
+      <a href={`${base}/reference/api/typescript/`} class="api-search-btn">
+        <Image src={typescriptIcon} alt="" width={50} height={50} />
+        <span>TypeScript API Reference</span>
+      </a>
+    </div>
+  </div>
+</template>
 
-        site-search kbd {
-            background: var(--sl-color-gray-1);
-            color: var(--sl-color-gray-7);
-        }
+<script>
+  // Inject an API search notice into the Starlight/Pagefind search dialog
+  function injectApiNotice() {
+    const siteSearch = document.querySelector('site-search');
+    if (!siteSearch) return;
+
+    // Disconnect any existing observer before creating a new one to avoid accumulation
+    const existing = (window as any).__apiNoticeObserver as MutationObserver | undefined;
+    if (existing) existing.disconnect();
+
+    const observer = new MutationObserver(() => {
+      const dialog = siteSearch.querySelector('dialog');
+      if (!dialog) return;
+
+      // Only inject once
+      if (dialog.querySelector('.api-search-notice')) return;
+
+      const inner = dialog.querySelector('.dialog-frame');
+      if (!inner) return;
+
+      const tpl = document.getElementById('api-search-notice-tpl') as HTMLTemplateElement | null;
+      if (!tpl) return;
+
+      inner.appendChild(tpl.content.cloneNode(true));
+    });
+
+    observer.observe(siteSearch, { childList: true, subtree: true });
+    (window as any).__apiNoticeObserver = observer;
+  }
+
+  // Run on load and after Astro client-side navigation
+  injectApiNotice();
+  document.addEventListener('astro:after-swap', injectApiNotice);
+</script>
+
+<style is:global>
+  site-search button[data-open-modal] {
+    color: var(--sl-color-gray-1) !important;
+  }
+
+  site-search button[data-open-modal] :where(svg, span) {
+    color: inherit !important;
+  }
+
+  site-search button[data-open-modal] kbd {
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-2) !important;
+  }
+</style>
+
+<style is:global>
+  .api-search-notice {
+    padding: 1rem;
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--sl-color-gray-2);
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+  }
+  .api-search-notice-text {
+    margin: 0 0 1rem;
+  }
+  .api-search-notice-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .api-search-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    font-weight: 700;
+    color: var(--sl-color-white);
+    background: var(--sl-color-black);
+    border: 2px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    text-decoration: none;
+    cursor: pointer;
+    min-width: 13rem;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .api-search-btn:hover {
+    background: var(--sl-color-black);
+    border-color: var(--sl-color-text);
+    text-decoration: none;
+  }
+  .api-search-btn img {
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 600px) {
+    .api-search-notice {
+      margin-top: 4rem;
     }
+    .api-search-notice-buttons {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .api-search-btn {
+      min-width: 0;
+    }
+  }
 </style>
