@@ -32,6 +32,7 @@ The dashboard is started using the Docker command line.
 docker run --rm -it -d \
     -p 18888:18888 \
     -p 4317:18889 \
+    -p 4318:18890 \
     --name aspire-dashboard \
     mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
@@ -43,6 +44,7 @@ docker run --rm -it -d \
 docker run --rm -it -d `
     -p 18888:18888 `
     -p 4317:18889 `
+    -p 4318:18890 `
     --name aspire-dashboard `
     mcr.microsoft.com/dotnet/aspire-dashboard:latest
 ```
@@ -53,9 +55,10 @@ docker run --rm -it -d `
 The preceding Docker command:
 
 - Starts a container from the `mcr.microsoft.com/dotnet/aspire-dashboard:latest` image.
-- The container exposes two ports:
-  - Mapping the dashboard's OTLP port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps. Apps send data using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
+- The container exposes three ports:
   - Mapping the dashboard's port `18888` to the host's port `18888`. Port `18888` has the dashboard UI. Navigate to `http://localhost:18888` in the browser to view the dashboard.
+  - Mapping the dashboard's OTLP/gRPC port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps using [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc).
+  - Mapping the dashboard's OTLP/HTTP port `18890` to the host's port `4318`. Port `4318` receives OpenTelemetry data from apps using [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp).
 
 ## Login to the dashboard
 
@@ -126,7 +129,7 @@ The dashboard has functionality for viewing Aspire resources. The dashboard reso
 
 Apps send telemetry to the dashboard using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/). The dashboard must expose a port for receiving OpenTelemetry data, and apps are configured to send data to that address.
 
-A Docker command was shown earlier to [start the dashboard](#start-the-dashboard). It configured the container to receive OpenTelemetry data on port `4317`. The OTLP endpoint's full address is `http://localhost:4317`.
+A Docker command was shown earlier to [start the dashboard](#start-the-dashboard). It configured the container to receive OpenTelemetry data on port `4317` (gRPC) and port `4318` (HTTP). The OTLP endpoint addresses are `http://localhost:4317` for gRPC and `http://localhost:4318` for HTTP.
 
 ### Configure OpenTelemetry SDK
 
@@ -134,15 +137,21 @@ Apps collect and send telemetry using [their language's OpenTelemetry SDK](https
 
 Important OpenTelemetry SDK options to configure:
 
-- OTLP endpoint, which should match the dashboard's configuration, for example, `http://localhost:4317`.
-- OTLP protocol, with the dashboard currently supporting only the [OTLP/gRPC protocol](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc). Configure applications to use the `grpc` protocol.
+- OTLP endpoint, which should match the dashboard's configuration, for example, `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP.
+- OTLP protocol. The dashboard supports all OTLP protocols:
+  - [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) (`grpc`)
+  - [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) (`http/protobuf` or `http/json`)
 
 To configure applications:
 
 - Use the OpenTelemetry SDK APIs within the application, or
 - Start the app with [known environment variables](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options):
-  - `OTEL_EXPORTER_OTLP_PROTOCOL` with a value of `grpc`.
-  - `OTEL_EXPORTER_OTLP_ENDPOINT` with a value of `http://localhost:4317`.
+  - `OTEL_EXPORTER_OTLP_PROTOCOL` with a value of `grpc`, `http/protobuf`, or `http/json`.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` with a value of `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP.
+
+<Aside type="note">
+Additional configuration may be required to authenticate with the dashboard if you have configured the dashboard to secure the telemetry endpoint. For more information, see [Securing the telemetry endpoint](/dashboard/security-considerations/#secure-telemetry-endpoint).
+</Aside>
 
 ## Sample
 
