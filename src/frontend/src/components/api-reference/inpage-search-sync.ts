@@ -13,8 +13,13 @@ class InpageSearchSync {
   private onClear: () => void;
 
   constructor(prefix: string, onClear: () => void) {
-    this.input = document.getElementById(`${prefix}-search-input`) as HTMLInputElement;
-    this.clearBtn = document.getElementById(`${prefix}-search-clear`) as HTMLElement;
+    const input = document.getElementById(`${prefix}-search-input`);
+    const clearBtn = document.getElementById(`${prefix}-search-clear`);
+    if (!(input instanceof HTMLInputElement) || !clearBtn) {
+      throw new Error(`InpageSearchSync: missing elements for prefix "${prefix}"`);
+    }
+    this.input = input;
+    this.clearBtn = clearBtn;
     this.onClear = onClear;
 
     this.input.addEventListener('input', () => this.updateClearButton());
