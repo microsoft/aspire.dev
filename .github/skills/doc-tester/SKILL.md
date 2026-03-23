@@ -246,8 +246,24 @@ The doc-tester agent produces actionable feedback that can:
 | **Code examples** | Do code samples compile and run as described? |
 | **CLI commands** | Do Aspire CLI commands work as documented? |
 | **Integration docs** | Are integration configurations accurate? |
-| **Navigation & links** | Do internal links work? Are pages accessible? |
+| **Navigation & links** | Do internal links work? Are pages accessible? Do they follow link format conventions? |
 | **Feature coverage** | Are all significant features documented? |
+
+### Link Validation Rules
+
+When testing any page, verify that **all internal links** follow these conventions:
+
+1. **Site-relative paths**: Internal links must start with `/` (not relative paths like `../` except within the same integration section)
+2. **Trailing slash required**: All internal links must end with `/` (e.g., `/get-started/first-app/` not `/get-started/first-app`)
+3. **Anchor links**: Hash links to sections on the same page (e.g., `#configuration`) are fine without a trailing slash
+4. **Valid targets**: Every internal link must point to a page that actually exists in the docs
+5. **No broken anchors**: Section anchor links (e.g., `/page/#section-name`) must reference an actual heading on the target page
+
+**How to validate links:**
+- Extract all `[text](url)` and `href="url"` patterns from the page source
+- For site-relative links, verify the target `.mdx` file exists under `src/frontend/src/content/docs/`
+- For links with anchors, verify the heading exists on the target page
+- Use Playwright to click links and verify they resolve (no 404s)
 
 ### Documentation Structure
 
@@ -441,6 +457,7 @@ When given a focus area, use these templates to guide testing:
 - [ ] All sections visible in snapshot
 - [ ] Code examples readable
 - [ ] Links to related pages work
+- [ ] All internal links are site-relative with trailing slashes
 
 #### CLI Command Testing
 - [ ] `aspire new` commands work as shown
@@ -484,6 +501,7 @@ When given a focus area, use these templates to guide testing:
 #### Cross-References
 - [ ] Links to official docs work
 - [ ] Links to related Aspire docs work
+- [ ] All internal links are site-relative with trailing slashes
 - [ ] See also section is complete
 ```
 
