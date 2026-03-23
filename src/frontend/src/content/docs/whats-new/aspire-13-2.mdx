@@ -21,7 +21,13 @@ import consoleLogsDark from '@assets/whats-new/aspire-13.2/console-logs-dark.png
 import consoleLogsLight from '@assets/whats-new/aspire-13.2/console-logs-light.png';
 import structuredLogsDark from '@assets/whats-new/aspire-13.2/structured-logs-dark.png';
 import structuredLogsLight from '@assets/whats-new/aspire-13.2/structured-logs-light.png';
-import exportAllButton from '@assets/whats-new/aspire-13.2/export-all-button.png';
+import resourceGraphBefore from '@assets/whats-new/aspire-13.2/resource-graph-before.png';
+import resourceGraphAfter from '@assets/whats-new/aspire-13.2/resource-graph-after.png';
+import dashboardSetParameters from '@assets/whats-new/aspire-13.2/dashboard-set-parameters.png';
+import manageDialog from '@assets/whats-new/aspire-13.2/manage-dialog.png';
+import exportJsonMenu from '@assets/whats-new/aspire-13.2/export-json-menu.png';
+import exportJsonDialog from '@assets/whats-new/aspire-13.2/export-json-dialog.png';
+import exportEnvDialog from '@assets/whats-new/aspire-13.2/export-env-dialog.png';
 
 Welcome to Aspire 13.2! Whether you're a long-time Aspire user or just getting started, we're excited for you to try what's new. If you have questions, feedback, or run into issues, come say hi on [Discord](https://aka.ms/aspire-discord) or open an issue on [GitHub](https://github.com/dotnet/aspire/issues).
 
@@ -438,9 +444,10 @@ There are plenty of smaller but meaningful CLI improvements in 13.2:
 
 - `aspire new` now supports `--template` with git repository URLs as template sources.
 - `aspire run` now supports `--no-build` for cases where you know the apphost artifacts are already up to date.
-- Human-readable status output is routed away from structured JSON output more consistently, making scripts and editors more reliable.
+- `--format json` always sends JSON output to stdout, while status messages are sent to stderr. This ensures human-readable output is kept separate from structured JSON output, allowing scripts and editors that consume JSON to receive well-formed content.
 - Tables, status indicators, help organization, logging, and error messages were refined across interactive and non-interactive scenarios.
 - The unified self-extracting Aspire CLI bundle continues to improve multi-language experiences, especially when .NET isn't already installed globally.
+- Status messages that start with an emoji are consistently aligned. This is harder than you might think! If you see messy CLI output, [please let us know](https://github.com/microsoft/aspire).
 
 ## 🧩 VS Code extension
 
@@ -528,25 +535,55 @@ TypeScript apphosts now have first-class support in the VS Code extension—Code
 
 ## 📊 Dashboard improvements
 
-### Enhanced data export
+### Data export and import
 
-The new **Manage logs and telemetry** dialog (accessible via **Settings → Manage**) provides a centralized interface for managing and exporting telemetry data across all resources.
+Aspire 13.2 adds comprehensive data export and import capabilities to the dashboard. You can bulk-manage telemetry through a centralized dialog, export individual resources and telemetry as JSON, and export environment variables as `.env` files.
 
-<Image src={exportAllButton} alt="Manage logs and telemetry dialog showing Export selected, Remove selected, and Import logs and telemetry buttons" />
+#### Manage logs and telemetry dialog
 
-- **Export All Button**: Quickly export all telemetry data with the new "Export selected" button in the Manage logs and telemetry dialog
-- **JSON Export for Resources**: Export resource snapshots as JSON for debugging or automation using the action buttons for each resource
-- **.env File Export**: Export environment variables directly to a `.env` file format from resource details
-- **View JSON with Copy**: Download or copy JSON directly from the visualizer
+The new **Manage logs and telemetry** dialog (accessible via **Settings → Manage**) is a one-stop shop for exporting, importing, and removing data from the dashboard. Select resources and telemetry types, then export, remove, or import as needed.
+
+Data is exported as JSON in a zip file. Share it with AI, teammates, or import it back into the dashboard later.
+
+<Image src={manageDialog} alt="Manage logs and telemetry dialog showing Export selected, Remove selected, and Import logs and telemetry buttons" />
 
 The dashboard can also import telemetry bundles captured with `aspire export`, making it easy to attach diagnostics to bug reports, preserve a point-in-time view of a session, or share a failing scenario with a teammate.
 
-### Improved telemetry visualization
+#### Export JSON for resources and telemetry
 
-- **Download JSON for Traces, Spans, and Logs**: Each telemetry view now includes options to export data
-- **OTLP/JSON Support**: The dashboard now supports OTLP over JSON in addition to gRPC
-- **Environment Variable Highlighting**: Environment variables are now highlighted for better visibility
-- **Masked Query String Values**: Sensitive data in URLs is automatically masked for security
+Export data for specific resources and telemetry directly from the dashboard. Select **Export JSON** in context menus to get the data — copy it to your clipboard or download it to your machine.
+
+<Image src={exportJsonMenu} alt="Export JSON button in the resource context menu" />
+
+<Image src={exportJsonDialog} alt="Export JSON dialog with options to copy to clipboard or download" />
+
+#### Export environment variables as `.env` files
+
+Export a resource's environment variables directly to a `.env` file format from the resource details view.
+
+<Image src={exportEnvDialog} alt="Export Env dialog showing environment variables exported in .env format" />
+
+#### Telemetry HTTP API
+
+The dashboard now exposes an HTTP API for querying telemetry data programmatically. These APIs power the `aspire agent mcp` and `aspire otel` Aspire CLI commands.
+
+The API is served under `/api/telemetry` and returns data in OTLP JSON format. Available endpoints:
+
+- `GET /api/telemetry/resources` — List resources that have telemetry data
+- `GET /api/telemetry/spans` — Query spans with optional filters
+- `GET /api/telemetry/logs` — Query logs with optional filters
+- `GET /api/telemetry/traces` — List traces with optional filters
+- `GET /api/telemetry/traces/{traceId}` — Get all spans for a specific trace
+
+The spans and logs endpoints also support real-time streaming via `?follow=true`, which returns NDJSON (newline-delimited JSON) as new telemetry arrives. Multiple resource names can be specified by repeating the `resource` query parameter (e.g. `?resource=api&resource=worker`).
+
+When running with an Aspire apphost, the telemetry API is enabled automatically. For standalone dashboard deployments, set the `DASHBOARD__API__ENABLED` environment variable to `true` and configure authentication with `DASHBOARD__API__AUTHMODE` (`ApiKey` or `Unsecured`) and `DASHBOARD__API__PRIMARYAPIKEY`.
+
+### Set parameters from the dashboard
+
+You can now set resource parameters directly in the dashboard. Click the key action on a parameter and enter a new value. To remember it next time, optionally save the value to your user secrets.
+
+<Image src={dashboardSetParameters} alt="Dashboard dialog for setting a parameter value with an option to save to user secrets" />
 
 ### GenAI visualizer improvements
 
@@ -560,20 +597,17 @@ The GenAI visualizer keeps getting sharper. In 13.2 it handles more schema shape
 
 ### Resource graph improvements
 
-The resource graph layout has been significantly improved with adaptive force-directed positioning, providing a clearer visualization of your application topology.
+The resource graph layout has been significantly improved with adaptive force-directed positioning. Resources with many connections now have more space around them, making complex graphs feel less cluttered.
 
-### Persistent UI state
+**After:**
 
-The dashboard now remembers:
-
-- Collapsed/expanded state of resources
-- Filter preferences across sessions
-- View options and settings
+<Image src={resourceGraphAfter} alt="Resource graph after improvements, showing a cleaner layout with better spacing around highly-connected resources" />
 
 ### Dashboard UX refinements
 
 Additional dashboard refinements in 13.2:
 
+- Persistent collapsed/expanded state of resources
 - A 12-hour or 24-hour time format setting.
 - Consistent resource colors across the dashboard and CLI.
 - Better JSON viewers for traces, spans, logs, and resources.
@@ -582,13 +616,6 @@ Additional dashboard refinements in 13.2:
 - Base path configuration for reverse proxy scenarios.
 - Aggregate replica states—parent resources now show combined state from their replicas.
 - More polished dialogs, menus, copy flows, and resource details views.
-
-### Security enhancements
-
-- Dashboard icon and token-based authentication in URLs
-- Query string value masking to protect sensitive information
-- Copy button visibility improvements even when values are hidden
-- Toggle button for secret visibility in input dialogs
 
 <LearnMore>
   For more details, see [Explore the Aspire dashboard](/dashboard/explore/) and
