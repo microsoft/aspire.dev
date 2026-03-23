@@ -5,10 +5,26 @@
 /*  passed as the `sidebar` prop to `<StarlightPage>`.                */
 /* ------------------------------------------------------------------ */
 
-import { slugify, genericArity, typeDisplayName, packageSlug, groupTypesByNamespace, memberKindOrder, memberKindLabels, memberKindSlugs, getPackages } from './packages';
+import {
+  slugify,
+  genericArity,
+  typeDisplayName,
+  packageSlug,
+  groupTypesByNamespace,
+  memberKindOrder,
+  memberKindLabels,
+  memberKindSlugs,
+  getPackages,
+} from './packages';
 
 /** Member kinds that get their own sidebar sub-item under a type. */
 const sidebarMemberKinds = memberKindOrder;
+const apiSidebarCache = new Map<string, Promise<any[]>>();
+const shouldCacheApiSidebar = import.meta.env.PROD;
+
+interface ApiSidebarOptions {
+  packageName?: string;
+}
 
 /**
  * Determine whether a type is a simple marker interface (no members at all).
@@ -26,18 +42,20 @@ function isMarkerInterface(type: any): boolean {
  * Returns an array of { label, link } entries for each member-kind group
  * that has at least one member (e.g. Constructors, Properties, Methods).
  */
-function buildTypeSidebarItems(
-  packageName: string,
-  type: any,
-): { label: string; link: string }[] {
+function buildTypeSidebarItems(packageName: string, type: any): { label: string; link: string }[] {
   const base = `/reference/api/csharp/${packageSlug(packageName)}/${slugify(type.name, genericArity(type))}`;
-  const items: { label: string; link: string }[] = [
-    { label: 'Overview', link: `${base}/` },
-  ];
+  const items: { label: string; link: string }[] = [{ label: 'Overview', link: `${base}/` }];
 
   const members: any[] = type.members ?? [];
+  const memberKindsPresent = new Set<string>();
+  for (const member of members) {
+    if (member.kind) {
+      memberKindsPresent.add(member.kind);
+    }
+  }
+
   for (const kind of sidebarMemberKinds) {
-    if (members.some((m: any) => m.kind === kind)) {
+    if (memberKindsPresent.has(kind)) {
       items.push({
         label: memberKindLabels[kind] ?? kind,
         link: `${base}/${memberKindSlugs[kind] ?? kind}/`,
@@ -49,46 +67,71 @@ function buildTypeSidebarItems(
 }
 
 /**
- * Generate a sidebar configuration array for API reference pages.
- * Each package becomes a collapsible group. Within each package,
- * types are grouped by namespace.
+ * Build the sidebar group for a single C# package.
  */
-export async function getApiReferenceSidebar() {
+function buildPackageSidebarEntry(pkg: any, collapsed: boolean = true) {
+  const validTypes = pkg.types.filter((t: any) => t.name);
+  const nsGroups = groupTypesByNamespace(validTypes);
+
+  // If only one namespace, skip the namespace nesting level
+  const hasMultipleNamespaces = nsGroups.size > 1;
+
+  const typeItems = hasMultipleNamespaces
+    ? [...nsGroups.entries()].map(([ns, types]) => ({
+        label: ns,
+        collapsed: true,
+        items: types.map((t: any) => buildTypeSidebarEntry(pkg.package.name, t)),
+      }))
+    : [...nsGroups.values()].flat().map((t: any) => buildTypeSidebarEntry(pkg.package.name, t));
+
+  return {
+    label: pkg.package.name,
+    collapsed,
+    items: [
+      { label: 'Overview', link: `/reference/api/csharp/${packageSlug(pkg.package.name)}/` },
+      ...typeItems,
+    ],
+  };
+}
+
+async function buildApiReferenceSidebar(options: ApiSidebarOptions = {}) {
   const packages = await getPackages();
+  const sidebarRoot = { label: 'Search APIs', link: '/reference/api/csharp/' };
+
+  if (options.packageName) {
+    const currentPackage = packages.find(
+      (pkg) => pkg.data.package.name === options.packageName
+    )?.data;
+    return currentPackage
+      ? [sidebarRoot, buildPackageSidebarEntry(currentPackage, false)]
+      : [sidebarRoot];
+  }
+
   const sorted = packages
     .map((p) => p.data)
     .sort((a, b) => a.package.name.localeCompare(b.package.name));
 
-  return [
-    { label: 'Search APIs', link: '/reference/api/csharp/' },
-    ...sorted.map((pkg) => {
-      const validTypes = pkg.types.filter((t: any) => t.name);
-      const nsGroups = groupTypesByNamespace(validTypes);
+  return [sidebarRoot, ...sorted.map((pkg) => buildPackageSidebarEntry(pkg))];
+}
 
-      // If only one namespace, skip the namespace nesting level
-      const hasMultipleNamespaces = nsGroups.size > 1;
+/**
+ * Generate a sidebar configuration array for API reference pages.
+ * Results are memoized so repeated page renders do not rebuild the same tree.
+ */
+export function getApiReferenceSidebar(options: ApiSidebarOptions = {}) {
+  if (!shouldCacheApiSidebar) {
+    return buildApiReferenceSidebar(options);
+  }
 
-      const typeItems = hasMultipleNamespaces
-        ? [...nsGroups.entries()].map(([ns, types]) => ({
-            label: ns,
-            collapsed: true,
-            items: types.map((t: any) => buildTypeSidebarEntry(pkg.package.name, t)),
-          }))
-        : [...nsGroups.values()]
-            .flat()
-            .sort((a: any, b: any) => a.name.localeCompare(b.name))
-            .map((t: any) => buildTypeSidebarEntry(pkg.package.name, t));
+  const cacheKey = options.packageName ? `package:${options.packageName}` : 'all';
+  const cachedSidebar = apiSidebarCache.get(cacheKey);
+  if (cachedSidebar) {
+    return cachedSidebar;
+  }
 
-      return {
-        label: pkg.package.name,
-        collapsed: true,
-        items: [
-          { label: 'Overview', link: `/reference/api/csharp/${packageSlug(pkg.package.name)}/` },
-          ...typeItems,
-        ],
-      };
-    }),
-  ];
+  const sidebar = buildApiReferenceSidebar(options);
+  apiSidebarCache.set(cacheKey, sidebar);
+  return sidebar;
 }
 
 /** Build a single sidebar entry for a type (flat link or nested group). */

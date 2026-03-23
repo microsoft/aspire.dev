@@ -4,11 +4,20 @@
 
 import { getCollection } from 'astro:content';
 
+let tsModulesPromise: Promise<any[]> | undefined;
+const shouldCacheTsModules = import.meta.env.PROD;
+
 /**
  * Fetch all TypeScript module entries from the content collection.
+ * Memoized so Astro's many API routes reuse a single collection load.
  */
-export async function getTsModules() {
-  return await getCollection('tsModules');
+export function getTsModules() {
+  if (!shouldCacheTsModules) {
+    return getCollection('tsModules');
+  }
+
+  tsModulesPromise ??= getCollection('tsModules');
+  return tsModulesPromise;
 }
 
 /** Normalize a module name for use in a URL path segment. */
@@ -21,7 +30,10 @@ export function tsModuleSlug(name: string): string {
  * Converts PascalCase/camelCase to lowercase.
  */
 export function tsSlugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 /* ---- Capability kind helpers ---------------------------------------- */
@@ -61,7 +73,10 @@ export function groupFunctionsByKind(functions: any[]): Map<string, any[]> {
   for (const kind of capabilityKindOrder) {
     const matching = functions.filter((f: any) => f.kind === kind);
     if (matching.length > 0) {
-      groups.set(kind, matching.sort((a: any, b: any) => a.name.localeCompare(b.name)));
+      groups.set(
+        kind,
+        matching.sort((a: any, b: any) => a.name.localeCompare(b.name))
+      );
     }
   }
   return groups;
@@ -132,7 +147,10 @@ export function formatTsSignature(sig: string): string {
   for (let i = openIdx; i < sig.length; i++) {
     if (sig[i] === '(' || sig[i] === '<') depth++;
     else if (sig[i] === ')' || sig[i] === '>') depth--;
-    if (sig[i] === ')' && depth === 0) { closeIdx = i; break; }
+    if (sig[i] === ')' && depth === 0) {
+      closeIdx = i;
+      break;
+    }
   }
   if (closeIdx <= openIdx) return sig;
 
@@ -161,10 +179,17 @@ export function formatTsSignature(sig: string): string {
 
   // Multi-param — wrap each on its own line
   const indent = '    ';
-  return prefix + '\n' + params.map((p, i) => {
-    const sep = i < params.length - 1 ? ',' : '';
-    return indent + p + sep;
-  }).join('\n') + suffix;
+  return (
+    prefix +
+    '\n' +
+    params
+      .map((p, i) => {
+        const sep = i < params.length - 1 ? ',' : '';
+        return indent + p + sep;
+      })
+      .join('\n') +
+    suffix
+  );
 }
 
 /**
@@ -178,10 +203,7 @@ export function simplifyType(typeRef: string): string {
 
   // Clean assembly metadata from generic type arguments:
   // System.IEquatable`1[[TypeName, Assembly, Version=..., ...]] → System.IEquatable`1[[TypeName]]
-  stripped = stripped.replace(
-    /\[\[([^\],]+),\s*[^\]]*\]\]/g,
-    '[[$1]]',
-  );
+  stripped = stripped.replace(/\[\[([^\],]+),\s*[^\]]*\]\]/g, '[[$1]]');
 
   // For generic types with angle brackets, simplify the outer name only
   if (stripped.includes('<')) {
