@@ -497,16 +497,16 @@ One of the most anticipated features in Aspire 13.2 is first-class support for w
 TypeScript apphosts use the same app model as C#—resources, references, integrations—expressed in idiomatic TypeScript via `createBuilder()`:
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-const cache = builder.addRedis("cache");
-const api = builder.addProject("api", "../api")
+const cache = await builder.addRedis("cache");
+const api = await builder.addProject("api", "../api")
     .withReference(cache)
     .waitFor(cache);
 
-builder.build().run();
+await builder.build().run();
 ```
 
 Under the hood, this runs as a guest process alongside Aspire's .NET orchestration host, communicating via JSON-RPC over local transport. Your TypeScript defines the resource graph; the host handles orchestration, health checks, and the dashboard.
@@ -617,14 +617,14 @@ builder.Build().Run();
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-const api = builder.addProject("api", "../api")
+const api = await builder.addProject("api", "../api")
     .withMcpServer("/mcp");
 
-builder.build().run();
+await builder.build().run();
 ```
 
 </TabItem>
@@ -661,7 +661,7 @@ builder.AddProject<Projects.Api>("api")
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-builder.addProject("api", "../api")
+await builder.addProject("api", "../api")
     .withVolume("data", "/app/data");
 ```
 
@@ -693,13 +693,13 @@ builder.AddContainer("worker", "contoso/worker")
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-const accessToken = builder.addParameter("accessToken", { secret: true });
+const accessToken = await builder.addParameter("accessToken", { secret: true });
 
-builder.addContainer("worker", "contoso/worker")
+await builder.addContainer("worker", "contoso/worker")
     .withDockerfile("../worker")
     .withBuildSecret("ACCESS_TOKEN", accessToken);
 ```
@@ -868,14 +868,14 @@ builder.Build().Run();
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-builder.addDockerComposeEnvironment("compose")
+await builder.addDockerComposeEnvironment("compose")
     .withComposeFile("docker-compose.yml");
 
-builder.build().run();
+await builder.build().run();
 ```
 
 </TabItem>
@@ -905,16 +905,16 @@ builder.Build().Run();
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-const scheduler = builder.addDurableTaskScheduler("scheduler");
+const scheduler = await builder.addDurableTaskScheduler("scheduler");
 
-builder.addProject("worker", "../worker")
+await builder.addProject("worker", "../worker")
     .withReference(scheduler);
 
-builder.build().run();
+await builder.build().run();
 ```
 
 </TabItem>
@@ -953,21 +953,21 @@ builder.Build().Run();
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-const foundry = builder.addFoundry("foundry");
-const project = foundry.addProject("agents");
+const foundry = await builder.addFoundry("foundry");
+const project = await foundry.addProject("agents");
 
-const chat = project.addModelDeployment("chat", "OpenAI.Gpt5Mini");
+const chat = await project.addModelDeployment("chat", "OpenAI.Gpt5Mini");
 
-builder.addPythonApp("agent", "../agent", "main:app")
+await builder.addPythonApp("agent", "../agent", "main:app")
     .withReference(project)
     .withReference(chat)
     .publishAsHostedAgent(project);
 
-builder.build().run();
+await builder.build().run();
 ```
 
 </TabItem>
@@ -1106,16 +1106,16 @@ api.WithReference(dataLake)
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-const api = builder.addProject("api", "../api");
-const storage = builder.addAzureStorage("storage");
-const dataLake = storage.addDataLake("data-lake");
-const fileSystem = storage.addDataLakeFileSystem("data-lake-file-system");
+const api = await builder.addProject("api", "../api");
+const storage = await builder.addAzureStorage("storage");
+const dataLake = await storage.addDataLake("data-lake");
+const fileSystem = await storage.addDataLakeFileSystem("data-lake-file-system");
 
-api.withReference(dataLake)
+await api.withReference(dataLake)
    .waitFor(dataLake)
    .withReference(fileSystem)
    .waitFor(fileSystem);
@@ -1170,15 +1170,15 @@ builder.Build().Run();
 <TabItem label="TypeScript AppHost">
 
 ```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from "@aspect/apphost-sdk";
+import { createBuilder } from './.modules/aspire.js';
 
-const builder = createBuilder();
+const builder = await createBuilder();
 
-builder.addViteApp("frontend", "./frontend")
+await builder.addViteApp("frontend", "./frontend")
     .withBun()
     .withDockerfileBaseImage({ buildImage: "oven/bun:latest" });
 
-builder.build().run();
+await builder.build().run();
 ```
 
 </TabItem>
