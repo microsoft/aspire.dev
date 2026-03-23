@@ -1,6 +1,6 @@
 ---
 title: What's new in Aspire 13.2
-description: Aspire 13.2 introduces detached mode for long-running apps, Foundry integration and hosted agents, new CLI commands for docs, certs, exports, and secrets, TypeScript AppHost support, dashboard telemetry management, Azure Virtual Network and private endpoint support, and numerous multi-language improvements.
+description: Aspire 13.2 is here with new CLI commands, TypeScript AppHost support, and new and improved integrations.
 sidebar:
   label: Aspire 13.2
   order: 0
@@ -9,7 +9,8 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -20,16 +21,17 @@ import consoleLogsDark from '@assets/whats-new/aspire-13.2/console-logs-dark.png
 import consoleLogsLight from '@assets/whats-new/aspire-13.2/console-logs-light.png';
 import structuredLogsDark from '@assets/whats-new/aspire-13.2/structured-logs-dark.png';
 import structuredLogsLight from '@assets/whats-new/aspire-13.2/structured-logs-light.png';
+import resourceGraphBefore from '@assets/whats-new/aspire-13.2/resource-graph-before.png';
+import resourceGraphAfter from '@assets/whats-new/aspire-13.2/resource-graph-after.png';
+import dashboardSetParameters from '@assets/whats-new/aspire-13.2/dashboard-set-parameters.png';
+import manageDialog from '@assets/whats-new/aspire-13.2/manage-dialog.png';
+import exportJsonMenu from '@assets/whats-new/aspire-13.2/export-json-menu.png';
+import exportJsonDialog from '@assets/whats-new/aspire-13.2/export-json-dialog.png';
+import exportEnvDialog from '@assets/whats-new/aspire-13.2/export-env-dialog.png';
 
-Aspire 13.2 brings significant improvements to the developer experience with enhanced CLI capabilities, dashboard improvements, new AI agent integrations, and better multi-language support. This release focuses on making local development more streamlined while maintaining the robust cloud-native foundation that Aspire is known for.
+Welcome to Aspire 13.2! Whether you're a long-time Aspire user or just getting started, we're excited for you to try what's new. If you have questions, feedback, or run into issues, come say hi on [Discord](https://aka.ms/aspire-discord) or open an issue on [GitHub](https://github.com/dotnet/aspire/issues).
 
-Aspire 13.2 supports:
-
-- .NET 8.0 Long Term Support (LTS)
-- .NET 9.0 Standard Term Support (STS)
-- .NET 10.0 Long Term Support (LTS)
-
-It's important to note that Aspire releases out-of-band from .NET releases. While major versions of Aspire align with major .NET versions, minor versions are released more frequently. For more information on .NET and Aspire version support, see the [Aspire support policy](https://dotnet.microsoft.com/platform/support/policy/aspire).
+Aspire 13.2 brings significant improvements with enhanced CLI capabilities, dashboard improvements, new AI agent integrations, and better multi-language support. This release focuses on making local development more streamlined for both developers and coding agents while maintaining the robust cloud-native foundation that Aspire is known for. 13.2 also includes significant infrastructure improvements to make it easy for the Aspire team to ship more frequent stable releases. A huge thank you to all the community contributors who helped make this release happen — your issues, PRs, and feedback drive Aspire forward.
 
 ## 🆙 Upgrade to Aspire 13.2
 
@@ -38,7 +40,7 @@ It's important to note that Aspire releases out-of-band from .NET releases. Whil
 
 <Aside type="caution">
   Aspire 13.2 includes breaking changes to configuration files, resource
-  commands, event handling, and the AIFoundry-to-Foundry transition. Please
+  commands, event handling, and the Azure AI Foundry (now Microsoft Foundry) integration. Please
   review the [Breaking changes](#breaking-changes) section before upgrading.
 </Aside>
 
@@ -56,16 +58,16 @@ The easiest way to upgrade to Aspire 13.2 is using the `aspire update` command:
 
 <Steps>
 
-1. Update your Aspire project using the [`aspire update` command](/reference/cli/commands/aspire-update/):
-
-   ```bash title="Aspire CLI — Update all Aspire packages"
-   aspire update
-   ```
-
-2. Update the Aspire CLI itself:
+1. Update the Aspire CLI:
 
    ```bash title="Aspire CLI — Update the CLI"
    aspire update --self
+   ```
+
+2. Update your Aspire apphost using the [`aspire update` command](/reference/cli/commands/aspire-update/):
+
+   ```bash title="Aspire CLI — Update all Aspire packages"
+   aspire update
    ```
 
 </Steps>
@@ -74,74 +76,87 @@ Or install the CLI from scratch:
 
 <OsAwareTabs>
   <Fragment slot="unix">
-    
-    ```bash title="Aspire CLI — Install Aspire CLI" curl -sSL
-    https://aspire.dev/install.sh | bash
+
+    ```bash title="Aspire CLI — Install Aspire CLI"
+    curl -sSL https://aspire.dev/install.sh | bash
     ```
 
   </Fragment>
   <Fragment slot="windows">
 
-    ```powershell title="Aspire CLI — Install Aspire CLI" irm
-    https://aspire.dev/install.ps1 | iex
+    ```powershell title="Aspire CLI — Install Aspire CLI"
+    irm https://aspire.dev/install.ps1 | iex
     ```
 
   </Fragment>
 </OsAwareTabs>
 
-You can also manually update your AppHost project file (for example, _MyApp.AppHost.csproj_) to reference `Aspire.AppHost.Sdk` version `13.2.0`:
+You can also manually update your apphost to reference Aspire version `13.2.0`:
 
-```xml title="XML — MyApp.AppHost.csproj"
-<Sdk Name="Aspire.AppHost.Sdk" Version="13.2.0" />
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.AppHost.Sdk@13.2.0
 ```
 
-Then check for any NuGet package updates, either using the NuGet Package Manager in Visual Studio or the **Update NuGet Package** command from C# Dev Kit in VS Code.
+</TabItem>
+</Tabs>
 
-If you're using a JavaScript or TypeScript AppHost, run `aspire restore` after upgrading so the guest AppHost SDK code and language-specific artifacts are regenerated:
+If you're using a C# apphost, you can then upgrade both your hosting and client integrations via NuGet.
 
-```bash title="Aspire CLI — Restore guest AppHost"
-aspire restore
-```
+If you're using a TypeScript apphost, run `aspire restore` after upgrading so the integration SDKs are regenerated.
 
 <LearnMore>
   For more details on installing the Aspire CLI, see [Install the
   CLI](/get-started/install-cli/).
 </LearnMore>
 
-## 🛠️ Aspire CLI enhancements
+## 🛠️ CLI enhancements
+
+Aspire 13.2 introduces a wave of new CLI commands that dramatically expand what you can do from the terminal. The CLI now exposes all of the data that was previously trapped inside the dashboard and apphost, making it accessible from scripts, editors, and automation workflows.
 
 ### Language-specific templates and multi-language setup
 
-Aspire 13.2 makes the `aspire new` experience much more language-aware. Instead of treating every starter as a .NET-first layout, the CLI now scaffolds language-specific templates for .NET and non-.NET AppHosts and carries the right metadata forward into configuration and generated SDK assets.
+Aspire 13.2 makes the `aspire new` (creates a full starter template) and `aspire init` (creates only an apphost) experiences much more language-aware. The CLI now has options to scaffold language-specific full stack starter apps for C#, TypeScript, Python, and both C# and TypesScript apphosts. Use `aspire new` to create a new project from a template, or `aspire init` to add Aspire to an existing project.
 
-The new `aspire restore` command is part of that story. For .NET AppHosts it restores packages, and for guest AppHosts it regenerates SDK code and required artifacts even when `aspire run` would otherwise skip regeneration because the package hash hasn't changed.
+The new `aspire restore` command complements this workflow. For C# apphosts it restores the integration NuGet packages, and for TypeScript apphosts it regenerates the integration SDK code and required artifacts. This automatically happens on `aspire run`, but is also now exposed manually.
 
 ```bash title="Aspire CLI — Templates and restore"
 # Create a new starter with the interactive template picker
 aspire new
 
-# Restore a guest AppHost and regenerate SDK code
-aspire restore --apphost .\AppHost\apphost.ts
+# Or, create a new blank apphost in an existing codebase
+aspire init
+
+# Restores integration packages and starts the apphost
+aspire run
+
+# Manually restore integrations
+aspire restore
 ```
 
 ### Detached mode and process management
 
-One of the most requested features lands in 13.2: **detached mode** for running Aspire applications. You can now run your AppHost in the background, freeing up your terminal for other tasks.
+One of the most requested features lands in 13.2: **detached mode** for running Aspirified apps. You can now run your apphost in the background, freeing up your terminal for other tasks.
 
 ```bash title="Aspire CLI — Detached mode and process management"
 # Run in detached mode
 aspire run --detach
 
-# List all running AppHosts
+# Shorthand command for run --detach
+aspire start
+
+# List all running apphosts
 aspire ps
 
-# Stop a running AppHost
+# Stop a running apphost in the background
 aspire stop
 ```
 
-The `aspire ps` command displays all currently running Aspire AppHosts, making it easy to manage multiple projects simultaneously. When combined with `aspire stop`, you have full control over your application lifecycle directly from the command line.
+The `aspire ps` command displays all currently running Aspire apphosts, making it easy to manage multiple projects simultaneously. When combined with `aspire stop`, you have full control over your application lifecycle directly from the command line.
 
-The new `aspire start` shortcut makes background AppHost startup easier to remember, and `aspire stop` can stop a selected AppHost or all running AppHosts. In JSON mode, `aspire ps` can include resources, which makes it a solid building block for automation and editor integrations.
+The new `aspire start` shortcut makes background apphost startup easier to remember, and `aspire stop` can stop a selected apphost or all running apphosts. In JSON mode, `aspire ps` can include resources, which makes it a solid building block for automation and editor integrations.
 
 ```bash title="Aspire CLI — Extended operations"
 aspire start --apphost .\MyApp.AppHost\MyApp.AppHost.csproj
@@ -174,20 +189,21 @@ aspire ps --format Json
 
 ### Isolated mode for parallel development
 
-The new `--isolated` flag enables running an AppHost with randomized ports and isolated user secrets:
+The new `--isolated` flag runs an apphost with randomized ports and isolated user secrets, preventing port conflicts and configuration collisions:
 
 ```bash title="Aspire CLI — Isolated mode"
 aspire run --isolated
+aspire start --isolated
 ```
 
-Isolated mode assigns random ports and creates separate user secrets for each run, preventing port conflicts and configuration collisions. This is particularly useful when switching between different Aspire projects or running integration tests that need dedicated ports.
+This is especially useful for agentic workflows, git worktrees, and integration tests where multiple instances of the same apphost need to run side by side.
 
 ### Resource monitoring with `aspire describe`
 
-The `aspire resources` command has been renamed to `aspire describe` (with `resources` kept as a backward-compatible alias) to better align with `kubectl`-style conventions. The `--watch` flag has also been renamed to `--follow`/`-f` for consistency with `aspire logs --follow`.
+The new `aspire describe` command gives you and your coding agents CLI access to the same detailed resource information you get in the Aspire dashboard. You can inspect resource state, configuration, environment variables, health status, and more—all from the terminal.
 
 ```bash title="Aspire CLI — Describe resources"
-# Show all resources in a running AppHost
+# Show all resources in a running apphost
 aspire describe
 
 # Continuously stream resource state changes
@@ -209,36 +225,30 @@ aspire doctor
 
 This command checks:
 
-- .NET SDK installation and version
 - HTTPS development certificate status (including detection of multiple certificates)
 - Container runtime (Docker/Podman) availability and version
-- WSL2 environment configuration
 - Container tunnel requirements for Docker Engine
+- .NET SDK installation and version
+- WSL2 environment configuration
 - Agent configuration status (detecting deprecated settings)
 
 Not all checks appear in every run. Some checks, such as WSL2 configuration and agent configuration status, are conditional and only appear when the relevant environment or issues are detected.
 
 The output provides actionable recommendations when issues are detected, making it easier to troubleshoot configuration problems.
 
-<Aside type="note">
-  The `aspire setup` command is now hidden from help output. Use `aspire doctor`
-  to verify your development environment. The `aspire setup` command remains
-  available for backward compatibility.
-</Aside>
-
 ### Enhanced `aspire add` with fuzzy search
 
-Finding the right integration package is now easier with fuzzy search in the `aspire add` command. Simply start typing and the CLI will suggest matching packages, reducing the friction of discovering and adding new integrations to your project. This release also improves friendly-name generation and better respects central package management.
+Finding the right integration package is now easier with fuzzy search in the `aspire add` command. Simply start typing and the CLI will suggest matching packages, reducing the friction of discovering and adding new integrations to your project. This release also improves friendly-name generation and better respects NuGet central package management for C# apps.
 
 <LearnMore>
   Command reference: [`aspire add`](/reference/cli/commands/aspire-add/).
 </LearnMore>
 
-### New CLI commands for certificates, exports, secrets, and waits
+### New CLI commands for certificates, exports, secrets, and resource lifecycles
 
 Aspire 13.2 significantly expands the day-to-day CLI surface area with several new commands.
 
-Certificate and secret management get first-class commands:
+Certificate and parameter/secret management get first-class commands:
 
 ```bash title="Aspire CLI — Certificate and secret management"
 aspire certs clean
@@ -248,7 +258,7 @@ aspire secret set ApiKey super-secret-value
 aspire secret list --format json
 ```
 
-`aspire certs` helps you clean stale developer certificates and trust the current certificate, while `aspire secret` gives AppHost user secrets their own dedicated CLI workflow for setting, reading, listing, locating, and deleting secret values.
+`aspire certs` helps you clean stale developer certificates and trust the current certificate, while `aspire secret` gives apphost [user secrets](/fundamentals/external-parameters/#secret-values) their own dedicated CLI workflow for setting, reading, listing, locating, and deleting secret values. These are the same secret values that back [`AddParameter(..., secret: true)`](/fundamentals/external-parameters/) calls in the app model—`aspire secret set` writes to the user-secrets store so you no longer need have the .NET CLI installed to manage them via `dotnet user-secrets`.
 
 Two new operational commands round out the experience:
 
@@ -257,18 +267,23 @@ aspire wait api --status healthy --timeout 120
 aspire export --output .\artifacts\aspire-export.zip
 ```
 
-Use `aspire wait` to block automation until a resource becomes `healthy`, `up`, or `down`, and use `aspire export` to capture telemetry and resource data from a running AppHost into a zip file. You can also scope export to a single resource with `aspire export <resource>`.
+Use `aspire wait` to block automation until a resource becomes `healthy`, `up`, or `down`, and use `aspire export` to capture telemetry and resource data from a running apphost into a zip file. You can also scope export to a single resource with `aspire export <resource>`.
+
+<LearnMore>
+  For more details on parameters and secrets, see [External parameters](/fundamentals/external-parameters/).
+  Command reference: [`aspire secret`](/reference/cli/commands/aspire-secret/).
+</LearnMore>
 
 ### Agent integration (`aspire agent`)
 
-The `aspire mcp` command has been renamed to `aspire agent` to better reflect its purpose of managing AI agent integrations. The new command structure includes:
+The `aspire mcp` command has been renamed to `aspire agent` to better reflect its purpose of managing AI agent integrations. It's also been updated to add Aspire specific SKILL.md files into your repo. The new command structure includes:
 
 ```bash title="Aspire CLI — Agent integration"
-# Start the MCP (Model Context Protocol) server
-aspire agent mcp
-
-# Initialize agent environment configuration
+# Initialize agent environment configuration including MCP and skills
 aspire agent init
+
+# Manually start the MCP (Model Context Protocol) server - only
+aspire agent mcp
 ```
 
 This enables AI agents to interact with your Aspire applications through a standardized protocol, opening up new possibilities for AI-assisted development workflows.
@@ -285,7 +300,7 @@ To learn how to configure AI agents with Aspire, see [Use AI coding agents](/get
 The new `aspire docs` command brings the official [aspire.dev](https://aspire.dev) documentation directly into your terminal. Built on the same [MCP (Model Context Protocol) documentation tools](https://davidpine.dev/posts/aspire-docs-mcp-tools/) that power the Aspire agent integration, these commands let you browse, search, and read documentation without leaving your development workflow.
 
 :::note
-These commands are intended for use by AI agents, it's not really expected that developers will use these directly.
+These commands are intended for use by AI agents; although developers can use these directly, they aren't ergonomic for manual use and the website is still the best place to access documentation.
 :::
 
 ```bash title="Aspire CLI — Browse and search documentation"
@@ -319,6 +334,9 @@ The `aspire config` command has been enhanced with better organization:
 # List all configuration with organized sections and colors
 aspire config list
 
+# List all available feature flags
+aspire config list --all
+
 # Get a specific setting
 aspire config get <key>
 
@@ -328,7 +346,7 @@ aspire config set <key> <value>
 
 Configuration is now clearly separated into local and global settings, with feature flags displayed in an organized manner.
 
-Aspire now also prefers a single `aspire.config.json` file that combines AppHost location, language metadata, Aspire SDK version, channel selection, feature flags, launch profiles, and package pins:
+Aspire now also prefers a single `aspire.config.json` file that combines apphost location, language metadata, Aspire SDK version, channel selection, feature flags, launch profiles, and package pins:
 
 ```json title="JSON — aspire.config.json"
 {
@@ -351,22 +369,19 @@ Aspire now also prefers a single `aspire.config.json` file that combines AppHost
 }
 ```
 
-This unified format replaces the older split across `.aspire/settings.json` and `apphost.run.json` and makes TypeScript AppHosts much easier to move, inspect, and automate.
+This unified format replaces the older split across `.aspire/settings.json` and `apphost.run.json` and makes TypeScript apphosts much easier to move, inspect, and automate.
+
+#### Auto migration from legacy configuration files
+
+If you have an existing project that uses `.aspire/settings.json` or `apphost.run.json`, the CLI handles migration automatically. The first time you run any `aspire` command (such as `aspire run`) against an existing project, the CLI merges your legacy `.aspire/settings.json` and `apphost.run.json` into a new `aspire.config.json` at the project root. Paths are automatically re-based—for example, an `appHostPath` that was relative to the `.aspire/` directory is adjusted to be relative to the project root. The legacy files are preserved during migration so you can continue using older CLI versions side by side if needed.
+
+Global settings (`globalsettings.json` in your user-level Aspire directory) are also copied to the new `aspire.config.json` format in the same location. No manual steps are required—just update the CLI and run your project as usual.
 
 <LearnMore>
   Command reference: [`aspire config`](/reference/cli/commands/aspire-config/),
   [`aspire config list`](/reference/cli/commands/aspire-config-list/), [`aspire
   config get`](/reference/cli/commands/aspire-config-get/), and [`aspire config
   set`](/reference/cli/commands/aspire-config-set/).
-</LearnMore>
-
-### CLI telemetry
-
-Aspire CLI now includes optional telemetry to help improve the developer experience. Telemetry data is version-consistent with the dashboard, providing a unified approach to usage analytics. All telemetry follows standard privacy practices and can be controlled through configuration.
-
-<LearnMore>
-  For more information, see [Microsoft-collected CLI
-  telemetry](/reference/cli/microsoft-collected-cli-telemetry/).
 </LearnMore>
 
 ### CLI option standardization
@@ -381,75 +396,147 @@ Several CLI options were standardized for consistency with common CLI convention
 
 There are plenty of smaller but meaningful CLI improvements in 13.2:
 
-- `aspire run` now supports `--no-build` for cases where you know the AppHost artifacts are already up to date.
-- Human-readable status output is routed away from structured JSON output more consistently, making scripts and editors more reliable.
+- `aspire run` now supports `--no-build` for cases where you know the apphost artifacts are already up to date.
+- `--format json` always sends JSON output to stdout, while status messages are sent to stderr. This ensures human-readable output is kept separate from structured JSON output, allowing scripts and editors that consume JSON to receive well-formed content.
 - Tables, status indicators, help organization, logging, and error messages were refined across interactive and non-interactive scenarios.
-- The unified self-extracting Aspire CLI bundle continues to improve Windows and multi-language experiences, especially when .NET isn't already installed globally.
+- The unified self-extracting Aspire CLI bundle continues to improve multi-language experiences, especially when .NET isn't already installed globally.
+- Status messages that start with an emoji are consistently aligned. This is harder than you might think! If you see messy CLI output, [please let us know](https://github.com/microsoft/aspire).
 
-## 🌐 Multi-language development
+## 🧩 VS Code extension
 
-### TypeScript AppHost support
+The Aspire VS Code extension received its biggest update yet in 13.2, with over 20 PRs shipping new features that make VS Code a first-class Aspire development environment alongside Visual Studio.
 
-Aspire 13.2 continues to expand multi-language capabilities with improved TypeScript support:
+### Aspire Activity Bar panel
 
-- AspireList support for TypeScript code generation
-- TypeScript AppHost testing infrastructure
-- Multi-language AppHost refactoring for better extensibility
+A dedicated **Aspire panel** in the Activity Bar gives you a live tree view of running apphosts and their resources. The panel uses `aspire describe --follow` to stream real-time resource state updates for the workspace apphost — no polling, no latency. A workspace/global toggle lets you switch between viewing just the current workspace's apphost or all running apphosts on your machine.
+
+Resources in the tree show health-aware icons (green for healthy, red for errors, amber for degraded, spinner for starting), rich markdown tooltips with type, state, and clickable endpoint URLs, and right-click context menus for common operations like viewing logs, stopping, or restarting resources.
+
+### CodeLens and gutter decorations
+
+When an Aspire apphost is running, the extension now shows **inline CodeLens** above each resource definition in your C# or TypeScript apphost file:
+
+- Live resource state (Running, Starting, Stopped, Error) with health status
+- Action buttons: Start, Stop, Restart, View Logs
+- Custom resource commands from the runtime
+
+Colored **gutter decorations** appear alongside resource definitions — green for running, blue for starting, red for errors, gray for stopped — giving you an at-a-glance view of your entire app's health right in the editor. Both features are backed by language-aware parsers that understand `DistributedApplication.CreateBuilder` in C# and `createBuilder()` in TypeScript.
+
+### Getting Started walkthrough
+
+A new **Getting Started walkthrough** guides new users through installing the CLI, creating a project, running their app, exploring the dashboard, and next steps — all from within VS Code. The walkthrough includes clickable terminal links to install the Aspire CLI directly from the editor.
+
+### Debugging improvements
+
+- **Azure Functions debugging** — Azure Functions projects referenced from an apphost can now be debugged directly.
+- **TypeScript apphost debugging** — TS apphosts now participate in debugging more naturally, with better tool detection, build/launch coordination, and support for browser debugging scenarios.
+- **`publish`, `deploy`, and `do` flows** can now be debugged directly from the extension.
+- **Apphost exit messages** now appear in the debug console for easier troubleshooting.
+
+### `aspire.config.json` and MCP support
+
+The extension now reads `aspire.config.json` for apphost discovery instead of relying solely on `.csproj` file detection, making TypeScript apphosts work seamlessly. It can also **auto-register the Aspire MCP server** for AI agent workflows. The CLI is automatically detected at default install paths even when it's not on PATH.
+
+### Additional improvements
+
+- A new `enableAspireDashboardAutoLaunch` setting lets you disable automatic dashboard launch on run.
+- File pickers replace raw string prompts in more places.
+- Right-click context menus on resource endpoint URLs.
+- Falls back to `code-insiders` when `code` is not found.
+
+<LearnMore>
+  For more details, see [Use VS Code with Aspire](/get-started/aspire-vscode-extension/) and the [extension on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-aspire).
+</LearnMore>
+
+## 🌐 TypeScript AppHost support (preview)
+
+One of the most anticipated features in Aspire 13.2 is support for writing your apphost in TypeScript. The TypeScript AppHost is currently in preview.
+
+### Writing an apphost in TypeScript
+
+TypeScript apphosts use the same app model as C#—resources, references, integrations—expressed in idiomatic TypeScript via `createBuilder()`:
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+const api = await builder.addProject("api", "../api")
+    .withReference(cache)
+    .waitFor(cache);
+
+await builder.build().run();
+```
+
+Under the hood, this runs as a guest process alongside Aspire's .NET orchestration host, communicating via JSON-RPC over local transport. Your TypeScript defines the resource graph; the host handles orchestration, health checks, and the dashboard.
+
+### Code generation
+
+When you run `aspire add`, the CLI inspects the integration's .NET assembly and generates a TypeScript SDK into `.modules/`. Running `aspire restore` regenerates these SDKs—useful after upgrading or switching branches (this also runs automatically on `aspire run`).
+
+In 13.2, the code generator gained AspireList support for richer collection handling and now covers Go, Java, and Rust test targets alongside TypeScript.
+
+### Debugging, tooling, and templates
+
+TypeScript apphosts now have first-class support in the VS Code extension—CodeLens, gutter decorations, and debugging all work with `createBuilder()` calls. The `aspire.config.json` format means TypeScript apphosts are discovered automatically without needing a `.csproj`. Templates were also refreshed with updated dependencies and better starter defaults.
 
 <LearnMore>
   For more details, see [Multi-language
   architecture](/architecture/multi-language-architecture/).
 </LearnMore>
 
-### JavaScript and TypeScript AppHost debugging
-
-JavaScript and TypeScript AppHosts now participate in debugging more naturally through the CLI and VS Code extension, with better tool detection, better build and launch coordination, and better support for browser and JavaScript debugging scenarios.
-
-Project reference support and broader exported hosting APIs also make TypeScript AppHosts less special-cased than they were in 13.1. If you're building on TypeScript or JavaScript AppHosts, 13.2 is a meaningful step up in day-to-day usability.
-
-### Aspire panel and VS Code extension improvements
-
-The VS Code extension picked up a substantial set of improvements in this release:
-
-- A dedicated Aspire Activity Bar panel shows running AppHosts and resources in a tree view.
-- A status bar item surfaces AppHost state directly in the editor.
-- The extension uses a follow-style describe workflow to keep the workspace view current.
-- Azure Functions debugging support was added.
-- `publish`, `deploy`, and `do` flows can now be debugged directly from the extension.
-- The extension can auto-register the Aspire MCP server.
-- File pickers are used in more places instead of raw string prompts.
-- A new `enableAspireDashboardAutoLaunch` setting lets you disable automatic dashboard launch.
-
-This all adds up to a much more polished Aspire experience in VS Code, especially for teams working on multi-language solutions or jumping frequently between the terminal, the dashboard, and the editor.
-
-### Template updates for modern frontend stacks
-
-The TypeScript and frontend templates were refreshed for 13.2 with updated dependencies, better starter defaults, and fixes for local development naming issues such as DNS-invalid host names generated with underscores. These changes are small individually, but together they make the starter templates feel much closer to modern production and devcontainer workflows.
-
-### Code generation
-
-- Go, Java, and Rust code generation test projects added
-- Common languages SDKs included for broader support
-
 ## 📊 Dashboard improvements
 
-### Enhanced data export
+### Data export and import
 
-The dashboard now provides comprehensive export capabilities:
+Aspire 13.2 adds comprehensive data export and import capabilities to the dashboard. You can bulk-manage telemetry through a centralized dialog, export individual resources and telemetry as JSON, and export environment variables as `.env` files.
 
-- **Export All Button**: Quickly export all telemetry data with the new "Export selected" button in the Manage logs and telemetry dialog
-- **JSON Export for Resources**: Export resource snapshots as JSON for debugging or automation using the action buttons for each resource
-- **.env File Export**: Export environment variables directly to a `.env` file format from resource details
-- **View JSON with Copy**: Download or copy JSON directly from the visualizer
+#### Manage logs and telemetry dialog
+
+The new **Manage logs and telemetry** dialog (accessible via **Settings → Manage**) is a one-stop shop for exporting, importing, and removing data from the dashboard. Select resources and telemetry types, then export, remove, or import as needed.
+
+Data is exported as JSON in a zip file. Share it with AI, teammates, or import it back into the dashboard later.
+
+<Image src={manageDialog} alt="Manage logs and telemetry dialog showing Export selected, Remove selected, and Import logs and telemetry buttons" />
 
 The dashboard can also import telemetry bundles captured with `aspire export`, making it easy to attach diagnostics to bug reports, preserve a point-in-time view of a session, or share a failing scenario with a teammate.
 
-### Improved telemetry visualization
+#### Export JSON for resources and telemetry
 
-- **Download JSON for Traces, Spans, and Logs**: Each telemetry view now includes options to export data
-- **OTLP/JSON Support**: The dashboard now supports OTLP over JSON in addition to gRPC
-- **Environment Variable Highlighting**: Environment variables are now highlighted for better visibility
-- **Masked Query String Values**: Sensitive data in URLs is automatically masked for security
+Export data for specific resources and telemetry directly from the dashboard. Select **Export JSON** in context menus to get the data — copy it to your clipboard or download it to your machine.
+
+<Image src={exportJsonMenu} alt="Export JSON button in the resource context menu" />
+
+<Image src={exportJsonDialog} alt="Export JSON dialog with options to copy to clipboard or download" />
+
+#### Export environment variables as `.env` files
+
+Export a resource's environment variables directly to a `.env` file format from the resource details view.
+
+<Image src={exportEnvDialog} alt="Export Env dialog showing environment variables exported in .env format" />
+
+#### Telemetry HTTP API
+
+The dashboard now exposes an HTTP API for querying telemetry data programmatically. These APIs power the `aspire agent mcp` and `aspire otel` Aspire CLI commands.
+
+The API is served under `/api/telemetry` and returns data in OTLP JSON format. Available endpoints:
+
+- `GET /api/telemetry/resources` — List resources that have telemetry data
+- `GET /api/telemetry/spans` — Query spans with optional filters
+- `GET /api/telemetry/logs` — Query logs with optional filters
+- `GET /api/telemetry/traces` — List traces with optional filters
+- `GET /api/telemetry/traces/{traceId}` — Get all spans for a specific trace
+
+The spans and logs endpoints also support real-time streaming via `?follow=true`, which returns NDJSON (newline-delimited JSON) as new telemetry arrives. Multiple resource names can be specified by repeating the `resource` query parameter (e.g. `?resource=api&resource=worker`).
+
+When running with an Aspire apphost, the telemetry API is enabled automatically. For standalone dashboard deployments, set the `DASHBOARD__API__ENABLED` environment variable to `true` and configure authentication with `DASHBOARD__API__AUTHMODE` (`ApiKey` or `Unsecured`) and `DASHBOARD__API__PRIMARYAPIKEY`.
+
+### Set parameters from the dashboard
+
+You can now set resource parameters directly in the dashboard. Click the key action on a parameter and enter a new value. To remember it next time, optionally save the value to your user secrets.
+
+<Image src={dashboardSetParameters} alt="Dashboard dialog for setting a parameter value with an option to save to user secrets" />
 
 ### GenAI visualizer improvements
 
@@ -463,33 +550,25 @@ The GenAI visualizer keeps getting sharper. In 13.2 it handles more schema shape
 
 ### Resource graph improvements
 
-The resource graph layout has been significantly improved with adaptive force-directed positioning, providing a clearer visualization of your application topology.
+The resource graph layout has been significantly improved with adaptive force-directed positioning. Resources with many connections now have more space around them, making complex graphs feel less cluttered.
 
-### Persistent UI state
+**After:**
 
-The dashboard now remembers:
-
-- Collapsed/expanded state of resources
-- Filter preferences across sessions
-- View options and settings
+<Image src={resourceGraphAfter} alt="Resource graph after improvements, showing a cleaner layout with better spacing around highly-connected resources" />
 
 ### Dashboard UX refinements
 
 Additional dashboard refinements in 13.2:
 
+- Persistent collapsed/expanded state of resources
 - A 12-hour or 24-hour time format setting.
 - Consistent resource colors across the dashboard and CLI.
 - Better JSON viewers for traces, spans, logs, and resources.
 - Improved handling for large gRPC payloads.
 - More stable graph layout and filtering behavior.
+- Base path configuration for reverse proxy scenarios.
+- Aggregate replica states—parent resources now show combined state from their replicas.
 - More polished dialogs, menus, copy flows, and resource details views.
-
-### Security enhancements
-
-- Dashboard icon and token-based authentication in URLs
-- Query string value masking to protect sensitive information
-- Copy button visibility improvements even when values are hidden
-- Toggle button for secret visibility in input dialogs
 
 <LearnMore>
   For more details, see [Explore the Aspire dashboard](/dashboard/explore/) and
@@ -502,6 +581,9 @@ Additional dashboard refinements in 13.2:
 
 Aspire 13.2 adds `WithMcpServer`, which lets you declare in the app model that a resource hosts a Model Context Protocol (MCP) server. Aspire tooling can then discover and proxy that endpoint directly.
 
+<Tabs>
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -511,6 +593,23 @@ var api = builder.AddProject<Projects.MyApi>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../api", "https")
+    .withMcpServer({ path: "/mcp" });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="note">
   If you host the MCP server on a non-default endpoint or path, you can pass a
   custom `path` or `endpointName`.
@@ -518,7 +617,7 @@ builder.Build().Run();
 
 ### Project rebuilds and smarter change detection
 
-Project resources now support a `rebuild` command in addition to the usual lifecycle commands. This gives you a clean way to apply source changes to a single project resource without tearing down the whole AppHost session.
+.NET Project resources now support a `rebuild` command in addition to the usual lifecycle commands. This gives you a clean way to apply source changes to a single project resource without tearing down the whole apphost session.
 
 ```bash title="Aspire CLI — Rebuild a single resource"
 aspire resource api rebuild
@@ -526,9 +625,16 @@ aspire resource api rebuild
 
 Under the hood, Aspire coordinates stop, build, and restart through a hidden rebuilder resource and improved change detection, so the experience is much closer to "rebuild just this one thing" instead of "restart everything and hope."
 
+### OTLP endpoint as a first-class resource
+
+The OpenTelemetry Protocol (OTLP) endpoint is now modeled as a first-class resource in the application model, making it visible in the dashboard and configurable through standard resource APIs.
+
 ### Better secret and certificate handling
 
 Container build secrets got a clearer API in 13.2. `WithBuildSecret` replaces the old `WithSecretBuildArg` name and makes secure Docker or Podman build secret flows more readable.
+
+<Tabs>
+<TabItem label="C# AppHost">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -539,6 +645,24 @@ builder.AddContainer("worker", "contoso/worker")
     .WithDockerfile("../worker")
     .WithBuildSecret("ACCESS_TOKEN", accessToken);
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const accessToken = await builder.addParameter("accessToken", { secret: true });
+
+await builder.addContainer("worker", "contoso/worker")
+    .withDockerfile("../worker")
+    .withBuildSecret("ACCESS_TOKEN", accessToken);
+```
+
+</TabItem>
+</Tabs>
 
 Certificate trust handling also became more flexible. You can now create custom certificate bundles during run mode, which helps with scenarios like Java trust stores or custom bundle formats that don't map cleanly to the default certificate layout.
 
@@ -595,14 +719,14 @@ This makes it easier to inspect your Aspire application state during debugging s
 
 ### Docker and container enhancements
 
-- **`WithYarn` Fixes**: Improved reliability when using Yarn with `AddViteApp`
 - **'Never' Pull Policy**: Exposed image pull policy option for scenarios requiring local images
 - **PullPolicy for Docker Compose**: Added `PullPolicy` property to Docker Compose Service class
+- **`.npmrc` in Docker builds**: JavaScript Dockerfiles now copy `.npmrc` before running install, so private registry authentication works correctly in container builds
 - **PostgreSQL v18+ Compatibility**: Fixed data volume path for PostgreSQL version 18 and later
 
 ### Build improvements
 
-- Build error when `GenerateAssemblyInfo` is disabled in AppHost projects
+- Build error when `GenerateAssemblyInfo` is disabled in apphost projects
 - Trailing commas now allowed in `launchSettings.json`
 - JSON comments and trailing commas parsed without errors
 
@@ -681,11 +805,51 @@ The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 
 ## 📦 Integrations updates
 
-### Foundry and hosted agents
+### Docker Compose publishing
 
-Aspire 13.2 replaces the earlier AIFoundry-focused hosting surface with a broader Microsoft Foundry integration. The hosting package is now `Aspire.Hosting.Foundry`, replacing `Aspire.Hosting.Azure.AIFoundry`.
+Aspire 13.2 introduces Docker Compose as a publishing target. When you add a Docker Compose environment to your app model, Aspire generates a `docker-compose.yaml` from your resources at publish time, making it easy to deploy your Aspire application to any environment that supports Docker Compose.
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment("compose");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Aspire generates a complete `docker-compose.yaml` from the resources in your app model, including networking, volumes, and environment variables.
+
+### Certbot
+
+The new `Aspire.Hosting.Certbot` integration adds a Certbot container for automated SSL certificate management. This is useful for scenarios where you need Let's Encrypt certificates during local development or in staging environments.
+
+### Microsoft Foundry and hosted agents
+
+Aspire 13.2 replaces the earlier Azure AI Foundry-focused hosting surface with a broader Microsoft Foundry integration. The hosting package is now `Aspire.Hosting.Foundry`, replacing `Aspire.Hosting.Azure.AIFoundry`.
 
 You can now add Foundry accounts, create Foundry Projects, attach model deployments with the generated `FoundryModel` catalog, and publish hosted agents from the regular Aspire app model:
+
+<Tabs>
+<TabItem label="C# AppHost">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -703,11 +867,51 @@ builder.AddPythonApp("agent", "..\\agent", "main:app")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry("foundry");
+const project = await foundry.addProject("agents");
+
+const chat = await project.addModelDeploymentFromModel("chat", {
+    name: "gpt-5-mini",
+    version: "2025-06-01",
+    format: "OpenAI",
+});
+
+await builder.addPythonApp("agent", "../agent", "main:app")
+    .withReference(project)
+    .withReference(chat)
+    .publishAsHostedAgent({ project });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsights`, `WithKeyVault`, `WithContainerRegistry`, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. `RunAsFoundryLocal` is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
+
+<Aside type="caution">
+  This is a breaking change. `Aspire.Hosting.Azure.AIFoundry` has been replaced
+  by `Aspire.Hosting.Foundry`. See the [AIFoundry to Foundry
+  transition](#aifoundry-to-foundry-transition) in breaking changes for
+  migration steps.
+</Aside>
+
+<LearnMore>
+  For more details, see [Microsoft Foundry
+  integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
+</LearnMore>
 
 ### Azure Virtual Network and private endpoint support
 
-When deploying to Azure, securing network access to your resources is critical. The new `Aspire.Hosting.Azure.Network` integration lets you lock down your Azure resources by defining virtual networks, subnets, NAT gateways, network security groups (NSGs), and private endpoints directly in your AppHost—ensuring your cloud infrastructure is secure by default.
+When deploying to Azure, securing network access to your resources is critical. The new `Aspire.Hosting.Azure.Network` integration lets you lock down your Azure resources by defining virtual networks, subnets, NAT gateways, network security groups (NSGs), and private endpoints directly in your apphost—ensuring your cloud infrastructure is secure by default.
 
 ```csharp title="C# — AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet");
@@ -776,6 +980,7 @@ app.MapGet("/embed", async (
 - Deployment slot support with new extension methods
 - Sticky slot app settings fixes
 - Configuration naming improvements
+- `SearchIndexerClient` added as an extension method for Azure Search
 
 <LearnMore>
   For more details, see [Azure App Service
@@ -802,6 +1007,9 @@ Additionally, the new `GetAzureContainerRegistry` method makes it easy to access
 
 Aspire 13.2 adds both hosting and client-side support for Azure Data Lake Storage. This closes an important gap for teams using hierarchical namespace storage and gives Data Lake users the usual Aspire integration benefits: DI registration, retries, health checks, logging, and telemetry.
 
+<Tabs>
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -815,6 +1023,28 @@ api.WithReference(dataLake)
    .WithReference(fileSystem)
    .WaitFor(fileSystem);
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../api");
+const storage = await builder.addAzureStorage("storage");
+const dataLake = await storage.addDataLake("data-lake");
+const fileSystem = await storage.addDataLakeFileSystem("data-lake-file-system");
+
+await api.withReference(dataLake)
+   .waitFor(dataLake)
+   .withReference(fileSystem)
+   .waitFor(fileSystem);
+```
+
+</TabItem>
+</Tabs>
 
 ```csharp title="C# — Service project"
 builder.AddAzureDataLakeServiceClient("data-lake");
@@ -843,7 +1073,10 @@ If you register the `DbContext` yourself, you can still opt into Aspire instrume
 
 ### JavaScript hosting with Bun
 
-JavaScript resources can now opt into Bun as their package manager with `WithBun()`. Aspire configures the right package-manager annotations, install behavior, and container build image defaults for Bun-backed applications.
+JavaScript resources can now opt into Bun as their package manager with `WithBun()`. Aspire configures the right package-manager annotations, install behavior, and container build image defaults for Bun-backed applications. This release also fixes reliability issues when using Yarn with `AddViteApp` via `WithYarn()`.
+
+<Tabs>
+<TabItem label="C# AppHost">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -854,6 +1087,24 @@ builder.AddViteApp("frontend", "./frontend")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addViteApp("frontend", "./frontend")
+    .withBun()
+    .withDockerfileBaseImage({ buildImage: "oven/bun:latest" });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For more details, see the [Bun
@@ -866,10 +1117,11 @@ builder.Build().Run();
 - Azure App Configuration emulator updated to 1.0.2
 - CosmosDB preview emulator readiness check added
 - Azure Managed Redis now uses `rediss://` as the default scheme
+- Multiple Azurite storage accounts now supported with `RunAsEmulator`
 
 ### AI model updates
 
-- AI Foundry models automatically updated
+- Microsoft Foundry models automatically updated
 - GitHub models updated
 - AI model code generation now converts markdown to C# XML docs
 
@@ -913,6 +1165,20 @@ This release includes numerous bug fixes across all areas:
 ## ⚠️ Breaking changes
 
 <span id="breaking-changes"></span>
+
+### Service discovery environment variable naming
+
+Service discovery environment variables now use the endpoint **scheme** instead of the endpoint **name**:
+
+```csharp title="C# — Before (13.0/13.1)"
+// services__myservice__myendpoint__0 = https://localhost:5001
+```
+
+```csharp title="C# — After (13.2)"
+// services__myservice__https__0 = https://localhost:5001
+```
+
+This improves consistency when endpoints share the same scheme. If you have code or configuration that depends on specific endpoint name patterns in service discovery environment variables, update it to use scheme-based patterns instead.
 
 ### Consolidated configuration files
 
@@ -992,7 +1258,7 @@ var project = foundry.AddProject("agents");
 var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 ```
 
-This aligns the hosting API with the current Foundry branding and unlocks the new project, deployment, and hosted-agent capabilities added in 13.2.
+This aligns the hosting API with the current Foundry branding and unlocks the new project, deployment, and hosted-agent capabilities added in new Microsoft Foundry releases.
 
 ### `WithSecretBuildArg` renamed to `WithBuildSecret`
 
@@ -1020,8 +1286,8 @@ The `IAzureContainerRegistry` interface has been marked as obsolete. Use the new
 
 Aspire Azure client integrations no longer use the parameterless `DefaultAzureCredential` constructor. This is a breaking change for anyone depending on credentials other than `ManagedIdentityCredential` working in an Azure service. For more information on the new behavior, see [Default Azure credential](/integrations/cloud/azure/azure-default-credential/).
 
-## Upgrade today
+## ⬆️ Upgrade today
 
-Follow the directions in [Upgrade to Aspire 13.2](#upgrade-to-aspire-13-2) to move forward and start using the new CLI, TypeScript AppHost, dashboard, hosting, and integration capabilities in this release.
+Follow the directions in [Upgrade to Aspire 13.2](#upgrade-to-aspire-13-2) to move forward and start using the new CLI, TypeScript apphost, dashboard, hosting, and integration capabilities in this release.
 
-For a complete list of issues addressed in this release, see the [Aspire 13.2 milestone on GitHub](https://github.com/microsoft/aspire/issues?q=is%3Aissue%20state%3Aclosed%20milestone%3A13.2).
+For a complete list of issues addressed in this release, see the [Aspire 13.2 milestone on GitHub](https://github.com/microsoft/aspire/issues?q=is%3Aissue%20state%3Aclosed%20milestone%3A13.2). As always, we want to share a huge thank you to all our community contributors who filed issues, submitted pull requests, and helped shape this release — Aspire is better because of you.
