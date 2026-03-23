@@ -604,8 +604,8 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject("api", "../api")
-    .withMcpServer("/mcp");
+const api = await builder.addProject("api", "../api", "https")
+    .withMcpServer({ path: "/mcp" });
 
 await builder.build().run();
 ```
@@ -627,29 +627,6 @@ aspire resource api rebuild
 ```
 
 Under the hood, Aspire coordinates stop, build, and restart through a hidden rebuilder resource and improved change detection, so the experience is much closer to "rebuild just this one thing" instead of "restart everything and hope."
-
-### Volume mounts for .NET project resources
-
-.NET Project resources can now use volume mounts, not just containers. This is handy for scenarios where a service needs persistent local storage or access to shared data on disk:
-
-<Tabs>
-<TabItem label="C# AppHost">
-
-```csharp title="C# — AppHost.cs"
-builder.AddProject<Projects.Api>("api")
-    .WithVolume("data", "/app/data");
-```
-
-</TabItem>
-<TabItem label="TypeScript AppHost">
-
-```typescript title="TypeScript — apphost.ts"
-await builder.addProject("api", "../api")
-    .withVolume("data", "/app/data");
-```
-
-</TabItem>
-</Tabs>
 
 ### OTLP endpoint as a first-class resource
 
@@ -831,9 +808,9 @@ The `KnownNetworkIdentifiers` class provides predefined network identifiers:
 
 ## 📦 Integrations updates
 
-### Docker Compose import
+### Docker Compose publishing
 
-Aspire 13.2 introduces Docker Compose file import support, letting you bring existing Docker Compose services into your Aspire application. If you already have a `docker-compose.yml` for databases, caches, or third-party services, you can now reference it directly from your apphost instead of re-declaring every container.
+Aspire 13.2 introduces Docker Compose as a publishing target. When you add a Docker Compose environment to your app model, Aspire generates a `docker-compose.yaml` from your resources at publish time, making it easy to deploy your Aspire application to any environment that supports Docker Compose.
 
 <Tabs>
 <TabItem label="C# AppHost">
@@ -841,8 +818,7 @@ Aspire 13.2 introduces Docker Compose file import support, letting you bring exi
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddDockerComposeEnvironment("compose")
-    .WithComposeFile("docker-compose.yml");
+builder.AddDockerComposeEnvironment("compose");
 
 builder.Build().Run();
 ```
@@ -855,8 +831,7 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-await builder.addDockerComposeEnvironment("compose")
-    .withComposeFile("docker-compose.yml");
+await builder.addDockerComposeEnvironment("compose");
 
 await builder.build().run();
 ```
@@ -864,44 +839,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Imported services appear in the dashboard and participate in the normal resource lifecycle, so you get health checks, logs, and telemetry without extra configuration.
-
-### Durable Task Scheduler
-
-The new Durable Task Scheduler integration adds support for the Durable Task emulator, letting you develop and test durable workflows locally with the same Aspire integration patterns (DI, health checks, telemetry).
-
-<Tabs>
-<TabItem label="C# AppHost">
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var scheduler = builder.AddDurableTaskScheduler("scheduler");
-
-builder.AddProject<Projects.WorkerService>("worker")
-    .WithReference(scheduler);
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem label="TypeScript AppHost">
-
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const scheduler = await builder.addDurableTaskScheduler("scheduler");
-
-await builder.addProject("worker", "../worker")
-    .withReference(scheduler);
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
+Aspire generates a complete `docker-compose.yaml` from the resources in your app model, including networking, volumes, and environment variables.
 
 ### Certbot
 
@@ -933,28 +871,11 @@ builder.Build().Run();
 ```
 
 </TabItem>
-<TabItem label="TypeScript AppHost">
-
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const foundry = await builder.addFoundry("foundry");
-const project = await foundry.addProject("agents");
-
-const chat = await project.addModelDeployment("chat", "OpenAI.Gpt5Mini");
-
-await builder.addPythonApp("agent", "../agent", "main:app")
-    .withReference(project)
-    .withReference(chat)
-    .publishAsHostedAgent(project);
-
-await builder.build().run();
-```
-
-</TabItem>
 </Tabs>
+
+<Aside type="note">
+  The Foundry hosting APIs are not yet available in TypeScript AppHosts.
+</Aside>
 
 New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsights`, `WithKeyVault`, `WithContainerRegistry`, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. `RunAsFoundryLocal` is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
 
