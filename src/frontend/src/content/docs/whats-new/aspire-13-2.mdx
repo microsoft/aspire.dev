@@ -871,11 +871,32 @@ builder.Build().Run();
 ```
 
 </TabItem>
-</Tabs>
+<TabItem label="TypeScript AppHost">
 
-<Aside type="note">
-  The Foundry hosting APIs are not yet available in TypeScript AppHosts.
-</Aside>
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry("foundry");
+const project = await foundry.addProject("agents");
+
+const chat = await project.addModelDeploymentFromModel("chat", {
+    name: "gpt-5-mini",
+    version: "2025-06-01",
+    format: "OpenAI",
+});
+
+await builder.addPythonApp("agent", "../agent", "main:app")
+    .withReference(project)
+    .withReference(chat)
+    .publishAsHostedAgent({ project });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 New APIs in this area include `AddProject`, `AddModelDeployment`, `WithAppInsights`, `WithKeyVault`, `WithContainerRegistry`, `PublishAsHostedAgent`, and `AddAndPublishPromptAgent`. `RunAsFoundryLocal` is still available for local model development, but Foundry Projects aren't supported when the parent resource is configured as Foundry Local.
 
