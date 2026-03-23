@@ -1,0 +1,117 @@
+---
+title: Meilisearch Client integration reference
+description: Learn how to use the Aspire Meilisearch client integration to interact with Meilisearch from your Aspire projects.
+next: false
+---
+
+import { Badge } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside } from '@astrojs/starlight/components';
+import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={meilisearchIcon}
+  alt="Meilisearch logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+To get started with the Aspire Meilisearch integrations, follow the [Get started with Meilisearch integrations](/integrations/databases/meilisearch/meilisearch-get-started/) guide.
+
+This article includes full details about the Aspire Meilisearch Client integration.
+
+## Installation
+
+To access the client integration APIs, install the [📦 CommunityToolkit.Aspire.Meilisearch](https://nuget.org/packages/CommunityToolkit.Aspire.Meilisearch) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Meilisearch" />
+
+## Add Meilisearch client
+
+In the `Program.cs` file of your client-consuming project, call the `AddMeilisearchClient` extension method to register a `MeilisearchClient` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp
+builder.AddMeilisearchClient(connectionName: "meilisearch");
+```
+
+<Aside type="tip">
+  The `connectionName` parameter must match the name used when adding the
+  Meilisearch resource in the AppHost project.
+</Aside>
+
+You can then retrieve the `MeilisearchClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(MeilisearchClient client)
+{
+    // Use client...
+}
+```
+
+## Add keyed Meilisearch client
+
+There might be situations where you want to register multiple `MeilisearchClient` instances with different connection names. To register keyed Meilisearch clients, call the `AddKeyedMeilisearchClient` method:
+
+```csharp
+builder.AddKeyedMeilisearchClient(name: "products");
+builder.AddKeyedMeilisearchClient(name: "orders");
+```
+
+Then you can retrieve the `MeilisearchClient` instances using dependency injection:
+
+```csharp
+public class ExampleService(
+    [FromKeyedServices("products")] MeilisearchClient productsClient,
+    [FromKeyedServices("orders")] MeilisearchClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+## Configuration
+
+The Aspire Meilisearch client integration provides multiple options to configure the server connection.
+
+### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, provide the name of the connection string:
+
+```csharp
+builder.AddMeilisearchClient("meilisearch");
+```
+
+Then the connection string will be retrieved from the `ConnectionStrings` configuration section:
+
+```json
+{
+  "ConnectionStrings": {
+    "meilisearch": "Endpoint=http://localhost:19530/;MasterKey=123456!@#$%"
+  }
+}
+```
+
+### Use configuration providers
+
+The Aspire Meilisearch Client integration supports configuration. It loads the settings from configuration using the `Aspire:Meilisearch:Client` key:
+
+```json
+{
+  "Aspire": {
+    "Meilisearch": {
+      "Client": {
+        "Endpoint": "http://localhost:19530/",
+        "MasterKey": "123456!@#$%"
+      }
+    }
+  }
+}
+```
+
+## Client integration health checks
+
+The Aspire Meilisearch integration uses the configured client to perform a health check.

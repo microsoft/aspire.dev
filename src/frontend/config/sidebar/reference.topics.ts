@@ -1,6 +1,129 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-export const referenceTopics: StarlightSidebarTopicsUserConfig = {
+/* ------------------------------------------------------------------ */
+/*  Dynamic sidebar: read package data files and build reference tree  */
+/* ------------------------------------------------------------------ */
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const packagesDir = join(__dirname, '..', '..', 'src', 'data', 'pkgs');
+
+function slugify(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+    .toLowerCase();
+}
+
+const memberKindOrder = [
+  'constructor',
+  'property',
+  'method',
+  'field',
+  'event',
+  'indexer',
+] as const;
+
+const memberKindLabels: Record<string, string> = {
+  constructor: 'Constructors',
+  property: 'Properties',
+  method: 'Methods',
+  field: 'Fields',
+  event: 'Events',
+  indexer: 'Indexers',
+};
+
+const memberKindSlugs: Record<string, string> = {
+  constructor: 'constructors',
+  property: 'properties',
+  method: 'methods',
+  field: 'fields',
+  event: 'events',
+  indexer: 'indexers',
+};
+
+interface PackageMember {
+  name: string;
+  kind: string;
+}
+
+interface PackageType {
+  name: string;
+  kind: string;
+  members?: PackageMember[];
+  enumMembers?: any[];
+}
+
+interface PackageData {
+  package: { name: string; version: string; targetFramework: string };
+  types: PackageType[];
+}
+
+/** Marker interface: interface kind with no members. */
+function isMarkerInterface(type: PackageType): boolean {
+  if (type.kind !== 'interface') return false;
+  return (type.members?.length ?? 0) === 0 && (type.enumMembers?.length ?? 0) === 0;
+}
+
+/** Simple type that doesn't need expandable sub-pages in the sidebar. */
+function isFlatSidebarType(type: PackageType): boolean {
+  return type.kind === 'enum' || isMarkerInterface(type);
+}
+
+function loadReferenceSidebar() {
+  let files: string[];
+  try {
+    files = readdirSync(packagesDir).filter((f: string) => f.endsWith('.json'));
+  } catch {
+    return [];
+  }
+
+  const packages: PackageData[] = files.map((f: string) =>
+    JSON.parse(readFileSync(join(packagesDir, f), 'utf-8')) as PackageData,
+  );
+
+  return packages
+    .sort((a, b) => a.package.name.localeCompare(b.package.name))
+    .map((pkg) => ({
+      label: pkg.package.name,
+      items: [
+        { label: 'Overview', link: `/reference/api/${pkg.package.name}/` },
+        ...pkg.types
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((t): any => {
+            if (isFlatSidebarType(t)) {
+              return {
+                label: t.name,
+                link: `/reference/api/${pkg.package.name}/${slugify(t.name)}/`,
+              };
+            }
+
+            const base = `/reference/api/${pkg.package.name}/${slugify(t.name)}`;
+            const items: { label: string; link: string }[] = [
+              { label: 'Overview', link: `${base}/` },
+            ];
+            for (const kind of memberKindOrder) {
+              if (t.members?.some((m) => m.kind === kind)) {
+                items.push({
+                  label: memberKindLabels[kind] ?? kind,
+                  link: `${base}/${memberKindSlugs[kind] ?? kind}/`,
+                });
+              }
+            }
+
+            return {
+              label: t.name,
+              collapsed: true,
+              items,
+            };
+          }),
+      ],
+    }));
+}
+
+export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
   label: {
     en: 'Reference',
     es: 'Referencia',
@@ -90,30 +213,53 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Довідник API',
         'zh-CN': 'API参考',
       },
-      collapsed: true,
+      collapsed: false,
       items: [
         {
-          label: 'Browse APIs',
+          label: 'Search C# APIs',
           translations: {
-            da: "Gennemse API'er",
-            de: 'APIs durchsuchen',
-            en: 'Browse APIs',
-            es: 'Explorar API',
-            fr: 'Parcourir les API',
-            hi: 'एपीआई ब्राउज़ करें',
-            id: 'Jelajahi API',
-            it: 'Sfoglia API',
-            ja: 'APIを参照する',
-            ko: 'API 찾아보기',
-            pt: 'Navegar pelas APIs',
-            'pt-BR': 'Navegar pelas APIs',
-            'pt-PT': 'Navegar pelas APIs',
-            ru: 'Просмотр API',
-            tr: "API'lere Göz Atın",
-            uk: 'Перегляд API',
-            'zh-CN': '浏览 API',
+            da: "Søg i C# API'er",
+            de: 'C# APIs durchsuchen',
+            en: 'Search C# APIs',
+            es: 'Buscar API de C#',
+            fr: 'Rechercher les API C#',
+            hi: 'C# एपीआई खोजें',
+            id: 'Cari API C#',
+            it: 'Cerca API C#',
+            ja: 'C# APIを検索する',
+            ko: 'C# API 검색',
+            pt: 'Pesquisar APIs C#',
+            'pt-BR': 'Pesquisar APIs C#',
+            'pt-PT': 'Pesquisar APIs C#',
+            ru: 'Поиск C# API',
+            tr: "C# API'leri Arayın",
+            uk: 'Пошук C# API',
+            'zh-CN': '搜索 C# API',
           },
-          slug: 'reference/api/browser',
+          link: '/reference/api/csharp/',
+        },
+        {
+          label: 'Search TypeScript APIs',
+          translations: {
+            da: "Søg i TypeScript API'er",
+            de: 'TypeScript APIs durchsuchen',
+            en: 'Search TypeScript APIs',
+            es: 'Buscar API de TypeScript',
+            fr: 'Rechercher les API TypeScript',
+            hi: 'TypeScript एपीआई खोजें',
+            id: 'Cari API TypeScript',
+            it: 'Cerca API TypeScript',
+            ja: 'TypeScript APIを検索する',
+            ko: 'TypeScript API 검색',
+            pt: 'Pesquisar APIs TypeScript',
+            'pt-BR': 'Pesquisar APIs TypeScript',
+            'pt-PT': 'Pesquisar APIs TypeScript',
+            ru: 'Поиск TypeScript API',
+            tr: "TypeScript API'leri Arayın",
+            uk: 'Пошук TypeScript API',
+            'zh-CN': '搜索 TypeScript API',
+          },
+          link: '/reference/api/typescript/',
         },
       ],
     },
@@ -258,79 +404,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             { label: 'aspire', slug: 'reference/cli/commands/aspire' },
             { label: 'aspire add', slug: 'reference/cli/commands/aspire-add' },
             {
-              label: 'aspire cache',
-              collapsed: true,
-              items: [
-                {
-                  label: 'aspire cache',
-                  slug: 'reference/cli/commands/aspire-cache',
-                },
-                {
-                  label: 'aspire cache clear',
-                  slug: 'reference/cli/commands/aspire-cache-clear',
-                },
-              ],
-            },
-            {
-              label: 'aspire config',
-              collapsed: true,
-              items: [
-                {
-                  label: 'aspire config',
-                  slug: 'reference/cli/commands/aspire-config',
-                },
-                {
-                  label: 'aspire config list',
-                  slug: 'reference/cli/commands/aspire-config-list',
-                },
-                {
-                  label: 'aspire config get',
-                  slug: 'reference/cli/commands/aspire-config-get',
-                },
-                {
-                  label: 'aspire config set',
-                  slug: 'reference/cli/commands/aspire-config-set',
-                },
-                {
-                  label: 'aspire config delete',
-                  slug: 'reference/cli/commands/aspire-config-delete',
-                },
-              ],
-            },
-            {
-              label: 'aspire deploy',
-              slug: 'reference/cli/commands/aspire-deploy',
-            },
-            { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
-            {
-              label: 'aspire docs',
-              collapsed: true,
-              items: [
-                {
-                  label: 'aspire docs',
-                  slug: 'reference/cli/commands/aspire-docs',
-                },
-                {
-                  label: 'aspire docs list',
-                  slug: 'reference/cli/commands/aspire-docs-list',
-                },
-                {
-                  label: 'aspire docs search',
-                  slug: 'reference/cli/commands/aspire-docs-search',
-                },
-                {
-                  label: 'aspire docs get',
-                  slug: 'reference/cli/commands/aspire-docs-get',
-                },
-              ],
-            },
-            {
-              label: 'aspire doctor',
-              slug: 'reference/cli/commands/aspire-doctor',
-            },
-            { label: 'aspire exec', slug: 'reference/cli/commands/aspire-exec' },
-            { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
-            {
               label: 'aspire agent',
               collapsed: true,
               items: [
@@ -345,6 +418,126 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
                 {
                   label: 'aspire agent mcp',
                   slug: 'reference/cli/commands/aspire-agent-mcp',
+                },
+              ],
+            },
+            {
+              label: 'aspire cache',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire cache',
+                  slug: 'reference/cli/commands/aspire-cache',
+                },
+                {
+                  label: 'aspire cache clear',
+                  slug: 'reference/cli/commands/aspire-cache-clear',
+                },
+              ],
+            },
+            {
+              label: 'aspire certs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire certs',
+                  slug: 'reference/cli/commands/aspire-certs',
+                },
+                {
+                  label: 'aspire certs clean',
+                  slug: 'reference/cli/commands/aspire-certs-clean',
+                },
+                {
+                  label: 'aspire certs trust',
+                  slug: 'reference/cli/commands/aspire-certs-trust',
+                },
+              ],
+            },
+            {
+              label: 'aspire config',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire config',
+                  slug: 'reference/cli/commands/aspire-config',
+                },
+                {
+                  label: 'aspire config delete',
+                  slug: 'reference/cli/commands/aspire-config-delete',
+                },
+                {
+                  label: 'aspire config get',
+                  slug: 'reference/cli/commands/aspire-config-get',
+                },
+                {
+                  label: 'aspire config list',
+                  slug: 'reference/cli/commands/aspire-config-list',
+                },
+                {
+                  label: 'aspire config set',
+                  slug: 'reference/cli/commands/aspire-config-set',
+                },
+              ],
+            },
+            {
+              label: 'aspire deploy',
+              slug: 'reference/cli/commands/aspire-deploy',
+            },
+            {
+              label: 'aspire describe',
+              slug: 'reference/cli/commands/aspire-describe',
+            },
+            { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
+            {
+              label: 'aspire docs',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire docs',
+                  slug: 'reference/cli/commands/aspire-docs',
+                },
+                {
+                  label: 'aspire docs get',
+                  slug: 'reference/cli/commands/aspire-docs-get',
+                },
+                {
+                  label: 'aspire docs list',
+                  slug: 'reference/cli/commands/aspire-docs-list',
+                },
+                {
+                  label: 'aspire docs search',
+                  slug: 'reference/cli/commands/aspire-docs-search',
+                },
+              ],
+            },
+            {
+              label: 'aspire doctor',
+              slug: 'reference/cli/commands/aspire-doctor',
+            },
+            {
+              label: 'aspire export',
+              slug: 'reference/cli/commands/aspire-export',
+            },
+            { label: 'aspire init', slug: 'reference/cli/commands/aspire-init' },
+            {
+              label: 'aspire logs',
+              slug: 'reference/cli/commands/aspire-logs',
+            },
+            {
+              label: 'aspire mcp',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire mcp',
+                  slug: 'reference/cli/commands/aspire-mcp',
+                },
+                {
+                  label: 'aspire mcp call',
+                  slug: 'reference/cli/commands/aspire-mcp-call',
+                },
+                {
+                  label: 'aspire mcp tools',
+                  slug: 'reference/cli/commands/aspire-mcp-tools',
                 },
               ],
             },
@@ -376,7 +569,49 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
               label: 'aspire publish',
               slug: 'reference/cli/commands/aspire-publish',
             },
+            {
+              label: 'aspire resource',
+              slug: 'reference/cli/commands/aspire-resource',
+            },
+            {
+              label: 'aspire restore',
+              slug: 'reference/cli/commands/aspire-restore',
+            },
             { label: 'aspire run', slug: 'reference/cli/commands/aspire-run' },
+            {
+              label: 'aspire secret',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire secret',
+                  slug: 'reference/cli/commands/aspire-secret',
+                },
+                {
+                  label: 'aspire secret delete',
+                  slug: 'reference/cli/commands/aspire-secret-delete',
+                },
+                {
+                  label: 'aspire secret get',
+                  slug: 'reference/cli/commands/aspire-secret-get',
+                },
+                {
+                  label: 'aspire secret list',
+                  slug: 'reference/cli/commands/aspire-secret-list',
+                },
+                {
+                  label: 'aspire secret path',
+                  slug: 'reference/cli/commands/aspire-secret-path',
+                },
+                {
+                  label: 'aspire secret set',
+                  slug: 'reference/cli/commands/aspire-secret-set',
+                },
+              ],
+            },
+            {
+              label: 'aspire start',
+              slug: 'reference/cli/commands/aspire-start',
+            },
             { label: 'aspire stop', slug: 'reference/cli/commands/aspire-stop' },
             {
               label: 'aspire update',
@@ -425,6 +660,30 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'ASPIREATS001',
               link: '/diagnostics/aspireats001',
+            },
+            {
+              label: 'ASPIREEXPORT005',
+              link: '/diagnostics/aspireexport005',
+            },
+            {
+              label: 'ASPIREEXPORT006',
+              link: '/diagnostics/aspireexport006',
+            },
+            {
+              label: 'ASPIREEXPORT007',
+              link: '/diagnostics/aspireexport007',
+            },
+            {
+              label: 'ASPIREEXPORT008',
+              link: '/diagnostics/aspireexport008',
+            },
+            {
+              label: 'ASPIREEXPORT009',
+              link: '/diagnostics/aspireexport009',
+            },
+            {
+              label: 'ASPIREEXPORT010',
+              link: '/diagnostics/aspireexport010',
             },
             {
               label: 'ASPIRECERTIFICATES001',
@@ -507,6 +766,22 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig = {
             {
               label: 'ASPIRECOSMOSDB001',
               link: '/diagnostics/aspirecosmosdb001',
+            },
+            {
+              label: 'ASPIREEXPORT001',
+              link: '/diagnostics/aspireexport001',
+            },
+            {
+              label: 'ASPIREEXPORT002',
+              link: '/diagnostics/aspireexport002',
+            },
+            {
+              label: 'ASPIREEXPORT003',
+              link: '/diagnostics/aspireexport003',
+            },
+            {
+              label: 'ASPIREEXPORT004',
+              link: '/diagnostics/aspireexport004',
             },
             {
               label: 'ASPIREHOSTINGPYTHON001',

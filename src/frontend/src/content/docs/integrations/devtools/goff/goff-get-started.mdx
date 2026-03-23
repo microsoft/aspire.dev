@@ -1,0 +1,87 @@
+---
+title: Get started with the GO Feature Flag integrations
+description: Learn how to set up the Aspire GO Feature Flag hosting and client integrations simply.
+prev: false
+---
+
+import { Badge, Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import goffIcon from '@assets/icons/go-feature-flag.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={goffIcon}
+  dark={goffIcon}
+  alt="goff logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+Feature flags let you modify system behavior without changing code. Deploy every day, release when you are ready. Reduce risk by releasing your features progressively.
+
+* [GO Feature Flag](https://gofeatureflag.org/) believes in simplicity and offers a simple and lightweight solution to use feature flags.
+* Target individual segments, users, and development environments, use advanced rollout functionality.
+* 100% Opensource, no vendor locking, supports your favorite languages and is pushing for standardisation with the support of OpenFeature.
+
+In this introduction, you'll see how to install and use the Aspire GO Feature Flag integrations in a simple configuration. If you already have this knowledge, see [GO Feature Flag hosting integration](/integrations/devtools/goff/goff-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire GO Feature Flag hosting integration in your Aspire AppHost project:
+
+<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.GoFeatureFlag" />
+
+In your app host project, call `AddGoFeatureFlag` on the builder instance to add a goff container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goff = builder.AddGoFeatureFlag("goff")
+                  .WithGoffBindMount("./goff");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(goff);
+
+// After adding all resources, run the app...
+```
+
+goff uses either the `YAML`, `JSON` or `TOML` format to configure feature flags. The `WithGoffBindMount` method mounts a local folder into the container where goff reads its flag configuration files.
+
+## Set up client integration
+
+Next, install the Aspire GO Feature Flag client integration in your client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.GoFeatureFlag" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddGoFeatureFlagClient` extension method to register a `GoFeatureFlagProvider` for use via the dependency injection container:
+
+```csharp
+builder.AddGoFeatureFlagClient(connectionName: "goff");
+```
+
+You can then retrieve the `GoFeatureFlagProvider` instance using dependency injection. For example, to retrieve the provider from a service:
+
+```csharp
+public class ExampleService(GoFeatureFlagProvider provider)
+{
+    // Use provider...
+}
+```
+
+For full reference details, see [GO Feature Flag hosting integration](/integrations/devtools/goff/goff-host/) and [GO Feature Flag client integration](/integrations/devtools/goff/goff-client/).
+
+## See also
+
+- [GO Feature Flag documentation](https://gofeatureflag.org/)
+- [.NET SDK for GO Feature Flag](https://github.com/open-feature/dotnet-sdk-contrib/tree/main/src/OpenFeature.Providers.GOFeatureFlag)
+- [OpenFeature documentation](https://openfeature.dev)
+- [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

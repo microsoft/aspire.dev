@@ -1,0 +1,74 @@
+---
+title: flagd Client integration reference
+description: Learn how to connect to flagd from your Aspire projects using the OpenFeature SDK.
+next: false
+---
+
+import { Badge, Aside } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import flagdIcon from '@assets/icons/flagd-icon.svg';
+import flagdLightIcon from '@assets/icons/flagd-light-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={flagdLightIcon}
+  dark={flagdIcon}
+  alt="flagd logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+To get started with the Aspire flagd integrations, follow the [Get started with flagd integrations](/integrations/devtools/flagd/flagd-get-started/) guide.
+
+This article includes full details about connecting to flagd from your consuming projects using the OpenFeature SDK.
+
+## Add flagd client
+
+To get started with the Aspire flagd client integration, install an OpenFeature provider for .NET. The most common provider for flagd is the [OpenFeature.Contrib.Providers.Flagd](https://www.nuget.org/packages/OpenFeature.Contrib.Providers.Flagd) NuGet package in the client-consuming project:
+
+```powershell
+dotnet add package OpenFeature.Contrib.Providers.Flagd
+```
+
+In the `Program.cs` file of your client-consuming project, configure the OpenFeature SDK to use the flagd provider:
+
+```csharp
+using OpenFeature;
+using OpenFeature.Contrib.Providers.Flagd;
+
+var connectionString = builder.Configuration.GetConnectionString("flagd");
+
+await OpenFeature.Api.Instance.SetProviderAsync(
+    new FlagdProvider(new Uri(connectionString)));
+
+var flagClient = OpenFeature.Api.Instance.GetClient();
+```
+
+You can then use the `flagClient` to evaluate feature flags:
+
+```csharp
+var welcomeBanner = await flagClient.GetBooleanValueAsync(
+    "welcome-banner",
+    defaultValue: false);
+
+var backgroundColor = await flagClient.GetStringValueAsync(
+    "background-color",
+    defaultValue: "#000000");
+```
+
+For more information on the OpenFeature SDK and flagd provider, see the [OpenFeature .NET documentation](https://openfeature.dev/docs/reference/technologies/client/dotnet/) and the [flagd provider documentation](https://flagd.dev/providers/dotnet/).
+
+## Configuration
+
+The flagd client integration uses the connection string from the `ConnectionStrings` configuration section. The connection string is automatically provided when you reference the flagd resource in your app host project using `WithReference`.
+
+The connection string format is:
+
+```plaintext
+http://localhost:<port>
+```
+
+Where `<port>` is the port assigned to the flagd HTTP endpoint.

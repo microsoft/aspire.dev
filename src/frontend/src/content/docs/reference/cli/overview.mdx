@@ -2,13 +2,15 @@
 title: Aspire CLI overview
 ---
 
-import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
-import LearnMore from "@components/LearnMore.astro";
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
-The Aspire CLI (`aspire` command) is a cross-platform tool that provides command-line functionality to create, manage, run, and publish polyglot Aspire projects. Use the Aspire CLI to streamline development workflows and coordinate services for distributed applications.
+The Aspire CLI (`aspire` command) is a cross-platform tool that provides command-line functionality to create, manage, run, and publish multi-language Aspire projects. Use the Aspire CLI to streamline development workflows and coordinate services for distributed applications.
 
 <Aside type="note">
-Starting with Aspire 13.0, the Aspire CLI requires .NET SDK version 10.0.100 or later. Ensure that you have the appropriate .NET SDK installed to use the Aspire CLI.
+  Starting with Aspire 13.0, the Aspire CLI requires .NET SDK version 10.0.100
+  or later. Ensure that you have the appropriate .NET SDK installed to use the
+  Aspire CLI.
 </Aside>
 
 The Aspire CLI is an interactive-first experience.
@@ -18,12 +20,14 @@ The Aspire CLI is an interactive-first experience.
     href="/get-started/install-cli/"
     title="Install the Aspire CLI"
     icon="download"
-    description="Get started by installing the Aspire CLI on your machine." />
+    description="Get started by installing the Aspire CLI on your machine."
+  />
   <LinkCard
-    href="../install-script/" 
+    href="../install-script/"
     title="Review install script reference"
     icon="settings"
-    description="Explore the details of the install script with reference." />
+    description="Explore the details of the install script with reference."
+  />
 </CardGrid>
 
 ## Use templates
@@ -40,9 +44,9 @@ Use the `aspire new` command to create an Aspire project from a list of template
 
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 
-The following example shows running the `aspire new` command to create a new Aspire project — select the play button to view terminal playback:
+The following example shows the Aspire CLI welcome banner, which gives the command overview page a more branded first impression before you drill into commands like `aspire new`:
 
-<AsciinemaPlayer src="/casts/aspire-new.cast" poster="npt:0:03" />
+<AsciinemaPlayer src="/casts/aspire-banner.cast" poster="npt:0:01" rows={15} loop={false} />
 
 While command-line parameters can be used to automate the creation of an Aspire project, the Aspire CLI is an interactive-first experience.
 
@@ -83,6 +87,8 @@ Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
         Press CTRL+C to stop the apphost and exit.
 ```
 
+<AsciinemaPlayer src="/casts/aspire-run.cast" poster="npt:0:02" rows={14} loop={false} />
+
 <LearnMore>
   [Command reference: `aspire run`](../commands/aspire-run/)
 </LearnMore>
@@ -107,9 +113,9 @@ The command validates package compatibility before applying changes and provides
 
 ## Publish Aspire applications
 
-The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire invokes registered `PublishingCallbackAnnotation` resource annotations, in the order they're declared. These annotations serialize a resource so that it can be consumed by deployment tools.
+The `aspire publish` command publishes resources by serializing them to disk. When this command is run, Aspire executes the publish pipeline step, and any dependent steps, registered in the app model. These steps serialize resources so that they can be consumed by deployment tools.
 
-Some integrations automatically register a `PublishingCallbackAnnotation` for you, for example:
+Some integrations automatically register publishing pipeline steps for you, for example:
 
 - `AzureEnvironmentResource` generates Bicep assets
 - `DockerComposeEnvironmentResource` generates docker-compose YAML
@@ -121,12 +127,11 @@ Some integrations automatically register a `PublishingCallbackAnnotation` for yo
 
 ## Deploy Aspire solutions
 
-The `aspire deploy` command is similar to `aspire publish`. After Aspire has invoked the publishing annotations to serialize resources to disk, it invokes `DeployingCallbackAnnotation` resource annotations, in the order they're declared.
-
-As of Aspire 9.4, Aspire doesn't include any default deployment annotations for its resources, you must use the `DeployingCallbackAnnotation` to build your own.
+The `aspire deploy` command invokes the `deploy` pipeline step and any dependent steps (such as the `publish` step) registered in the app model.
 
 <Aside type="tip">
-Consider this a good way to deploy your Aspire solution to a staging or testing environment.
+  Consider this a good way to deploy your Aspire solution to a staging or
+  testing environment.
 </Aside>
 
 <LearnMore>
@@ -139,16 +144,78 @@ The `aspire do` command executes a specific pipeline step and its dependencies i
 
 Use this command to test individual pipeline stages during development or to execute only the dependencies needed for a particular step.
 
+<LearnMore>[Command reference: `aspire do`](../commands/aspire-do/)</LearnMore>
+
+## Restore AppHost dependencies
+
+The `aspire restore` command restores dependencies and generates the SDK code your AppHost needs before you build, run, or automate the application. Use it as an explicit restore step in CI/CD pipelines or after changing integrations and resources.
+
 <LearnMore>
-  [Command reference: `aspire do`](../commands/aspire-do/)
+  [Command reference: `aspire restore`](../commands/aspire-restore/)
 </LearnMore>
 
-## Run commands in resource context
+## Start the AppHost in the background
 
-The `aspire exec` command runs a command in the context of a specific Aspire resource, inheriting that resource's configuration, including environment variables, connection strings, and working directory. This is particularly useful for scenarios like running Entity Framework migrations where you need to run commands with the same configuration as your application. For example, you can run `aspire exec --resource api -- dotnet ef migrations add Init` to run Entity Framework commands with the proper database connection strings automatically configured.
+The `aspire start` command starts an AppHost in the background and returns once it is running. Use it when you want a detached apphost without staying attached to the interactive `aspire run` session.
 
 <LearnMore>
-  [Command reference: `aspire exec`](../commands/aspire-exec/)
+  [Command reference: `aspire start`](../commands/aspire-start/)
+</LearnMore>
+
+## Stop a running AppHost
+
+The `aspire stop` command stops a running Aspire AppHost process. When multiple AppHosts are running, the command prompts you to select which one to stop, or you can use `--all` to stop them all at once.
+
+<LearnMore>
+  [Command reference: `aspire stop`](../commands/aspire-stop/)
+</LearnMore>
+
+## List running AppHosts
+
+The `aspire ps` command lists all running Aspire AppHost processes. The output includes the AppHost project path, process IDs, and dashboard URLs for each running instance. Use `--format Json` for machine-readable output suitable for scripting and automation.
+
+<LearnMore>
+  [Command reference: `aspire ps`](../commands/aspire-ps/)
+</LearnMore>
+
+## Wait for resource readiness
+
+The `aspire wait` command blocks until a named resource within a running AppHost reaches a target status such as `healthy`, `up`, or `down`. This is useful for CI/CD pipelines and automation workflows where you need to wait for resources to be ready after starting an AppHost in the background.
+
+<LearnMore>
+  [Command reference: `aspire wait`](../commands/aspire-wait/)
+</LearnMore>
+
+## Run resource commands
+
+The `aspire resource` command executes a command exposed by a resource in a running AppHost, such as `start`, `stop`, or `restart`. Use it when you need to manage an individual resource directly from the terminal.
+
+<LearnMore>
+  [Command reference: `aspire resource`](../commands/aspire-resource/)
+</LearnMore>
+
+## Inspect runtime data
+
+Use `aspire describe`, `aspire logs`, and `aspire export` to inspect resources, stream logs, and package telemetry and resource data from a running AppHost. Use `aspire otel` to view OpenTelemetry data—structured logs, distributed trace spans, and trace summaries—collected by the Aspire Dashboard directly from the terminal. Together, these commands give you a CLI-first workflow for monitoring and collecting diagnostics.
+
+<LearnMore>
+  [Command reference: `aspire describe`](../commands/aspire-describe/), [Command reference: `aspire logs`](../commands/aspire-logs/), [Command reference: `aspire export`](../commands/aspire-export/), and [Command reference: `aspire otel`](../commands/aspire-otel/)
+</LearnMore>
+
+## Diagnose and prepare the environment
+
+Use `aspire doctor` to verify that your environment is ready for Aspire development, and `aspire certs` to manage the HTTPS development certificates used by local resources and dashboards.
+
+<LearnMore>
+  [Command reference: `aspire doctor`](../commands/aspire-doctor/) and [Command reference: `aspire certs`](../commands/aspire-certs/)
+</LearnMore>
+
+## Work with MCP tools
+
+The `aspire mcp` command lets you list and call MCP tools exposed by running resources. If you need to start the MCP server used by compatible AI agents, use `aspire agent mcp`.
+
+<LearnMore>
+  [Command reference: `aspire mcp`](../commands/aspire-mcp/) and [Command reference: `aspire agent mcp`](../commands/aspire-agent-mcp/)
 </LearnMore>
 
 ## Manage CLI configuration
@@ -157,6 +224,24 @@ The `aspire config` command lets you manage Aspire CLI configuration settings. U
 
 <LearnMore>
   [Command reference: `aspire config`](../commands/aspire-config/)
+</LearnMore>
+
+## Manage secrets
+
+The `aspire secret` command manages user secrets for an Aspire AppHost project. User secrets provide a safe way to store sensitive configuration values—such as passwords, API keys, and connection strings—outside of your project files during local development.
+
+Aspire uses user secrets to persist values that resources need across restarts, such as auto-generated passwords for database containers.
+
+<LearnMore>
+  [Command reference: `aspire secret`](../commands/aspire-secret/)
+</LearnMore>
+
+## Browse documentation
+
+The `aspire docs` command lets you browse and search the official Aspire documentation directly from the terminal. You can list all available pages, search for specific topics by keyword, or retrieve the full content of a page by its slug—all without leaving your development workflow.
+
+<LearnMore>
+  [Command reference: `aspire docs`](../commands/aspire-docs/)
 </LearnMore>
 
 ## Manage CLI cache

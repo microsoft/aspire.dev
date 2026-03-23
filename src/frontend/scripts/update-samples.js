@@ -12,6 +12,14 @@ const ASSETS_IMPORT_PREFIX = '~/assets/samples';
 const GITHUB_API = 'https://api.github.com';
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
 const TREE_BASE = `https://github.com/${REPO}/tree/${BRANCH}`;
+const LEGACY_DOCS_HOST = 'https://learn.microsoft.com';
+const ASPIRE_DOC_URL_REWRITES = [
+  [
+    `${LEGACY_DOCS_HOST}/${['dotnet', 'aspire', 'fundamentals', 'dashboard', 'explore'].join('/')}` +
+      '#dashboard-authentication',
+    'https://aspire.dev/dashboard/explore/#dashboard-authentication'
+  ],
+];
 
 const CONCURRENCY = 5;
 
@@ -207,6 +215,16 @@ function extractThumbnail(_name, readme) {
   return match[1];
 }
 
+function rewriteAspireDocLinks(readme) {
+  let rewritten = readme;
+
+  for (const [sourceUrl, destinationUrl] of ASPIRE_DOC_URL_REWRITES) {
+    rewritten = rewritten.replaceAll(sourceUrl, destinationUrl);
+  }
+
+  return rewritten;
+}
+
 // ---------- GitHub API ----------
 
 async function fetchJson(url) {
@@ -250,7 +268,8 @@ async function processSample(name) {
   }
 
   // Download images and rewrite paths in README
-  const { readme } = await downloadAndRewriteImages(name, rawReadme);
+  const { readme: imageRewrittenReadme } = await downloadAndRewriteImages(name, rawReadme);
+  const readme = rewriteAspireDocLinks(imageRewrittenReadme);
 
   const title = extractTitle(readme) || name;
   const description = extractDescription(readme);
