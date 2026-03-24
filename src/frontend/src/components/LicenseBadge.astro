@@ -1,0 +1,77 @@
+---
+interface Props {
+  title: string;
+  icon: string;
+}
+
+const { title, icon } = Astro.props;
+const href = title.match(/:\s+(https?:\/\/.+)$/)?.[1];
+
+const iconMarkup = icon.replace(
+  '<svg ',
+  '<svg class="thanks-license-icon" aria-hidden="true" focusable="false" '
+);
+---
+
+{href ? (
+  <a
+    class="thanks-license-badge"
+    href={href}
+    title={title}
+    data-tooltip-placement="top"
+    aria-label={`License: ${title}`}
+    target="_blank"
+    rel="noreferrer"
+    set:html={iconMarkup}
+  />
+) : (
+  <span
+    class="thanks-license-badge"
+    title={title}
+    data-tooltip-placement="top"
+    aria-label={`License: ${title}`}
+    set:html={iconMarkup}
+  />
+)}
+
+<style>
+  .thanks-license-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--sl-color-text) 18%, transparent);
+    background: color-mix(in srgb, var(--sl-color-bg) 92%, transparent);
+    color: var(--sl-color-text);
+    opacity: 0.76;
+    cursor: help;
+    text-decoration: none;
+    transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .thanks-license-badge:hover,
+  .thanks-license-badge:focus-visible {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--sl-color-text) 34%, transparent);
+    background: color-mix(in srgb, var(--sl-color-bg) 96%, transparent);
+    outline: none;
+  }
+
+  .thanks-license-badge :global(.thanks-license-icon) {
+    display: block;
+    width: 16px;
+    height: 16px;
+    color: var(--sl-color-text);
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .thanks-license-badge {
+      transition: none;
+    }
+  }
+</style>

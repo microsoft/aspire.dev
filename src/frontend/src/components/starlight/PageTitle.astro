@@ -1,0 +1,55 @@
+---
+import PageActionsPageTitle from 'starlight-page-actions/overrides/PageTitle.astro';
+
+const currentPath = Astro.url.pathname.replace(/\/$/, '').replace(/^\//, '');
+const isApiSubpage = currentPath.startsWith('reference/api/');
+---
+
+<PageActionsPageTitle />
+
+<style>
+  :global(.content-panel:has(.actions-container)) {
+    position: relative;
+    z-index: 50;
+    overflow: visible;
+  }
+
+  :global(.content-panel:has(.actions-container) > .sl-container) {
+    overflow: visible;
+  }
+
+  :global(.content-panel:has(.actions-container) .dropdown) {
+    position: relative;
+  }
+
+  :global(.content-panel:has(.actions-container) #dropdown-menu) {
+    min-width: 260px;
+    z-index: 100;
+  }
+
+  :global(.content-panel:has(.actions-container) h1#_top) {
+    margin-top: 1rem;
+    line-height: var(--sl-line-height-headings);
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+</style>
+
+<script is:inline define:vars={{ isApiSubpage }}>
+  function initPageTitle() {
+    if (isApiSubpage) {
+      var h1 = document.querySelector('main h1#_top');
+      if (h1) h1.classList.add('api-page-title');
+    }
+  }
+
+  if (window.__pageTitleAbort) window.__pageTitleAbort.abort();
+
+  window.__pageTitleAbort = new AbortController();
+
+  initPageTitle();
+
+  document.addEventListener('astro:page-load', initPageTitle, {
+    signal: window.__pageTitleAbort.signal,
+  });
+</script>

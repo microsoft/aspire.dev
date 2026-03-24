@@ -18,9 +18,10 @@ steps:
 network:
   allowed:
     - defaults
+    - containers
     - node
+    - dotnet
     - github
-    - "*.nuget.org"
 safe-outputs:
   create-pull-request:
     title-prefix: "chore: "
