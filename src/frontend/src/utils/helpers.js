@@ -29,7 +29,7 @@ export function shuffle(array) {
 
 /**
  * Generates a friendly searchable name from an Aspire NuGet package ID.
- * Removes 'Aspire.Hosting.' prefix, replaces dots with hyphens, and converts to lowercase. Based on: https://github.com/dotnet/aspire/blob/main/src/Aspire.Cli/Commands/AddCommand.cs#L254-L261
+ * Removes 'Aspire.Hosting.' prefix, replaces dots with hyphens, and converts to lowercase. Based on: https://github.com/microsoft/aspire/blob/main/src/Aspire.Cli/Commands/AddCommand.cs#L254-L261
  *
  * @param {string} packageId - The full NuGet package ID (e.g., "Aspire.Hosting.Azure.AppContainers")
  * @returns {string} The friendly name (e.g., "azure-appcontainers")

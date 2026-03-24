@@ -1,30 +1,20 @@
 ---
-title: ASPIREPIPELINES004
-description: Diagnostic for experimental pipeline output service APIs
+title: Compiler Warning ASPIREPIPELINES004
+description: Learn more about compiler Warning ASPIREPIPELINES004. The pipeline output service APIs are experimental and subject to change.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
-<Badge text="Version introduced: 13.1" variant="note" size="large" class:list={'mb-1'} />
+<Badge
+  text="Version introduced: 13.1"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
 
-> Type is for evaluation purposes only and is subject to change or removal in future updates
+> Pipeline output service types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warns when using the experimental `IPipelineOutputService` interface and the `PipelineOutputService` implementation. These APIs are part of the Aspire pipeline infrastructure for managing output and temporary directories during deployment operations.
-
-### Example generating diagnostic
-
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-// Using IPipelineOutputService
-var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
-var outputDir = outputService.GetOutputDirectory();
-var tempDir = outputService.GetTempDirectory();
-```
-
-The diagnostic is triggered because `IPipelineOutputService` is marked with the `[Experimental("ASPIREPIPELINES004")]` attribute.
-
-## Understanding the diagnostic
+This diagnostic warning is reported when using the experimental `IPipelineOutputService` interface and the `PipelineOutputService` implementation. These APIs are part of the Aspire pipeline infrastructure for managing output and temporary directories during deployment operations.
 
 The `IPipelineOutputService` interface provides directory management functionality for Aspire deployment pipelines:
 
@@ -33,6 +23,19 @@ The `IPipelineOutputService` interface provides directory management functionali
 - **Resource-specific paths**: Creates subdirectories for individual resources
 
 This API is experimental because the pipeline infrastructure is under active development, and the directory management strategy may evolve based on deployment scenario requirements.
+
+## Example
+
+The following code generates `ASPIREPIPELINES004`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Using IPipelineOutputService
+var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
+var outputDir = outputService.GetOutputDirectory();
+var tempDir = outputService.GetTempDirectory();
+```
 
 ### Related types
 
@@ -43,30 +46,32 @@ This API is experimental because the pipeline infrastructure is under active dev
 - **`GetTempDirectory()`**: Gets the base temporary directory for build artifacts
 - **`GetTempDirectory(IResource)`**: Gets a resource-specific temporary subdirectory
 
-## Suppressing the diagnostic
+## To correct this warning
 
-The diagnostic can be suppressed using one of several methods:
+Suppress the warning with either of the following methods:
 
-### Suppressing in .editorconfig
+- Set the severity of the rule in the _.editorconfig_ file.
 
-```ini title=".editorconfig"
-[*.cs]
-dotnet_diagnostic.ASPIREPIPELINES004.severity = none
-```
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPIPELINES004.severity = none
+  ```
 
-### Suppressing in a project file
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
 
-```xml title="YourProject.csproj"
-<PropertyGroup>
-  <NoWarn>$(NoWarn);ASPIREPIPELINES004</NoWarn>
-</PropertyGroup>
-```
+- Add the following `PropertyGroup` to your project file:
 
-### Suppressing in source code
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPIPELINES004</NoWarn>
+  </PropertyGroup>
+  ```
 
-```csharp
-#pragma warning disable ASPIREPIPELINES004
-var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
-var outputDir = outputService.GetOutputDirectory();
-#pragma warning restore ASPIREPIPELINES004
-```
+- Suppress in code with the `#pragma warning disable ASPIREPIPELINES004` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIREPIPELINES004
+  var outputService = builder.Services.BuildServiceProvider().GetRequiredService<IPipelineOutputService>();
+  var outputDir = outputService.GetOutputDirectory();
+  #pragma warning restore ASPIREPIPELINES004
+  ```

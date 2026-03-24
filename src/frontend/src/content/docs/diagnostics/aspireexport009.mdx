@@ -1,0 +1,70 @@
+---
+title: Compiler Warning ASPIREEXPORT009
+description: Learn more about compiler Warning ASPIREEXPORT009. The export name may collide with names from other integrations.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Export name '{0}' on method '{1}' may collide across integrations because it targets IResourceBuilder&lt;{2}&gt;. Use a unique name like '{3}'.
+
+This diagnostic warning is reported when an `[AspireExport]` method targets the generic `IResourceBuilder<T>` (where `T` is an open type parameter, meaning any resource type) and uses a short, generic export name that could conflict with similarly-named methods from other integrations. When multiple integrations export methods with the same name to the same generic resource builder type, name collisions can occur in the generated API surface for other language runtimes. To avoid ambiguity, use a more specific, integration-scoped name.
+
+## Example
+
+The following code generates `ASPIREEXPORT009`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("withEnvironment")]  // Generic name targeting open IResourceBuilder<T>
+public static IResourceBuilder<T> WithEnvironment<T>(
+    IResourceBuilder<T> builder,
+    string name,
+    string value)
+    where T : IResourceWithEnvironment
+{
+    return builder.WithEnvironment(name, value);
+}
+```
+
+## To correct this warning
+
+Use a more specific name that includes your integration name or a qualifying prefix to avoid collisions across integrations:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("redis.withEnvironment")]
+public static IResourceBuilder<T> WithEnvironment<T>(
+    IResourceBuilder<T> builder,
+    string name,
+    string value)
+    where T : IResourceWithEnvironment
+{
+    return builder.WithEnvironment(name, value);
+}
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT009.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT009</NoWarn>
+  </PropertyGroup>
+  ```

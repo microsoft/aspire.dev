@@ -1,0 +1,148 @@
+---
+title: Get started with the GitHub Models integration
+description: Learn how to set up the Aspire GitHub Models hosting and client integrations simply.
+prev: false
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import githubIcon from '@assets/icons/github-icon.png';
+import githubLightIcon from '@assets/icons/github-light-icon.png';
+
+<ThemeImage
+  light={githubLightIcon}
+  dark={githubIcon}
+  alt="GitHub logo"
+  width={80}
+  height={80}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+[GitHub Models](https://docs.github.com/github-models) provides access to various AI models including OpenAI's GPT models, DeepSeek, Microsoft's Phi models, and other leading AI models, all accessible through GitHub's infrastructure. The Aspire GitHub Models integration enables you to connect to GitHub Models from your applications for prototyping and production scenarios.
+
+In this introduction, you'll see how to install and use the Aspire GitHub Models integrations in a simple configuration. If you already have this knowledge, see [GitHub Models hosting integration](/integrations/ai/github-models/github-models-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire GitHub Models hosting integration in your Aspire AppHost project. This integration allows you to create and manage GitHub Models resources:
+
+<InstallPackage packageName="Aspire.Hosting.GitHub.Models" />
+
+Next, in the AppHost project, create instances of GitHub Models resources and pass them to the consuming client projects:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(chat);
+
+builder.Build().Run();
+```
+
+The preceding code adds a GitHub Model resource named `chat` using the identifier string for OpenAI's GPT-4o-mini model. The `WithReference` method passes the connection information to the `ExampleProject` project.
+
+<Aside type="tip">
+  Use the strongly-typed `GitHubModel` constants to avoid typos and ensure
+  you're using valid model identifiers. These constants are grouped by publisher
+  (for example, `GitHubModel.OpenAI.OpenAIGpt4oMini`,
+  `GitHubModel.Microsoft.Phi4MiniInstruct`,
+  `GitHubModel.DeepSeek.DeepSeekV30324`).
+</Aside>
+
+### Configure authentication
+
+The GitHub Models integration requires a GitHub personal access token with `models: read` permission.
+
+#### Environment variables in Codespaces and GitHub Actions
+
+When running an app in GitHub Codespaces or GitHub Actions, the `GITHUB_TOKEN` environment variable is automatically available and can be used without additional configuration.
+
+#### Personal access tokens for local development
+
+For local development, create a [fine-grained personal access token](https://github.com/settings/tokens) with the `models: read` scope and configure it in user secrets:
+
+```json
+{
+  "Parameters": {
+    "chat-gh-apikey": "github_pat_YOUR_TOKEN_HERE"
+  }
+}
+```
+
+## Set up client integration
+
+To get started with the Aspire GitHub Models client integration, you can use either the Azure AI Inference client or the OpenAI client, depending on your needs and model compatibility.
+
+### Using Azure AI Inference client
+
+Install the Azure AI Inference client package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.AI.Inference" />
+
+In the `Program.cs` file of your client-consuming project, use the `AddAzureChatCompletionsClient` method to register a `ChatCompletionsClient` for dependency injection:
+
+```csharp
+builder.AddAzureChatCompletionsClient("chat");
+```
+
+You can then retrieve the `ChatCompletionsClient` instance using dependency injection:
+
+```csharp
+public class ExampleService(ChatCompletionsClient client)
+{
+    public async Task<string> GetResponseAsync(string prompt)
+    {
+        var response = await client.GetChatCompletionsAsync(
+            new[]
+            {
+                new ChatMessage(ChatRole.User, prompt)
+            });
+
+        return response.Value.Choices[0].Message.Content;
+    }
+}
+```
+
+### Using OpenAI client
+
+For models compatible with the OpenAI API (such as `openai/gpt-4o-mini`), you can use the OpenAI client:
+
+<InstallDotNetPackage packageName="Aspire.OpenAI" />
+
+```csharp
+builder.AddOpenAIClient("chat");
+```
+
+You can then use the OpenAI client:
+
+```csharp
+public class ChatService(OpenAIClient client)
+{
+    public async Task<string> GetChatResponseAsync(string prompt)
+    {
+        var chatClient = client.GetChatClient(GitHubModel.OpenAI.OpenAIGpt4oMini);
+        var response = await chatClient.CompleteChatAsync(
+            new[]
+            {
+                new UserChatMessage(prompt)
+            });
+
+        return response.Value.Content[0].Text;
+    }
+}
+```
+
+## See also
+
+- [GitHub Models hosting integration](/integrations/ai/github-models/github-models-host/)
+- [GitHub Models client integration](/integrations/ai/github-models/github-models-client/)
+- [GitHub Models documentation](https://docs.github.com/github-models)

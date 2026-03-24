@@ -5,6 +5,8 @@
 @import '@fontsource/poppins/700.css';
 @import '@fontsource-variable/fira-code/wght.css';
 @import './cookieconsent-custom.css';
+@import './utils.css';
+@import './api-reference.css';
 
 :root {
   --aspire-color-purple: #512bd4;
@@ -29,7 +31,7 @@
   --sl-color-gray-3: #a0a4ab;
   --sl-color-gray-4: #55585f;
   --sl-color-gray-5: #35383e;
-  --sl-color-gray-6: #24272d;
+  --sl-color-gray-6: #181825;
   --sl-color-black: var(--aspire-color-black);
 
   --sl-color-bg: var(--aspire-color-black) !important;
@@ -40,10 +42,11 @@
   --color-dotnet-purple: #2c256b;
 
   --color-purple: var(--aspire-color-primary);
-  --color-magenta: #d600aa;
+  --color-magenta: hsl(316, 65%, 78%);  /* catppuccin-aligned pastel magenta */
   --color-flamingo: #f65163;
   --color-blue: #0078d7;
-  --color-cyan: #28c2d1;
+  --color-cyan: hsl(183, 55%, 75%);     /* catppuccin-aligned pastel teal */
+  --color-yellow: hsl(50, 55%, 75%);    /* catppuccin-aligned pastel gold */
 
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
@@ -76,10 +79,6 @@
 
   .starlight-aside .starlight-aside--note>.starlight-aside__title {
     color: var(--sl-color-blue);
-  }
-
-  aside.starlight-aside.starlight-aside--tip>.starlight-aside__title {
-    color: var(--sl-color-purple);
   }
 
   aside.starlight-aside.starlight-aside--caution>.starlight-aside__title {
@@ -116,12 +115,20 @@
   --sl-color-bg: var(--aspire-color-white) !important;
   --sl-color-text: var(--aspire-color-black) !important;
 
+  /* WCAG AA contrast-safe text colors (catppuccin latte --sl-color-gray-2 #6c6f85 fails 4.5:1) */
+  --aspire-color-muted: #66697e;        /* 4.91:1 on #f3f4f7, 4.78:1 on #eff1f5 */
+  --aspire-color-muted-strong: #515465; /* 4.85:1 on #ccd0da (kbd backgrounds) */
+
   /* Override green and orange-high for WCAG AA compliance (catppuccin defaults fail 4.5:1 threshold) */
   --sl-hue-green: 109;
   --sl-hue-orange: 22;
   --sl-color-green-low: hsl(var(--sl-hue-green), 40%, 85%) !important;
   --sl-color-green-high: hsl(var(--sl-hue-green), 70%, 28%) !important;
   --sl-color-orange-high: hsl(var(--sl-hue-orange), 99%, 38%) !important;
+
+  --color-magenta: hsl(316, 85%, 38%);  /* catppuccin-aligned deep magenta */
+  --color-cyan: hsl(183, 85%, 28%);     /* catppuccin-aligned deep teal */
+  --color-yellow: hsl(50, 90%, 32%);    /* catppuccin-aligned deep gold */
 
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
@@ -174,6 +181,14 @@
 
   .starlight-aside__content li.tab [role='tab'][aria-selected='false'] {
     color: #575a71;
+  }
+
+  /* WCAG AA contrast fixes for search button */
+  site-search button[data-open-modal] {
+    color: var(--aspire-color-muted);
+  }
+  site-search button[data-open-modal] kbd {
+    color: var(--aspire-color-muted-strong);
   }
 }
 
@@ -252,6 +267,10 @@ aside {
   border-radius: 0.5rem;
 }
 
+.action-button {
+  border-radius: 0.5rem !important;
+}
+
 .mb-1 {
   margin-bottom: 1rem;
 }
@@ -269,6 +288,7 @@ starlight-file-tree {
 
 starlight-file-tree .comment {
   color: var(--sl-color-green-high);
+  max-width: 100%;
 }
 
 html[data-theme='light'] starlight-file-tree .comment {
@@ -313,6 +333,10 @@ starlight-file-tree .directory>details>summary::before {
 
 starlight-file-tree .directory>details[open]>summary::before {
   transform: rotate(90deg);
+}
+
+#starlight__sidebar ul {
+  --sl-sidebar-item-padding-inline: 0.375rem;
 }
 
 #starlight__sidebar ul.top-level li a {
@@ -654,20 +678,18 @@ textarea:focus-visible {
 
 .starlight-sidebar-topics a:hover,
 .starlight-sidebar-topics a:focus-visible {
-  background: var(--sl-color-gray-4);
+  background: color-mix(in srgb, var(--aspire-color-secondary) 15%, transparent);
   color: var(--sl-color-white);
 }
 
 .starlight-sidebar-topics-current,
 .starlight-sidebar-topics a.starlight-sidebar-topics-current {
   background: var(--sl-color-bg-nav);
-  border: 1px solid var(--sl-color-gray-5);
+  border: 1px solid var(--aspire-color-secondary);
   color: var(--sl-color-accent-high);
 }
 
 .starlight-sidebar-topics-icon {
-  width: 2rem;
-  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -686,10 +708,16 @@ textarea:focus-visible {
   background: initial;
 }
 
-site-search svg,
-.social-icons svg,
-.starlight-sidebar-topics-icon svg {
+site-search svg {
   --sl-icon-size: 1.25rem !important;
+}
+
+.social-icons svg {
+  --sl-icon-size: 1.5em !important;
+}
+
+.starlight-sidebar-topics-icon svg {
+  --sl-icon-size: 1.25em !important;
 }
 
 .card-grid .card .icon {
@@ -724,13 +752,13 @@ site-search svg,
 
   .starlight-sidebar-topics a:hover,
   .starlight-sidebar-topics a:focus-visible {
-    background: var(--sl-color-gray-4);
+  background: color-mix(in srgb, var(--aspire-color-primary) 15%, transparent);
   }
 
   .starlight-sidebar-topics-current,
   .starlight-sidebar-topics a.starlight-sidebar-topics-current {
     background: var(--sl-color-black);
-    border: 1px solid var(--sl-color-gray-4);
+    border: 1px solid var(--aspire-color-primary);
     color: var(--sl-color-accent);
   }
 
@@ -742,9 +770,17 @@ site-search svg,
 
 /* Hero page specific styling */
 :root[data-has-hero] {
+  .hero {
+    padding-bottom: 1rem !important;
+  }
+
   .sl-markdown-content>.sl-heading-wrapper {
-    margin-top: 5rem;
+    margin-top: 2rem;
     scroll-margin-top: 6rem;
+  }
+
+  .sl-markdown-content>.sl-heading-wrapper:first-child {
+    margin-top: 0;
   }
 
   .sl-markdown-content>.languages-supported+p,
@@ -813,10 +849,6 @@ site-search svg,
   --sl-color-text: var(--aspire-color-black);
   --sl-color-bg: var(--aspire-color-white);
 
-  header.header {
-    --sl-color-bg-nav: var(--aspire-color-white);
-  }
-
   .tagline {
     color: var(--aspire-color-black);
   }
@@ -825,10 +857,6 @@ site-search svg,
 :root[data-has-hero][data-theme='dark'] {
   --sl-color-text: var(--aspire-color-white);
   --sl-color-bg: var(--aspire-color-black);
-
-  header.header {
-    --sl-color-bg-nav: var(--aspire-color-black);
-  }
 
   .tagline {
     color: var(--aspire-color-white);
@@ -877,6 +905,104 @@ li a.external-link::after {
 
 :root {
   --sl-content-width: 68rem;
+}
+
+/* Widen sidebar for API reference pages (long package names) */
+:root:has(.topics-sidebar[data-api-ref]) {
+  --sl-sidebar-width: 40rem;  
+}
+
+/* Narrower sidebar for TypeScript API reference pages */
+:root:has(.topics-sidebar[data-api-lang="ts"]) {
+  --sl-sidebar-width: 30rem;
+}
+
+/* Remove parent top padding so the sticky wrapper sits flush at the top */
+:root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content {
+  padding-top: 0;
+}
+
+/* ── API sidebar collapse/expand (desktop only, ≥ 72rem) ──────── */
+
+/* Animate the sidebar panel width */
+@media (min-width: 72rem) {
+  :root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    transition: width 0.25s ease;
+  }
+  :root:has(.topics-sidebar[data-api-ref]) .main-frame {
+    transition: padding-inline-start 0.25s ease;
+  }
+}
+
+:root:has(.topics-sidebar[data-api-ref])[data-sidebar-collapsed] {
+  --sl-sidebar-width: 3.75rem;
+}
+
+/* Hide the entire sidebar content; the expand button is a sibling and stays visible.
+   Scoped to ≥ 72rem so the mobile overlay sidebar still works when
+   the user previously collapsed the desktop sidebar. */
+@media (min-width: 72rem) {
+  :root[data-sidebar-collapsed] .topics-sidebar[data-api-ref] {
+    display: none !important;
+  }
+
+  /* Remove internal padding so the expand button can center in the full strip */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content {
+    padding-inline: 0;
+  }
+
+  /* The sidebar border when collapsed */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    border-inline-end: 1px solid var(--sl-color-hairline-light);
+  }
+}
+
+/* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  /* Reset content offset — no fixed sidebar in this range for API ref */
+  :root:has(.topics-sidebar[data-api-ref])[data-has-sidebar] {
+    --sl-content-inline-start: 0;
+  }
+
+  /* Show the hamburger menu button */
+  :root:has(.topics-sidebar[data-api-ref]) starlight-menu-button button {
+    display: flex;
+  }
+
+  /* Keep header padding to make room for hamburger button */
+  :root:has(.topics-sidebar[data-api-ref])[data-has-sidebar] header {
+    padding-inline-end: calc(var(--sl-nav-gap) + var(--sl-nav-pad-x) + var(--sl-menu-button-size));
+  }
+
+  /* Reset inner header back to flex layout — the Starlight grid formula breaks
+     when --sl-content-inline-start is 0 (no fixed sidebar in this range).
+     Use `header > .header` to target only the inner div, not the outer <header>. */
+  :root:has(.topics-sidebar[data-api-ref]) header > .header {
+    display: flex;
+  }
+
+  /* Reset sidebar pane to mobile overlay mode */
+  :root:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
+    --sl-sidebar-visibility: hidden;
+    width: 100%;
+    background-color: var(--sl-color-black);
+    border-inline-end: none;
+  }
+
+  /* Show sidebar when hamburger menu is expanded */
+  :root:has(.topics-sidebar[data-api-ref]) [aria-expanded='true'] ~ #starlight__sidebar {
+    --sl-sidebar-visibility: visible;
+  }
+
+  /* Prevent body scroll when mobile menu is open */
+  :root:has(.topics-sidebar[data-api-ref]) body[data-mobile-menu-expanded] {
+    overflow: hidden;
+  }
+
+  /* Keep MobileMenuFooter visible in mobile sidebar */
+  :root:has(.topics-sidebar[data-api-ref]) .topics-sidebar > .md\:sl-hidden {
+    display: block;
+  }
 }
 
 /* 
@@ -974,6 +1100,70 @@ table th {
   scrollbar-color: var(--aspire-color-secondary) var(--sl-color-bg-nav);
 }
 
-#dropdown-menu {
-  min-width: 260px !important;
+/* Try Aspire button in header */
+.header-wrapper {
+  position: relative;
+}
+
+header .try-aspire-btn,
+.header .try-aspire-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  background: var(--aspire-color-light, #dcd5f6);
+  color: var(--aspire-color-black, #1f1e33) !important;
+  font-weight: 600;
+  font-size: var(--sl-text-sm);
+  text-decoration: none;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+  margin-inline-start: 0.5rem;
+}
+
+.header-try-btn {
+  position: absolute;
+  right: 1rem;
+  top: 0.75rem;
+  z-index: 10;
+}
+
+header .try-aspire-btn:hover,
+.header .try-aspire-btn:hover,
+.header-try-btn:hover {
+  background: var(--aspire-color-primary, #7455dd);
+  color: var(--aspire-color-white, #fff) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(116, 85, 221, 0.4);
+}
+
+header .try-aspire-btn:active,
+.header .try-aspire-btn:active,
+.header-try-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 50rem) {
+  header .try-aspire-btn,
+  .header .try-aspire-btn,
+  .header-try-btn {
+    display: none;
+  }
+}
+
+/* Hide theme and language selectors from header - moved to footer */
+header starlight-theme-select,
+header starlight-lang-select {
+  display: none !important;
+}
+
+/* Hide social icons from header - moved to footer */
+header .social-icons,
+header starlight-social-icons {
+  display: none !important;
+}
+
+sl-sidebar-state-persist > span.sl-badge.small {
+  padding-right: .2rem;
 }

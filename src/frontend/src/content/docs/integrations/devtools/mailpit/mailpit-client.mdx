@@ -1,0 +1,89 @@
+---
+title: Sending emails with Mailpit
+description: Learn how to send emails to Mailpit from your Aspire projects using SMTP libraries.
+next: false
+---
+
+import { Badge, Aside } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import mailpitIcon from '@assets/icons/mailpit-icon.svg';
+import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={mailpitLightIcon}
+  dark={mailpitIcon}
+  alt="Mailpit logo"
+  width={70}
+  height={70}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+To get started with the Aspire Mailpit integrations, follow the [Get started with Mailpit integrations](/integrations/devtools/mailpit/mailpit-get-started/) guide.
+
+Mailpit doesn't require a dedicated client integration package. You can use any SMTP library to send emails to Mailpit. The connection information is automatically injected into your application when you reference the Mailpit resource.
+
+## Using MailKit
+
+Here's an example using the popular [MailKit](https://www.nuget.org/packages/MailKit) library:
+
+```powershell
+dotnet add package MailKit
+```
+
+```csharp
+using MailKit.Net.Smtp;
+using MimeKit;
+
+public class EmailService
+{
+    private readonly string _smtpHost;
+
+    public EmailService(IConfiguration configuration)
+    {
+        _smtpHost = configuration.GetConnectionString("mailpit")?.Split(':')[0] ?? "localhost";
+    }
+
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        using var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("Sender", "sender@example.com"));
+        message.To.Add(new MailboxAddress("Recipient", to));
+        message.Subject = subject;
+        message.Body = new TextPart("plain") { Text = body };
+
+        using var client = new SmtpClient();
+        await client.ConnectAsync(_smtpHost, _smtpPort, false);
+        await client.SendAsync(message);
+        await client.DisconnectAsync(true);
+    }
+}
+```
+
+## Using System.Net.Mail
+
+You can also use the built-in `System.Net.Mail` APIs:
+
+```csharp
+using System.Net;
+using System.Net.Mail;
+
+public class EmailService
+{
+    private readonly string _smtpHost;
+
+    public EmailService(IConfiguration configuration)
+    {
+        _smtpHost = configuration.GetConnectionString("mailpit")?.Split(':')[0] ?? "localhost";
+    }
+
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        using var client = new SmtpClient(_smtpHost, _smtpPort);
+        using var message = new MailMessage("sender@example.com", to, subject, body);
+        await client.SendMailAsync(message);
+    }
+}
+```

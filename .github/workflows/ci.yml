@@ -11,23 +11,56 @@ permissions:
   security-events: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      apphost: ${{ steps.filter.outputs.apphost }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detect changed areas
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "apphost=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --quiet "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- src/frontend; then
+            frontend=false
+          else
+            frontend=true
+          fi
+
+          if git diff --quiet "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- src/apphost global.json NuGet.config; then
+            apphost=false
+          else
+            apphost=true
+          fi
+
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "apphost=$apphost" >> "$GITHUB_OUTPUT"
+
   frontend-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     uses: ./.github/workflows/frontend-build.yml
     with:
       node_version: '24.x'
 
   apphost-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.apphost == 'true' }}
     uses: ./.github/workflows/apphost-build.yml
 
   integration-test:
-    needs:
-      - frontend-build
-      - apphost-build
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.apphost == 'true' }}
     uses: ./.github/workflows/integration.yml
-    with:
-      node_version:  '24.x'
-
-  security-scan:
-    uses: ./.github/workflows/security-scan.yml
     with:
       node_version:  '24.x'

@@ -1,0 +1,79 @@
+---
+title: Compiler Warning ASPIREEXPORT008
+description: Learn more about compiler Warning ASPIREEXPORT008. A public extension method on an exported type is missing [AspireExport] or [AspireExportIgnore].
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Extension method '{0}' on exported type is missing [AspireExport] or [AspireExportIgnore]: {1}
+
+This diagnostic warning is reported when a public static extension method extends a type that participates in ATS (Aspire Type Specification) exports but the extension method itself is not annotated with `[AspireExport]` or `[AspireExportIgnore]`. Every public extension method on an exported type should be explicitly marked so that the ATS code generator knows whether to include or exclude it from the generated API surface.
+
+## Example
+
+The following code generates `ASPIREEXPORT008`:
+
+```csharp title="C# — Integration.cs"
+// RedisResource participates in ATS exports, but this extension method
+// is missing [AspireExport] or [AspireExportIgnore]
+public static IResourceBuilder<RedisResource> WithCustomConfig(
+    this IResourceBuilder<RedisResource> builder,
+    string configPath)
+{
+    return builder.WithBindMount(configPath, "/usr/local/etc/redis/redis.conf");
+}
+```
+
+## To correct this warning
+
+Annotate the extension method with `[AspireExport]` if it should be available to other language runtimes, or with `[AspireExportIgnore]` (with a justification) if it should be excluded:
+
+```csharp title="C# — Integration.cs"
+// Export the method to other language runtimes
+[AspireExport("withCustomConfig")]
+public static IResourceBuilder<RedisResource> WithCustomConfig(
+    this IResourceBuilder<RedisResource> builder,
+    string configPath)
+{
+    return builder.WithBindMount(configPath, "/usr/local/etc/redis/redis.conf");
+}
+```
+
+```csharp title="C# — Integration.cs"
+// Or explicitly exclude it from ATS exports
+[AspireExportIgnore("This method uses C#-specific binding patterns not representable in ATS.")]
+public static IResourceBuilder<RedisResource> WithCustomConfig(
+    this IResourceBuilder<RedisResource> builder,
+    string configPath)
+{
+    return builder.WithBindMount(configPath, "/usr/local/etc/redis/redis.conf");
+}
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT008.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT008</NoWarn>
+  </PropertyGroup>
+  ```

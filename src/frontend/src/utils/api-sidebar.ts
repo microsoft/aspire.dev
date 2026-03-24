@@ -1,0 +1,108 @@
+/* ------------------------------------------------------------------ */
+/*  Build sidebar configuration for API reference pages.              */
+/*                                                                    */
+/*  Returns the Starlight user-config sidebar format so it can be     */
+/*  passed as the `sidebar` prop to `<StarlightPage>`.                */
+/* ------------------------------------------------------------------ */
+
+import { slugify, genericArity, typeDisplayName, packageSlug, groupTypesByNamespace, memberKindOrder, memberKindLabels, memberKindSlugs, getPackages } from './packages';
+
+/** Member kinds that get their own sidebar sub-item under a type. */
+const sidebarMemberKinds = memberKindOrder;
+
+/**
+ * Determine whether a type is a simple marker interface (no members at all).
+ * Marker interfaces get a flat link instead of a nested group.
+ */
+function isMarkerInterface(type: any): boolean {
+  if (type.kind !== 'interface') return false;
+  const memberCount = type.members?.length ?? 0;
+  const enumMemberCount = type.enumMembers?.length ?? 0;
+  return memberCount === 0 && enumMemberCount === 0;
+}
+
+/**
+ * Build sidebar sub-items for a single type.
+ * Returns an array of { label, link } entries for each member-kind group
+ * that has at least one member (e.g. Constructors, Properties, Methods).
+ */
+function buildTypeSidebarItems(
+  packageName: string,
+  type: any,
+): { label: string; link: string }[] {
+  const base = `/reference/api/csharp/${packageSlug(packageName)}/${slugify(type.name, genericArity(type))}`;
+  const items: { label: string; link: string }[] = [
+    { label: 'Overview', link: `${base}/` },
+  ];
+
+  const members: any[] = type.members ?? [];
+  for (const kind of sidebarMemberKinds) {
+    if (members.some((m: any) => m.kind === kind)) {
+      items.push({
+        label: memberKindLabels[kind] ?? kind,
+        link: `${base}/${memberKindSlugs[kind] ?? kind}/`,
+      });
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Generate a sidebar configuration array for API reference pages.
+ * Each package becomes a collapsible group. Within each package,
+ * types are grouped by namespace.
+ */
+export async function getApiReferenceSidebar() {
+  const packages = await getPackages();
+  const sorted = packages
+    .map((p) => p.data)
+    .sort((a, b) => a.package.name.localeCompare(b.package.name));
+
+  return [
+    { label: 'Search APIs', link: '/reference/api/csharp/' },
+    ...sorted.map((pkg) => {
+      const validTypes = pkg.types.filter((t: any) => t.name);
+      const nsGroups = groupTypesByNamespace(validTypes);
+
+      // If only one namespace, skip the namespace nesting level
+      const hasMultipleNamespaces = nsGroups.size > 1;
+
+      const typeItems = hasMultipleNamespaces
+        ? [...nsGroups.entries()].map(([ns, types]) => ({
+            label: ns,
+            collapsed: true,
+            items: types.map((t: any) => buildTypeSidebarEntry(pkg.package.name, t)),
+          }))
+        : [...nsGroups.values()]
+            .flat()
+            .sort((a: any, b: any) => a.name.localeCompare(b.name))
+            .map((t: any) => buildTypeSidebarEntry(pkg.package.name, t));
+
+      return {
+        label: pkg.package.name,
+        collapsed: true,
+        items: [
+          { label: 'Overview', link: `/reference/api/csharp/${packageSlug(pkg.package.name)}/` },
+          ...typeItems,
+        ],
+      };
+    }),
+  ];
+}
+
+/** Build a single sidebar entry for a type (flat link or nested group). */
+function buildTypeSidebarEntry(packageName: string, t: any) {
+  const label = typeDisplayName(t);
+  if (isMarkerInterface(t)) {
+    return {
+      label,
+      link: `/reference/api/csharp/${packageSlug(packageName)}/${slugify(t.name, genericArity(t))}/`,
+    };
+  }
+  return {
+    label,
+    collapsed: true,
+    items: buildTypeSidebarItems(packageName, t),
+  };
+}

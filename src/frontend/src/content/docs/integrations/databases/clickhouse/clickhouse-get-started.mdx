@@ -1,0 +1,300 @@
+---
+title: Get started with the ClickHouse integrations
+description: Learn how to set up the Aspire ClickHouse Hosting and Client integrations simply.
+prev: false
+---
+
+import { Image } from 'astro:assets';
+import { Kbd } from 'starlight-kbd/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import clickhouseIcon from '@assets/icons/clickhouse-icon.png';
+
+<Image
+  src={clickhouseIcon}
+  alt="ClickHouse logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+[ClickHouse](https://clickhouse.com) is a high-performance, column-oriented SQL database management system (DBMS) for online analytical processing (OLAP). The Aspire ClickHouse integration provides a way to connect to existing ClickHouse instances, or create new instances from the [`clickhouse/clickhouse-server` container image](https://hub.docker.com/r/clickhouse/clickhouse-server).
+
+In this introduction, you'll see how to install and use the Aspire ClickHouse integrations in a simple configuration. If you already have this knowledge, see [ClickHouse Hosting integration](/integrations/databases/clickhouse/clickhouse-host/) for full reference details.
+
+<Aside type="note">
+    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+</Aside>
+
+## Set up hosting integration
+
+To begin, install the Aspire ClickHouse Hosting integration in your Aspire AppHost project. This integration allows you to create and manage ClickHouse instances from your Aspire hosting projects:
+
+<InstallPackage packageName="Aspire.Hosting.ClickHouse" shortName="clickhouse" />
+
+Next, in the AppHost project, create instances of ClickHouse server and database resources, then pass the database to the consuming client projects:
+
+<PivotSelector
+    title="Select your programming language to get started"
+    key="lang"
+    options={[
+        { id: "csharp", title: "C#" },
+        { id: "python", title: "Python" },
+        { id: "javascript", title: "JavaScript" },
+    ]}
+/>
+
+<Pivot id="csharp">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+                            .WaitFor(clickhousedb)
+                            .WithReference(clickhousedb);
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var exampleProject = builder.AddUvicornApp("api", "./api", "main:app")
+                            .WithExternalHttpEndpoints()
+                            .WaitFor(clickhousedb)
+                            .WithReference(clickhousedb);
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
+                 .WithExternalHttpEndpoints()
+                 .WaitFor(clickhousedb)
+                 .WithReference(clickhousedb);
+```
+
+</Pivot>
+
+<Aside type="tip">
+    This is the simplest implementation of ClickHouse resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [ClickHouse Hosting integration](/integrations/databases/clickhouse/clickhouse-host/).
+</Aside>
+
+## Use the integration in client projects
+
+Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+
+### Set up client projects
+
+<Pivot id="csharp">
+
+In each of these consuming client projects, install the Aspire ClickHouse client integration:
+
+<InstallDotNetPackage packageName="Aspire.ClickHouse.Driver" />
+
+In the `Program.cs` file of your client-consuming project, call the `AddClickHouseDataSource` extension method on any `IHostApplicationBuilder` to register an `IClickHouseClient` and a `ClickHouseDataSource` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddClickHouseDataSource(connectionName: "clickhousedb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the ClickHouse database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+</Aside>
+
+</Pivot>
+
+<Pivot id="python">
+
+To interact with ClickHouse in your Python consuming projects, you can use the `clickhouse-connect` library. You can install this library using pip:
+
+```bash
+pip install clickhouse-connect
+```
+
+Ensure that you import the ClickHouse client in code files that interact with ClickHouse. You should also import the `os` module to access environment variables:
+
+```python title="Python - Import clickhouse-connect"
+import clickhouse_connect
+import os
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+To interact with ClickHouse in your JavaScript consuming projects, you can use the official `@clickhouse/client` library. You can install this library using npm:
+
+```bash
+npm install @clickhouse/client
+```
+
+Ensure that you import the ClickHouse client in code files that interact with ClickHouse:
+
+```javascript title="JavaScript - Import @clickhouse/client"
+import { createClient } from '@clickhouse/client';
+```
+
+</Pivot>
+
+### Use injected ClickHouse properties
+
+In the AppHost, when you used the `WithReference` method to pass a ClickHouse database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `clickhousedb` becomes `CLICKHOUSEDB_HOST`.
+
+<Pivot id="csharp">
+
+Use the `GetValue()` method to obtain these environment variables in consuming projects:
+
+```csharp title="C# - Obtain configuration properties"
+string connectionString = builder.Configuration.GetConnectionString("clickhousedb");
+string host = builder.Configuration.GetValue<string>("CLICKHOUSEDB_HOST");
+string databaseName = builder.Configuration.GetValue<string>("CLICKHOUSEDB_DATABASENAME");
+```
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the `os.getenv()` method to obtain these environment variables in consuming projects:
+
+```python title="Python - Obtain configuration properties"
+connection_string = os.getenv("ConnectionStrings__clickhousedb")
+host = os.getenv("CLICKHOUSEDB_HOST")
+port = os.getenv("CLICKHOUSEDB_PORT")
+username = os.getenv("CLICKHOUSEDB_USERNAME")
+password = os.getenv("CLICKHOUSEDB_PASSWORD")
+database_name = os.getenv("CLICKHOUSEDB_DATABASENAME")
+```
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the `process.env` method to obtain these environment variables in consuming projects:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const connectionString = process.env.ConnectionStrings__clickhousedb;
+const host = process.env.CLICKHOUSEDB_HOST;
+const port = process.env.CLICKHOUSEDB_PORT;
+const username = process.env.CLICKHOUSEDB_USERNAME;
+const password = process.env.CLICKHOUSEDB_PASSWORD;
+const databaseName = process.env.CLICKHOUSEDB_DATABASENAME;
+```
+
+</Pivot>
+
+<Aside type="tip">
+    The full set of properties that Aspire injects depends on the ClickHouse resource configuration. For more information, see [Properties of the ClickHouse resources](/integrations/databases/clickhouse/clickhouse-client/#properties-of-the-clickhouse-resources).
+</Aside>
+
+### Use ClickHouse resources in client code
+
+<Pivot id="csharp">
+
+Now that you've registered ClickHouse in the consuming project, you can use the database. Get the `IClickHouseClient` instance using dependency injection. For example, to retrieve the client from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IClickHouseClient client)
+{
+    // Use ClickHouse client...
+}
+```
+
+If you need ADO.NET access (connections, commands, transactions), you can inject `ClickHouseDataSource` instead:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ClickHouseDataSource dataSource)
+{
+    // Use ClickHouse data source...
+}
+```
+
+Having obtained the client or data source, you can work with ClickHouse as you would in any other C# application.
+
+</Pivot>
+
+<Pivot id="python">
+
+Use the information you have obtained about the ClickHouse resource to connect to the database. Here is an example of how to connect using `clickhouse-connect`:
+
+```python title="Python - Connect to ClickHouse"
+# Create ClickHouse client using connection properties
+client = clickhouse_connect.get_client(
+    host=host,
+    port=int(port),
+    username=username,
+    password=password,
+    database=database_name
+)
+
+# Verify connection
+print(f"Connected to ClickHouse database: {database_name}")
+```
+
+Having obtained the client, you can work with ClickHouse as you would in any other Python application.
+
+</Pivot>
+
+<Pivot id="javascript">
+
+Use the information you have obtained about the ClickHouse resource to connect to the database. Here is an example of how to connect using the `@clickhouse/client` package:
+
+```javascript title="JavaScript - Connect to ClickHouse"
+// Create ClickHouse client using connection properties
+const client = createClient({
+  url: `http://${host}:${port}`,
+  username: username,
+  password: password,
+  database: databaseName,
+});
+
+// Verify connection
+const result = await client.ping();
+console.log('ClickHouse connection status:', result.success);
+```
+
+Having obtained the client, you can work with ClickHouse as you would in any other JavaScript application.
+
+</Pivot>
+
+## Next steps
+
+Now, that you have an Aspire app with ClickHouse integrations up and running, you can use the following reference documents to learn how to configure and interact with the ClickHouse resources:
+
+<CardGrid>
+  <LinkCard
+    title="Understand the ClickHouse hosting integration"
+    description="Discover how to configure data volumes, parameters, and more."
+    href="/integrations/databases/clickhouse/clickhouse-host/"
+  />
+  <LinkCard
+    title="Understand the ClickHouse client integration"
+    description="Discover how to configure keyed clients, client integration health checks, and more."
+    href="/integrations/databases/clickhouse/clickhouse-client/"
+  />
+</CardGrid>

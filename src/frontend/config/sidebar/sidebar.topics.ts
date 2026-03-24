@@ -4,7 +4,6 @@ import { referenceTopics } from './reference.topics.js';
 import { communityTopics } from './community.topics.js';
 import { dashboardTopics } from './dashboard.topics.js';
 import { deploymentTopics } from './deployment.topics.js';
-import { diagnosticTopics } from './diagnostic.topics.js';
 import { docsTopics } from './docs.topics.js';
 import { integrationTopics } from './integrations.topics.js';
 
@@ -15,5 +14,4 @@ export const sidebarTopics: StarlightSidebarTopicsUserConfig = [
   deploymentTopics,
   referenceTopics,
   communityTopics,
-  diagnosticTopics,
 ];
