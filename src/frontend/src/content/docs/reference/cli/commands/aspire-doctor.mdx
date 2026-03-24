@@ -1,8 +1,9 @@
 ---
 title: aspire doctor command
-description: Learn about the aspire doctor command and its usage. This command checks the Aspire development environment for common issues.
-draft: true
+description: Learn about the aspire doctor command and its usage. This command diagnoses Aspire environment issues and verifies setup.
 ---
+
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 
 import Include from '@components/Include.astro';
 import { Aside } from '@astrojs/starlight/components';
@@ -17,9 +18,18 @@ import { Aside } from '@astrojs/starlight/components';
 aspire doctor [options]
 ```
 
+<AsciinemaPlayer src="/casts/aspire-doctor.cast" poster="npt:0:01" rows={20} loop={false} speed={.5} />
+
 ## Description
 
 The `aspire doctor` command runs a series of diagnostic checks to verify that your development environment is properly configured for Aspire development. It checks prerequisites such as the .NET SDK, container runtime, and environment settings.
+
+<Aside type="note">
+  The `aspire doctor` command replaces the hidden `aspire setup` command. If you
+  previously used `aspire setup` or `aspire setup --force`, use `aspire doctor`
+  instead. The `aspire setup` command is still available for backward
+  compatibility but is hidden from help output.
+</Aside>
 
 This command is useful for troubleshooting when you encounter issues with Aspire or when setting up a new development environment. The checks are grouped by category:
 
@@ -39,13 +49,19 @@ If any checks fail, the command provides suggestions for how to fix the issues a
 
 The following options are available:
 
-- **`--json`**
+- **`--format <Table|Json>`**
 
-  Outputs the check results in JSON format. This is useful for automation scenarios or when you need to parse the results programmatically.
+  Output format (Table or Json). Use `Json` for automation scenarios or when you need to parse the results programmatically. Defaults to `Table`.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
-- <Include relativePath="reference/cli/includes/option-debug.md" />
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
@@ -60,7 +76,7 @@ The following options are available:
 - Run diagnostic checks with JSON output:
 
   ```bash title="Aspire CLI"
-  aspire doctor --json
+  aspire doctor --format Json
   ```
 
 ## Sample output
@@ -89,14 +105,14 @@ Summary: 5 passed, 0 warnings, 0 failed
 
 The command returns the following exit codes:
 
-| Exit code | Description                                       |
-| --------- | ------------------------------------------------- |
-| `0`       | All checks passed (warnings are allowed)          |
-| `1`       | One or more checks failed                         |
+| Exit code | Description                              |
+| --------- | ---------------------------------------- |
+| `0`       | All checks passed (warnings are allowed) |
+| `1`       | One or more checks failed                |
 
 ## JSON output format
 
-When using the `--json` option, the output includes a structured response with all check results and a summary:
+When using the `--format Json` option, the output includes a structured response with all check results and a summary:
 
 ```json
 {

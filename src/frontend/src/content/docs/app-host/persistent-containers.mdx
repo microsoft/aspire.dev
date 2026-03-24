@@ -3,7 +3,7 @@ title: Persistent container lifetimes
 description: Learn how to configure containers to persist and be re-used between Aspire AppHost runs.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
 import persistentContainerDocker from '@assets/whats-new/aspire-9/persistent-container-docker-desktop.png';
@@ -20,6 +20,8 @@ This feature is particularly beneficial for containers that have long startup ti
 
 To configure a container resource with a persistent lifetime, use the `WithLifetime` method and pass `ContainerLifetime.Persistent`:
 
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -34,6 +36,26 @@ builder.AddProject<Projects.InventoryService>("inventory")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem label="TypeScript">
+```typescript title="apphost.ts"
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres")
+    .withLifetime(ContainerLifetime.Persistent)
+    .withDataVolume();
+
+const db = postgres.addDatabase("inventorydb");
+
+await builder.addProject("inventory", "./InventoryService/InventoryService.csproj", "https")
+    .withReference(db);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 In the preceding example, the PostgreSQL container is configured to persist between AppHost runs, and `WithDataVolume()` ensures database data is stored in a named volume that survives container recreation. The `inventory` project references the database as normal.
 
@@ -74,6 +96,8 @@ For example, if you have a service named `"postgres"` in an AppHost project loca
 
 For advanced scenarios, you can set a custom container name using the `WithContainerName` method:
 
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -83,6 +107,21 @@ var postgres = builder.AddPostgres("postgres")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem label="TypeScript">
+```typescript title="apphost.ts"
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres")
+    .withLifetime(ContainerLifetime.Persistent)
+    .withContainerName("my-shared-postgres");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 When you specify a custom container name, Aspire first checks if a container with that name already exists. If a container with that name exists and was previously created by Aspire, it follows the normal persistent container behavior and can be automatically recreated if the configuration changes. If a container with that name exists but wasn't created by Aspire, it won't be managed or recreated by the AppHost. If no container with the custom name exists, Aspire creates a new one.
 
@@ -128,11 +167,22 @@ Persistent containers are ideal for:
 
 For **databases and other stateful services**, use both APIs together so you get fast startup (the container stays running) _and_ data safety (a volume protects data even if the container is recreated):
 
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume();
 ```
+</TabItem>
+<TabItem label="TypeScript">
+```typescript title="apphost.ts"
+const postgres = await builder.addPostgres("postgres")
+    .withLifetime(ContainerLifetime.Persistent)
+    .withDataVolume();
+```
+</TabItem>
+</Tabs>
 
 For **caches or other ephemeral state**, `WithLifetime(ContainerLifetime.Persistent)` alone may be sufficient because losing data on container recreation is acceptable.
 

@@ -15,6 +15,7 @@ Aspire's AppHost is the code-first place where you declare your application's se
 <PivotSelector
     title="Select your API platform"
     key="lang"
+    marginTop="1"
     options={[
         { id: "csharp", title: "C#" },
         { id: "python", title: "Python" },
@@ -23,6 +24,10 @@ Aspire's AppHost is the code-first place where you declare your application's se
         { id: "java", title: "Java" },
     ]}
 />
+
+<LearnMore>
+Prefer writing your AppHost in TypeScript? Start with [Build your first Aspire app](/get-started/first-app-typescript-apphost/).
+</LearnMore>
 
 ## Defining your architecture
 
@@ -43,7 +48,7 @@ architecture-beta
 
 This architecture demonstrates a **.NET API** connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The .NET API uses ASP.NET Core and connects to PostgreSQL using Entity Framework or a connection string. The React front end is built with Vite and communicates with the API over HTTP.
 
-To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=csharp) quickstart.
+To build this architecture step-by-step, see the [Build your first app](/get-started/first-app-csharp-apphost/?lang=csharp) quickstart.
 
 </Pivot>
 <Pivot id="python">
@@ -61,7 +66,7 @@ architecture-beta
 
 This architecture demonstrates a **Python API** (using FastAPI/Uvicorn) connecting to a **PostgreSQL database**, with a **React front end** consuming the API. The Python API uses frameworks like FastAPI or Flask and connects to PostgreSQL using libraries like psycopg2 or SQLAlchemy. The React front end is built with Vite and communicates with the API over HTTP.
 
-To build this architecture step-by-step, see the [Build your first app](/get-started/first-app/?lang=python) quickstart.
+To build this architecture step-by-step, see the [Build your first app](/get-started/first-app-csharp-apphost/?lang=python) quickstart.
 
 <Aside type="tip">
 The Python integration is provided by the [CommunityToolkit.Aspire.Hosting.Python.Extensions](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Python.Extensions) NuGet package. Learn more in the [Python integration](/integrations/frameworks/python/) documentation.
@@ -132,50 +137,49 @@ The Java integration is provided by the [CommunityToolkit.Aspire.Hosting.Java](h
 You can represent that architecture in an AppHost like this:
 
 <Pivot id="csharp">
-<SimpleAppHostCode lang="csharp" />
+<SimpleAppHostCode lang="csharp">
+  <div slot="csharp-content">
+    <p>Uses <code>AddProject&lt;Projects.Api&gt;()</code> to reference a .NET project.</p>
+  </div>
+  <div slot="typescript-content">
+    <p>Uses <code>addProject()</code> to reference the API project.</p>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="python">
-<SimpleAppHostCode lang="python" />
+<SimpleAppHostCode lang="python">
+  <div slot="csharp-content">
+    <p>Uses <code>AddUvicornApp()</code> with <code>WithUv()</code> for ASGI apps like FastAPI.</p>
+  </div>
+  <div slot="typescript-content">
+    <p>Uses <code>addUvicornApp()</code> with <code>withUv()</code> for ASGI apps like FastAPI.</p>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="nodejs">
-<SimpleAppHostCode lang="nodejs" />
+<SimpleAppHostCode lang="nodejs">
+  <div slot="csharp-content">
+    <p>Uses <code>AddNodeApp()</code> with <code>WithNpm()</code> for Node.js applications.</p>
+  </div>
+  <div slot="typescript-content">
+    <p>Uses <code>addNodeApp()</code> with <code>withNpm()</code> for Node.js applications.</p>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="go">
-<SimpleAppHostCode lang="go" />
+<SimpleAppHostCode lang="go">
+  <p>Uses <code>AddGolangApp()</code> for Go applications.</p>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" />
+<SimpleAppHostCode lang="java">
+  <p>Uses <code>AddSpringApp()</code> for Spring Boot applications.</p>
+</SimpleAppHostCode>
 </Pivot>
 
-The AppHost models your distributed application declaratively. Each tab above shows the same three-tier architecture—**PostgreSQL database**, **API service**, and **React front end**—but with different API implementations. Switching tabs changes only the API resource type:
+The AppHost models your distributed application declaratively. Each code sample above shows the same three-tier architecture—**PostgreSQL database**, **API service**, and **React front end**—but with different API implementations and, when available, different AppHost languages.
 
-<Pivot id="csharp">
-
-Uses `AddProject<Projects.Api>()` to reference a .NET project.
-
-</Pivot>
-<Pivot id="python">
-
-Uses `AddUvicornApp()` with `WithUv()` for ASGI apps like FastAPI.
-
-</Pivot>
-<Pivot id="nodejs">
-
-Uses `AddNodeApp()` with `WithNpm()` for Node.js applications.
-
-</Pivot>
-<Pivot id="go">
-
-Uses `AddGolangApp()` for Go applications.
-
-</Pivot>
-<Pivot id="java">
-
-Uses `AddSpringApp()` for Spring Boot applications.
-
-</Pivot>
-
-In all cases, the PostgreSQL database and React front end remain identical. Aspire's `WithReference()` method establishes dependencies between resources, and `WaitFor()` ensures services start in the correct order.
+In all cases, the PostgreSQL database and React front end remain identical. Aspire resource references establish dependencies between resources, and the app model ensures services start in the correct order.
 
 Aspire presents the same, consistent model regardless of the language or framework used: services, resources, and the connections between them.
 
@@ -184,30 +188,85 @@ Aspire presents the same, consistent model regardless of the language or framewo
 Below we highlight the key parts of a typical AppHost to explain what each step does.
 
 <Pivot id="csharp">
-<SimpleAppHostCode lang="csharp" collapse={['3-16']} />
+<SimpleAppHostCode lang="csharp" collapse={['3-16']}>
+  <div slot="csharp-content">
+    <p><strong>In the non-collapsed lines you:</strong></p>
+    <ul>
+      <li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+      <li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+      <li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>In the non-collapsed lines you:</strong></p>
+    <ul>
+      <li>Create the distributed application builder with <code>await createBuilder()</code>.</li>
+      <li>Call <code>build()</code> to materialize the configuration into a runnable AppHost.</li>
+      <li>Call <code>run()</code> to start orchestration; services launch in dependency order.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="python">
-<SimpleAppHostCode lang="python" collapse={['3-17']} />
+<SimpleAppHostCode lang="python" collapse={['3-17']}>
+  <div slot="csharp-content">
+    <p><strong>In the non-collapsed lines you:</strong></p>
+    <ul>
+      <li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+      <li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+      <li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>In the non-collapsed lines you:</strong></p>
+    <ul>
+      <li>Create the distributed application builder with <code>await createBuilder()</code>.</li>
+      <li>Call <code>build()</code> to materialize the configuration into a runnable AppHost.</li>
+      <li>Call <code>run()</code> to start orchestration; services launch in dependency order.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="nodejs">
-<SimpleAppHostCode lang="nodejs" collapse={['3-17']} />
+<SimpleAppHostCode lang="nodejs" collapse={['3-17']}>
+  <div slot="csharp-content">
+    <p><strong>In the non-collapsed lines you:</strong></p>
+    <ul>
+      <li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+      <li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+      <li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>In the non-collapsed lines you:</strong></p>
+    <ul>
+      <li>Create the distributed application builder with <code>await createBuilder()</code>.</li>
+      <li>Call <code>build()</code> to materialize the configuration into a runnable AppHost.</li>
+      <li>Call <code>run()</code> to start orchestration; services launch in dependency order.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="go">
-<SimpleAppHostCode lang="go" collapse={['3-17']} />
+<SimpleAppHostCode lang="go" collapse={['3-17']}>
+  <p><strong>In the non-collapsed lines you:</strong></p>
+  <ul>
+    <li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+    <li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+    <li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+  </ul>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" collapse={['3-17']} />
+<SimpleAppHostCode lang="java" collapse={['3-17']}>
+  <p><strong>In the non-collapsed lines you:</strong></p>
+  <ul>
+    <li>Create the distributed application builder with <code>DistributedApplication.CreateBuilder(args)</code>.</li>
+    <li>Call <code>Build()</code> to materialize the configuration into a runnable AppHost.</li>
+    <li>Call <code>Run()</code> to start orchestration; services launch in dependency order.</li>
+  </ul>
+</SimpleAppHostCode>
 </Pivot>
-
-In the non-collapsed lines you:
-
-<Steps>
-
-1. Create the distributed application builder with `DistributedApplication.CreateBuilder(args)`.
-1. Call `Build()` to materialize the configuration into a runnable AppHost.
-1. Call `Run()` to start orchestration; services launch in dependency order.
-
-</Steps>
 
 The AppHost is the blueprint for your distributed application—Aspire manages the rest.
 
@@ -216,27 +275,89 @@ The AppHost is the blueprint for your distributed application—Aspire manages t
 With the builder ready, define resources and services. The snippet below shows how to add a PostgreSQL server and a database:
 
 <Pivot id="csharp">
-<SimpleAppHostCode lang="csharp" mark={{ range: '4-6' }} collapse={['8-17']} />
+<SimpleAppHostCode lang="csharp" mark={{ range: '4-6' }} collapse={['8-17']}>
+  <div slot="csharp-content">
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+      <li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+      <li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>await builder.addPostgres("db")</code> registers a PostgreSQL server resource named <code>db</code>.</li>
+      <li><code>.addDatabase("appdata")</code> adds the <code>appdata</code> database to that server.</li>
+      <li><code>.withDataVolume()</code> enables persistent storage for the database container.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="python">
-<SimpleAppHostCode lang="python" mark={{ range: '4-6' }} collapse={['8-18']} />
+<SimpleAppHostCode lang="python" mark={{ range: '4-6' }} collapse={['8-18']}>
+  <div slot="csharp-content">
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+      <li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+      <li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>await builder.addPostgres("db")</code> registers a PostgreSQL server resource named <code>db</code>.</li>
+      <li><code>.addDatabase("appdata")</code> adds the <code>appdata</code> database to that server.</li>
+      <li><code>.withDataVolume()</code> enables persistent storage for the database container.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="nodejs">
-<SimpleAppHostCode lang="nodejs" mark={{ range: '4-6' }} collapse={['8-18']} />
+<SimpleAppHostCode lang="nodejs" mark={{ range: '4-6' }} collapse={['8-18']}>
+  <div slot="csharp-content">
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+      <li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+      <li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>await builder.addPostgres("db")</code> registers a PostgreSQL server resource named <code>db</code>.</li>
+      <li><code>.addDatabase("appdata")</code> adds the <code>appdata</code> database to that server.</li>
+      <li><code>.withDataVolume()</code> enables persistent storage for the database container.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="go">
-<SimpleAppHostCode lang="go" mark={{ range: '4-6' }} collapse={['8-18']} />
+<SimpleAppHostCode lang="go" mark={{ range: '4-6' }} collapse={['8-18']}>
+  <div>
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+      <li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+      <li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" mark={{ range: '4-6' }} collapse={['8-18']} />
+<SimpleAppHostCode lang="java" mark={{ range: '4-6' }} collapse={['8-18']}>
+  <div>
+    <p><strong>How this works:</strong></p>
+    <ul>
+      <li><code>AddPostgres("db")</code> registers a PostgreSQL container named <code>db</code>.</li>
+      <li><code>.AddDatabase("appdata")</code> creates a database named <code>appdata</code> on that server.</li>
+      <li><code>.WithDataVolume()</code> provisions a volume so data persists across container restarts.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
-
-How this works:
-
-- `AddPostgres("db")` registers a PostgreSQL container named `db`.
-  - This returns an `IResourceBuilder<PostgresServerResource>` so you can chain configuration fluent-style.
-- `.AddDatabase("appdata")` creates a database named `appdata` on that server.
-- `.WithDataVolume()` provisions a volume so data persists across container restarts.
 
 <Aside type="tip">
   To also keep the container running between AppHost restarts (avoiding slow startup), add `.WithLifetime(ContainerLifetime.Persistent)`. See [Persistent container lifetimes](/app-host/persistent-containers/) for details.
@@ -251,61 +372,94 @@ How this works:
 Next, register the API service and wire it to the PostgreSQL resource:
 
 <Pivot id="csharp">
-<SimpleAppHostCode lang="csharp" mark={{ range: '9-11' }} collapse={['1-6', '13-17']} />
+<SimpleAppHostCode lang="csharp" mark={{ range: '9-11' }} collapse={['1-6', '13-17']}>
+  <div slot="csharp-content">
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>AddProject&lt;Projects.Api&gt;("api")</code> registers the API project as a service named <code>api</code>.</li>
+      <li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+      <li><code>WaitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>addProject("api", "../api/Api.csproj", "https")</code> registers the API project as a service named <code>api</code>.</li>
+      <li><code>withReference(postgres)</code> wires the database dependency into the API resource.</li>
+      <li><code>waitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="python">
-<SimpleAppHostCode lang="python" mark={{ range: '9-12' }} collapse={['1-6', '14-18']} />
+<SimpleAppHostCode lang="python" mark={{ range: '9-12' }} collapse={['1-6', '14-18']}>
+  <div slot="csharp-content">
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>AddUvicornApp("api", "../api", "main:app")</code> registers a Uvicorn-based Python app named <code>api</code>.</li>
+      <li><code>WithUv()</code> configures the app to use the <a href="https://docs.astral.sh/uv/">uv</a> package manager.</li>
+      <li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+      <li><code>WaitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>addUvicornApp("api", "../api", "main:app")</code> registers a Uvicorn-based Python app named <code>api</code>.</li>
+      <li><code>withUv()</code> enables <a href="https://docs.astral.sh/uv/">uv</a>-based dependency management.</li>
+      <li><code>withReference(postgres)</code> injects the database connection details.</li>
+      <li><code>waitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="nodejs">
-<SimpleAppHostCode lang="nodejs" mark={{ range: '9-12' }} collapse={['1-6', '14-18']} />
+<SimpleAppHostCode lang="nodejs" mark={{ range: '9-12' }} collapse={['1-6', '14-18']}>
+  <div slot="csharp-content">
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>AddNodeApp("api", "../api", "server.js")</code> registers a Node.js app named <code>api</code>.</li>
+      <li><code>WithNpm()</code> configures the app to use npm for dependency installation.</li>
+      <li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+      <li><code>WaitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>addNodeApp("api", "../api", "server.js")</code> registers a Node.js app named <code>api</code>.</li>
+      <li><code>withNpm()</code> configures npm-based dependency installation.</li>
+      <li><code>withReference(postgres)</code> injects the database connection details.</li>
+      <li><code>waitFor(postgres)</code> delays startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="go">
-<SimpleAppHostCode lang="go" mark={{ range: '9-12' }} collapse={['1-6', '14-18']} />
+<SimpleAppHostCode lang="go" mark={{ range: '9-12' }} collapse={['1-6', '14-18']}>
+  <div>
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>AddGolangApp("api", "../api")</code> registers a Go app as a service named <code>api</code>.</li>
+      <li><code>WithHttpEndpoint(env: "PORT")</code> configures the port and sets the <code>PORT</code> environment variable.</li>
+      <li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+      <li><code>WaitFor(postgres)</code> delays the API startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" mark={{ range: '9-12' }} collapse={['1-6', '14-18']} />
-</Pivot>
-
-What this does:
-
-<Pivot id="csharp">
-
-- `AddProject<Projects.Api>("api")` registers the API project as a service named `api`.
-- `WithReference(postgres)` injects connection details (host, port, credentials, connection string) into the API configuration.
-- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy, avoiding brittle startup timing issues.
-
-</Pivot>
-<Pivot id="python">
-
-- `AddUvicornApp("api", "../api", "main:app")` registers a Uvicorn-based Python app as a service named `api`, pointing to the `main:app` entry point.
-- `WithUv()` configures the app to use the [uv](https://docs.astral.sh/uv/) package manager for dependency installation.
-- `WithReference(postgres)` injects connection details into the API configuration.
-- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
-
-</Pivot>
-<Pivot id="nodejs">
-
-- `AddNodeApp("api", "../api", "server.js")` registers a Node.js app as a service named `api`, with `server.js` as the entry point.
-- `WithNpm()` configures the app to use npm for dependency installation.
-- `WithReference(postgres)` injects connection details into the API configuration.
-- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
-
-</Pivot>
-<Pivot id="go">
-
-- `AddGolangApp("api", "../api")` registers a Go app as a service named `api`.
-- `WithHttpEndpoint(env: "PORT")` configures the port and sets the PORT environment variable.
-- `WithReference(postgres)` injects connection details into the API configuration.
-- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
-
-</Pivot>
-<Pivot id="java">
-
-- `AddSpringApp("api", "../api", "../agents/opentelemetry-javaagent.jar")` registers a Spring Boot app as a service named `api`, specifying the OpenTelemetry agent path.
-- `WithHttpEndpoint(port: 8080)` exposes the Spring Boot app on port 8080.
-- `WithReference(postgres)` injects connection details into the API configuration.
-- `WaitFor(postgres)` delays the API startup until PostgreSQL is healthy.
-
+<SimpleAppHostCode lang="java" mark={{ range: '9-12' }} collapse={['1-6', '14-18']}>
+  <div>
+    <p><strong>What this does:</strong></p>
+    <ul>
+      <li><code>AddSpringApp("api", "../api", "otel.jar")</code> registers a Spring Boot app named <code>api</code>.</li>
+      <li><code>WithHttpEndpoint(port: 8080)</code> exposes the Spring Boot app on port <code>8080</code>.</li>
+      <li><code>WithReference(postgres)</code> injects connection details into the API configuration.</li>
+      <li><code>WaitFor(postgres)</code> delays the API startup until PostgreSQL is healthy.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 
 Now that the `api` service is defined, you can attach the front end.
@@ -319,26 +473,89 @@ This example uses a Node.js (React) front end, but Aspire treats front ends as e
 </Aside>
 
 <Pivot id="csharp">
-<SimpleAppHostCode lang="csharp" mark={{ range: '14-16' }} collapse={['1-11']} />
+<SimpleAppHostCode lang="csharp" mark={{ range: '14-16' }} collapse={['1-11']}>
+  <div slot="csharp-content">
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>AddViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>WithReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>addViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>withHttpEndpoint({'{'} env: "PORT" {'}'})</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>withReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="python">
-<SimpleAppHostCode lang="python" mark={{ range: '15-17' }} collapse={['1-12']} />
+<SimpleAppHostCode lang="python" mark={{ range: '15-17' }} collapse={['1-12']}>
+  <div slot="csharp-content">
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>AddViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>WithReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>addViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>withHttpEndpoint({'{'} env: "PORT" {'}'})</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>withReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="nodejs">
-<SimpleAppHostCode lang="nodejs" mark={{ range: '15-17' }} collapse={['1-12']} />
+<SimpleAppHostCode lang="nodejs" mark={{ range: '15-17' }} collapse={['1-12']}>
+  <div slot="csharp-content">
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>AddViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>WithReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+  <div slot="typescript-content">
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>addViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>withHttpEndpoint({'{'} env: "PORT" {'}'})</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>withReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="go">
-<SimpleAppHostCode lang="go" mark={{ range: '15-17' }} collapse={['1-12']} />
+<SimpleAppHostCode lang="go" mark={{ range: '15-17' }} collapse={['1-12']}>
+  <div>
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>AddViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>WithReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
 <Pivot id="java">
-<SimpleAppHostCode lang="java" mark={{ range: '15-17' }} collapse={['1-12']} />
+<SimpleAppHostCode lang="java" mark={{ range: '15-17' }} collapse={['1-12']}>
+  <div>
+    <p><strong>Key points:</strong></p>
+    <ul>
+      <li><code>AddViteApp("frontend", "../frontend")</code> registers the front end as a service named <code>frontend</code>.</li>
+      <li><code>WithHttpEndpoint(env: "PORT")</code> exposes the app and lets the <code>PORT</code> environment variable control the listener.</li>
+      <li><code>WithReference(api)</code> injects the API base address into the front end configuration.</li>
+    </ul>
+  </div>
+</SimpleAppHostCode>
 </Pivot>
-
-Key points:
-
-- `.AddViteApp("front end", "../frontend")` registers the (Vite-based) front end project as a service named `front end`.
-- `.WithHttpEndpoint(env: "PORT", targetPort: 3000)` exposes the app on port `3000`; the `PORT` environment variable can override it.
-- `.WithReference(api)` injects the API base address into the front end configuration.
 
 In short: define the backend first (DB → API), then point the UI at the API. The AppHost captures the dependency graph, connection flows, and startup order.
 
@@ -500,6 +717,16 @@ The template AppHost is structured in the following ways:
         - appsettings.json
         - AspireApp.AppHost.csproj
         - AppHost.cs  dev-time orchestrator
+    </FileTree>
+  </TabItem>
+  <TabItem label="TypeScript AppHost" icon="seti:typescript">
+    <FileTree>
+    - **my-apphost/**
+        - .modules/  Generated SDK
+        - apphost.ts  dev-time orchestrator
+        - aspire.config.json
+        - package.json
+        - tsconfig.json
     </FileTree>
   </TabItem>
 </Tabs>
