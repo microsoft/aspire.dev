@@ -1,0 +1,278 @@
+---
+title: ClickHouse hosting integration
+description: Learn how to use the ClickHouse hosting integration to create and manage ClickHouse instances.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import clickhouseIcon from '@assets/icons/clickhouse-icon.png';
+
+<Image
+  src={clickhouseIcon}
+  alt="ClickHouse logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+The ClickHouse hosting integration models a ClickHouse server and database as the `ClickHouseServerResource` and `ClickHouseDatabaseResource` types. To access these types and APIs, add the [📦 Aspire.Hosting.ClickHouse](https://www.nuget.org/packages/Aspire.Hosting.ClickHouse) NuGet package in your AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.ClickHouse" />
+
+For an introduction to the ClickHouse integration, see [Get started with the ClickHouse integrations](/integrations/databases/clickhouse/clickhouse-get-started/).
+
+## Installation
+
+The Aspire ClickHouse hosting integration models the ClickHouse database server as the following types:
+
+- `ClickHouseServerResource`
+- `ClickHouseDatabaseResource`
+
+To access these types and APIs for expressing them as resources in your AppHost project, install the [📦 Aspire.Hosting.ClickHouse](https://www.nuget.org/packages/Aspire.Hosting.ClickHouse) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.ClickHouse" />
+
+## Add ClickHouse server and database resources
+
+In the AppHost project, call `AddClickHouse` to add and return a ClickHouse server resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add a ClickHouse database to the server resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(clickhousedb)
+       .WaitFor(clickhousedb);
+
+// After adding all resources, run the app...
+```
+
+When Aspire adds a container image to the AppHost, as shown in the preceding example with the `clickhouse/clickhouse-server` image, it creates a new ClickHouse server on your local machine. A reference to your ClickHouse resource builder (the `clickhouse` variable) is used to add a database. The database is named `clickhousedb` and then added to the `ExampleProject`. The database is automatically created using `CREATE DATABASE IF NOT EXISTS` when the server resource becomes ready.
+
+The ClickHouse server resource includes default credentials:
+
+- `CLICKHOUSE_USER`: A value of `default`
+- `CLICKHOUSE_PASSWORD`: Random password generated using the default password parameter
+
+The password is stored in the AppHost's secret store in the `Parameters` section:
+
+```json
+{
+  "Parameters:clickhouse-password": "<THE_GENERATED_PASSWORD>"
+}
+```
+
+The `WithReference` method configures a connection in the `ExampleProject` named `"clickhousedb"`.
+
+<Aside type="tip">
+If you'd rather connect to an existing ClickHouse server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+</Aside>
+
+## Add ClickHouse resource with data volume
+
+To add a data volume to the ClickHouse resource, call the `WithDataVolume` method on the ClickHouse resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse")
+                        .WithDataVolume();
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(clickhousedb)
+       .WaitFor(clickhousedb);
+```
+
+The data volume is used to persist the ClickHouse data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/clickhouse` path in the ClickHouse container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-clickhouse-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+
+<Aside type="danger">
+Some database integrations, including the ClickHouse integration, can't successfully use data volumes after deployment to Azure Container Apps (ACA). This is because ACA uses Server Message Block (SMB) to connect containers to data volumes, and some systems can't use this connection. In the Aspire Dashboard, a database affected by this issue has a status of **Activating** or **Activation Failed** but is never listed as **Running**.
+
+You can resolve the problem by deploying to a Kubernetes cluster, such as Azure Kubernetes Services (AKS). For more information, see [Deploy your first Aspire app](/get-started/deploy-first-app/).
+</Aside>
+
+## Add ClickHouse resource with data bind mount
+
+To add a data bind mount to the ClickHouse resource, call the `WithDataBindMount` method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse")
+                        .WithDataBindMount(
+                            source: @"C:\ClickHouse\Data",
+                            isReadOnly: false);
+
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(clickhousedb)
+       .WaitFor(clickhousedb);
+```
+
+<Aside>
+Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+
+Data bind mounts rely on the host machine's filesystem to persist the ClickHouse data across container restarts. The data bind mount is mounted at the `C:\ClickHouse\Data` on Windows (or `/ClickHouse/Data` on Unix) path on the host machine in the ClickHouse container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+</Aside>
+
+## Add ClickHouse resource with parameters
+
+When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var username = builder.AddParameter("username");
+var password = builder.AddParameter("password", secret: true);
+
+var clickhouse = builder.AddClickHouse("clickhouse", userName: username, password: password);
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WithReference(clickhousedb)
+       .WaitFor(clickhousedb);
+```
+
+The username and password parameters are usually specified as user secrets:
+
+```json title="JSON — secrets.json"
+{
+  "Parameters": {
+    "username": "default",
+    "password": "your-secure-password"
+  }
+}
+```
+
+For more information, see [External parameters](/get-started/resources/).
+
+You can also specify a custom host port:
+
+```csharp title="C# — AppHost.cs"
+var clickhouse = builder.AddClickHouse("clickhouse", port: 18123);
+```
+
+## Connection properties
+
+When you use the `WithReference` method to pass a ClickHouse server or database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+
+### ClickHouse server
+
+The ClickHouse server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the ClickHouse server |
+| `Port` | The port number the ClickHouse server is listening on (default: 8123) |
+| `Username` | The username for authentication (default: `default`) |
+| `Password` | The password for authentication |
+
+**Example connection string:**
+
+```
+Host=localhost;Port=8123;Username=default;Password=p%40ssw0rd1
+```
+
+### ClickHouse database
+
+The ClickHouse database resource inherits all properties from its parent `ClickHouseServerResource` and adds:
+
+| Property Name | Description |
+|---------------|-------------|
+| `DatabaseName` | The ClickHouse database name |
+
+**Example connection string:**
+
+```
+Host=localhost;Port=8123;Username=default;Password=p@ssw0rd1;Database=clickhousedb
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `clickhousedb` becomes `CLICKHOUSEDB_HOST`.
+</Aside>
+
+## Hosting integration health checks
+
+The ClickHouse hosting integration automatically adds a health check for the ClickHouse resource. The health check sends an HTTP GET request to the `/ping` endpoint on the ClickHouse server and verifies that the instance is running and responsive.
+
+## Using with non-.NET applications
+
+When you use the `WithReference` method to pass a ClickHouse database resource to a non-.NET application (such as Python or JavaScript), Aspire automatically injects environment variables that describe the connection information.
+
+For example, if you reference a ClickHouse database resource named `clickhousedb`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var clickhouse = builder.AddClickHouse("clickhouse");
+var clickhousedb = clickhouse.AddDatabase("clickhousedb");
+
+var pythonApp = builder.AddPythonApp("python-app", "./python_app", "main.py")
+                       .WithReference(clickhousedb);
+```
+
+The following environment variables are available in the consuming application:
+
+- `CLICKHOUSEDB_HOST` - The hostname of the ClickHouse server
+- `CLICKHOUSEDB_PORT` - The port number
+- `CLICKHOUSEDB_USERNAME` - The username for authentication
+- `CLICKHOUSEDB_PASSWORD` - The password for authentication
+- `CLICKHOUSEDB_DATABASENAME` - The database name
+
+You can access these environment variables in your application code:
+
+```python title="Python example"
+import clickhouse_connect
+import os
+
+# Get connection properties
+host = os.getenv("CLICKHOUSEDB_HOST")
+port = int(os.getenv("CLICKHOUSEDB_PORT", "8123"))
+username = os.getenv("CLICKHOUSEDB_USERNAME", "default")
+password = os.getenv("CLICKHOUSEDB_PASSWORD", "")
+database = os.getenv("CLICKHOUSEDB_DATABASENAME")
+
+# Create ClickHouse client
+client = clickhouse_connect.get_client(
+    host=host,
+    port=port,
+    username=username,
+    password=password,
+    database=database
+)
+
+# Use the client
+result = client.command("SELECT 1")
+print(f"ClickHouse connection status: {result}")
+```
+
+```javascript title="JavaScript example"
+import { createClient } from '@clickhouse/client';
+
+// Get connection properties
+const host = process.env.CLICKHOUSEDB_HOST;
+const port = process.env.CLICKHOUSEDB_PORT;
+const username = process.env.CLICKHOUSEDB_USERNAME;
+const password = process.env.CLICKHOUSEDB_PASSWORD;
+const database = process.env.CLICKHOUSEDB_DATABASENAME;
+
+// Create ClickHouse client
+const client = createClient({
+  url: `http://${host}:${port}`,
+  username: username,
+  password: password,
+  database: database,
+});
+
+// Use the client
+const result = await client.ping();
+console.log('ClickHouse connection status:', result.success);
+```

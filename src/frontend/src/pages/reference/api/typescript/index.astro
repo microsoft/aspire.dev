@@ -1,0 +1,597 @@
+---
+/**
+ * /reference/api/typescript/ — TypeScript API Reference landing page with search.
+ *
+ * Lists all TypeScript API modules with a client-side search bar that lets
+ * users filter across functions, handle types, types, and enums.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
+import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
+
+const tsSidebar = await getTsApiReferenceSidebar();
+const packages = await getTsModules();
+const sorted = packages
+  .map(p => p.data)
+  .sort((a, b) => a.package.name.localeCompare(b.package.name));
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+/* ── Collect unique versions for the filter ─────────────────────── */
+const allTsVersions = [...new Set(sorted.map(p => p.package.version).filter(Boolean))] as string[];
+
+/* ── Build the search index ─────────────────────────────────────── */
+
+interface IndexEntry {
+  /** Short name */
+  n: string;
+  /** Fully-qualified name or signature */
+  f: string;
+  /** Kind (method, handle, dto, enum, property, etc.) */
+  k: string;
+  /** Package name */
+  p: string;
+  /** Description text */
+  s: string;
+  /** Parent type name (for capabilities on handle types) */
+  t?: string;
+}
+
+const index: IndexEntry[] = [];
+let functionCount = 0;
+let typeCount = 0;
+
+for (const pkg of sorted) {
+  const pkgName = pkg.package.name;
+  const pkgVersion = pkg.package.version;
+
+  // Index functions
+  for (const func of pkg.functions ?? []) {
+    functionCount++;
+    index.push({
+      n: func.name,
+      f: func.signature ?? func.qualifiedName,
+      k: func.kind === 'PropertyGetter' ? 'property' :
+         func.kind === 'PropertySetter' ? 'property' :
+         func.kind === 'InstanceMethod' ? 'method' : 'method',
+      p: pkgName,
+      s: func.description ?? '',
+      ...(pkgVersion ? { v: pkgVersion } : {}),
+    });
+  }
+
+  // Index handle types
+  for (const handle of pkg.handleTypes ?? []) {
+    typeCount++;
+    index.push({
+      n: handle.name,
+      f: handle.fullName,
+      k: handle.isInterface ? 'interface' : 'handle',
+      p: pkgName,
+      s: `Handle type${handle.isInterface ? ' (interface)' : ''}`,
+      ...(pkgVersion ? { v: pkgVersion } : {}),
+    });
+  }
+
+  // Index DTO types
+  for (const dto of pkg.dtoTypes ?? []) {
+    typeCount++;
+    index.push({
+      n: dto.name,
+      f: dto.fullName,
+      k: 'type',
+      p: pkgName,
+      s: `Type with ${dto.fields?.length ?? 0} fields`,
+      ...(pkgVersion ? { v: pkgVersion } : {}),
+    });
+  }
+
+  // Index enum types
+  for (const enumType of pkg.enumTypes ?? []) {
+    typeCount++;
+    index.push({
+      n: enumType.name,
+      f: enumType.fullName,
+      k: 'enum',
+      p: pkgName,
+      s: `Enum: ${(enumType.members ?? []).join(', ')}`,
+      ...(pkgVersion ? { v: pkgVersion } : {}),
+    });
+  }
+}
+
+const allKinds = [...new Set(index.map(e => e.k))].sort();
+const indexJson = JSON.stringify(index);
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'TypeScript API Reference',
+    description: 'Search and browse all TypeScript APIs available in the Aspire AppHost SDK.',
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    pagefind: false,
+    pageActions: false,
+  }}
+  sidebar={tsSidebar}
+  headings={[]}
+>
+  <div class="api-ref-landing not-content">
+    <p class="ts-api-intro">
+      Browse the TypeScript APIs available when writing an
+      <a href={`${base}/get-started/first-app-typescript-apphost/`}>Aspire TypeScript AppHost</a>.
+      These are the capabilities exposed by the Aspire hosting modules for use in <code>apphost.ts</code>.
+    </p>
+
+    <ApiSearchBar
+      id="ts-api"
+      placeholder="Search functions, types, enums…"
+      kinds={allKinds}
+      versions={allTsVersions}
+      defaultStatsText={`${functionCount.toLocaleString()} functions and ${typeCount.toLocaleString()} types across ${sorted.length.toLocaleString()} modules`}
+      size="lg"
+    />
+
+    <!-- Default: package listing (shown when not searching) -->
+    <div id="ts-api-package-list" class="api-list">
+      {sorted.map(pkg => {
+        const funcCount = (pkg.functions ?? []).length;
+        const handleCount = (pkg.handleTypes ?? []).length;
+        const dtoCount = (pkg.dtoTypes ?? []).length;
+        const enumCount = (pkg.enumTypes ?? []).length;
+        const totalItems = funcCount + handleCount + dtoCount + enumCount;
+        return (
+          <a href={`${base}/reference/api/typescript/${tsModuleSlug(pkg.package.name)}/`} class="api-list-item" data-version={pkg.package.version}>
+            <div class="api-list-header">
+              <span class="api-pkg-link" title={pkg.package.name}>{pkg.package.name}</span>
+              <div class="trailing">
+                {pkg.package.version && (
+                  <span class="api-list-meta" title={pkg.package.version}><code>{pkg.package.version}</code></span>
+                )}
+                <span class="api-mini-badge">{funcCount} functions</span>
+                <span class="api-mini-badge">{handleCount + dtoCount + enumCount} types</span>
+              </div>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  </div>
+</StarlightPage>
+
+<!-- Embed the search index -->
+<script is:inline define:vars={{ indexJson, base, functionCount, typeCount }}>
+  window.__tsApiSearchIndex = JSON.parse(indexJson);
+  window.__tsApiBase = base;
+  window.__tsApiFunctionCount = functionCount;
+  window.__tsApiTypeCount = typeCount;
+</script>
+
+<script>
+  import '@components/api-reference/inpage-search-sync';
+
+  interface IndexEntry {
+    n: string;
+    f: string;
+    k: string;
+    p: string;
+    s: string;
+    t?: string;
+    v?: string;
+  }
+
+  const PAGE_SIZE = 10;
+  const DEBOUNCE_MS = 250;
+  function fmtNum(n: number): string { return n.toLocaleString(); }
+
+  const KIND_COLORS: Record<string, string> = {
+    method: '#3b82f6',
+    property: '#10b981',
+    handle: '#8b5cf6',
+    interface: '#06b6d4',
+    type: '#f59e0b',
+    enum: '#ef4444',
+  };
+
+  class TsApiSearchController {
+    private input: HTMLInputElement;
+    private resultsEl: HTMLElement;
+    private packageList: HTMLElement;
+    private status: HTMLElement;
+    private countEl: HTMLElement;
+    private filtersEl: HTMLElement;
+    private clearFiltersBtn: HTMLElement;
+    private index: IndexEntry[];
+    private base: string;
+    private debounceTimer: number | null = null;
+    private functionCount: number;
+    private typeCount: number;
+    private packageCount: number;
+    private activeKinds = new Set<string>();
+    private activeVersions: Set<string> | null = null;
+    private lastScored: { entry: IndexEntry; score: number }[] = [];
+    private lastTokens: string[] = [];
+    private visibleCount = 0;
+    private sync: any;
+
+    constructor() {
+      this.input = document.getElementById('ts-api-search-input') as HTMLInputElement;
+      this.resultsEl = document.getElementById('ts-api-search-results') as HTMLElement;
+      this.packageList = document.getElementById('ts-api-package-list') as HTMLElement;
+      this.status = document.getElementById('ts-api-search-status') as HTMLElement;
+      this.countEl = document.getElementById('ts-api-search-count') as HTMLElement;
+      this.filtersEl = document.getElementById('ts-api-kind-filters') as HTMLElement;
+      this.clearFiltersBtn = document.getElementById('ts-api-clear-filters') as HTMLElement;
+      this.index = (window as any).__tsApiSearchIndex ?? [];
+      this.base = (window as any).__tsApiBase ?? '';
+      this.functionCount = (window as any).__tsApiFunctionCount ?? 0;
+      this.typeCount = (window as any).__tsApiTypeCount ?? 0;
+      this.packageCount = new Set(this.index.map(e => e.p)).size;
+
+      this.sync = new (window as any).InpageSearchSync('ts-api', () => this.clear());
+
+      this.init();
+      this.restoreFromUrl();
+      this.syncVersionStateFromDom();
+      this.filterPackageList();
+      this.applySearch();
+
+      // Listen for version filter changes
+      document.addEventListener('version-filter-change', (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (detail.all) {
+          this.activeVersions = null;
+        } else if (detail.none) {
+          this.activeVersions = new Set();
+        } else {
+          this.activeVersions = new Set(detail.selected);
+        }
+        this.filterPackageList();
+
+        // Show clear-filters when versions are filtered
+        if (!detail.all) {
+          this.clearFiltersBtn.style.display = '';
+        } else if (this.activeKinds.size === 0) {
+          this.clearFiltersBtn.style.display = 'none';
+        }
+
+        this.applySearch();
+      });
+    }
+
+    private syncVersionStateFromDom(): void {
+      const vfContainer = document.querySelector('.version-filter');
+      if (!vfContainer) {
+        this.activeVersions = null;
+        return;
+      }
+
+      const versionCheckboxes = Array.from(
+        vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb:not([data-version="__all__"])')
+      );
+      const selected = versionCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.version!).filter(Boolean);
+
+      this.activeVersions = selected.length === versionCheckboxes.length
+        ? null
+        : new Set(selected);
+
+      if (this.activeVersions !== null || this.activeKinds.size > 0) {
+        this.clearFiltersBtn.style.display = '';
+      }
+    }
+
+    private getVisiblePackageStats(): { packageCount: number; functionCount: number; typeCount: number } {
+      const visibleEntries = this.activeVersions === null
+        ? this.index
+        : this.index.filter(entry => entry.v && this.activeVersions!.has(entry.v));
+      const functionKinds = new Set(['method', 'property']);
+
+      return {
+        packageCount: new Set(visibleEntries.map(entry => entry.p)).size,
+        functionCount: visibleEntries.filter(entry => functionKinds.has(entry.k)).length,
+        typeCount: visibleEntries.filter(entry => !functionKinds.has(entry.k)).length,
+      };
+    }
+
+    private init(): void {
+      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.clear();
+      });
+
+      this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (this.activeKinds.has(kind)) {
+            this.activeKinds.delete(kind);
+            chip.classList.remove('active');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            this.activeKinds.add(kind);
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+          this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+          this.syncUrl();
+          this.applySearch();
+        });
+      });
+
+      // Clear filters (kinds + versions)
+      this.clearFiltersBtn.addEventListener('click', () => {
+        this.activeKinds.clear();
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+
+        // Reset version filter
+        this.activeVersions = null;
+        const vfContainer = document.querySelector('.version-filter');
+        if (vfContainer) {
+          vfContainer.querySelectorAll<HTMLInputElement>('.version-filter-cb').forEach(cb => { cb.checked = true; });
+          const allCb = vfContainer.querySelector<HTMLInputElement>('.version-filter-cb[data-version="__all__"]');
+          if (allCb) { allCb.checked = true; allCb.indeterminate = false; }
+          const countEl = vfContainer.querySelector('[id$="-count"]');
+          const total = vfContainer.querySelectorAll('.version-filter-cb:not([data-version="__all__"])').length;
+          if (countEl) countEl.textContent = `${total}/${total}`;
+          const btn = vfContainer.querySelector('.version-filter-btn');
+          if (btn) { btn.classList.remove('filtered', 'none-selected'); }
+        }
+        this.filterPackageList();
+
+        this.clearFiltersBtn.style.display = 'none';
+        this.syncUrl();
+        this.applySearch();
+      });
+    }
+
+    private clear(): void {
+      this.input.value = '';
+      this.sync.updateClearButton();
+      this.syncUrl();
+      this.showPackages();
+    }
+
+    private showPackages(): void {
+      if (this.activeKinds.size > 0) {
+        this.search('');
+        return;
+      }
+      this.resultsEl.style.display = 'none';
+      this.resultsEl.innerHTML = '';
+      this.packageList.style.display = '';
+
+      const stats = this.getVisiblePackageStats();
+      this.countEl.textContent = `${fmtNum(stats.functionCount)} functions and ${fmtNum(stats.typeCount)} types across ${fmtNum(stats.packageCount)} modules`;
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(() => {
+        this.syncUrl();
+        this.applySearch();
+      }, DEBOUNCE_MS);
+    }
+
+    private syncUrl(): void {
+      this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+    }
+
+    private restoreFromUrl(): void {
+      const q = this.sync.readQuery();
+      const validKinds = new Set(
+        Array.from(this.filtersEl.querySelectorAll('.api-filter-chip'))
+          .map(c => (c as HTMLElement).dataset.kind!)
+      );
+      const kinds = this.sync.readKinds(validKinds);
+
+      if (q) {
+        this.input.value = q;
+        this.sync.updateClearButton();
+      }
+
+      if (kinds.size > 0) {
+        this.activeKinds = kinds;
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (kinds.has(kind)) {
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        });
+        this.clearFiltersBtn.style.display = '';
+      }
+
+    }
+
+    private applySearch(): void {
+      const q = this.input.value.trim();
+      if (!q && this.activeKinds.size === 0) {
+        this.showPackages();
+        return;
+      }
+      this.search(q);
+    }
+
+    private showSearchResults(): void {
+      this.packageList.style.display = 'none';
+      this.resultsEl.style.display = '';
+      this.search(this.input.value.trim());
+    }
+
+    private filterPackageList(): void {
+      if (!this.packageList) return;
+      const items = this.packageList.querySelectorAll('.api-list-item[data-version]');
+      for (const item of items) {
+        const version = (item as HTMLElement).dataset.version;
+        if (this.activeVersions && version && !this.activeVersions.has(version)) {
+          (item as HTMLElement).style.display = 'none';
+        } else {
+          (item as HTMLElement).style.display = '';
+        }
+      }
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+      const hasVersionFilter = this.activeVersions !== null;
+      const scored: { entry: IndexEntry; score: number }[] = [];
+
+      for (const entry of this.index) {
+        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+        if (hasVersionFilter && (entry as any).v && !this.activeVersions!.has((entry as any).v)) continue;
+
+        if (tokens.length === 0) {
+          scored.push({ entry, score: 50 });
+          continue;
+        }
+
+        const nameLower = entry.n.toLowerCase();
+        const fullLower = entry.f.toLowerCase();
+        const descLower = entry.s.toLowerCase();
+        const pkgLower = entry.p.toLowerCase();
+
+        let score = 0;
+        for (const token of tokens) {
+          if (nameLower === token) score += 100;
+          else if (nameLower.startsWith(token)) score += 60;
+          else if (nameLower.includes(token)) score += 40;
+          else if (this.camelMatch(entry.n, token)) score += 55;
+          else if (fullLower.includes(token)) score += 30;
+          else if (pkgLower.includes(token)) score += 15;
+          else if (descLower.includes(token)) score += 10;
+          else { score = 0; break; }
+        }
+
+        if (score > 0) scored.push({ entry, score });
+      }
+
+      scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+      this.lastScored = scored;
+      this.lastTokens = tokens;
+      this.visibleCount = 0;
+
+      this.packageList.style.display = 'none';
+      this.resultsEl.style.display = '';
+
+      if (scored.length === 0) {
+        const noVersions = this.activeVersions !== null && this.activeVersions.size === 0;
+        let hint: string;
+        let sub: string;
+        if (noVersions) {
+          hint = 'No versions selected';
+          sub = 'Select at least one version to see results.';
+        } else if (query) {
+          hint = `No results for &ldquo;<strong>${this.esc(query)}</strong>&rdquo;`;
+          sub = 'Try a different name or keyword.';
+        } else {
+          hint = 'No results match the selected filters';
+          sub = 'Try adjusting the version or kind filters.';
+        }
+        this.resultsEl.innerHTML = `
+          <div class="api-search-empty">
+            <p>${hint}</p>
+            <p class="api-search-empty-hint">${sub}</p>
+          </div>`;
+        this.countEl.textContent = '0 results';
+        return;
+      }
+
+      this.resultsEl.innerHTML = '';
+      this.loadMore();
+    }
+
+    private loadMore(): void {
+      const total = this.lastScored.length;
+      const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+      this.visibleCount += nextBatch.length;
+
+      const existingBtn = this.resultsEl.querySelector('.api-load-more');
+      if (existingBtn) existingBtn.remove();
+
+      const fragment = document.createDocumentFragment();
+      for (const s of nextBatch) {
+        const div = document.createElement('div');
+        div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+        while (div.firstChild) fragment.appendChild(div.firstChild);
+      }
+      this.resultsEl.appendChild(fragment);
+
+      this.countEl.textContent = this.visibleCount < total
+        ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+        : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+
+      const remaining = total - this.visibleCount;
+      if (remaining > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'api-load-more';
+        btn.type = 'button';
+        btn.textContent = `Show ${fmtNum(Math.min(remaining, PAGE_SIZE))} more of ${fmtNum(remaining)} remaining`;
+        btn.addEventListener('click', () => this.loadMore());
+        this.resultsEl.appendChild(btn);
+      }
+    }
+
+    private renderResult(entry: IndexEntry, tokens: string[]): string {
+      const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['method'];
+      const pkgSlug = entry.p.toLowerCase();
+      const itemSlug = entry.n.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+      // Only types (handle, interface, type, enum) have detail pages
+      const TYPE_KINDS = new Set(['handle', 'interface', 'type', 'enum']);
+      const isType = TYPE_KINDS.has(entry.k);
+      const href = isType ? `${this.base}/reference/api/typescript/${pkgSlug}/${itemSlug}/` : null;
+      const tag = href ? 'a' : 'div';
+      const hrefAttr = href ? ` href="${this.esc(href)}"` : '';
+
+      return `<${tag}${hrefAttr} class="api-list-item api-search-result" title="${this.esc(entry.f)} — ${this.esc(entry.p)}">
+        <div class="api-list-header">
+          <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
+          <span class="api-kind-micro kind-${entry.k}">${this.esc(entry.k)}</span>
+          <div class="trailing">
+            <span class="api-list-meta" title="${this.esc(entry.p)}">${this.esc(entry.p)}</span>
+          </div>
+        </div>
+        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+      </${tag}>`;
+    }
+
+    private highlight(text: string, tokens: string[]): string {
+      if (!tokens.length) return this.esc(text);
+      const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+        .replace(re, '<mark>$1</mark>');
+    }
+
+    private camelMatch(name: string, token: string): boolean {
+      const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+      return uppers.length >= 2 && (uppers.startsWith(token) || uppers.includes(token));
+    }
+
+    private esc(text: string): string {
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    new TsApiSearchController();
+    const input = document.getElementById('ts-api-search-input') as HTMLInputElement | null;
+    input?.focus();
+  });
+</script>
+
+<style>
+  .ts-api-intro {
+    margin-bottom: 1.5rem;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-base);
+  }
+</style>

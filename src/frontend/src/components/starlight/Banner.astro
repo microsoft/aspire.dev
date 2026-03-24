@@ -1,0 +1,268 @@
+---
+import { createHash } from 'node:crypto';
+import { Icon } from '@astrojs/starlight/components';
+
+const { banner } = Astro.locals.starlightRoute.entry.data;
+
+const bannerContent = banner?.content;
+const bannerHash = bannerContent
+  ? createHash('sha256').update(bannerContent).digest('hex').slice(0, 12)
+  : undefined;
+const bannerId = bannerHash ? `sl-banner-${bannerHash}` : undefined;
+const dismissKey = bannerHash
+  ? `aspire.dev.banner.dismissed.${bannerHash}`
+  : undefined;
+---
+
+{
+  bannerContent && bannerId && dismissKey && (
+    <>
+      <div
+        id={bannerId}
+        class="sl-banner sl-banner--dismissable"
+        data-banner-state="open"
+        data-pagefind-ignore
+        hidden
+      >
+        <div class="sl-banner__content" set:html={bannerContent} />
+        <button
+          type="button"
+          class="sl-banner__dismiss"
+          data-dismiss-banner
+          aria-label="Dismiss announcement banner"
+          aria-controls={bannerId}
+        >
+          <Icon name="close" size="0.875rem" aria-hidden="true" />
+          <span class="sl-banner__dismiss-label">Dismiss announcement banner</span>
+        </button>
+      </div>
+
+      <script is:inline define:vars={{ bannerId, dismissKey }}>
+        const initializeBanner = () => {
+          const banner = document.getElementById(bannerId);
+          if (!(banner instanceof HTMLElement)) return;
+
+          let collapseTimeoutId = null;
+
+          const clearPendingCollapse = () => {
+            if (collapseTimeoutId !== null) {
+              window.clearTimeout(collapseTimeoutId);
+              collapseTimeoutId = null;
+            }
+          };
+
+          const showBanner = () => {
+            clearPendingCollapse();
+            banner.hidden = false;
+            banner.dataset.bannerState = 'open';
+          };
+
+          const setCollapsed = (animate) => {
+            clearPendingCollapse();
+
+            if (!animate) {
+              banner.dataset.bannerState = 'closed';
+              banner.hidden = true;
+              return;
+            }
+
+            banner.dataset.bannerState = 'closing';
+
+            const finishCollapse = () => {
+              banner.hidden = true;
+              banner.dataset.bannerState = 'closed';
+              banner.removeEventListener('transitionend', handleTransitionEnd);
+              clearPendingCollapse();
+            };
+
+            const handleTransitionEnd = (event) => {
+              if (event.target !== banner) return;
+              finishCollapse();
+            };
+
+            banner.addEventListener('transitionend', handleTransitionEnd);
+            collapseTimeoutId = window.setTimeout(finishCollapse, 320);
+          };
+
+          let dismissed = false;
+
+          try {
+            dismissed = window.localStorage.getItem(dismissKey) === 'true';
+          } catch {
+            dismissed = false;
+          }
+
+          if (dismissed) {
+            setCollapsed(false);
+          } else {
+            showBanner();
+          }
+
+          if (banner.dataset.dismissInitialized === 'true') return;
+
+          const dismissButton = banner.querySelector('[data-dismiss-banner]');
+          if (!(dismissButton instanceof HTMLButtonElement)) return;
+
+          dismissButton.addEventListener('click', () => {
+            if (document.activeElement === dismissButton) {
+              const main = document.querySelector('main');
+
+              if (main instanceof HTMLElement) {
+                main.setAttribute('tabindex', '-1');
+                main.focus();
+                main.addEventListener(
+                  'blur',
+                  () => {
+                    main.removeAttribute('tabindex');
+                  },
+                  { once: true }
+                );
+              }
+            }
+
+            setCollapsed(true);
+
+            try {
+              window.localStorage.setItem(dismissKey, 'true');
+            } catch {
+            }
+          });
+
+          banner.dataset.dismissInitialized = 'true';
+        };
+
+        initializeBanner();
+        document.addEventListener('astro:page-load', initializeBanner);
+      </script>
+
+      <noscript>
+        <style>{`#${bannerId}[hidden] { display: block !important; }`}</style>
+      </noscript>
+    </>
+  )
+}
+
+<style>
+  @layer starlight.core {
+    .sl-banner {
+      --__sl-banner-text: var(--sl-color-banner-text, var(--sl-color-text-invert));
+      padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+      background-color: var(--sl-color-banner-bg, var(--sl-color-bg-accent));
+      color: var(--__sl-banner-text);
+      line-height: var(--sl-line-height-headings);
+      text-align: center;
+      text-wrap: balance;
+      box-shadow: var(--sl-shadow-sm);
+    }
+
+    .sl-banner--dismissable {
+      position: relative;
+      overflow: clip;
+      padding-inline: calc(var(--sl-nav-pad-x) + 3.5rem);
+      max-block-size: 12rem;
+    }
+
+    .sl-banner--dismissable[data-banner-state='closing'] {
+      max-block-size: 0;
+      padding-block: 0;
+      opacity: 0;
+      transform: translateY(-0.4rem);
+      box-shadow: none;
+      transition:
+        max-block-size 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        padding-block 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.22s ease,
+        transform 0.22s ease,
+        box-shadow 0.22s ease;
+    }
+
+    .sl-banner :global(a) {
+      color: var(--__sl-banner-text);
+    }
+
+    .sl-banner__content :global(p) {
+      margin: 0;
+    }
+
+    .sl-banner__dismiss {
+      position: absolute;
+      inset-inline-end: calc(var(--sl-nav-pad-x) - 0.125rem);
+      top: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: 2rem;
+      block-size: 2rem;
+      border: 1px solid color-mix(in srgb, var(--__sl-banner-text) 18%, transparent);
+      border-radius: 1.5rem;
+      padding: 0;
+      background-color: color-mix(in srgb, var(--__sl-banner-text) 8%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sl-color-black) 10%, transparent);
+      color: var(--__sl-banner-text);
+      cursor: pointer;
+      transform: translateY(-50%);
+      transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .sl-banner__dismiss:hover,
+    .sl-banner__dismiss:focus-visible {
+      border-color: color-mix(in srgb, var(--__sl-banner-text) 26%, transparent);
+      background-color: color-mix(in srgb, var(--__sl-banner-text) 14%, transparent);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--__sl-banner-text) 10%, transparent),
+        0 0.125rem 0.4rem color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+      transform: translateY(-50%);
+    }
+
+    .sl-banner__dismiss:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 3px;
+    }
+
+    .sl-banner__dismiss :global(svg) {
+      opacity: 0.9;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .sl-banner__dismiss-label {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .sl-banner__dismiss:hover :global(svg),
+    .sl-banner__dismiss:focus-visible :global(svg) {
+      opacity: 1;
+      transform: scale(1.03);
+    }
+
+    @media (max-width: 40rem) {
+      .sl-banner--dismissable {
+        padding-inline: calc(var(--sl-nav-pad-x) + 3rem);
+        max-block-size: 16rem;
+      }
+
+      .sl-banner__dismiss {
+        inset-inline-end: calc(var(--sl-nav-pad-x) - 0.25rem);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sl-banner--dismissable,
+      .sl-banner__dismiss,
+      .sl-banner__dismiss :global(svg) {
+        transition: none;
+      }
+    }
+  }
+</style>

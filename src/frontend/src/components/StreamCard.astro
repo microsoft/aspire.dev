@@ -1,0 +1,133 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import type { StarlightIcon } from '@astrojs/starlight/types';
+
+interface Props {
+  platform: string;
+  icon: StarlightIcon;
+  description: string;
+  href: string;
+  label: string;
+  color: string;
+}
+
+const { platform, icon, description, href, label, color } = Astro.props;
+---
+
+<div class="stream-card not-content" style={`--stream-color: ${color}`}>
+  <div class="stream-card-header">
+    <div class="stream-card-icon">
+      <Icon name={icon} size="1.5rem" />
+    </div>
+    <span class="stream-card-platform">Watch Aspire on {platform}</span>
+  </div>
+  <div class="stream-card-embed">
+    <slot />
+  </div>
+  <p class="stream-card-desc">{description}</p>
+  <a href={href} class="stream-btn" target="_blank" rel="noopener noreferrer">
+    {label}
+    <Icon name="external" size="0.8rem" />
+  </a>
+</div>
+
+<style>
+  .stream-card {
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    background: color-mix(in srgb, var(--stream-color) 3%, var(--sl-color-bg));
+    border: 1px solid color-mix(in srgb, var(--stream-color) 12%, transparent);
+    transition: border-color 0.2s ease;
+  }
+
+  .stream-card:hover {
+    border-color: color-mix(in srgb, var(--stream-color) 25%, transparent);
+  }
+
+  .stream-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .stream-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    background: color-mix(in srgb, var(--stream-color) 15%, var(--sl-color-bg));
+    border: 1px solid color-mix(in srgb, var(--stream-color) 25%, transparent);
+    color: var(--stream-color);
+  }
+
+  .stream-card-platform {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--sl-color-text);
+  }
+
+  .stream-card-embed {
+    margin-bottom: 1.25rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .stream-card-embed :global(.yt-embed),
+  .stream-card-embed :global(.twitch-embed) {
+    border-radius: 0.5rem;
+    margin: 0;
+  }
+
+  .stream-card-desc {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--sl-color-gray-3);
+    margin: 0 0 1.25rem;
+  }
+
+  :global([data-theme='light']) .stream-card-desc {
+    color: var(--sl-color-gray-2);
+  }
+
+  .stream-btn {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: color-mix(in srgb, var(--stream-color) 12%, transparent);
+    color: var(--sl-color-text);
+    border: 1px solid color-mix(in srgb, var(--stream-color) 20%, transparent);
+  }
+
+  .stream-btn:hover {
+    background: color-mix(in srgb, var(--stream-color) 20%, transparent);
+    border-color: color-mix(in srgb, var(--stream-color) 35%, transparent);
+    transform: translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stream-card,
+    .stream-btn {
+      transition: none;
+    }
+    .stream-btn:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .stream-card {
+      padding: 1.25rem;
+    }
+  }
+</style>
