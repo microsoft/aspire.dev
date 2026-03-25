@@ -7,10 +7,17 @@ export default {
   apiKey: '9d632dcd5f26ef42a4818fb0d536326b',
   indexName: 'Aspire docs',
   insights: true,
-  searchParameters: {
-    // Exclude API reference pages — these have dedicated search on their own pages.
-    // Requires 'url' to be in attributesForFaceting in the Algolia index settings.
-    filters: 'NOT url_without_anchor_path:/reference/api/',
+  transformItems(items) {
+    return items.map((item) => {
+      // Rewrite aspire.dev URLs to current host when running locally
+      if (typeof location !== 'undefined' && location.hostname === 'localhost') {
+        const url = new URL(item.url);
+        url.protocol = location.protocol;
+        url.host = location.host;
+        return { ...item, url: url.href };
+      }
+      return item;
+    });
   },
   resultsFooterComponent() {
     return createElement(
