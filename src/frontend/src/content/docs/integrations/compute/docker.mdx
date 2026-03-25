@@ -1,7 +1,6 @@
 ---
 title: Docker integration
 description: Learn how to use the Aspire Docker hosting integration to deploy your app with Docker Compose.
-prev: false
 ---
 
 import InstallPackage from '@components/InstallPackage.astro';
@@ -42,16 +41,25 @@ var builder = DistributedApplication.CreateBuilder(args);
 var compose = builder.AddDockerComposeEnvironment("compose");
 
 var cache = builder.AddRedis("cache")
-                   .PublishAsDockerComposeService();
+                   .PublishAsDockerComposeService((resource, service) => 
+                   { 
+                       service.Name = "redis";
+                   });
 
 var api = builder.AddProject<Projects.Api>("api")
                  .WithReference(cache)
-                 .PublishAsDockerComposeService();
+                 .PublishAsDockerComposeService((resource, service) =>
+                 { 
+                     service.Name = "api";
+                 });
 
 var web = builder.AddProject<Projects.Web>("web")
                  .WithReference(cache)
                  .WithReference(api)
-                 .PublishAsDockerComposeService();
+                 .PublishAsDockerComposeService((resource, service) =>
+                 { 
+                     service.Name = "web";
+                 });
 
 builder.Build().Run();
 ```
@@ -62,7 +70,8 @@ The preceding code:
 - Adds a Redis cache service that will be included in the Docker Compose deployment
 - Adds an API service project that will be containerized and included in the deployment
 - Adds a web application that references both the cache and API service
-- Configures all services to be published as Docker Compose services using `PublishAsDockerComposeService`
+
+When a Docker Compose environment is present, all resources are automatically published as Docker Compose services — no additional opt-in is required.
 
 <Aside type="tip">
   With the `compose` variable assigned, you can pass that to the
@@ -206,6 +215,73 @@ builder.AddDockerComposeEnvironment("compose")
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
 
+### Customize a Docker Compose service
+
+To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+builder.AddContainer("cache", "redis", "latest")
+    .PublishAsDockerComposeService((resource, service) =>
+    {
+        // Customize the generated Docker Compose service
+        service.Labels.Add("com.example.team", "backend");
+    });
+
+builder.Build().Run();
+```
+
+The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, or other Docker Compose service settings.
+
+## Configure image pull policy
+
+Container resources support an `ImagePullPolicy` that controls when the container runtime pulls an image. The following policies are available:
+
+| Policy | Description |
+|--------|-------------|
+| `Default` | Uses the container runtime's default behavior. |
+| `Always` | Always pulls the image, even if it already exists locally. |
+| `Missing` | Pulls the image only if it doesn't already exist locally. |
+| `Never` | Never pulls the image from a registry. The image must already exist locally. |
+
+Use the `WithImagePullPolicy` extension method to set the policy on a container resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("mycontainer", "myimage:latest")
+    .WithImagePullPolicy(ImagePullPolicy.Always);
+```
+
+### Use `Never` with locally-built images
+
+The `Never` policy is useful when working with locally-built images that shouldn't be pulled from a registry. For example, when using a Dockerfile-based resource that you build and tag locally:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "my-local-image:dev")
+    .WithImagePullPolicy(ImagePullPolicy.Never);
+```
+
+<Aside type="tip">
+  The `Never` policy was added in Aspire 13.2. If the image isn't available locally when using this policy, the container will fail to start.
+</Aside>
+
+### Image pull policy in Docker Compose
+
+When you publish resources to a Docker Compose environment, the `ImagePullPolicy` set with `WithImagePullPolicy` is automatically mapped to the Docker Compose [`pull_policy`](https://docs.docker.com/reference/compose-file/services/#pull_policy) field on the generated service:
+
+| `ImagePullPolicy` | Docker Compose `pull_policy` |
+|--------------------|------------------------------|
+| `Always` | `always` |
+| `Missing` | `missing` |
+| `Never` | `never` |
+| `Default` | _(omitted — uses runtime default)_ |
+
 ## Customize container image push options
 
 When deploying containers, you can customize how container images are named and tagged when pushed to a registry. This is useful when you need to:
@@ -221,10 +297,12 @@ Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image refere
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+#pragma warning disable ASPIREPIPELINES003 // WithRemoteImageName and WithRemoteImageTag are experimental APIs and may change in future releases.
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { service.Name = "api"; })
     .WithRemoteImageName("myorg/myapi")
     .WithRemoteImageTag("v1.0.0");
+#pragma warning restore ASPIREPIPELINES003
 
 // After adding all resources, run the app...
 ```
@@ -236,8 +314,9 @@ For more complex scenarios, use `WithImagePushOptions` to register a callback th
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+#pragma warning disable ASPIREPIPELINES003 // WithImagePushOptions is an experimental API and may change in future releases.
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { service.Name = "api"; })
     .WithImagePushOptions(context =>
     {
         // Customize the image name based on the resource
@@ -249,6 +328,7 @@ var api = builder.AddProject<Projects.Api>("api")
         var version = Environment.GetEnvironmentVariable("APP_VERSION") ?? "latest";
         context.Options.RemoteImageTag = version;
     });
+#pragma warning restore ASPIREPIPELINES003
 
 // After adding all resources, run the app...
 ```
@@ -258,8 +338,9 @@ For asynchronous operations (such as retrieving configuration from external sour
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+#pragma warning disable ASPIREPIPELINES003 // WithImagePushOptions is an experimental API and may change in future releases.
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { service.Name = "api"; })
     .WithImagePushOptions(async context =>
     {
         // Retrieve configuration asynchronously
@@ -267,6 +348,7 @@ var api = builder.AddProject<Projects.Api>("api")
         context.Options.RemoteImageName = config.ImageName;
         context.Options.RemoteImageTag = config.ImageTag;
     });
+#pragma warning restore ASPIREPIPELINES003
 
 // After adding all resources, run the app...
 ```
@@ -297,7 +379,7 @@ var registry = builder.AddContainerRegistry(
 
 // Associate resources with the registry
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { service.Name = "api"; })
     .WithContainerRegistry(registry);
 
 // After adding all resources, run the app...
@@ -313,9 +395,10 @@ For more flexible configuration, especially in CI/CD pipelines, you can use para
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Define parameters from configuration (reads from environment variables)
-var registryEndpoint = builder.AddParameterFromConfiguration("REGISTRY_ENDPOINT");
-var registryRepository = builder.AddParameterFromConfiguration("REGISTRY_REPOSITORY");
+var registryEndpoint = builder.AddParameterFromConfiguration("registryEndpoint", "REGISTRY_ENDPOINT");
+var registryRepository = builder.AddParameterFromConfiguration("registryRepository", "REGISTRY_REPOSITORY");
 
+#pragma warning disable ASPIRECOMPUTE003 // AddContainerRegistry and WithContainerRegistry are experimental APIs and may change in future releases.
 // Add registry with parameters
 var registry = builder.AddContainerRegistry(
     "my-registry",
@@ -324,8 +407,9 @@ var registry = builder.AddContainerRegistry(
 );
 
 var api = builder.AddProject<Projects.Api>("api")
-    .PublishAsDockerComposeService()
+    .PublishAsDockerComposeService((resource, service) => { service.Name = "api"; })
     .WithContainerRegistry(registry);
+#pragma warning restore ASPIRECOMPUTE003
 ```
 
 You can then provide parameter values via environment variables:
@@ -430,5 +514,5 @@ This workflow:
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
 - [ASPIRECOMPUTE003 - Container registry resource](/diagnostics/aspirecompute003/)
 - [What's new in Aspire 13.1 - Container registry support](/whats-new/aspire-13-1/#container-registry-resource)
-- [Aspire GitHub repo](https://github.com/dotnet/aspire)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)
 - [Working with GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)

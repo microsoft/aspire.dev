@@ -8,7 +8,7 @@ export const socialConfig: SocialLink[] = [
   {
     icon: 'github',
     label: 'GitHub',
-    href: 'https://github.com/dotnet/aspire',
+    href: 'https://github.com/microsoft/aspire',
   },
   {
     icon: 'discord',

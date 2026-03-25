@@ -1,0 +1,66 @@
+---
+title: Compiler Warning ASPIREEXPORT005
+description: Learn more about compiler Warning ASPIREEXPORT005. An [AspireUnion] attribute requires at least 2 types.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> [AspireUnion] requires at least 2 types, but {0} was specified.
+
+This diagnostic warning is reported when an `[AspireUnion]` attribute is applied to a parameter with fewer than 2 types. A union type is only meaningful when it can represent two or more distinct types; using a union with a single type is equivalent to just using that type directly.
+
+## Example
+
+The following code generates `ASPIREEXPORT005`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addResource")]
+public static IResourceBuilder<ContainerResource> AddResource(
+    IDistributedApplicationBuilder builder,
+    [AspireUnion(typeof(string))] object name)  // Only 1 type specified
+{
+    return builder.AddContainer(name.ToString()!, "myimage");
+}
+```
+
+## To correct this warning
+
+Either add a second type to the `[AspireUnion]` attribute, or remove the attribute and use the single type directly:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("addResource")]
+public static IResourceBuilder<ContainerResource> AddResource(
+    IDistributedApplicationBuilder builder,
+    [AspireUnion(typeof(string), typeof(int))] object name)
+{
+    return builder.AddContainer(name.ToString()!, "myimage");
+}
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT005.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT005</NoWarn>
+  </PropertyGroup>
+  ```

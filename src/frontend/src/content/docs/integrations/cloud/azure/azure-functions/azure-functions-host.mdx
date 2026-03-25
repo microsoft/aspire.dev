@@ -1,0 +1,167 @@
+---
+title: Azure Functions Hosting integration
+description: Learn about the Aspire Azure Functions hosting integration including configuration and deployment.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import Pivot from '@components/Pivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import { Image } from 'astro:assets';
+import vsAzureFunctionsOptions from '@assets/integrations/cloud/azure/functions/visual-studio-azure-functions-options.png';
+
+<PivotSelector
+  title="Choose a development environment"
+  key="environment"
+  options={[
+    { title: 'Visual Studio Code', id: 'vscode' },
+    { title: 'Visual Studio', id: 'visual-studio' },
+    { title: '.NET CLI', id: 'dotnet-cli' },
+  ]} 
+/>
+
+## Deployment
+
+Deployment to Azure Container Apps (ACA) is supported using the SDK container publish function in \`Microsoft.Azure.Functions.Worker.Sdk\`. When deploying to Azure Container Apps, KEDA-based auto-scaling rules will automatically be configured for your functions.
+
+For more information about the Azure Functions integration with Aspire, see [Azure Functions and Aspire integration](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration).
+
+### Configure external HTTP endpoints
+
+To make HTTP triggers publicly accessible, call the \`WithExternalHttpEndpoints\` API on the \`AzureFunctionsProjectResource\`. For more information, see [Add Azure Functions resource](#add-azure-functions-resource).
+
+## Azure Function project constraints
+
+The Aspire Azure Functions integration has the following project constraints:
+
+- You must target .NET 8.0 or later.
+- You must use a .NET 9 SDK or later.
+- It currently only supports .NET workers with the [isolated worker model](https://learn.microsoft.com/azure/azure-functions/dotnet-isolated-process-guide).
+- Requires the following NuGet packages:
+  - [📦 Microsoft.Azure.Functions.Worker](https://www.nuget.org/packages/Microsoft.Azure.Functions.Worker): Use the \`FunctionsApplicationBuilder\`.
+  - [📦 Microsoft.Azure.Functions.Worker.Sdk](https://www.nuget.org/packages/Microsoft.Azure.Functions.Worker.Sdk): Adds support for \`aspire run\` and \`aspire deploy\`.
+  - [📦 Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore](https://www.nuget.org/packages/Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore): Adds HTTP trigger-supporting APIs.
+
+<Pivot id="visual-studio">
+
+If you encounter issues with the Azure Functions project, such as:
+
+> There is no Functions runtime available that matches the version specified in the project
+
+In Visual Studio, try checking for an update on the Azure Functions tooling. Open the **Options** dialog, navigate to **Projects and Solutions**, and then select **Azure Functions**. Select the **Check for updates** button to ensure you have the latest version of the Azure Functions tooling:
+
+<Image
+  src={vsAzureFunctionsOptions} 
+  alt="Visual Studio: Options / Projects and Solutions / Azure Functions." />
+
+</Pivot>
+
+The Aspire Azure Functions hosting integration models Azure Functions projects as the \`AzureFunctionsProjectResource\` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Functions](https://www.nuget.org/packages/Aspire.Hosting.Azure.Functions) NuGet package:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Functions" />
+
+### Add Azure Functions resource
+
+In your AppHost project, call `AddAzureFunctionsProject` on the `builder` instance to add an Azure Functions resource. There are two ways to add an Azure Functions project, depending on whether the Functions project is referenced in your AppHost project.
+
+#### Add a referenced Functions project
+
+If the Azure Functions project is referenced in your AppHost project, use the generic overload of `AddAzureFunctionsProject`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+```
+
+#### Add a Functions project by file path
+
+If the Azure Functions project is not referenced in your AppHost project, you can add it by specifying the path to the project file:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var functions = builder.AddAzureFunctionsProject("functions", "../MyFunctions/MyFunctions.csproj")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+```
+
+In the preceding example, the path to the Functions project file is relative to the AppHost project directory. If the path is not absolute, it will be resolved relative to the AppHost directory.
+
+---
+
+When Aspire adds an Azure Functions project resource to the AppHost, as shown in the preceding examples, the `functions` resource can be referenced by other project resources. The `WithReference` method configures a connection in the `ExampleProject` named `"functions"`. If the Azure Resource was deployed and it exposed an HTTP trigger, its endpoint would be external due to the call to `WithExternalHttpEndpoints`.
+
+### Add Azure Functions resource with host storage
+
+If you want to modify the default host storage account that the Azure Functions host uses, call the `WithHostStorage` method on the Azure Functions project resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator();
+
+var functions = builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithHostStorage(storage);
+
+builder.AddProject<Projects.ExampleProject>()
+    .WithReference(functions)
+    .WaitFor(functions);
+
+// After adding all resources, run the app...
+```
+
+The preceding code relies on the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package to add an Azure Storage resource that runs as an emulator. The `storage` resource is then passed to the `WithHostStorage` API, explicitly setting the host storage to the emulated resource.
+
+> [!NOTE]
+> If you're not using the implicit host storage, you must manually assign the `StorageAccountContributor` role to your resource for deployed instances. The implicit host storage is automatically configured with the following roles to support maximum interoperability with all scenarios:
+>
+> - `StorageBlobDataContributor`
+> - `StorageTableDataContributor`
+> - `StorageQueueDataContributor`
+> - `StorageAccountContributor`
+>
+> For production scenarios, it is recommended to register the storage account explicitly with the `WithHostStorage` and `WithRoleAssignment` APIs and register a more tailored set of roles.
+>
+> ```csharp
+> var builder = DistributedApplication.CreateBuilder(args);
+> 
+> var storage = builder.AddAzureStorage("storage");
+> 
+> builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+>        .WithHostStorage(storage)
+>        .WithRoleAssignments(storage, StorageBuiltInRole.StorageBlobDataReader,
+>                                     StorageBuiltInRole.StorageQueueDataReader);
+> ```
+
+### Reference resources in Azure Functions
+
+To reference other Azure resources in an Azure Functions project, chain a call to `WithReference` on the Azure Functions project resource and provide the resource to reference:
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+var blobs = storage.AddBlobs("blobs");
+
+builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithHostStorage(storage)
+    .WithReference(blobs);
+
+builder.Build().Run();
+```
+
+The preceding code adds an Azure Storage resource to the AppHost and references it in the Azure Functions project. The `blobs` resource is added to the `storage` resource and then referenced by the `functions` resource. The connection information required to connect to the `blobs` resource is automatically injected into the Azure Functions project and enables the project to define a `BlobTrigger` that relies on `blobs` resource.

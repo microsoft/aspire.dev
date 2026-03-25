@@ -1,0 +1,313 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+
+// Keyboard OS types configuration (matching starlight-kbd config)
+const kbdTypes = [
+  { id: 'mac', label: 'macOS', detector: 'apple' },
+  { id: 'windows', label: 'Windows', detector: 'windows', default: true },
+  { id: 'linux', label: 'Linux', detector: 'linux' },
+];
+---
+
+<div class="footer-preferences" role="contentinfo" aria-label="Site Preferences">
+  <h4 class="footer-heading">{Astro.locals.t('footer.preferences' as any) || 'Preferences'}</h4>
+  
+  <div class="preference-controls">
+    <!-- Theme selector -->
+    <div class="preference-item">
+      <div class="select-wrapper">
+        <Icon name="sun" class="select-icon theme-icon light-icon" />
+        <Icon name="moon" class="select-icon theme-icon dark-icon" />
+        <select id="footer-theme-select" class="preference-select" aria-label="Select theme">
+          <option value="auto">{Astro.locals.t('themeSelect.auto' as any) || 'Auto'}</option>
+          <option value="dark">{Astro.locals.t('themeSelect.dark' as any) || 'Dark'}</option>
+          <option value="light">{Astro.locals.t('themeSelect.light' as any) || 'Light'}</option>
+        </select>
+        <Icon name="down-caret" class="select-caret" />
+      </div>
+    </div>
+    
+    <!-- Language selector -->
+    <div class="preference-item">
+      <div class="select-wrapper">
+        <Icon name="translate" class="select-icon" />
+        <select id="footer-language-select" class="preference-select" aria-label="Select language">
+          <option value="en" selected>English</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="ja">日本語</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="id">Bahasa Indonesia</option>
+          <option value="zh-CN">简体中文</option>
+          <option value="pt-BR">Português do Brasil</option>
+          <option value="pt">Português</option>
+          <option value="ko">한국어</option>
+          <option value="tr">Türkçe</option>
+          <option value="ru">Русский</option>
+          <option value="hi">हिंदी</option>
+          <option value="da">Dansk</option>
+          <option value="uk">Українська</option>
+        </select>
+        <Icon name="down-caret" class="select-caret" />
+      </div>
+    </div>
+    
+    <!-- Keyboard OS selector -->
+    <div class="preference-item">
+      <div class="select-wrapper">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="select-icon kbd-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path
+            d="M6.21 13.29a.93.93 0 0 0-.33-.21 1 1 0 0 0-.76 0 .9.9 0 0 0-.54.54 1 1 0 1 0 1.84 0 1 1 0 0 0-.21-.33ZM13.5 11h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-4 0h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-3-2h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2ZM20 5H4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3Zm1 11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1Zm-6-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Zm3.5-4h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm.71 4.29a1 1 0 0 0-.33-.21 1 1 0 0 0-.76 0 .93.93 0 0 0-.33.21 1 1 0 0 0-.21.33 1 1 0 1 0 1.92.38.84.84 0 0 0-.08-.38 1 1 0 0 0-.21-.33Z"
+          />
+        </svg>
+        <select id="footer-kbd-select" class="preference-select" aria-label="Select keyboard shortcuts style">
+          {kbdTypes.map((type) => (
+            <option 
+              value={type.id} 
+              selected={type.default}
+              data-detector={type.detector}
+            >
+              {type.label}
+            </option>
+          ))}
+        </select>
+        <Icon name="down-caret" class="select-caret" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function initFooterPreferences() {
+    const themeSelect = document.getElementById('footer-theme-select') as HTMLSelectElement;
+    const languageSelect = document.getElementById('footer-language-select') as HTMLSelectElement;
+    const kbdSelect = document.getElementById('footer-kbd-select') as HTMLSelectElement;
+    
+    if (themeSelect) {
+      // Get current theme from Starlight's storage
+      const storedTheme = typeof localStorage !== 'undefined' 
+        ? localStorage.getItem('starlight-theme') 
+        : null;
+      if (storedTheme) {
+        themeSelect.value = storedTheme;
+      }
+      
+      themeSelect.addEventListener('change', (e) => {
+        const target = e.target as HTMLSelectElement;
+        const theme = target.value;
+        
+        // Use Starlight's theme system
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('starlight-theme', theme);
+        }
+        
+        // Apply theme immediately
+        const root = document.documentElement;
+        if (theme === 'auto') {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          root.dataset.theme = prefersDark ? 'dark' : 'light';
+        } else {
+          root.dataset.theme = theme;
+        }
+        
+        // Sync with Starlight's header theme select if present
+        const headerThemeSelect = document.querySelector('starlight-theme-select select') as HTMLSelectElement;
+        if (headerThemeSelect && headerThemeSelect !== themeSelect) {
+          headerThemeSelect.value = theme;
+        }
+      });
+    }
+    
+    if (languageSelect) {
+      // Get current language from URL
+      const currentPath = window.location.pathname;
+      const langMatch = currentPath.match(/^\/([a-z]{2}(?:-[A-Z]{2})?)\//);
+      const currentLang = langMatch ? langMatch[1] : 'en';
+      languageSelect.value = currentLang;
+      
+      languageSelect.addEventListener('change', (e) => {
+        const target = e.target as HTMLSelectElement;
+        const newLang = target.value;
+        const currentPath = window.location.pathname;
+        
+        // Remove current language prefix if present
+        let pathWithoutLang = currentPath.replace(/^\/[a-z]{2}(?:-[A-Z]{2})?\//, '/');
+        
+        // Build new URL
+        let newPath: string;
+        if (newLang === 'en') {
+          newPath = pathWithoutLang;
+        } else {
+          newPath = `/${newLang}${pathWithoutLang}`;
+        }
+        
+        window.location.href = newPath;
+      });
+    }
+    
+    if (kbdSelect) {
+      // Get stored keyboard type from starlight-kbd's storage
+      const storedKbd = typeof localStorage !== 'undefined' 
+        ? localStorage.getItem('sl-kbd-type') 
+        : null;
+      
+      // Auto-detect OS if no stored preference
+      if (!storedKbd && typeof navigator !== 'undefined') {
+        const platform = navigator.userAgentData?.platform || navigator.platform || '';
+        const userAgent = navigator.userAgent || '';
+        
+        let detectedType = 'windows'; // default
+        if (/Mac|iPhone|iPad|iPod/i.test(platform) || /Mac|iPhone|iPad|iPod/i.test(userAgent)) {
+          detectedType = 'mac';
+        } else if (/Linux/i.test(platform) || /Linux/i.test(userAgent)) {
+          detectedType = 'linux';
+        }
+        
+        kbdSelect.value = detectedType;
+        localStorage?.setItem('sl-kbd-type', detectedType);
+      } else if (storedKbd) {
+        kbdSelect.value = storedKbd;
+      }
+      
+      kbdSelect.addEventListener('change', (e) => {
+        const target = e.target as HTMLSelectElement;
+        const kbdType = target.value;
+        
+        // Save to localStorage (using starlight-kbd's key)
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('sl-kbd-type', kbdType);
+        }
+        
+        // Update all kbd elements on the page
+        for (const kbd of document.querySelectorAll('[data-sl-kbd-type]')) {
+          if (kbd.getAttribute('data-sl-kbd-type') === kbdType) {
+            kbd.setAttribute('data-sl-kbd-active', '');
+          } else {
+            kbd.removeAttribute('data-sl-kbd-active');
+          }
+        }
+        
+        // Sync with any other kbd pickers on the page
+        if (typeof (window as any).StarlightKbdProvider !== 'undefined') {
+          (window as any).StarlightKbdProvider.updateKbdPickers(kbdType);
+        }
+      });
+    }
+  }
+  
+  // Initialize on page load
+  initFooterPreferences();
+  
+  // Re-initialize on Astro page transitions
+  document.addEventListener('astro:after-swap', initFooterPreferences);
+</script>
+
+<style>
+  .footer-preferences {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .footer-heading {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    margin: 0 0 0.25rem 0;
+  }
+
+  .preference-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .preference-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .select-icon {
+    position: absolute;
+    left: 0.625rem;
+    pointer-events: none;
+    color: var(--sl-color-gray-3);
+    z-index: 1;
+  }
+
+  .select-icon :global(svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* Keyboard icon is a raw SVG, not wrapped in Icon component */
+  svg.select-icon.kbd-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* Show/hide sun/moon based on current theme */
+  :global([data-theme="dark"]) .light-icon,
+  :global(:root:not([data-theme])) .light-icon {
+    display: none;
+  }
+  
+  :global([data-theme="light"]) .dark-icon {
+    display: none;
+  }
+  
+  :global([data-theme="dark"]) .dark-icon,
+  :global(:root:not([data-theme])) .dark-icon {
+    display: flex;
+  }
+
+  .preference-select {
+    appearance: none;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    color: var(--sl-color-gray-1);
+    font-size: var(--sl-text-xs);
+    padding: 0.375rem 2rem 0.375rem 2.25rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    width: 100%;
+  }
+
+  .preference-select:hover {
+    border-color: var(--sl-color-gray-4);
+    background: var(--sl-color-gray-5);
+  }
+
+  .preference-select:focus {
+    outline: 2px solid var(--aspire-color-primary, #7455dd);
+    outline-offset: 2px;
+  }
+
+  .select-caret {
+    position: absolute;
+    right: 0.625rem;
+    pointer-events: none;
+    color: var(--sl-color-gray-3);
+  }
+
+  .select-caret :global(svg) {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+</style>

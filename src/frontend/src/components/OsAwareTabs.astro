@@ -1,55 +1,54 @@
 ---
-import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 interface Props {
-	syncKey?: string;
+  syncKey?: string;
 }
 
-const { syncKey } = Astro.props;
+const { syncKey = 'terminal' } = Astro.props;
 ---
 
 <Tabs syncKey={syncKey}>
-	<TabItem label="Bash" icon="seti:shell">
-		<slot name="unix" />
-	</TabItem>
-	<TabItem label="PowerShell" icon="seti:powershell">
-		<slot name="windows" />
-	</TabItem>
+  <TabItem label="Bash" icon="seti:shell">
+    <slot name="unix" />
+  </TabItem>
+  <TabItem label="PowerShell" icon="seti:powershell">
+    <slot name="windows" />
+  </TabItem>
 </Tabs>
 
 {syncKey && <script is:inline define:vars={{ syncKey }}>
-	// OS-aware tab selection - only runs once per syncKey on initial page load
-	(function() {
-		// Check if localStorage is available
-		if (typeof localStorage === 'undefined') return;
-		
-		const storageKey = `starlight-synced-tabs__${syncKey}`;
-		const existingPreference = localStorage.getItem(storageKey);
-		
-		// Only set default if user hasn't made a choice yet
-		if (existingPreference) return;
-		
-		// Detect OS using multiple methods for reliability
-		// Check userAgentData.platform first (modern), then navigator.platform, then userAgent
-		let isWindows = false;
-		
-		// Check modern API first
-		const platform = navigator.userAgentData?.platform;
-		if (platform) {
-			isWindows = /windows/i.test(platform);
-		}
-		// Fallback to legacy APIs
-		else if (typeof navigator.platform === 'string') {
-			isWindows = /^Win/i.test(navigator.platform);
-		}
-		else if (typeof navigator.userAgent === 'string') {
-			isWindows = /Win(dows|32|64)/i.test(navigator.userAgent);
-		}
-		
-		// Set default tab based on OS
-		// Windows users get PowerShell, everyone else gets Bash
-		const defaultTab = isWindows ? 'PowerShell' : 'Bash';
-		
-		localStorage.setItem(storageKey, defaultTab);
-	})();
+    (function() {
+        // Check if localStorage is available
+        if (typeof localStorage === 'undefined') return;
+        
+        const storageKey = `starlight-synced-tabs__${syncKey}`;
+        const existingPreference = localStorage.getItem(storageKey);
+        
+        // Only set default if user hasn't made a choice yet
+        if (existingPreference) return;
+        
+        // Detect OS using multiple methods for reliability
+        // Check userAgentData.platform first (modern), then navigator.platform, then userAgent
+        let isWindows = false;
+        
+        // Check modern API first
+        const platform = navigator.userAgentData?.platform;
+        if (platform) {
+            isWindows = /windows/i.test(platform);
+        }
+        // Fallback to legacy APIs
+        else if (typeof navigator.platform === 'string') {
+            isWindows = /^Win/i.test(navigator.platform);
+        }
+        else if (typeof navigator.userAgent === 'string') {
+            isWindows = /Win(dows|32|64)/i.test(navigator.userAgent);
+        }
+        
+        // Set default tab based on OS
+        // Windows users get PowerShell, everyone else gets Bash
+        const defaultTab = isWindows ? 'PowerShell' : 'Bash';
+        
+        localStorage.setItem(storageKey, defaultTab);
+    })();
 </script>}

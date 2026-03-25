@@ -1,0 +1,92 @@
+---
+title: Compiler Warning ASPIREEXPORT010
+description: Learn more about compiler Warning ASPIREEXPORT010. A synchronous callback parameter is invoked inline and may deadlock in multi-language app hosts.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.2"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Exported builder method '{0}' directly invokes synchronous delegate parameter '{1}'. Defer the callback, expose an async delegate, or set RunSyncOnBackgroundThread = true to avoid polyglot deadlocks.
+
+This diagnostic warning is reported when an `[AspireExport]` method directly invokes a synchronous delegate parameter inline, inside the method body. In a multi-language (polyglot) app host, callbacks crossing the language boundary are dispatched through an async messaging channel. If a synchronous callback is invoked inline, it can block the calling thread while the message dispatcher is also waiting on the same thread, causing a deadlock. To avoid this, the callback should be deferred, exposed as an async delegate, or run on a background thread.
+
+## Example
+
+The following code generates `ASPIREEXPORT010`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("withConfiguration")]
+public static IResourceBuilder<RedisResource> WithConfiguration(
+    IResourceBuilder<RedisResource> builder,
+    Action<RedisConfiguration> configure)
+{
+    var config = new RedisConfiguration();
+    configure(config);  // Synchronous callback invoked inline — may deadlock
+    return builder.WithEnvironment("REDIS_CONFIG", config.ToConnectionString());
+}
+```
+
+## To correct this warning
+
+Use one of the following approaches:
+
+**Option 1:** Defer the callback by wrapping it with `.WithEnvironment` or a similar deferred-execution pattern:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("withConfiguration")]
+public static IResourceBuilder<RedisResource> WithConfiguration(
+    IResourceBuilder<RedisResource> builder,
+    Action<RedisConfiguration> configure)
+{
+    return builder.WithEnvironment(context =>
+    {
+        var config = new RedisConfiguration();
+        configure(config);
+        context.EnvironmentVariables["REDIS_CONFIG"] = config.ToConnectionString();
+    });
+}
+```
+
+**Option 2:** Accept an async delegate instead of a synchronous one:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("withConfiguration")]
+public static IResourceBuilder<RedisResource> WithConfiguration(
+    IResourceBuilder<RedisResource> builder,
+    Func<RedisConfiguration, Task> configure)
+{
+    return builder.WithEnvironment(async context =>
+    {
+        var config = new RedisConfiguration();
+        await configure(config);
+        context.EnvironmentVariables["REDIS_CONFIG"] = config.ToConnectionString();
+    });
+}
+```
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT010.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT010</NoWarn>
+  </PropertyGroup>
+  ```
