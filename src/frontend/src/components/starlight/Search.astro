@@ -31,13 +31,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 <script>
   // Inject an API search notice into the Starlight/Pagefind search dialog
+  let currentObserver: MutationObserver | undefined;
+
   function injectApiNotice() {
     const siteSearch = document.querySelector('site-search');
     if (!siteSearch) return;
 
     // Disconnect any existing observer before creating a new one to avoid accumulation
-    const existing = (window as any).__apiNoticeObserver as MutationObserver | undefined;
-    if (existing) existing.disconnect();
+    currentObserver?.disconnect();
 
     const observer = new MutationObserver(() => {
       const dialog = siteSearch.querySelector('dialog');
@@ -49,14 +50,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       const inner = dialog.querySelector('.dialog-frame');
       if (!inner) return;
 
-      const tpl = document.getElementById('api-search-notice-tpl') as HTMLTemplateElement | null;
-      if (!tpl) return;
+      const tpl = document.getElementById('api-search-notice-tpl');
+      if (!(tpl instanceof HTMLTemplateElement)) return;
 
       inner.appendChild(tpl.content.cloneNode(true));
     });
 
     observer.observe(siteSearch, { childList: true, subtree: true });
-    (window as any).__apiNoticeObserver = observer;
+    currentObserver = observer;
   }
 
   // Run on load and after Astro client-side navigation
