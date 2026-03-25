@@ -25,8 +25,8 @@ export const collections = {
   i18n: defineCollection({
     loader: i18nLoader(),
     schema: i18nSchema({
-      // @ts-expect-error — Zod version mismatch between starlight-docsearch and astro/zod
-      extend: docSearchI18nSchema(),
+      // Casting to work around Zod instance mismatch between starlight-docsearch and astro/zod.
+      extend: docSearchI18nSchema() as any,
     }),
   }),
 

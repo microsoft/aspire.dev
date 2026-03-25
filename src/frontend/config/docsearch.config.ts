@@ -22,8 +22,8 @@ export default {
       createElement(
         'div',
         { className: 'api-search-notice-buttons' },
-        createElement('a', { href: '/reference/api/csharp/', className: 'api-search-btn' }, 'C# API Reference'),
-        createElement('a', { href: '/reference/api/typescript/', className: 'api-search-btn' }, 'TypeScript API Reference'),
+        createElement('a', { href: `${import.meta.env.BASE_URL}reference/api/csharp/`, className: 'api-search-btn' }, 'C# API Reference'),
+        createElement('a', { href: `${import.meta.env.BASE_URL}reference/api/typescript/`, className: 'api-search-btn' }, 'TypeScript API Reference'),
       ),
     );
   },
