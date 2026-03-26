@@ -348,8 +348,8 @@ const builder = await createBuilder();
 
 const cache = await builder.addRedis("cache");
 
-await builder.addProject("api", "../Api/Api.csproj")
-    .withReference(cache);
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
 
 await builder.build().run();
 ```
@@ -511,8 +511,8 @@ const builder = await createBuilder();
 
 const tech = await builder.addTechnology("tech");
 
-await builder.addProject("api", "../Api/Api.csproj")
-    .withReference(tech);
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(tech);
 
 await builder.build().run();
 ```
