@@ -16,7 +16,7 @@ import postgresIcon from '@assets/icons/postgresql-icon.png';
   data-zoom-off
 />
 
-When you reference a PostgreSQL resource from the AppHost with `withReference`, Aspire automatically injects connection information into the consuming application as environment variables. This page shows how to read those variables and connect to PostgreSQL from any language.
+When you reference a PostgreSQL resource from the AppHost with `WithReference` (C#) or `withReference` (TypeScript), Aspire automatically injects connection information into the consuming application as environment variables. This page shows how to read those variables and connect to PostgreSQL from any language.
 
 <Aside type="tip">
     For .NET applications, you can use environment variables directly or use the [Client integration (.NET)](../postgres-client/) for automatic dependency injection, health checks, and telemetry.
@@ -85,7 +85,7 @@ import pg from 'pg';
 const client = new pg.Client({
     user: process.env.POSTGRESDB_USERNAME,
     host: process.env.POSTGRESDB_HOST,
-    database: process.env.POSTGRESDB_DATABASE,
+    database: process.env.POSTGRESDB_DATABASENAME,
     password: process.env.POSTGRESDB_PASSWORD,
     port: process.env.POSTGRESDB_PORT,
 });
@@ -131,11 +131,13 @@ async with await psycopg.AsyncConnection.connect(
 </TabItem>
 <TabItem label="Go">
 
-Use the standard `pgx` driver:
+Use the `pgx` driver, the most actively maintained and feature-rich PostgreSQL driver for Go:
 
 ```bash title="Terminal"
 go get github.com/jackc/pgx/v5
 ```
+
+> **Note:** [`lib/pq`](https://github.com/lib/pq) is another popular Go PostgreSQL driver, but `pgx` is recommended for new projects because it offers better performance, native PostgreSQL protocol support, and active maintenance.
 
 Read the injected environment variables and connect:
 
@@ -182,7 +184,7 @@ await using var conn = await dataSource.OpenConnectionAsync();
 
 If your application expects specific environment variable names, you can pass individual connection properties from the AppHost:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -210,16 +212,13 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const userName = await builder.addParameter("username", { secret: true });
-const password = await builder.addParameter("password", { secret: true });
-
-const postgres = await builder.addPostgres("postgres", { userName, password });
+const postgres = await builder.addPostgres("postgres");
 const database = await postgres.addDatabase("myDatabase");
 
 await builder.addNodeApp("my-app", "./app", "index.js")
     .withReference(database)
-    .withEnvironment("POSTGRES_USER", userName)
-    .withEnvironment("POSTGRES_PASSWORD", password)
+    .withEnvironment("POSTGRES_USER", postgres.userName)
+    .withEnvironment("POSTGRES_PASSWORD", postgres.password)
     .withEnvironment("POSTGRES_DATABASE", "myDatabase");
 
 await builder.build().run();

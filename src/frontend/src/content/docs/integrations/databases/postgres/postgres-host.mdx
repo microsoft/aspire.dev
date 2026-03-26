@@ -5,7 +5,7 @@ description: Learn how to use the Aspire PostgreSQL Hosting integration to orche
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import SyncedPivotSelector from '@components/SyncedPivotSelector.astro';
+import PivotSelector from '@components/PivotSelector.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
 <Image
@@ -21,10 +21,9 @@ To get started with the Aspire PostgreSQL integrations, follow the [Get started 
 
 This article includes full details on the Aspire PostgreSQL Hosting integration, with examples for both `AppHost.cs` and `apphost.ts`, so you can model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
-<SyncedPivotSelector
+<PivotSelector
     title="Select your AppHost language"
-    key="postgres-host-apphost-lang"
-    syncKey="postgres-host-apphost-lang"
+    key="postgres-apphost-lang"
     options={[
         { id: "csharp", title: "C#" },
         { id: "typescript", title: "TypeScript" },
@@ -44,7 +43,7 @@ The PostgreSQL hosting integration models various PostgreSQL resources as the fo
 
 To access these types and APIs for expressing them as resources in your [`AppHost`](/get-started/app-host/) project, install the [📦 Aspire.Hosting.PostgreSQL](https://www.nuget.org/packages/Aspire.Hosting.PostgreSQL) NuGet package:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 
 ```bash title="Terminal"
@@ -85,7 +84,7 @@ This updates your `aspire.config.json` with the PostgreSQL hosting integration p
 
 In your AppHost project, add a PostgreSQL server resource and then add a database resource as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -133,7 +132,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </Aside>
 
 <Aside type="note">
-    When you reference a PostgreSQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection strings, URIs, and port numbers. For a complete list of these properties, see [Properties of the PostgreSQL resources](../postgres-client/#properties-of-the-postgresql-resources).
+    When you reference a PostgreSQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection strings, URIs, and port numbers. For a complete list of these properties, see [Connection properties](../postgres-connect/#connection-properties).
 </Aside>
 
 ## Add PostgreSQL resource with database scripts
@@ -146,7 +145,7 @@ CREATE DATABASE "<QUOTED_DATABASE_NAME>"
 
 To alter the default script, configure the database resource with a custom creation script:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -206,7 +205,7 @@ The preceding example creates a database named `app_db`. The script is run when 
 
 Add the [**dpage/pgadmin4**](https://www.pgadmin.org/) container to the PostgreSQL resource to get a web-based admin dashboard, as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -247,7 +246,7 @@ The preceding code adds a container based on the `docker.io/dpage/pgadmin4` imag
 
 To configure the host port for the pgAdmin container, configure the pgAdmin resource inside the callback as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -292,7 +291,7 @@ The preceding code adds and configures the host port for the pgAdmin container. 
 
 Add the [**sosedoff/pgweb**](https://sosedoff.github.io/pgweb/) container to the PostgreSQL resource to get a web-based admin dashboard, as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -333,7 +332,7 @@ The preceding code adds a container based on the `docker.io/sosedoff/pgweb` imag
 
 To configure the host port for the pgWeb container, configure the pgWeb resource inside the callback as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -378,7 +377,7 @@ The preceding code adds and configures the host port for the pgWeb container. Th
 
 Add a data volume to the PostgreSQL server resource as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -425,7 +424,7 @@ The data volume is used to persist the PostgreSQL server data outside the lifecy
 
 Add a data bind mount to the PostgreSQL server resource as shown in the following examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -472,7 +471,7 @@ Data bind mounts rely on the host machine's filesystem to persist the PostgreSQL
 
 Use initialization files to seed the PostgreSQL server. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -515,7 +514,7 @@ The init bind mount relies on the host machine's filesystem to initialize the Po
 
 When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters. Consider the following alternative examples:
 
-<Tabs syncKey="postgres-host-apphost-lang">
+<Tabs syncKey="postgres-apphost-lang">
 <TabItem label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
