@@ -239,7 +239,7 @@ For more information, see [Service Defaults](/fundamentals/service-defaults/).
 
 The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside `<Aside>` blocks or after `<Steps>`:
 
-```mdx
+````mdx
 <Aside type="tip" title="Feature flag">
 Enable polyglot support by running:
 
@@ -251,13 +251,13 @@ aspire config set features:polyglotSupportEnabled true --global
 For more information, see [aspire config command reference](/reference/cli/commands/aspire-config-set/)
 </LearnMore>
 </Aside>
-```
+````
 
 ### Code Blocks
 
 Always include a descriptive title:
 
-```mdx
+````mdx
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -266,9 +266,9 @@ var api = builder.AddProject<Projects.Api>("api");
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
-```
+````
 
-```mdx
+````mdx
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -278,11 +278,11 @@ const api = await builder.addProject("api", "../Api/Api.csproj");
 
 await builder.build().run();
 ```
-```
+````
 
 For JSON configuration:
 
-```mdx
+````mdx
 ```json title="JSON — appsettings.json"
 {
   "ConnectionStrings": {
@@ -290,7 +290,7 @@ For JSON configuration:
   }
 }
 ```
-```
+````
 
 ### Package Installation Components
 
@@ -321,7 +321,7 @@ Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** 
 
 Use `<Tabs syncKey="apphost-lang">` so the reader's language choice persists across the page and across pages:
 
-```mdx
+````mdx
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 <Tabs syncKey="apphost-lang">
@@ -356,7 +356,7 @@ await builder.build().run();
 
 </TabItem>
 </Tabs>
-```
+````
 
 ### Conventions
 
@@ -365,7 +365,7 @@ await builder.build().run();
 | File title | `title="AppHost.cs"` | `title="apphost.ts"` |
 | Tab label | `C#` | `TypeScript` |
 | Sync key | `apphost-lang` | `apphost-lang` |
-| Builder creation | `DistributedApplication.CreateBuilder(args)` | `await createBuilder()` |
+| Builder creation | `DistributedApplication.CreateBuilder(args)` |  `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
 | Method casing | PascalCase (`AddRedis`) | camelCase (`addRedis`) |
 | Async pattern | Synchronous fluent calls | `await` each builder call |
 | Build & run | `builder.Build().Run()` | `await builder.build().run()` |
