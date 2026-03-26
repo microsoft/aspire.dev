@@ -416,7 +416,7 @@ Place integration docs in the appropriate category folder under `src/frontend/sr
 
 #### For Hosting-Only Integrations
 
-```mdx
+````mdx
 ---
 title: [Technology] integration
 description: Learn how to use the [Technology] integration with Aspire.
@@ -474,13 +474,13 @@ Describe available configuration methods and options.
 
 - [Official Technology documentation](https://...)
 - [Related Aspire documentation](/path/to/related/)
-```
+````
 
 #### For Hosting + Client Integrations
 
 Include both hosting and client sections:
 
-```mdx
+````mdx
 ## Hosting integration
 
 <InstallPackage package="Aspire.Hosting.Technology" />
@@ -573,7 +573,7 @@ The connection name must match the resource name defined in the AppHost.
 ## See also
 
 - [Official documentation](https://...)
-```
+````
 
 ### Community Toolkit Integrations
 
@@ -848,7 +848,7 @@ This feature is experimental and may change in future releases.
 
 The site supports Mermaid diagrams for architecture visualization:
 
-```mdx
+````mdx
 ```mermaid
 architecture-beta
   service api(logos:dotnet)[API service]
@@ -856,7 +856,7 @@ architecture-beta
 
   frontend:L --> R:api
 ```
-```
+````
 
 Use the `architecture-beta` diagram type for service architecture diagrams.
 
