@@ -258,13 +258,25 @@ For more information, see [aspire config command reference](/reference/cli/comma
 Always include a descriptive title:
 
 ```mdx
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
 
 // After adding all resources, run the app...
 builder.Build().Run();
+```
+```
+
+```mdx
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+
+await builder.build().run();
 ```
 ```
 
@@ -293,6 +305,93 @@ For client/library packages:
 ```mdx
 <InstallDotNetPackage package="Aspire.StackExchange.Redis" />
 ```
+
+## AppHost Language Parity (C# and TypeScript)
+
+Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.ts`). Documentation must treat both languages as first-class citizens. Never write AppHost or hosting-integration documentation with a C#-only bias.
+
+### Core Principles
+
+1. **Always show both languages**: Every AppHost code example must include both C# and TypeScript variants unless the feature is genuinely language-specific.
+2. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
+3. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
+4. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
+
+### Tab Pattern for AppHost Code
+
+Use `<Tabs syncKey="apphost-lang">` so the reader's language choice persists across the page and across pages:
+
+```mdx
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+await builder.addProject("api", "../Api/Api.csproj")
+    .withReference(cache);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+```
+
+### Conventions
+
+| Aspect | C# | TypeScript |
+|---|---|---|
+| File title | `title="AppHost.cs"` | `title="apphost.ts"` |
+| Tab label | `C#` | `TypeScript` |
+| Sync key | `apphost-lang` | `apphost-lang` |
+| Builder creation | `DistributedApplication.CreateBuilder(args)` | `await createBuilder()` |
+| Method casing | PascalCase (`AddRedis`) | camelCase (`addRedis`) |
+| Async pattern | Synchronous fluent calls | `await` each builder call |
+| Build & run | `builder.Build().Run()` | `await builder.build().run()` |
+
+### Prose Guidelines
+
+When writing narrative text around AppHost examples:
+
+- ✅ "Add a Redis resource to your AppHost"
+- ✅ "The following example shows how to configure a PostgreSQL resource"
+- ❌ "Call `builder.AddRedis()` in your _Program.cs_" (C#-specific)
+- ❌ "Add the following C# code to your AppHost" (when both languages should be shown)
+
+When a concept differs between languages (e.g., configuration files, async patterns), explain both within the tabs or in language-neutral prose above the tabs.
+
+### When TypeScript Is Not Yet Supported
+
+If a hosting integration does not yet have TypeScript AppHost support, show only the C# example **without tabs** and add a note:
+
+```mdx
+<Aside type="note">
+TypeScript AppHost support for this integration is not yet available.
+</Aside>
+```
+
+Do **not** wrap a single language in a `<Tabs>` component — that creates a misleading UI suggesting another option exists.
 
 ## Integration Documentation
 
@@ -323,7 +422,7 @@ title: [Technology] integration
 description: Learn how to use the [Technology] integration with Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import Image from 'astro:assets';
 
@@ -339,7 +438,10 @@ Brief description of the technology and what the integration enables.
 
 ### Add [Technology] resource
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var tech = builder.AddTechnology("tech");
@@ -347,6 +449,22 @@ var tech = builder.AddTechnology("tech");
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const tech = await builder.addTechnology("tech");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Configuration options
 
@@ -369,7 +487,38 @@ Include both hosting and client sections:
 
 ### Add [Technology] resource
 
-[Hosting examples...]
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var tech = builder.AddTechnology("tech");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(tech);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const tech = await builder.addTechnology("tech");
+
+await builder.addProject("api", "../Api/Api.csproj")
+    .withReference(tech);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Hosting integration health checks
 
