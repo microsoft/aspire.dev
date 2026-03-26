@@ -16,20 +16,18 @@ import launchAppHost from '@assets/get-started/codespace-launch-apphost.png';
 import debugConsole from '@assets/get-started/codespaces-debug-console.png';
 import translatedUrls from '@assets/get-started/codespaces-translated-urls.png';
 
-[GitHub Codespaces](https://github.com/features/codespaces) offers a cloud-hosted development environment based on Visual Studio Code. It can be accessed directly from a web browser or through Visual Studio Code locally, where Visual Studio Code acts as a client connecting to a cloud-hosted backend. With Aspire 9.1, comes logic to better support GitHub Codespaces including:
+[GitHub Codespaces](https://github.com/features/codespaces) offers a cloud-hosted development environment based on Visual Studio Code. It can be accessed directly from a web browser or through Visual Studio Code locally, where Visual Studio Code acts as a client connecting to a cloud-hosted backend. Aspire works well in GitHub Codespaces and includes support for:
 
-- Automatically configure port forwarding with the correct protocol.
-- Automatically translate URLs in the Aspire dashboard.
-
-Before Aspire 9.1 it was still possible to use Aspire within a GitHub Codespace, however more manual configuration was required.
+- Automatically configuring port forwarding with the correct protocol.
+- Automatically translating URLs in the Aspire dashboard.
 
 ## GitHub Codespaces vs. Dev Containers
 
-GitHub Codespaces builds upon Visual Studio Code and the [Dev Containers specification](https://containers.dev/implementors/spec/). In addition to supporting GitHub Codespaces, Aspire 9.1 enhances support for using Visual Studio Code and locally hosted Dev Containers. While the experiences are similar, there are some differences. For more information, see [Aspire and Visual Studio Code Dev Containers](/get-started/dev-containers/).
+GitHub Codespaces builds upon Visual Studio Code and the [Dev Containers specification](https://containers.dev/implementors/spec/). While the experiences are similar, there are some differences. For more information, see [Aspire and Visual Studio Code Dev Containers](/get-started/dev-containers/).
 
 ## Quick start using template repository
 
-To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.json` file in your repository. The simplest way to get started is by creating a new repository from our [template repository](https://github.com/microsoft/aspire-devcontainer). Consider the following steps:
+To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.json` file in your repository. The simplest way to get started is by creating a new repository from the [Aspire Dev Container template](https://github.com/dotnet/aspire-devcontainer). Consider the following steps:
 
 <Steps>
 
@@ -43,7 +41,7 @@ To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.j
 
     Once you provide the details and select **Create repository**, the repository is created and shown in GitHub.
 
-1. From the new repository, select on the Code button and select the Codespaces tab and then select **Create codespace on main**.
+1. From the new repository, select the **Code** button, open the **Codespaces** tab, and then select **Create codespace on main**.
 
     <Image
       src={createCodespace}
@@ -64,12 +62,12 @@ To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.j
       alt="Screenshot showing the terminal prompt ready for use in the codespace."
     />
 
-    At this point, the Aspire templates have been installed and the ASP.NET Core developer certificate has been added and accepted.
+    At this point, the Aspire CLI has been installed and the ASP.NET Core development certificate has been created and trusted inside the Codespace. You can use `aspire new` right away without manually installing `Aspire.ProjectTemplates`.
 
 1. Create a new Aspire project using the starter template.
 
-    ```bash
-    dotnet new aspire-starter --name HelloAspire
+    ```bash title="Aspire CLI — Create an Aspire starter app"
+    aspire new aspire-starter --name HelloAspire
     ```
 
     This results in many files and folders being created in the repository, which are visible in the **Explorer** panel on the left side of the window.
@@ -130,14 +128,48 @@ To configure GitHub Codespaces for Aspire, use the `.devcontainer/devcontainer.j
 
 ## Manually configuring devcontainer.json
 
-The preceding walkthrough demonstrates the streamlined process of creating a GitHub Codespace using the Aspire Devcontainer template. If you already have an existing repository and wish to utilize Devcontainer functionality with Aspire, add a `devcontainer.json` file to the `.devcontainer` folder within your repository:
+The preceding walkthrough demonstrates the streamlined process of creating a GitHub Codespace using the Aspire Dev Container template. If you already have an existing repository and want to use Codespaces with Aspire, add a `devcontainer.json` file to the `.devcontainer` folder within your repository:
 
 <FileTree>
 - .devcontainer
   - devcontainer.json
 </FileTree>
 
-The [template repository](https://github.com/microsoft/aspire-devcontainer) contains a copy of the `devcontainer.json` file that you can use as a starting point, which should be sufficient for Aspire.
+The [template repository](https://github.com/dotnet/aspire-devcontainer) contains a copy of the `devcontainer.json` file that you can use as a starting point, which should be sufficient for Aspire.
+
+The following `devcontainer.json` matches the current template repository and works well for most Aspire solutions in Codespaces:
+
+```json title="JSON — .devcontainer/devcontainer.json"
+{
+  "name": "Aspire",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/powershell:1": {},
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/python:1": {},
+    "ghcr.io/devcontainers-extra/features/uv:1": {}
+  },
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "32gb",
+    "storage": "64gb"
+  },
+  "onCreateCommand": "curl -sSL https://aspire.dev/install.sh | bash",
+  "postStartCommand": "dotnet dev-certs https --trust",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "GitHub.copilot-chat",
+        "GitHub.copilot"
+      ]
+    }
+  }
+}
+```
+
+This configuration installs the Aspire CLI during Codespace creation, so `aspire new` is ready to use as soon as the Codespace finishes building.
 
 ## Speed up Codespace creation
 

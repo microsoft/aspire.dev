@@ -4,13 +4,10 @@ description: Learn how to set up the Aspire PostgreSQL Hosting and Client integr
 ---
 
 import { Image } from 'astro:assets';
-import { Kbd } from 'starlight-kbd/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, CardGrid, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components';
 import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
-import ThemeImage from '@components/ThemeImage.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
 <Image
@@ -24,238 +21,315 @@ import postgresIcon from '@assets/icons/postgresql-icon.png';
 
 [PostgreSQL](https://www.postgresql.org/) is a powerful, open source object-relational database system with many years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. The Aspire PostgreSQL integration provides a way to connect to existing PostgreSQL databases, or create new instances from the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres).
 
-In this introduction, you'll see how to install and use the Aspire PostgreSQL integrations in a simple configuration. If you already have this knowledge, see [PostgreSQL Hosting integration](../postgres-host/) for full reference details.
+Use this guide to add PostgreSQL to an Aspire solution. Choose the AppHost language for your solution first, then follow the matching quickstart. For the full PostgreSQL hosting API surface in either C# or TypeScript, see [PostgreSQL Hosting integration](../postgres-host/).
 
 <Aside type="note">
     To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
 </Aside>
 
-## Set up hosting integration
+## Set up the PostgreSQL Hosting integration
 
-To begin, install the Aspire PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage PostgreSQL database instances from your Aspire hosting projects:
-
-<InstallPackage packageName="Aspire.Hosting.PostgreSQL" shortName="postgresql" />
-
-Next, in the AppHost project, create instances of PostgreSQL server and database resources, then pass the database to the consuming client projects:
+Choose your AppHost language, then add PostgreSQL to the AppHost. For the full C# and TypeScript hosting API surface, see [PostgreSQL Hosting integration](../postgres-host/).
 
 <PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
+    title="Select your AppHost language"
+    key="postgres-apphost-lang"
     options={[
         { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript" },
+        { id: "typescript", title: "TypeScript" },
     ]}
 />
 
-<Pivot id="csharp">
+<Pivot id="typescript">
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+## TypeScript AppHost quickstart
 
-var postgres = builder.AddPostgres("postgres");
-var postgresdb = postgres.AddDatabase("postgresdb");
+Use this path when your Aspire solution is modeled in `apphost.ts`.
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-                            .WaitFor(postgresdb)
-                            .WithReference(postgresdb);
+### Add the PostgreSQL Hosting integration with the Aspire CLI
+
+```bash title="Terminal"
+aspire add postgres
 ```
 
-</Pivot>
+This updates your `aspire.config.json` with the PostgreSQL hosting integration package:
 
-<Pivot id="python">
-
-```csharp title="apphost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var postgres = builder.AddPostgres("postgres");
-var postgresdb = postgres.AddDatabase("postgresdb");
-
-var exampleProject = builder.AddUvicornApp("api", "./api", "main:app")
-                            .WithExternalHttpEndpoints()
-                            .WaitFor(postgresdb)
-                            .WithReference(postgresdb);
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.PostgreSQL": "*"
+  }
+}
 ```
 
-</Pivot>
+### Model PostgreSQL resources in `apphost.ts`
 
-<Pivot id="javascript">
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+const builder = await createBuilder();
 
-var postgres = builder.AddPostgres("postgres");
-var postgresdb = postgres.AddDatabase("postgresdb");
+const postgres = await builder.addPostgres("postgres");
+const postgresdb = await postgres.addDatabase("postgresdb");
 
-var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
-                 .WithExternalHttpEndpoints()
-                 .WaitFor(postgresdb)
-                 .WithReference(postgresdb);
-```
-
-</Pivot>
-
-<Aside type="tip">
-    This is the simplest implementation of PostgreSQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [PostgreSQL Hosting integration](../postgres-host/).
-</Aside>
-
-## Use the integration in client projects
-
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
-
-### Set up client projects
-
-<Pivot id="csharp">
-
-In each of these consuming client projects, install the Aspire PostgreSQL client integration:
-
-<InstallDotNetPackage packageName="Aspire.Npgsql" />
-
-In the `Program.cs` file of your client-consuming project, call the `AddNpgsqlDataSource` extension method on any `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via the dependency injection container. The method takes a connection name parameter.
-
-```csharp title="C# — Program.cs"
-builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+await builder.addNodeApp("api", "./api", "index.js")
+    .withExternalHttpEndpoints()
+    .waitFor(postgresdb)
+    .withReference(postgresdb);
 ```
 
 <Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
+    For the full TypeScript AppHost PostgreSQL API surface, see [PostgreSQL Hosting integration](../postgres-host/).
 </Aside>
 
-</Pivot>
+### Connect from your consuming app
 
-<Pivot id="python">
+The examples below assume your `apphost.ts` file references `postgresdb` from the consuming app with `withReference(postgresdb)`.
 
-To interact with PostgreSQL databases in your Python consuming projects, you need to include a PostgreSQL adapter library. Two popular options are `psycopg` (synchronous) and `asyncpg` (asynchronous). You can install either of these libraries using pip. In this article, example code uses `psycopg`:
+<Tabs syncKey="postgres-ts-client-lang">
+<TabItem label="JavaScript">
 
-```bash
-pip install psycopg[binary]
-```
+Install the PostgreSQL client library in your JavaScript or TypeScript consuming project:
 
-Ensure that you `import psycopg` in code files that interact with the database. You should also import the `os` module to access environment variables:
-
-```python title="Python - Import psycopg"
-import psycopg
-import os
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-To interact with PostgreSQL databases in your JavaScript consuming projects, you need to include a PostgreSQL client library. A popular option is `pg`. You can install this library using npm:
-
-```bash
+```bash title="Terminal"
 npm install pg
 ```
 
-Ensure that you `import pg` in code files that interact with the database:
+Import `pg` in code files that interact with the database:
 
 ```javascript title="JavaScript - Import pg"
 import pg from 'pg';
 ```
 
-</Pivot>
-
-### Use injected PostgreSQL properties
-
-In the AppHost, when you used the `WithReference` method to pass a PostgreSQL server or database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
-
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
-
-<Pivot id="csharp">
-
-Use the `GetValue()` method to obtain these environment variables in consuming projects:
-
-```csharp title="C# - Obtain configuration properties"
-string hostname = builder.Configuration.GetValue<string>("POSTGRESDB_HOST");
-string databaseport = builder.Configuration.GetValue<string>("POSTGRESDB_PORT");
-string jdbcconnectionstring = builder.Configuration.GetValue<string>("POSTGRESDB_JDBCCONNECTIONSTRING");
-string databasename = builder.Configuration.GetValue<string>("POSTGRESDB_DATABASE");
-```
-
-</Pivot>
-
-<Pivot id="python">
-
-Use the `os.getenv()` method to obtain these environment variables in consuming projects:
-
-```python title="Python - Obtain configuration properties"
-postgres_uri = os.getenv("POSTGRESDB_URI")
-postgres_name = os.getenv("POSTGRESDB_DATABASE", "db")
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the `process.env` method to obtain these environment variables in consuming projects:
+Use the `process.env` object to read the injected PostgreSQL properties:
 
 ```javascript title="JavaScript - Obtain configuration properties"
 const pguser = process.env.POSTGRESDB_USERNAME;
 const pgpassword = process.env.POSTGRESDB_PASSWORD;
 const pghost = process.env.POSTGRESDB_HOST;
 const pgport = process.env.POSTGRESDB_PORT;
-const pgdatabase = process.env.POSTGRESDB_DATABASE;
+const pgdatabase = process.env.POSTGRESDB_DATABASENAME;
 ```
 
-</Pivot>
+Connect to PostgreSQL with `pg`:
+
+```javascript title="JavaScript - Connect to PostgreSQL"
+const client = new pg.Client({
+    user: pguser,
+    host: pghost,
+    database: pgdatabase,
+    password: pgpassword,
+    port: pgport,
+});
+
+await client.connect();
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install a PostgreSQL driver in your Python consuming project. This example uses `psycopg`:
+
+```bash title="Terminal"
+pip install psycopg[binary]
+```
+
+Import `os` and `psycopg` in code files that interact with the database:
+
+```python title="Python - Import psycopg"
+import os
+import psycopg
+```
+
+Use `os.getenv()` to read the injected PostgreSQL properties:
+
+```python title="Python - Obtain configuration properties"
+postgres_uri = os.getenv("POSTGRESDB_URI")
+postgres_name = os.getenv("POSTGRESDB_DATABASENAME")
+```
+
+Connect to PostgreSQL with `psycopg`:
+
+```python title="Python - Connect to PostgreSQL"
+async with await psycopg.AsyncConnection.connect(postgres_uri, autocommit=True) as conn:
+```
+
+</TabItem>
+<TabItem label="C#">
+
+Install the Aspire PostgreSQL client integration in each C# consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+In `Program.cs`, call the `AddNpgsqlDataSource` extension method on an `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via dependency injection:
+
+```csharp title="C# - Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+```
 
 <Aside type="tip">
-    The full set of properties that Aspire injects depends on whether you passed a PostgreSQL server or database resource. For more information, see [Properties of the PostgreSQL resources](../postgres-client/#properties-of-the-postgresql-resources).
+    The `connectionName` parameter must match the name used when adding the PostgreSQL database resource in the AppHost project.
 </Aside>
 
-### Use PostgreSQL resources in client code
+Get the `NpgsqlDataSource` instance by using dependency injection:
 
-<Pivot id="csharp">
-
-Now that you've added `NpgsqlDataSource` to the builder in the consuming project, you can use the PostgreSQL resource to get and store data. Get the `NpgsqlDataSource` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-```csharp title="C# — ExampleService.cs"
+```csharp title="C# - ExampleService.cs"
 public class ExampleService(NpgsqlDataSource dataSource)
 {
     // Use dataSource to query the database...
 }
 ```
 
-Having obtained the data source, you can work with the PostgreSQL database as you would in any other C# application.
+</TabItem>
+</Tabs>
 
 </Pivot>
 
-<Pivot id="python">
+<Pivot id="csharp">
 
-Use the information you have obtained about the PostgreSQL resource to connect to the database. Here is an example of how to connect using `psycopg`:
+## C# AppHost quickstart
+
+Use this path when your Aspire solution is modeled in `AppHost.cs`.
+
+### Add the PostgreSQL Hosting integration to the AppHost
+
+```bash title="Terminal"
+aspire add postgres
+```
+
+Or, add the package manually in either `AppHost.cs` or `AppHost.csproj`:
+
+```csharp title="C# - AppHost.cs"
+#:package Aspire.Hosting.PostgreSQL@*
+```
+
+```xml title="XML - AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.PostgreSQL" Version="*" />
+```
+
+### Model PostgreSQL resources in `AppHost.cs`
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var postgresdb = postgres.AddDatabase("postgresdb");
+
+var api = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WaitFor(postgresdb)
+    .WithReference(postgresdb);
+```
+
+<Aside type="tip">
+    For the full C# AppHost PostgreSQL API surface, see [PostgreSQL Hosting integration](../postgres-host/).
+</Aside>
+
+### Connect from your consuming app
+
+The examples below assume your `AppHost.cs` file references `postgresdb` from the consuming app with `WithReference(postgresdb)`.
+
+<Tabs syncKey="postgres-csharp-client-lang">
+<TabItem label="C#">
+
+Install the Aspire PostgreSQL client integration in each C# consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+In `Program.cs`, call the `AddNpgsqlDataSource` extension method on an `IHostApplicationBuilder` to register an `NpgsqlDataSource` for use via dependency injection:
+
+```csharp title="C# - Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+```
+
+<Aside type="tip">
+    The `connectionName` parameter must match the name used when adding the PostgreSQL database resource in the AppHost project.
+</Aside>
+
+Get the `NpgsqlDataSource` instance by using dependency injection:
+
+```csharp title="C# - ExampleService.cs"
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource to query the database...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install a PostgreSQL driver in your Python consuming project. This example uses `psycopg`:
+
+```bash title="Terminal"
+pip install psycopg[binary]
+```
+
+Import `os` and `psycopg` in code files that interact with the database:
+
+```python title="Python - Import psycopg"
+import os
+import psycopg
+```
+
+Use `os.getenv()` to read the injected PostgreSQL properties:
+
+```python title="Python - Obtain configuration properties"
+postgres_uri = os.getenv("POSTGRESDB_URI")
+postgres_name = os.getenv("POSTGRESDB_DATABASENAME")
+```
+
+Connect to PostgreSQL with `psycopg`:
 
 ```python title="Python - Connect to PostgreSQL"
 async with await psycopg.AsyncConnection.connect(postgres_uri, autocommit=True) as conn:
 ```
 
-Having obtained the connection, you can work with the PostgreSQL database as you would in any other Python application.
+</TabItem>
+<TabItem label="JavaScript">
 
-</Pivot>
+Install the PostgreSQL client library in your JavaScript or TypeScript consuming project:
 
-<Pivot id="javascript">
+```bash title="Terminal"
+npm install pg
+```
 
-Use the information you have obtained about the PostgreSQL resource to connect to the database. Here is an example of how to connect using `pg`:
+Import `pg` in code files that interact with the database:
+
+```javascript title="JavaScript - Import pg"
+import pg from 'pg';
+```
+
+Use the `process.env` object to read the injected PostgreSQL properties:
+
+```javascript title="JavaScript - Obtain configuration properties"
+const pguser = process.env.POSTGRESDB_USERNAME;
+const pgpassword = process.env.POSTGRESDB_PASSWORD;
+const pghost = process.env.POSTGRESDB_HOST;
+const pgport = process.env.POSTGRESDB_PORT;
+const pgdatabase = process.env.POSTGRESDB_DATABASENAME;
+```
+
+Connect to PostgreSQL with `pg`:
 
 ```javascript title="JavaScript - Connect to PostgreSQL"
 const client = new pg.Client({
-  user: pguser,
-  host: pghost,
-  database: pgdatabase,
-  password: pgpassword,
-  port: pgport,  
+    user: pguser,
+    host: pghost,
+    database: pgdatabase,
+    password: pgpassword,
+    port: pgport,
 });
 
-client.connect();
+await client.connect();
 ```
 
-Having obtained the connection, you can work with the PostgreSQL database as you would in any other JavaScript application.
+</TabItem>
+</Tabs>
 
 </Pivot>
 
 ## Next steps
 
-Now, that you have an Aspire app with PostgreSQL integrations up and running, you can use the following reference documents to learn how to configure and interact with the PostgreSQL resources:
+Now that you have an Aspire app with PostgreSQL integrations up and running, you can use the following reference documents to learn how to configure and interact with the PostgreSQL resources:
 
 <CardGrid>
   <LinkCard
@@ -268,7 +342,7 @@ Now, that you have an Aspire app with PostgreSQL integrations up and running, yo
     description="Discover how to configure keyed clients, client integration health checks, and more."
     href="/integrations/databases/postgres/postgres-client/"
   />
-   <LinkCard
+  <LinkCard
     title="Understand the PostgreSQL community extensions"
     description="Discover how to add the DbGate management user interface, and more."
     href="/integrations/databases/postgres/postgresql-extensions/"

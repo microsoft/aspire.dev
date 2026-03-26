@@ -1,0 +1,227 @@
+---
+title: Connect to PostgreSQL
+description: Learn how to connect to PostgreSQL from any language when using Aspire to host your PostgreSQL resources.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import postgresIcon from '@assets/icons/postgresql-icon.png';
+
+<Image
+  src={postgresIcon}
+  alt="PostgreSQL logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+When you reference a PostgreSQL resource from the AppHost with `WithReference` (C#) or `withReference` (TypeScript), Aspire automatically injects connection information into the consuming application as environment variables. This page shows how to read those variables and connect to PostgreSQL from any language.
+
+<Aside type="tip">
+    For .NET applications, you can use environment variables directly or use the [Client integration (.NET)](../postgres-client/) for automatic dependency injection, health checks, and telemetry.
+</Aside>
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
+
+### PostgreSQL server
+
+The PostgreSQL server resource exposes the following connection properties:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `Host`                 | The hostname or IP address of the PostgreSQL server |
+| `Port`                 | The port number the PostgreSQL server is listening on |
+| `Username`             | The username for authentication |
+| `Password`             | The password for authentication |
+| `Uri`                  | The connection URI in postgresql:// format, with the format `postgresql://{Username}:{Password}@{Host}:{Port}` |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:postgresql://{Host}:{Port}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+
+**Example connection strings:**
+
+```
+Uri: postgresql://postgres:p%40ssw0rd1@localhost:5432
+JdbcConnectionString: jdbc:postgresql://localhost:5432
+```
+
+### PostgreSQL database
+
+The PostgreSQL database resource inherits all properties from its parent server resource and adds:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `Uri`                  | The connection URI with the database name, with the format `postgresql://{Username}:{Password}@{Host}:{Port}/{DatabaseName}` |
+| `JdbcConnectionString` | JDBC connection string with database name, with the format `jdbc:postgresql://{Host}:{Port}/{DatabaseName}`. User and password credentials are provided as separate `Username` and `Password` properties. |
+| `DatabaseName`         | The name of the database |
+
+**Example connection strings:**
+
+```
+Uri: postgresql://postgres:p%40ssw0rd1@localhost:5432/catalog
+JdbcConnectionString: jdbc:postgresql://localhost:5432/catalog
+```
+
+## Connect from your application
+
+The following examples show how to connect to PostgreSQL from different languages. Each example assumes you have a PostgreSQL database resource named `postgresdb` referenced from your AppHost.
+
+<Tabs syncKey="postgres-connect-lang">
+<TabItem label="JavaScript">
+
+Install the PostgreSQL client library:
+
+```bash title="Terminal"
+npm install pg
+```
+
+Read the injected environment variables and connect:
+
+```javascript title="JavaScript — index.js"
+import pg from 'pg';
+
+// Read Aspire-injected connection properties
+const client = new pg.Client({
+    user: process.env.POSTGRESDB_USERNAME,
+    host: process.env.POSTGRESDB_HOST,
+    database: process.env.POSTGRESDB_DATABASENAME,
+    password: process.env.POSTGRESDB_PASSWORD,
+    port: process.env.POSTGRESDB_PORT,
+});
+
+await client.connect();
+```
+
+Or use the connection URI directly:
+
+```javascript title="JavaScript — Connect with URI"
+const client = new pg.Client({
+    connectionString: process.env.POSTGRESDB_URI,
+});
+
+await client.connect();
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install a PostgreSQL driver. This example uses `psycopg`:
+
+```bash title="Terminal"
+pip install psycopg[binary]
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+import psycopg
+
+# Read the Aspire-injected connection URI
+postgres_uri = os.getenv("POSTGRESDB_URI")
+
+async with await psycopg.AsyncConnection.connect(
+    postgres_uri, autocommit=True
+) as conn:
+    # Use conn to query the database...
+    pass
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the `pgx` driver, the most actively maintained and feature-rich PostgreSQL driver for Go:
+
+```bash title="Terminal"
+go get github.com/jackc/pgx/v5
+```
+
+> **Note:** [`lib/pq`](https://github.com/lib/pq) is another popular Go PostgreSQL driver, but `pgx` is recommended for new projects because it offers better performance, native PostgreSQL protocol support, and active maintenance.
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+    "github.com/jackc/pgx/v5"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    connStr := os.Getenv("POSTGRESDB_URI")
+
+    conn, err := pgx.Connect(context.Background(), connStr)
+    if err != nil {
+        panic(err)
+    }
+    defer conn.Close(context.Background())
+}
+```
+
+</TabItem>
+<TabItem label=".NET">
+
+For .NET applications, the recommended approach is to use the [Client integration (.NET)](../postgres-client/), which provides automatic dependency injection, health checks, and telemetry.
+
+If you prefer to connect using environment variables directly:
+
+```csharp title="C# — Program.cs"
+var connectionString = Environment.GetEnvironmentVariable(
+    "POSTGRESDB_URI");
+
+await using var dataSource = NpgsqlDataSource.Create(connectionString!);
+await using var conn = await dataSource.OpenConnectionAsync();
+```
+
+</TabItem>
+</Tabs>
+
+## Passing custom environment variables from the AppHost
+
+If your application expects specific environment variable names, you can pass individual connection properties from the AppHost:
+
+<Tabs syncKey="postgres-apphost-lang">
+<TabItem label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("myDatabase");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(database)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["POSTGRES_HOST"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["POSTGRES_PORT"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["POSTGRES_USER"] = postgres.Resource.UserNameParameter;
+        context.EnvironmentVariables["POSTGRES_PASSWORD"] = postgres.Resource.PasswordParameter;
+        context.EnvironmentVariables["POSTGRES_DATABASE"] = database.Resource.DatabaseName;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+const database = await postgres.addDatabase("myDatabase");
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(database)
+    .withEnvironment("POSTGRES_USER", postgres.userName)
+    .withEnvironment("POSTGRES_PASSWORD", postgres.password)
+    .withEnvironment("POSTGRES_DATABASE", "myDatabase");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>

@@ -20,18 +20,24 @@ function tryExec(cmd) {
   }
 }
 
+function getExplicitCommit() {
+  return (
+    process.env.PUBLIC_GIT_COMMIT_ID ||
+    process.env.GIT_COMMIT_ID ||
+    process.env.SOURCE_COMMIT ||
+    process.env.GITHUB_SHA ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    null
+  );
+}
+
 function getCommit() {
   /**
-   * We need to get the commit hash from the public repo's main branch.
-   * In CI/CD, there may be other intermediary commits from the deploy branch.
-   * This ensures we always get the correct commit hash.
-   * Try origin/main first, then fall back to upstream/main for fork workflows.
+   * Prefer an explicit commit provided by CI, otherwise fall back to the
+   * currently checked out commit. Avoid remote-ref-dependent resolution so
+   * local builds remain hermetic and deterministic.
    */
-  return (
-    tryExec('git merge-base origin/main HEAD') ??
-    tryExec('git merge-base upstream/main HEAD') ??
-    ''
-  );
+  return getExplicitCommit() ?? tryExec('git rev-parse HEAD') ?? '';
 }
 
 function getRepoUrl() {
@@ -54,25 +60,27 @@ const repo = getRepoUrl().replace(/\/$/, '');
 const lines = [`PUBLIC_GIT_COMMIT_ID=${commit}`, `PUBLIC_REPO_URL=${repo}`];
 
 const envPath = join(process.cwd(), '.env.local');
-let updated = false;
-let content = '';
-if (existsSync(envPath)) {
-  content = readFileSync(envPath, 'utf8');
+const fileExists = existsSync(envPath);
+const existingContent = fileExists ? readFileSync(envPath, 'utf8') : '';
+
+let content = fileExists ? existingContent : lines.join('\n') + '\n';
+
+if (fileExists) {
   lines.forEach((line) => {
     const [key] = line.split('=');
     const regex = new RegExp(`^${key}=.*$`, 'm');
     if (regex.test(content)) {
       content = content.replace(regex, line);
-      updated = true;
     } else {
       content += (content.endsWith('\n') ? '' : '\n') + line + '\n';
-      updated = true;
     }
   });
+}
+
+const updated = content !== existingContent;
+
+if (updated) {
   writeFileSync(envPath, content);
-} else {
-  writeFileSync(envPath, lines.join('\n') + '\n');
-  updated = true;
 }
 
 if (process.env.CI) {
