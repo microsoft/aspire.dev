@@ -20,24 +20,18 @@ function tryExec(cmd) {
   }
 }
 
-function getExplicitCommit() {
-  return (
-    process.env.PUBLIC_GIT_COMMIT_ID ||
-    process.env.GIT_COMMIT_ID ||
-    process.env.SOURCE_COMMIT ||
-    process.env.GITHUB_SHA ||
-    process.env.VERCEL_GIT_COMMIT_SHA ||
-    null
-  );
-}
-
 function getCommit() {
   /**
-   * Prefer an explicit commit provided by CI, otherwise fall back to the
-   * currently checked out commit. Avoid remote-ref-dependent resolution so
-   * local builds remain hermetic and deterministic.
+   * We need to get the commit hash from the public repo's main branch.
+   * In CI/CD, there may be other intermediary commits from the deploy branch.
+   * This ensures we always get the correct commit hash.
+   * Try origin/main first, then fall back to upstream/main for fork workflows.
    */
-  return getExplicitCommit() ?? tryExec('git rev-parse HEAD') ?? '';
+  return (
+    tryExec('git merge-base origin/main HEAD') ??
+    tryExec('git merge-base upstream/main HEAD') ??
+    ''
+  );
 }
 
 function getRepoUrl() {
