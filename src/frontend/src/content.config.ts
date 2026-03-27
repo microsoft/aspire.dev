@@ -3,6 +3,7 @@ eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-un
 import { defineCollection, z } from 'astro:content';
 import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
 import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
+import { docSearchI18nSchema } from '@astrojs/starlight-docsearch/schema';
 import { glob } from 'astro/loaders';
 
 export const collections = {
@@ -23,7 +24,10 @@ export const collections = {
   }),
   i18n: defineCollection({
     loader: i18nLoader(),
-    schema: i18nSchema(),
+    schema: i18nSchema({
+      // Casting to work around Zod instance mismatch between starlight-docsearch and astro/zod.
+      extend: docSearchI18nSchema() as any,
+    }),
   }),
 
   /**
