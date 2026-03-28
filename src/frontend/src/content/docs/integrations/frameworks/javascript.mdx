@@ -356,13 +356,16 @@ In your Vite app, read the variable from `import.meta.env`:
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export async function fetchData() {
-    const response = await fetch(`${apiBaseUrl}/api/data`);
-    return response.json();
+  const response = await fetch(`${apiBaseUrl}/api/data`);
+  return response.json();
 }
 ```
 
 <Aside type="tip">
-`import.meta.env` variables are replaced at **build time** by Vite. For dynamic runtime values (such as a URL that changes per environment), consider using a server-rendered configuration endpoint instead. See [Pass runtime configuration to SPA frontends](#pass-runtime-configuration-to-spa-frontends).
+  `import.meta.env` variables are replaced at **build time** by Vite. For
+  dynamic runtime values (such as a URL that changes per environment), consider
+  using a server-rendered configuration endpoint instead. See [Pass runtime
+  configuration to SPA frontends](#pass-runtime-configuration-to-spa-frontends).
 </Aside>
 
 ## Pass runtime configuration to SPA frontends
@@ -375,60 +378,58 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 
 1. **Pass the parameter to the API in the AppHost**
 
-    Define the parameter in the AppHost and pass it to the API project using `WithEnvironment`. Then reference the API from the frontend so it can call the endpoint:
+   Define the parameter in the AppHost and pass it to the API project using `WithEnvironment`. Then reference the API from the frontend so it can call the endpoint:
 
-    ```csharp title="C# — AppHost.cs"
-    var builder = DistributedApplication.CreateBuilder(args);
+   ```csharp title="C# — AppHost.cs"
+   var builder = DistributedApplication.CreateBuilder(args);
 
-    var googleClientId = builder.AddParameter("google-client-id");
+   var googleClientId = builder.AddParameter("google-client-id");
 
-    var api = builder.AddProject<Projects.Api>("api")
-        .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
+   var api = builder.AddProject<Projects.Api>("api")
+       .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
 
-    var frontend = builder.AddViteApp("frontend", "./frontend")
-        .WithPnpm()
-        .WithReference(api);
+   var frontend = builder.AddViteApp("frontend", "./frontend")
+       .WithPnpm()
+       .WithReference(api);
 
-    // After adding all resources, run the app...
-    ```
+   // After adding all resources, run the app...
+   ```
 
 2. **Expose a config endpoint in the API**
 
-    Create an endpoint in your API project that reads the environment variable from configuration and returns it to the frontend:
+   Create an endpoint in your API project that reads the environment variable from configuration and returns it to the frontend:
 
-    ```csharp title="C# — Program.cs"
-    app.MapGet("/api/config/google-client-id", (IConfiguration config) =>
-    {
-        var clientId = config["GOOGLE_CLIENT_ID"];
+   ```csharp title="C# — Program.cs"
+   app.MapGet("/api/config/google-client-id", (IConfiguration config) =>
+   {
+       var clientId = config["GOOGLE_CLIENT_ID"];
 
-        return string.IsNullOrEmpty(clientId)
-            ? Results.NotFound()
-            : Results.Ok(new { clientId });
-    });
-    ```
+       return string.IsNullOrEmpty(clientId)
+           ? Results.NotFound()
+           : Results.Ok(new { clientId });
+   });
+   ```
 
-    <Aside type="tip">
-    For multiple configuration values, consider grouping them under a single endpoint (such as `GET /api/config`) to reduce network requests.
+   For multiple configuration values, consider grouping them under a single endpoint (such as `GET /api/config`) to reduce network requests.
 
-    Use this pattern only for non-secret/public configuration values (for example OAuth client IDs). Do not expose secrets such as client secrets, API keys, or connection strings via a frontend config endpoint.
-    </Aside>
+   Use this pattern only for non-secret/public configuration values (for example OAuth client IDs). Do not expose secrets such as client secrets, API keys, or connection strings via a frontend config endpoint.
 
 3. **Fetch the config value in the SPA**
 
-    In your frontend application, fetch the configuration value at startup instead of reading from `import.meta.env`:
+   In your frontend application, fetch the configuration value at startup instead of reading from `import.meta.env`:
 
-    ```typescript title="TypeScript — config.ts"
-    export async function getConfig() {
-        const response = await fetch('/api/config/google-client-id');
+   ```typescript title="TypeScript — config.ts"
+   export async function getConfig() {
+     const response = await fetch('/api/config/google-client-id');
 
-        if (!response.ok) {
-            throw new Error('Failed to load configuration');
-        }
+     if (!response.ok) {
+       throw new Error('Failed to load configuration');
+     }
 
-        const { clientId } = await response.json();
-        return { googleClientId: clientId };
-    }
-    ```
+     const { clientId } = await response.json();
+     return { googleClientId: clientId };
+   }
+   ```
 
 </Steps>
 
@@ -436,6 +437,7 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 This pattern applies to any SPA framework that bakes environment variables at build time, including apps added with `AddViteApp` or `AddJavaScriptApp`. For server-side rendered frameworks (such as Next.js or Nuxt), you can access Aspire environment variables directly with `process.env` at runtime from server-side code paths.
 
 Environment variables that are bundled into client-side code (for example, `NEXT_PUBLIC_*` in Next.js) are still substituted at build time, so they should use a runtime configuration endpoint like the one shown above if they need values defined by Aspire at app startup.
+
 </Aside>
 
 ## Monorepo and Turborepo patterns
@@ -464,7 +466,9 @@ var dashboard = builder.AddViteApp("dashboard", "./apps/dashboard")
 ```
 
 <Aside type="note">
-Each app directory must have its own `package.json` with a `dev` script. The `pnpm install` command should be run from the **monorepo root** before starting Aspire, so that the shared `node_modules` are populated.
+  Each app directory must have its own `package.json` with a `dev` script. The
+  `pnpm install` command should be run from the **monorepo root** before
+  starting Aspire, so that the shared `node_modules` are populated.
 </Aside>
 
 ### Turborepo
@@ -494,7 +498,7 @@ var frontend = builder.AddJavaScriptApp("frontend", "./apps/frontend")
 
 ## Production builds
 
-When you publish your application using `aspire deploy`, Aspire automatically:
+When you publish your application, Aspire automatically:
 
 1. Generates a Dockerfile for containerized deployment
 2. Installs dependencies using deterministic install commands based on lockfiles
@@ -502,6 +506,12 @@ When you publish your application using `aspire deploy`, Aspire automatically:
 4. Creates production-ready containers
 
 This ensures your JavaScript applications are built consistently across environments and deployed alongside your other Aspire services.
+
+<LearnMore>
+  For guidance on choosing between build-artifact and standalone-service
+  deployment patterns, see [Deploy JavaScript
+  apps](/deployment/javascript-apps/).
+</LearnMore>
 
 ## See also
 

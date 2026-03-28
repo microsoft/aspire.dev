@@ -64,6 +64,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/overview',
     },
     {
+      label: 'Deploy JavaScript apps',
+      slug: 'deployment/javascript-apps',
+    },
+    {
       label: 'Deployment manifest format',
       translations: {
         da: 'Udrulningsmanifestformat',
