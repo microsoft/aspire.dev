@@ -158,12 +158,11 @@ internal sealed class PreviewStateStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return _records.Values
+            return [.. _records.Values
                 .OrderByDescending(static record => record.LastAccessedAtUtc ?? record.ReadyAtUtc ?? record.LastUpdatedAtUtc)
                 .ThenByDescending(static record => record.PullRequestNumber)
                 .Take(limit)
-                .Select(static record => record.ToSnapshot())
-                .ToArray();
+                .Select(static record => record.ToSnapshot())];
         }
         finally
         {
@@ -375,15 +374,14 @@ internal sealed class PreviewStateStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return _records.Values
+            return [.. _records.Values
                 .Where(static record => record.State == PreviewLoadState.Ready && !string.IsNullOrWhiteSpace(record.ActiveDirectoryPath))
                 .Where(record => record.PullRequestNumber != excludedPullRequestNumber)
                 .Select(record => new ReadyPreviewCandidate(
                     record.PullRequestNumber,
                     record.ActiveDirectoryPath!,
                     record.LastAccessedAtUtc ?? record.ReadyAtUtc ?? record.RegisteredAtUtc))
-                .OrderBy(static candidate => candidate.SortKey)
-                .ToArray();
+                .OrderBy(static candidate => candidate.SortKey)];
         }
         finally
         {

@@ -367,10 +367,12 @@ internal sealed class PreviewCoordinator
             bytesTotal: null,
             cancellationToken);
 
-        using var archive = ZipFile.OpenRead(zipPath);
-        var extractionPlan = BuildExtractionPlan(archive, destinationDirectory);
+        ExtractionPlan extractionPlan;
+        using (var archive = ZipFile.OpenRead(zipPath))
+        {
+            extractionPlan = BuildExtractionPlan(archive, destinationDirectory);
+        }
         var totalEntries = Math.Max(extractionPlan.FileEntries.Count, 1);
-        var extractionProgress = new ProgressThrottle();
         var extractionStride = Math.Max(200, totalEntries / 60);
 
         foreach (var directoryPath in extractionPlan.DirectoryPaths)
@@ -379,31 +381,46 @@ internal sealed class PreviewCoordinator
             Directory.CreateDirectory(directoryPath);
         }
 
-        for (var index = 0; index < extractionPlan.FileEntries.Count; index++)
+        if (extractionPlan.FileEntries.Count > 0)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await ExtractEntryAsync(extractionPlan.FileEntries[index], cancellationToken);
+            var extractionProgress = new ProgressThrottle();
+            var extractionState = new ExtractionProgressState();
+            using var progressCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var progressTask = ReportExtractionProgressAsync(
+                workItem.PullRequestNumber,
+                extractionState,
+                totalEntries,
+                extractionStride,
+                extractionProgress,
+                progressCancellationSource.Token);
 
-            var stagePercent = (int)Math.Round(((index + 1d) / totalEntries) * 100d);
-            var percent = CalculateWeightedPercent(ExtractingStart, ExtractingWeight, stagePercent);
-            if (!extractionProgress.ShouldPublish(
-                    stage: "Extracting",
-                    percent: percent,
-                    unitsCompleted: index + 1,
-                    unitStride: extractionStride,
-                    isTerminal: index == extractionPlan.FileEntries.Count - 1))
+            try
             {
-                continue;
+                await ExtractEntriesInParallelAsync(
+                    zipPath,
+                    extractionPlan.FileEntries,
+                    extractionState,
+                    cancellationToken);
+            }
+            finally
+            {
+                progressCancellationSource.Cancel();
+                try
+                {
+                    await progressTask;
+                }
+                catch (OperationCanceledException) when (progressCancellationSource.IsCancellationRequested)
+                {
+                }
             }
 
-            await _stateStore.UpdateProgressAsync(
+            await PublishExtractionProgressAsync(
                 workItem.PullRequestNumber,
-                stage: "Extracting",
-                message: $"Extracting preview files ({(index + 1).ToString("N0", CultureInfo.InvariantCulture)}/{totalEntries.ToString("N0", CultureInfo.InvariantCulture)}).",
-                percent: percent,
-                stagePercent: Math.Clamp(stagePercent, 0, 100),
-                bytesDownloaded: null,
-                bytesTotal: null,
+                completedEntries: extractionPlan.FileEntries.Count,
+                totalEntries,
+                extractionStride,
+                extractionProgress,
+                isTerminal: true,
                 cancellationToken);
         }
 
@@ -422,10 +439,16 @@ internal sealed class PreviewCoordinator
     {
         var fullRootPath = Path.GetFullPath(destinationDirectory + Path.DirectorySeparatorChar);
         var directoryPaths = new HashSet<string>(StringComparer.Ordinal);
-        var fileEntries = new List<PlannedExtractionEntry>();
+        var fileEntries = new Dictionary<string, PlannedExtractionEntry>(StringComparer.Ordinal);
 
-        foreach (var entry in archive.Entries.Where(static candidate => !string.IsNullOrEmpty(candidate.FullName)))
+        for (var entryIndex = 0; entryIndex < archive.Entries.Count; entryIndex++)
         {
+            var entry = archive.Entries[entryIndex];
+            if (string.IsNullOrEmpty(entry.FullName))
+            {
+                continue;
+            }
+
             var normalizedEntryPath = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
             var fullDestinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, normalizedEntryPath));
 
@@ -444,17 +467,142 @@ internal sealed class PreviewCoordinator
                 ?? throw new InvalidOperationException($"Could not resolve a directory path for artifact entry '{entry.FullName}'.");
 
             directoryPaths.Add(directoryPath);
-            fileEntries.Add(new PlannedExtractionEntry(entry, fullDestinationPath));
+            fileEntries[fullDestinationPath] = new PlannedExtractionEntry(entryIndex, entry.FullName, fullDestinationPath);
         }
 
         return new ExtractionPlan(
-            DirectoryPaths: directoryPaths.OrderBy(static path => path.Length).ToArray(),
-            FileEntries: fileEntries);
+            DirectoryPaths: [.. directoryPaths.OrderBy(static path => path.Length)],
+            FileEntries: [.. fileEntries.Values.OrderBy(static entry => entry.EntryIndex)]);
     }
 
-    private static async Task ExtractEntryAsync(PlannedExtractionEntry plannedEntry, CancellationToken cancellationToken)
+    private async Task ReportExtractionProgressAsync(
+        int pullRequestNumber,
+        ExtractionProgressState extractionState,
+        int totalEntries,
+        int extractionStride,
+        ProgressThrottle extractionProgress,
+        CancellationToken cancellationToken)
     {
-        await using var sourceStream = plannedEntry.Entry.Open();
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var completedEntries = extractionState.GetCompletedEntries();
+            if (completedEntries > 0)
+            {
+                await PublishExtractionProgressAsync(
+                    pullRequestNumber,
+                    completedEntries,
+                    totalEntries,
+                    extractionStride,
+                    extractionProgress,
+                    isTerminal: false,
+                    cancellationToken);
+            }
+
+            if (completedEntries >= totalEntries)
+            {
+                return;
+            }
+
+            await timer.WaitForNextTickAsync(cancellationToken);
+        }
+    }
+
+    private async Task PublishExtractionProgressAsync(
+        int pullRequestNumber,
+        int completedEntries,
+        int totalEntries,
+        int extractionStride,
+        ProgressThrottle extractionProgress,
+        bool isTerminal,
+        CancellationToken cancellationToken)
+    {
+        var stagePercent = (int)Math.Round((completedEntries / (double)totalEntries) * 100d);
+        var percent = CalculateWeightedPercent(ExtractingStart, ExtractingWeight, stagePercent);
+        if (!extractionProgress.ShouldPublish(
+                stage: "Extracting",
+                percent: percent,
+                unitsCompleted: completedEntries,
+                unitStride: extractionStride,
+                isTerminal: isTerminal))
+        {
+            return;
+        }
+
+        await _stateStore.UpdateProgressAsync(
+            pullRequestNumber,
+            stage: "Extracting",
+            message: $"Extracting preview files ({completedEntries.ToString("N0", CultureInfo.InvariantCulture)}/{totalEntries.ToString("N0", CultureInfo.InvariantCulture)}).",
+            percent: percent,
+            stagePercent: Math.Clamp(stagePercent, 0, 100),
+            bytesDownloaded: null,
+            bytesTotal: null,
+            cancellationToken);
+    }
+
+    private static async Task ExtractEntriesInParallelAsync(
+        string zipPath,
+        IReadOnlyList<PlannedExtractionEntry> plannedEntries,
+        ExtractionProgressState extractionState,
+        CancellationToken cancellationToken)
+    {
+        var workerCount = CalculateExtractionWorkerCount(plannedEntries.Count);
+        if (workerCount <= 1)
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            for (var plannedEntryIndex = 0; plannedEntryIndex < plannedEntries.Count; plannedEntryIndex++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await ExtractEntryAsync(archive, plannedEntries[plannedEntryIndex], cancellationToken);
+                extractionState.IncrementCompletedEntries();
+            }
+
+            return;
+        }
+
+        using var workerCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var workerCancellationToken = workerCancellationSource.Token;
+        var workers = Enumerable.Range(0, workerCount)
+            .Select(workerIndex => Task.Run(
+                async () =>
+                {
+                    using var workerArchive = ZipFile.OpenRead(zipPath);
+
+                    try
+                    {
+                        for (var plannedEntryIndex = workerIndex; plannedEntryIndex < plannedEntries.Count; plannedEntryIndex += workerCount)
+                        {
+                            workerCancellationToken.ThrowIfCancellationRequested();
+                            await ExtractEntryAsync(workerArchive, plannedEntries[plannedEntryIndex], workerCancellationToken);
+                            extractionState.IncrementCompletedEntries();
+                        }
+                    }
+                    catch
+                    {
+                        workerCancellationSource.Cancel();
+                        throw;
+                    }
+                },
+                CancellationToken.None))
+            .ToArray();
+
+        await Task.WhenAll(workers);
+    }
+
+    private static async Task ExtractEntryAsync(ZipArchive archive, PlannedExtractionEntry plannedEntry, CancellationToken cancellationToken)
+    {
+        var entry = plannedEntry.EntryIndex < archive.Entries.Count
+            ? archive.Entries[plannedEntry.EntryIndex]
+            : null;
+
+        if (entry is null || !string.Equals(entry.FullName, plannedEntry.FullName, StringComparison.Ordinal))
+        {
+            entry = archive.GetEntry(plannedEntry.FullName)
+                ?? throw new InvalidOperationException($"Could not reopen archive entry '{plannedEntry.FullName}' for extraction.");
+        }
+
+        await using var sourceStream = entry.Open();
         await using var destinationStream = new FileStream(
             plannedEntry.DestinationPath,
             FileMode.Create,
@@ -464,6 +612,16 @@ internal sealed class PreviewCoordinator
             FileOptions.Asynchronous);
 
         await sourceStream.CopyToAsync(destinationStream, 1024 * 1024, cancellationToken);
+    }
+
+    private static int CalculateExtractionWorkerCount(int fileCount)
+    {
+        if (fileCount <= 1)
+        {
+            return fileCount;
+        }
+
+        return Math.Min(fileCount, Math.Max(2, Environment.ProcessorCount));
     }
 
     private static int CalculateDownloadStagePercent(PreviewDownloadProgress progress)
@@ -601,8 +759,17 @@ internal sealed class PreviewCoordinator
             _lastPublishedAtUtc = publishedAtUtc;
         }
     }
+
+    private sealed class ExtractionProgressState
+    {
+        private int _completedEntries;
+
+        public int GetCompletedEntries() => Volatile.Read(ref _completedEntries);
+
+        public void IncrementCompletedEntries() => Interlocked.Increment(ref _completedEntries);
+    }
 }
 
 internal sealed record ExtractionPlan(IReadOnlyList<string> DirectoryPaths, IReadOnlyList<PlannedExtractionEntry> FileEntries);
 
-internal sealed record PlannedExtractionEntry(ZipArchiveEntry Entry, string DestinationPath);
+internal sealed record PlannedExtractionEntry(int EntryIndex, string FullName, string DestinationPath);

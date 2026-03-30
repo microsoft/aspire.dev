@@ -26,6 +26,21 @@ internal sealed class PreviewHostOptions
     public string GitHubAppPrivateKey { get; set; } = string.Empty;
 
     public string GitHubApiBaseUrl { get; set; } = "https://api.github.com/";
+
+    [JsonIgnore]
+    public bool HasGitHubToken => !string.IsNullOrWhiteSpace(GitHubToken);
+
+    [JsonIgnore]
+    public bool HasGitHubAppConfiguration =>
+        GitHubAppId > 0
+        && !string.IsNullOrWhiteSpace(GitHubAppPrivateKey);
+
+    public string GetGitHubAuthenticationMode() =>
+        HasGitHubToken
+            ? "personal-access-token"
+            : HasGitHubAppConfiguration
+                ? "github-app"
+                : "unconfigured";
 }
 
 internal sealed class PreviewRegistrationRequest

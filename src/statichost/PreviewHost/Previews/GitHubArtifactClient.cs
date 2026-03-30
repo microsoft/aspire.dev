@@ -118,7 +118,7 @@ internal sealed class GitHubArtifactClient
             {
                 State = ItemStateFilter.Open,
                 SortProperty = PullRequestSort.Created,
-                SortDirection = SortDirection.Ascending
+                SortDirection = SortDirection.Descending
             };
 
             var pullRequests = new List<PullRequest>();
@@ -151,9 +151,9 @@ internal sealed class GitHubArtifactClient
                 }
             }
 
-            _cachedOpenPullRequests = pullRequests
-                .OrderBy(static pullRequest => pullRequest.CreatedAt)
-                .ThenBy(static pullRequest => pullRequest.Number)
+            _cachedOpenPullRequests = [.. pullRequests
+                .OrderByDescending(static pullRequest => pullRequest.CreatedAt)
+                .ThenByDescending(static pullRequest => pullRequest.Number)
                 .Select(static pullRequest => new GitHubPullRequestSummary(
                     pullRequest.Number,
                     pullRequest.Title,
@@ -162,8 +162,7 @@ internal sealed class GitHubArtifactClient
                     pullRequest.User?.Login,
                     pullRequest.Draft,
                     pullRequest.CreatedAt,
-                    pullRequest.UpdatedAt))
-                .ToArray();
+                    pullRequest.UpdatedAt))];
 
             _cachedOpenPullRequestsExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(15);
             return _cachedOpenPullRequests;
@@ -320,7 +319,7 @@ internal sealed class GitHubArtifactClient
         string repositoryName,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(_options.GitHubToken))
+        if (_options.HasGitHubToken)
         {
             return CreateClient(new Credentials(_options.GitHubToken));
         }
@@ -399,7 +398,7 @@ internal sealed class GitHubArtifactClient
 
     private void EnsureCredentialsConfigured()
     {
-        if (!string.IsNullOrWhiteSpace(_options.GitHubToken))
+        if (_options.HasGitHubToken)
         {
             return;
         }
@@ -409,10 +408,10 @@ internal sealed class GitHubArtifactClient
 
     private void EnsureGitHubAppConfigured()
     {
-        if (_options.GitHubAppId <= 0 || string.IsNullOrWhiteSpace(_options.GitHubAppPrivateKey))
+        if (!_options.HasGitHubAppConfiguration)
         {
             throw new InvalidOperationException(
-                $"The '{PreviewHostOptions.SectionName}:GitHubAppId' and '{PreviewHostOptions.SectionName}:GitHubAppPrivateKey' settings must be configured before GitHub App authentication can be used.");
+                $"Either '{PreviewHostOptions.SectionName}:GitHubToken' or both '{PreviewHostOptions.SectionName}:GitHubAppId' and '{PreviewHostOptions.SectionName}:GitHubAppPrivateKey' must be configured before GitHub authentication can be used.");
         }
     }
 

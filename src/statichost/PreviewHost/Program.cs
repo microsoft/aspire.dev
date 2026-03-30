@@ -19,16 +19,24 @@ builder.Services.ConfigureHttpJsonOptions(static options =>
 });
 builder.Services
     .AddOptions<PreviewHostOptions>()
-    .Bind(builder.Configuration.GetSection(PreviewHostOptions.SectionName));
+    .Bind(builder.Configuration.GetSection(PreviewHostOptions.SectionName))
+    .Validate(
+        static options => options.HasGitHubToken || options.HasGitHubAppConfiguration,
+        $"Either '{PreviewHostOptions.SectionName}:GitHubToken' or both '{PreviewHostOptions.SectionName}:GitHubAppId' and '{PreviewHostOptions.SectionName}:GitHubAppPrivateKey' must be configured.")
+    .ValidateOnStart();
 builder.Services.AddSingleton<GitHubArtifactClient>();
 builder.Services.AddSingleton<PreviewStateStore>();
 builder.Services.AddSingleton<PreviewCoordinator>();
 builder.Services.AddSingleton<PreviewRequestDispatcher>();
 
 var app = builder.Build();
+var previewHostOptions = app.Services.GetRequiredService<IOptions<PreviewHostOptions>>().Value;
 
 var previewStateStore = app.Services.GetRequiredService<PreviewStateStore>();
 await previewStateStore.InitializeAsync(CancellationToken.None);
+app.Logger.LogInformation(
+    "PreviewHost GitHub authentication mode: {GitHubAuthenticationMode}",
+    previewHostOptions.GetGitHubAuthenticationMode());
 
 if (!app.Environment.IsDevelopment())
 {
@@ -141,19 +149,14 @@ app.MapGet(
 
 app.MapGet(
     "/api/previews/{pullRequestNumber:int}/bootstrap",
-    async (int pullRequestNumber, PreviewCoordinator coordinator, CancellationToken cancellationToken) =>
+    async (int pullRequestNumber, PreviewCoordinator coordinator, IOptions<PreviewHostOptions> options, CancellationToken cancellationToken) =>
     {
         var result = await coordinator.BootstrapAsync(pullRequestNumber, cancellationToken);
         return result.Snapshot is null
-            ? Results.NotFound(new
-            {
+            ? Results.Json(CreateUnavailablePreviewPayload(
                 pullRequestNumber,
-                state = "Missing",
-                stage = "Missing",
-                failureMessage = result.FailureMessage ?? "The preview host could not find a successful frontend build for this pull request yet.",
-                previewPath = PreviewRoute.BuildPath(pullRequestNumber),
-                updatedAtUtc = DateTimeOffset.UtcNow
-            })
+                options.Value,
+                result.FailureMessage ?? "The preview host could not find a successful frontend build for this pull request yet."))
             : Results.Json(result.Snapshot);
     });
 
@@ -223,19 +226,14 @@ app.MapPost(
 
 app.MapPost(
     "/api/previews/{pullRequestNumber:int}/retry",
-    async (int pullRequestNumber, PreviewCoordinator coordinator, CancellationToken cancellationToken) =>
+    async (int pullRequestNumber, PreviewCoordinator coordinator, IOptions<PreviewHostOptions> options, CancellationToken cancellationToken) =>
     {
         var result = await coordinator.RetryAsync(pullRequestNumber, cancellationToken);
         return result.Snapshot is null
-            ? Results.NotFound(new
-            {
+            ? Results.Json(CreateUnavailablePreviewPayload(
                 pullRequestNumber,
-                state = "Missing",
-                stage = "Missing",
-                failureMessage = result.FailureMessage ?? "The preview host could not find a successful frontend build for this pull request yet.",
-                previewPath = PreviewRoute.BuildPath(pullRequestNumber),
-                updatedAtUtc = DateTimeOffset.UtcNow
-            })
+                options.Value,
+                result.FailureMessage ?? "The preview host could not find a successful frontend build for this pull request yet."))
             : Results.Json(result.Snapshot);
     });
 
@@ -321,6 +319,19 @@ static bool HasValidBearerToken(HttpRequest request, string expectedToken)
     return expectedBytes.Length == providedBytes.Length
         && CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes);
 }
+
+static object CreateUnavailablePreviewPayload(int pullRequestNumber, PreviewHostOptions options, string failureMessage) =>
+    new
+    {
+        pullRequestNumber,
+        state = "Missing",
+        stage = "Missing",
+        failureMessage,
+        previewPath = PreviewRoute.BuildPath(pullRequestNumber),
+        updatedAtUtc = DateTimeOffset.UtcNow,
+        repositoryOwner = options.RepositoryOwner,
+        repositoryName = options.RepositoryName
+    };
 
 static bool TryResolvePreviewRequest(HttpContext context, out int pullRequestNumber, out string relativePath)
 {

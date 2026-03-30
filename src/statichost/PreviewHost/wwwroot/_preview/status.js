@@ -88,9 +88,31 @@ retryButton.addEventListener("click", async () => {
       method: "POST",
       cache: "no-store",
     });
+    const payload = await readJsonSafely(response);
 
     if (!response.ok && response.status !== 202) {
-      throw new Error(`Retry failed with status ${response.status}.`);
+      applyState(buildFailureState(
+        payload?.failureMessage ?? `Retry failed with status ${response.status}.`,
+        payload ?? {},
+      ));
+      return;
+    }
+
+    if (!payload) {
+      await bootstrap();
+      return;
+    }
+
+    closeEventSource();
+    applyState(payload);
+
+    if (payload.isReady || payload.state === "Missing" || isTerminalState(payload.state)) {
+      return;
+    }
+
+    if (isActiveState(payload.state)) {
+      connectEventsIfNeeded(payload);
+      return;
     }
 
     await bootstrap();
@@ -115,13 +137,7 @@ async function bootstrap() {
   const response = await fetch(`/api/previews/${pullRequestNumber}/bootstrap`, {
     cache: "no-store",
   });
-
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
+  const payload = await readJsonSafely(response);
 
   if (!response.ok) {
     applyState(buildFailureState(payload?.failureMessage ?? "The preview host could not find a successful frontend build for this pull request yet.", payload));
@@ -254,6 +270,14 @@ function buildFailureState(messageText, payload = {}) {
     repositoryName: payload.repositoryName ?? null,
     isReady: false,
   };
+}
+
+async function readJsonSafely(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 function closeEventSource() {
