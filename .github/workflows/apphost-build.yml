@@ -8,20 +8,8 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.apphost.name }} Build
+    name: AppHost Build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        apphost:
-          - name: AppHost
-            project_name: Aspire.Dev.AppHost
-            project_path: src/apphost/Aspire.Dev.AppHost
-            artifact_name: apphost-release
-          - name: Preview AppHost
-            project_name: Aspire.Dev.Preview.AppHost
-            project_path: src/apphost/Aspire.Dev.Preview.AppHost
-            artifact_name: preview-apphost-release
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -30,17 +18,17 @@ jobs:
         global-json-file: global.json
 
     - name: Restore
-      run: cd ${{ matrix.apphost.project_path }} && dotnet restore
+      run: cd src/apphost/Aspire.Dev.AppHost && dotnet restore
 
     - name: Build
-      run: cd ${{ matrix.apphost.project_path }} && dotnet build --no-restore --configuration Release
+      run: cd src/apphost/Aspire.Dev.AppHost && dotnet build --no-restore --configuration Release
 
     - name: Verify output
       run: |
-        APPHOST_DLL=$(ls -1 ${{ matrix.apphost.project_path }}/bin/Release/*/${{ matrix.apphost.project_name }}.dll 2>/dev/null | head -n 1)
+        APPHOST_DLL=$(ls -1 src/apphost/Aspire.Dev.AppHost/bin/Release/*/Aspire.Dev.AppHost.dll 2>/dev/null | head -n 1)
         if [ -z "$APPHOST_DLL" ]; then
           echo "AppHost build failed - output assembly not found"
-          ls -R ${{ matrix.apphost.project_path }}/bin/Release || true
+          ls -R src/apphost/Aspire.Dev.AppHost/bin/Release || true
           exit 1
         fi
         echo "Found $APPHOST_DLL"
@@ -49,7 +37,7 @@ jobs:
       if: ${{ always() }}
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
-        name: ${{ matrix.apphost.artifact_name }}
-        path: ${{ matrix.apphost.project_path }}/bin/Release/*/
+        name: apphost-release
+        path: src/apphost/Aspire.Dev.AppHost/bin/Release/*/
         if-no-files-found: warn
         retention-days: 7

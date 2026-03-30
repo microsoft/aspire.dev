@@ -8,21 +8,6 @@ on:
         required: true
         default: "24.x"
         type: string
-      artifact_name:
-        description: Artifact name to publish
-        required: false
-        default: "frontend-dist"
-        type: string
-      artifact_retention_days:
-        description: Number of days to keep the uploaded artifact
-        required: false
-        default: 7
-        type: number
-      site_base_path:
-        description: Path base to use for the Astro build
-        required: false
-        default: "/"
-        type: string
 
 permissions:
   contents: read
@@ -56,7 +41,6 @@ jobs:
         env:
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
-          ASTRO_BASE_PATH: ${{ inputs.site_base_path }}
         run: pnpm build:production
 
       - name: Check dist
@@ -77,7 +61,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: ${{ inputs.artifact_name }}
+          name: frontend-dist
           path: src/frontend/dist
           if-no-files-found: warn
-          retention-days: ${{ inputs.artifact_retention_days }}
+          retention-days: 7
