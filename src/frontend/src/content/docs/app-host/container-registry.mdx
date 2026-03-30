@@ -3,7 +3,7 @@ title: Container registry configuration
 description: Learn how to configure container registries for your Aspire applications, including generic registries and Azure Container Registry.
 ---
 
-import { Aside, Code, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire 13.1 introduced explicit container registry configuration, giving developers control over where and when container images are pushed during deployment. This article explains how to configure container registries for your Aspire applications.
@@ -29,7 +29,10 @@ Use the `AddContainerRegistry` method to configure a generic container registry 
 
 The following example configures a container registry and associates it with a project resource:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add a container registry
@@ -42,6 +45,27 @@ var api = builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a container registry
+const registry = await builder.addContainerRegistry("myregistry", "registry.example.com");
+
+// Associate the registry with a project
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code:
 
 - Creates a container registry resource pointing to `registry.example.com`.
@@ -52,7 +76,10 @@ The preceding code:
 
 To push images to DockerHub, specify `docker.io` as the registry endpoint:
 
-```csharp title="C# — DockerHub registry"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registry = builder.AddContainerRegistry("dockerhub", "docker.io");
@@ -61,11 +88,31 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 ```
 
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistry("dockerhub", "docker.io");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
 ### GitHub Container Registry example
 
 To push images to GitHub Container Registry (GHCR):
 
-```csharp title="C# — GitHub Container Registry"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registry = builder.AddContainerRegistry("ghcr", "ghcr.io");
@@ -74,11 +121,31 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 ```
 
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistry("ghcr", "ghcr.io");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
 ### Private registry example
 
 For private registries, provide the full registry URL:
 
-```csharp title="C# — Private registry"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registry = builder.AddContainerRegistry(
@@ -89,6 +156,25 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 ```
 
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistry(
+    "private-registry",
+    "registry.mycompany.com:5000");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
 ## Authentication and credentials
 
 Container registries typically require authentication for pushing images. You can configure credentials using parameters and secrets.
@@ -97,7 +183,10 @@ Container registries typically require authentication for pushing images. You ca
 
 Parameters allow you to provide registry configuration dynamically:
 
-```csharp title="C# — Registry with parameters"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registryEndpoint = builder.AddParameter("registry-endpoint");
@@ -111,6 +200,29 @@ var registry = builder.AddContainerRegistry(
 var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryEndpoint = await builder.addParameter("registry-endpoint");
+const registryRepository = await builder.addParameter("registry-repository");
+
+const registry = await builder.addContainerRegistry(
+    "myregistry",
+    registryEndpoint,
+    registryRepository);
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For more information about parameters, see [External parameters](/fundamentals/external-parameters/).
@@ -164,16 +276,38 @@ Azure Container Registry (ACR) provides first-class integration with Aspire, wit
 
 Aspire 13.1 introduces explicit container registry configuration for Azure Container Apps environments:
 
-```csharp title="C# — Azure Container Registry"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var acr = builder.AddAzureContainerAppEnvironment("myenv");
+var environment = builder.AddAzureContainerAppEnvironment("myenv");
 
 var api = builder.AddProject<Projects.Api>("api")
-    .WithContainerRegistry(acr);
+    .WithContainerRegistry(environment);
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureContainerAppEnvironment("myenv");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(environment);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 In the preceding example:
 
@@ -194,7 +328,10 @@ In the preceding example:
 
 To use an existing Azure Container Registry, call the `PublishAsExisting` method when you add the ACR:
 
-```csharp title="C# — Existing ACR"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registryName = builder.AddParameter("registryName");
@@ -209,6 +346,30 @@ builder.AddAzureContainerAppEnvironment("env")
 var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(acr);
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryName = await builder.addParameter("registryName");
+const rgName = await builder.addParameter("rgName");
+
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.publishAsExisting(registryName, rgName);
+
+const environment = await builder.addAzureContainerAppEnvironment("env");
+await environment.withAzureContainerRegistry(acr);
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(acr);
+```
+
+</TabItem>
+</Tabs>
 
 ## Pipeline integration
 
@@ -275,7 +436,10 @@ The `deploy` step includes building, pushing, and deploying all resources.
 
 You can configure different registries for different resources:
 
-```csharp title="C# — Multiple registries"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var publicRegistry = builder.AddContainerRegistry("dockerhub", "docker.io");
@@ -290,11 +454,37 @@ var internalApi = builder.AddProject<Projects.InternalApi>("internal-api")
     .WithContainerRegistry(privateRegistry);
 ```
 
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const publicRegistry = await builder.addContainerRegistry("dockerhub", "docker.io");
+const privateRegistry = await builder.addContainerRegistry(
+    "private",
+    "registry.company.com");
+
+const publicApi = await builder.addProject("public-api", "../PublicApi/PublicApi.csproj");
+await publicApi.withContainerRegistry(publicRegistry);
+
+const internalApi = await builder.addProject("internal-api", "../InternalApi/InternalApi.csproj");
+await internalApi.withContainerRegistry(privateRegistry);
+```
+
+</TabItem>
+</Tabs>
+
 ### Parameterized registry configuration
 
 You can use parameters when you need flexible deployment across environments:
 
-```csharp title="C# — Parameterized configuration"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var registryEndpoint = builder.AddParameter("registry-endpoint");
@@ -313,6 +503,34 @@ var worker = builder.AddProject<Projects.Worker>("worker")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryEndpoint = await builder.addParameter("registry-endpoint");
+const registryRepository = await builder.addParameter("registry-repository");
+
+const registry = await builder.addContainerRegistry(
+    "container-registry",
+    registryEndpoint,
+    registryRepository);
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+
+const worker = await builder.addProject("worker", "../Worker/Worker.csproj");
+await worker.withContainerRegistry(registry);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Configure the parameters in your AppHost configuration:
 
@@ -336,7 +554,10 @@ export Parameters__registry_repository="myorg"
 
 The following code constitutes a complete AppHost example with Azure Container Apps and ACR:
 
-```csharp title="C# — Azure Container Apps with ACR"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Create Azure Container Apps environment with ACR
@@ -357,6 +578,36 @@ var web = builder.AddProject<Projects.Web>("web")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Create Azure Container Apps environment with ACR
+const environment = await builder.addAzureContainerAppEnvironment("production");
+
+// Add Redis cache
+const cache = await builder.addRedis("cache");
+
+// Add API with registry configuration
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+await api.withContainerRegistry(environment);
+
+// Add frontend with registry configuration
+const web = await builder.addProject("web", "../Web/Web.csproj");
+await web.withReference(api);
+await web.withContainerRegistry(environment);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Benefits of explicit configuration
 
