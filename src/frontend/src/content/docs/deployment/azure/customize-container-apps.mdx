@@ -97,9 +97,10 @@ When you have Azure resources that already exist—such as a shared Service Bus 
 
 ```csharp title="AppHost.cs"
 var existingBusName = builder.AddParameter("existingServiceBusName");
+var existingBusRg = builder.AddParameter("existingServiceBusResourceGroup");
 
 var serviceBus = builder.AddAzureServiceBus("messaging")
-    .PublishAsExisting(existingBusName);
+    .PublishAsExisting(existingBusName, existingBusRg);
 ```
 
 </TabItem>
@@ -125,15 +126,15 @@ Cross-subscription resource references are not yet supported. The existing resou
 
 ## Resource groups
 
-By default, all resources deploy to the same resource group. Use `WithResourceGroup` to target a specific resource group for individual resources. This is useful when you need to deploy to a shared resource group managed outside of Aspire:
+By default, all Azure resources deploy to the same resource group created by the environment. Use `WithResourceGroup` on the `AzureEnvironmentResource` to set the resource group for the deployment:
 
 ```csharp title="AppHost.cs"
-builder.AddAzureServiceBus("messaging")
-    .WithResourceGroup("my-shared-rg");
+builder.AddAzureEnvironment()
+    .WithResourceGroup(builder.AddParameter("resourceGroup"));
 ```
 
 <Aside type="note">
-TypeScript AppHost support for `WithResourceGroup` with string values is not yet available. In TypeScript, `withResourceGroup` accepts a `ParameterResource` instead of a plain string.
+`WithResourceGroup` is configured on the Azure environment resource, not on individual resources. All resources in the environment share the same resource group.
 </Aside>
 
 ## Role assignments
