@@ -551,27 +551,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'get-started/resources',
             },
             {
-              label: 'Aspire app lifecycle guide',
-              slug: 'deployment/app-lifecycle',
-              translations: {
-                da: 'Guide til Aspire app-livscyklus',
-                de: 'Leitfaden zum Aspire-App-Lebenszyklus',
-                en: 'Aspire app lifecycle guide',
-                es: 'Guía del ciclo de vida de la aplicación Aspire',
-                fr: 'Guide du cycle de vie des applications Aspire',
-                hi: 'Aspire ऐप जीवनचक्र गाइड',
-                id: 'Panduan siklus hidup aplikasi Aspire',
-                it: 'Guida al ciclo di vita delle app Aspire',
-                ja: 'Aspire アプリのライフサイクル ガイド',
-                ko: 'Aspire 앱 수명 주기 가이드',
-                'pt-BR': 'Guia do ciclo de vida do aplicativo Aspire',
-                ru: 'Руководство по жизненному циклу приложения Aspire',
-                tr: 'Aspire uygulama yaşam döngüsü kılavuzu',
-                uk: 'Посібник з життєвого циклу застосунку Aspire',
-                'zh-CN': 'Aspire 应用生命周期指南',
-              },
-            },
-            {
               label: 'Glossary',
               slug: 'get-started/glossary',
               translations: {
