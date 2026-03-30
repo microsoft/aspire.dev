@@ -52,6 +52,7 @@ const extractionRateTracker = createRateTracker();
 initializeShell();
 window.addEventListener("pagehide", cancelIfClosingDuringPreparation);
 window.addEventListener("beforeunload", cancelIfClosingDuringPreparation);
+document.addEventListener("click", preservePreparationWhenReturningToCatalog);
 
 bootstrap().catch((error) => {
   applyState(buildFailureState(error instanceof Error ? error.message : "The preview host could not load the preview status."));
@@ -328,6 +329,27 @@ function closeEventSource() {
     eventSource.close();
     eventSource = null;
   }
+}
+
+function preservePreparationWhenReturningToCatalog(event) {
+  if (!(event.target instanceof Element) || event.defaultPrevented) {
+    return;
+  }
+
+  const link = event.target.closest("a[data-preserve-preparation='true']");
+  if (!(link instanceof HTMLAnchorElement)) {
+    return;
+  }
+
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
+
+  if (link.target && link.target !== "_self") {
+    return;
+  }
+
+  suppressCloseCancellation = true;
 }
 
 function cancelIfClosingDuringPreparation() {

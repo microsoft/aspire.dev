@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using GitHubJwt;
 using Microsoft.Extensions.Options;
 using Octokit;
@@ -16,7 +17,7 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
     };
 
     private static readonly TimeSpan DownloadProgressPublishInterval = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan OpenPullRequestCatalogCacheDuration = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan OpenPullRequestCatalogCacheDuration = TimeSpan.FromMinutes(2);
     private const string CiWorkflowPath = ".github/workflows/ci.yml";
     private const string DefaultPreviewArtifactName = "frontend-dist";
     private readonly SemaphoreSlim _installationTokenGate = new(1, 1);
@@ -27,6 +28,7 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
     private long? _cachedInstallationId;
     private IReadOnlyList<GitHubPullRequestSummary>? _cachedOpenPullRequests;
     private DateTimeOffset _cachedOpenPullRequestsExpiresAtUtc;
+    private Task<IReadOnlyList<GitHubPullRequestSummary>>? _pullRequestCatalogRefreshTask;
 
     public async Task<PreviewRegistrationRequest?> TryResolveLatestPreviewRegistrationAsync(int pullRequestNumber, CancellationToken cancellationToken)
     {
@@ -99,6 +101,9 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
         EnsureCredentialsConfigured();
         EnsureRepositoryConfigured();
 
+        IReadOnlyList<GitHubPullRequestSummary>? cachedOpenPullRequests = null;
+        Task<IReadOnlyList<GitHubPullRequestSummary>>? refreshTask = null;
+
         await _pullRequestCatalogGate.WaitAsync(cancellationToken);
         try
         {
@@ -108,67 +113,85 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
                 return _cachedOpenPullRequests;
             }
 
-            var repositoryClient = await CreateRepositoryClientAsync(
-                _options.RepositoryOwner,
-                _options.RepositoryName,
-                cancellationToken);
+            cachedOpenPullRequests = _cachedOpenPullRequests;
 
-            var request = new PullRequestRequest
+            if (_pullRequestCatalogRefreshTask is null || _pullRequestCatalogRefreshTask.IsCompleted)
             {
-                State = ItemStateFilter.Open,
-                SortProperty = PullRequestSort.Created,
-                SortDirection = SortDirection.Descending
-            };
-
-            var pullRequests = new List<PullRequest>();
-
-            for (var page = 1; ; page++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var pageItems = await repositoryClient.PullRequest.GetAllForRepository(
-                    _options.RepositoryOwner,
-                    _options.RepositoryName,
-                    request,
-                    new ApiOptions
-                    {
-                        StartPage = page,
-                        PageCount = 1,
-                        PageSize = 100
-                    });
-
-                if (pageItems.Count == 0)
-                {
-                    break;
-                }
-
-                pullRequests.AddRange(pageItems);
-
-                if (pageItems.Count < 100)
-                {
-                    break;
-                }
+                _pullRequestCatalogRefreshTask = StartPullRequestCatalogRefreshTask();
             }
 
-            var previewablePullRequests = await GetPullRequestNumbersWithSuccessfulPreviewBuildsAsync(
-                repositoryClient,
-                pullRequests,
-                cancellationToken);
+            refreshTask = _pullRequestCatalogRefreshTask;
+        }
+        finally
+        {
+            _pullRequestCatalogGate.Release();
+        }
 
-            _cachedOpenPullRequests = [.. pullRequests
-                .OrderByDescending(static pullRequest => pullRequest.CreatedAt)
-                .ThenByDescending(static pullRequest => pullRequest.Number)
-                .Select(pullRequest => new GitHubPullRequestSummary(
-                    pullRequest.Number,
-                    pullRequest.Title,
-                    pullRequest.HtmlUrl,
-                    pullRequest.Head?.Sha ?? string.Empty,
-                    pullRequest.User?.Login,
-                    pullRequest.Draft,
-                    pullRequest.CreatedAt,
-                    pullRequest.UpdatedAt,
-                    previewablePullRequests.Contains(pullRequest.Number)))];
+        if (cachedOpenPullRequests is not null)
+        {
+            _logger.LogDebug("Serving stale open PR catalog while GitHub previewability data refreshes in the background.");
+            return cachedOpenPullRequests;
+        }
 
+        return await refreshTask!.WaitAsync(cancellationToken);
+    }
+
+    private Task<IReadOnlyList<GitHubPullRequestSummary>> StartPullRequestCatalogRefreshTask()
+    {
+        Task<IReadOnlyList<GitHubPullRequestSummary>>? refreshTask = null;
+
+        refreshTask = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    return await RefreshOpenPullRequestsAsync(CancellationToken.None);
+                }
+                finally
+                {
+                    await _pullRequestCatalogGate.WaitAsync(CancellationToken.None);
+                    try
+                    {
+                        if (ReferenceEquals(_pullRequestCatalogRefreshTask, refreshTask))
+                        {
+                            _pullRequestCatalogRefreshTask = null;
+                        }
+                    }
+                    finally
+                    {
+                        _pullRequestCatalogGate.Release();
+                    }
+                }
+            },
+            CancellationToken.None);
+
+        _ = refreshTask.ContinueWith(
+            task =>
+            {
+                if (task.Exception is null)
+                {
+                    return;
+                }
+
+                _logger.LogWarning(
+                    task.Exception.GetBaseException(),
+                    "Failed to refresh the open PR catalog. Continuing to serve the last cached catalog until the next refresh succeeds.");
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
+
+        return refreshTask;
+    }
+
+    private async Task<IReadOnlyList<GitHubPullRequestSummary>> RefreshOpenPullRequestsAsync(CancellationToken cancellationToken)
+    {
+        var refreshedPullRequests = await QueryOpenPullRequestsAsync(cancellationToken);
+
+        await _pullRequestCatalogGate.WaitAsync(CancellationToken.None);
+        try
+        {
+            _cachedOpenPullRequests = refreshedPullRequests;
             _cachedOpenPullRequestsExpiresAtUtc = DateTimeOffset.UtcNow.Add(OpenPullRequestCatalogCacheDuration);
             return _cachedOpenPullRequests;
         }
@@ -176,6 +199,80 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
         {
             _pullRequestCatalogGate.Release();
         }
+    }
+
+    private async Task<IReadOnlyList<GitHubPullRequestSummary>> QueryOpenPullRequestsAsync(CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        var repositoryClient = await CreateRepositoryClientAsync(
+            _options.RepositoryOwner,
+            _options.RepositoryName,
+            cancellationToken);
+
+        var request = new PullRequestRequest
+        {
+            State = ItemStateFilter.Open,
+            SortProperty = PullRequestSort.Created,
+            SortDirection = SortDirection.Descending
+        };
+
+        var pullRequests = new List<PullRequest>();
+
+        for (var page = 1; ; page++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var pageItems = await repositoryClient.PullRequest.GetAllForRepository(
+                _options.RepositoryOwner,
+                _options.RepositoryName,
+                request,
+                new ApiOptions
+                {
+                    StartPage = page,
+                    PageCount = 1,
+                    PageSize = 100
+                });
+
+            if (pageItems.Count == 0)
+            {
+                break;
+            }
+
+            pullRequests.AddRange(pageItems);
+
+            if (pageItems.Count < 100)
+            {
+                break;
+            }
+        }
+
+        var previewablePullRequests = await GetPullRequestNumbersWithSuccessfulPreviewBuildsAsync(
+            repositoryClient,
+            pullRequests,
+            cancellationToken);
+
+        IReadOnlyList<GitHubPullRequestSummary> summaries = [.. pullRequests
+            .OrderByDescending(static pullRequest => pullRequest.CreatedAt)
+            .ThenByDescending(static pullRequest => pullRequest.Number)
+            .Select(pullRequest => new GitHubPullRequestSummary(
+                pullRequest.Number,
+                pullRequest.Title,
+                pullRequest.HtmlUrl,
+                pullRequest.Head?.Sha ?? string.Empty,
+                pullRequest.User?.Login,
+                pullRequest.Draft,
+                pullRequest.CreatedAt,
+                pullRequest.UpdatedAt,
+                previewablePullRequests.Contains(pullRequest.Number)))];
+
+        stopwatch.Stop();
+        _logger.LogInformation(
+            "Refreshed the open PR catalog with {PullRequestCount} pull requests in {ElapsedMilliseconds} ms",
+            summaries.Count,
+            stopwatch.ElapsedMilliseconds);
+
+        return summaries;
     }
 
     public async Task<GitHubArtifactDescriptor> GetArtifactDescriptorAsync(PreviewWorkItem workItem, CancellationToken cancellationToken)
