@@ -85,11 +85,13 @@ flowchart LR
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var app = builder.AddNodeApp("app", "./api", "src/index.js")
+var app = builder
+    .AddNodeApp("app", "./api", "src/index.js")
     .WithHttpEndpoint(port: 3000, env: "PORT")
     .WithExternalHttpEndpoints();
 
-var frontend = builder.AddViteApp("frontend", "./frontend")
+var frontend = builder
+    .AddViteApp("frontend", "./frontend")
     .WithReference(app)
     .WaitFor(app);
 
@@ -139,9 +141,9 @@ It also maps well to frameworks that already know how to serve static files from
 
 ### When to use this model
 
-- Your backend already serves static files, or you are willing to make it do so
-- You want one deployed service to host both the API and the frontend
-- You want the same resource to own routing, auth, and static asset hosting
+- Your backend already serves static files, or you are willing to make it do so.
+- You want one deployed service to host both the API and the frontend.
+- You want the same resource to own routing, auth, and static asset hosting.
 
 ### Implications
 
@@ -170,11 +172,14 @@ flowchart LR
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddNodeApp("api", "./api", "src/index.js")
+var api = builder
+    .AddNodeApp("api", "./api", "src/index.js")
     .WithHttpEndpoint(port: 3000, env: "PORT");
-var frontend = builder.AddViteApp("frontend", "./frontend");
+var frontend = builder
+    .AddViteApp("frontend", "./frontend");
 
-builder.AddYarp("app")
+builder
+    .AddYarp("app")
     .WithConfiguration(c =>
     {
         c.AddRoute("/api/{**catch-all}", api)
@@ -232,9 +237,11 @@ development, gate that wiring to run mode only:
 <TabItem label="C#">
 
 ```csharp title="C# — AppHost.cs"
-var frontend = builder.AddViteApp("frontend", "./frontend");
+var frontend = builder
+    .AddViteApp("frontend", "./frontend");
 
-var gateway = builder.AddYarp("app")
+var gateway = builder
+    .AddYarp("app")
     .WithExternalHttpEndpoints()
     .PublishWithStaticFiles(frontend);
 
@@ -288,9 +295,9 @@ It is a good fit when you want one place to centralize routing, transforms, head
 
 ### When to use this model
 
-- You want a gateway or BFF in front of your application
-- You already use a reverse proxy for API routing, aggregation, path transforms, or BFF-style concerns
-- You want one public endpoint in both development and production
+- You want a gateway or BFF in front of your application.
+- You already use a reverse proxy for API routing, aggregation, path transforms, or BFF-style concerns.
+- You want one public endpoint in both development and production.
 
 ### Implications
 
@@ -304,9 +311,9 @@ It is a good fit when you want one place to centralize routing, transforms, head
 
 Another common deployment shape is:
 
-- the frontend is deployed to its own static file host
-- the backend is deployed to separate compute
-- the browser calls the backend directly
+- The frontend is deployed to its own static file host.
+- The backend is deployed to separate compute.
+- The browser calls the backend directly.
 
 ```mermaid
 flowchart TD
@@ -325,11 +332,13 @@ deployment story for `AddViteApp` and `AddJavaScriptApp`.
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddNodeApp("api", "./api", "src/index.js")
+var api = builder
+    .AddNodeApp("api", "./api", "src/index.js")
     .WithHttpEndpoint(port: 3000, env: "PORT")
     .WithExternalHttpEndpoints();
 
-builder.AddViteApp("frontend", "./frontend")
+builder
+    .AddViteApp("frontend", "./frontend")
     .WithExternalHttpEndpoints()
     .PublishAsDockerFile();
 
@@ -368,10 +377,12 @@ The following example looks reasonable, but it is a trap in publish/deploy:
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api")
+var api = builder
+    .AddProject<Projects.Api>("api")
     .WithExternalHttpEndpoints();
 
-builder.AddViteApp("frontend", "./frontend")
+builder
+    .AddViteApp("frontend", "./frontend")
     .WithReference(api)
     .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("https"))
     .PublishAsDockerFile();
@@ -443,9 +454,9 @@ await builder.build().run();
 
 This model looks familiar if you are used to deploying:
 
-- a Vite or React app to a static site host
-- an API to another host
-- frontend JavaScript that calls the API directly from the browser
+- A Vite or React app to a static site host.
+- An API to another host.
+- Frontend JavaScript that calls the API directly from the browser.
 
 It can seem like the most obvious path because it keeps the frontend as "just a
 static site" and avoids adding a backend-served frontend or reverse proxy layer.
@@ -468,9 +479,9 @@ Aspire can still orchestrate the frontend build and the backend resource, but
 this topology is less integrated than the two primary models above. In
 particular, Aspire does not automatically solve:
 
-- passing the final deployed backend URL into an already-built SPA
-- browser-to-API cross-origin concerns
-- the split ownership between a standalone static site host and a separate API host
+- Passing the final deployed backend URL into an already-built SPA.
+- Browser-to-API cross-origin concerns.
+- The split ownership between a standalone static site host and a separate API host.
 
 If this is the model you want, plan for explicit runtime configuration and CORS
 management. Otherwise, the backend-serves-frontend or reverse-proxy-serves-frontend
@@ -507,19 +518,19 @@ The important implication is that local Vite behavior does not automatically bec
 
 The same production decision applies to `AddJavaScriptApp`:
 
-- another resource can serve the built assets
-- or a gateway/BFF can serve them
+- Another resource can serve the built assets.
+- Or a gateway/BFF can serve them.
 
 The difference is that `AddJavaScriptApp` does not assume a particular development server. You choose the run script and the build script, but production still depends on deciding which deployed resource owns the final HTTP surface.
 
 ## Common mistakes
 
-- Expecting `AddViteApp` to be the deployed production web server
-- Exposing the Vite resource instead of the backend or reverse proxy resource that serves the built files
-- Adding `AddViteApp` plus `.WithReference(...)` and assuming that is enough to deploy the frontend
-- Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA
-- Calling `.WithHttpEndpoint()` on `AddViteApp`
-- Using `VITE_*` variables for values that must be resolved at runtime in an already-built SPA
+- Expecting `AddViteApp` to be the deployed production web server.
+- Exposing the Vite resource instead of the backend or reverse proxy resource that serves the built files.
+- Adding `AddViteApp` plus `.WithReference(...)` and assuming that is enough to deploy the frontend.
+- Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA.
+- Calling `.WithHttpEndpoint()` on `AddViteApp`.
+- Using `VITE_*` variables for values that must be resolved at runtime in an already-built SPA.
 
 <LearnMore>
   For runtime configuration guidance, see [JavaScript
@@ -531,4 +542,4 @@ The difference is that `AddJavaScriptApp` does not assume a particular developme
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
 - [JavaScript integration](/integrations/frameworks/javascript/)
 - [Publishing and deployment overview](/deployment/overview/)
-- [What's new in Aspire 13](/whats-new/aspire-13/)
+- [Node.js hosting extensions](/integrations/frameworks/nodejs-extensions/)
