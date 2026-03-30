@@ -72,7 +72,7 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/docker-compose',
     },
     {
-      label: 'Publish to Kubernetes',
+      label: 'Deploy to Kubernetes',
       slug: 'deployment/kubernetes',
     },
     {
