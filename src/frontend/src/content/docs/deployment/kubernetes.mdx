@@ -1,25 +1,29 @@
 ---
-title: Deploy to Kubernetes
-description: Learn how to publish and deploy your Aspire application to Kubernetes using Helm charts.
+title: Publish to Kubernetes
+description: Learn how to publish your Aspire application to Kubernetes using Helm charts.
 sidebar:
   badge: Preview
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
+
+<Aside type="note">
+Kubernetes uses `aspire publish` to generate Helm charts. It does not support `aspire deploy` — you deploy the generated artifacts using `helm`, `kubectl`, or your existing GitOps workflow.
+</Aside>
 
 <LearnMore>
 For hosting integration setup and configuration, see [Kubernetes integration](/integrations/compute/kubernetes/).
 </LearnMore>
 
-To configure your AppHost for Kubernetes, add a Kubernetes environment:
+To configure your AppHost for Kubernetes, add a Kubernetes environment with `AddKubernetesEnvironment`:
 
 <Tabs syncKey="apphost-lang">
 <TabItem label="C#">
 
-```csharp title="AppHost.cs"
+```csharp title="AppHost.cs" {3}
 var builder = DistributedApplication.CreateBuilder(args);
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -32,7 +36,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" {5}
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -57,17 +61,17 @@ aspire publish -o k8s-artifacts
 
 This command analyzes your application model and produces a complete Helm chart in the specified output directory. The generated chart structure looks like this:
 
-```plaintext title="Generated Helm chart structure"
-k8s-artifacts/
-├── Chart.yaml              # Chart metadata (name, version, etc.)
-├── values.yaml             # Configurable values for the chart
-└── templates/
-    └── <resource>/
-        ├── deployment.yaml # Deployment or StatefulSet
-        ├── service.yaml    # Service for connectivity
-        ├── configmap.yaml  # Configuration data
-        └── secret.yaml     # Sensitive data
-```
+<FileTree>
+- k8s-artifacts/
+  - Chart.yaml Chart metadata (name, version, etc.)
+  - values.yaml Configurable values for the chart
+  - templates/
+    - \<resource\>/
+      - deployment.yaml Deployment or StatefulSet
+      - service.yaml Service for connectivity
+      - configmap.yaml Configuration data
+      - secret.yaml Sensitive data
+</FileTree>
 
 The publisher generates the following Kubernetes resources from your application model:
 
