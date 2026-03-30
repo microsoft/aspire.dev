@@ -64,29 +64,8 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/overview',
     },
     {
-      label: 'Deploy JavaScript apps',
-      slug: 'deployment/javascript-apps',
-    },
-    {
-      label: 'Deployment manifest format',
-      translations: {
-        da: 'Udrulningsmanifestformat',
-        de: 'Bereitstellungsmanifestformat',
-        en: 'Deployment manifest format',
-        es: 'Formato de manifiesto de despliegue',
-        fr: 'Format de manifeste de déploiement',
-        hi: 'तैनाती मैनिफ़ेस्ट प्रारूप',
-        id: 'Format manifes penyebaran',
-        it: 'Formato del manifesto di distribuzione',
-        ja: 'デプロイマニフェスト形式',
-        ko: '배포 매니페스트 형식',
-        'pt-BR': 'Formato de manifesto de implantação',
-        ru: 'Формат манифеста развертывания',
-        tr: 'Dağıtım bildirimi biçimi',
-        uk: 'Формат маніфесту розгортання',
-        'zh-CN': '部署清单格式',
-      },
-      slug: 'deployment/manifest-format',
+      label: 'Pipelines (aspire do)',
+      slug: 'deployment/pipelines',
     },
     {
       label: 'Deployment state caching',
@@ -131,6 +110,22 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/custom-deployments',
     },
     {
+      label: 'Deploy JavaScript apps',
+      slug: 'deployment/javascript-apps',
+    },
+    {
+      label: 'Deploy to Docker Compose',
+      slug: 'deployment/docker-compose',
+    },
+    {
+      label: 'Deploy to Kubernetes',
+      slug: 'deployment/kubernetes',
+    },
+    {
+      label: 'Deploy to Kubernetes',
+      slug: 'deployment/kubernetes',
+    },
+    {
       label: 'Deploy to Azure',
       collapsed: false,
       translations: {
@@ -171,6 +166,24 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '使用 Aspire CLI 部署',
           },
           slug: 'deployment/azure/aca-deployment-aspire-cli',
+        },
+        {
+          label: 'Azure Developer CLI (azd)',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              slug: 'deployment/azure/azure-developer-cli',
+            },
+            {
+              label: 'Deployment manifest format',
+              slug: 'deployment/azure/manifest-format',
+            },
+          ],
+        },
+        {
+          label: 'Customize Azure Container Apps',
+          slug: 'deployment/azure/customize-container-apps',
         },
         {
           label: 'Azure security best practices',

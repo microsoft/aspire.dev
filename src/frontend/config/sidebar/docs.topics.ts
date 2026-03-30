@@ -548,7 +548,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 uk: 'Розгортання і топологія застосунку',
                 'zh-CN': '部署与应用拓扑',
               },
-              slug: 'get-started/pipelines',
+              slug: 'deployment/pipelines',
             },
             {
               label: 'Understanding resources',
