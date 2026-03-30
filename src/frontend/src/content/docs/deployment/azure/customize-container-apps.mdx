@@ -6,7 +6,7 @@ description: Learn how to customize Azure Container Apps deployments for your As
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-When you deploy to Azure Container Apps using `aspire deploy`, Aspire provisions infrastructure automatically based on the resources defined in your AppHost. While the defaults work for many scenarios, you often need to customize the generated infrastructure—scaling rules, custom domains, resource groups, role assignments, and more.
+When you deploy to [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/overview) using `aspire deploy`, Aspire provisions infrastructure automatically based on the resources defined in your AppHost. While the defaults work for many scenarios, you often need to customize the generated infrastructure—scaling rules, custom domains, resource groups, role assignments, and more.
 
 This page covers the most common customization options for Azure Container Apps deployments. For hosting-side configuration of the Container Apps _environment_, see [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/).
 
@@ -45,7 +45,7 @@ await builder.addAzureContainerAppEnvironment("env");
 
 const api = await builder.addProject("api", "../Api/Api.csproj", "http");
 await api.publishAsAzureContainerApp(async (infrastructure, app) => {
-    // Customize container app settings
+    // Customize the Container App (e.g. scaling, ingress)
 });
 
 await builder.build().run();
@@ -118,9 +118,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
+const existingBusName = builder.addParameter("existingServiceBusName");
+const existingBusRg = builder.addParameter("existingServiceBusResourceGroup");
 
 const serviceBus = await builder.addAzureServiceBus("messaging");
 await serviceBus.publishAsExisting("existingBusName", "my-resource-group");
@@ -179,10 +178,6 @@ builder.AddAzureServiceBus("messaging")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
 const serviceBus = await builder.addAzureServiceBus("messaging");
 await serviceBus.clearDefaultRoleAssignments();
 ```
@@ -214,12 +209,6 @@ builder.AddProject<Projects.Api>("api")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-await builder.addAzureContainerAppEnvironment("env");
-
 const api = await builder.addProject("api", "../Api/Api.csproj", "http");
 await api.withExternalHttpEndpoints();
 ```

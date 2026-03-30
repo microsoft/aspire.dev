@@ -172,18 +172,10 @@ builder.AddKubernetesEnvironment("k8s")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const api = await builder.addProject("api", "../MyApi/MyApi.csproj", "http");
-
 const k8s = await builder.addKubernetesEnvironment("k8s");
 await k8s.withProperties(async (k8s) => {
     await k8s.helmChartName.set("my-aspire-app");
 });
-
-await builder.build().run();
 ```
 
 </TabItem>
@@ -209,18 +201,11 @@ builder.AddContainer("service", "nginx")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-await builder.addKubernetesEnvironment("k8s");
-
-const api = await builder.addProject("api", "../MyApi/MyApi.csproj", "http");
-await api.publishAsKubernetesService(async (resource) => {
+const service = await builder.addContainer("service", "nginx");
+await service.withEnvironment("ORIGINAL_ENV", "value");
+await service.publishAsKubernetesService(async (resource) => {
     // Customize the generated Kubernetes resource
 });
-
-await builder.build().run();
 ```
 
 </TabItem>
@@ -241,10 +226,6 @@ If your application can't find connection strings at runtime, verify that the ge
 Kubernetes Secrets store values as base64-encoded strings. Verify that your Secrets are properly encoded and that the generated templates reference them correctly. Use `kubectl get secret <name> -o yaml` to inspect Secret contents.
 
 ### Service discovery
-
-<Aside type="caution">
-The `ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL` environment variable is **not** used in Kubernetes deployments. Service discovery uses standard Kubernetes DNS instead.
-</Aside>
 
 In Kubernetes, services discover each other using the cluster's built-in DNS. A service named `api` is reachable at `api.<namespace>.svc.cluster.local`. The generated Helm charts configure service references automatically using Kubernetes-native DNS resolution.
 
