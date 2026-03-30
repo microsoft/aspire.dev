@@ -21,16 +21,9 @@ import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 
-const configuredBasePath = process.env.ASTRO_BASE_PATH ?? '/';
-const normalizedBasePath =
-  configuredBasePath === '/'
-    ? '/'
-    : `/${configuredBasePath.replace(/^\/+|\/+$/g, '')}`;
-
 // https://astro.build/config
 export default defineConfig({
   prefetch: true,
-  base: normalizedBasePath,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
   redirects: redirects,
