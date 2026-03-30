@@ -40,7 +40,7 @@ const builder = await createBuilder();
 
 await builder.addDockerComposeEnvironment("compose");
 
-await builder.addProject("api", "../Api/Api.csproj");
+await builder.addProject("api", "../Api/Api.csproj", "http");
 
 await builder.build().run();
 ```
@@ -192,9 +192,9 @@ const builder = await createBuilder();
 
 await builder.addDockerComposeEnvironment("compose");
 
-const cache = await builder.addContainer("cache", "redis", "latest");
-await cache.publishAsDockerComposeService((resource, service) => {
-    service.labels.set("com.example.team", "backend");
+const cache = await builder.addContainer("cache", "redis:latest");
+await cache.publishAsDockerComposeService(async (resource, service) => {
+    await service.labels.set("com.example.team", "backend");
 });
 
 await builder.build().run();
@@ -223,12 +223,12 @@ builder.AddContainer("mycontainer", "myimage:latest")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const container = await builder.addContainer("mycontainer", "myimage:latest");
-await container.withImagePullPolicy("Always");
+await container.withImagePullPolicy(ImagePullPolicy.Always);
 ```
 
 </TabItem>
@@ -280,8 +280,8 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
-await api.publishAsDockerComposeService((resource, service) => { service.name = "api"; });
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsDockerComposeService(async (resource, service) => { await service.name.set("api"); });
 await api.withRemoteImageName("myorg/myapi");
 await api.withRemoteImageTag("v1.0.0");
 ```
@@ -355,14 +355,14 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const registry = await builder.addContainerRegistry(
+const registry = await builder.addContainerRegistryFromString(
     "ghcr",
     "ghcr.io",
-    "your-github-username/your-repo"
+    { repository: "your-github-username/your-repo" }
 );
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
-await api.publishAsDockerComposeService((resource, service) => { service.name = "api"; });
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsDockerComposeService(async (resource, service) => { await service.name.set("api"); });
 await api.withContainerRegistry(registry);
 ```
 
@@ -417,8 +417,8 @@ const registry = await builder.addContainerRegistry(
     registryRepository
 );
 
-const api = await builder.addProject("api", "../Api/Api.csproj");
-await api.publishAsDockerComposeService((resource, service) => { service.name = "api"; });
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsDockerComposeService(async (resource, service) => { await service.name.set("api"); });
 await api.withContainerRegistry(registry);
 ```
 

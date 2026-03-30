@@ -39,7 +39,7 @@ const builder = await createBuilder();
 
 const k8s = await builder.addKubernetesEnvironment("k8s");
 
-const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj", "http");
 
 await builder.build().run();
 ```
@@ -172,11 +172,11 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj", "http");
 
 const k8s = await builder.addKubernetesEnvironment("k8s");
-await k8s.withProperties(k8s => {
-    k8s.helmChartName = "my-aspire-app";
+await k8s.withProperties(async (k8s) => {
+    await k8s.helmChartName.set("my-aspire-app");
 });
 
 await builder.build().run();
@@ -212,8 +212,8 @@ const builder = await createBuilder();
 
 await builder.addKubernetesEnvironment("k8s");
 
-const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
-await api.publishAsKubernetesService((resource) => {
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj", "http");
+await api.publishAsKubernetesService(async (resource) => {
     // Customize the generated Kubernetes resource
 });
 
