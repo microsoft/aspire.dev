@@ -122,10 +122,6 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/kubernetes',
     },
     {
-      label: 'Deploy to Kubernetes',
-      slug: 'deployment/kubernetes',
-    },
-    {
       label: 'Deploy to Azure',
       collapsed: false,
       translations: {

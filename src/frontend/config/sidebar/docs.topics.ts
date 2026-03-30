@@ -530,27 +530,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'get-started/app-host',
             },
             {
-              label: 'Pipelines and app topology',
-              translations: {
-                da: 'Udrulning og apptopologi',
-                de: 'Bereitstellung und App-Topologie',
-                en: 'Pipelines and app topology',
-                es: 'Despliegue y topología de la aplicación',
-                fr: 'Déploiement et topologie de l’application',
-                hi: 'परिनियोजन और ऐप टोपोलॉजी',
-                id: 'Penyebaran dan topologi aplikasi',
-                it: 'Distribuzione e topologia dell’applicazione',
-                ja: 'パイプラインとアプリのトポロジー',
-                ko: '배포 및 앱 토폴로지',
-                'pt-BR': 'Implantação e topologia do aplicativo',
-                ru: 'Развертывание и топология приложения',
-                tr: 'Dağıtım ve uygulama topolojisi',
-                uk: 'Розгортання і топологія застосунку',
-                'zh-CN': '部署与应用拓扑',
-              },
-              slug: 'deployment/pipelines',
-            },
-            {
               label: 'Understanding resources',
               translations: {
                 da: 'Forstå ressourcer',
