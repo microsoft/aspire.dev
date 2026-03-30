@@ -552,7 +552,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
             {
               label: 'Aspire app lifecycle guide',
-              slug: 'fundamentals/app-lifecycle',
+              slug: 'deployment/app-lifecycle',
               translations: {
                 da: 'Guide til Aspire app-livscyklus',
                 de: 'Leitfaden zum Aspire-App-Lebenszyklus',

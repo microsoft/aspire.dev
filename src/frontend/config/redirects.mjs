@@ -74,4 +74,5 @@ export const redirects = {
   '/get-started/configure-mcp/': '/get-started/ai-coding-agents/',
   '/get-started/pipelines/': '/deployment/pipelines/',
   '/deployment/manifest-format/': '/deployment/azure/manifest-format/',
+  '/fundamentals/app-lifecycle/': '/deployment/app-lifecycle/',
 };

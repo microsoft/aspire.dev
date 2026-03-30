@@ -163,6 +163,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/javascript-apps',
     },
     {
+      label: 'App lifecycle (CI/CD)',
+      slug: 'deployment/app-lifecycle',
+    },
+    {
       label: 'Advanced',
       collapsed: true,
       items: [
