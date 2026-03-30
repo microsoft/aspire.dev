@@ -68,52 +68,6 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/pipelines',
     },
     {
-      label: 'Deployment state caching',
-      translations: {
-        da: 'Cachelagring af udrulningstilstand',
-        de: 'Zwischenspeichern des Bereitstellungsstatus',
-        en: 'Deployment state caching',
-        es: 'Almacenamiento en caché del estado de despliegue',
-        fr: "Mise en cache de l'état de déploiement",
-        hi: 'तैनाती स्थिति कैशिंग',
-        id: 'Caching status penyebaran',
-        it: 'Memorizzazione nella cache dello stato di distribuzione',
-        ja: 'デプロイ状態のキャッシュ',
-        ko: '배포 상태 캐싱',
-        'pt-BR': 'Cache de estado de implantação',
-        ru: 'Кэширование состояния развертывания',
-        tr: 'Dağıtım durumu önbelleğe alma',
-        uk: 'Кешування стану розгортання',
-        'zh-CN': '部署状态缓存',
-      },
-      slug: 'deployment/deployment-state-caching',
-    },
-    {
-      label: 'Custom deployment pipelines',
-      translations: {
-        da: 'Brugerdefinerede implementeringspipelines',
-        de: 'Benutzerdefinierte Bereitstellungspipelines',
-        en: 'Custom deployment pipelines',
-        es: 'Canalizaciones de despliegue personalizadas',
-        fr: 'Pipelines de déploiement personnalisés',
-        hi: 'कस्टम तैनाती पाइपलाइन',
-        id: 'Pipeline penyebaran kustom',
-        it: 'Pipeline di distribuzione personalizzate',
-        ja: 'カスタム デプロイ パイプライン',
-        ko: '사용자 지정 배포 파이프라인',
-        'pt-BR': 'Pipelines de implantação personalizados',
-        ru: 'Пользовательские конвейеры развертывания',
-        tr: 'Özel dağıtım işlem hatları',
-        uk: 'Користувацькі конвеєри розгортання',
-        'zh-CN': '自定义部署管道',
-      },
-      slug: 'deployment/custom-deployments',
-    },
-    {
-      label: 'Deploy JavaScript apps',
-      slug: 'deployment/javascript-apps',
-    },
-    {
       label: 'Deploy to Docker Compose',
       slug: 'deployment/docker-compose',
     },
@@ -164,20 +118,6 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'deployment/azure/aca-deployment-aspire-cli',
         },
         {
-          label: 'Azure Developer CLI (azd)',
-          collapsed: true,
-          items: [
-            {
-              label: 'Overview',
-              slug: 'deployment/azure/azure-developer-cli',
-            },
-            {
-              label: 'Deployment manifest format',
-              slug: 'deployment/azure/manifest-format',
-            },
-          ],
-        },
-        {
           label: 'Customize Azure Container Apps',
           slug: 'deployment/azure/customize-container-apps',
         },
@@ -201,6 +141,38 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': 'Azure 安全最佳实践',
           },
           slug: 'deployment/azure/azure-security-best-practices',
+        },
+        {
+          label: 'Azure Developer CLI (azd)',
+          collapsed: true,
+          items: [
+            {
+              label: 'Overview',
+              slug: 'deployment/azure/azure-developer-cli',
+            },
+            {
+              label: 'Deployment manifest format',
+              slug: 'deployment/azure/manifest-format',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Deploy JavaScript apps',
+      slug: 'deployment/javascript-apps',
+    },
+    {
+      label: 'Advanced',
+      collapsed: true,
+      items: [
+        {
+          label: 'Deployment state caching',
+          slug: 'deployment/deployment-state-caching',
+        },
+        {
+          label: 'Custom deployment pipelines',
+          slug: 'deployment/custom-deployments',
         },
       ],
     },
