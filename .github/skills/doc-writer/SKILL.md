@@ -650,6 +650,9 @@ Use consistent terminology throughout:
 - Use gender-neutral pronouns (they/them) or rewrite to avoid pronouns
 - Avoid ableist language (e.g., "blind to", "crippled by")
 - Use people-first language when discussing disabilities
+- Do **not** frame `.NET` as the default and everything else as an exception. Avoid phrases such as `non-.NET`, `other languages`, or wording that treats Python, JavaScript, Go, or container-based apps as secondary scenarios.
+- When a section is really about a capability or execution model, name that directly instead of contrasting it with `.NET`. For example, prefer headings such as `Pass connection information to app resources` or `Run applications directly on the host` over `.NET` vs. `non-.NET` framing.
+- If specific runtimes matter, name them because the product behavior differs for them—not just as a find-and-replace for `non-.NET`. Otherwise, use positive, capability-based language such as `multi-language apps`, `app resources`, `services built from Dockerfiles`, or `apps that consume environment variables directly`.
 
 ### International Considerations
 
