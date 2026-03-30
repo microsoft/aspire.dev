@@ -5,7 +5,7 @@ sidebar:
   badge: Preview
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
@@ -16,7 +16,10 @@ For hosting integration setup and configuration, see [Kubernetes integration](/i
 
 To configure your AppHost for Kubernetes, add a Kubernetes environment:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -25,6 +28,24 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment("k8s");
+
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Generate Kubernetes artifacts
 
@@ -132,7 +153,10 @@ Use [external parameters](/fundamentals/external-parameters/) to configure value
 
 By default, the Helm chart name is derived from your AppHost project. Configure a custom chart name using `WithProperties`:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 builder.AddKubernetesEnvironment("k8s")
     .WithProperties(k8s =>
     {
@@ -140,11 +164,35 @@ builder.AddKubernetesEnvironment("k8s")
     });
 ```
 
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+
+const k8s = await builder.addKubernetesEnvironment("k8s");
+await k8s.withProperties(k8s => {
+    k8s.helmChartName = "my-aspire-app";
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 ## Customize Kubernetes services
 
 Use the `PublishAsKubernetesService` callback to modify the generated Kubernetes resources for individual services. This provides fully typed access to the Kubernetes object model:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
 builder.AddContainer("service", "nginx")
     .WithEnvironment("ORIGINAL_ENV", "value")
     .PublishAsKubernetesService(resource =>
@@ -153,6 +201,27 @@ builder.AddContainer("service", "nginx")
         resource.Deployment!.Spec.RevisionHistoryLimit = 5;
     });
 ```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addKubernetesEnvironment("k8s");
+
+const api = await builder.addProject("api", "../MyApi/MyApi.csproj");
+await api.publishAsKubernetesService((resource) => {
+    // Customize the generated Kubernetes resource
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="tip">
 Use `WithProperties` on the Kubernetes environment for global settings, and `PublishAsKubernetesService` on individual resources for per-resource customization.
