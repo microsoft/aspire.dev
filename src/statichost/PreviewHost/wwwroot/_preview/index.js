@@ -3,6 +3,10 @@ const windowCapacity = document.getElementById("window-capacity");
 const windowCount = document.getElementById("window-count");
 const availabilityFilterBar = document.getElementById("availability-filter-bar");
 const authorFilterBar = document.getElementById("author-filter-bar");
+const signoutLink = document.getElementById("signout-link");
+const viewerSummary = document.getElementById("viewer-summary");
+const viewerAvatar = document.getElementById("viewer-avatar");
+const viewerName = document.getElementById("viewer-name");
 
 const numberFormatter = new Intl.NumberFormat();
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -21,6 +25,7 @@ let maxActivePreviews = 0;
 let openPullRequestCount = 0;
 let previewablePullRequestCount = 0;
 let openDropdown = "";
+let sessionInfo = null;
 const resettingPreviews = new Set();
 
 availabilityFilterBar.addEventListener("click", (event) => {
@@ -141,7 +146,7 @@ previewGrid.addEventListener("click", (event) => {
   void resetPreview(pullRequestNumber);
 });
 
-loadCatalog().catch((error) => {
+Promise.all([loadSession(), loadCatalog()]).catch((error) => {
   previewGrid.setAttribute("aria-busy", "false");
   availabilityFilterBar.setAttribute("aria-busy", "false");
   authorFilterBar.setAttribute("aria-busy", "false");
@@ -159,7 +164,18 @@ setInterval(() => {
 async function loadCatalog() {
   const response = await fetch("/api/previews/catalog", {
     cache: "no-store",
+    credentials: "same-origin",
   });
+
+  if (response.status === 401) {
+    redirectToLogin();
+    return;
+  }
+
+  if (response.status === 403) {
+    window.location.replace("/auth/access-denied");
+    return;
+  }
 
   if (!response.ok) {
     throw new Error(`Open pull requests request failed with status ${response.status}.`);
@@ -177,6 +193,58 @@ async function loadCatalog() {
   syncAvailabilityFilter();
   syncAuthorFilter(catalogEntries);
   renderCatalog();
+}
+
+async function loadSession() {
+  const response = await fetch("/api/previews/session", {
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  if (response.status === 401) {
+    redirectToLogin();
+    throw new Error("Sign in with GitHub to browse previews.");
+  }
+
+  if (response.status === 403) {
+    window.location.replace("/auth/access-denied");
+    throw new Error("Preview access denied.");
+  }
+
+  if (!response.ok) {
+    throw new Error(`Session request failed with status ${response.status}.`);
+  }
+
+  sessionInfo = await response.json();
+  applySession(sessionInfo);
+}
+
+function applySession(session) {
+  if (signoutLink && typeof session?.signOutPath === "string" && session.signOutPath) {
+    signoutLink.href = session.signOutPath;
+    signoutLink.hidden = false;
+  }
+
+  if (!viewerSummary || !viewerName) {
+    return;
+  }
+
+  const displayName = session?.viewer?.displayName || session?.viewer?.login || "Signed in";
+  const login = session?.viewer?.login ? `@${session.viewer.login}` : "GitHub repo writer";
+  viewerName.textContent = displayName;
+  viewerName.title = login;
+
+  const roleElement = viewerSummary.querySelector(".viewer-role");
+  if (roleElement) {
+    roleElement.textContent = login;
+  }
+
+  if (viewerAvatar && session?.viewer?.avatarUrl) {
+    viewerAvatar.src = session.viewer.avatarUrl;
+    viewerAvatar.hidden = false;
+  }
+
+  viewerSummary.hidden = false;
 }
 
 function renderCatalog() {
@@ -214,7 +282,7 @@ function renderPreviewCard(entry) {
   const draftBadge = entry.isDraft
     ? '<span class="status-chip draft">Draft</span>'
     : "";
-  const resetAction = renderResetPreviewAction(entry, preview);
+  const footer = renderCardFooter(entry, preview);
 
   return `
     <article class="preview-card">
@@ -234,7 +302,7 @@ function renderPreviewCard(entry) {
           <span class="preview-status-detail">${statusDetail}</span>
         </div>
       </a>
-      ${resetAction}
+      ${footer}
     </article>`;
 }
 
@@ -243,7 +311,7 @@ function renderEmptyState(message) {
   previewGrid.innerHTML = `
     <article class="empty-card">
       <h2>${escapeHtml(message)}</h2>
-      <p class="collection-summary">Open a route like <code>/prs/{number}/</code> to resolve a PR, prepare its latest frontend artifact, and add it to the warm preview window.</p>
+      <p class="collection-summary">Choose a pull request to open <code>/prs/{number}/</code>, which signs in through GitHub and prepares the latest successful frontend artifact on demand.</p>
     </article>`;
 }
 
@@ -339,22 +407,30 @@ function renderAuthorOption(option) {
     </label>`;
 }
 
-function renderResetPreviewAction(entry, preview) {
-  if (!preview) {
-    return "";
-  }
-
+function renderCardFooter(entry, preview) {
   const pullRequestNumber = Number(entry.pullRequestNumber);
+  const previewPath = escapeHtml(entry.previewPath ?? `/prs/${pullRequestNumber}/`);
+  const primaryLabel = escapeHtml(buildPrimaryActionLabel(preview, entry));
+  const primaryClass = isPreviewable(entry)
+    ? "action-button primary"
+    : "action-button secondary";
   const isResetting = resettingPreviews.has(pullRequestNumber);
   const label = isResetting ? "Resetting..." : "Reset preview";
   const disabled = isResetting ? " disabled" : "";
+  const resetAction = preview
+    ? `
+        <button type="button" class="action-button secondary preview-card-reset"${disabled} data-reset-preview="${pullRequestNumber}">
+          ${escapeHtml(label)}
+        </button>`
+    : "";
 
   return `
     <div class="preview-card-footer">
       <div class="preview-card-actions">
-        <button type="button" class="action-button secondary preview-card-reset"${disabled} data-reset-preview="${pullRequestNumber}">
-          ${escapeHtml(label)}
-        </button>
+        <a class="${primaryClass}" href="${previewPath}">
+          ${primaryLabel}
+        </a>
+        ${resetAction}
       </div>
     </div>`;
 }
@@ -422,13 +498,13 @@ function getAuthorLabelFromValue(value) {
 function buildStatusDetail(preview, entry) {
   if (!preview) {
     return isPreviewable(entry)
-      ? "Loads on first visit."
+      ? "Open preview to prepare the latest successful frontend build."
       : "No successful frontend build artifact is available for the current head yet.";
   }
 
   if (preview.headSha && entry.headSha && preview.headSha !== entry.headSha) {
     return isPreviewable(entry)
-      ? "New commits are ready to warm from the latest frontend build."
+      ? "Open preview to refresh this PR to the latest successful frontend build."
       : "New commits are waiting for a successful frontend build.";
   }
 
@@ -447,6 +523,31 @@ function buildStatusDetail(preview, entry) {
       return "Loads again on the next visit.";
     default:
       return preview.message ?? "Waiting for preview activity.";
+  }
+}
+
+function buildPrimaryActionLabel(preview, entry) {
+  if (!preview) {
+    return isPreviewable(entry) ? "Prepare preview" : "View status";
+  }
+
+  if (preview.headSha && entry.headSha && preview.headSha !== entry.headSha) {
+    return isPreviewable(entry) ? "Refresh preview" : "View status";
+  }
+
+  switch (preview.state) {
+    case "Ready":
+      return "Open preview";
+    case "Loading":
+      return "View progress";
+    case "Registered":
+      return "Open preview";
+    case "Cancelled":
+    case "Failed":
+    case "Evicted":
+      return "Retry preview";
+    default:
+      return "Open preview";
   }
 }
 
@@ -674,10 +775,22 @@ async function resetPreview(pullRequestNumber) {
   try {
     const response = await fetch(`/api/previews/${pullRequestNumber}/reset`, {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "Accept": "application/json",
+        ...getCsrfHeaders(),
       },
     });
+
+    if (response.status === 401) {
+      redirectToLogin();
+      return;
+    }
+
+    if (response.status === 403) {
+      window.location.replace("/auth/access-denied");
+      return;
+    }
 
     if (!response.ok) {
       throw new Error(`Preview reset request failed with status ${response.status}.`);
@@ -707,4 +820,30 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function redirectToLogin() {
+  const returnUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+}
+
+function getCsrfHeaders() {
+  const csrfToken = getCsrfToken();
+  return csrfToken
+    ? { "X-Preview-Csrf": csrfToken }
+    : {};
+}
+
+function getCsrfToken() {
+  const cookieParts = document.cookie.split(";");
+  for (const part of cookieParts) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (rawName !== "previewhost-csrf" && rawName !== encodeURIComponent("previewhost-csrf")) {
+      continue;
+    }
+
+    return decodeURIComponent(rawValue.join("="));
+  }
+
+  return "";
 }

@@ -26,18 +26,50 @@ internal sealed class PreviewRequestDispatcher(
 
     public async Task DispatchIndexAsync(HttpContext context, CancellationToken cancellationToken)
     {
+        if (_options.IsContentRequest(context.Request))
+        {
+            context.Response.Redirect(_options.BuildControlUrl(context.Request, PreviewRoute.CollectionPath), permanent: false);
+            return;
+        }
+
         await WritePreviewShellAsync(context, "index.html", cancellationToken);
     }
 
     public async Task DispatchAsync(HttpContext context, int pullRequestNumber, string relativePath, CancellationToken cancellationToken)
     {
         var snapshot = await stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken);
+        var contentRequest = _options.IsContentRequest(context.Request);
+        var separatedContentOrigin = _options.HasSeparatedContentOrigin;
 
-        if (snapshot is null || !snapshot.IsReady || string.IsNullOrWhiteSpace(snapshot.ActiveDirectoryPath))
+        if (separatedContentOrigin && !contentRequest)
         {
             if (!string.IsNullOrEmpty(relativePath))
             {
-                context.Response.Redirect(PreviewRoute.BuildPath(pullRequestNumber));
+                context.Response.Redirect(
+                    _options.BuildContentUrl(context.Request, PreviewRoute.BuildPath(pullRequestNumber, relativePath)),
+                    permanent: false);
+                return;
+            }
+
+            await WritePreviewShellAsync(context, "status.html", cancellationToken);
+            return;
+        }
+
+        if (snapshot is null || !snapshot.IsReady || string.IsNullOrWhiteSpace(snapshot.ActiveDirectoryPath))
+        {
+            if (separatedContentOrigin && contentRequest)
+            {
+                context.Response.Redirect(
+                    _options.BuildControlUrl(context.Request, PreviewRoute.BuildPath(pullRequestNumber)),
+                    permanent: false);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(relativePath))
+            {
+                context.Response.Redirect(
+                    _options.BuildControlUrl(context.Request, PreviewRoute.BuildPath(pullRequestNumber)),
+                    permanent: false);
                 return;
             }
 

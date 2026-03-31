@@ -29,6 +29,7 @@ internal sealed class PreviewCoordinator(
     private readonly ConcurrentDictionary<int, Task<PreviewDiscoveryResult>> _activeDiscovery = [];
     private readonly ConcurrentDictionary<int, CancellationTokenSource> _activeLoadCancellations = [];
     private readonly ConcurrentDictionary<int, Task> _activeLoads = [];
+    private readonly SemaphoreSlim _loadConcurrencyGate = new(Math.Max(1, options.Value.MaxConcurrentLoads));
     private readonly PreviewStateStore _stateStore = stateStore;
     private readonly GitHubArtifactClient _artifactClient = artifactClient;
     private readonly ILogger<PreviewCoordinator> _logger = logger;
@@ -52,23 +53,20 @@ internal sealed class PreviewCoordinator(
         var snapshot = await _stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken);
         if (snapshot is null)
         {
-            var discovery = await EnsureRegisteredAsync(pullRequestNumber, cancellationToken);
-            snapshot = discovery.Snapshot;
-            if (snapshot is null)
-            {
-                return discovery;
-            }
+            return new PreviewDiscoveryResult(
+                Snapshot: null,
+                FailureMessage: "This preview hasn't been enabled yet. Open it from the catalog or retry this page to prepare the latest successful frontend build.");
         }
 
-        if (snapshot.State is PreviewLoadState.Cancelled or PreviewLoadState.Failed or PreviewLoadState.Evicted)
+        if (snapshot.State is PreviewLoadState.Evicted)
         {
             snapshot = await _stateStore.RequeueAsync(
                 pullRequestNumber,
-                "Retrying preview preparation.",
+                "Reloading the preview after it was evicted from the warm window.",
                 cancellationToken) ?? snapshot;
         }
 
-        if (!snapshot.IsReady)
+        if (snapshot.State is PreviewLoadState.Registered or PreviewLoadState.Loading)
         {
             EnsureLoading(pullRequestNumber);
             snapshot = await _stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken) ?? snapshot;
@@ -77,25 +75,57 @@ internal sealed class PreviewCoordinator(
         return new PreviewDiscoveryResult(snapshot);
     }
 
+    public async Task<PreviewDiscoveryResult> PrepareAsync(int pullRequestNumber, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var registrationRequest = await _artifactClient.TryResolveLatestPreviewRegistrationAsync(pullRequestNumber, cancellationToken);
+            PreviewStatusSnapshot? snapshot;
+
+            if (registrationRequest is not null)
+            {
+                var registrationResult = await _stateStore.RegisterAsync(registrationRequest, cancellationToken);
+                snapshot = registrationResult.Snapshot;
+            }
+            else
+            {
+                snapshot = await _stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken);
+                if (snapshot is null)
+                {
+                    return new PreviewDiscoveryResult(
+                        Snapshot: null,
+                        FailureMessage: "The preview host could not find a successful frontend artifact for this pull request yet.");
+                }
+            }
+
+            if (snapshot.State is PreviewLoadState.Cancelled or PreviewLoadState.Failed or PreviewLoadState.Evicted)
+            {
+                snapshot = await _stateStore.RequeueAsync(
+                    pullRequestNumber,
+                    "Preparing the latest preview build.",
+                    cancellationToken) ?? snapshot;
+            }
+
+            if (!snapshot.IsReady)
+            {
+                EnsureLoading(pullRequestNumber);
+                snapshot = await _stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken) ?? snapshot;
+            }
+
+            return new PreviewDiscoveryResult(snapshot);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to prepare preview metadata for PR #{PullRequestNumber}", pullRequestNumber);
+            return new PreviewDiscoveryResult(
+                Snapshot: null,
+                FailureMessage: "The preview host could not look up the latest successful build for this pull request.");
+        }
+    }
+
     public async Task<PreviewDiscoveryResult> RetryAsync(int pullRequestNumber, CancellationToken cancellationToken)
     {
-        var snapshot = await _stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken);
-        if (snapshot is null)
-        {
-            return await BootstrapAsync(pullRequestNumber, cancellationToken);
-        }
-
-        if (!snapshot.IsReady)
-        {
-            snapshot = await _stateStore.RequeueAsync(
-                pullRequestNumber,
-                "Retrying preview preparation.",
-                cancellationToken) ?? snapshot;
-        }
-
-        EnsureLoading(pullRequestNumber);
-        snapshot = await _stateStore.GetSnapshotAsync(pullRequestNumber, cancellationToken) ?? snapshot;
-        return new PreviewDiscoveryResult(snapshot);
+        return await PrepareAsync(pullRequestNumber, cancellationToken);
     }
 
     public async Task<PreviewStatusSnapshot?> CancelAsync(int pullRequestNumber, CancellationToken cancellationToken)
@@ -209,6 +239,8 @@ internal sealed class PreviewCoordinator(
         string? temporaryZipPath = null;
         string? stagingDirectoryPath = null;
         var downloadProgress = new ProgressThrottle();
+
+        await _loadConcurrencyGate.WaitAsync(cancellationToken);
 
         try
         {
@@ -352,6 +384,8 @@ internal sealed class PreviewCoordinator(
         }
         finally
         {
+            _loadConcurrencyGate.Release();
+
             if (_activeLoadCancellations.TryRemove(pullRequestNumber, out var cancellationSource))
             {
                 cancellationSource.Dispose();
@@ -397,7 +431,8 @@ internal sealed class PreviewCoordinator(
         var extractionToolDescription = _options.ExtractionToolDescription;
         var extractionStopwatch = Stopwatch.StartNew();
         var extractionMessage = $"Extracting preview files with {extractionToolDescription}.";
-        var totalFileCount = CountArchiveFileEntries(zipPath);
+        var archiveInspection = InspectArchive(zipPath);
+        var totalFileCount = archiveInspection.FileCount;
         var bufferSettings = PreviewBufferSettings.Resolve();
         using var extractionProgressState = new ExtractionProgressState(totalFileCount);
 
@@ -687,10 +722,74 @@ internal sealed class PreviewCoordinator(
         }
     }
 
-    private static int CountArchiveFileEntries(string zipPath)
+    private (int FileCount, long TotalUncompressedBytes) InspectArchive(string zipPath)
     {
         using var archive = ZipFile.OpenRead(zipPath);
-        return archive.Entries.Count(static entry => !string.IsNullOrEmpty(entry.Name));
+        var fileCount = 0;
+        long totalUncompressedBytes = 0;
+
+        foreach (var entry in archive.Entries)
+        {
+            ValidateArchiveEntry(entry);
+
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                continue;
+            }
+
+            fileCount++;
+            if (fileCount > _options.MaxExtractedFileCount)
+            {
+                throw new InvalidOperationException(
+                    "The preview artifact exceeds the preview host extraction safety limits.");
+            }
+
+            checked
+            {
+                totalUncompressedBytes += entry.Length;
+            }
+
+            if (totalUncompressedBytes > _options.MaxExtractedUncompressedBytes)
+            {
+                throw new InvalidOperationException(
+                    "The preview artifact exceeds the preview host extraction safety limits.");
+            }
+        }
+
+        return (fileCount, totalUncompressedBytes);
+    }
+
+    private static void ValidateArchiveEntry(ZipArchiveEntry entry)
+    {
+        var normalizedFullName = entry.FullName.Replace('\\', '/');
+        if (string.IsNullOrWhiteSpace(normalizedFullName))
+        {
+            return;
+        }
+
+        if (normalizedFullName.StartsWith("/", StringComparison.Ordinal)
+            || Path.IsPathRooted(normalizedFullName))
+        {
+            throw new InvalidOperationException(
+                "The preview artifact failed security validation.");
+        }
+
+        var pathSegments = normalizedFullName
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (pathSegments.Any(static segment => segment == ".."))
+        {
+            throw new InvalidOperationException(
+                "The preview artifact failed security validation.");
+        }
+
+        const int unixFileTypeMask = 0xF000;
+        const int unixSymlinkType = 0xA000;
+        var unixMode = (entry.ExternalAttributes >> 16) & unixFileTypeMask;
+        if (unixMode == unixSymlinkType)
+        {
+            throw new InvalidOperationException(
+                "The preview artifact failed security validation.");
+        }
     }
 
     private static FileSystemWatcher CreateExtractionFileWatcher(string destinationDirectory, ExtractionProgressState extractionProgressState)
@@ -712,7 +811,7 @@ internal sealed class PreviewCoordinator(
     private static string BuildCommandDisplayString(string fileName, IEnumerable<string> arguments) =>
         string.Join(
             ' ',
-            new[] { QuoteCommandSegment(fileName) }.Concat(arguments.Select(QuoteCommandSegment)));
+            [QuoteCommandSegment(fileName), .. arguments.Select(QuoteCommandSegment)]);
 
     private static string QuoteCommandSegment(string value) =>
         string.IsNullOrWhiteSpace(value) || value.IndexOfAny([' ', '\t', '"']) >= 0
@@ -763,6 +862,16 @@ internal sealed class PreviewCoordinator(
                 || invalidOperationException.Message.Contains("RepositoryName", StringComparison.Ordinal))
             {
                 return "The preview host is missing its GitHub repository configuration.";
+            }
+
+            if (invalidOperationException.Message.Contains("safety limit", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The preview artifact exceeds the preview host safety limits.";
+            }
+
+            if (invalidOperationException.Message.Contains("security validation", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The preview artifact failed security validation.";
             }
 
             if (invalidOperationException.Message.Contains("artifact", StringComparison.OrdinalIgnoreCase))

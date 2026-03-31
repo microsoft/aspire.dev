@@ -23,19 +23,6 @@ on:
         required: false
         default: "/"
         type: string
-    outputs:
-      artifact_name:
-        description: Artifact name published by the workflow
-        value: ${{ jobs.build.outputs.artifact_name }}
-      artifact_run_id:
-        description: Workflow run ID that owns the published artifact
-        value: ${{ jobs.build.outputs.artifact_run_id }}
-      artifact_run_attempt:
-        description: Workflow run attempt that published the artifact
-        value: ${{ jobs.build.outputs.artifact_run_attempt }}
-      completed_at_utc:
-        description: UTC timestamp when the artifact workflow completed successfully
-        value: ${{ jobs.build.outputs.completed_at_utc }}
 
 permissions:
   contents: read
@@ -44,11 +31,6 @@ jobs:
   build:
     name: Frontend Build
     runs-on: ubuntu-latest
-    outputs:
-      artifact_name: ${{ steps.publish-metadata.outputs.artifact_name }}
-      artifact_run_id: ${{ steps.publish-metadata.outputs.artifact_run_id }}
-      artifact_run_attempt: ${{ steps.publish-metadata.outputs.artifact_run_attempt }}
-      completed_at_utc: ${{ steps.publish-metadata.outputs.completed_at_utc }}
     defaults:
       run:
         working-directory: src/frontend
@@ -99,12 +81,3 @@ jobs:
           path: src/frontend/dist
           if-no-files-found: warn
           retention-days: ${{ inputs.artifact_retention_days }}
-
-      - name: Capture artifact metadata
-        id: publish-metadata
-        shell: bash
-        run: |
-          echo "artifact_name=${{ inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
-          echo "artifact_run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-          echo "artifact_run_attempt=${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
-          echo "completed_at_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"

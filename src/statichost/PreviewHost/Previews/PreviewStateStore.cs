@@ -474,6 +474,52 @@ internal sealed class PreviewStateStore
         }
     }
 
+    public async Task<int> RemoveMissingAsync(IReadOnlyCollection<int> activePullRequestNumbers, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(activePullRequestNumbers);
+
+        HashSet<int> activeNumbers = activePullRequestNumbers.Count == 0
+            ? []
+            : [.. activePullRequestNumbers];
+        List<string> directoriesToDelete = [];
+        List<int> removedPullRequests = [];
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            foreach (var pullRequestNumber in _records.Keys.Where(number => !activeNumbers.Contains(number)).ToArray())
+            {
+                if (!_records.Remove(pullRequestNumber, out var record))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(record.ActiveDirectoryPath))
+                {
+                    directoriesToDelete.Add(record.ActiveDirectoryPath);
+                }
+
+                removedPullRequests.Add(pullRequestNumber);
+            }
+
+            if (removedPullRequests.Count > 0)
+            {
+                await SaveLockedAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        foreach (var directoryPath in directoriesToDelete)
+        {
+            DeleteDirectoryIfPresent(directoryPath);
+        }
+
+        return removedPullRequests.Count;
+    }
+
     public string GetActiveDirectoryPath(int pullRequestNumber) => Path.Combine(ContentRoot, "active", $"pr-{pullRequestNumber}");
 
     public string GetTemporaryZipPath(PreviewWorkItem workItem) =>

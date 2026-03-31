@@ -28,6 +28,10 @@ const openPrLink = document.getElementById("open-pr-link");
 const cancelButton = document.getElementById("cancel-button");
 const retryButton = document.getElementById("retry-button");
 const retryButtonLabel = retryButton?.querySelector(".button-label");
+const signoutLink = document.getElementById("signout-link");
+const viewerSummary = document.getElementById("viewer-summary");
+const viewerAvatar = document.getElementById("viewer-avatar");
+const viewerName = document.getElementById("viewer-name");
 
 const numberFormatter = new Intl.NumberFormat();
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -42,10 +46,11 @@ const clockFormatter = new Intl.DateTimeFormat(undefined, {
 
 let currentState = null;
 let eventSource = null;
-let retryInFlight = false;
+let prepareInFlight = false;
 let cancelInFlight = false;
 let suppressCloseCancellation = false;
 let closeCancellationSent = false;
+let sessionInfo = null;
 const downloadRateTracker = createRateTracker();
 const extractionRateTracker = createRateTracker();
 
@@ -54,9 +59,16 @@ window.addEventListener("pagehide", cancelIfClosingDuringPreparation);
 window.addEventListener("beforeunload", cancelIfClosingDuringPreparation);
 document.addEventListener("click", preservePreparationWhenReturningToCatalog);
 
-bootstrap().catch((error) => {
-  applyState(buildFailureState(error instanceof Error ? error.message : "The preview host could not load the preview status."));
-});
+void initialize();
+
+async function initialize() {
+  try {
+    await loadSession();
+    await preparePreview();
+  } catch (error) {
+    applyState(buildFailureState(error instanceof Error ? error.message : "The preview host could not load the preview status."));
+  }
+}
 
 cancelButton.addEventListener("click", async () => {
   if (!pullRequestNumber || cancelInFlight) {
@@ -70,7 +82,21 @@ cancelButton.addEventListener("click", async () => {
     const response = await fetch(`/api/previews/${pullRequestNumber}/cancel`, {
       method: "POST",
       cache: "no-store",
+      credentials: "same-origin",
+      headers: getCsrfHeaders({
+        "Accept": "application/json",
+      }),
     });
+
+    if (response.status === 401) {
+      redirectToLogin();
+      return;
+    }
+
+    if (response.status === 403) {
+      window.location.replace("/auth/access-denied");
+      return;
+    }
 
     if (!response.ok) {
       throw new Error(`Cancel failed with status ${response.status}.`);
@@ -89,77 +115,116 @@ cancelButton.addEventListener("click", async () => {
 });
 
 retryButton.addEventListener("click", async () => {
-  if (!pullRequestNumber || retryInFlight) {
+  try {
+    await preparePreview();
+  } catch (error) {
+    hint.textContent = error instanceof Error
+      ? error.message
+      : "The preview host could not restart preview preparation.";
+  }
+});
+
+async function loadSession() {
+  const response = await fetch("/api/previews/session", {
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  if (response.status === 401) {
+    redirectToLogin();
+    throw new Error("Sign in with GitHub to prepare previews.");
+  }
+
+  if (response.status === 403) {
+    window.location.replace("/auth/access-denied");
+    throw new Error("Preview access denied.");
+  }
+
+  if (!response.ok) {
+    throw new Error(`Session request failed with status ${response.status}.`);
+  }
+
+  sessionInfo = await response.json();
+  applySession(sessionInfo);
+}
+
+function applySession(session) {
+  if (signoutLink && typeof session?.signOutPath === "string" && session.signOutPath) {
+    signoutLink.href = session.signOutPath;
+    signoutLink.hidden = false;
+  }
+
+  if (!viewerSummary || !viewerName) {
     return;
   }
 
-  retryInFlight = true;
+  const displayName = session?.viewer?.displayName || session?.viewer?.login || "Signed in";
+  const login = session?.viewer?.login ? `@${session.viewer.login}` : "GitHub repo writer";
+  viewerName.textContent = displayName;
+  viewerName.title = login;
+
+  const roleElement = viewerSummary.querySelector(".viewer-role");
+  if (roleElement) {
+    roleElement.textContent = login;
+  }
+
+  if (viewerAvatar && session?.viewer?.avatarUrl) {
+    viewerAvatar.src = session.viewer.avatarUrl;
+    viewerAvatar.hidden = false;
+  }
+
+  viewerSummary.hidden = false;
+}
+
+async function preparePreview() {
+  if (!pullRequestNumber || prepareInFlight) {
+    return;
+  }
+
+  prepareInFlight = true;
   updateActionButtons();
+  suppressCloseCancellation = false;
+  closeEventSource();
 
   try {
-    const response = await fetch(`/api/previews/${pullRequestNumber}/retry`, {
+    const response = await fetch(`/api/previews/${pullRequestNumber}/prepare`, {
       method: "POST",
       cache: "no-store",
+      credentials: "same-origin",
+      headers: getCsrfHeaders({
+        "Accept": "application/json",
+      }),
     });
     const payload = await readJsonSafely(response);
 
-    if (!response.ok && response.status !== 202) {
+    if (response.status === 401) {
+      redirectToLogin();
+      return;
+    }
+
+    if (response.status === 403) {
+      window.location.replace("/auth/access-denied");
+      return;
+    }
+
+    if (response.status === 404) {
       applyState(buildFailureState(
-        payload?.failureMessage ?? `Retry failed with status ${response.status}.`,
+        payload?.failureMessage ?? "The preview host could not find a successful frontend build for this pull request yet.",
         payload ?? {},
       ));
       return;
     }
 
-    if (!payload) {
-      await bootstrap();
-      return;
+    if (!response.ok) {
+      throw new Error(`Preview request failed with status ${response.status}.`);
     }
 
-    closeEventSource();
     applyState(payload);
-
-    if (payload.isReady || payload.state === "Missing" || isTerminalState(payload.state)) {
-      return;
-    }
-
-    if (isActiveState(payload.state)) {
-      connectEventsIfNeeded(payload);
-      return;
-    }
-
-    await bootstrap();
-  } catch (error) {
-    hint.textContent = error instanceof Error
-      ? error.message
-      : "The preview host could not restart preview preparation.";
+    connectEventsIfNeeded(payload);
   } finally {
-    retryInFlight = false;
+    prepareInFlight = false;
     updateActionButtons();
   }
-});
-
-async function bootstrap() {
-  if (!pullRequestNumber) {
-    applyState(buildFailureState("This route does not contain a valid pull request number."));
-    return;
-  }
-
-  suppressCloseCancellation = false;
-  closeEventSource();
-
-  const response = await fetch(`/api/previews/${pullRequestNumber}/bootstrap`, {
-    cache: "no-store",
-  });
-  const payload = await readJsonSafely(response);
-
-  if (!response.ok) {
-    applyState(buildFailureState(payload?.failureMessage ?? "The preview host could not find a successful frontend build for this pull request yet.", payload));
-    return;
-  }
-
-  applyState(payload);
-  connectEventsIfNeeded(payload);
 }
 
 function connectEventsIfNeeded(snapshot) {
@@ -191,7 +256,7 @@ function applyState(snapshot) {
   if (snapshot.isReady) {
     suppressCloseCancellation = true;
     closeEventSource();
-    window.location.replace(refreshTarget);
+    window.location.replace(buildContentUrl(snapshot.previewPath ?? refreshTarget));
     return;
   }
 
@@ -256,11 +321,11 @@ function initializeShell() {
   const initialTitle = `Preparing PR #${pullRequestNumber}`;
   document.title = initialTitle;
   pageTitle.textContent = initialTitle;
-  message.textContent = "Checking GitHub for the latest successful frontend artifact.";
+  message.textContent = "Checking GitHub for the latest successful frontend artifact you can preview.";
   message.hidden = false;
   cardBusyIndicator.hidden = false;
   previewPath.textContent = refreshTarget;
-  hint.textContent = "This page starts loading the preview automatically when a build is available.";
+  hint.textContent = "This page prepares the latest successful build for this PR every time you open it.";
 }
 
 function updateOpenPrLink(snapshot) {
@@ -278,15 +343,18 @@ function updateOpenPrLink(snapshot) {
 function updateActionButtons() {
   const canCancel = currentState && isActiveState(currentState.state);
   const canRetry = currentState && (isTerminalState(currentState.state) || currentState.state === "Missing");
+  const retryLabel = currentState?.state === "Missing"
+    ? "Check latest build"
+    : "Retry prep";
 
   cancelButton.hidden = !canCancel && !cancelInFlight;
   cancelButton.disabled = !canCancel || cancelInFlight;
   cancelButton.textContent = cancelInFlight ? "Cancelling..." : "Cancel prep";
 
-  retryButton.hidden = !canRetry && !retryInFlight;
-  retryButton.disabled = !canRetry || retryInFlight;
+  retryButton.hidden = !canRetry && !prepareInFlight;
+  retryButton.disabled = prepareInFlight || (!canRetry && !prepareInFlight);
   if (retryButtonLabel) {
-    retryButtonLabel.textContent = retryInFlight ? "Restarting..." : "Retry prep";
+    retryButtonLabel.textContent = prepareInFlight ? "Checking..." : retryLabel;
   }
 
   if (statusCardActions) {
@@ -356,25 +424,39 @@ function cancelIfClosingDuringPreparation() {
   if (!pullRequestNumber
     || suppressCloseCancellation
     || closeCancellationSent
-    || retryInFlight
+    || prepareInFlight
     || cancelInFlight
     || !currentState
     || !isActiveState(currentState.state)) {
     return;
   }
 
+  const csrfToken = getCsrfToken();
+  if (!csrfToken) {
+    return;
+  }
+
   closeCancellationSent = true;
   const cancelUrl = `/api/previews/${pullRequestNumber}/cancel`;
+  const payload = new URLSearchParams({
+    "__RequestVerificationToken": csrfToken,
+  });
 
   if (typeof navigator.sendBeacon === "function") {
-    navigator.sendBeacon(cancelUrl, new Blob([], { type: "application/octet-stream" }));
+    navigator.sendBeacon(cancelUrl, payload);
     return;
   }
 
   fetch(cancelUrl, {
     method: "POST",
     cache: "no-store",
+    credentials: "same-origin",
     keepalive: true,
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    },
+    body: payload,
   }).catch(() => {
   });
 }
@@ -418,24 +500,28 @@ function getTitle(snapshot) {
     return `PR #${number} prep cancelled`;
   }
 
+  if (snapshot.state === "Ready") {
+    return `Opening PR #${number} preview`;
+  }
+
   return `Preparing PR #${number}`;
 }
 
 function getHint(snapshot) {
   if (snapshot.state === "Missing") {
-    return "Retry after CI publishes a new artifact.";
+    return "Wait for CI to publish a successful frontend build, then check again.";
   }
 
   if (snapshot.state === "Failed") {
-    return "Fix the backing configuration or publish a new build, then retry.";
+    return "Retry to ask GitHub for the latest successful build again.";
   }
 
   if (snapshot.state === "Cancelled") {
-    return "Retry when you are ready to start again.";
+    return "Retry when you are ready to prepare the latest build again.";
   }
 
   if (snapshot.state === "Evicted") {
-    return "Retry to prepare it again.";
+    return "Retry to move this PR back into the warm preview window.";
   }
 
   return "This page will open the preview automatically as soon as preparation finishes.";
@@ -588,4 +674,42 @@ function formatUnitRate(value) {
   }
 
   return numericValue.toFixed(2);
+}
+
+function buildContentUrl(relativePath) {
+  try {
+    return new URL(relativePath, sessionInfo?.contentBaseUrl ?? window.location.origin).toString();
+  } catch {
+    return relativePath;
+  }
+}
+
+function redirectToLogin() {
+  const returnUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  window.location.replace(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+}
+
+function getCsrfHeaders(additionalHeaders = {}) {
+  const headers = { ...additionalHeaders };
+  const csrfToken = getCsrfToken();
+  if (csrfToken) {
+    headers["X-Preview-Csrf"] = csrfToken;
+  }
+
+  return headers;
+}
+
+function getCsrfToken() {
+  const encodedName = encodeURIComponent("previewhost-csrf");
+  const parts = document.cookie.split(";");
+  for (const part of parts) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (rawName !== encodedName && rawName !== "previewhost-csrf") {
+      continue;
+    }
+
+    return decodeURIComponent(rawValue.join("="));
+  }
+
+  return "";
 }

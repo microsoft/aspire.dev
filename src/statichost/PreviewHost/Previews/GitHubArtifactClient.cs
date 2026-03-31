@@ -301,6 +301,14 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
                 $"Could not find a non-expired GitHub Actions artifact named '{workItem.ArtifactName}' on run {workItem.RunId}.");
         }
 
+        if (_options.MaxArtifactSizeBytes > 0
+            && artifact.SizeInBytes > 0
+            && artifact.SizeInBytes > _options.MaxArtifactSizeBytes)
+        {
+            throw new InvalidOperationException(
+                "The preview artifact exceeds the preview host safety limits.");
+        }
+
         return new GitHubArtifactDescriptor(
             workItem.RepositoryOwner,
             workItem.RepositoryName,
@@ -382,6 +390,36 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    public async Task<PreviewUserAccessResult> ReviewCollaboratorPermissionAsync(string login, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(login);
+        EnsureCredentialsConfigured();
+        EnsureRepositoryConfigured();
+
+        var repositoryClient = await CreateRepositoryClientAsync(
+            _options.RepositoryOwner,
+            _options.RepositoryName,
+            cancellationToken);
+
+        try
+        {
+            var response = await repositoryClient.Repository.Collaborator.ReviewPermission(
+                _options.RepositoryOwner,
+                _options.RepositoryName,
+                login);
+
+            var roleName = NormalizePermissionValue(response.RoleName);
+            var permission = NormalizePermissionValue(response.Permission);
+            var hasWriteAccess = HasWriteAccess(roleName) || HasWriteAccess(permission);
+
+            return new PreviewUserAccessResult(login, hasWriteAccess, roleName, permission);
+        }
+        catch (NotFoundException)
+        {
+            return new PreviewUserAccessResult(login, false, null, null);
         }
     }
 
@@ -670,11 +708,11 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
 
     private static Artifact? ResolvePreviewArtifact(IEnumerable<Artifact> artifacts, int pullRequestNumber)
     {
-        var preferredNames = new[]
-        {
+        string[] preferredNames =
+        [
             $"frontend-dist-pr-{pullRequestNumber}",
             DefaultPreviewArtifactName
-        };
+        ];
 
         foreach (var artifactName in preferredNames)
         {
@@ -690,6 +728,14 @@ internal sealed class GitHubArtifactClient(IOptions<PreviewHostOptions> options,
 
         return null;
     }
+
+    private static string? NormalizePermissionValue(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim().ToLowerInvariant();
+
+    private static bool HasWriteAccess(string? permission) =>
+        permission is "admin" or "maintain" or "write" or "push";
 
     private static bool IsSuccessfulPreviewRun(WorkflowRun run) =>
         string.Equals(run.Conclusion?.StringValue, "success", StringComparison.OrdinalIgnoreCase)

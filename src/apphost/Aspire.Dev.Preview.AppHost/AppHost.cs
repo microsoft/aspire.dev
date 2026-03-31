@@ -1,13 +1,21 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var registrationToken = builder.AddParameter("registration-token", secret: true);
 var extractionMode = builder.AddParameter("extraction-mode", value: "command-line");
+var githubOAuthClientId = builder.AddParameter("github-oauth-client-id");
+var githubOAuthClientSecret = builder.AddParameter("github-oauth-client-secret", secret: true);
+var previewControlBaseUrl = builder.AddParameter("preview-control-base-url", value: string.Empty);
+var previewContentBaseUrl = builder.AddParameter("preview-content-base-url", value: string.Empty);
+var previewAuthCookieDomain = builder.AddParameter("preview-auth-cookie-domain", value: string.Empty);
 
 var previewHost = builder.AddProject<Projects.PreviewHost>("previewhost")
     .PublishAsDockerFile()
     .WithExternalHttpEndpoints()
-    .WithEnvironment("PreviewHost__RegistrationToken", registrationToken)
-    .WithEnvironment("PreviewHost__ExtractionMode", extractionMode);
+    .WithEnvironment("PreviewHost__ExtractionMode", extractionMode)
+    .WithEnvironment("PreviewHost__GitHubOAuthClientId", githubOAuthClientId)
+    .WithEnvironment("PreviewHost__GitHubOAuthClientSecret", githubOAuthClientSecret)
+    .WithEnvironment("PreviewHost__ControlBaseUrl", previewControlBaseUrl)
+    .WithEnvironment("PreviewHost__ContentBaseUrl", previewContentBaseUrl)
+    .WithEnvironment("PreviewHost__AuthCookieDomain", previewAuthCookieDomain);
 
 if (!string.IsNullOrWhiteSpace(builder.Configuration["PreviewHost:GitHubToken"]))
 {
