@@ -1,0 +1,55 @@
+---
+/**
+ * Replicates @astrojs/starlight TableOfContentsList for the desktop TOC.
+ * The mobile TOC (MobileTableOfContents) is not overridden and continues to
+ * use Starlight's original implementation.
+ */
+interface TocItem {
+  slug: string;
+  text: string;
+  children: TocItem[];
+  depth: number;
+}
+
+interface Props {
+  toc: TocItem[];
+  depth?: number;
+}
+
+const { toc, depth = 0 } = Astro.props;
+---
+
+<ul>
+  {
+    toc.map((heading) => (
+      <li>
+        <a href={'#' + heading.slug}>
+          <span>{heading.text}</span>
+        </a>
+        {heading.children.length > 0 && (
+          <Astro.self toc={heading.children} depth={depth + 1} />
+        )}
+      </li>
+    ))
+  }
+</ul>
+
+<style define:vars={{ depth }}>
+  @layer starlight.core {
+    ul {
+      padding: 0;
+      list-style: none;
+    }
+    a {
+      --pad-inline: 0.5rem;
+      display: block;
+      border-radius: 0.25rem;
+      padding-block: 0.25rem;
+      padding-inline: calc(1rem * var(--depth) + var(--pad-inline)) var(--pad-inline);
+      line-height: 1.25;
+    }
+    a[aria-current='true'] {
+      color: var(--sl-color-text-accent);
+    }
+  }
+</style>

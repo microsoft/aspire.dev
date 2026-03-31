@@ -1,0 +1,402 @@
+---
+/**
+ * Override of @astrojs/starlight TableOfContents.
+ *
+ * Adds an AppHost language selector (C# / TypeScript) to the top of the TOC.
+ * The selector is only shown on pages that contain `[data-pivot-block="csharp"]`
+ * or `[data-pivot-block="typescript"]` elements (authored with the <Pivot> component).
+ *
+ * When active:
+ * - TOC entries whose target heading lives inside a hidden pivot block are hidden.
+ * - Changing the selector delegates to PivotSelector's button click (when present),
+ *   keeping the existing PivotSelector behavior completely intact.
+ * - A MutationObserver watches pivot-block visibility changes driven by PivotSelector
+ *   and keeps the TOC dropdown and filtered entries in sync.
+ */
+import TocList from './TocList.astro';
+
+interface TocItem {
+  slug: string;
+  text: string;
+  children: TocItem[];
+  depth: number;
+}
+
+const { toc } = Astro.locals.starlightRoute;
+---
+
+{
+  toc && (
+    <starlight-toc data-min-h={toc.minHeadingLevel} data-max-h={toc.maxHeadingLevel}>
+      <nav aria-labelledby="starlight__on-this-page">
+        <div class="toc-header">
+          <h2 id="starlight__on-this-page">{Astro.locals.t('tableOfContents.onThisPage')}</h2>
+          <div class="apphost-lang-filter" id="apphost-lang-filter" hidden>
+            <label for="apphost-lang-select" class="sr-only">AppHost language</label>
+            <div class="select-wrap">
+              <svg
+                aria-hidden="true"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+              <select id="apphost-lang-select" aria-label="AppHost language">
+                <option value="csharp">C#</option>
+                <option value="typescript">TypeScript</option>
+              </select>
+              <svg
+                class="caret"
+                aria-hidden="true"
+                width="10"
+                height="10"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6L8 10L12 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        <TocList toc={toc.items as TocItem[]} />
+      </nav>
+    </starlight-toc>
+  )
+}
+
+<style>
+  .toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .toc-header h2 {
+    /* Prevent the heading from being squeezed by the filter */
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .apphost-lang-filter {
+    flex-shrink: 0;
+  }
+
+  .select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+    background: var(--sl-color-bg-sidebar);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    padding: 0.125rem 0.25rem 0.125rem 0.375rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-2);
+    transition: border-color 0.15s ease;
+  }
+
+  .select-wrap:hover,
+  .select-wrap:focus-within {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-white);
+  }
+
+  .select-wrap select {
+    appearance: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+    padding-inline-end: 0.125rem;
+    font-size: var(--sl-text-xs);
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    font-family: var(--sl-font);
+    line-height: 1.5;
+    /* Expose the native select for keyboard navigation */
+    position: relative;
+    z-index: 1;
+  }
+
+  .select-wrap .caret {
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  /**
+   * Extended StarlightTOC custom element.
+   *
+   * Includes 100% of the original Starlight TOC highlighting logic plus the
+   * AppHost language filter. The original `starlight-toc.ts` from Starlight is
+   * NOT bundled when this override is active, so we must include it here.
+   */
+
+  const PAGE_TITLE_ID = '_top';
+
+  class StarlightTOC extends HTMLElement {
+    private _current = this.querySelector<HTMLAnchorElement>('a[aria-current="true"]');
+    private minH = parseInt(this.dataset.minH || '2', 10);
+    private maxH = parseInt(this.dataset.maxH || '3', 10);
+
+    /**
+     * CSS selector matching only headings that can appear in the TOC.
+     * Mirrors the selector built in Starlight's original starlight-toc.ts.
+     */
+    private tocHeadingSelector =
+      `h1#${PAGE_TITLE_ID},` +
+      `:where(${[
+        ...Array.from({ length: 1 + this.maxH - this.minH }).map(
+          (_, index) => `h${this.minH + index}`
+        ),
+      ].join()})[id]`;
+
+    protected set current(link: HTMLAnchorElement) {
+      if (link === this._current) return;
+      if (this._current) this._current.removeAttribute('aria-current');
+      link.setAttribute('aria-current', 'true');
+      this._current = link;
+    }
+
+    private onIdle = (cb: IdleRequestCallback) =>
+      (window.requestIdleCallback || ((cb) => setTimeout(cb, 1)))(cb);
+
+    constructor() {
+      super();
+      this.onIdle(() => this.init());
+      this.initLangFilter();
+    }
+
+    // -------------------------------------------------------------------------
+    // Original Starlight TOC highlighting logic (copied verbatim)
+    // -------------------------------------------------------------------------
+
+    private init = (): void => {
+      const links = [...this.querySelectorAll('a')];
+
+      const isHeading = (el: Element): el is HTMLHeadingElement =>
+        el.matches(this.tocHeadingSelector);
+
+      const getElementHeading = (el: Element | null): HTMLHeadingElement | null => {
+        if (!el) return null;
+        const origin = el;
+        while (el) {
+          if (el.matches('.sl-markdown-content, main > *')) {
+            return document.getElementById(PAGE_TITLE_ID) as HTMLHeadingElement;
+          }
+          if (isHeading(el)) return el;
+          const childHeading = el.querySelector<HTMLHeadingElement>(this.tocHeadingSelector);
+          if (childHeading) return childHeading;
+          el = el.previousElementSibling;
+          while (el?.lastElementChild) {
+            el = el.lastElementChild;
+          }
+          const h = getElementHeading(el);
+          if (h) return h;
+        }
+        return getElementHeading(origin.parentElement);
+      };
+
+      const setCurrent: IntersectionObserverCallback = (entries) => {
+        for (const { isIntersecting, target } of entries) {
+          if (!isIntersecting) continue;
+          const heading = getElementHeading(target);
+          if (!heading) continue;
+          const link = links.find(
+            (link) => link.hash === '#' + encodeURIComponent(heading.id)
+          );
+          if (link) {
+            this.current = link;
+            break;
+          }
+        }
+      };
+
+      const toObserve = document.querySelectorAll(
+        [
+          `main :where(${this.tocHeadingSelector})`,
+          `main :where(${this.tocHeadingSelector}, .sl-heading-wrapper) ~ *:not(:has(${this.tocHeadingSelector}))`,
+          `main .sl-markdown-content > *:not(:has(${this.tocHeadingSelector}))`,
+          `main > *:not(:has(${this.tocHeadingSelector}))`,
+        ].join()
+      );
+
+      let observer: IntersectionObserver | undefined;
+      const observe = () => {
+        if (observer) return;
+        observer = new IntersectionObserver(setCurrent, {
+          rootMargin: this.getRootMargin(),
+        });
+        toObserve.forEach((h) => observer!.observe(h));
+      };
+      observe();
+
+      let timeout: ReturnType<typeof setTimeout>;
+      window.addEventListener('resize', () => {
+        if (observer) {
+          observer.disconnect();
+          observer = undefined;
+        }
+        clearTimeout(timeout);
+        timeout = setTimeout(() => this.onIdle(observe), 200);
+      });
+    };
+
+    private getRootMargin(): `-${number}px 0% ${number}px` {
+      const navBarHeight =
+        document.querySelector('header')?.getBoundingClientRect().height || 0;
+      const mobileTocHeight =
+        this.querySelector('summary')?.getBoundingClientRect().height || 0;
+      const top = navBarHeight + mobileTocHeight + 32;
+      const bottom = top + 53;
+      const height = document.documentElement.clientHeight;
+      return `-${top}px 0% ${bottom - height}px`;
+    }
+
+    // -------------------------------------------------------------------------
+    // AppHost language filter
+    // -------------------------------------------------------------------------
+
+    private initLangFilter(): void {
+      const run = () => {
+        const filterEl = this.querySelector<HTMLElement>('.apphost-lang-filter');
+        const select = this.querySelector<HTMLSelectElement>('#apphost-lang-select');
+        if (!filterEl || !select) return;
+
+        // Only activate on pages that use apphost pivot blocks.
+        const hasApphostPivots = !!document.querySelector(
+          '[data-pivot-block="csharp"], [data-pivot-block="typescript"]'
+        );
+        if (!hasApphostPivots) return;
+
+        // Determine initial value: query string → localStorage → default 'csharp'.
+        const qs = new URLSearchParams(window.location.search);
+        const qsVal = qs.get('apphost');
+        const stored = localStorage.getItem('apphost');
+        const initial: string =
+          qsVal === 'csharp' || qsVal === 'typescript'
+            ? qsVal
+            : stored === 'csharp' || stored === 'typescript'
+              ? stored
+              : 'csharp';
+
+        select.value = initial;
+        filterEl.removeAttribute('hidden');
+        this.filterToc();
+
+        // When the user changes the selector:
+        // - Delegate to the existing PivotSelector button click when available
+        //   so PivotSelector continues to own all content visibility logic.
+        // - Fall back to applying pivot blocks directly when PivotSelector is
+        //   not present on the current page.
+        select.addEventListener('change', () => {
+          const lang = select.value;
+
+          const pivotBtn = document.querySelector<HTMLButtonElement>(
+            `#pivot-selector-apphost [data-pivot-option="${lang}"]`
+          );
+
+          if (pivotBtn) {
+            // PivotSelector is on the page — delegate entirely to it.
+            pivotBtn.click();
+          } else {
+            // No PivotSelector — apply pivot blocks directly.
+            localStorage.setItem('apphost', lang);
+            const url = new URL(window.location.href);
+            url.searchParams.set('apphost', lang);
+            window.history.replaceState({}, '', url.toString());
+
+            document.querySelectorAll<HTMLElement>('[data-pivot-block]').forEach((el) => {
+              const blockIds = (el.dataset.pivotBlock ?? '')
+                .split(/[,;]/)
+                .map((s) => s.trim());
+              el.style.display = blockIds.includes(lang) ? '' : 'none';
+            });
+          }
+
+          this.filterToc();
+        });
+
+        // Watch for pivot-block visibility changes triggered by PivotSelector.
+        // When PivotSelector applies a selection it sets inline `style.display`
+        // on the blocks — the MutationObserver picks that up here.
+        const pivotBlocks = document.querySelectorAll('[data-pivot-block]');
+        if (pivotBlocks.length > 0) {
+          const mo = new MutationObserver(() => {
+            const current = localStorage.getItem('apphost');
+            if (
+              (current === 'csharp' || current === 'typescript') &&
+              select.value !== current
+            ) {
+              select.value = current;
+            }
+            this.filterToc();
+          });
+          pivotBlocks.forEach((el) =>
+            mo.observe(el, { attributes: true, attributeFilter: ['style'] })
+          );
+        }
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run, { once: true });
+      } else {
+        run();
+      }
+    }
+
+    /**
+     * Show/hide TOC `<li>` items based on whether their target heading is
+     * inside a currently-hidden `[data-pivot-block]` element.
+     * Headings outside any pivot block are always shown.
+     */
+    private filterToc(): void {
+      const links = [...this.querySelectorAll<HTMLAnchorElement>('nav a')];
+      for (const link of links) {
+        const href = link.getAttribute('href');
+        if (!href?.startsWith('#')) continue;
+        const id = decodeURIComponent(href.slice(1));
+        const heading = document.getElementById(id);
+        if (!heading) continue;
+        const listItem = link.closest('li');
+        if (!listItem) continue;
+        listItem.hidden = this.isInsideHiddenPivotBlock(heading);
+      }
+    }
+
+    /**
+     * Returns true when `el` has an ancestor `[data-pivot-block]` element
+     * whose `style.display` is `'none'`.
+     */
+    private isInsideHiddenPivotBlock(el: Element): boolean {
+      let parent = el.parentElement;
+      while (parent) {
+        if (
+          parent.hasAttribute('data-pivot-block') &&
+          (parent as HTMLElement).style.display === 'none'
+        ) {
+          return true;
+        }
+        parent = parent.parentElement;
+      }
+      return false;
+    }
+  }
+
+  if (!customElements.get('starlight-toc')) {
+    customElements.define('starlight-toc', StarlightTOC);
+  }
+</script>
