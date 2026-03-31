@@ -72,28 +72,80 @@ jobs:
       artifact_retention_days: ${{ github.event_name == 'pull_request' && 30 || 7 }}
       site_base_path: ${{ github.event_name == 'pull_request' && format('/prs/{0}', github.event.pull_request.number) || '/' }}
 
+  preview-registration-metadata:
+    needs: [changes, frontend-build]
+    if: ${{ github.event_name == 'pull_request' && needs.frontend-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write preview registration metadata
+        shell: bash
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ARTIFACT_NAME: ${{ needs.frontend-build.outputs.artifact_name }}
+          ARTIFACT_RUN_ID: ${{ needs.frontend-build.outputs.artifact_run_id }}
+          ARTIFACT_RUN_ATTEMPT: ${{ needs.frontend-build.outputs.artifact_run_attempt }}
+          COMPLETED_AT_UTC: ${{ needs.frontend-build.outputs.completed_at_utc }}
+        run: |
+          metadata_dir="$RUNNER_TEMP/pr-preview-registration"
+          mkdir -p "$metadata_dir"
+
+          jq -n \
+            --arg repositoryOwner "$REPOSITORY_OWNER" \
+            --arg repositoryName "$REPOSITORY_NAME" \
+            --arg headSha "$HEAD_SHA" \
+            --arg artifactName "$ARTIFACT_NAME" \
+            --arg completedAtUtc "$COMPLETED_AT_UTC" \
+            --argjson pullRequestNumber "$PR_NUMBER" \
+            --argjson runId "$ARTIFACT_RUN_ID" \
+            --argjson runAttempt "$ARTIFACT_RUN_ATTEMPT" \
+            '{
+              repositoryOwner: $repositoryOwner,
+              repositoryName: $repositoryName,
+              pullRequestNumber: $pullRequestNumber,
+              headSha: $headSha,
+              runId: $runId,
+              runAttempt: $runAttempt,
+              artifactName: $artifactName,
+              completedAtUtc: $completedAtUtc
+            }' > "$metadata_dir/preview-registration.json"
+
+      - name: Upload preview registration metadata
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: pr-preview-registration
+          path: ${{ runner.temp }}/pr-preview-registration/preview-registration.json
+          if-no-files-found: error
+          retention-days: 7
+
   apphost-build:
     needs: changes
     if: ${{ needs.changes.outputs.apphost == 'true' }}
     uses: ./.github/workflows/apphost-build.yml
 
   ci-gate:
-    needs: [changes, frontend-build, apphost-build]
+    needs: [changes, frontend-build, preview-registration-metadata, apphost-build]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify CI results
         shell: bash
         env:
+          IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
           APPHOST_CHANGED: ${{ needs.changes.outputs.apphost }}
           FRONTEND_RESULT: ${{ needs['frontend-build'].result }}
+          PREVIEW_METADATA_RESULT: ${{ needs['preview-registration-metadata'].result }}
           APPHOST_RESULT: ${{ needs['apphost-build'].result }}
         run: |
+          echo "is pull_request event: $IS_PULL_REQUEST"
           echo "changes result: $CHANGES_RESULT"
           echo "frontend changed: $FRONTEND_CHANGED"
           echo "frontend-build result: $FRONTEND_RESULT"
+          echo "preview-registration-metadata result: $PREVIEW_METADATA_RESULT"
           echo "apphost changed: $APPHOST_CHANGED"
           echo "apphost-build result: $APPHOST_RESULT"
 
@@ -109,6 +161,16 @@ jobs:
             fi
           elif [[ "$FRONTEND_RESULT" != "skipped" ]]; then
             echo "frontend-build should have been skipped."
+            exit 1
+          fi
+
+          if [[ "$IS_PULL_REQUEST" == "true" && "$FRONTEND_CHANGED" == "true" ]]; then
+            if [[ "$PREVIEW_METADATA_RESULT" != "success" ]]; then
+              echo "preview-registration-metadata should have run and succeeded."
+              exit 1
+            fi
+          elif [[ "$PREVIEW_METADATA_RESULT" != "skipped" ]]; then
+            echo "preview-registration-metadata should have been skipped."
             exit 1
           fi
 

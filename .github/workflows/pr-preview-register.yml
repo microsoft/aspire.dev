@@ -19,6 +19,8 @@ jobs:
         id: config
         env:
           PREVIEW_REGISTRATION_TOKEN: ${{ secrets.PR_PREVIEW_REGISTRATION_TOKEN }}
+          ASPIRE_BOT_APP_ID: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          ASPIRE_BOT_PRIVATE_KEY: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
         run: |
           if [ -z "$PREVIEW_REGISTRATION_TOKEN" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
@@ -26,22 +28,30 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Resolve preview metadata
+          if [ -z "$ASPIRE_BOT_APP_ID" ] || [ -z "$ASPIRE_BOT_PRIVATE_KEY" ]; then
+            echo "app_configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Aspire bot token
+        if: ${{ steps.config.outputs.configured == 'true' && steps.config.outputs.app_configured == 'true' }}
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          permission-actions: read
+          permission-pull-requests: write
+
+      - name: Locate preview registration metadata artifact
         if: ${{ steps.config.outputs.configured == 'true' }}
-        id: metadata
+        id: metadata-artifact
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
+          github-token: ${{ steps.app-token.outputs.token || github.token }}
           script: |
             const run = context.payload.workflow_run;
-
-            if (!run.pull_requests || run.pull_requests.length === 0) {
-              core.setOutput('should_register', 'false');
-              return;
-            }
-
-            const pullRequest = run.pull_requests[0];
-            const artifactName = `frontend-dist-pr-${pullRequest.number}`;
-
             const artifacts = await github.paginate(
               github.rest.actions.listWorkflowRunArtifacts,
               {
@@ -51,20 +61,47 @@ jobs:
                 per_page: 100,
               });
 
-            const previewArtifact = artifacts.find(artifact => artifact.name === artifactName && !artifact.expired);
-            if (!previewArtifact) {
-              core.info(`No preview artifact named ${artifactName} was found on run ${run.id}.`);
-              core.setOutput('should_register', 'false');
+            const metadataArtifact = artifacts.find(artifact => artifact.name === 'pr-preview-registration' && !artifact.expired);
+            if (!metadataArtifact) {
+              core.info(`No preview registration metadata artifact was found on run ${run.id}.`);
+              core.setOutput('found', 'false');
               return;
             }
 
-            core.setOutput('should_register', 'true');
-            core.setOutput('pr_number', String(pullRequest.number));
-            core.setOutput('artifact_name', artifactName);
-            core.setOutput('head_sha', run.head_sha);
-            core.setOutput('run_id', String(run.id));
-            core.setOutput('run_attempt', String(run.run_attempt));
-            core.setOutput('completed_at', run.updated_at ?? run.created_at);
+            core.setOutput('found', 'true');
+            core.setOutput('artifact_id', String(metadataArtifact.id));
+
+      - name: Download preview registration metadata
+        if: ${{ steps.config.outputs.configured == 'true' && steps.metadata-artifact.outputs.found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.metadata-artifact.outputs.artifact_id }}
+          path: ${{ runner.temp }}/pr-preview-registration
+          github-token: ${{ steps.app-token.outputs.token || github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Resolve preview metadata
+        if: ${{ steps.config.outputs.configured == 'true' && steps.metadata-artifact.outputs.found == 'true' }}
+        id: metadata
+        shell: bash
+        run: |
+          metadata_file="${RUNNER_TEMP}/pr-preview-registration/preview-registration.json"
+
+          if [ ! -f "$metadata_file" ]; then
+            echo "Expected preview registration metadata at $metadata_file."
+            exit 1
+          fi
+
+          echo "should_register=true" >> "$GITHUB_OUTPUT"
+          echo "repository_owner=$(jq -re '.repositoryOwner' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "repository_name=$(jq -re '.repositoryName' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(jq -re '.pullRequestNumber' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$(jq -re '.artifactName' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(jq -re '.headSha' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "run_id=$(jq -re '.runId' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "run_attempt=$(jq -re '.runAttempt' "$metadata_file")" >> "$GITHUB_OUTPUT"
+          echo "completed_at=$(jq -re '.completedAtUtc' "$metadata_file")" >> "$GITHUB_OUTPUT"
 
       - name: Register preview build
         if: ${{ steps.config.outputs.configured == 'true' && steps.metadata.outputs.should_register == 'true' }}
@@ -77,8 +114,8 @@ jobs:
           RUN_ID: ${{ steps.metadata.outputs.run_id }}
           RUN_ATTEMPT: ${{ steps.metadata.outputs.run_attempt }}
           COMPLETED_AT: ${{ steps.metadata.outputs.completed_at }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          REPOSITORY_NAME: ${{ github.event.repository.name }}
+          REPOSITORY_OWNER: ${{ steps.metadata.outputs.repository_owner }}
+          REPOSITORY_NAME: ${{ steps.metadata.outputs.repository_name }}
         run: |
           payload=$(jq -n \
             --arg repositoryOwner "$REPOSITORY_OWNER" \
@@ -114,6 +151,7 @@ jobs:
           PREVIEW_BASE_URL: ${{ vars.PR_PREVIEW_BASE_URL }}
           PR_NUMBER: ${{ steps.metadata.outputs.pr_number }}
         with:
+          github-token: ${{ steps.app-token.outputs.token || github.token }}
           script: |
             const markerStart = '<!-- pr-preview:start -->';
             const markerEnd = '<!-- pr-preview:end -->';

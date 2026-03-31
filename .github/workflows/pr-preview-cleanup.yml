@@ -16,12 +16,29 @@ jobs:
         id: config
         env:
           PREVIEW_REGISTRATION_TOKEN: ${{ secrets.PR_PREVIEW_REGISTRATION_TOKEN }}
+          ASPIRE_BOT_APP_ID: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          ASPIRE_BOT_PRIVATE_KEY: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
         run: |
           if [ -z "$PREVIEW_REGISTRATION_TOKEN" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+
+          if [ -z "$ASPIRE_BOT_APP_ID" ] || [ -z "$ASPIRE_BOT_PRIVATE_KEY" ]; then
+            echo "app_configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Aspire bot token
+        if: ${{ steps.config.outputs.app_configured == 'true' }}
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          permission-pull-requests: write
 
       - name: Remove preview registration
         if: ${{ steps.config.outputs.configured == 'true' }}
@@ -38,6 +55,7 @@ jobs:
       - name: Remove preview block from PR description
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
+          github-token: ${{ steps.app-token.outputs.token || github.token }}
           script: |
             const markerStart = '<!-- pr-preview:start -->';
             const markerEnd = '<!-- pr-preview:end -->';
