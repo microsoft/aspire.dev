@@ -5,17 +5,26 @@ sidebar:
   badge: Preview
 ---
 
-import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import {
+  Aside,
+  FileTree,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
 
 <Aside type="note">
-Kubernetes uses `aspire publish` to generate Helm charts. It does not support `aspire deploy` — you deploy the generated artifacts using `helm`, `kubectl`, or your existing GitOps workflow.
+  Kubernetes uses `aspire publish` to generate Helm charts. It does not support
+  `aspire deploy` — you deploy the generated artifacts using `helm`, `kubectl`,
+  or your existing GitOps workflow.
 </Aside>
 
 <LearnMore>
-For hosting integration setup and configuration, see [Kubernetes integration](/integrations/compute/kubernetes/).
+  For hosting integration setup and configuration, see [Kubernetes
+  integration](/integrations/compute/kubernetes/).
 </LearnMore>
 
 To configure your AppHost for Kubernetes, add a Kubernetes environment with `AddKubernetesEnvironment`:
@@ -41,9 +50,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const k8s = await builder.addKubernetesEnvironment("k8s");
+const k8s = await builder.addKubernetesEnvironment('k8s');
 
-const api = await builder.addProject("api", "../MyApi/MyApi.csproj", "http");
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
 
 await builder.build().run();
 ```
@@ -89,36 +98,36 @@ After generating artifacts, use Helm to deploy your application to a Kubernetes 
 
 1. Install the chart to your cluster:
 
-    ```bash title="Install with Helm"
-    helm install my-app ./k8s-artifacts
-    ```
+   ```bash title="Install with Helm"
+   helm install my-app ./k8s-artifacts
+   ```
 
 2. For subsequent deployments, upgrade the existing release:
 
-    ```bash title="Upgrade with Helm"
-    helm upgrade my-app ./k8s-artifacts
-    ```
+   ```bash title="Upgrade with Helm"
+   helm upgrade my-app ./k8s-artifacts
+   ```
 
 3. Override default values using `--set` flags or a custom values file:
 
-    ```bash title="Override values"
-    helm upgrade my-app ./k8s-artifacts \
-        --set api.image.repository=myregistry.azurecr.io/api \
-        --set api.image.tag=v1.2.0
-    ```
+   ```bash title="Override values"
+   helm upgrade my-app ./k8s-artifacts \
+       --set api.image.repository=myregistry.azurecr.io/api \
+       --set api.image.tag=v1.2.0
+   ```
 
-    Alternatively, create a custom values file for your environment:
+   Alternatively, create a custom values file for your environment:
 
-    ```yaml title="values.production.yaml"
-    api:
-      image:
-        repository: myregistry.azurecr.io/api
-        tag: v1.2.0
-    ```
+   ```yaml title="values.production.yaml"
+   api:
+     image:
+       repository: myregistry.azurecr.io/api
+       tag: v1.2.0
+   ```
 
-    ```bash title="Deploy with custom values file"
-    helm upgrade my-app ./k8s-artifacts -f values.production.yaml
-    ```
+   ```bash title="Deploy with custom values file"
+   helm upgrade my-app ./k8s-artifacts -f values.production.yaml
+   ```
 
 </Steps>
 
@@ -126,14 +135,14 @@ After generating artifacts, use Helm to deploy your application to a Kubernetes 
 
 The Kubernetes publisher converts Aspire resources to their Kubernetes equivalents:
 
-| Aspire resource | Kubernetes resource |
-|---|---|
-| Project resources | Deployments or StatefulSets |
-| Container resources | Deployments or StatefulSets |
-| Connection strings | ConfigMaps and Secrets |
-| Environment variables | ConfigMaps and Secrets |
-| Endpoints | Services |
-| Volumes | PersistentVolumes and PersistentVolumeClaims |
+| Aspire resource       | Kubernetes resource                          |
+| --------------------- | -------------------------------------------- |
+| Project resources     | Deployments or StatefulSets                  |
+| Container resources   | Deployments or StatefulSets                  |
+| Connection strings    | ConfigMaps and Secrets                       |
+| Environment variables | ConfigMaps and Secrets                       |
+| Endpoints             | Services                                     |
+| Volumes               | PersistentVolumes and PersistentVolumeClaims |
 
 ## Deployment considerations
 
@@ -161,6 +170,8 @@ By default, the Helm chart name is derived from your AppHost project. Configure 
 <TabItem label="C#">
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddKubernetesEnvironment("k8s")
     .WithProperties(k8s =>
     {
@@ -172,9 +183,13 @@ builder.AddKubernetesEnvironment("k8s")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-const k8s = await builder.addKubernetesEnvironment("k8s");
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withProperties(async (k8s) => {
-    await k8s.helmChartName.set("my-aspire-app");
+  await k8s.helmChartName.set('my-aspire-app');
 });
 ```
 
@@ -189,6 +204,8 @@ Use the `PublishAsKubernetesService` callback to modify the generated Kubernetes
 <TabItem label="C#">
 
 ```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 builder.AddContainer("service", "nginx")
     .WithEnvironment("ORIGINAL_ENV", "value")
     .PublishAsKubernetesService(resource =>
@@ -201,10 +218,14 @@ builder.AddContainer("service", "nginx")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-const service = await builder.addContainer("service", "nginx");
-await service.withEnvironment("ORIGINAL_ENV", "value");
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const service = await builder.addContainer('service', 'nginx');
+await service.withEnvironment('ORIGINAL_ENV', 'value');
 await service.publishAsKubernetesService(async (resource) => {
-    // Customize the generated Kubernetes resource
+  // Customize the generated Kubernetes resource
 });
 ```
 
@@ -212,7 +233,9 @@ await service.publishAsKubernetesService(async (resource) => {
 </Tabs>
 
 <Aside type="tip">
-Use `WithProperties` on the Kubernetes environment for global settings, and `PublishAsKubernetesService` on individual resources for per-resource customization.
+  Use `WithProperties` on the Kubernetes environment for global settings, and
+  `PublishAsKubernetesService` on individual resources for per-resource
+  customization.
 </Aside>
 
 ## Troubleshooting
