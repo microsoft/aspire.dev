@@ -508,7 +508,19 @@ internal sealed class PreviewStateStore
     {
         Directory.CreateDirectory(StateRoot);
         var json = JsonSerializer.Serialize(_records, JsonOptions);
-        await File.WriteAllTextAsync(_registryPath, json, cancellationToken);
+        var registryDirectory = Path.GetDirectoryName(_registryPath) ?? StateRoot;
+        Directory.CreateDirectory(registryDirectory);
+
+        var tempFilePath = Path.Combine(registryDirectory, $"{Path.GetFileName(_registryPath)}.{Path.GetRandomFileName()}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(tempFilePath, json, cancellationToken);
+            File.Move(tempFilePath, _registryPath, overwrite: true);
+        }
+        finally
+        {
+            DeleteFileIfPresent(tempFilePath);
+        }
     }
 
     private bool NormalizeLoadedRecord(PreviewRecord record)
@@ -648,6 +660,25 @@ internal sealed class PreviewStateStore
         catch (UnauthorizedAccessException exception)
         {
             _logger.LogWarning(exception, "Failed to delete preview directory {Directory}", path);
+        }
+    }
+
+    private void DeleteFileIfPresent(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException exception)
+        {
+            _logger.LogWarning(exception, "Failed to delete preview file {Path}", path);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(exception, "Failed to delete preview file {Path}", path);
         }
     }
 }

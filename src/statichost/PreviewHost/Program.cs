@@ -283,6 +283,11 @@ app.MapPost(
             return Results.ValidationProblem(validationErrors);
         }
 
+        if (!TryValidateRepository(request, options.Value, out var repositoryValidationErrors))
+        {
+            return Results.ValidationProblem(repositoryValidationErrors);
+        }
+
         var result = await stateStore.RegisterAsync(request, cancellationToken);
         return Results.Json(new
         {
@@ -328,6 +333,24 @@ static bool TryValidate(PreviewRegistrationRequest request, out Dictionary<strin
             static group => group.Select(static item => item.ErrorMessage ?? "Validation failed.").ToArray(),
             StringComparer.Ordinal);
 
+    return false;
+}
+
+static bool TryValidateRepository(PreviewRegistrationRequest request, PreviewHostOptions options, out Dictionary<string, string[]> validationErrors)
+{
+    if (string.Equals(request.RepositoryOwner, options.RepositoryOwner, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(request.RepositoryName, options.RepositoryName, StringComparison.OrdinalIgnoreCase))
+    {
+        validationErrors = [];
+        return true;
+    }
+
+    var repositoryMessage = $"Preview registrations must target the configured repository '{options.RepositoryOwner}/{options.RepositoryName}'.";
+    validationErrors = new Dictionary<string, string[]>(StringComparer.Ordinal)
+    {
+        [nameof(PreviewRegistrationRequest.RepositoryOwner)] = [repositoryMessage],
+        [nameof(PreviewRegistrationRequest.RepositoryName)] = [repositoryMessage]
+    };
     return false;
 }
 

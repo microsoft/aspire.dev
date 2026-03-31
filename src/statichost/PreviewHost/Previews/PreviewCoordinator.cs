@@ -810,19 +810,51 @@ internal sealed class PreviewCoordinator(
         return nestedDirectory?.Directory ?? extractedRoot;
     }
 
-    private static void DeleteFileIfPresent(string? path)
+    private void DeleteFileIfPresent(string? path)
     {
-        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path))
         {
-            File.Delete(path);
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException exception)
+        {
+            _logger.LogWarning(exception, "Failed to delete temporary preview file {Path}", path);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(exception, "Failed to delete temporary preview file {Path}", path);
         }
     }
 
-    private static void DeleteDirectoryIfPresent(string? path)
+    private void DeleteDirectoryIfPresent(string? path)
     {
-        if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+        if (string.IsNullOrWhiteSpace(path))
         {
-            Directory.Delete(path, recursive: true);
+            return;
+        }
+
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (IOException exception)
+        {
+            _logger.LogWarning(exception, "Failed to delete temporary preview directory {Directory}", path);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(exception, "Failed to delete temporary preview directory {Directory}", path);
         }
     }
 
