@@ -45,7 +45,9 @@ await builder.addAzureContainerAppEnvironment("env");
 
 const api = await builder.addProject("api", "../Api/Api.csproj", "http");
 await api.publishAsAzureContainerApp(async (infrastructure, app) => {
-    // Customize the Container App (e.g. scaling, ingress)
+    // Customize the Container App
+    // Note: Scaling properties (minReplicas, maxReplicas) are
+    // configured through the ContainerAppHandle API
 });
 
 await builder.build().run();
@@ -118,11 +120,11 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
 <TabItem label="TypeScript">
 
 ```typescript title="apphost.ts"
-const existingBusName = builder.addParameter("existingServiceBusName");
-const existingBusRg = builder.addParameter("existingServiceBusResourceGroup");
-
 const serviceBus = await builder.addAzureServiceBus("messaging");
-await serviceBus.publishAsExisting("existingBusName", "my-resource-group");
+await serviceBus.publishAsExisting(
+    "existingBusName",
+    "existingResourceGroup"
+);
 ```
 
 </TabItem>
