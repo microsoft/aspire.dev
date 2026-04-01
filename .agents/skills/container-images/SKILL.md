@@ -156,7 +156,7 @@ Each entry in the output array represents **one distinct container image**:
 | Field | Type | Description |
 |---|---|---|
 | `aspirePackage` | string | The NuGet package / project name (directory name under `src/`) |
-| `name` | string | Human-friendly name derived from the class name (strip `ContainerImageTags` / `EmulatorContainerImageTags` suffix, split PascalCase) |
+| `name` | string | Human-friendly name. For primary images, derive this from the class name (strip `ContainerImageTags` / `EmulatorContainerImageTags` suffix, split PascalCase). For companion images, derive this from the companion prefix/type (e.g. `PgAdmin*`, `RedisCommander*`) rather than only from the class name. |
 | `registry` | string | Container registry host (e.g. `docker.io`, `mcr.microsoft.com`, `ghcr.io`, `quay.io`, `container-registry.oracle.com`) |
 | `image` | string | Image path within the registry |
 | `tag` | string | Primary tag |
