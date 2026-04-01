@@ -34,16 +34,46 @@ function computeSourceUrl() {
 
 <DefaultHead {...Astro.props} />
 
-<!-- Restore sidebar collapsed state before paint to avoid layout shift (API pages only) -->
+<!-- Restore persisted AppHost/sidebar state before paint to avoid layout shift -->
 <script is:inline>
   (function () {
+    function normalizeAppHostLang(value) {
+      var normalized = (value || '').toLowerCase();
+      if (normalized.indexOf('typescript') !== -1) {
+        return 'typescript';
+      }
+      if (normalized.indexOf('c#') !== -1 || normalized.indexOf('csharp') !== -1) {
+        return 'csharp';
+      }
+      return '';
+    }
+
+    function persistAppHostLang(lang) {
+      localStorage.setItem('aspire-apphost-lang', lang);
+      localStorage.setItem('starlight-synced-tabs__apphost-lang', lang === 'typescript' ? 'TypeScript' : 'C#');
+      localStorage.setItem(
+        'starlight-synced-tabs__apphost-implementation-lang',
+        lang === 'typescript' ? 'TypeScript AppHost' : 'C# AppHost'
+      );
+    }
+
     try {
-      if (localStorage.getItem('api-sidebar-collapsed') === '1') {
-        // Only apply on API reference pages to avoid affecting regular docs sidebar
-        var path = window.location.pathname.replace(/\/$/, '');
-        if (path.indexOf('/reference/api') !== -1) {
-          document.documentElement.setAttribute('data-sidebar-collapsed', '');
-        }
+      var rawAppHostLang =
+        localStorage.getItem('aspire-apphost-lang') ||
+        localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
+        localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
+        'csharp';
+      var appHostLang = normalizeAppHostLang(rawAppHostLang) || 'csharp';
+      document.documentElement.setAttribute('data-apphost-lang', appHostLang);
+      persistAppHostLang(appHostLang);
+
+      var path = window.location.pathname.replace(/\/$/, '');
+      if (localStorage.getItem('api-sidebar-collapsed') === '1' && path.indexOf('/reference/api') !== -1) {
+        document.documentElement.setAttribute('data-sidebar-collapsed', '');
+      }
+
+      if (localStorage.getItem('topic-sidebar-collapsed') === '1' && path.indexOf('/reference/api') === -1) {
+        document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
       }
     } catch (e) {}
   })();

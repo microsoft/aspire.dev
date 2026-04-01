@@ -1,15 +1,37 @@
 ---
+import { Image } from 'astro:assets';
 import SidebarTopicsSidebar from 'starlight-sidebar-topics/overrides/Sidebar.astro';
 import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
 import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+// @ts-ignore Starlight provides this virtual component at runtime.
 import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
-import { Icon, LinkButton } from '@astrojs/starlight/components';
+import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
+import csharpIcon from '@assets/icons/csharp.svg';
+import typescriptIcon from '@assets/icons/typescript.svg';
 
 const routeData = Astro.locals.starlightRoute;
+const topicState = Astro.locals.starlightSidebarTopics;
 const pageId = routeData?.id ?? '';
 const isApiRefPage = pageId.startsWith('reference/api');
 const apiLang = pageId.startsWith('reference/api/typescript') ? 'ts' : pageId.startsWith('reference/api/csharp') ? 'csharp' : undefined;
 const sidebar = routeData?.sidebar ?? [];
+const topics = topicState?.topics ?? [];
+const currentTopic = topics.find((topic) => topic.isCurrent) ?? topics[0];
+const hasTopicSidebar = Boolean(!isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic);
+const appHostOptions = [
+  {
+    id: 'csharp',
+    label: 'C# AppHost',
+    fileName: 'AppHost.cs',
+    icon: csharpIcon,
+  },
+  {
+    id: 'typescript',
+    label: 'TypeScript AppHost',
+    fileName: 'apphost.ts',
+    icon: typescriptIcon,
+  },
+] as const;
 
 // Build a locale-aware back link so it works on localized pages (e.g. /ja/reference/overview/)
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -17,7 +39,7 @@ const localePrefix = routeData?.locale ? `/${routeData.locale}` : '';
 const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
 ---
 
-<div class="topics-sidebar" data-api-ref={isApiRefPage || undefined} data-api-lang={apiLang}>
+<div class="topics-sidebar" data-api-ref={isApiRefPage || undefined} data-api-lang={apiLang} data-topic-nav={hasTopicSidebar || undefined}>
   {isApiRefPage ? (
     <>
       <div class="api-sidebar-sticky not-content">
@@ -73,6 +95,145 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
         <MobileMenuFooter />
       </div>
     </>
+  ) : hasTopicSidebar ? (
+    <>
+      <div class="topic-sidebar-sticky not-content">
+        <div class="topic-sidebar-toolbar">
+          <div class="sidebar-dropdown-shell apphost-lang-dropdown" data-sidebar-dropdown>
+            <button
+              type="button"
+              class="sidebar-dropdown-trigger sidebar-dropdown-trigger-apphost"
+              id="apphost-lang-trigger"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              data-dropdown-trigger
+            >
+              {
+                appHostOptions.map((option) => (
+                  <span class="apphost-lang-trigger-current" data-apphost-lang-current={option.id}>
+                    <Image
+                      src={option.icon}
+                      alt=""
+                      width={20}
+                      height={20}
+                      class:list={['apphost-lang-icon', { 'apphost-lang-icon-csharp': option.id === 'csharp' }]}
+                    />
+                    <span class="sidebar-dropdown-trigger-copy">
+                      <span class="sidebar-dropdown-trigger-label">{option.label}</span>
+                    </span>
+                  </span>
+                ))
+              }
+              <svg class="sidebar-dropdown-caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5L10 12.5L15 7.5" /></svg>
+            </button>
+            <div
+              class="sidebar-dropdown-panel sidebar-dropdown-panel-apphost"
+              hidden
+              data-dropdown-panel
+              role="menu"
+              aria-labelledby="apphost-lang-trigger"
+            >
+              {
+                appHostOptions.map((option) => (
+                  <button
+                    type="button"
+                    class="sidebar-dropdown-option sidebar-dropdown-option-apphost"
+                    data-apphost-lang-option={option.id}
+                    role="menuitemradio"
+                    aria-checked="false"
+                  >
+                    <Image
+                      src={option.icon}
+                      alt=""
+                      width={22}
+                      height={22}
+                      class:list={['apphost-lang-icon', { 'apphost-lang-icon-csharp': option.id === 'csharp' }]}
+                    />
+                    <span class="sidebar-dropdown-option-copy">
+                      <span class="sidebar-dropdown-option-label">{option.label}</span>
+                      <span class="sidebar-dropdown-option-meta">
+                        <code class="sidebar-dropdown-inline-code">{option.fileName}</code>
+                      </span>
+                    </span>
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+          <button
+            type="button"
+            class="sidebar-collapse-btn"
+            id="topic-sidebar-collapse-btn"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18m7-6l-3-3l3-3"/></svg>
+          </button>
+        </div>
+        <div class="sidebar-dropdown-shell topic-selector-dropdown" data-sidebar-dropdown>
+          <button
+            type="button"
+            class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
+            id="topic-sidebar-trigger"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            data-dropdown-trigger
+          >
+            {currentTopic?.icon && (
+              <span class="starlight-sidebar-topics-icon topic-selector-icon">
+                <Icon name={currentTopic.icon} />
+              </span>
+            )}
+            <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
+              <span class="sidebar-dropdown-trigger-label topic-selector-label">{currentTopic?.label}</span>
+              <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
+                {currentTopic?.badge && (
+                  <Badge class="starlight-sidebar-topics-badge" text={currentTopic.badge.text} variant={currentTopic.badge.variant} />
+                )}
+              </span>
+            </span>
+            <svg class="sidebar-dropdown-caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5L10 12.5L15 7.5" /></svg>
+          </button>
+          <div
+            class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
+            hidden
+            data-dropdown-panel
+          >
+            <ul
+              class="starlight-sidebar-topics starlight-sidebar-topics-menu"
+              role="menu"
+              aria-labelledby="topic-sidebar-trigger"
+            >
+              {
+                topics.map((topic) => (
+                  <li role="none">
+                    <a href={topic.link} class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }} role="menuitem">
+                      {topic.icon && (
+                        <div class="starlight-sidebar-topics-icon">
+                          <Icon name={topic.icon} />
+                        </div>
+                      )}
+                      <div>
+                        {topic.label}
+                        {topic.badge && (
+                          <Badge class="starlight-sidebar-topics-badge" text={topic.badge.text} variant={topic.badge.variant} />
+                        )}
+                      </div>
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </div>
+      </div>
+      <SidebarPersister>
+        <SidebarSublist sublist={sidebar} />
+      </SidebarPersister>
+      <div class="md:sl-hidden">
+        <MobileMenuFooter />
+      </div>
+    </>
   ) : (
     <SidebarTopicsSidebar {...Astro.props}>
       <slot />
@@ -91,6 +252,18 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     type="button"
     class="sidebar-expand-btn"
     id="sidebar-expand-btn"
+    aria-label="Expand sidebar"
+    title="Expand sidebar"
+    hidden
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18m5-12l3 3l-3 3"/></svg>
+  </button>
+)}
+{hasTopicSidebar && (
+  <button
+    type="button"
+    class="sidebar-expand-btn"
+    id="topic-sidebar-expand-btn"
     aria-label="Expand sidebar"
     title="Expand sidebar"
     hidden
@@ -124,6 +297,19 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     padding-bottom: 0rem;
   }
 
+  .topics-sidebar {
+    --sidebar-dropdown-trigger-bg: var(--sl-color-bg);
+    --sidebar-dropdown-trigger-border: var(--sl-color-gray-5);
+    --sidebar-dropdown-panel-bg: color-mix(in srgb, var(--sl-color-bg-sidebar) 97%, var(--sl-color-black));
+    --sidebar-dropdown-hover-bg: color-mix(in srgb, var(--sl-color-text-accent) 14%, transparent);
+    --sidebar-dropdown-selected-bg: color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent);
+    --sidebar-dropdown-selected-border: color-mix(in srgb, var(--sl-color-text-accent) 40%, transparent);
+    --sidebar-dropdown-muted: var(--sl-color-gray-2);
+    --sidebar-dropdown-code-bg: color-mix(in srgb, var(--sl-color-bg-nav) 70%, transparent);
+    --sidebar-dropdown-code-border: color-mix(in srgb, var(--sl-color-hairline-light) 90%, transparent);
+    --sidebar-dropdown-code-color: var(--sl-color-text);
+  }
+
   /* API Reference sidebar sticky wrapper */
   .api-sidebar-sticky {
     position: sticky;
@@ -141,6 +327,299 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     gap: 0.25rem;
     padding: 0.75rem 0;
     border-bottom: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .topic-sidebar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sl-color-bg-sidebar);
+    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
+    padding-inline: var(--sl-sidebar-pad-x);
+  }
+
+  .topic-sidebar-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.75rem 0 0.6rem;
+  }
+
+  .sidebar-dropdown-shell {
+    position: relative;
+    min-width: 0;
+  }
+
+  .topic-selector-dropdown {
+    padding: 0 0 0.75rem;
+    border-top: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .sidebar-dropdown-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.8rem;
+    border: 1px solid var(--sidebar-dropdown-trigger-border);
+    border-radius: 0.5rem;
+    background: var(--sidebar-dropdown-trigger-bg);
+    color: var(--sl-color-text);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  }
+
+  .sidebar-dropdown-trigger:hover {
+    border-color: var(--sl-color-gray-4);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .sidebar-dropdown-trigger:focus-visible {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  .sidebar-dropdown-shell[data-open='true'] .sidebar-dropdown-trigger {
+    border-color: color-mix(in srgb, var(--sl-color-text-accent) 45%, var(--sl-color-gray-4));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent), var(--sl-shadow-md);
+  }
+
+  .sidebar-dropdown-trigger-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sidebar-dropdown-trigger-label {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .sidebar-dropdown-trigger-meta,
+  .sidebar-dropdown-option-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .sidebar-dropdown-option-meta {
+    min-height: 1.1rem;
+  }
+
+  .sidebar-dropdown-inline-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.38rem;
+    border: 1px solid var(--sidebar-dropdown-code-border);
+    border-radius: 0.375rem;
+    background: var(--sidebar-dropdown-code-bg);
+    color: var(--sidebar-dropdown-code-color);
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.76rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .sidebar-dropdown-caret {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--sl-color-gray-2);
+    transition: transform 0.18s ease, color 0.18s ease;
+  }
+
+  .sidebar-dropdown-shell[data-open='true'] .sidebar-dropdown-caret {
+    transform: rotate(180deg);
+    color: var(--sl-color-text-accent);
+  }
+
+  .sidebar-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    z-index: 25;
+    padding: 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 90%, transparent);
+    border-radius: 0.5rem;
+    background: var(--sidebar-dropdown-panel-bg);
+    box-shadow: var(--sl-shadow-lg);
+    backdrop-filter: blur(14px);
+  }
+
+  .sidebar-dropdown-panel[hidden] {
+    display: none;
+  }
+
+  .sidebar-dropdown-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.8rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--sl-color-text);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+
+  .sidebar-dropdown-option:hover,
+  .sidebar-dropdown-option:focus-visible {
+    background: var(--sidebar-dropdown-hover-bg);
+    color: var(--sl-color-white);
+    outline: none;
+  }
+
+  .sidebar-dropdown-option[aria-checked='true'] {
+    background: var(--sidebar-dropdown-selected-bg);
+    box-shadow: inset 0 0 0 1px var(--sidebar-dropdown-selected-border);
+  }
+
+  .sidebar-dropdown-option-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.26rem;
+    min-width: 0;
+  }
+
+  .sidebar-dropdown-option-label {
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .apphost-lang-trigger-current {
+    display: none;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  :global(:root:not([data-apphost-lang='typescript'])) .apphost-lang-trigger-current[data-apphost-lang-current='csharp'],
+  :global(:root[data-apphost-lang='typescript']) .apphost-lang-trigger-current[data-apphost-lang-current='typescript'] {
+    display: flex;
+  }
+
+  .apphost-lang-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    min-width: 1.125rem;
+    min-height: 1.125rem;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+
+  .apphost-lang-icon-csharp {
+    transform: scale(1.08);
+    transform-origin: center;
+  }
+
+  .sidebar-dropdown-trigger-topic {
+    margin-top: 0.65rem;
+    background: var(--sidebar-dropdown-trigger-bg);
+    border-color: var(--sidebar-dropdown-trigger-border);
+    color: var(--sl-color-text);
+  }
+
+  .topic-selector-icon {
+    flex-shrink: 0;
+    margin-right: 0;
+  }
+
+  .sidebar-dropdown-trigger-topic .starlight-sidebar-topics-icon {
+    color: inherit;
+    border-color: transparent;
+    margin-right: 0;
+  }
+
+  .topic-selector-meta :global(.starlight-sidebar-topics-badge) {
+    margin-inline-start: 0;
+  }
+
+  .sidebar-dropdown-panel-topics {
+    top: 100%;
+    padding: 0.25rem;
+    margin-top: 0rem;
+    overflow: hidden;
+    background-clip: padding-box;
+  }
+
+  .sidebar-dropdown-panel-apphost {
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  .starlight-sidebar-topics.starlight-sidebar-topics-menu {
+    margin: 0;
+    padding: 0.2rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    max-height: min(60vh, 24rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .starlight-sidebar-topics-menu::after {
+    content: none;
+  }
+
+  .starlight-sidebar-topics-menu li + li {
+    margin-top: 0;
+  }
+
+  .starlight-sidebar-topics-menu a {
+    font-size: var(--sl-text-sm, 0.875rem);
+    padding: 0.55rem 0.6rem;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .starlight-sidebar-topics-menu a:hover,
+  .starlight-sidebar-topics-menu a:focus-visible {
+    transform: none;
+  }
+
+  .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current {
+    background: var(--sidebar-dropdown-selected-bg);
+    border: 1px solid var(--sidebar-dropdown-selected-border);
+    color: var(--sl-color-accent-high);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sidebar-dropdown-selected-border) 75%, transparent);
+  }
+
+  .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current .starlight-sidebar-topics-icon {
+    color: inherit;
+  }
+
+  :global([data-theme='light']) .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current {
+    color: var(--sl-color-accent);
+  }
+
+  .topic-sidebar-toolbar .sidebar-collapse-btn {
+    margin-left: 0;
   }
 
   .api-sidebar-back {
@@ -255,6 +734,18 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
   :global([data-theme='light']) .api-sidebar-filter-input {
     border-color: var(--sl-color-gray-5);
   }
+  :global([data-theme='light']) .topics-sidebar {
+    --sidebar-dropdown-trigger-bg: var(--sl-color-bg);
+    --sidebar-dropdown-trigger-border: var(--sl-color-gray-5);
+    --sidebar-dropdown-panel-bg: color-mix(in srgb, var(--sl-color-bg) 98%, white);
+    --sidebar-dropdown-hover-bg: color-mix(in srgb, var(--aspire-color-primary) 10%, white);
+    --sidebar-dropdown-selected-bg: color-mix(in srgb, var(--aspire-color-primary) 12%, white);
+    --sidebar-dropdown-selected-border: color-mix(in srgb, var(--aspire-color-primary) 36%, var(--sl-color-gray-5));
+    --sidebar-dropdown-muted: var(--sl-color-gray-3);
+    --sidebar-dropdown-code-bg: color-mix(in srgb, var(--aspire-color-white) 92%, var(--sl-color-gray-7));
+    --sidebar-dropdown-code-border: color-mix(in srgb, var(--sl-color-gray-6) 82%, transparent);
+    --sidebar-dropdown-code-color: var(--aspire-color-muted-strong, var(--sl-color-gray-2));
+  }
   :global([data-theme='light']) .api-sidebar-filter-clear:hover {
     color: var(--sl-color-white);
     background: color-mix(in srgb, var(--sl-color-gray-5) 60%, transparent);
@@ -327,6 +818,23 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     .sidebar-collapse-btn,
     .sidebar-expand-btn {
       display: none !important;
+    }
+  }
+
+  @media (max-width: 50rem) {
+    .topic-sidebar-toolbar {
+      gap: 0.5rem;
+    }
+
+    .sidebar-dropdown-trigger,
+    .sidebar-dropdown-option {
+      padding-inline: 0.7rem;
+    }
+  }
+
+  @media (max-width: 71.999rem) {
+    .topic-sidebar-toolbar {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>
@@ -556,6 +1064,205 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     }
   }
 
+  const APPHOST_LANG_STORAGE_KEY = 'aspire-apphost-lang';
+  const APPHOST_TAB_STORAGE_PREFIX = 'starlight-synced-tabs__';
+  const TOPIC_SIDEBAR_COLLAPSED_KEY = 'topic-sidebar-collapsed';
+  type AppHostLanguage = 'csharp' | 'typescript';
+  type SyncedTabsElement = Element & {
+    switchTab?: (newTab: HTMLAnchorElement, index: number, shouldSync?: boolean) => void;
+  };
+  const APPHOST_TAB_LABELS = {
+    csharp: ['C#', 'C# AppHost'],
+    typescript: ['TypeScript', 'TypeScript AppHost'],
+  };
+
+  function normalizeAppHostLanguage(value: string | null | undefined): AppHostLanguage | '' {
+    const normalized = (value ?? '').toLowerCase();
+    if (normalized.includes('typescript')) {
+      return 'typescript';
+    }
+    if (normalized.includes('c#') || normalized.includes('csharp')) {
+      return 'csharp';
+    }
+    return '';
+  }
+
+  function getStoredAppHostLanguage() {
+    try {
+      return (
+        normalizeAppHostLanguage(localStorage.getItem(APPHOST_LANG_STORAGE_KEY)) ||
+        normalizeAppHostLanguage(localStorage.getItem(`${APPHOST_TAB_STORAGE_PREFIX}apphost-lang`)) ||
+        normalizeAppHostLanguage(localStorage.getItem(`${APPHOST_TAB_STORAGE_PREFIX}apphost-implementation-lang`)) ||
+        'csharp'
+      );
+    } catch {
+      return 'csharp';
+    }
+  }
+
+  function getCurrentAppHostLanguage(): AppHostLanguage {
+    return normalizeAppHostLanguage(document.documentElement.getAttribute('data-apphost-lang')) || getStoredAppHostLanguage();
+  }
+
+  function persistAppHostLanguage(lang: AppHostLanguage): void {
+    localStorage.setItem(APPHOST_LANG_STORAGE_KEY, lang);
+    localStorage.setItem(
+      `${APPHOST_TAB_STORAGE_PREFIX}apphost-lang`,
+      lang === 'typescript' ? 'TypeScript' : 'C#',
+    );
+    localStorage.setItem(
+      `${APPHOST_TAB_STORAGE_PREFIX}apphost-implementation-lang`,
+      lang === 'typescript' ? 'TypeScript AppHost' : 'C# AppHost',
+    );
+  }
+
+  function syncAppHostTabs(lang: AppHostLanguage): void {
+    const aliases = APPHOST_TAB_LABELS[lang] ?? APPHOST_TAB_LABELS.csharp;
+    const syncedTabGroups = document.querySelectorAll(
+      'starlight-tabs[data-sync-key="apphost-lang"], starlight-tabs[data-sync-key="apphost-implementation-lang"]',
+    ) as NodeListOf<SyncedTabsElement>;
+
+    for (const group of syncedTabGroups) {
+      const tabs = [...group.querySelectorAll<HTMLAnchorElement>('[role="tab"]')];
+      const index = tabs.findIndex((tab) => aliases.includes((tab.textContent ?? '').trim()));
+      if (index === -1) {
+        continue;
+      }
+
+      const targetTab = tabs[index];
+      if (!targetTab) {
+        continue;
+      }
+
+      if (typeof group.switchTab === 'function') {
+        group.switchTab(targetTab, index, false);
+      } else {
+        targetTab.click();
+      }
+    }
+  }
+
+  function updateAppHostLanguageUi(): void {
+    const currentLang = getCurrentAppHostLanguage();
+    const buttons = document.querySelectorAll<HTMLElement>('[data-apphost-lang-option]');
+
+    for (const button of buttons) {
+      const isSelected = button.dataset.apphostLangOption === currentLang;
+      button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+    }
+  }
+
+  function setAppHostLanguage(lang: string, syncTabs = true): void {
+    const normalized = normalizeAppHostLanguage(lang) || 'csharp';
+    document.documentElement.setAttribute('data-apphost-lang', normalized);
+
+    try {
+      persistAppHostLanguage(normalized);
+    } catch {}
+
+    const selector = document.getElementById('apphost-lang-select');
+    if (selector instanceof HTMLSelectElement && selector.value !== normalized) {
+      selector.value = normalized;
+    }
+
+    if (syncTabs) {
+      syncAppHostTabs(normalized);
+    }
+
+    updateAppHostLanguageUi();
+
+    window.dispatchEvent(new CustomEvent('apphost-lang-change', { detail: { lang: normalized } }));
+  }
+
+  function setSidebarDropdownOpen(dropdown: HTMLElement, isOpen: boolean): void {
+    const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
+    const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
+    if (!trigger || !panel) {
+      return;
+    }
+
+    dropdown.dataset.open = isOpen ? 'true' : 'false';
+    trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    panel.hidden = !isOpen;
+  }
+
+  function closeAllSidebarDropdowns(except?: HTMLElement): void {
+    const dropdowns = document.querySelectorAll<HTMLElement>('[data-sidebar-dropdown]');
+    for (const dropdown of dropdowns) {
+      if (except && dropdown === except) {
+        continue;
+      }
+      setSidebarDropdownOpen(dropdown, false);
+    }
+  }
+
+  function initSidebarDropdowns(): void {
+    const dropdowns = document.querySelectorAll<HTMLElement>('[data-sidebar-dropdown]');
+
+    for (const dropdown of dropdowns) {
+      const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
+      const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
+      if (!trigger || !panel) {
+        continue;
+      }
+
+      if (dropdown.dataset.bound === 'true') {
+        continue;
+      }
+
+      dropdown.dataset.bound = 'true';
+      setSidebarDropdownOpen(dropdown, false);
+
+      trigger.addEventListener('click', () => {
+        const isOpen = dropdown.dataset.open === 'true';
+        closeAllSidebarDropdowns(isOpen ? undefined : dropdown);
+        setSidebarDropdownOpen(dropdown, !isOpen);
+      });
+
+      panel.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null;
+        const appHostButton = target?.closest<HTMLElement>('[data-apphost-lang-option]');
+        if (appHostButton?.dataset.apphostLangOption) {
+          event.preventDefault();
+          setAppHostLanguage(appHostButton.dataset.apphostLangOption);
+          setSidebarDropdownOpen(dropdown, false);
+          trigger.focus();
+          return;
+        }
+
+        if (target?.closest('a[href]')) {
+          setSidebarDropdownOpen(dropdown, false);
+        }
+      });
+
+      dropdown.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          setSidebarDropdownOpen(dropdown, false);
+          trigger.focus();
+        }
+      });
+    }
+
+    updateAppHostLanguageUi();
+
+    if (!(window as any).__sidebarDropdownHandlers) {
+      (window as any).__sidebarDropdownHandlers = true;
+
+      document.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target?.closest('[data-sidebar-dropdown]')) {
+          closeAllSidebarDropdowns();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeAllSidebarDropdowns();
+        }
+      });
+    }
+  }
+
   /**
    * Handle Ctrl+K / Cmd+K on API reference pages.
    * Routes to #api-search-input (the main search on the index page) if present,
@@ -619,6 +1326,55 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     });
   }
 
+  function initTopicSidebarCollapse() {
+    const container = document.querySelector('.topics-sidebar[data-topic-nav]');
+    if (!container) {
+      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
+      return;
+    }
+
+    const collapseBtn = document.getElementById('topic-sidebar-collapse-btn');
+    const expandBtn = document.getElementById('topic-sidebar-expand-btn');
+    if (!collapseBtn || !expandBtn) {
+      return;
+    }
+
+    const isCollapsed = document.documentElement.hasAttribute('data-topic-sidebar-collapsed');
+    expandBtn.hidden = !isCollapsed;
+
+    if (collapseBtn.dataset.bound !== 'true') {
+      collapseBtn.dataset.bound = 'true';
+      collapseBtn.addEventListener('click', () => {
+        setTopicSidebarCollapsed(true, expandBtn);
+        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
+      });
+    }
+
+    if (expandBtn.dataset.bound !== 'true') {
+      expandBtn.dataset.bound = 'true';
+      expandBtn.addEventListener('click', () => {
+        setTopicSidebarCollapsed(false, expandBtn);
+        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
+      });
+    }
+  }
+
+  function setTopicSidebarCollapsed(collapsed: boolean, expandBtn: HTMLElement): void {
+    if (collapsed) {
+      document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
+      expandBtn.hidden = false;
+    } else {
+      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
+      expandBtn.hidden = true;
+    }
+  }
+
+  function initTopicSidebarUi() {
+    updateAppHostLanguageUi();
+    initSidebarDropdowns();
+    initTopicSidebarCollapse();
+  }
+
   function setSidebarCollapsed(
     collapsed: boolean,
     expandBtn: HTMLElement,
@@ -642,18 +1398,21 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
   }
 
   // Guard against registering duplicate listeners on client-side navigation
-  if (!(window as any).__apiSidebarInit) {
-    (window as any).__apiSidebarInit = true;
+  if (!(window as any).__sidebarInit) {
+    (window as any).__sidebarInit = true;
     document.addEventListener('keydown', handleApiSearchShortcut);
     document.addEventListener('DOMContentLoaded', initSidebarFilter);
     document.addEventListener('astro:after-swap', initSidebarFilter);
     document.addEventListener('DOMContentLoaded', initSidebarCollapse);
     document.addEventListener('astro:after-swap', initSidebarCollapse);
+    document.addEventListener('DOMContentLoaded', initTopicSidebarUi);
+    document.addEventListener('astro:after-swap', initTopicSidebarUi);
     document.addEventListener('astro:page-load', focusSidebarFilter);
   }
   // Also init immediately in case DOMContentLoaded already fired
   if (document.readyState !== 'loading') initSidebarFilter();
   if (document.readyState !== 'loading') initSidebarCollapse();
+  if (document.readyState !== 'loading') initTopicSidebarUi();
   // Defer focus slightly to run after Astro/Starlight's own DOM setup
   requestAnimationFrame(() => focusSidebarFilter());
 

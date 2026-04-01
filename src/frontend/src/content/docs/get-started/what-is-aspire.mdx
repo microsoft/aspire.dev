@@ -5,7 +5,8 @@ tableOfContents: true
 lastUpdated: true
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import { Kbd } from 'starlight-kbd/components'
 import LearnMore from '@components/LearnMore.astro';
 
@@ -76,8 +77,8 @@ aspire run
 
 And your AppHost defines the whole system in code, even for multi-language stacks:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C# AppHost">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -96,8 +97,8 @@ builder.AddNpmApp("frontend", "../frontend")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem label="TypeScript AppHost">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -107,22 +108,22 @@ const builder = await createBuilder();
 const db = await builder.addPostgres("db");
 
 const api = await builder
-    .addNodeApp("api", "../api", "server.js")
-    .withReference(db);
+  .addNodeApp("api", "../api", "server.js")
+  .withReference(db);
 
 const worker = await builder
-    .addPythonApp("worker", "../worker", "main.py")
-    .withReference(db);
+  .addPythonApp("worker", "../worker", "main.py")
+  .withReference(db);
 
 await builder
-    .addViteApp("frontend", "../frontend")
-    .withReference(api);
+  .addViteApp("frontend", "../frontend")
+  .withReference(api);
 
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 <Aside type="tip" title="The real win">
 Your AppHost becomes the single source of truth for your application's architecture. New team members can understand your entire system by reading one file.
