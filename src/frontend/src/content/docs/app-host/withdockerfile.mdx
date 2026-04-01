@@ -4,6 +4,7 @@ description: Learn how to add Dockerfiles to your app model.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 
 With Aspire it's possible to specify a _Dockerfile_ to build when the [AppHost](/get-started/app-host/) is started using either the `AddDockerfile` or `WithDockerfile` extension methods.
 
@@ -35,16 +36,19 @@ Choose the appropriate method based on your scenario:
 
 In the following example the `AddDockerfile` extension method is used to specify a container by referencing the context path for the container build.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.AddDockerfile(
     "mycontainer", "relative/context/path");
 ```
-</TabItem>
-<TabItem label="TypeScript">
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -53,8 +57,9 @@ const builder = await createBuilder();
 const container = await builder.addDockerfile(
     "mycontainer", "relative/context/path");
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 Unless the context path argument is a rooted path the context path is interpreted as being relative to the AppHost project directory.
 
@@ -62,8 +67,9 @@ By default the name of the _Dockerfile_ which is used is `Dockerfile` and is exp
 
 This is useful if you wish to modify the specific _Dockerfile_ being used when running locally or when the AppHost is deploying.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -73,8 +79,10 @@ var container = builder.ExecutionContext.IsRunMode
     : builder.AddDockerfile(
           "mycontainer", "relative/context/path", "Dockerfile.release");
 ```
-</TabItem>
-<TabItem label="TypeScript">
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -86,8 +94,9 @@ const container = builder.executionContext.isRunMode
     : await builder.addDockerfile(
           "mycontainer", "relative/context/path", "Dockerfile.release");
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ## Customize existing container resources
 
@@ -95,8 +104,9 @@ When using `AddDockerfile` the return value is an `IResourceBuilder<ContainerRes
 
 Using the `WithDockerfile` extension method it's possible to take an existing Aspire component (like PostgreSQL, Redis, or SQL Server) and replace its default container image with a custom one built from your own Dockerfile. This allows you to continue using the strongly typed resource types and their specific extension methods while customizing the underlying container.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -106,8 +116,10 @@ var pgsql = builder.AddPostgres("pgsql")
     .WithDockerfile("path/to/context")
     .WithPgAdmin(); // Still works because it's still a PostgreSQL resource
 ```
-</TabItem>
-<TabItem label="TypeScript">
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -119,23 +131,27 @@ const pgsql = await builder.addPostgres("pgsql")
     .withDockerfile("path/to/context")
     .withPgAdmin(); // Still works because it's still a PostgreSQL resource
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ## Pass build arguments
 
 The `WithBuildArg` method can be used to pass arguments into the container image build.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var container = builder.AddDockerfile("mygoapp", "relative/context/path")
     .WithBuildArg("GO_VERSION", "1.22");
 ```
-</TabItem>
-<TabItem label="TypeScript">
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -144,13 +160,15 @@ const builder = await createBuilder();
 const container = await builder.addDockerfile("mygoapp", "relative/context/path")
     .withBuildArg("GO_VERSION", "1.22");
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 The value parameter on the `WithBuildArg` method can be a literal value (`boolean`, `string`, `int`) or it can be a resource builder for a [parameter resource](/fundamentals/external-parameters/). The following code replaces the `GO_VERSION` with a parameter value that can be specified at deployment time.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -159,8 +177,10 @@ var goVersion = builder.AddParameter("goversion");
 var container = builder.AddDockerfile("mygoapp", "relative/context/path")
     .WithBuildArg("GO_VERSION", goVersion);
 ```
-</TabItem>
-<TabItem label="TypeScript">
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -171,8 +191,9 @@ const goVersion = builder.addParameter("goversion");
 const container = await builder.addDockerfile("mygoapp", "relative/context/path")
     .withBuildArg("GO_VERSION", goVersion);
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 Build arguments correspond to the [`ARG` command](https://docs.docker.com/build/guide/build-args/) in _Dockerfiles_. Expanding the preceding example, this is a multi-stage _Dockerfile_ which specifies specific container image version to use as a parameter.
 
@@ -201,8 +222,9 @@ CMD ["./mygoapp"]
 
 In addition to build arguments it's possible to specify build secrets using `WithBuildSecret` which are made selectively available to individual commands in the _Dockerfile_ using the `--mount=type=secret` syntax on `RUN` commands.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -211,8 +233,10 @@ var accessToken = builder.AddParameter("accesstoken", secret: true);
 var container = builder.AddDockerfile("myapp", "relative/context/path")
     .WithBuildSecret("ACCESS_TOKEN", accessToken);
 ```
-</TabItem>
-<TabItem label="TypeScript">
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -223,8 +247,9 @@ const accessToken = builder.addParameter("accesstoken", { secret: true });
 const container = await builder.addDockerfile("myapp", "relative/context/path")
     .withBuildSecret("ACCESS_TOKEN", accessToken);
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 For example, consider the `RUN` command in a _Dockerfile_ which exposes the specified secret to the specific command:
 

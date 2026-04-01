@@ -1,36 +1,1066 @@
 ---
 title: "Aspireify an existing app"
-description: "Choose an AppHost language for adding Aspire to an existing application."
+description: "Add Aspire to an existing application with either a C# or TypeScript AppHost."
 prev: false
 next: false
 ---
 
-import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Aside, FileTree, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
+import InstallPackage from '@components/InstallPackage.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
-When you add Aspire to an existing application, the first choice is the language of the AppHost. Choosing a C# or TypeScript AppHost lets you stay in a familiar toolchain while still using the AppHost to orchestrate services, define resources, and model relationships for the application you already have.
-
-<Aside type="note" title="Your app language and AppHost language are separate choices">
-Choose the AppHost language that matches the toolchain you want to use for the orchestration layer. Either AppHost can orchestrate apps in multiple languages.
+<Aside type="note" title="Switch AppHost language from the sidebar">
+Use the AppHost selector in the sidebar to switch this guide between the C# and TypeScript AppHost workflows.
 </Aside>
 
-<CardGrid>
-<LinkCard
-    title="C# AppHost"
-    description="Best when you want to stay in the .NET toolchain."
-    href="/get-started/add-aspire-existing-app-csharp-apphost/"
-/>
-<LinkCard
-    title="TypeScript AppHost"
-    description="Best when you want to stay in the JavaScript and TypeScript toolchain."
-    href="/get-started/add-aspire-existing-app-typescript-apphost/"
-/>
-</CardGrid>
+<AppHostLangPivot>
+    <div slot="csharp">
+        <PivotSelector
+            title="Select the primary language of the apps you're bringing to Aspire"
+            key="lang"
+            options={[
+                { id: 'csharp', title: 'C#' },
+                { id: 'python', title: 'Python' },
+                { id: 'javascript', title: 'JavaScript' },
+            ]}
+        />
 
-## Before you begin
+        This guide shows you how to add Aspire orchestration to an existing application while using a C# AppHost (`AppHost.cs` or `apphost.cs`). Choose the app stack you're bringing to Aspire, then initialize the AppHost, register your resources, and run everything locally with Aspire.
 
-Before following either path, make sure you've completed the [prerequisites](/get-started/prerequisites/) and [installed the Aspire CLI](/get-started/install-cli/).
+        :::note[Definition]{icon="approve-check-circle"}
+        **Aspireify** (verb): To transform an existing application into a distributed, observable, and orchestrated system by adding Aspire—no cape required, just a few commands!
+        :::
+    </div>
+    <div slot="typescript">
+        This guide shows you how to add Aspire orchestration to an existing JavaScript or TypeScript application while using a TypeScript AppHost (`apphost.ts`). You'll initialize Aspire with `aspire init --language typescript`, model your resources in `apphost.ts`, and run the app locally with Aspire.
 
-<LearnMore>
-For command details and language options, see the [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
-</LearnMore>
+        :::note[Definition]{icon="approve-check-circle"}
+        **Aspireify** (verb): To transform an existing application into a distributed, observable, and orchestrated system by adding Aspire—no cape required, just a few commands!
+        :::
+    </div>
+</AppHostLangPivot>
+
+## Why add Aspire to an existing app?
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        As distributed applications grow, coordinating multiple services becomes a tangled web of configuration files, hard-coded URLs, and fragile startup scripts. You're juggling connection strings across environments, manually wiring service dependencies, and struggling to trace issues across your microservices. Development setup becomes a ritual of precision—start the database, then the cache, then service A before service B—and any misstep sends you back to square one.
+
+        Aspire cuts through this complexity with a unified orchestration layer that treats your entire application as a cohesive system. Define your services and their relationships once in code ([the AppHost](/get-started/app-host/)), and Aspire handles service discovery, injects configuration automatically, and provides a dashboard with logs, traces, and metrics out of the box. Whether you're orchestrating C#, Python, or JavaScript services—or all three together—you get the same consistent experience from development through deployment.
+
+        The best part? You can adopt Aspire incrementally. Start with orchestration, add observability when you're ready, integrate external services as needed. Your existing codebase stays largely unchanged, and you can reverse course if Aspire isn't the right fit.
+    </div>
+    <div slot="typescript">
+        As distributed applications grow, coordinating multiple services becomes a tangled web of configuration files, hard-coded URLs, and fragile startup scripts. You're juggling connection strings across environments, manually wiring service dependencies, and struggling to trace issues across your microservices. Development setup becomes a ritual of precision—start the database, then the cache, then service A before service B—and any misstep sends you back to square one.
+
+        Aspire cuts through this complexity with a unified orchestration layer that treats your entire application as a cohesive system. Define your services and their relationships once in code ([the AppHost](/get-started/app-host/)), and Aspire handles service discovery, injects configuration automatically, and provides a dashboard with logs, traces, and metrics out of the box. When you're orchestrating JavaScript and TypeScript services, you get the same consistent experience from development through deployment.
+
+        The best part? You can adopt Aspire incrementally. Start with orchestration, add observability when you're ready, integrate external services as needed. Your existing codebase stays largely unchanged, and you can reverse course if Aspire isn't the right fit.
+    </div>
+</AppHostLangPivot>
+
+## Prerequisites
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        Before you begin, ensure you have the following prerequisites installed based on your application's language:
+
+        ### Common requirements
+
+        - [.NET SDK 10.0 or later](/get-started/prerequisites/) — Required for the Aspire AppHost, regardless of your application's language.
+        - [Aspire CLI installed](/get-started/install-cli/) — For orchestration and deployment commands.
+        - An existing application to add Aspire to.
+
+        ### Language-specific requirements
+
+        <Pivot id="csharp">
+
+        **For C# applications:**
+
+        - A solution with one or more .NET or ASP.NET Core projects (`.csproj`)
+        - Visual Studio 2022 17.13 or later, Visual Studio Code, or JetBrains Rider (optional)
+
+        **Example project types:**
+
+        - ASP.NET Core Minimal API
+        - ASP.NET Core Razor Pages or Blazor applications
+        - Console applications
+        - Worker services
+        - gRPC services
+        - Azure Functions
+
+        </Pivot>
+        <Pivot id="python">
+
+        **For Python applications:**
+
+        - [Python 3.10 or later](https://www.python.org/downloads/) installed
+        - [uv](https://docs.astral.sh/uv/) (recommended) or pip for package management
+        - An existing Python application
+
+        **Example application types:**
+
+        - FastAPI web applications
+        - Flask web applications
+        - Django applications
+        - Python scripts or worker processes
+        - Streamlit or other Python web frameworks
+
+        </Pivot>
+        <Pivot id="javascript">
+
+        **For JavaScript/TypeScript applications:**
+
+        - [Node.js 22 or later](https://nodejs.org/) installed
+        - npm, yarn, or pnpm for package management
+        - An existing JavaScript/TypeScript application
+
+        **Example application types:**
+
+        - React, Vue, or Svelte applications (especially Vite-based)
+        - Node.js/Express APIs
+        - Next.js applications
+        - Angular applications
+        - TypeScript backend services
+
+        </Pivot>
+
+        <Aside type="tip" title="Multi-language applications">
+            If your application uses multiple languages, ensure you have all the relevant prerequisites installed. The Aspire AppHost can orchestrate services across different languages simultaneously.
+        </Aside>
+    </div>
+    <div slot="typescript">
+        Before you begin, ensure you have the following prerequisites installed:
+
+        ### Common requirements
+
+        - [Aspire CLI installed](/get-started/install-cli/) — For orchestration and deployment commands.
+        - An existing application to add Aspire to.
+
+        ### Language-specific requirements
+
+        **For JavaScript/TypeScript applications:**
+
+        - [Node.js 22 or later](https://nodejs.org/) installed
+        - npm, yarn, or pnpm for package management
+        - An existing JavaScript/TypeScript application
+
+        **Example application types:**
+
+        - React, Vue, or Svelte applications (especially Vite-based)
+        - Node.js/Express APIs
+        - Next.js applications
+        - Angular applications
+        - TypeScript backend services
+
+        <Aside type="tip" title="Multi-language applications">
+            If your application uses multiple languages, ensure you have all the relevant prerequisites installed. The Aspire AppHost can orchestrate services across different languages simultaneously.
+        </Aside>
+    </div>
+</AppHostLangPivot>
+
+## Overview of the process
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        Adding Aspire to an existing application follows these key steps:
+
+        <Steps>
+
+        1. **Initialize Aspire support** — Use `aspire init` to add the AppHost (orchestration layer)
+        2. **Add your applications** — Register C#, Python, and JavaScript applications in the AppHost
+        3. **Configure telemetry (optional)** — Add OpenTelemetry instrumentation for observability
+        4. **Add integrations (optional)** — Connect to databases, caches, and message queues
+        5. **Run and verify** — Test your application with Aspire orchestration
+
+        </Steps>
+    </div>
+    <div slot="typescript">
+        Adding Aspire to an existing application follows these key steps:
+
+        <Steps>
+
+        1. **Initialize Aspire support** — Use `aspire init` to add the AppHost (orchestration layer)
+        2. **Add your applications** — Register your JavaScript and TypeScript applications in the AppHost
+        3. **Configure telemetry (optional)** — Add OpenTelemetry instrumentation for observability
+        4. **Add integrations (optional)** — Connect to databases, caches, and message queues
+        5. **Run and verify** — Test your application with Aspire orchestration
+
+        </Steps>
+    </div>
+</AppHostLangPivot>
+
+## Initialize Aspire support
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        The `aspire init` command is the starting point for adding Aspire to your existing application. This command analyzes your project structure and adds an AppHost that orchestrates your services.
+
+        <Steps>
+
+        1. Navigate to your project directory:
+
+             ```bash title="Navigate to your solution directory"
+             cd /path/to/your-solution
+             ```
+
+        2. Run `aspire init` to initialize Aspire support:
+
+             ```bash title="Initialize Aspire"
+             aspire init
+             ```
+
+             The `aspire init` command runs in **interactive mode** by default. It will:
+
+             - Detect your existing solution structure
+             - Create a project-based AppHost (an _AppHost_ project with `AppHost.cs`)
+             - Analyze your projects and suggest which ones to add to the orchestration
+             - Install necessary Aspire packages
+
+             <LearnMore>
+                 For more details on the `aspire init` command and its options, see the [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
+             </LearnMore>
+
+        </Steps>
+
+        ### What does `aspire init` create?
+
+        After running `aspire init`, your solution will have a project-based AppHost:
+
+        <FileTree>
+            - ExampleEcommerce.sln (updated)
+            - src/
+                - **ExampleEcommerce.AppHost/** (new) orchestration project
+                    - **ExampleEcommerce.AppHost.csproj** project file
+                    - **AppHost.cs** orchestration code
+                - Api/
+                    - ExampleEcommerce.Api.csproj
+                    - Program.cs
+                    - Controllers/
+                - Web/
+                    - ExampleEcommerce.Web.csproj
+                    - Program.cs
+                    - Pages/
+                - OrderProcessor/
+                    - ExampleEcommerce.OrderProcessor.csproj
+                    - Worker.cs
+        </FileTree>
+
+        A typical e-commerce solution with a web frontend, API service, and background worker.
+
+        The `AppHost.cs` file in your new AppHost project initially contains a minimal starter:
+
+        ```csharp title="AppHost.cs — Initial state after aspire init"
+        var builder = DistributedApplication.CreateBuilder(args);
+
+        // TODO: Add resources here
+
+        builder.Build().Run();
+        ```
+
+        This is your starting point. In the next section, you'll add your applications and configure their relationships.
+    </div>
+    <div slot="typescript">
+        The `aspire init` command is the starting point for adding Aspire to your existing application. It adds an AppHost that orchestrates your services while letting those services stay in their current languages.
+
+        <Steps>
+
+        1. Navigate to your project directory:
+
+             ```bash title="Navigate to your workspace root"
+             cd /path/to/your-workspace
+             ```
+
+        2. Run `aspire init` to initialize Aspire support:
+
+             ```bash title="Initialize Aspire with a TypeScript AppHost"
+             aspire init --language typescript
+             ```
+
+             <Aside type="tip" title="Use the TypeScript AppHost path throughout">
+                 This page consistently uses `aspire init --language typescript` and `apphost.ts` in every example. If you omit the `--language` flag, choose **TypeScript** when the CLI asks which AppHost language to create.
+             </Aside>
+
+             The `aspire init` command still runs in **interactive mode** for the remaining setup. It will:
+
+             - Detect your existing workspace structure
+             - Create a TypeScript AppHost (`apphost.ts`)
+             - Add the generated AppHost SDK and config files
+             - Install the supporting Node.js dependencies for the AppHost
+
+             <LearnMore>
+                 For more details on the `aspire init` command and its options, see the [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
+             </LearnMore>
+
+        </Steps>
+
+        ### What does `aspire init` create?
+
+        After running `aspire init --language typescript`, your project will have a TypeScript AppHost:
+
+        <FileTree>
+            - my-store/
+                - **apphost.ts** (new) orchestration code
+                - **.modules/** (new) generated SDK
+                - **aspire.config.json** (new) configuration
+                - **package.json** (new) AppHost dependencies
+                - **tsconfig.json** (new) TypeScript configuration
+                - packages/
+                    - api/
+                        - src/
+                            - server.js
+                            - routes/
+                        - package.json
+                    - web/
+                        - src/
+                            - App.tsx
+                            - components/
+                        - package.json
+                        - vite.config.ts
+                    - admin/
+                        - src/
+                            - main.ts
+                            - views/
+                        - package.json
+                - package.json (workspace root)
+        </FileTree>
+
+        A typical monorepo with Node.js API, React storefront, and admin dashboard.
+
+        <Aside type="note" title="The .modules folder is generated">
+            The `.modules/` folder contains generated AppHost SDK files. Let the Aspire CLI manage it rather than editing those files manually.
+        </Aside>
+
+        The `apphost.ts` file initially contains a minimal starter:
+
+        ```typescript title="apphost.ts — Initial state after aspire init"
+        // Aspire TypeScript AppHost
+        // For more information, see: https://aspire.dev
+
+        import { createBuilder } from './.modules/aspire.js';
+
+        const builder = await createBuilder();
+
+        // Add your resources here, for example:
+        // const redis = await builder.addContainer("cache", "redis:latest");
+        // const postgres = await builder.addPostgres("db");
+
+        await builder.build().run();
+        ```
+
+        This is your starting point. In the next section, you'll add your applications and configure their relationships.
+    </div>
+</AppHostLangPivot>
+
+## Add your applications to the AppHost
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        Once you have an AppHost, you need to register your existing applications. First, install the appropriate hosting packages for your application types, then add your resources to the AppHost.
+
+        ### Install hosting packages
+
+        For C# projects, if you're using project-based orchestration (`.csproj` files), no additional packages are needed. The base Aspire SDK includes support for `AddProject<T>` (or `AddCSharpApp` for file-based apps).
+
+        ### Add C# project references
+
+        Before you can use `AddProject<T>` in your AppHost, the AppHost project must have a project reference to each C# project it orchestrates. These project references are what generate the `Projects.YourProject` marker types used by `AddProject<T>`.
+
+        If you used `aspire init`, it likely added these references automatically for the projects you selected. If you need to add more projects later, run the following commands from your AppHost project directory:
+
+        ```bash title=".NET CLI — Add project references to AppHost"
+        dotnet add reference ../Api/ExampleCommerce.Api.csproj
+        dotnet add reference ../Web/ExampleCommerce.Web.csproj
+        dotnet add reference ../OrderProcessor/ExampleCommerce.OrderProcessor.csproj
+        ```
+
+        This updates the AppHost `.csproj` file with entries like:
+
+        ```xml title="ExampleCommerce.AppHost.csproj — Project references"
+        <ItemGroup>
+            <ProjectReference Include="..\Api\ExampleCommerce.Api.csproj" />
+            <ProjectReference Include="..\Web\ExampleCommerce.Web.csproj" />
+            <ProjectReference Include="..\OrderProcessor\ExampleCommerce.OrderProcessor.csproj" />
+        </ItemGroup>
+        ```
+
+        ### Model your resources in the AppHost
+
+        Now update your `AppHost.cs` file in the AppHost project to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+
+        For C# projects, use `AddProject` to reference your existing C# projects:
+
+        ```csharp title="AppHost.cs — Complete e-commerce example"
+        var builder = DistributedApplication.CreateBuilder(args);
+
+        var api = builder.AddProject<Projects.ExampleEcommerce_Api>("api")
+                .WithHttpHealthCheck("/health");
+
+        var web = builder.AddProject<Projects.ExampleEcommerce_Web>("web")
+                .WithExternalHttpEndpoints()
+                .WithReference(api)
+                .WaitFor(api);
+
+        var orderProcessor = builder.AddProject<Projects.ExampleEcommerce_OrderProcessor>("orderprocessor")
+                .WithReference(api);
+
+        builder.Build().Run();
+        ```
+
+        **Key methods:**
+
+        - `AddProject<T>` - Adds a .NET project from your solution
+        - `WithHttpHealthCheck` - Monitors service health via HTTP endpoint
+        - `WithReference` - Enables service-to-service communication
+        - `WaitFor` - Ensures proper startup order
+
+        ### Connect services
+
+        The `WithReference` calls establish service dependencies and enable service discovery:
+
+        ```csharp title="AppHost.cs — Connect C# services" ".WithReference"
+        // Omitted for brevity...
+
+        var api = builder.AddProject<Projects.YourApi>("api");
+
+        var web = builder.AddProject<Projects.YourWeb>("web")
+                .WithReference(api);  // Web can call API
+
+        var worker = builder.AddProject<Projects.YourWorker>("worker")
+                .WithReference(api);  // Worker can call API
+
+        // Omitted for brevity...
+        ```
+
+        When you call `WithReference`, you're declaring a dependency between resources. Aspire handles the rest—automatically injecting configuration at runtime and during deployment so your services can communicate seamlessly, whether running locally or in production.
+    </div>
+    <div slot="typescript">
+        Once you have an AppHost, you need to register your existing applications. First, install the appropriate hosting packages for your application types, then add your resources to the AppHost.
+
+        ### Install hosting packages
+
+        For JavaScript/TypeScript applications, add the JavaScript hosting integration to your AppHost:
+
+        ```bash title="Aspire CLI — Add JavaScript hosting integration"
+        aspire add javascript
+        ```
+
+        This updates the generated AppHost SDK with methods like `addViteApp`, `addNodeApp`, and `addJavaScriptApp`.
+
+        ### Model your resources in the AppHost
+
+        Now update your `apphost.ts` file to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
+
+        For JavaScript applications, use the appropriate method based on your application type:
+
+        ```typescript title="apphost.ts — Complete monorepo example"
+        import { createBuilder } from './.modules/aspire.js';
+
+        const builder = await createBuilder();
+
+        // Node.js API
+        const api = await builder
+            .addNodeApp('api', './packages/api', 'src/server.js')
+            .withNpm()
+            .withHttpHealthCheck({ path: '/health' });
+
+        // React storefront
+        const web = await builder
+            .addViteApp('web', './packages/web')
+            .withExternalHttpEndpoints()
+            .withReference(api)
+            .waitFor(api);
+
+        // Admin dashboard
+        const admin = await builder
+            .addViteApp('admin', './packages/admin')
+            .withExternalHttpEndpoints()
+            .withReference(api)
+            .waitFor(api);
+
+        await builder.build().run();
+        ```
+
+        **Key methods:**
+
+        - `addViteApp` - For Vite-based applications (React, Vue, Svelte)
+        - `addNodeApp` - For Node.js applications
+        - `addJavaScriptApp` - For generic JavaScript applications with npm/yarn/pnpm
+            - `withNpm()` / `withYarn()` / `withPnpm()` - Specify package manager
+        - `withRunScript` - Specify which npm script to run during development
+
+        :::caution[JavaScript deployment note]
+        This example shows how to run existing JavaScript applications with Aspire during development. It does not, by itself, define who serves a Vite or JavaScript frontend in production.
+
+        If you plan to publish or deploy these frontend resources, read [Deploy JavaScript apps](/deployment/javascript-apps/) to choose the correct production hosting model.
+        :::
+
+        :::note[Passing arguments to scripts]
+        Pass arguments to your scripts in one of two ways:
+
+        **Option 1: Use `withArgs` to pass arguments directly**
+
+        ```typescript title="apphost.ts — Pass arguments using withArgs"
+        await builder.addViteApp('frontend', './frontend').withArgs(['--no-open']);
+        ```
+
+        **Option 2: Define custom scripts in `package.json` with arguments**
+
+        ```json title="package.json"
+        {
+            "scripts": {
+                "dev": "vite",
+                "dev:no-open": "vite --no-open"
+            }
+        }
+        ```
+
+        ```typescript title="apphost.ts — Reference custom script"
+        await builder.addViteApp('frontend', './frontend').withRunScript('dev:no-open');
+        ```
+
+        Option 2 keeps all script configuration in `package.json`, making your scripts more discoverable and easier to run outside of Aspire (e.g., `npm run dev:no-open`).
+        :::
+
+        <Aside type="tip">
+            You can mix and match JavaScript application types. Combine Node.js APIs, Vite frontends, workers, and supporting containers in the same TypeScript AppHost to model your full development environment in one place.
+        </Aside>
+
+        ### Connect services
+
+        The `withReference` calls establish service dependencies and enable service discovery:
+
+        ```typescript title="apphost.ts — Connect JavaScript services" ".withReference"
+        // Omitted for brevity...
+
+        const api = await builder
+            .addNodeApp('api', '../node-api', 'server.js')
+            .withNpm();
+
+        await builder.addViteApp('frontend', '../react-frontend').withReference(api); // Frontend gets API_HTTP and API_HTTPS env vars
+
+        // Omitted for brevity...
+        ```
+
+        When you call `withReference`, you're declaring a dependency between resources. Aspire handles the rest—automatically injecting configuration at runtime and during deployment so your services can communicate seamlessly, whether running locally or in production.
+    </div>
+</AppHostLangPivot>
+
+## Add telemetry configuration (optional)
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        ServiceDefaults provide a standardized way to add observability, resilience, and health checks to .NET services. This step is optional but recommended for production applications.
+
+        <Steps>
+
+        1. During the `aspire init` process, you may be prompted to add ServiceDefaults. If you chose not to add it initially, you can add it later using the Aspire CLI or manually.
+
+        2. To add ServiceDefaults to a project manually:
+
+             ```bash title=".NET CLI — Add ServiceDefaults to your project"
+             dotnet new aspire-servicedefaults -n YourProject.ServiceDefaults
+             dotnet sln add YourProject.ServiceDefaults
+             dotnet add YourProject reference YourProject.ServiceDefaults
+             ```
+
+        3. Update your project's `Program.cs` to use ServiceDefaults:
+
+             ```csharp title="Program.cs — Add ServiceDefaults"
+             var builder = WebApplication.CreateBuilder(args);
+
+             // Add Aspire ServiceDefaults for observability and resilience
+             builder.AddServiceDefaults();
+
+             // ... your existing service configuration ...
+
+             var app = builder.Build();
+
+             // Map Aspire ServiceDefaults endpoints
+             app.MapDefaultEndpoints();
+
+             // ... your existing middleware ...
+
+             app.Run();
+             ```
+
+        </Steps>
+
+        <LearnMore>
+            For more information on ServiceDefaults, see [Service Defaults](/get-started/csharp-service-defaults/).
+        </LearnMore>
+    </div>
+    <div slot="typescript">
+        TypeScript Node.js applications can also send telemetry using OpenTelemetry. The example below uses TypeScript and ESM imports so it fits naturally into a TypeScript codebase. If your app uses plain JavaScript, keep the same structure but use `.js` files and your existing module syntax.
+
+        <Steps>
+
+        1. Install OpenTelemetry packages:
+
+             ```bash title="Install OpenTelemetry packages"
+             npm install @opentelemetry/api @opentelemetry/sdk-node \
+                 @opentelemetry/auto-instrumentations-node \
+                 @opentelemetry/exporter-trace-otlp-grpc \
+                 @opentelemetry/exporter-metrics-otlp-grpc
+             ```
+
+        2. Create a telemetry configuration file:
+
+             ```typescript title="TypeScript — telemetry.ts"
+             import { NodeSDK } from '@opentelemetry/sdk-node';
+             import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+             import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+             import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
+             import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+             import { resourceFromAttributes } from '@opentelemetry/resources';
+             import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+
+             const otlpEndpoint =
+                 process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4317';
+
+             const resource = resourceFromAttributes({
+                 [ATTR_SERVICE_NAME]: 'api',
+             });
+
+             const sdk = new NodeSDK({
+                 resource,
+                 traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
+                 metricReader: new PeriodicExportingMetricReader({
+                     exporter: new OTLPMetricExporter({ url: otlpEndpoint }),
+                 }),
+                 instrumentations: [getNodeAutoInstrumentations()],
+             });
+
+             sdk.start();
+             ```
+
+        3. Import the telemetry configuration at the top of your application entry point:
+
+             ```typescript title="TypeScript — src/server.ts"
+             // This must be first!
+             import './telemetry';
+
+             import express from 'express';
+
+             const app = express();
+             // ... rest of your app
+             ```
+
+        </Steps>
+    </div>
+</AppHostLangPivot>
+
+## Add integrations (optional)
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        Aspire provides integration libraries that simplify working with common services like Redis, PostgreSQL, RabbitMQ, and more. These integrations handle configuration, health checks, and telemetry automatically.
+
+        When you add a hosting integration (like Redis) to your AppHost and reference it from a dependent resource, Aspire automatically injects the necessary configuration. This includes connection strings, URLs, environment variables, and other service-specific settings—eliminating manual connection string management across your services.
+
+        <Steps>
+
+        1. Identify which services in your application could benefit from Aspire integrations. Common candidates include:
+             - Databases (PostgreSQL, SQL Server, MongoDB)
+             - Caching (Redis, Valkey)
+             - Messaging (RabbitMQ, Azure Service Bus, Kafka)
+             - Storage (Azure Blob Storage, AWS S3)
+
+        2. Use the `aspire add` command to add integration packages to your AppHost:
+
+             ```bash title="Add a Redis integration"
+             aspire add redis
+             ```
+
+             This command adds the necessary NuGet packages and helps you configure the integration.
+
+        3. Update your AppHost to reference the integration and share it across all your services:
+
+             ```csharp title="apphost.cs — Add Redis integration for multi-language apps"
+             var builder = DistributedApplication.CreateBuilder(args);
+
+             // Add Redis resource
+             var cache = builder.AddRedis("cache");
+
+             // Share Redis with .NET API
+             var api = builder.AddProject<Projects.YourApi>("api")
+                     .WithReference(cache)
+                     .WithHttpHealthCheck("/health");
+
+             // Share Redis with Python worker
+             var pythonWorker = builder.AddPythonApp("worker", "../python-worker", "worker.py")
+                     .WithReference(cache);  // Python gets CACHE_HOST, CACHE_PORT env vars
+
+             // Share Redis with Node.js service
+             var nodeService = builder.AddNodeApp("service", "../node-service", "index.js")
+                     .WithReference(cache);  // Node.js gets CACHE_HOST, CACHE_PORT env vars
+
+             builder.Build().Run();
+             ```
+
+        4. Configure the integration in each language:
+
+             ```bash title="Add Redis client to .NET project"
+             dotnet add YourApi package Aspire.StackExchange.Redis
+             ```
+
+             ```csharp title="Program.cs — Configure Redis client"
+             var builder = WebApplication.CreateBuilder(args);
+             builder.AddRedisClient("cache");
+             ```
+
+        </Steps>
+
+        <LearnMore>
+            Browse available integrations in the [Integrations section](/integrations/gallery/).
+        </LearnMore>
+    </div>
+    <div slot="typescript">
+        Aspire provides integration libraries that simplify working with common services like Redis, PostgreSQL, RabbitMQ, and more. These integrations handle configuration, health checks, and telemetry automatically.
+
+        When you add a hosting integration (like Redis) to your AppHost and reference it from a dependent resource, Aspire automatically injects the necessary configuration. This includes connection strings, URLs, environment variables, and other service-specific settings—eliminating manual connection string management across your services.
+
+        <Steps>
+
+        1. Identify which services in your application could benefit from Aspire integrations. Common candidates include:
+             - Databases (PostgreSQL, SQL Server, MongoDB)
+             - Caching (Redis, Valkey)
+             - Messaging (RabbitMQ, Azure Service Bus, Kafka)
+             - Storage (Azure Blob Storage, AWS S3)
+
+        2. Use the `aspire add` command to add integration packages to your AppHost:
+
+             ```bash title="Add a Redis integration"
+             aspire add redis
+             ```
+
+             This command adds the necessary AppHost dependencies and helps you configure the integration.
+
+        3. Update your AppHost to reference the integration and share it across all your services:
+
+             ```typescript title="apphost.ts — Add Redis integration for multiple services"
+             import { createBuilder } from './.modules/aspire.js';
+
+             const builder = await createBuilder();
+
+             const cache = await builder.addRedis('cache');
+
+             await builder
+                 .addNodeApp('api', '../node-api', 'server.js')
+                 .withNpm()
+                 .withReference(cache);
+
+             await builder
+                 .addNodeApp('worker', '../node-worker', 'worker.js')
+                 .withNpm()
+                 .withReference(cache);
+
+             await builder.build().run();
+             ```
+
+        4. Configure the integration in each language:
+
+                ```bash title="Add Redis client to Node.js project"
+                npm install redis
+                ```
+
+                ```javascript title="JavaScript — Configure Redis client"
+                const redis = require('redis');
+
+                // Aspire injects CACHE_HOST and CACHE_PORT
+                const client = redis.createClient({
+                    socket: {
+                        host: process.env.CACHE_HOST,
+                        port: process.env.CACHE_PORT,
+                    },
+                });
+                ```
+
+        </Steps>
+
+        <LearnMore>
+            Browse available integrations in the [Integrations section](/integrations/gallery/).
+        </LearnMore>
+    </div>
+</AppHostLangPivot>
+
+## Run and verify
+
+<AppHostLangPivot>
+  <div slot="csharp">
+     Now that you've added Aspire to your application, it's time to run it and see the orchestration in action.
+
+     <Steps>
+
+     1. From your solution directory, run the application using the Aspire CLI:
+
+         ```bash title="Run your application with Aspire"
+         aspire run
+         ```
+
+         The Aspire CLI will:
+         - Find your AppHost (file-based `apphost.cs`)
+         - Build your solution
+         - Launch all orchestrated services
+         - Start the Aspire dashboard
+
+     2. The dashboard URL will appear in your terminal output:
+
+         ```bash title="Example output" mark={4}
+         🔍  Finding apphosts...
+         apphost.cs
+
+         Dashboard:  https://localhost:17068/login?t=ea559845d54cea66b837dc0ff33c3bd3
+
+                Logs:  ~/.aspire/cli/logs/apphost-13024-2025-11-19-12-00-00.log
+
+                         Press CTRL+C to stop the apphost and exit.
+         ```
+
+     3. Open the dashboard in your browser using the provided URL. You'll see:
+         - All your orchestrated resources and their status
+         - Real-time logs from each service
+         - Traces and metrics for observability
+         - Environment variables and configuration
+
+     4. Verify that your services are running correctly by:
+         - Checking the **Resources** page for service health
+         - Accessing your application endpoints
+         - Reviewing logs and traces in the dashboard
+
+     5. Stop the application by pressing <Kbd windows="Ctrl+C" mac="⌘+C" /> in your terminal.
+
+     </Steps>
+
+     <Aside type="tip">
+        The [Aspire dashboard](/dashboard/explore/) provides valuable insights even if you haven't added ServiceDefaults or integrations yet. You'll see basic information about your services, their startup order, and their endpoints.
+     </Aside>
+
+     ### Bonus content
+
+     If you're currently using Docker Compose to orchestrate your services, Aspire can replace it while providing additional benefits:
+
+     <Tabs>
+     <TabItem label='Docker compose: approach'>
+     ```yaml title="docker-compose.yml" showLineNumbers
+     services:
+         postgres:
+             image: postgres:latest
+             environment:
+                 - POSTGRES_PASSWORD=postgres
+                 - POSTGRES_DB=mydb
+             ports:
+                 - "5432:5432"
+
+         api:
+             build: ./api
+             ports:
+                 - "8080:8080"
+             environment:
+                 - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
+             depends_on:
+                 - postgres
+
+         web:
+             build: ./web
+             ports:
+                 - "3000:3000"
+             environment:
+                 - API_URL=http://api:8080
+             depends_on:
+                 - api
+     ```
+     </TabItem>
+     <TabItem label="Aspire's approach">
+     ```csharp title="apphost.cs" showLineNumbers
+     var builder = DistributedApplication.CreateBuilder(args);
+
+     var db = builder.AddPostgres("postgres")
+          .AddDatabase("mydb");
+
+     var api = builder.AddProject<Projects.Api>("api")
+          .WithReference(db);
+
+     var web = builder.AddProject<Projects.Web>("web")
+          .WithExternalHttpEndpoints()
+          .WithReference(api)
+          .WaitFor(api);
+
+     builder.Build().Run();
+     ```
+     </TabItem>
+     </Tabs>
+
+     **Key advantages of Aspire over Docker Compose:**
+
+     - **Literally, less verbose** — Yet, more expressive and powerful.
+     - **No manual URL configuration** — Services discover each other automatically.
+     - **Type-safe references** — Compile-time checking for service dependencies.
+     - **Built-in dashboard** — Observability without additional tools like Prometheus/Grafana.
+     - **Development and deployment** — Same orchestration code works locally and can generate Docker Compose or deploy anywhere.
+     - **Integration libraries** — Pre-built support for databases, caches, message queues with best practices.
+     - **Language-agnostic** — Works with C#, Python, JavaScript, many more, and containerized services.
+
+     <Aside type="note">
+     Aspire can even generate Docker Compose files for you! When you deploy with `aspire deploy`, you can target Docker Compose as a deployment option. See [Deploy your first Aspire app](/get-started/deploy-first-app/) for more details.
+     </Aside>
+  </div>
+  <div slot="typescript">
+     Now that you've added Aspire to your application, it's time to run it and see the orchestration in action.
+
+     <Steps>
+
+     1. From your app root, run the application using the Aspire CLI:
+
+         ```bash title="Run your application with Aspire"
+         aspire run
+         ```
+
+         The Aspire CLI will:
+         - Find your AppHost
+         - Build your app and its dependencies
+         - Launch all orchestrated services
+         - Start the Aspire dashboard
+
+     2. The dashboard URL will appear in your terminal output:
+
+         ```bash title="Example output" mark={3}
+         🔍  Finding apphosts...
+
+         Dashboard:  https://localhost:17068/login?t=ea559845d54cea66b837dc0ff33c3bd3
+
+                Logs:  ~/.aspire/cli/logs/apphost-13024-2025-11-19-12-00-00.log
+
+                         Press CTRL+C to stop the apphost and exit.
+         ```
+
+         The CLI output also shows which AppHost Aspire found, such as `apphost.ts`.
+
+     3. Open the dashboard in your browser using the provided URL. You'll see:
+         - All your orchestrated resources and their status
+         - Real-time logs from each service
+         - Traces and metrics for observability
+         - Environment variables and configuration
+
+     4. Verify that your services are running correctly by:
+         - Checking the **Resources** page for service health
+         - Accessing your application endpoints
+         - Reviewing logs and traces in the dashboard
+
+     5. Stop the application by pressing <Kbd windows="Ctrl+C" mac="⌘+C" /> in your terminal.
+
+     </Steps>
+
+     <Aside type="tip">
+        The [Aspire dashboard](/dashboard/explore/) provides valuable insights even if you haven't added integrations or telemetry yet. You'll see basic information about your services, their startup order, and their endpoints.
+     </Aside>
+
+     ### Compare with Docker Compose
+
+     If you're currently using Docker Compose, the example below shows how the same relationships translate into a TypeScript AppHost:
+
+     <Tabs>
+     <TabItem label='Docker compose: approach'>
+     ```yaml title="docker-compose.yml" showLineNumbers
+     services:
+         postgres:
+             image: postgres:latest
+             environment:
+                 - POSTGRES_PASSWORD=postgres
+                 - POSTGRES_DB=mydb
+             ports:
+                 - "5432:5432"
+
+         api:
+             build: ./api
+             ports:
+                 - "8080:8080"
+             environment:
+                 - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
+             depends_on:
+                 - postgres
+
+         web:
+             build: ./web
+             ports:
+                 - "3000:3000"
+             environment:
+                 - API_URL=http://api:8080
+             depends_on:
+                 - api
+     ```
+     </TabItem>
+     <TabItem label="Aspire's approach">
+
+     ```typescript title="apphost.ts" showLineNumbers
+     import { createBuilder } from './.modules/aspire.js';
+
+     const builder = await createBuilder();
+
+     const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
+
+     const api = await builder
+        .addNodeApp('api', './api', 'server.js')
+        .withNpm()
+        .withReference(db);
+
+     await builder
+        .addViteApp('web', './web')
+        .withExternalHttpEndpoints()
+        .withReference(api)
+        .waitFor(api);
+
+     await builder.build().run();
+     ```
+
+     </TabItem>
+     </Tabs>
+
+     The orchestration pattern stays the same: model the shared dependencies once, then connect services with `withReference`.
+
+     **Key advantages of Aspire over Docker Compose:**
+
+     - **No manual URL configuration** — Services discover each other automatically.
+     - **Code-based resource references** — Define service dependencies in code instead of duplicating them in YAML.
+     - **Built-in dashboard** — Observability without additional tools like Prometheus/Grafana.
+     - **Reusable orchestration code** — The same AppHost definitions work locally and can also drive deployment targets.
+     - **Integration libraries** — Pre-built support for databases, caches, message queues with best practices.
+
+     <Aside type="note">
+        Aspire can also target Docker Compose during deployment. See [Deploy your first Aspire app](/get-started/deploy-first-app/) for more details.
+     </Aside>
+  </div>
+</AppHostLangPivot>
+
+## Next steps
+
+<AppHostLangPivot>
+    <div slot="csharp">
+        Congratulations! You've successfully added Aspire to your existing application. Here are some recommended next steps:
+
+        - **Add more integrations** — Explore [Aspire integrations](/integrations/gallery/) to simplify working with databases, caches, and message queues
+        - **Configure observability** — Enhance your application's telemetry:
+            - Learn about [Service Defaults](/get-started/csharp-service-defaults/)
+        - **Deploy your app** — Follow the [Deploy your first app](/get-started/deploy-first-app/) tutorial to deploy your Aspire application
+        - **Use the VS Code extension** — Run, debug, and manage integrations from within VS Code with the [Aspire extension](/get-started/aspire-vscode-extension/)
+        - **Explore the dashboard** — Learn more about the [Aspire dashboard](/dashboard/overview/) and its features
+        - **Learn about multi-language features**:
+            - [Python support in Aspire](/whats-new/aspire-13/#python-as-a-first-class-citizen)
+            - [JavaScript support in Aspire](/whats-new/aspire-13/#javascript-as-a-first-class-citizen)
+    </div>
+    <div slot="typescript">
+        Congratulations! You've successfully added Aspire to your existing application. Here are some recommended next steps:
+
+        - **Add more integrations** — Explore [Aspire integrations](/integrations/gallery/) to simplify working with databases, caches, and message queues
+        - **Configure observability** — Enhance your application's telemetry:
+            - See [Standalone dashboard for Node.js](/dashboard/standalone-for-nodejs/)
+        - **Deploy your app** — Follow the [Deploy your first app](/get-started/deploy-first-app/) tutorial to deploy your Aspire application
+        - **Use the VS Code extension** — Run, debug, and manage integrations from within VS Code with the [Aspire extension](/get-started/aspire-vscode-extension/)
+        - **Explore the dashboard** — Learn more about the [Aspire dashboard](/dashboard/overview/) and its features
+        - **Learn about JavaScript support** — See [JavaScript support in Aspire](/whats-new/aspire-13/#javascript-as-a-first-class-citizen)
+    </div>
+</AppHostLangPivot>

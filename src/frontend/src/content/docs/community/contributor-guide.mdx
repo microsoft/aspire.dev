@@ -192,6 +192,16 @@ When contributing to `aspire.dev`, follow these writing guidelines to ensure con
 - **Follow formatting conventions** - Use consistent formatting for code snippets, commands, and technical terms. Refer to the examples in this guide for guidance.
 - **Review existing content** - Before adding new content, review existing documentation to avoid duplication and ensure coherence.
 
+### AppHost-specific C# and TypeScript content
+
+When you are documenting AppHost-specific content that changes between C# and TypeScript, use `AppHostLangPivot` instead of `Tabs syncKey="apphost-lang"`. The component is controlled by the site-wide AppHost selector in the sidebar, so it keeps AppHost walkthroughs consistent across pages.
+
+Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
+
+If a feature is only available in the C# AppHost today, show the C# example by itself and add an explanatory note. Do not wrap a single-language example in `AppHostLangPivot`.
+
+For the **On this page** table of contents to pick up a heading reliably, define the heading outside `Pivot`, `Tabs`, and `AppHostLangPivot`. Headings inside those components are often missed or can produce incomplete results in the generated table of contents.
+
 ## 📝 Write Markdown
 
 Here are some common Markdown formatting examples to help you write documentation:
@@ -686,6 +696,59 @@ Here's an example of using the `LearnMore` component:
   Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/aspire.dev)
 </LearnMore>
 ```
+
+### AppHostLangPivot component
+
+Use `AppHostLangPivot` when the surrounding AppHost content should switch between C# and TypeScript as a single unit.
+
+Keep shared section headings outside the pivot. For example, write `## Add a Redis resource` before the `AppHostLangPivot`, then place the language-specific prose and code inside the `csharp` and `typescript` slots. This helps the **On this page** navigation stay accurate.
+
+```mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
+```
+
+Use this pattern when entire sections differ by AppHost language, not just a single code fence. For example, the slots can contain explanatory prose, steps, asides, and code blocks together.
+
+If the difference is not about AppHost language, keep using regular `Tabs`.
+
+The same TOC rule applies to `Tabs` and `Pivot`: if a heading should appear in **On this page**, keep that heading outside the component and only put the variant-specific body content inside.
 
 Renders as:
 

@@ -5,6 +5,7 @@ description: Learn how to customize Azure Container Apps deployments for your As
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 
 When you deploy to [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/overview) using `aspire deploy`, Aspire provisions infrastructure automatically based on the resources defined in your AppHost. While the defaults work for many scenarios, you often need to customize the generated infrastructure—scaling rules, custom domains, resource groups, role assignments, and more.
 
@@ -14,8 +15,8 @@ This page covers the most common customization options for Azure Container Apps 
 
 Use `PublishAsAzureContainerApp` to customize the generated Container App resource for any project, container, or executable in your AppHost. The callback gives you access to the `AzureResourceInfrastructure` and the `ContainerApp` construct, allowing you to modify any property of the generated resource.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -33,8 +34,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -53,8 +54,8 @@ await api.publishAsAzureContainerApp(async (infrastructure, app) => {
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 The `infrastructure` parameter provides access to the overall Azure resource infrastructure, while the `app` parameter represents the `ContainerApp` construct. You can modify scaling, ingress, environment variables, and other settings directly.
 
@@ -66,8 +67,8 @@ For more information, see [Publish as Azure Container App](/integrations/cloud/a
 
 Use `ConfigureCustomDomain` to set up custom domains on Container Apps. This lets you bind a custom DNS name and a managed certificate to your Container App.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var customDomain = builder.AddParameter("customDomain");
@@ -83,15 +84,15 @@ builder.AddProject<Projects.Api>("api")
 #pragma warning restore ASPIREACADOMAINS001
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 :::note
 The `ConfigureCustomDomain` API is not yet available in the TypeScript AppHost SDK.
 :::
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 <Aside type="caution">
 The `ConfigureCustomDomain` API is experimental and may change or be removed in future updates. Suppress the compiler warning with `#pragma warning disable ASPIREACADOMAINS001`. For more information, see [ASPIREACADOMAINS001](/diagnostics/aspireacadomains001/).
@@ -105,8 +106,8 @@ When you have Azure resources that already exist—such as a shared Service Bus 
 - `RunAsExisting` — use the existing resource during local development only.
 - `PublishAsExisting` — use the existing resource during deployment only.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var existingBusName = builder.AddParameter("existingServiceBusName");
@@ -116,8 +117,8 @@ var serviceBus = builder.AddAzureServiceBus("messaging")
     .PublishAsExisting(existingBusName, existingBusRg);
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 const existingBusName = builder.addParameter("existingServiceBusName");
@@ -130,8 +131,8 @@ await serviceBus.publishAsExistingFromParameters(
 );
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 When you reference an existing resource, Aspire skips provisioning for that resource and instead configures your application to connect to the specified instance.
 
@@ -143,23 +144,23 @@ Cross-subscription resource references are not yet supported. The existing resou
 
 By default, all Azure resources deploy to the same resource group created by the environment. Use `WithResourceGroup` on the `AzureEnvironmentResource` to set the resource group for the deployment:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.AddAzureEnvironment()
     .WithResourceGroup(builder.AddParameter("resourceGroup"));
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 :::note
 The `WithResourceGroup` API is not yet available in the TypeScript AppHost SDK.
 :::
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 <Aside type="note">
 `WithResourceGroup` is configured on the Azure environment resource, not on individual resources. All resources in the environment share the same resource group.
@@ -171,24 +172,24 @@ Aspire automatically assigns Azure RBAC roles for resources based on how they're
 
 To remove the default role assignments for a resource, use `ClearDefaultRoleAssignments`:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.AddAzureServiceBus("messaging")
     .ClearDefaultRoleAssignments();
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 const serviceBus = await builder.addAzureServiceBus("messaging");
 await serviceBus.clearDefaultRoleAssignments();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 Custom role assignments can be configured via `ConfigureInfrastructure`.
 
@@ -202,24 +203,24 @@ Services deployed to Azure Container Apps use internal DNS for service discovery
 
 To expose an endpoint externally (outside the Container Apps environment), use `WithExternalHttpEndpoints()`:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.Api>("api")
     .WithExternalHttpEndpoints();
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 const api = await builder.addProject("api", "../Api/Api.csproj", "http");
 await api.withExternalHttpEndpoints();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ## See also
 
