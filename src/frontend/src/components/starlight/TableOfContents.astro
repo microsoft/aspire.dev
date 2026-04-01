@@ -138,265 +138,122 @@ const { toc } = Astro.locals.starlightRoute;
 
 <script>
   /**
-   * Extended StarlightTOC custom element.
+   * AppHost language filter for the TOC.
    *
-   * Includes 100% of the original Starlight TOC highlighting logic plus the
-   * AppHost language filter. The original `starlight-toc.ts` from Starlight is
-   * NOT bundled when this override is active, so we must include it here.
+   * NOTE: We do NOT define or extend the `starlight-toc` custom element here.
+   * MobileTableOfContents.astro imports starlight-toc.ts which registers
+   * `StarlightTOC` for `starlight-toc`. Attempting to override that registration
+   * is blocked by the custom-elements API (`customElements.define` throws if the
+   * name is already taken). Instead we run a plain script that adds filter
+   * behaviour directly to the already-existing `<starlight-toc>` DOM element.
+   * The original scroll-spy logic continues to work untouched.
    */
 
-  const PAGE_TITLE_ID = '_top';
+  /** The two apphost pivot language values we filter on. */
+  const APPHOST_LANGS = ['csharp', 'typescript'] as const;
+  type ApphostLang = (typeof APPHOST_LANGS)[number];
 
-  class StarlightTOC extends HTMLElement {
-    private _current = this.querySelector<HTMLAnchorElement>('a[aria-current="true"]');
-    private minH = parseInt(this.dataset.minH || '2', 10);
-    private maxH = parseInt(this.dataset.maxH || '3', 10);
+  function isApphostLang(value: string | null): value is ApphostLang {
+    return value === 'csharp' || value === 'typescript';
+  }
 
-    /**
-     * CSS selector matching only headings that can appear in the TOC.
-     * Mirrors the selector built in Starlight's original starlight-toc.ts.
-     */
-    private tocHeadingSelector =
-      `h1#${PAGE_TITLE_ID},` +
-      `:where(${[
-        ...Array.from({ length: 1 + this.maxH - this.minH }).map(
-          (_, index) => `h${this.minH + index}`
-        ),
-      ].join()})[id]`;
+  /**
+   * Query DOWN from each non-selected apphost pivot block to collect the IDs
+   * of all elements inside it, then hide matching TOC entries.
+   *
+   * Querying down (pivot block → children) is more reliable than walking up
+   * (heading → ancestor) because it does not depend on intermediate wrapper
+   * elements (e.g. `.sl-heading-wrapper`) being transparent.
+   */
+  function filterToc(selectedLang: ApphostLang): void {
+    const toc = document.querySelector<HTMLElement>('starlight-toc');
+    if (!toc) return;
 
-    protected set current(link: HTMLAnchorElement) {
-      if (link === this._current) return;
-      if (this._current) this._current.removeAttribute('aria-current');
-      link.setAttribute('aria-current', 'true');
-      this._current = link;
+    // Collect IDs that live inside a non-selected apphost pivot block.
+    const excluded = new Set<string>();
+    for (const lang of APPHOST_LANGS) {
+      if (lang === selectedLang) continue;
+      document
+        .querySelectorAll<HTMLElement>(`[data-pivot-block="${lang}"] [id]`)
+        .forEach((el) => excluded.add(el.id));
     }
 
-    private onIdle = (cb: IdleRequestCallback) =>
-      (window.requestIdleCallback || ((cb) => setTimeout(cb, 1)))(cb);
+    // Show/hide TOC list items based on whether their href is in the excluded set.
+    toc.querySelectorAll<HTMLAnchorElement>('nav a').forEach((link) => {
+      const href = link.getAttribute('href');
+      if (!href?.startsWith('#')) return;
+      const id = decodeURIComponent(href.slice(1));
+      const li = link.closest<HTMLElement>('li');
+      if (!li) return;
+      li.style.display = excluded.has(id) ? 'none' : '';
+    });
+  }
 
-    constructor() {
-      super();
-      this.onIdle(() => this.init());
-      this.initLangFilter();
+  function initApphostFilter(): void {
+    const toc = document.querySelector<HTMLElement>('starlight-toc');
+    const filterEl = document.querySelector<HTMLElement>('#apphost-lang-filter');
+    const select = document.querySelector<HTMLSelectElement>('#apphost-lang-select');
+    if (!toc || !filterEl || !select) return;
+
+    // Only activate on pages that actually use apphost pivot blocks.
+    if (!document.querySelector('[data-pivot-block="csharp"], [data-pivot-block="typescript"]')) {
+      return;
     }
 
-    // -------------------------------------------------------------------------
-    // Original Starlight TOC highlighting logic (copied verbatim)
-    // -------------------------------------------------------------------------
+    // Determine the initial language: QS → localStorage → 'csharp'.
+    const qs = new URLSearchParams(window.location.search);
+    const initial: ApphostLang = isApphostLang(qs.get('apphost'))
+      ? (qs.get('apphost') as ApphostLang)
+      : isApphostLang(localStorage.getItem('apphost'))
+        ? (localStorage.getItem('apphost') as ApphostLang)
+        : 'csharp';
 
-    private init = (): void => {
-      const links = [...this.querySelectorAll('a')];
+    select.value = initial;
+    filterEl.removeAttribute('hidden');
+    filterToc(initial);
 
-      const isHeading = (el: Element): el is HTMLHeadingElement =>
-        el.matches(this.tocHeadingSelector);
+    // When the user changes the dropdown, delegate to PivotSelector if present
+    // (so PivotSelector continues to own content visibility, localStorage, and
+    // URL state), then update the TOC.
+    select.addEventListener('change', () => {
+      const lang = select.value;
+      if (!isApphostLang(lang)) return;
 
-      const getElementHeading = (el: Element | null): HTMLHeadingElement | null => {
-        if (!el) return null;
-        const origin = el;
-        while (el) {
-          if (el.matches('.sl-markdown-content, main > *')) {
-            return document.getElementById(PAGE_TITLE_ID) as HTMLHeadingElement;
-          }
-          if (isHeading(el)) return el;
-          const childHeading = el.querySelector<HTMLHeadingElement>(this.tocHeadingSelector);
-          if (childHeading) return childHeading;
-          el = el.previousElementSibling;
-          while (el?.lastElementChild) {
-            el = el.lastElementChild;
-          }
-          const h = getElementHeading(el);
-          if (h) return h;
-        }
-        return getElementHeading(origin.parentElement);
-      };
-
-      const setCurrent: IntersectionObserverCallback = (entries) => {
-        for (const { isIntersecting, target } of entries) {
-          if (!isIntersecting) continue;
-          const heading = getElementHeading(target);
-          if (!heading) continue;
-          const link = links.find(
-            (link) => link.hash === '#' + encodeURIComponent(heading.id)
-          );
-          if (link) {
-            this.current = link;
-            break;
-          }
-        }
-      };
-
-      const toObserve = document.querySelectorAll(
-        [
-          `main :where(${this.tocHeadingSelector})`,
-          `main :where(${this.tocHeadingSelector}, .sl-heading-wrapper) ~ *:not(:has(${this.tocHeadingSelector}))`,
-          `main .sl-markdown-content > *:not(:has(${this.tocHeadingSelector}))`,
-          `main > *:not(:has(${this.tocHeadingSelector}))`,
-        ].join()
+      const pivotBtn = document.querySelector<HTMLButtonElement>(
+        `#pivot-selector-apphost [data-pivot-option="${lang}"]`
       );
 
-      let observer: IntersectionObserver | undefined;
-      const observe = () => {
-        if (observer) return;
-        observer = new IntersectionObserver(setCurrent, {
-          rootMargin: this.getRootMargin(),
-        });
-        toObserve.forEach((h) => observer!.observe(h));
-      };
-      observe();
-
-      let timeout: ReturnType<typeof setTimeout>;
-      window.addEventListener('resize', () => {
-        if (observer) {
-          observer.disconnect();
-          observer = undefined;
-        }
-        clearTimeout(timeout);
-        timeout = setTimeout(() => this.onIdle(observe), 200);
-      });
-    };
-
-    private getRootMargin(): `-${number}px 0% ${number}px` {
-      const navBarHeight =
-        document.querySelector('header')?.getBoundingClientRect().height || 0;
-      const mobileTocHeight =
-        this.querySelector('summary')?.getBoundingClientRect().height || 0;
-      const top = navBarHeight + mobileTocHeight + 32;
-      const bottom = top + 53;
-      const height = document.documentElement.clientHeight;
-      return `-${top}px 0% ${bottom - height}px`;
-    }
-
-    // -------------------------------------------------------------------------
-    // AppHost language filter
-    // -------------------------------------------------------------------------
-
-    private initLangFilter(): void {
-      const run = () => {
-        const filterEl = this.querySelector<HTMLElement>('.apphost-lang-filter');
-        const select = this.querySelector<HTMLSelectElement>('#apphost-lang-select');
-        if (!filterEl || !select) return;
-
-        // Only activate on pages that use apphost pivot blocks.
-        const hasApphostPivots = !!document.querySelector(
-          '[data-pivot-block="csharp"], [data-pivot-block="typescript"]'
-        );
-        if (!hasApphostPivots) return;
-
-        // Determine initial value: query string → localStorage → default 'csharp'.
-        const qs = new URLSearchParams(window.location.search);
-        const qsVal = qs.get('apphost');
-        const stored = localStorage.getItem('apphost');
-        const initial: string =
-          qsVal === 'csharp' || qsVal === 'typescript'
-            ? qsVal
-            : stored === 'csharp' || stored === 'typescript'
-              ? stored
-              : 'csharp';
-
-        select.value = initial;
-        filterEl.removeAttribute('hidden');
-        this.filterToc();
-
-        // When the user changes the selector:
-        // - Delegate to the existing PivotSelector button click when available
-        //   so PivotSelector continues to own all content visibility logic.
-        // - Fall back to applying pivot blocks directly when PivotSelector is
-        //   not present on the current page.
-        select.addEventListener('change', () => {
-          const lang = select.value;
-
-          const pivotBtn = document.querySelector<HTMLButtonElement>(
-            `#pivot-selector-apphost [data-pivot-option="${lang}"]`
-          );
-
-          if (pivotBtn) {
-            // PivotSelector is on the page — delegate entirely to it.
-            pivotBtn.click();
-          } else {
-            // No PivotSelector — apply pivot blocks directly.
-            localStorage.setItem('apphost', lang);
-            const url = new URL(window.location.href);
-            url.searchParams.set('apphost', lang);
-            window.history.replaceState({}, '', url.toString());
-
-            document.querySelectorAll<HTMLElement>('[data-pivot-block]').forEach((el) => {
-              const blockIds = (el.dataset.pivotBlock ?? '')
-                .split(/[,;]/)
-                .map((s) => s.trim());
-              el.style.display = blockIds.includes(lang) ? '' : 'none';
-            });
-          }
-
-          this.filterToc();
-        });
-
-        // Watch for pivot-block visibility changes triggered by PivotSelector.
-        // When PivotSelector applies a selection it sets inline `style.display`
-        // on the blocks — the MutationObserver picks that up here.
-        const pivotBlocks = document.querySelectorAll('[data-pivot-block]');
-        if (pivotBlocks.length > 0) {
-          const mo = new MutationObserver(() => {
-            const current = localStorage.getItem('apphost');
-            if (
-              (current === 'csharp' || current === 'typescript') &&
-              select.value !== current
-            ) {
-              select.value = current;
-            }
-            this.filterToc();
-          });
-          pivotBlocks.forEach((el) =>
-            mo.observe(el, { attributes: true, attributeFilter: ['style'] })
-          );
-        }
-      };
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', run, { once: true });
+      if (pivotBtn) {
+        // PivotSelector is present — let it handle everything.
+        pivotBtn.click();
       } else {
-        run();
+        // No PivotSelector on this page — apply blocks and state directly.
+        localStorage.setItem('apphost', lang);
+        const url = new URL(window.location.href);
+        url.searchParams.set('apphost', lang);
+        window.history.replaceState({}, '', url.toString());
+        document.querySelectorAll<HTMLElement>('[data-pivot-block]').forEach((el) => {
+          const ids = (el.dataset.pivotBlock ?? '').split(/[,;]/).map((s) => s.trim());
+          el.style.display = ids.includes(lang) ? '' : 'none';
+        });
       }
-    }
 
-    /**
-     * Show/hide TOC `<li>` items based on whether their target heading is
-     * inside a currently-hidden `[data-pivot-block]` element.
-     * Headings outside any pivot block are always shown.
-     */
-    private filterToc(): void {
-      const links = [...this.querySelectorAll<HTMLAnchorElement>('nav a')];
-      for (const link of links) {
-        const href = link.getAttribute('href');
-        if (!href?.startsWith('#')) continue;
-        const id = decodeURIComponent(href.slice(1));
-        const heading = document.getElementById(id);
-        if (!heading) continue;
-        const listItem = link.closest('li');
-        if (!listItem) continue;
-        listItem.hidden = this.isInsideHiddenPivotBlock(heading);
-      }
-    }
+      filterToc(lang);
+    });
 
-    /**
-     * Returns true when `el` has an ancestor `[data-pivot-block]` element
-     * whose `style.display` is `'none'`.
-     */
-    private isInsideHiddenPivotBlock(el: Element): boolean {
-      let parent = el.parentElement;
-      while (parent) {
-        if (
-          parent.hasAttribute('data-pivot-block') &&
-          (parent as HTMLElement).style.display === 'none'
-        ) {
-          return true;
-        }
-        parent = parent.parentElement;
-      }
-      return false;
-    }
+    // Watch for PivotSelector-driven display changes on pivot blocks so the TOC
+    // dropdown and entries stay in sync when the user clicks PivotSelector directly.
+    const mo = new MutationObserver(() => {
+      const stored = localStorage.getItem('apphost');
+      const lang: ApphostLang = isApphostLang(stored) ? stored : 'csharp';
+      if (select.value !== lang) select.value = lang;
+      filterToc(lang);
+    });
+    document
+      .querySelectorAll('[data-pivot-block]')
+      .forEach((el) => mo.observe(el, { attributes: true, attributeFilter: ['style'] }));
   }
 
-  if (!customElements.get('starlight-toc')) {
-    customElements.define('starlight-toc', StarlightTOC);
-  }
+  // Astro defers module scripts until after HTML parsing, so the DOM is ready.
+  initApphostFilter();
 </script>
