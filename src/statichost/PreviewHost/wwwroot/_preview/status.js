@@ -66,7 +66,7 @@ async function initialize() {
     await loadSession();
     await preparePreview();
   } catch (error) {
-    applyState(buildFailureState(error instanceof Error ? error.message : "The preview host could not load the preview status."));
+    applyState(buildFailureState(error instanceof Error ? error.message : "Couldn't load preview status."));
   }
 }
 
@@ -107,7 +107,7 @@ cancelButton.addEventListener("click", async () => {
   } catch (error) {
     hint.textContent = error instanceof Error
       ? error.message
-      : "The preview host could not cancel the current preparation run.";
+      : "Couldn't cancel this prep run.";
   } finally {
     cancelInFlight = false;
     updateActionButtons();
@@ -120,7 +120,7 @@ retryButton.addEventListener("click", async () => {
   } catch (error) {
     hint.textContent = error instanceof Error
       ? error.message
-      : "The preview host could not restart preview preparation.";
+      : "Couldn't restart prep.";
   }
 });
 
@@ -132,7 +132,7 @@ async function loadSession() {
 
   if (response.status === 401) {
     redirectToLogin();
-    throw new Error("Sign in with GitHub to prepare previews.");
+    throw new Error("Sign in with GitHub to prepare this preview.");
   }
 
   if (response.status === 403) {
@@ -160,8 +160,16 @@ function applySession(session) {
 
   const displayName = session?.viewer?.displayName || session?.viewer?.login || "Signed in";
   const login = session?.viewer?.login ? `@${session.viewer.login}` : "GitHub repo writer";
+  const profileUrl = session?.viewer?.profileUrl
+    || (session?.viewer?.login ? `https://github.com/${session.viewer.login}` : "");
   viewerName.textContent = displayName;
   viewerName.title = login;
+  viewerSummary.title = login;
+
+  if (viewerSummary instanceof HTMLAnchorElement && profileUrl) {
+    viewerSummary.href = profileUrl;
+    viewerSummary.setAttribute("aria-label", `${displayName} on GitHub`);
+  }
 
   const roleElement = viewerSummary.querySelector(".viewer-role");
   if (roleElement) {
@@ -170,6 +178,7 @@ function applySession(session) {
 
   if (viewerAvatar && session?.viewer?.avatarUrl) {
     viewerAvatar.src = session.viewer.avatarUrl;
+    viewerAvatar.alt = `${displayName} avatar`;
     viewerAvatar.hidden = false;
   }
 
@@ -209,7 +218,7 @@ async function preparePreview() {
 
     if (response.status === 404) {
       applyState(buildFailureState(
-        payload?.failureMessage ?? "The preview host could not find a successful frontend build for this pull request yet.",
+        payload?.failureMessage ?? "No successful frontend build found for this PR yet.",
         payload ?? {},
       ));
       return;
@@ -345,11 +354,11 @@ function updateActionButtons() {
   const canRetry = currentState && (isTerminalState(currentState.state) || currentState.state === "Missing");
   const retryLabel = currentState?.state === "Missing"
     ? "Check latest build"
-    : "Retry prep";
+    : "Retry";
 
   cancelButton.hidden = !canCancel && !cancelInFlight;
   cancelButton.disabled = !canCancel || cancelInFlight;
-  cancelButton.textContent = cancelInFlight ? "Cancelling..." : "Cancel prep";
+  cancelButton.textContent = cancelInFlight ? "Cancelling..." : "Cancel";
 
   retryButton.hidden = !canRetry && !prepareInFlight;
   retryButton.disabled = prepareInFlight || (!canRetry && !prepareInFlight);
@@ -493,11 +502,11 @@ function getStatusLabel(state) {
 function getTitle(snapshot) {
   const number = snapshot.pullRequestNumber ?? pullRequestNumber ?? "?";
   if (snapshot.state === "Failed" || snapshot.state === "Missing") {
-    return `PR #${number} preview unavailable`;
+    return `PR #${number} unavailable`;
   }
 
   if (snapshot.state === "Cancelled") {
-    return `PR #${number} prep cancelled`;
+    return `PR #${number} cancelled`;
   }
 
   if (snapshot.state === "Ready") {
@@ -513,11 +522,11 @@ function getHint(snapshot) {
   }
 
   if (snapshot.state === "Failed") {
-    return "Retry to ask GitHub for the latest successful build again.";
+    return "Retry to fetch the latest successful build again.";
   }
 
   if (snapshot.state === "Cancelled") {
-    return "Retry when you are ready to prepare the latest build again.";
+    return "Retry when you're ready to prepare the latest build again.";
   }
 
   if (snapshot.state === "Evicted") {
@@ -533,14 +542,14 @@ function getStateClassName(state) {
 
 function getStageProgressLabel(snapshot) {
   if (snapshot.stage === "Downloading") {
-    return "Downloading preview artifact";
+    return "Downloading build";
   }
 
   if (snapshot.stage === "Extracting" && snapshot.itemsLabel === "files") {
-    return "Extracting preview files";
+    return "Extracting files";
   }
 
-  return snapshot.stage ? `${snapshot.stage} progress` : "Stage progress";
+  return snapshot.stage ? `${snapshot.stage} progress` : "Stage";
 }
 
 function formatMessage(text) {

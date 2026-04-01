@@ -152,7 +152,7 @@ Promise.all([loadSession(), loadCatalog()]).catch((error) => {
   authorFilterBar.setAttribute("aria-busy", "false");
   syncAvailabilityFilter();
   syncAuthorFilter([]);
-  renderEmptyState(error instanceof Error ? error.message : "The preview host could not load open pull requests.");
+  renderEmptyState(error instanceof Error ? error.message : "Couldn't load open PRs.");
 });
 
 setInterval(() => {
@@ -178,7 +178,7 @@ async function loadCatalog() {
   }
 
   if (!response.ok) {
-    throw new Error(`Open pull requests request failed with status ${response.status}.`);
+    throw new Error(`Open PR request failed with status ${response.status}.`);
   }
 
   const payload = await response.json();
@@ -203,7 +203,7 @@ async function loadSession() {
 
   if (response.status === 401) {
     redirectToLogin();
-    throw new Error("Sign in with GitHub to browse previews.");
+    throw new Error("Sign in with GitHub to view previews.");
   }
 
   if (response.status === 403) {
@@ -231,8 +231,16 @@ function applySession(session) {
 
   const displayName = session?.viewer?.displayName || session?.viewer?.login || "Signed in";
   const login = session?.viewer?.login ? `@${session.viewer.login}` : "GitHub repo writer";
+  const profileUrl = session?.viewer?.profileUrl
+    || (session?.viewer?.login ? `https://github.com/${session.viewer.login}` : "");
   viewerName.textContent = displayName;
   viewerName.title = login;
+  viewerSummary.title = login;
+
+  if (viewerSummary instanceof HTMLAnchorElement && profileUrl) {
+    viewerSummary.href = profileUrl;
+    viewerSummary.setAttribute("aria-label", `${displayName} on GitHub`);
+  }
 
   const roleElement = viewerSummary.querySelector(".viewer-role");
   if (roleElement) {
@@ -241,6 +249,7 @@ function applySession(session) {
 
   if (viewerAvatar && session?.viewer?.avatarUrl) {
     viewerAvatar.src = session.viewer.avatarUrl;
+    viewerAvatar.alt = `${displayName} avatar`;
     viewerAvatar.hidden = false;
   }
 
@@ -311,7 +320,7 @@ function renderEmptyState(message) {
   previewGrid.innerHTML = `
     <article class="empty-card">
       <h2>${escapeHtml(message)}</h2>
-      <p class="collection-summary">Choose a pull request to open <code>/prs/{number}/</code>, which signs in through GitHub and prepares the latest successful frontend artifact on demand.</p>
+      <p class="collection-summary">Open <code>/prs/{number}/</code> to sign in and warm the latest successful frontend build.</p>
     </article>`;
 }
 
@@ -366,7 +375,7 @@ function renderAvailabilityFilterMenu() {
         <span class="filter-option-box" aria-hidden="true"></span>
         <span class="filter-option-copy">
           <span class="filter-option-title">Only show previewable PRs</span>
-          <span class="filter-option-meta">Limit the catalog to pull requests whose current head has a successful frontend build artifact.</span>
+          <span class="filter-option-meta">Only PRs whose head commit has a successful frontend build.</span>
         </span>
         <span class="filter-option-count">${numberFormatter.format(previewablePullRequestCount)}</span>
       </label>
@@ -375,7 +384,7 @@ function renderAvailabilityFilterMenu() {
 
 function renderAuthorFilterMenu() {
   if (authorOptions.length === 0) {
-    return '<div class="filter-menu-empty">No open pull request authors are available right now.</div>';
+    return '<div class="filter-menu-empty">No authors available.</div>';
   }
 
   const footer = selectedAuthors.size > 0
@@ -498,14 +507,14 @@ function getAuthorLabelFromValue(value) {
 function buildStatusDetail(preview, entry) {
   if (!preview) {
     return isPreviewable(entry)
-      ? "Open preview to prepare the latest successful frontend build."
-      : "No successful frontend build artifact is available for the current head yet.";
+      ? "Open to warm the latest successful frontend build."
+      : "No successful frontend build for this head yet.";
   }
 
   if (preview.headSha && entry.headSha && preview.headSha !== entry.headSha) {
     return isPreviewable(entry)
-      ? "Open preview to refresh this PR to the latest successful frontend build."
-      : "New commits are waiting for a successful frontend build.";
+      ? "Open to refresh this PR to the latest successful frontend build."
+      : "New commits are waiting on a successful frontend build.";
   }
 
   switch (preview.state) {
@@ -518,7 +527,7 @@ function buildStatusDetail(preview, entry) {
     case "Cancelled":
       return "Preparation was cancelled.";
     case "Failed":
-      return preview.error ?? preview.message ?? "The preview host could not finish preparing this build.";
+      return preview.error ?? preview.message ?? "Couldn't finish preparing this build.";
     case "Evicted":
       return "Loads again on the next visit.";
     default:
@@ -605,7 +614,7 @@ function buildWindowCountText(filteredEntries) {
   }
 
   if (showPreviewableOnly) {
-    return `Showing ${numberFormatter.format(filteredEntries.length)} of ${numberFormatter.format(openPullRequestCount)} open PRs with a successful frontend build`;
+    return `Showing ${numberFormatter.format(filteredEntries.length)} of ${numberFormatter.format(openPullRequestCount)} previewable PRs`;
   }
 
   if (selectedAuthors.size > 0) {
@@ -617,18 +626,18 @@ function buildWindowCountText(filteredEntries) {
 
 function buildEmptyStateMessage() {
   if (showPreviewableOnly && selectedAuthors.size > 0) {
-    return `No previewable open pull requests match ${buildSelectedAuthorSummary()}.`;
+    return `No previewable PRs match ${buildSelectedAuthorSummary()}.`;
   }
 
   if (showPreviewableOnly) {
-    return "No open pull requests have a successful frontend build artifact right now.";
+    return "No open PRs have a successful frontend build right now.";
   }
 
   if (selectedAuthors.size > 0) {
-    return `No open pull requests match ${buildSelectedAuthorSummary()}.`;
+    return `No open PRs match ${buildSelectedAuthorSummary()}.`;
   }
 
-  return "No open pull requests need previews right now.";
+  return "No open PRs right now.";
 }
 
 function buildAuthorTriggerLabel() {
@@ -661,12 +670,12 @@ function buildAuthorTriggerMeta() {
 
 function buildAuthorOptionMeta(count) {
   if (count === 0) {
-    return "No open pull requests right now";
+    return "No open PRs";
   }
 
   return count === 1
-    ? "1 open pull request"
-    : `${numberFormatter.format(count)} open pull requests`;
+    ? "1 open PR"
+    : `${numberFormatter.format(count)} open PRs`;
 }
 
 function buildSelectedAuthorSummary() {
