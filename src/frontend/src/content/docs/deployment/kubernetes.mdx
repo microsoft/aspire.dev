@@ -1,0 +1,261 @@
+---
+title: Deploy to Kubernetes
+description: Learn how to publish and deploy your Aspire application to Kubernetes using Helm charts.
+sidebar:
+  badge: Preview
+---
+
+import {
+  Aside,
+  FileTree,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
+
+<Aside type="note">
+  Kubernetes uses `aspire publish` to generate Helm charts. It does not support
+  `aspire deploy` — you deploy the generated artifacts using `helm`, `kubectl`,
+  or your existing GitOps workflow.
+</Aside>
+
+<LearnMore>
+  For hosting integration setup and configuration, see [Kubernetes
+  integration](/integrations/compute/kubernetes/).
+</LearnMore>
+
+To configure your AppHost for Kubernetes, add a Kubernetes environment with `AddKubernetesEnvironment`:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs" {3}
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts" {5}
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Generate Kubernetes artifacts
+
+To generate Kubernetes deployment artifacts from your Aspire application, run the `aspire publish` command:
+
+```bash title="Generate Kubernetes artifacts"
+aspire publish -o k8s-artifacts
+```
+
+This command analyzes your application model and produces a complete Helm chart in the specified output directory. The generated chart structure looks like this:
+
+<FileTree>
+- k8s-artifacts/
+  - Chart.yaml Chart metadata (name, version, etc.)
+  - values.yaml Configurable values for the chart
+  - templates/
+    - \<resource\>/
+      - deployment.yaml Deployment or StatefulSet
+      - service.yaml Service for connectivity
+      - configmap.yaml Configuration data
+      - secret.yaml Sensitive data
+</FileTree>
+
+The publisher generates the following Kubernetes resources from your application model:
+
+- **Deployments** or **StatefulSets** for your application services
+- **Services** for network connectivity between resources
+- **ConfigMaps** for application configuration and connection strings
+- **Secrets** for sensitive data such as passwords and connection strings
+- **Dockerfiles** copied into the output directory for container build contexts
+
+## Deploy with Helm
+
+After generating artifacts, use Helm to deploy your application to a Kubernetes cluster:
+
+<Steps>
+
+1. Install the chart to your cluster:
+
+   ```bash title="Install with Helm"
+   helm install my-app ./k8s-artifacts
+   ```
+
+2. For subsequent deployments, upgrade the existing release:
+
+   ```bash title="Upgrade with Helm"
+   helm upgrade my-app ./k8s-artifacts
+   ```
+
+3. Override default values using `--set` flags or a custom values file:
+
+   ```bash title="Override values"
+   helm upgrade my-app ./k8s-artifacts \
+       --set api.image.repository=myregistry.azurecr.io/api \
+       --set api.image.tag=v1.2.0
+   ```
+
+   Alternatively, create a custom values file for your environment:
+
+   ```yaml title="values.production.yaml"
+   api:
+     image:
+       repository: myregistry.azurecr.io/api
+       tag: v1.2.0
+   ```
+
+   ```bash title="Deploy with custom values file"
+   helm upgrade my-app ./k8s-artifacts -f values.production.yaml
+   ```
+
+</Steps>
+
+## Supported resource mappings
+
+The Kubernetes publisher converts Aspire resources to their Kubernetes equivalents:
+
+| Aspire resource       | Kubernetes resource                          |
+| --------------------- | -------------------------------------------- |
+| Project resources     | Deployments or StatefulSets                  |
+| Container resources   | Deployments or StatefulSets                  |
+| Connection strings    | ConfigMaps and Secrets                       |
+| Environment variables | ConfigMaps and Secrets                       |
+| Endpoints             | Services                                     |
+| Volumes               | PersistentVolumes and PersistentVolumeClaims |
+
+## Deployment considerations
+
+### Container images
+
+The publisher generates parameterized Helm values for container image references. If you haven't specified custom container images, the generated `values.yaml` contains placeholders that you override at deployment time using `--set` or a custom values file.
+
+### Resource names
+
+Resource names in Kubernetes must follow DNS naming conventions. The integration automatically normalizes Aspire resource names by:
+
+- Converting to lowercase
+- Replacing invalid characters with hyphens
+- Ensuring names don't start or end with hyphens
+
+### Environment-specific configuration
+
+Use [external parameters](/fundamentals/external-parameters/) to configure values that differ between development and production environments.
+
+### Helm chart name
+
+By default, the Helm chart name is derived from your AppHost project. Configure a custom chart name using `WithProperties`:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddKubernetesEnvironment("k8s")
+    .WithProperties(k8s =>
+    {
+        k8s.HelmChartName = "my-aspire-app";
+    });
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+await k8s.withProperties(async (k8s) => {
+  await k8s.helmChartName.set('my-aspire-app');
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Customize Kubernetes services
+
+Use the `PublishAsKubernetesService` callback to modify the generated Kubernetes resources for individual services. This provides fully typed access to the Kubernetes object model:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("service", "nginx")
+    .WithEnvironment("ORIGINAL_ENV", "value")
+    .PublishAsKubernetesService(resource =>
+    {
+        // Customize the generated Kubernetes resource
+    });
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const service = await builder.addContainer('service', 'nginx');
+await service.withEnvironment('ORIGINAL_ENV', 'value');
+await service.publishAsKubernetesService(async (resource) => {
+  // Customize the generated Kubernetes resource
+});
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  Use `WithProperties` on the Kubernetes environment for global settings, and
+  `PublishAsKubernetesService` on individual resources for per-resource
+  customization.
+</Aside>
+
+## Troubleshooting
+
+### Connection strings empty in Kubernetes
+
+If your application can't find connection strings at runtime, verify that the generated ConfigMaps and Secrets are correctly mounted as environment variables in your pod specifications. Check that the resource names in your Helm values match the expected connection string names.
+
+### Password and authentication issues
+
+Kubernetes Secrets store values as base64-encoded strings. Verify that your Secrets are properly encoded and that the generated templates reference them correctly. Use `kubectl get secret <name> -o yaml` to inspect Secret contents.
+
+### Service discovery
+
+In Kubernetes, services discover each other using the cluster's built-in DNS. A service named `api` is reachable at `api.<namespace>.svc.cluster.local`. The generated Helm charts configure service references automatically using Kubernetes-native DNS resolution.
+
+## See also
+
+- [Kubernetes integration](/integrations/compute/kubernetes/)
+- [Pipelines and app topology](/deployment/pipelines/)
+- [Publishing and deployment overview](/deployment/overview/)
+- [Kubernetes documentation](https://kubernetes.io/docs/)
+- [Helm documentation](https://helm.sh/docs/)

@@ -1,14 +1,19 @@
 ---
-title: "Aspireify an existing app with a TypeScript AppHost"
-description: "Learn how to add Aspire orchestration to an existing JavaScript or TypeScript application by using a TypeScript AppHost."
+title: 'Aspireify an existing app with a TypeScript AppHost'
+description: 'Learn how to add Aspire orchestration to an existing JavaScript or TypeScript application by using a TypeScript AppHost.'
 prev: false
 next: false
 ---
 
-import { Aside, Steps, FileTree, Tabs, TabItem } from '@astrojs/starlight/components';
-import { Kbd } from 'starlight-kbd/components'
+import {
+  Aside,
+  Steps,
+  FileTree,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
-
 
 This guide shows you how to add Aspire orchestration to an existing JavaScript or TypeScript application while using a TypeScript AppHost (`apphost.ts`). You'll initialize Aspire with `aspire init --language typescript`, model your resources in `apphost.ts`, and run the app locally with Aspire.
 
@@ -35,8 +40,6 @@ Before you begin, ensure you have the following prerequisites installed:
 
 ### Language-specific requirements
 
-
-
 **For JavaScript/TypeScript applications:**
 
 - [Node.js 22 or later](https://nodejs.org/) installed
@@ -44,15 +47,17 @@ Before you begin, ensure you have the following prerequisites installed:
 - An existing JavaScript/TypeScript application
 
 **Example application types:**
+
 - React, Vue, or Svelte applications (especially Vite-based)
 - Node.js/Express APIs
 - Next.js applications
 - Angular applications
 - TypeScript backend services
 
-
 <Aside type="tip" title="Multi-language applications">
-If your application uses multiple languages, ensure you have all the relevant prerequisites installed. The Aspire AppHost can orchestrate services across different languages simultaneously.
+  If your application uses multiple languages, ensure you have all the relevant
+  prerequisites installed. The Aspire AppHost can orchestrate services across
+  different languages simultaneously.
 </Aside>
 
 ## Overview of the process
@@ -75,87 +80,75 @@ The `aspire init` command is the starting point for adding Aspire to your existi
 
 <Steps>
 
-1. Navigate to your project directory:
+1.  Navigate to your project directory:
 
-   
-   
-      ```bash title="Navigate to your workspace root"
-   cd /path/to/your-workspace
-   ```
-   
+    ```bash title="Navigate to your workspace root"
+    cd /path/to/your-workspace
+    ```
 
+2.  Run `aspire init` to initialize Aspire support:
 
-2. Run `aspire init` to initialize Aspire support:
+    ```bash title="Initialize Aspire with a TypeScript AppHost"
+    aspire init --language typescript
+    ```
 
-   
-   ```bash title="Initialize Aspire with a TypeScript AppHost"
-   aspire init --language typescript
-   ```
-   
+    <Aside type="tip" title="Use the TypeScript AppHost path throughout">
+      This page consistently uses `aspire init --language typescript` and
+      `apphost.ts` in every example. If you omit the `--language` flag, choose
+      **TypeScript** when the CLI asks which AppHost language to create.
+    </Aside>
 
+    The `aspire init` command still runs in **interactive mode** for the remaining setup. It will:
 
-   <Aside type="tip" title="Use the TypeScript AppHost path throughout">
-   This page consistently uses `aspire init --language typescript` and `apphost.ts` in every example. If you omit the `--language` flag, choose **TypeScript** when the CLI asks which AppHost language to create.
-   </Aside>
-
-   The `aspire init` command still runs in **interactive mode** for the remaining setup. It will:
-   
-   
-    
-        - Detect your existing workspace structure
+    - Detect your existing workspace structure
     - Create a TypeScript AppHost (`apphost.ts`)
     - Add the generated AppHost SDK and config files
     - Install the supporting Node.js dependencies for the AppHost
-    
 
-
-   <LearnMore>
-       For more details on the `aspire init` command and its options, see the [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
-   </LearnMore>
+    <LearnMore>
+      For more details on the `aspire init` command and its options, see the
+      [CLI reference: `aspire init`](/reference/cli/commands/aspire-init/).
+    </LearnMore>
 
 </Steps>
 
 ### What does `aspire init` create?
 
-
-
 After running `aspire init --language typescript`, your project will have a TypeScript AppHost:
 
 <FileTree>
-- my-store/
-  - **apphost.ts** (new) orchestration code
-  - **.modules/** (new) generated SDK
-  - **aspire.config.json** (new) configuration
-  - **package.json** (new) AppHost dependencies
-  - **tsconfig.json** (new) TypeScript configuration
-  - packages/
-    - api/
-      - src/
-        - server.js
-        - routes/
-      - package.json
-    - web/
-      - src/
-        - App.tsx
-        - components/
-      - package.json
-      - vite.config.ts
-    - admin/
-      - src/
-        - main.ts
-        - views/
-      - package.json
-  - package.json (workspace root)
+  - my-store/
+    - **apphost.ts** (new) orchestration code
+    - **.modules/** (new) generated SDK
+    - **aspire.config.json** (new) configuration
+    - **package.json** (new) AppHost dependencies
+    - **tsconfig.json** (new) TypeScript configuration
+    - packages/
+      - api/
+        - src/
+          - server.js
+          - routes/
+        - package.json
+      - web/
+        - src/
+          - App.tsx
+          - components/
+        - package.json
+        - vite.config.ts
+      - admin/
+        - src/
+          - main.ts
+          - views/
+        - package.json
+    - package.json (workspace root)
 </FileTree>
 
 A typical monorepo with Node.js API, React storefront, and admin dashboard.
 
 <Aside type="note" title="The .modules folder is generated">
-The `.modules/` folder contains generated AppHost SDK files. Let the Aspire CLI manage it rather than editing those files manually.
+  The `.modules/` folder contains generated AppHost SDK files. Let the Aspire
+  CLI manage it rather than editing those files manually.
 </Aside>
-
-
-
 
 The `apphost.ts` file initially contains a minimal starter:
 
@@ -174,7 +167,6 @@ const builder = await createBuilder();
 await builder.build().run();
 ```
 
-
 This is your starting point. In the next section, you'll add your applications and configure their relationships.
 
 ## Add your applications to the AppHost
@@ -182,8 +174,6 @@ This is your starting point. In the next section, you'll add your applications a
 Once you have an AppHost, you need to register your existing applications. First, install the appropriate hosting packages for your application types, then add your resources to the AppHost.
 
 ### Install hosting packages
-
-
 
 For JavaScript/TypeScript applications, add the JavaScript hosting integration to your AppHost:
 
@@ -193,15 +183,9 @@ aspire add javascript
 
 This updates the generated AppHost SDK with methods like `addViteApp`, `addNodeApp`, and `addJavaScriptApp`.
 
-
 ### Model your resources in the AppHost
 
-
-
 Now update your `apphost.ts` file to register your applications as resources. Resources are the building blocks of your distributed application—each service, container, or infrastructure resource becomes something Aspire can orchestrate.
-
-
-
 
 For JavaScript applications, use the appropriate method based on your application type:
 
@@ -212,43 +196,52 @@ const builder = await createBuilder();
 
 // Node.js API
 const api = await builder
-    .addNodeApp("api", "./packages/api", "src/server.js")
-    .withNpm()
-    .withHttpHealthCheck({ path: "/health" });
+  .addNodeApp('api', './packages/api', 'src/server.js')
+  .withNpm()
+  .withHttpHealthCheck({ path: '/health' });
 
 // React storefront
 const web = await builder
-    .addViteApp("web", "./packages/web")
-    .withExternalHttpEndpoints()
-    .withReference(api)
-    .waitFor(api);
+  .addViteApp('web', './packages/web')
+  .withExternalHttpEndpoints()
+  .withReference(api)
+  .waitFor(api);
 
 // Admin dashboard
 const admin = await builder
-    .addViteApp("admin", "./packages/admin")
-    .withExternalHttpEndpoints()
-    .withReference(api)
-    .waitFor(api);
+  .addViteApp('admin', './packages/admin')
+  .withExternalHttpEndpoints()
+  .withReference(api)
+  .waitFor(api);
 
 await builder.build().run();
 ```
 
 **Key methods:**
+
 - `addViteApp` - For Vite-based applications (React, Vue, Svelte)
 - `addNodeApp` - For Node.js applications
 - `addJavaScriptApp` - For generic JavaScript applications with npm/yarn/pnpm
   - `withNpm()` / `withYarn()` / `withPnpm()` - Specify package manager
 - `withRunScript` - Specify which npm script to run during development
 
+:::caution[JavaScript deployment note]
+This example shows how to run existing JavaScript applications with Aspire
+during development. It does not, by itself, define who serves a Vite or
+JavaScript frontend in production.
+
+If you plan to publish or deploy these frontend resources, read [Deploy
+JavaScript apps](/deployment/javascript-apps/) to choose the correct production
+hosting model.
+:::
+
 :::note[Passing arguments to scripts]
-Unlike the deprecated `AddNpmApp` API in Aspire 9, the new JavaScript hosting methods (`addJavaScriptApp`, `addViteApp`, `addNodeApp`) do not support an `args` constructor parameter. You have two options to pass arguments to your scripts:
+Pass arguments to your scripts in one of two ways:
 
 **Option 1: Use `withArgs` to pass arguments directly**
 
 ```typescript title="apphost.ts — Pass arguments using withArgs"
-await builder
-    .addViteApp("frontend", "./frontend")
-    .withArgs(["--no-open"]);
+await builder.addViteApp('frontend', './frontend').withArgs(['--no-open']);
 ```
 
 **Option 2: Define custom scripts in `package.json` with arguments**
@@ -263,45 +256,37 @@ await builder
 ```
 
 ```typescript title="apphost.ts — Reference custom script"
-await builder
-    .addViteApp("frontend", "./frontend")
-    .withRunScript("dev:no-open");
+await builder.addViteApp('frontend', './frontend').withRunScript('dev:no-open');
 ```
 
 Option 2 keeps all script configuration in `package.json`, making your scripts more discoverable and easier to run outside of Aspire (e.g., `npm run dev:no-open`).
 :::
 
-
 <Aside type="tip">
-You can mix and match JavaScript application types. Combine Node.js APIs, Vite frontends, workers, and supporting containers in the same TypeScript AppHost to model your full development environment in one place.
+  You can mix and match JavaScript application types. Combine Node.js APIs, Vite
+  frontends, workers, and supporting containers in the same TypeScript AppHost
+  to model your full development environment in one place.
 </Aside>
 
 ### Connect services
 
 The `withReference` calls establish service dependencies and enable service discovery:
 
-
-
 ```typescript title="apphost.ts — Connect JavaScript services" ".withReference"
 // Omitted for brevity...
 
 const api = await builder
-    .addNodeApp("api", "../node-api", "server.js")
-    .withNpm();
+  .addNodeApp('api', '../node-api', 'server.js')
+  .withNpm();
 
-await builder
-    .addViteApp("frontend", "../react-frontend")
-    .withReference(api);  // Frontend gets API_HTTP and API_HTTPS env vars
+await builder.addViteApp('frontend', '../react-frontend').withReference(api); // Frontend gets API_HTTP and API_HTTPS env vars
 
 // Omitted for brevity...
 ```
 
-
 When you call `withReference`, you're declaring a dependency between resources. Aspire handles the rest—automatically injecting configuration at runtime and during deployment so your services can communicate seamlessly, whether running locally or in production.
 
 ## Add telemetry configuration (optional)
-
-
 
 TypeScript Node.js applications can also send telemetry using OpenTelemetry. The example below uses TypeScript and ESM imports so it fits naturally into a TypeScript codebase. If your app uses plain JavaScript, keep the same structure but use `.js` files and your existing module syntax.
 
@@ -327,19 +312,20 @@ TypeScript Node.js applications can also send telemetry using OpenTelemetry. The
    import { resourceFromAttributes } from '@opentelemetry/resources';
    import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
-   const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4317';
+   const otlpEndpoint =
+     process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4317';
 
    const resource = resourceFromAttributes({
-       [ATTR_SERVICE_NAME]: 'api',
+     [ATTR_SERVICE_NAME]: 'api',
    });
 
    const sdk = new NodeSDK({
-       resource,
-       traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
-       metricReader: new PeriodicExportingMetricReader({
-           exporter: new OTLPMetricExporter({ url: otlpEndpoint }),
-       }),
-       instrumentations: [getNodeAutoInstrumentations()],
+     resource,
+     traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
+     metricReader: new PeriodicExportingMetricReader({
+       exporter: new OTLPMetricExporter({ url: otlpEndpoint }),
+     }),
+     instrumentations: [getNodeAutoInstrumentations()],
    });
 
    sdk.start();
@@ -359,7 +345,6 @@ TypeScript Node.js applications can also send telemetry using OpenTelemetry. The
 
 </Steps>
 
-
 ## Add integrations (optional)
 
 Aspire provides integration libraries that simplify working with common services like Redis, PostgreSQL, RabbitMQ, and more. These integrations handle configuration, health checks, and telemetry automatically.
@@ -369,7 +354,6 @@ When you add a hosting integration (like Redis) to your AppHost and reference it
 <Steps>
 
 1. Identify which services in your application could benefit from Aspire integrations. Common candidates include:
-   
    - Databases (PostgreSQL, SQL Server, MongoDB)
    - Caching (Redis, Valkey)
    - Messaging (RabbitMQ, Azure Service Bus, Kafka)
@@ -385,57 +369,49 @@ When you add a hosting integration (like Redis) to your AppHost and reference it
 
 3. Update your AppHost to reference the integration and share it across all your services:
 
-   
-      ```typescript title="apphost.ts — Add Redis integration for multiple services"
+   ```typescript title="apphost.ts — Add Redis integration for multiple services"
    import { createBuilder } from './.modules/aspire.js';
 
    const builder = await createBuilder();
 
-   const cache = await builder.addRedis("cache");
+   const cache = await builder.addRedis('cache');
 
    await builder
-       .addNodeApp("api", "../node-api", "server.js")
-       .withNpm()
-       .withReference(cache);
+     .addNodeApp('api', '../node-api', 'server.js')
+     .withNpm()
+     .withReference(cache);
 
    await builder
-       .addNodeApp("worker", "../node-worker", "worker.js")
-       .withNpm()
-       .withReference(cache);
+     .addNodeApp('worker', '../node-worker', 'worker.js')
+     .withNpm()
+     .withReference(cache);
 
    await builder.build().run();
    ```
 
-   
-
-
 4. Configure the integration in each language:
 
-   
-   
-      ```bash title="Add Redis client to Node.js project"
-   npm install redis
-   ```
+    ```bash title="Add Redis client to Node.js project"
+    npm install redis
+    ```
 
-   ```javascript title="JavaScript — Configure Redis client"
-   const redis = require('redis');
+    ```javascript title="JavaScript — Configure Redis client"
+    const redis = require('redis');
 
-   // Aspire injects CACHE_HOST and CACHE_PORT
-   const client = redis.createClient({
-     socket: {
-       host: process.env.CACHE_HOST,
-       port: process.env.CACHE_PORT
-     }
-   });
-   ```
-
-   
-
+    // Aspire injects CACHE_HOST and CACHE_PORT
+    const client = redis.createClient({
+      socket: {
+        host: process.env.CACHE_HOST,
+        port: process.env.CACHE_PORT,
+      },
+    });
+    ```
 
 </Steps>
 
 <LearnMore>
-    Browse available integrations in the [Integrations section](/integrations/gallery/).
+  Browse available integrations in the [Integrations
+  section](/integrations/gallery/).
 </LearnMore>
 
 ## Run and verify
@@ -471,14 +447,12 @@ Now that you've added Aspire to your application, it's time to run it and see th
    The CLI output also shows which AppHost Aspire found, such as `apphost.ts`.
 
 3. Open the dashboard in your browser using the provided URL. You'll see:
-   
    - All your orchestrated resources and their status
    - Real-time logs from each service
    - Traces and metrics for observability
    - Environment variables and configuration
 
 4. Verify that your services are running correctly by:
-   
    - Checking the **Resources** page for service health
    - Accessing your application endpoints
    - Reviewing logs and traces in the dashboard
@@ -488,7 +462,9 @@ Now that you've added Aspire to your application, it's time to run it and see th
 </Steps>
 
 <Aside type="tip">
-The [Aspire dashboard](/dashboard/explore/) provides valuable insights even if you haven't added integrations or telemetry yet. You'll see basic information about your services, their startup order, and their endpoints.
+  The [Aspire dashboard](/dashboard/explore/) provides valuable insights even if
+  you haven't added integrations or telemetry yet. You'll see basic information
+  about your services, their startup order, and their endpoints.
 </Aside>
 
 ### Compare with Docker Compose
@@ -533,19 +509,18 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const db = (await builder.addPostgres("postgres"))
-    .addDatabase("mydb");
+const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
 
 const api = await builder
-    .addNodeApp("api", "./api", "server.js")
-    .withNpm()
-    .withReference(db);
+  .addNodeApp('api', './api', 'server.js')
+  .withNpm()
+  .withReference(db);
 
 await builder
-    .addViteApp("web", "./web")
-    .withExternalHttpEndpoints()
-    .withReference(api)
-    .waitFor(api);
+  .addViteApp('web', './web')
+  .withExternalHttpEndpoints()
+  .withReference(api)
+  .waitFor(api);
 
 await builder.build().run();
 ```
@@ -564,7 +539,8 @@ The orchestration pattern stays the same: model the shared dependencies once, th
 - **Integration libraries** — Pre-built support for databases, caches, message queues with best practices.
 
 <Aside type="note">
-Aspire can also target Docker Compose during deployment. See [Deploy your first Aspire app](/get-started/deploy-first-app-typescript/) for more details.
+  Aspire can also target Docker Compose during deployment. See [Deploy your
+  first Aspire app](/get-started/deploy-first-app-typescript/) for more details.
 </Aside>
 
 ## Next steps
@@ -573,10 +549,7 @@ Congratulations! You've successfully added Aspire to your existing application. 
 
 - **Add more integrations** — Explore [Aspire integrations](/integrations/gallery/) to simplify working with databases, caches, and message queues
 - **Configure observability** — Enhance your application's telemetry:
-  
-  
-    - See [Standalone dashboard for Node.js](/dashboard/standalone-for-nodejs/)
-  
+  - See [Standalone dashboard for Node.js](/dashboard/standalone-for-nodejs/)
 
 - **Deploy your app** — Follow the [Deploy your first app](/get-started/deploy-first-app-typescript/) tutorial to deploy your Aspire application
 - **Use the VS Code extension** — Run, debug, and manage integrations from within VS Code with the [Aspire extension](/get-started/aspire-vscode-extension/)

@@ -134,10 +134,10 @@ This example shows how you could explicitly map services to different compute en
 
 | Integration | Target | Publish | Deploy | Notes |
 |---------------------|--------|---------|--------|-------|
-| [📦 Aspire.Hosting.Docker](/integrations/compute/docker/) | Docker / Docker Compose | ✅ Yes | 🧪 Preview | Use generated Compose with your own scripts or tooling. |
-| [📦 Aspire.Hosting.Kubernetes](/integrations/compute/kubernetes/) | Kubernetes | ✅ Yes | 🧪 Preview | Apply with `kubectl`, GitOps, or other controllers. |
-| [📦 Aspire.Hosting.Azure.AppContainers](/integrations/cloud/azure/configure-container-apps/) | Azure Container Apps | ✅ Yes | ✅ Yes (Preview) | Deploy capability is in Preview and may change. |
-| [📦 Aspire.Hosting.Azure.AppService](/integrations/cloud/azure/azure-app-service/azure-app-service-get-started/) | Azure App Service | ✅ Yes | ✅ Yes (Preview) | Deploy capability is in Preview and may change. |
+| [📦 Aspire.Hosting.Docker](/integrations/compute/docker/) | Docker / Docker Compose | ✅ Yes | ✅ Yes | Use generated Compose with your own scripts or tooling. |
+| [📦 Aspire.Hosting.Kubernetes](/integrations/compute/kubernetes/) | Kubernetes | ✅ Yes | ❌ No | Apply with `kubectl`, GitOps, or other controllers. |
+| [📦 Aspire.Hosting.Azure.AppContainers](/integrations/cloud/azure/configure-container-apps/) | Azure Container Apps | ✅ Yes | ✅ Yes | Full publish and deploy support via `aspire deploy`. |
+| [📦 Aspire.Hosting.Azure.AppService](/integrations/cloud/azure/azure-app-service/azure-app-service-get-started/) | Azure App Service | ✅ Yes | ✅ Yes | Full publish and deploy support via `aspire deploy`. |
 
 <Aside type="tip">
 Deploy support is integration-specific. Absence of deploy support means you use the published artifacts with external tooling.
@@ -196,22 +196,8 @@ Publishing gives you an immutable snapshot of intended structure before secrets 
 
 ### Azure Developer CLI (`azd`)
 
-[Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/) has first-class support for deploying Aspire projects. It can provision infrastructure, manage environments, and coordinate secret/value injection. You can incorporate Aspire publish artifacts into `azd` workflows or use the Azure integration (preview) directly.
-
-## Deployment manifest
-
-Starting with Aspire 9.2, the [manifest format](/deployment/manifest-format/) is slowly being phased out in favor of Aspire CLI publish and deploy command support and APIs for defining publishing and deploying functionality. Earlier workflows emphasized a single "deployment manifest" generated from specialized AppHost targets. The modern approach centers on `aspire publish` + integration extensibility. The legacy manifest format is **not being evolved further**, but you can still generate it for inspection or debugging:
-
-```bash title="Generate legacy manifest"
-aspire publish --publisher manifest -o diagnostics/
-```
-
-This:
-
-- Produces a manifest snapshot useful for understanding resource graphs or troubleshooting.
-- Should not be treated as the primary deployment contract.
-- Is provided solely for backward compatibility and debugging visibility.
+[Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/) supports deploying Aspire projects. It can provision infrastructure, manage environments, and coordinate secret/value injection. For new deployments, consider using [`aspire deploy`](/deployment/azure/aca-deployment-aspire-cli/) directly, which provides a streamlined experience. You can still incorporate Aspire publish artifacts into `azd` workflows when needed.
 
 ## Key takeaways
 
-Publishing comes first, followed by deployment, which separates the structure from the values. The artifacts produced during publishing are parameterized, with resolution occurring later in the process. Specific integrations determine the actual behaviors of publishing and deployment, and the system is designed to be extensible, allowing you to build custom integrations that target new platforms or internal tooling. While the legacy manifest can still be generated, it remains static and is no longer evolving.
+Publishing comes first, followed by deployment, which separates the structure from the values. The artifacts produced during publishing are parameterized, with resolution occurring later in the process. Specific integrations determine the actual behaviors of publishing and deployment, and the system is designed to be extensible, allowing you to build custom integrations that target new platforms or internal tooling.

@@ -1,0 +1,539 @@
+---
+title: Deploy to Docker Compose
+description: Learn how to publish and deploy your Aspire application using Docker Compose.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Docker Compose is a deployment target for Aspire applications. When you add a Docker Compose environment to your AppHost, Aspire generates Docker Compose files, environment variable configurations, and container images from your app model. You can then deploy these artifacts to any machine running Docker.
+
+<Aside type="note">
+  This page covers the **deployment workflow** for Docker Compose. For hosting
+  integration setup, resource configuration, and local development details, see
+  the [Docker integration](/integrations/compute/docker/) page.
+</Aside>
+
+## Prerequisites
+
+To deploy with Docker Compose, add a Docker Compose environment resource to your AppHost using `AddDockerComposeEnvironment`:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs" {3}
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env");
+
+builder.AddProject<Projects.Api>("api");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts" {5}
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment('env');
+
+await builder.addProject('api', '../Api/Api.csproj', 'http');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When a Docker Compose environment is present, all resources are automatically published as Docker Compose services — no additional opt-in is required.
+
+<LearnMore>
+  For more information on the hosting integration and resource configuration,
+  see [Docker integration](/integrations/compute/docker/).
+</LearnMore>
+
+## Publishing and deployment workflow
+
+Aspire provides a progressive deployment workflow for Docker Compose, allowing you to publish, prepare environments, and deploy in separate steps or all at once.
+
+<Steps>
+
+1. **Publish the application**
+
+   To generate Docker Compose files and artifacts without building container images, use the `aspire publish` command:
+
+   ```bash title="Terminal"
+   aspire publish
+   ```
+
+   This command:
+   - Generates a `docker-compose.yaml` from the AppHost
+   - Generates a `.env` file with expected parameters (unfilled)
+   - Outputs everything to the `aspire-output` directory
+
+2. **Prepare environment configurations**
+
+   To prepare environment-specific configurations and build container images, use the `aspire do prepare-{resource-name}` command, where `{resource-name}` is the name of the Docker Compose environment resource:
+
+   ```bash title="Terminal"
+   # For staging environment
+   aspire do prepare-compose --environment staging
+
+   # For production environment
+   aspire do prepare-compose --environment production
+   ```
+
+   These commands:
+   - Generate a `docker-compose.yaml` from the AppHost
+   - Generate environment-specific `.env` files with filled-in values
+   - Build container images
+   - Output everything to the `aspire-output` directory
+
+3. **Deploy to Docker Compose**
+
+   To perform the complete deployment workflow in one step, use the `aspire deploy` command:
+
+   ```bash title="Terminal"
+   aspire deploy
+   ```
+
+   This command:
+   - Generates a `docker-compose.yaml` from the AppHost
+   - Generates environment-specific `.env` files with filled-in values
+   - Builds container images
+   - Outputs everything to the `aspire-output` directory
+   - Runs `docker compose up -d --remove-orphans` against the generated files
+
+</Steps>
+
+### Clean up deployment
+
+To stop and remove a running Docker Compose deployment, use the `aspire do docker-compose-down-{resource-name}` command:
+
+```bash title="Terminal"
+aspire do docker-compose-down-env
+```
+
+This command stops and removes all containers, networks, and volumes created by the Docker Compose deployment.
+
+## Output artifacts
+
+When you publish or deploy, Aspire generates the following artifacts in the `aspire-output` directory:
+
+| Artifact                    | Description                                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `docker-compose.yaml`       | The generated Compose file defining all services, networks, and volumes.                            |
+| `.env`                      | Environment variable file with expected parameters (unfilled after `aspire publish`).               |
+| `.env.{environment}`        | Environment-specific variable files with filled-in values (generated during `prepare` or `deploy`). |
+| `Dockerfile` (per resource) | Dockerfiles for resources that require generated build contexts.                                    |
+
+## Environment variables
+
+The Docker hosting integration captures environment variables from your app model and includes them in a `.env` file. This ensures that all configuration is properly passed to the containerized services.
+
+### Customize environment file
+
+For advanced scenarios, use `ConfigureEnvFile` to customize the generated `.env` file:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env")
+    .ConfigureEnvFile(env =>
+    {
+        env["CUSTOM_VAR"] = new CapturedEnvironmentVariable
+        {
+            Name = "CUSTOM_VAR",
+            DefaultValue = "my-value"
+        };
+    });
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+:::note
+The `ConfigureEnvFile` API is not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
+
+This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
+
+## Customize Docker Compose services
+
+To customize the generated Docker Compose service for a specific resource, use the `PublishAsDockerComposeService` method. This is optional — all resources are automatically included in the Docker Compose output. Use this method only when you need to modify the generated service definition:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env");
+
+builder.AddContainer("cache", "redis", "latest")
+    .PublishAsDockerComposeService((resource, service) =>
+    {
+        // Customize the generated Docker Compose service
+        service.Labels.Add("com.example.team", "backend");
+    });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment('env');
+
+const cache = await builder.addContainer('cache', 'redis:latest');
+await cache.publishAsDockerComposeService(async (resource, service) => {
+  await service.labels.set('com.example.team', 'backend');
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, or other Docker Compose service settings.
+
+## Image pull policy
+
+Container resources support an `ImagePullPolicy` that controls when the container runtime pulls an image. Use the `WithImagePullPolicy` extension method to set the policy on a container resource:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("mycontainer", "myimage:latest")
+    .WithImagePullPolicy(ImagePullPolicy.Always);
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const container = await builder.addContainer('mycontainer', 'myimage:latest');
+await container.withImagePullPolicy(ImagePullPolicy.Always);
+```
+
+</TabItem>
+</Tabs>
+
+When you publish resources to a Docker Compose environment, the `ImagePullPolicy` is automatically mapped to the Docker Compose [`pull_policy`](https://docs.docker.com/reference/compose-file/services/#pull_policy) field:
+
+| `ImagePullPolicy` | Docker Compose `pull_policy`       |
+| ----------------- | ---------------------------------- |
+| `Always`          | `always`                           |
+| `Missing`         | `missing`                          |
+| `Never`           | `never`                            |
+| `Default`         | _(omitted — uses runtime default)_ |
+
+<Aside type="tip">
+  The `Never` policy is useful when working with locally-built images that
+  shouldn't be pulled from a registry. If the image isn't available locally, the
+  container fails to start.
+</Aside>
+
+## Container image push
+
+When deploying containers, you can customize how container images are named, tagged, and pushed to a registry.
+
+### Set remote image name and tag
+
+Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image reference:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREPIPELINES003
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService(
+        (resource, service) => { service.Name = "api"; })
+    .WithRemoteImageName("myorg/myapi")
+    .WithRemoteImageTag("v1.0.0");
+#pragma warning restore ASPIREPIPELINES003
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
+await api.publishAsDockerComposeService(async (resource, service) => {
+  await service.name.set('api');
+});
+await api.withRemoteImageName('myorg/myapi');
+await api.withRemoteImageTag('v1.0.0');
+```
+
+</TabItem>
+</Tabs>
+
+### Advanced customization with callbacks
+
+For more complex scenarios, use `WithImagePushOptions` to register a callback that dynamically configures push options:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREPIPELINES003
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService(
+        (resource, service) => { service.Name = "api"; })
+    .WithImagePushOptions(context =>
+    {
+        var imageName = context.Resource.Name.ToLowerInvariant();
+        context.Options.RemoteImageName = $"myorg/{imageName}";
+
+        var version =
+            Environment.GetEnvironmentVariable("APP_VERSION")
+            ?? "latest";
+        context.Options.RemoteImageTag = version;
+    });
+#pragma warning restore ASPIREPIPELINES003
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+:::note
+The `WithImagePushOptions` API is not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
+
+Multiple callbacks can be registered on the same resource, and they are invoked in the order they were added.
+
+### Configure a container registry
+
+Use the `AddContainerRegistry` method to define a container registry and `WithContainerRegistry` to associate resources with it:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIRECOMPUTE003
+// Add a container registry
+var registry = builder.AddContainerRegistry(
+    "ghcr",                              // Registry name
+    "ghcr.io",                           // Registry endpoint
+    "your-github-username/your-repo"     // Repository path
+);
+
+// Associate resources with the registry
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService(
+        (resource, service) => { service.Name = "api"; })
+    .WithContainerRegistry(registry);
+
+// After adding all resources, run the app...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistryFromString(
+  'ghcr',
+  'ghcr.io',
+  { repository: 'your-github-username/your-repo' }
+);
+
+const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
+await api.publishAsDockerComposeService(async (resource, service) => {
+  await service.name.set('api');
+});
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  The `AddContainerRegistry` API is experimental and may change in future
+  releases. Use diagnostic code `ASPIRECOMPUTE003` to suppress the experimental
+  warning. For more information, see
+  [ASPIRECOMPUTE003](/diagnostics/aspirecompute003/).
+</Aside>
+
+For more flexible configuration in CI/CD pipelines, use parameters with environment variables:
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C#">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryEndpoint = builder.AddParameterFromConfiguration(
+    "registryEndpoint", "REGISTRY_ENDPOINT");
+var registryRepository = builder.AddParameterFromConfiguration(
+    "registryRepository", "REGISTRY_REPOSITORY");
+
+#pragma warning disable ASPIRECOMPUTE003
+var registry = builder.AddContainerRegistry(
+    "my-registry",
+    registryEndpoint,
+    registryRepository
+);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishAsDockerComposeService(
+        (resource, service) => { service.Name = "api"; })
+    .WithContainerRegistry(registry);
+#pragma warning restore ASPIRECOMPUTE003
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryEndpoint = builder.addParameterFromConfiguration(
+  'registryEndpoint',
+  'REGISTRY_ENDPOINT'
+);
+const registryRepository = builder.addParameterFromConfiguration(
+  'registryRepository',
+  'REGISTRY_REPOSITORY'
+);
+
+const registry = await builder.addContainerRegistry(
+  'my-registry',
+  registryEndpoint,
+  registryRepository
+);
+
+const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
+await api.publishAsDockerComposeService(async (resource, service) => {
+  await service.name.set('api');
+});
+await api.withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
+### Push images with the Aspire CLI
+
+After configuring your container registry, use the `aspire do push` command to build and push your container images:
+
+```bash title="Terminal"
+aspire do push
+```
+
+This command builds container images for all resources configured with a container registry, tags them with the appropriate registry path, and pushes them to the specified registry.
+
+Before running this command, ensure you are authenticated to your container registry. For example, with GitHub Container Registry:
+
+```bash title="Terminal"
+echo $GITHUB_TOKEN | docker login ghcr.io -u your-github-username --password-stdin
+```
+
+## GitHub Actions example
+
+The following GitHub Actions workflow builds and pushes container images to GitHub Container Registry (GHCR):
+
+```yaml title=".github/workflows/build-and-push.yml"
+name: Build and Push Images
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Aspire CLI
+        run: |
+          curl -sSL https://aspire.dev/install.sh | bash
+          echo "$HOME/.aspire/bin" >> $GITHUB_PATH
+
+      - name: Output Aspire CLI version
+        run: aspire --version
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images
+        env:
+          REGISTRY_ENDPOINT: ghcr.io
+          REGISTRY_REPOSITORY: ${{ github.repository }}
+        run: aspire do push
+```
+
+This workflow checks out your code, sets up .NET and installs the Aspire CLI, authenticates to GHCR using the built-in `GITHUB_TOKEN`, and builds and pushes container images using `aspire do push`.
+
+## See also
+
+- [Docker integration](/integrations/compute/docker/)
+- [Pipelines and app topology](/deployment/pipelines/)
+- [Deploy your first Aspire app](/get-started/deploy-first-app/)
+- [`Aspire.Hosting.Docker` C# API reference](https://aspire.dev/reference/api/csharp/aspire.hosting.docker/)
+- [`Aspire.Hosting.Docker` TypeScript API reference](https://aspire.dev/reference/api/typescript/aspire.hosting.docker/)
+- [Working with GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)

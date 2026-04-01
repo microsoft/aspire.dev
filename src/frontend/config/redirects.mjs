@@ -72,4 +72,8 @@ export const redirects = {
   '/reference/cli/commands/aspire-mcp-start/': '/reference/cli/commands/aspire-agent-mcp/',
   '/reference/cli/commands/aspire-exec/': '/reference/cli/commands/aspire-resource/',
   '/get-started/configure-mcp/': '/get-started/ai-coding-agents/',
+  '/get-started/pipelines/': '/deployment/pipelines/',
+  '/ja/get-started/pipelines/': '/ja/deployment/pipelines/',
+  '/deployment/manifest-format/': '/deployment/azure/manifest-format/',
+  '/fundamentals/app-lifecycle/': '/deployment/app-lifecycle/',
 };
