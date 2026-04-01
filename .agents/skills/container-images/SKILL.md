@@ -164,7 +164,7 @@ Each entry in the output array represents **one distinct container image**:
 | `sourceFile` | string | Relative path to the source file in `microsoft/aspire` |
 | `sourceUrl` | string | GitHub permalink to the source file on the `main` branch |
 | `isCompanion` | boolean | `true` if this is a companion/tooling image (e.g. pgAdmin, Kafka UI, phpMyAdmin) |
-| `companionOf` | string? | Name of the primary image this companions, or `null` |
+| `companionOf` | string? | Name of the primary image this accompanies, or `null` |
 | `alternateTags` | string[] | Any additional tag constants defined for this image (e.g. `vnext-preview`, `management`) |
 
 ### Step 5 — Sort and write
@@ -208,7 +208,7 @@ Each container image entry can be cross-referenced with:
 
 - **Always discover files dynamically** — new hosting packages are added frequently.
 - **Parse both `const` and `static` property patterns** — they both exist in the codebase.
-- **Resolve string interpolation** in computed tag values (e.g. `$"{Tag}-management"`).
+- **Resolve string interpolation** in computed tag values (e.g. `$"""{Tag}-management"""`).
 - **Do not include** devcontainer images, test-only images, or images from the `playground/` directory.
 - **Only extract from `src/` directory** files matching `*ContainerImageTags.cs`.
 - **The aspire.dev repo is an Astro site** — the data file lives alongside other JSON data consumed by components.
