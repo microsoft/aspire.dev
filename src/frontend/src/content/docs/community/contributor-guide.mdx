@@ -194,13 +194,15 @@ When contributing to `aspire.dev`, follow these writing guidelines to ensure con
 
 ### AppHost-specific C# and TypeScript content
 
-When you are documenting AppHost-specific content that changes between C# and TypeScript, use `AppHostLangPivot` instead of `Tabs syncKey="apphost-lang"`. The component is controlled by the site-wide AppHost selector in the sidebar, so it keeps AppHost walkthroughs consistent across pages.
+When you are documenting AppHost-specific content that changes between C# and TypeScript, add an in-page `PivotSelector` with the title `Select your Aspire programming language`, the key `aspire-lang`, and `C#` and `TypeScript` options. Pair it with `Pivot` blocks for the language-specific content.
 
 Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
 
-If a feature is only available in the C# AppHost today, show the C# example by itself and add an explanatory note. Do not wrap a single-language example in `AppHostLangPivot`.
+If a feature is only available in the C# AppHost today, show the C# example by itself and add an explanatory note. Do not add a language selector for a single-language example.
 
-For the **On this page** table of contents to pick up a heading reliably, define the heading outside `Pivot`, `Tabs`, and `AppHostLangPivot`. Headings inside those components are often missed or can produce incomplete results in the generated table of contents.
+If the page already has another `PivotSelector`, stop and review the layout before adding a second selector. Those pages need a manual pass so the page does not end up with competing selector UIs.
+
+For the **On this page** table of contents to pick up a heading reliably, define the heading outside `Pivot` and `Tabs`. Headings inside those components are often missed or can produce incomplete results in the generated table of contents.
 
 ## 📝 Write Markdown
 
@@ -697,21 +699,30 @@ Here's an example of using the `LearnMore` component:
 </LearnMore>
 ```
 
-### AppHostLangPivot component
+### Aspire language PivotSelector
 
-Use `AppHostLangPivot` when the surrounding AppHost content should switch between C# and TypeScript as a single unit.
+Use an in-page `PivotSelector` plus `Pivot` blocks when the surrounding AppHost content should switch between C# and TypeScript as a single unit.
 
-Keep shared section headings outside the pivot. For example, write `## Add a Redis resource` before the `AppHostLangPivot`, then place the language-specific prose and code inside the `csharp` and `typescript` slots. This helps the **On this page** navigation stay accurate.
+Keep shared section headings outside the pivots. For example, write `## Add a Redis resource` before the selector and the `Pivot` blocks, then place the language-specific prose and code inside the `csharp` and `typescript` pivots. This helps the **On this page** navigation stay accurate.
 
 ````mdx title="src/content/docs/example.mdx"
 ---
 title: Example MDX Page
 ---
 
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+
+<Pivot id="csharp">
 
   ```csharp title="AppHost.cs"
   var builder = DistributedApplication.CreateBuilder(args);
@@ -724,8 +735,8 @@ import AppHostLangPivot from '@components/AppHostLangPivot.astro';
   builder.Build().Run();
   ```
 
-  </div>
-  <div slot="typescript">
+</Pivot>
+<Pivot id="typescript">
 
   ```typescript title="apphost.ts"
   import { createBuilder } from './.modules/aspire.js';
@@ -740,11 +751,10 @@ import AppHostLangPivot from '@components/AppHostLangPivot.astro';
   await builder.build().run();
   ```
 
-  </div>
-</AppHostLangPivot>
+</Pivot>
 ````
 
-Use this pattern when entire sections differ by AppHost language, not just a single code fence. For example, the slots can contain explanatory prose, steps, asides, and code blocks together.
+Use this pattern when entire sections differ by AppHost language, not just a single code fence. For example, each `Pivot` can contain explanatory prose, steps, asides, and code blocks together.
 
 If the difference is not about AppHost language, keep using regular `Tabs`.
 

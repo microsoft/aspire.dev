@@ -4,7 +4,8 @@ description: Learn how to expose MCP tools from Aspire resources and interact wi
 ---
 
 import { Aside, Code, Steps } from '@astrojs/starlight/components';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 Aspire resources can expose their own MCP (Model Context Protocol) servers, enabling AI coding agents to interact directly with databases, APIs, and other services. For example, a PostgreSQL resource can expose SQL query tools, allowing an agent to run queries without leaving the conversation.
@@ -20,9 +21,16 @@ When a resource is annotated with `WithMcpServer()` in the AppHost, Aspire disco
 
 Use the `WithMcpServer()` extension method to declare that a resource hosts an MCP server:
 
-<AppHostLangPivot>
-    <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREMCP001
 
@@ -36,10 +44,8 @@ db.WithPostgresMcp();
 
 builder.Build().Run();
 ```
-
-    </div>
-    <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -54,9 +60,7 @@ await db.withPostgresMcp();
 
 await builder.build().run();
 ```
-
-    </div>
-</AppHostLangPivot>
+</Pivot>
 
 <Aside type="note">
 `WithMcpServer()` and `WithPostgresMcp()` are experimental APIs. Suppress the `ASPIREMCP001` or `ASPIREPOSTGRES001` diagnostic to use them.
@@ -94,9 +98,16 @@ aspire mcp call appdata query --input '{"sql": "SELECT * FROM users LIMIT 5"}'
 
 You can add any container that implements the MCP protocol as an MCP-enabled resource. Use `WithMcpServer()` to tell Aspire where the MCP endpoint lives:
 
-<AppHostLangPivot>
-    <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREMCP001
 
@@ -109,10 +120,8 @@ var myMcpServer = builder.AddContainer("my-mcp", "myregistry/my-mcp-server")
 
 builder.Build().Run();
 ```
-
-    </div>
-    <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -126,9 +135,7 @@ const myMcpServer = await builder
 
 await builder.build().run();
 ```
-
-    </div>
-</AppHostLangPivot>
+</Pivot>
 
 The `WithMcpServer()` method accepts an optional path and endpoint name:
 

@@ -5,7 +5,8 @@ description: Learn how to use the Aspire AppHost eventing features for lifecycle
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 In Aspire, eventing allows you to publish and subscribe to events during various AppHost life cycles. Eventing is more flexible than life cycle events. Both let you run arbitrary code during event callbacks, but eventing offers finer control of event timing, publishing, and provides supports for custom events.
 
@@ -25,9 +26,16 @@ The following events are available in the AppHost and occur in the following ord
 
 To subscribe to built-in AppHost events, use the eventing API on the builder:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+    key="aspire-lang"
+    marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -54,10 +62,8 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -75,9 +81,7 @@ await builder.subscribeAfterResourcesCreated(async (event) => {
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 When the AppHost is run, by the time the Aspire dashboard is displayed, you should see the following log output in the console:
 

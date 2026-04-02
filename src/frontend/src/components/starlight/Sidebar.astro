@@ -1,13 +1,10 @@
 ---
-import { Image } from 'astro:assets';
 import SidebarTopicsSidebar from 'starlight-sidebar-topics/overrides/Sidebar.astro';
 import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
 import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
 // @ts-ignore Starlight provides this virtual component at runtime.
 import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
 import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
-import csharpIcon from '@assets/icons/csharp.svg';
-import typescriptIcon from '@assets/icons/typescript.svg';
 
 const routeData = Astro.locals.starlightRoute;
 const topicState = Astro.locals.starlightSidebarTopics;
@@ -18,20 +15,6 @@ const sidebar = routeData?.sidebar ?? [];
 const topics = topicState?.topics ?? [];
 const currentTopic = topics.find((topic) => topic.isCurrent) ?? topics[0];
 const hasTopicSidebar = Boolean(!isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic);
-const appHostOptions = [
-  {
-    id: 'csharp',
-    label: 'C# AppHost',
-    fileName: 'AppHost.cs',
-    icon: csharpIcon,
-  },
-  {
-    id: 'typescript',
-    label: 'TypeScript AppHost',
-    fileName: 'apphost.ts',
-    icon: typescriptIcon,
-  },
-] as const;
 
 // Build a locale-aware back link so it works on localized pages (e.g. /ja/reference/overview/)
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -100,67 +83,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     <>
       <div class="topic-sidebar-sticky not-content">
         <div class="topic-sidebar-toolbar">
-          <div class="sidebar-dropdown-shell apphost-lang-dropdown" data-sidebar-dropdown data-tour-target="apphost-selector" data-tour-step="apphost-selector">
-            <button
-              type="button"
-              class="sidebar-dropdown-trigger sidebar-dropdown-trigger-apphost"
-              id="apphost-lang-trigger"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              data-dropdown-trigger
-            >
-              {
-                appHostOptions.map((option) => (
-                  <span class="apphost-lang-trigger-current" data-apphost-lang-current={option.id}>
-                    <Image
-                      src={option.icon}
-                      alt=""
-                      width={20}
-                      height={20}
-                      class:list={['apphost-lang-icon', { 'apphost-lang-icon-csharp': option.id === 'csharp' }]}
-                    />
-                    <span class="sidebar-dropdown-trigger-copy">
-                      <span class="sidebar-dropdown-trigger-label">{option.label}</span>
-                    </span>
-                  </span>
-                ))
-              }
-              <svg class="sidebar-dropdown-caret" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5L10 12.5L15 7.5" /></svg>
-            </button>
-            <div
-              class="sidebar-dropdown-panel sidebar-dropdown-panel-apphost"
-              hidden
-              data-dropdown-panel
-              role="menu"
-              aria-labelledby="apphost-lang-trigger"
-            >
-              {
-                appHostOptions.map((option) => (
-                  <button
-                    type="button"
-                    class="sidebar-dropdown-option sidebar-dropdown-option-apphost"
-                    data-apphost-lang-option={option.id}
-                    role="menuitemradio"
-                    aria-checked="false"
-                  >
-                    <Image
-                      src={option.icon}
-                      alt=""
-                      width={22}
-                      height={22}
-                      class:list={['apphost-lang-icon', { 'apphost-lang-icon-csharp': option.id === 'csharp' }]}
-                    />
-                    <span class="sidebar-dropdown-option-copy">
-                      <span class="sidebar-dropdown-option-label">{option.label}</span>
-                      <span class="sidebar-dropdown-option-meta">
-                        <code class="sidebar-dropdown-inline-code">{option.fileName}</code>
-                      </span>
-                    </span>
-                  </button>
-                ))
-              }
-            </div>
-          </div>
           <button
             type="button"
             class="sidebar-collapse-btn"
@@ -344,10 +266,9 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
   }
 
   .topic-sidebar-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
-    gap: 0.75rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
     padding: 0.75rem 0 0.6rem;
   }
 
@@ -512,33 +433,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     line-height: 1.3;
   }
 
-  .apphost-lang-trigger-current {
-    display: none;
-    align-items: center;
-    gap: 0.7rem;
-    min-width: 0;
-    flex: 1;
-  }
-
-  :global(:root:not([data-apphost-lang='typescript'])) .apphost-lang-trigger-current[data-apphost-lang-current='csharp'],
-  :global(:root[data-apphost-lang='typescript']) .apphost-lang-trigger-current[data-apphost-lang-current='typescript'] {
-    display: flex;
-  }
-
-  .apphost-lang-icon {
-    width: 1.125rem;
-    height: 1.125rem;
-    min-width: 1.125rem;
-    min-height: 1.125rem;
-    flex-shrink: 0;
-    object-fit: contain;
-  }
-
-  .apphost-lang-icon-csharp {
-    transform: scale(1.08);
-    transform-origin: center;
-  }
-
   .sidebar-dropdown-trigger-topic {
     margin-top: 0.65rem;
     background: var(--sidebar-dropdown-trigger-bg);
@@ -567,11 +461,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     margin-top: 0rem;
     overflow: hidden;
     background-clip: padding-box;
-  }
-
-  .sidebar-dropdown-panel-apphost {
-    display: grid;
-    gap: 0.3rem;
   }
 
   .starlight-sidebar-topics.starlight-sidebar-topics-menu {
@@ -624,7 +513,7 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
   }
 
   .topic-sidebar-toolbar .sidebar-collapse-btn {
-    margin-left: 0;
+    margin-left: auto;
   }
 
   .api-sidebar-back {
@@ -837,11 +726,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     }
   }
 
-  @media (max-width: 71.999rem) {
-    .topic-sidebar-toolbar {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
 </style>
 
 <script>
@@ -1069,116 +953,7 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     }
   }
 
-  const APPHOST_LANG_STORAGE_KEY = 'aspire-apphost-lang';
-  const APPHOST_TAB_STORAGE_PREFIX = 'starlight-synced-tabs__';
   const TOPIC_SIDEBAR_COLLAPSED_KEY = 'topic-sidebar-collapsed';
-  type AppHostLanguage = 'csharp' | 'typescript';
-  type SyncedTabsElement = Element & {
-    switchTab?: (newTab: HTMLAnchorElement, index: number, shouldSync?: boolean) => void;
-  };
-  const APPHOST_TAB_LABELS = {
-    csharp: ['C#', 'C# AppHost'],
-    typescript: ['TypeScript', 'TypeScript AppHost'],
-  };
-
-  function normalizeAppHostLanguage(value: string | null | undefined): AppHostLanguage | '' {
-    const normalized = (value ?? '').toLowerCase();
-    if (normalized.includes('typescript')) {
-      return 'typescript';
-    }
-    if (normalized.includes('c#') || normalized.includes('csharp')) {
-      return 'csharp';
-    }
-    return '';
-  }
-
-  function getStoredAppHostLanguage() {
-    try {
-      return (
-        normalizeAppHostLanguage(localStorage.getItem(APPHOST_LANG_STORAGE_KEY)) ||
-        normalizeAppHostLanguage(localStorage.getItem(`${APPHOST_TAB_STORAGE_PREFIX}apphost-lang`)) ||
-        normalizeAppHostLanguage(localStorage.getItem(`${APPHOST_TAB_STORAGE_PREFIX}apphost-implementation-lang`)) ||
-        'csharp'
-      );
-    } catch {
-      return 'csharp';
-    }
-  }
-
-  function getCurrentAppHostLanguage(): AppHostLanguage {
-    return normalizeAppHostLanguage(document.documentElement.getAttribute('data-apphost-lang')) || getStoredAppHostLanguage();
-  }
-
-  function persistAppHostLanguage(lang: AppHostLanguage): void {
-    localStorage.setItem(APPHOST_LANG_STORAGE_KEY, lang);
-    localStorage.setItem(
-      `${APPHOST_TAB_STORAGE_PREFIX}apphost-lang`,
-      lang === 'typescript' ? 'TypeScript' : 'C#',
-    );
-    localStorage.setItem(
-      `${APPHOST_TAB_STORAGE_PREFIX}apphost-implementation-lang`,
-      lang === 'typescript' ? 'TypeScript AppHost' : 'C# AppHost',
-    );
-  }
-
-  function syncAppHostTabs(lang: AppHostLanguage): void {
-    const aliases = APPHOST_TAB_LABELS[lang] ?? APPHOST_TAB_LABELS.csharp;
-    const syncedTabGroups = document.querySelectorAll(
-      'starlight-tabs[data-sync-key="apphost-lang"], starlight-tabs[data-sync-key="apphost-implementation-lang"]',
-    ) as NodeListOf<SyncedTabsElement>;
-
-    for (const group of syncedTabGroups) {
-      const tabs = [...group.querySelectorAll<HTMLAnchorElement>('[role="tab"]')];
-      const index = tabs.findIndex((tab) => aliases.includes((tab.textContent ?? '').trim()));
-      if (index === -1) {
-        continue;
-      }
-
-      const targetTab = tabs[index];
-      if (!targetTab) {
-        continue;
-      }
-
-      if (typeof group.switchTab === 'function') {
-        group.switchTab(targetTab, index, false);
-      } else {
-        targetTab.click();
-      }
-    }
-  }
-
-  function updateAppHostLanguageUi(): void {
-    const currentLang = getCurrentAppHostLanguage();
-    const buttons = document.querySelectorAll<HTMLElement>('[data-apphost-lang-option]');
-
-    for (const button of buttons) {
-      const isSelected = button.dataset.apphostLangOption === currentLang;
-      button.setAttribute('aria-checked', isSelected ? 'true' : 'false');
-    }
-  }
-
-  function setAppHostLanguage(lang: string, syncTabs = true): void {
-    const normalized = normalizeAppHostLanguage(lang) || 'csharp';
-    document.documentElement.setAttribute('data-apphost-lang', normalized);
-
-    try {
-      persistAppHostLanguage(normalized);
-    } catch {}
-
-    const selector = document.getElementById('apphost-lang-select');
-    if (selector instanceof HTMLSelectElement && selector.value !== normalized) {
-      selector.value = normalized;
-    }
-
-    if (syncTabs) {
-      syncAppHostTabs(normalized);
-    }
-
-    updateAppHostLanguageUi();
-
-    window.dispatchEvent(new CustomEvent('apphost-lang-change', { detail: { lang: normalized } }));
-  }
-
   function setSidebarDropdownOpen(dropdown: HTMLElement, isOpen: boolean): void {
     const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
     const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
@@ -1226,15 +1001,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
 
       panel.addEventListener('click', (event) => {
         const target = event.target as HTMLElement | null;
-        const appHostButton = target?.closest<HTMLElement>('[data-apphost-lang-option]');
-        if (appHostButton?.dataset.apphostLangOption) {
-          event.preventDefault();
-          setAppHostLanguage(appHostButton.dataset.apphostLangOption);
-          setSidebarDropdownOpen(dropdown, false);
-          trigger.focus();
-          return;
-        }
-
         if (target?.closest('a[href]')) {
           setSidebarDropdownOpen(dropdown, false);
         }
@@ -1247,8 +1013,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
         }
       });
     }
-
-    updateAppHostLanguageUi();
 
     if (!(window as any).__sidebarDropdownHandlers) {
       (window as any).__sidebarDropdownHandlers = true;
@@ -1375,7 +1139,6 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
   }
 
   function initTopicSidebarUi() {
-    updateAppHostLanguageUi();
     initSidebarDropdowns();
     initTopicSidebarCollapse();
   }
