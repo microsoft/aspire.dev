@@ -1,11 +1,136 @@
+---
+const tt = (
+  key: string,
+  fallback: string,
+  values?: Record<string, string | number>
+) => {
+  const translated = Astro.locals.t(key as any, values as any);
+  return translated && translated !== key ? translated : fallback;
+};
+
+const siteTourStrings = {
+  eyebrow: tt('siteTour.eyebrow', 'Site tour'),
+  quickTip: tt('siteTour.quickTip', 'Quick tip'),
+  progress: tt('siteTour.progress', '{{current}} of {{total}}'),
+  unavailable: tt('siteTour.unavailable', 'Site tour is available on larger screens'),
+  labels: {
+    dismiss: tt('siteTour.labels.dismiss', 'Dismiss site tour'),
+    previous: tt('siteTour.labels.previous', 'Previous'),
+    restart: tt('siteTour.labels.restart', 'Start over'),
+    next: tt('siteTour.labels.next', 'Next'),
+    finish: tt('siteTour.labels.finish', 'Finish'),
+    close: tt('siteTour.labels.close', 'Close'),
+  },
+  trigger: {
+    viewNewTip: tt('siteTour.trigger.viewNewTip', 'View {{count}} new tour tip'),
+    viewNewTips: tt('siteTour.trigger.viewNewTips', 'View {{count}} new tour tips'),
+    resume: tt('siteTour.trigger.resume', 'Resume site tour'),
+    start: tt('siteTour.trigger.start', 'Start site tour'),
+  },
+  tooltips: {
+    restart: tt(
+      'siteTour.tooltips.restart',
+      'Start the site tour over from the beginning'
+    ),
+    closeQuickTip: tt('siteTour.tooltips.closeQuickTip', 'Close quick tip'),
+    finish: tt('siteTour.tooltips.finish', 'Finish site tour'),
+    previous: tt('siteTour.tooltips.previous', 'Go to previous step: {{title}}'),
+    next: tt('siteTour.tooltips.next', 'Go to next step: {{title}}'),
+    firstStep: tt('siteTour.tooltips.firstStep', 'You are on the first step'),
+    currentStep: tt('siteTour.tooltips.currentStep', 'Current step: {{title}}'),
+    jumpToStep: tt('siteTour.tooltips.jumpToStep', 'Jump to {{title}}'),
+  },
+  hint: {
+    scrollToTop: tt(
+      'siteTour.hint.scrollToTop',
+      'Click the highlighted button to return to the top and close the tour.'
+    ),
+  },
+  steps: {
+    sidebarToggle: {
+      title: tt('siteTour.steps.sidebarToggle.title', 'Show or hide the sidebar'),
+      body: tt(
+        'siteTour.steps.sidebarToggle.body',
+        'Use this control to collapse the sidebar for more reading space, or bring it back when you need the page and section navigation.'
+      ),
+    },
+    topicsDropdown: {
+      title: tt('siteTour.steps.topicsDropdown.title', 'Jump to another doc area'),
+      body: tt(
+        'siteTour.steps.topicsDropdown.body',
+        'Open this menu to move between top-level doc areas without leaving the docs layout.'
+      ),
+    },
+    search: {
+      title: tt('siteTour.steps.search.title', 'Search the docs'),
+      body: tt(
+        'siteTour.steps.search.body',
+        'Search guides, integrations, and reference pages from anywhere.'
+      ),
+    },
+    installCli: {
+      title: tt('siteTour.steps.installCli.title', 'View CLI install commands'),
+      body: tt(
+        'siteTour.steps.installCli.body',
+        'Open this modal to copy install commands for the Aspire CLI without leaving the page.'
+      ),
+    },
+    cookiePreferences: {
+      title: tt('siteTour.steps.cookiePreferences.title', 'Manage cookie consent'),
+      body: tt(
+        'siteTour.steps.cookiePreferences.body',
+        'Open this dialog to review or change your cookie consent choices.'
+      ),
+    },
+    tourHelp: {
+      title: tt('siteTour.steps.tourHelp.title', 'Reopen the tour'),
+      body: tt(
+        'siteTour.steps.tourHelp.body',
+        'Use this help button to restart the tour or open any new tips later.'
+      ),
+    },
+    pageActions: {
+      title: tt('siteTour.steps.pageActions.title', 'Use page actions'),
+      body: tt(
+        'siteTour.steps.pageActions.body',
+        'Use these actions to copy this page as Markdown, share it, or send it to an AI tool.'
+      ),
+    },
+    pivotSelector: {
+      title: tt('siteTour.steps.pivotSelector.title', 'Switch code examples'),
+      body: tt(
+        'siteTour.steps.pivotSelector.body',
+        'On pages with multiple code paths, use this selector to switch between the available versions. If it becomes sticky while you scroll, the arrow controls can collapse it or bring it back.'
+      ),
+    },
+    editPage: {
+      title: tt('siteTour.steps.editPage.title', 'Edit this page on GitHub'),
+      body: tt(
+        'siteTour.steps.editPage.body',
+        "Open this page's source on GitHub if you want to suggest a correction or contribute an update."
+      ),
+    },
+    footerPreferences: {
+      title: tt('siteTour.steps.footerPreferences.title', 'Change site preferences'),
+      body: tt(
+        'siteTour.steps.footerPreferences.body',
+        'Use these footer controls to change the theme, language, or keyboard shortcut conventions.'
+      ),
+    },
+    scrollToTop: {
+      title: tt('siteTour.steps.scrollToTop.title', 'Back to top'),
+      body: tt(
+        'siteTour.steps.scrollToTop.body',
+        'Use this button to return to the top of the page. If the tour is open, clicking it also closes the tour.'
+      ),
+    },
+  },
+};
+---
+
 <style is:global>
   .aspire-site-tour-layer[hidden] {
     display: none !important;
-  }
-
-  :root[data-tour-inspect='true'] [data-tour-step],
-  :root[data-tour-inspect='true'] [data-tour-step] * {
-    cursor: help !important;
   }
 
   .aspire-site-tour-layer {
@@ -154,9 +279,53 @@
     font-weight: 600;
   }
 
+  .aspire-site-tour-step-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .aspire-site-tour-step-nav[hidden] {
+    display: none;
+  }
+
+  .aspire-site-tour-step-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-gray-4) 80%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-3) 55%, transparent);
+    cursor: pointer;
+    transition:
+      transform 0.14s ease,
+      background-color 0.14s ease,
+      box-shadow 0.14s ease;
+  }
+
+  .aspire-site-tour-step-dot:hover,
+  .aspire-site-tour-step-dot:focus-visible {
+    background: color-mix(in srgb, var(--sl-color-text-accent) 72%, white 12%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--sl-color-text-accent) 55%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent);
+    outline: none;
+    transform: scale(1.08);
+  }
+
+  .aspire-site-tour-step-dot[aria-current='step'] {
+    background: var(--aspire-color-secondary);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--aspire-color-secondary) 72%, white 12%),
+      0 0 0 3px color-mix(in srgb, var(--aspire-color-secondary) 18%, transparent);
+  }
+
   .aspire-site-tour-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
     gap: 0.75rem;
   }
@@ -288,20 +457,41 @@
 
   @media (max-width: 32rem) {
     .aspire-site-tour-actions {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .aspire-site-tour-btn-secondary,
-    .aspire-site-tour-btn-primary {
+    .aspire-site-tour-actions .aspire-site-tour-btn {
       width: 100%;
+    }
+
+    .aspire-site-tour-actions .aspire-site-tour-btn-primary {
+      grid-column: 1 / -1;
     }
   }
 </style>
 
-<script is:inline>
+<script is:inline define:vars={{ siteTourStrings }}>
   (() => {
     if (typeof window === 'undefined') {
       return;
+    }
+
+    const strings = siteTourStrings;
+
+    function interpolate(template, values = {}) {
+      return String(template ?? '').replace(/\{\{(\w+)\}\}/g, (_, key) => {
+        const value = values[key];
+        return value === undefined || value === null ? '' : String(value);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     if (window.__aspireSiteTour) {
@@ -321,25 +511,31 @@
       'page-actions',
       'pivot-selector',
       'edit-page',
+      'footer-preferences',
       'scroll-to-top',
     ];
     const STEP_DEFINITIONS = [
       {
         id: 'sidebar-toggle',
-        title: 'Toggle the sidebar',
-        body: 'Use this control to collapse the sidebar for more reading space, or reopen it when you want the topic navigation back.',
+        title: strings.steps.sidebarToggle.title,
+        body: strings.steps.sidebarToggle.body,
         selectors: ['[data-tour-step="sidebar-toggle"]', '[data-tour-target="sidebar-toggle"]'],
       },
       {
         id: 'topics-dropdown',
-        title: 'Jump between topic areas',
-        body: 'Open this menu when you want a broader topic map for the docs without leaving the current page context.',
-        selectors: ['[data-tour-step="topics-dropdown"]', '[data-tour-target="topics-dropdown"]'],
+        title: strings.steps.topicsDropdown.title,
+        body: strings.steps.topicsDropdown.body,
+        selectors: [
+          '[data-tour-step="topics-dropdown"] [data-dropdown-trigger]',
+          '[data-tour-target="topics-dropdown"] [data-dropdown-trigger]',
+          '[data-tour-step="topics-dropdown"]',
+          '[data-tour-target="topics-dropdown"]',
+        ],
       },
       {
         id: 'search',
-        title: 'Search across the docs',
-        body: 'Use search whenever you want the fastest route to a guide, integration, or reference page.',
+        title: strings.steps.search.title,
+        body: strings.steps.search.body,
         selectors: [
           '[data-tour-target="search"] button',
           '[data-tour-step="search"] button',
@@ -349,14 +545,14 @@
       },
       {
         id: 'install-cli',
-        title: 'Open quick install commands',
-        body: 'This button opens the quick install Aspire CLI modal so you can copy ready-to-run Aspire CLI commands without leaving the page.',
+        title: strings.steps.installCli.title,
+        body: strings.steps.installCli.body,
         selectors: ['[data-tour-step="install-cli"]', '[data-tour-target="install-cli"]'],
       },
       {
         id: 'cookie-preferences',
-        title: 'Review cookie settings',
-        body: 'You can reopen cookie preferences from here any time you want to review or change your consent choices.',
+        title: strings.steps.cookiePreferences.title,
+        body: strings.steps.cookiePreferences.body,
         selectors: [
           '[data-tour-step="cookie-preferences"]',
           '[data-tour-target="cookie-preferences"]',
@@ -364,32 +560,41 @@
       },
       {
         id: 'tour-help',
-        title: 'Reopen this tour any time',
-        body: 'Use this help button whenever you want to restart the tour or come back for a quick refresher later. You can also hold Shift over supported controls and click them for a quick one-step explanation.',
+        title: strings.steps.tourHelp.title,
+        body: strings.steps.tourHelp.body,
         selectors: ['[data-tour-step="tour-help"]', '[data-tour-target="tour-help"]'],
       },
       {
         id: 'page-actions',
-        title: 'Use the page actions',
-        body: 'These actions help you work with the current page, including copying the page as Markdown, sharing it, or opening it with an AI tool.',
+        title: strings.steps.pageActions.title,
+        body: strings.steps.pageActions.body,
         selectors: ['[data-tour-step="page-actions"]', '[data-tour-target="page-actions"]'],
       },
       {
         id: 'pivot-selector',
-        title: 'Switch page-specific examples',
-        body: 'Use this page-level selector to switch between the C# and TypeScript versions of the current walkthrough without leaving the page. When it floats near the top while you scroll, the small arrow controls can collapse it or bring it back.',
+        title: strings.steps.pivotSelector.title,
+        body: strings.steps.pivotSelector.body,
         selectors: ['[data-tour-step="pivot-selector"]', '[data-tour-target="pivot-selector"]'],
       },
       {
         id: 'edit-page',
-        title: 'Edit this page on GitHub',
-        body: 'Use this link to jump straight to the source file on GitHub when you want to suggest a correction or update the docs.',
+        title: strings.steps.editPage.title,
+        body: strings.steps.editPage.body,
         selectors: ['[data-tour-step="edit-page"]', '[data-tour-target="edit-page"]'],
       },
       {
+        id: 'footer-preferences',
+        title: strings.steps.footerPreferences.title,
+        body: strings.steps.footerPreferences.body,
+        selectors: [
+          '[data-tour-step="footer-preferences"]',
+          '[data-tour-target="footer-preferences"]',
+        ],
+      },
+      {
         id: 'scroll-to-top',
-        title: 'Jump back to the top',
-        body: 'When you are done here, use this button to return to the top of the page. Clicking it will also dismiss the tour so you can keep browsing from there.',
+        title: strings.steps.scrollToTop.title,
+        body: strings.steps.scrollToTop.body,
         selectors: [
           '#scroll-to-top-button',
           '[data-tour-step="scroll-to-top"]',
@@ -478,6 +683,7 @@
         this.isOpen = false;
         this.currentIndex = 0;
         this.steps = [];
+        this.activeStepIds = null;
         this.stepFilterMode = 'all';
         this.singleStepId = null;
         this.renderFrame = 0;
@@ -488,6 +694,7 @@
         this.lastFocusedElement = null;
         this.managedFocusTarget = null;
         this.lastRenderedStepId = null;
+        this.suppressedTooltipState = new Map();
       }
 
       init() {
@@ -557,16 +764,26 @@
           <section class="aspire-site-tour-card" role="dialog" aria-modal="true" aria-labelledby="aspire-site-tour-title">
             <div class="aspire-site-tour-card-head">
               <div class="aspire-site-tour-copy">
-                <p class="aspire-site-tour-eyebrow">Site tour</p>
+                <p class="aspire-site-tour-eyebrow">${escapeHtml(strings.eyebrow)}</p>
                 <h2 class="aspire-site-tour-title" id="aspire-site-tour-title"></h2>
               </div>
-              <button type="button" class="aspire-site-tour-close" data-tour-action="dismiss" aria-label="Dismiss site tour">&times;</button>
+              <button type="button" class="aspire-site-tour-close" data-tour-action="dismiss" aria-label="${escapeHtml(strings.labels.dismiss)}">&times;</button>
             </div>
             <p class="aspire-site-tour-body"></p>
             <p class="aspire-site-tour-hint" hidden></p>
             <div class="aspire-site-tour-footer">
               <span class="aspire-site-tour-progress"></span>
+              <div class="aspire-site-tour-step-nav" hidden></div>
               <div class="aspire-site-tour-actions">
+                <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-secondary" data-tour-action="previous">
+                  <span class="aspire-site-tour-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M13 8H3" />
+                      <path d="m7 12l-4-4l4-4" />
+                    </svg>
+                  </span>
+                  <span class="aspire-site-tour-btn-label">${escapeHtml(strings.labels.previous)}</span>
+                </button>
                 <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-secondary" data-tour-action="restart">
                   <span class="aspire-site-tour-btn-icon" aria-hidden="true">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -574,10 +791,10 @@
                       <path d="M2.5 3.2v3.2h3.2" />
                     </svg>
                   </span>
-                  <span class="aspire-site-tour-btn-label">Start over</span>
+                  <span class="aspire-site-tour-btn-label">${escapeHtml(strings.labels.restart)}</span>
                 </button>
                 <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-primary" data-tour-action="next">
-                  <span class="aspire-site-tour-btn-label">Next</span>
+                  <span class="aspire-site-tour-btn-label">${escapeHtml(strings.labels.next)}</span>
                   <span class="aspire-site-tour-btn-icon" aria-hidden="true">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M3 8h10" />
@@ -599,6 +816,8 @@
         this.body = root.querySelector('.aspire-site-tour-body');
         this.hint = root.querySelector('.aspire-site-tour-hint');
         this.progress = root.querySelector('.aspire-site-tour-progress');
+        this.stepNav = root.querySelector('.aspire-site-tour-step-nav');
+        this.previousButton = root.querySelector('[data-tour-action="previous"]');
         this.nextButton = root.querySelector('[data-tour-action="next"]');
         this.restartButton = root.querySelector('[data-tour-action="restart"]');
         this.closeButton = root.querySelector('[data-tour-action="dismiss"]');
@@ -615,7 +834,22 @@
         root
           .querySelector('[data-tour-action="restart"]')
           .addEventListener('click', () => this.restart());
+        this.previousButton.addEventListener('click', () => this.goBack());
         this.nextButton.addEventListener('click', () => this.advance());
+        this.stepNav.addEventListener('click', (event) => {
+          const jumpButton =
+            event.target instanceof Element ? event.target.closest('[data-tour-step-index]') : null;
+          if (!(jumpButton instanceof HTMLButtonElement)) {
+            return;
+          }
+
+          const targetIndex = Number(jumpButton.dataset.tourStepIndex);
+          if (Number.isNaN(targetIndex)) {
+            return;
+          }
+
+          this.jumpTo(targetIndex);
+        });
       }
 
       bindEvents() {
@@ -625,25 +859,13 @@
 
         this.bound = true;
 
-        const setInspectMode = (enabled) => {
-          document.documentElement.toggleAttribute('data-tour-inspect', enabled);
-        };
-
         document.addEventListener(
           'click',
           (event) => {
-            if (event.target instanceof Element && event.shiftKey) {
-              if (!this.isEnabled()) {
-                return;
-              }
-
-              const inspectStep = this.getStepForElement(event.target);
-              if (inspectStep) {
-                event.preventDefault();
-                event.stopPropagation();
-                this.openSingle(inspectStep.id, true);
-                return;
-              }
+            if (event.target instanceof Element && event.target.closest('.aspire-site-tour-backdrop')) {
+              this.close(true);
+              this.syncHelpButtons();
+              return;
             }
 
             if (event.target instanceof Element && this.isClickOnCurrentTarget(event.target)) {
@@ -678,10 +900,6 @@
         );
 
         document.addEventListener('keydown', (event) => {
-          if (event.key === 'Shift') {
-            setInspectMode(true);
-          }
-
           if (!this.isOpen) {
             return;
           }
@@ -694,19 +912,6 @@
 
           if (event.key === 'Tab') {
             this.handleTabKey(event);
-          }
-        });
-
-        document.addEventListener('keyup', (event) => {
-          if (event.key === 'Shift') {
-            setInspectMode(false);
-          }
-        });
-
-        window.addEventListener('blur', () => setInspectMode(false));
-        document.addEventListener('visibilitychange', () => {
-          if (document.hidden) {
-            setInspectMode(false);
           }
         });
 
@@ -762,7 +967,14 @@
       }
 
       refreshActiveSteps(preserveStepId) {
-        const nextSteps = this.buildSteps();
+        let nextSteps = Array.isArray(this.activeStepIds) ? this.buildSteps('all') : this.buildSteps();
+        if (Array.isArray(this.activeStepIds) && this.activeStepIds.length > 0) {
+          const stepOrder = new Map(this.activeStepIds.map((stepId, index) => [stepId, index]));
+          nextSteps = nextSteps
+            .filter((step) => stepOrder.has(step.id))
+            .sort((left, right) => stepOrder.get(left.id) - stepOrder.get(right.id));
+        }
+
         if (nextSteps.length === 0) {
           this.steps = [];
           this.currentIndex = 0;
@@ -801,8 +1013,8 @@
             button.removeAttribute('data-tour-state');
             button.removeAttribute('data-tour-badge');
             button.removeAttribute('data-tour-badge-mode');
-            button.setAttribute('title', 'Site tour is available on larger screens');
-            button.setAttribute('aria-label', 'Site tour is available on larger screens');
+            button.setAttribute('title', strings.unavailable);
+            button.setAttribute('aria-label', strings.unavailable);
           });
 
           return;
@@ -816,10 +1028,13 @@
             ? 'resume'
             : 'start';
         const label = hasNewSteps
-          ? `View ${newSteps.length} new tour ${newSteps.length === 1 ? 'tip' : 'tips'}`
+          ? interpolate(
+              newSteps.length === 1 ? strings.trigger.viewNewTip : strings.trigger.viewNewTips,
+              { count: newSteps.length }
+            )
           : state === 'resume'
-            ? 'Resume site tour'
-            : 'Start site tour';
+            ? strings.trigger.resume
+            : strings.trigger.start;
 
         buttons.forEach((button) => {
           if (!(button instanceof HTMLButtonElement)) {
@@ -865,24 +1080,6 @@
           this.state.seenStepIds.push(stepId);
           this.saveState();
         }
-      }
-
-      getAvailableStepById(stepId) {
-        return this.buildSteps('all').find((step) => step.id === stepId) || null;
-      }
-
-      getStepForElement(element) {
-        const target = element.closest('[data-tour-step], [data-tour-target]');
-        if (!(target instanceof HTMLElement)) {
-          return null;
-        }
-
-        const stepId = target.dataset.tourStep || target.dataset.tourTarget;
-        if (!stepId) {
-          return null;
-        }
-
-        return this.getAvailableStepById(stepId);
       }
 
       isClickOnCurrentTarget(element) {
@@ -941,24 +1138,14 @@
         this.openAt(0, true);
       }
 
-      openSingle(stepId, scrollIntoView) {
-        const step = this.getAvailableStepById(stepId);
-        if (!step) {
-          return;
-        }
-
-        this.singleStepMode = true;
-        this.stepFilterMode = 'single';
-        this.singleStepId = stepId;
-        this.openAt(0, scrollIntoView);
-      }
-
       openAt(index, scrollIntoView) {
         this.steps = this.buildSteps();
         if (this.steps.length === 0) {
           this.clearPendingPaintLock();
           return;
         }
+
+        this.activeStepIds = this.steps.map((step) => step.id);
 
         this.lastFocusedElement =
           document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -991,10 +1178,12 @@
           this.root.hidden = true;
         }
         this.stepFilterMode = 'all';
+        this.activeStepIds = null;
         this.singleStepId = null;
         this.singleStepMode = false;
         this.lastRenderedStepId = null;
         this.restoreFocus();
+        this.restoreSuppressedTooltips();
       }
 
       complete() {
@@ -1066,19 +1255,36 @@
       getHighlightRect(step, target) {
         const rect = target.getBoundingClientRect();
 
-        if (step.id === 'topics-dropdown' && this.isTopicsDropdownOpen()) {
-          const panel = target.querySelector('[data-dropdown-panel]:not([hidden])');
+        if (step.id === 'topics-dropdown') {
+          const dropdown = this.getTopicsDropdown();
+          const trigger =
+            target instanceof HTMLElement && target.matches('[data-dropdown-trigger]')
+              ? target
+              : dropdown?.querySelector('[data-dropdown-trigger]');
+          const triggerRect = trigger instanceof HTMLElement ? trigger.getBoundingClientRect() : rect;
+
+          if (!this.isTopicsDropdownOpen()) {
+            return triggerRect;
+          }
+
+          const panel = dropdown?.querySelector('[data-dropdown-panel]:not([hidden])');
           if (panel instanceof HTMLElement) {
             const panelRect = panel.getBoundingClientRect();
             return {
-              top: Math.min(rect.top, panelRect.top),
-              left: Math.min(rect.left, panelRect.left),
-              right: Math.max(rect.right, panelRect.right),
-              bottom: Math.max(rect.bottom, panelRect.bottom),
-              width: Math.max(rect.right, panelRect.right) - Math.min(rect.left, panelRect.left),
-              height: Math.max(rect.bottom, panelRect.bottom) - Math.min(rect.top, panelRect.top),
+              top: Math.min(triggerRect.top, panelRect.top),
+              left: Math.min(triggerRect.left, panelRect.left),
+              right: Math.max(triggerRect.right, panelRect.right),
+              bottom: Math.max(triggerRect.bottom, panelRect.bottom),
+              width:
+                Math.max(triggerRect.right, panelRect.right) -
+                Math.min(triggerRect.left, panelRect.left),
+              height:
+                Math.max(triggerRect.bottom, panelRect.bottom) -
+                Math.min(triggerRect.top, panelRect.top),
             };
           }
+
+          return triggerRect;
         }
 
         return rect;
@@ -1119,12 +1325,69 @@
           return;
         }
 
-        this.currentIndex += 1;
+        this.markCurrentStepSeen();
+        this.goToIndex(this.currentIndex + 1, true);
+      }
+
+      goBack() {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
+        if (this.singleStepMode || this.currentIndex <= 0) {
+          return;
+        }
+
+        this.markCurrentStepSeen();
+        this.goToIndex(this.currentIndex - 1, true);
+      }
+
+      jumpTo(index) {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
+        if (this.singleStepMode || this.steps.length === 0) {
+          return;
+        }
+
+        const targetIndex = clamp(index, 0, this.steps.length - 1);
+        if (targetIndex === this.currentIndex) {
+          this.render(false);
+          return;
+        }
+
+        this.markCurrentStepSeen();
+        this.goToIndex(targetIndex, true);
+      }
+
+      markCurrentStepSeen() {
+        if (this.singleStepMode) {
+          return;
+        }
+
+        const currentStep = this.getCurrentStep();
+        if (currentStep) {
+          this.markStepSeen(currentStep.id);
+        }
+      }
+
+      goToIndex(index, scrollIntoView) {
+        if (this.steps.length === 0) {
+          return;
+        }
+
+        this.currentIndex = clamp(index, 0, this.steps.length - 1);
         if (!this.singleStepMode) {
           this.state.currentStepId = this.getCurrentStep().id;
           this.saveState();
         }
-        this.render(true);
+
+        this.render(scrollIntoView);
       }
 
       scheduleRender() {
@@ -1181,22 +1444,66 @@
         this.title.textContent = step.title;
         this.body.textContent = step.body;
         this.progress.textContent = this.singleStepMode
-          ? 'Quick tip'
-          : `${this.currentIndex + 1} of ${this.steps.length}`;
+          ? strings.quickTip
+          : interpolate(strings.progress, {
+              current: this.currentIndex + 1,
+              total: this.steps.length,
+            });
+        this.renderStepNav();
+        this.previousButton.hidden = this.singleStepMode;
+        this.previousButton.disabled = this.singleStepMode || this.currentIndex === 0;
+        this.previousButton.setAttribute(
+          'title',
+          this.currentIndex > 0
+            ? interpolate(strings.tooltips.previous, {
+                title: this.steps[this.currentIndex - 1].title,
+              })
+            : strings.tooltips.firstStep
+        );
+        this.previousButton.setAttribute(
+          'aria-label',
+          this.currentIndex > 0
+            ? interpolate(strings.tooltips.previous, {
+                title: this.steps[this.currentIndex - 1].title,
+              })
+            : strings.tooltips.firstStep
+        );
         this.nextButton.innerHTML = this.getNextButtonMarkup(
           this.singleStepMode
-            ? 'Close'
+            ? strings.labels.close
             : this.currentIndex === this.steps.length - 1
-              ? 'Finish'
-              : 'Next'
+              ? strings.labels.finish
+              : strings.labels.next
+        );
+        this.nextButton.setAttribute(
+          'title',
+          this.singleStepMode
+            ? strings.tooltips.closeQuickTip
+            : this.currentIndex === this.steps.length - 1
+              ? strings.tooltips.finish
+              : interpolate(strings.tooltips.next, {
+                  title: this.steps[this.currentIndex + 1].title,
+                })
+        );
+        this.nextButton.setAttribute(
+          'aria-label',
+          this.singleStepMode
+            ? strings.tooltips.closeQuickTip
+            : this.currentIndex === this.steps.length - 1
+              ? strings.tooltips.finish
+              : interpolate(strings.tooltips.next, {
+                  title: this.steps[this.currentIndex + 1].title,
+                })
         );
         this.nextButton.disabled = false;
         this.restartButton.hidden = this.singleStepMode;
+        this.restartButton.setAttribute('title', strings.tooltips.restart);
+        this.restartButton.setAttribute('aria-label', strings.tooltips.restart);
         this.syncHelpButtons();
 
         if (step.id === 'scroll-to-top') {
           this.hint.hidden = false;
-          this.hint.textContent = 'Click the highlighted button to return to the top and close the tour.';
+          this.hint.textContent = strings.hint.scrollToTop;
         } else {
           this.hint.hidden = true;
           this.hint.textContent = '';
@@ -1212,6 +1519,8 @@
         };
         hole.right = clamp(hole.left + hole.width, 0, window.innerWidth);
         hole.bottom = clamp(hole.top + hole.height, 0, window.innerHeight);
+
+        this.updateSuppressedTooltips(target);
 
         const shouldMoveFocus =
           step.id !== this.lastRenderedStepId || !this.isFocusWithinCurrentStep(target);
@@ -1233,6 +1542,84 @@
         if (focusTarget instanceof HTMLElement) {
           focusTarget.focus({ preventScroll: true });
         }
+      }
+
+      updateSuppressedTooltips(target) {
+        this.restoreSuppressedTooltips();
+
+        for (const element of this.getTargetFocusables(target)) {
+          this.suppressTooltip(element);
+        }
+      }
+
+      suppressTooltip(element) {
+        if (!(element instanceof HTMLElement) || this.suppressedTooltipState.has(element)) {
+          return;
+        }
+
+        const tippy = element._tippy;
+        this.suppressedTooltipState.set(element, {
+          hadTitle: element.hasAttribute('title'),
+          title: element.getAttribute('title'),
+          tippy,
+          tippyWasEnabled: Boolean(tippy && tippy.state?.isEnabled !== false),
+        });
+
+        if (element.hasAttribute('title')) {
+          element.removeAttribute('title');
+        }
+
+        if (tippy) {
+          tippy.hide();
+          if (tippy.state?.isEnabled !== false) {
+            tippy.disable();
+          }
+        }
+      }
+
+      restoreSuppressedTooltip(element) {
+        const suppressedState = this.suppressedTooltipState.get(element);
+        if (!suppressedState) {
+          return;
+        }
+
+        if (suppressedState.hadTitle && suppressedState.title !== null) {
+          element.setAttribute('title', suppressedState.title);
+        } else {
+          element.removeAttribute('title');
+        }
+
+        if (suppressedState.tippy && suppressedState.tippyWasEnabled) {
+          suppressedState.tippy.enable();
+        }
+
+        this.suppressedTooltipState.delete(element);
+      }
+
+      restoreSuppressedTooltips() {
+        for (const element of [...this.suppressedTooltipState.keys()]) {
+          this.restoreSuppressedTooltip(element);
+        }
+      }
+
+      renderStepNav() {
+        const showStepNav = !this.singleStepMode && this.steps.length > 1;
+        this.stepNav.hidden = !showStepNav;
+
+        if (!showStepNav) {
+          this.stepNav.innerHTML = '';
+          return;
+        }
+
+        this.stepNav.innerHTML = this.steps
+          .map((step, index) => {
+            const isCurrent = index === this.currentIndex;
+            const title = isCurrent
+              ? interpolate(strings.tooltips.currentStep, { title: step.title })
+              : interpolate(strings.tooltips.jumpToStep, { title: step.title });
+            return `<button type="button" class="aspire-site-tour-step-dot" data-tour-step-index="${index}" title="${this.escapeAttribute(title)}" aria-label="${this.escapeAttribute(title)}"${isCurrent ? ' aria-current="step"' : ''}></button>`;
+          })
+          .join('');
       }
 
       getTargetFocusables(target) {
@@ -1286,9 +1673,17 @@
       }
 
       getCardFocusables() {
-        return [this.closeButton, this.restartButton, this.nextButton].filter(
-          (element) => element instanceof HTMLElement && !element.hidden && !element.disabled
-        );
+        const stepButtons = this.stepNav
+          ? Array.from(this.stepNav.querySelectorAll('[data-tour-step-index]'))
+          : [];
+
+        return [
+          this.closeButton,
+          ...stepButtons,
+          this.previousButton,
+          this.restartButton,
+          this.nextButton,
+        ].filter((element) => element instanceof HTMLElement && !element.hidden && !element.disabled);
       }
 
       getFocusSequence() {
@@ -1391,7 +1786,16 @@
           return;
         }
 
+        const shouldRestoreTooltip = !this.suppressedTooltipState.has(candidate);
+        if (shouldRestoreTooltip) {
+          this.suppressTooltip(candidate);
+        }
+
         candidate.focus({ preventScroll: true });
+
+        if (shouldRestoreTooltip) {
+          this.restoreSuppressedTooltip(candidate);
+        }
       }
 
       positionBackdrop(hole) {
@@ -1486,7 +1890,11 @@
       }
 
       getNextButtonMarkup(label) {
-        return `<span class="aspire-site-tour-btn-label">${label}</span><span class="aspire-site-tour-btn-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10" /><path d="m9 4l4 4l-4 4" /></svg></span>`;
+        return `<span class="aspire-site-tour-btn-label">${escapeHtml(label)}</span><span class="aspire-site-tour-btn-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10" /><path d="m9 4l4 4l-4 4" /></svg></span>`;
+      }
+
+      escapeAttribute(value) {
+        return escapeHtml(value);
       }
     }
 
