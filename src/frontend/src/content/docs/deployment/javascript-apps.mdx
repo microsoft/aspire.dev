@@ -5,8 +5,6 @@ description: Learn the main production deployment models for Vite and JavaScript
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
 
 For Vite and other JavaScript frontends, there are three common production deployment models:
 
@@ -81,16 +79,8 @@ flowchart LR
     App --> Frontend["Vite build output"]
 ```
 
-<PivotSelector
-  title="Select your Aspire programming language"
-  key="aspire-lang"
-  marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -108,8 +98,8 @@ app.PublishWithContainerFiles(frontend, "./static");
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -129,7 +119,8 @@ await app.publishWithContainerFiles(frontend, './static');
 
 await builder.build().run();
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 ### How it works
 
@@ -171,16 +162,8 @@ flowchart LR
     YARP --> Frontend["Frontend routes"]
 ```
 
-<PivotSelector
-  title="Select your Aspire programming language"
-  key="aspire-lang"
-  marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -202,8 +185,8 @@ builder
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -228,7 +211,8 @@ await builder
 
 await builder.build().run();
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 <Aside type="note">
   `AddViteApp` is still fine in this model but it's important to
@@ -241,16 +225,8 @@ await builder.build().run();
 If your gateway or BFF needs to know about the frontend dev server during local
 development, gate that wiring to run mode only:
 
-<PivotSelector
-  title="Select your Aspire programming language"
-  key="aspire-lang"
-  marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var frontend = builder
     .AddViteApp("frontend", "./frontend");
@@ -266,8 +242,8 @@ if (builder.ExecutionContext.IsRunMode)
     gateway.WithEnvironment("FRONTEND_DEV_URL", frontend.GetEndpoint("http"));
 }
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="TypeScript — apphost.ts"
 const frontend = await builder.addViteApp('frontend', './frontend');
 
@@ -282,7 +258,8 @@ if (await builder.executionContext.isRunMode()) {
   await gateway.withEnvironment('FRONTEND_DEV_URL', frontendDevEndpoint);
 }
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 <Aside type="caution">
   Dev-only waits, references, and environment variables that point at the
@@ -337,16 +314,8 @@ This is a natural model for many SPA teams, especially when they already think
 in terms of "static site + API". It can work, but it is not the primary Aspire
 deployment story for `AddViteApp` and `AddJavaScriptApp`.
 
-<PivotSelector
-  title="Select your Aspire programming language"
-  key="aspire-lang"
-  marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -362,8 +331,8 @@ builder
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -381,20 +350,13 @@ await builder
 
 await builder.build().run();
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 The following example looks reasonable, but it is a trap in publish/deploy:
 
-<PivotSelector
-  title="Select your Aspire programming language"
-  key="aspire-lang"
-  marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -410,8 +372,8 @@ builder
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -428,7 +390,8 @@ await builder
 
 await builder.build().run();
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 ### Pits of failure
 

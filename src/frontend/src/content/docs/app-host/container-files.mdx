@@ -4,8 +4,6 @@ description: Learn how to inject files and directories into containers at develo
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
 
 Aspire provides APIs to inject files and directories into containers, enabling you to configure containerized resources with custom configuration files, scripts, certificates, and other assets. There are two complementary APIs:
 
@@ -24,16 +22,8 @@ The `WithContainerFiles` extension method creates or updates files and directori
 
 Use the inline entries overload to declaratively define files and directories using `ContainerFileSystemItem` objects. This is useful when file contents are known at build time or can be expressed as string literals.
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -70,12 +60,13 @@ builder.AddContainer("myapp", "myapp:latest")
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 In the preceding example:
 
@@ -86,16 +77,8 @@ In the preceding example:
 
 Use the source path overload to copy files from a directory on the host machine into the container. This is useful when you have existing configuration files or assets on disk.
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -104,12 +87,13 @@ builder.AddContainer("myapp", "myapp:latest")
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 Unless the source path is a rooted (absolute) path, it's interpreted as relative to the AppHost project directory. All files in the source directory are copied to the destination path in the container at startup.
 
@@ -117,16 +101,8 @@ Unless the source path is a rooted (absolute) path, it's interpreted as relative
 
 Use the callback overload to generate files dynamically when the container starts. The callback receives a `ContainerFileSystemCallbackContext` that provides access to the `IServiceProvider` and the resource's `IResource` model, enabling you to resolve services or inspect the app model.
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -152,12 +128,13 @@ builder.AddContainer("worker", "worker:latest")
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 The callback is invoked each time the container starts, so the generated files always reflect the current state.
 
@@ -242,16 +219,8 @@ var assetsDir = new ContainerDirectory
 
 `ContainerOpenSSLCertificateFile` represents a PEM-encoded public certificate. In addition to placing the certificate file in the container, Aspire automatically creates an OpenSSL-compatible symlink (`[subject hash].[n]`) in the same directory — equivalent to running `openssl rehash`. This enables containers that use OpenSSL for certificate validation to discover the certificate automatically.
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 builder.AddContainer("myapp", "myapp:latest")
     .WithContainerFiles("/certs", [
@@ -262,12 +231,13 @@ builder.AddContainer("myapp", "myapp:latest")
         }
     ]);
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 ## File permissions and ownership
 
@@ -277,16 +247,8 @@ All `WithContainerFiles` overloads accept optional parameters to control file ow
 
 The `defaultOwner` and `defaultGroup` parameters set the default UID and GID applied to all created files and directories. Both default to `0` (root) when not specified. You can override ownership on individual items using the `Owner` and `Group` properties on any `ContainerFileSystemItem`.
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 builder.AddContainer("myapp", "myapp:latest")
     .WithContainerFiles("/app/data",
@@ -307,12 +269,13 @@ builder.AddContainer("myapp", "myapp:latest")
         defaultOwner: 33,   // www-data
         defaultGroup: 33);
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 In this example, `shared.txt` inherits the default owner/group of `33`, while `user-only.txt` overrides with UID/GID `1000`.
 
@@ -330,16 +293,8 @@ The default umask is `0022`, which results in:
 
 You can set `Mode` directly on individual items to override the umask-based default:
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 builder.AddContainer("myapp", "myapp:latest")
     .WithContainerFiles("/app/scripts",
@@ -357,12 +312,13 @@ builder.AddContainer("myapp", "myapp:latest")
             | UnixFileMode.OtherWrite
             | UnixFileMode.OtherExecute);
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 ### Persistent containers
 
@@ -376,16 +332,8 @@ A key use case is embedding single-page application (SPA) or static JavaScript f
 
 ### Embed a frontend in a backend
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -396,8 +344,8 @@ var api = builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -410,7 +358,8 @@ const api = await builder.addProject("api", "./Api/Api.csproj", "https")
 
 await builder.build().run();
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 In this example:
 
@@ -422,16 +371,8 @@ In this example:
 
 You can also embed frontend assets into a dedicated reverse proxy container:
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -442,8 +383,8 @@ var nginx = builder.AddYarp("gateway")
 
 builder.Build().Run();
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -456,7 +397,8 @@ const nginx = await builder.addYarp("gateway")
 
 await builder.build().run();
 ```
-</Pivot>
+</TabItem>
+</Tabs>
 
 This produces a self-contained Nginx container that serves the frontend application, with no external volume mounts or runtime file copying needed.
 
@@ -466,16 +408,8 @@ This produces a self-contained Nginx container that serves the frontend applicat
 
 By default, the source resource exports files from its container based on its configured output paths. Use `WithContainerFilesSource` to specify which path inside the source container to copy from:
 
-<PivotSelector
-  title="Select your Aspire programming language"
-    key="aspire-lang"
-    marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var frontend = builder.AddViteApp("frontend", "../frontend")
     .WithContainerFilesSource("/app/dist");
@@ -483,12 +417,13 @@ var frontend = builder.AddViteApp("frontend", "../frontend")
 var api = builder.AddProject<Projects.Api>("api")
     .PublishWithContainerFiles(frontend, "./wwwroot");
 ```
-</Pivot>
-<Pivot id="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
 The `withContainerFiles` API is not yet available in the TypeScript AppHost SDK.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 Use `ClearContainerFilesSources` to remove any previously configured source paths before adding new ones.
 

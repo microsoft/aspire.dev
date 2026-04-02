@@ -519,6 +519,8 @@ graph TD
 
 The `:::` syntax creates asides given a type of `note`, `tip`, `caution`, or `danger` in both Markdown and [MDX](#write-mdx):
 
+Use the `:::` syntax as the default pattern in `aspire.dev` docs, including `.mdx` pages. Prefer the `Aside` component only when you specifically need a JSX-only composition pattern that fenced callouts cannot express cleanly.
+
 ````md title="src/content/docs/example.md"
 :::note
 Some content in an aside.
@@ -586,7 +588,7 @@ Renders as:
 See the full demo here: [Starlight: GitHub Alerts](https://starlight-github-alerts.netlify.app/demo/).
 
 <LearnMore>
-For the Starlight component, see the [Aside component](#aside-component) section below.
+If you need a JSX-only fallback, see the [Aside component](#aside-component) section below.
 </LearnMore>
 
 ## ☑️ Write MDX
@@ -631,7 +633,7 @@ For all available components, see: [Starlight: Components](https://starlight.ast
 
 ### Aside component
 
-The `Aside` component from Starlight can be used to create asides in your documentation:
+Prefer `:::` callouts for new docs content. The `Aside` component from Starlight is the fallback option when you need JSX composition inside a callout:
 
 ````mdx title="src/content/docs/example.mdx"
 ---
@@ -699,11 +701,13 @@ Here's an example of using the `LearnMore` component:
 </LearnMore>
 ```
 
-### Aspire language PivotSelector
+### Aspire language selectors
 
 Use an in-page `PivotSelector` plus `Pivot` blocks when the surrounding AppHost content should switch between C# and TypeScript as a single unit.
 
-Keep shared section headings outside the pivots. For example, write `## Add a Redis resource` before the selector and the `Pivot` blocks, then place the language-specific prose and code inside the `csharp` and `typescript` pivots. This helps the **On this page** navigation stay accurate.
+If a page would otherwise need multiple `PivotSelector` controls with `key="aspire-lang"`, do not repeat the selector. Keep the page-level `PivotSelector` for the main flow, and use synced `Tabs` and `TabItem` blocks for repeated language-specific examples instead.
+
+Keep shared section headings outside the pivots or tabs. For example, write `## Add a Redis resource` before the selector and the `Pivot` blocks, then place the language-specific prose and code inside the `csharp` and `typescript` pivots. This helps the **On this page** navigation stay accurate.
 
 ````mdx title="src/content/docs/example.mdx"
 ---
@@ -714,7 +718,7 @@ import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
 
 <PivotSelector
-  title="Select your Aspire programming language"
+  title="Select your programming language"
   key="aspire-lang"
   options={[
     { id: 'csharp', title: 'C#' },
@@ -755,6 +759,31 @@ import Pivot from '@components/Pivot.astro';
 ````
 
 Use this pattern when entire sections differ by AppHost language, not just a single code fence. For example, each `Pivot` can contain explanatory prose, steps, asides, and code blocks together.
+
+For repeated language-specific code examples later on the same page, use synced tabs instead of adding another `PivotSelector`:
+
+````mdx title="src/content/docs/example.mdx"
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddRedis("cache");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+const builder = await createBuilder();
+await builder.addRedis("cache");
+```
+
+</TabItem>
+</Tabs>
+````
 
 If the difference is not about AppHost language, keep using regular `Tabs`.
 
