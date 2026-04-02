@@ -310,80 +310,91 @@
     }
 
     const STORAGE_KEY = 'aspire-site-tour-v1';
+    const MOBILE_TOUR_MEDIA_QUERY = '(max-width: 49.999rem)';
     const MASTER_STEP_ORDER = [
-      'pivot-selector',
       'sidebar-toggle',
       'topics-dropdown',
       'search',
-      'page-actions',
-      'edit-page',
       'install-cli',
       'cookie-preferences',
       'tour-help',
+      'page-actions',
+      'pivot-selector',
+      'edit-page',
+      'scroll-to-top',
     ];
     const STEP_DEFINITIONS = [
       {
-        id: 'pivot-selector',
-        title: 'Switch page-specific examples',
-        body:
-          'Use this page-level selector to switch between the C# and TypeScript versions of the current walkthrough without leaving the page. When it floats near the top while you scroll, the small arrow controls can collapse it or bring it back.',
-        selectors: ['[data-tour-step="pivot-selector"]', '[data-tour-target="pivot-selector"]'],
-      },
-      {
         id: 'sidebar-toggle',
         title: 'Toggle the sidebar',
-        body:
-          'Use this control to collapse the sidebar for more reading space, or reopen it when you want the topic navigation back.',
+        body: 'Use this control to collapse the sidebar for more reading space, or reopen it when you want the topic navigation back.',
         selectors: ['[data-tour-step="sidebar-toggle"]', '[data-tour-target="sidebar-toggle"]'],
       },
       {
         id: 'topics-dropdown',
         title: 'Jump between topic areas',
-        body:
-          'Open this menu when you want a broader topic map for the docs without leaving the current page context.',
+        body: 'Open this menu when you want a broader topic map for the docs without leaving the current page context.',
         selectors: ['[data-tour-step="topics-dropdown"]', '[data-tour-target="topics-dropdown"]'],
       },
       {
         id: 'search',
         title: 'Search across the docs',
-        body:
-          'Use search whenever you want the fastest route to a guide, integration, or reference page.',
-        selectors: ['[data-tour-step="search"]', '[data-tour-target="search"] button', '[data-tour-target="search"]'],
-      },
-      {
-        id: 'page-actions',
-        title: 'Use the page actions',
-        body:
-          'These actions help you work with the current page, including copying the page as Markdown, sharing it, or opening it with an AI tool.',
-        selectors: ['[data-tour-step="page-actions"]', '[data-tour-target="page-actions"]'],
-      },
-      {
-        id: 'edit-page',
-        title: 'Edit this page on GitHub',
-        body:
-          'Use this link to jump straight to the source file on GitHub when you want to suggest a correction or update the docs.',
-        selectors: ['[data-tour-step="edit-page"]', '[data-tour-target="edit-page"]'],
+        body: 'Use search whenever you want the fastest route to a guide, integration, or reference page.',
+        selectors: [
+          '[data-tour-target="search"] button',
+          '[data-tour-step="search"] button',
+          '[data-tour-step="search"]',
+          '[data-tour-target="search"]',
+        ],
       },
       {
         id: 'install-cli',
         title: 'Open quick install commands',
-        body:
-          'This button opens the quick install Aspire CLI modal so you can copy ready-to-run Aspire CLI commands without leaving the page.',
+        body: 'This button opens the quick install Aspire CLI modal so you can copy ready-to-run Aspire CLI commands without leaving the page.',
         selectors: ['[data-tour-step="install-cli"]', '[data-tour-target="install-cli"]'],
       },
       {
         id: 'cookie-preferences',
         title: 'Review cookie settings',
-        body:
-          'You can reopen cookie preferences from here any time you want to review or change your consent choices.',
-        selectors: ['[data-tour-step="cookie-preferences"]', '[data-tour-target="cookie-preferences"]'],
+        body: 'You can reopen cookie preferences from here any time you want to review or change your consent choices.',
+        selectors: [
+          '[data-tour-step="cookie-preferences"]',
+          '[data-tour-target="cookie-preferences"]',
+        ],
       },
       {
         id: 'tour-help',
         title: 'Reopen this tour any time',
-        body:
-          'Use this help button whenever you want to restart the tour or come back for a quick refresher later. You can also hold Shift over supported controls and click them for a quick one-step explanation.',
+        body: 'Use this help button whenever you want to restart the tour or come back for a quick refresher later. You can also hold Shift over supported controls and click them for a quick one-step explanation.',
         selectors: ['[data-tour-step="tour-help"]', '[data-tour-target="tour-help"]'],
+      },
+      {
+        id: 'page-actions',
+        title: 'Use the page actions',
+        body: 'These actions help you work with the current page, including copying the page as Markdown, sharing it, or opening it with an AI tool.',
+        selectors: ['[data-tour-step="page-actions"]', '[data-tour-target="page-actions"]'],
+      },
+      {
+        id: 'pivot-selector',
+        title: 'Switch page-specific examples',
+        body: 'Use this page-level selector to switch between the C# and TypeScript versions of the current walkthrough without leaving the page. When it floats near the top while you scroll, the small arrow controls can collapse it or bring it back.',
+        selectors: ['[data-tour-step="pivot-selector"]', '[data-tour-target="pivot-selector"]'],
+      },
+      {
+        id: 'edit-page',
+        title: 'Edit this page on GitHub',
+        body: 'Use this link to jump straight to the source file on GitHub when you want to suggest a correction or update the docs.',
+        selectors: ['[data-tour-step="edit-page"]', '[data-tour-target="edit-page"]'],
+      },
+      {
+        id: 'scroll-to-top',
+        title: 'Jump back to the top',
+        body: 'When you are done here, use this button to return to the top of the page. Clicking it will also dismiss the tour so you can keep browsing from there.',
+        selectors: [
+          '#scroll-to-top-button',
+          '[data-tour-step="scroll-to-top"]',
+          '[data-tour-target="scroll-to-top"]',
+        ],
       },
     ];
 
@@ -449,16 +460,34 @@
       return rect.width > 0 && rect.height > 0;
     }
 
+    function isMobileTourViewport() {
+      return window.matchMedia(MOBILE_TOUR_MEDIA_QUERY).matches;
+    }
+
+    function getStepHighlightPadding(stepId) {
+      if (stepId === 'search') {
+        return 2;
+      }
+
+      return 12;
+    }
+
     class AspireSiteTour {
       constructor() {
         this.state = readState();
         this.isOpen = false;
         this.currentIndex = 0;
         this.steps = [];
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
         this.renderFrame = 0;
         this.bound = false;
         this.pendingRenderTimers = [];
         this.singleStepMode = false;
+        this.lastPath = window.location.pathname;
+        this.lastFocusedElement = null;
+        this.managedFocusTarget = null;
+        this.lastRenderedStepId = null;
       }
 
       init() {
@@ -472,18 +501,31 @@
       }
 
       refresh() {
+        const currentPath = window.location.pathname;
+        const hasNavigated = this.lastPath !== currentPath;
+        this.lastPath = currentPath;
+
         this.ensureRoot();
         this.ensurePageMarkers();
+
+        if (hasNavigated && this.isOpen) {
+          this.close(!this.singleStepMode);
+        }
+
         this.steps = this.buildSteps();
         this.syncHelpButtons();
 
-        if (isLandingPath(window.location.pathname) || this.steps.length === 0) {
+        if (
+          !this.isEnabled() ||
+          isLandingPath(window.location.pathname) ||
+          this.steps.length === 0
+        ) {
           this.clearPendingPaintLock();
           this.close(false);
           return;
         }
 
-        if (!this.state.started) {
+        if (!this.state.started && !this.hasSeenAnySteps()) {
           this.start(false);
           return;
         }
@@ -559,6 +601,7 @@
         this.progress = root.querySelector('.aspire-site-tour-progress');
         this.nextButton = root.querySelector('[data-tour-action="next"]');
         this.restartButton = root.querySelector('[data-tour-action="restart"]');
+        this.closeButton = root.querySelector('[data-tour-action="dismiss"]');
         this.segments = {
           top: root.querySelector('[data-tour-segment="top"]'),
           left: root.querySelector('[data-tour-segment="left"]'),
@@ -566,8 +609,12 @@
           bottom: root.querySelector('[data-tour-segment="bottom"]'),
         };
 
-        root.querySelector('[data-tour-action="dismiss"]').addEventListener('click', () => this.close(true));
-        root.querySelector('[data-tour-action="restart"]').addEventListener('click', () => this.restart());
+        root
+          .querySelector('[data-tour-action="dismiss"]')
+          .addEventListener('click', () => this.close(true));
+        root
+          .querySelector('[data-tour-action="restart"]')
+          .addEventListener('click', () => this.restart());
         this.nextButton.addEventListener('click', () => this.advance());
       }
 
@@ -582,30 +629,53 @@
           document.documentElement.toggleAttribute('data-tour-inspect', enabled);
         };
 
-        document.addEventListener('click', (event) => {
-          if (event.target instanceof Element && event.shiftKey) {
-            const inspectStep = this.getStepForElement(event.target);
-            if (inspectStep) {
-              event.preventDefault();
-              event.stopPropagation();
-              this.openSingle(inspectStep.id, true);
+        document.addEventListener(
+          'click',
+          (event) => {
+            if (event.target instanceof Element && event.shiftKey) {
+              if (!this.isEnabled()) {
+                return;
+              }
+
+              const inspectStep = this.getStepForElement(event.target);
+              if (inspectStep) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.openSingle(inspectStep.id, true);
+                return;
+              }
+            }
+
+            if (event.target instanceof Element && this.isClickOnCurrentTarget(event.target)) {
+              this.close(true);
+              this.syncHelpButtons();
               return;
             }
-          }
 
-          const trigger = event.target instanceof Element ? event.target.closest('[data-tour-trigger]') : null;
-          if (trigger) {
-            event.preventDefault();
-            if (this.getNewSteps().length > 0) {
-              this.openNew();
-            } else if (!this.state.hasCompletedOnce && this.state.started && !this.state.completed) {
-              this.resume();
-            } else {
-              this.restart();
+            const trigger =
+              event.target instanceof Element ? event.target.closest('[data-tour-trigger]') : null;
+            if (trigger) {
+              if (!this.isEnabled()) {
+                return;
+              }
+
+              event.preventDefault();
+              if (this.getNewSteps().length > 0) {
+                this.openNew();
+              } else if (
+                !this.state.hasCompletedOnce &&
+                this.state.started &&
+                !this.state.completed
+              ) {
+                this.resume();
+              } else {
+                this.restart();
+              }
+              return;
             }
-            return;
-          }
-        }, true);
+          },
+          true
+        );
 
         document.addEventListener('keydown', (event) => {
           if (event.key === 'Shift') {
@@ -617,11 +687,13 @@
           }
 
           if (event.key === 'Escape') {
+            event.preventDefault();
             this.close(true);
+            return;
           }
 
-          if (event.key === 'Enter' && !this.nextButton.disabled) {
-            this.advance();
+          if (event.key === 'Tab') {
+            this.handleTabKey(event);
           }
         });
 
@@ -638,10 +710,17 @@
           }
         });
 
-        window.addEventListener('resize', () => this.scheduleRender());
+        window.addEventListener('resize', () => {
+          this.refresh();
+          this.scheduleRender();
+        });
         window.addEventListener('scroll', () => this.scheduleRender(), true);
         document.addEventListener('astro:after-swap', () => this.refresh());
         document.addEventListener('astro:page-load', () => this.refresh());
+      }
+
+      isEnabled() {
+        return !isMobileTourViewport();
       }
 
       ensurePageMarkers() {
@@ -650,27 +729,92 @@
           actions.setAttribute('data-tour-target', 'page-actions');
           actions.setAttribute('data-tour-step', 'page-actions');
         }
+
+        const scrollToTopButton = document.querySelector('#scroll-to-top-button');
+        if (scrollToTopButton instanceof HTMLElement) {
+          scrollToTopButton.setAttribute('data-tour-target', 'scroll-to-top');
+          scrollToTopButton.setAttribute('data-tour-step', 'scroll-to-top');
+        }
       }
 
-      buildSteps() {
-        return STEP_DEFINITIONS.filter((step) => {
+      buildSteps(filterMode = this.stepFilterMode) {
+        if (!this.isEnabled()) {
+          return [];
+        }
+
+        const availableSteps = STEP_DEFINITIONS.filter((step) => {
           if (step.id === 'install-cli' && window.innerWidth < 800) {
             return false;
           }
 
           return this.resolveTarget(step);
         });
+
+        if (filterMode === 'new') {
+          return availableSteps.filter((step) => !this.hasSeenStep(step.id));
+        }
+
+        if (filterMode === 'single' && this.singleStepId) {
+          return availableSteps.filter((step) => step.id === this.singleStepId);
+        }
+
+        return availableSteps;
+      }
+
+      refreshActiveSteps(preserveStepId) {
+        const nextSteps = this.buildSteps();
+        if (nextSteps.length === 0) {
+          this.steps = [];
+          this.currentIndex = 0;
+          return false;
+        }
+
+        this.steps = nextSteps;
+
+        const exactIndex = preserveStepId
+          ? this.steps.findIndex((step) => step.id === preserveStepId)
+          : -1;
+        if (exactIndex !== -1) {
+          this.currentIndex = exactIndex;
+          return true;
+        }
+
+        this.currentIndex = clamp(this.resolveStoredIndex(), 0, this.steps.length - 1);
+        return true;
       }
 
       getNewSteps() {
-        return this.buildSteps().filter((step) => !this.hasSeenStep(step.id));
+        return this.buildSteps('new');
       }
 
       syncHelpButtons() {
         const buttons = document.querySelectorAll('[data-tour-trigger]');
+
+        if (!this.isEnabled()) {
+          buttons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+              return;
+            }
+
+            button.disabled = true;
+            button.setAttribute('aria-hidden', 'true');
+            button.removeAttribute('data-tour-state');
+            button.removeAttribute('data-tour-badge');
+            button.removeAttribute('data-tour-badge-mode');
+            button.setAttribute('title', 'Site tour is available on larger screens');
+            button.setAttribute('aria-label', 'Site tour is available on larger screens');
+          });
+
+          return;
+        }
+
         const newSteps = this.getNewSteps();
         const hasNewSteps = newSteps.length > 0;
-        const state = hasNewSteps ? 'new' : !this.state.hasCompletedOnce && this.state.started && !this.state.completed ? 'resume' : 'start';
+        const state = hasNewSteps
+          ? 'new'
+          : !this.state.hasCompletedOnce && this.state.started && !this.state.completed
+            ? 'resume'
+            : 'start';
         const label = hasNewSteps
           ? `View ${newSteps.length} new tour ${newSteps.length === 1 ? 'tip' : 'tips'}`
           : state === 'resume'
@@ -678,15 +822,23 @@
             : 'Start site tour';
 
         buttons.forEach((button) => {
-          if (!(button instanceof HTMLElement)) {
+          if (!(button instanceof HTMLButtonElement)) {
             return;
           }
 
+          button.disabled = false;
+          button.removeAttribute('aria-hidden');
           button.setAttribute('title', label);
           button.setAttribute('aria-label', label);
           button.setAttribute('data-tour-state', state);
-          button.setAttribute('data-tour-badge', hasNewSteps && newSteps.length > 1 ? String(newSteps.length) : '');
-          button.setAttribute('data-tour-badge-mode', hasNewSteps && newSteps.length === 1 ? 'dot' : hasNewSteps ? 'count' : 'none');
+          button.setAttribute(
+            'data-tour-badge',
+            hasNewSteps && newSteps.length > 1 ? String(newSteps.length) : ''
+          );
+          button.setAttribute(
+            'data-tour-badge-mode',
+            hasNewSteps && newSteps.length === 1 ? 'dot' : hasNewSteps ? 'count' : 'none'
+          );
         });
       }
 
@@ -698,6 +850,10 @@
 
       hasSeenStep(stepId) {
         return Array.isArray(this.state.seenStepIds) && this.state.seenStepIds.includes(stepId);
+      }
+
+      hasSeenAnySteps() {
+        return Array.isArray(this.state.seenStepIds) && this.state.seenStepIds.length > 0;
       }
 
       markStepSeen(stepId) {
@@ -712,7 +868,7 @@
       }
 
       getAvailableStepById(stepId) {
-        return this.buildSteps().find((step) => step.id === stepId) || null;
+        return this.buildSteps('all').find((step) => step.id === stepId) || null;
       }
 
       getStepForElement(element) {
@@ -729,8 +885,24 @@
         return this.getAvailableStepById(stepId);
       }
 
+      isClickOnCurrentTarget(element) {
+        if (!(element instanceof Element) || !this.isOpen) {
+          return false;
+        }
+
+        const step = this.getCurrentStep();
+        if (!step) {
+          return false;
+        }
+
+        const target = this.resolveTarget(step);
+        return target instanceof Element ? target.contains(element) : false;
+      }
+
       start(scrollIntoView) {
         this.singleStepMode = false;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
         this.state.started = true;
         this.state.completed = false;
         this.state.currentStepId = STEP_DEFINITIONS[0].id;
@@ -740,6 +912,8 @@
 
       resume() {
         this.singleStepMode = false;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
         this.openAt(this.resolveStoredIndex(), true);
       }
 
@@ -751,11 +925,15 @@
         }
 
         this.singleStepMode = false;
-        this.openAt(0, true, newSteps);
+        this.stepFilterMode = 'new';
+        this.singleStepId = null;
+        this.openAt(0, true);
       }
 
       restart() {
         this.singleStepMode = false;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
         this.state.started = true;
         this.state.completed = false;
         this.state.currentStepId = STEP_DEFINITIONS[0].id;
@@ -770,16 +948,20 @@
         }
 
         this.singleStepMode = true;
-        this.openAt(0, scrollIntoView, [step]);
+        this.stepFilterMode = 'single';
+        this.singleStepId = stepId;
+        this.openAt(0, scrollIntoView);
       }
 
-      openAt(index, scrollIntoView, providedSteps) {
-        this.steps = providedSteps ?? this.buildSteps();
+      openAt(index, scrollIntoView) {
+        this.steps = this.buildSteps();
         if (this.steps.length === 0) {
           this.clearPendingPaintLock();
           return;
         }
 
+        this.lastFocusedElement =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null;
         this.isOpen = true;
         this.root.hidden = false;
         this.root.dataset.modalOpen = 'false';
@@ -797,6 +979,7 @@
         this.isOpen = false;
         this.clearPendingRenderTimers();
         this.clearPendingPaintLock();
+        this.releaseManagedFocusTarget();
         if (this.root) {
           this.root.dataset.modalOpen = 'false';
         }
@@ -807,7 +990,11 @@
         if (this.root) {
           this.root.hidden = true;
         }
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
         this.singleStepMode = false;
+        this.lastRenderedStepId = null;
+        this.restoreFocus();
       }
 
       complete() {
@@ -835,7 +1022,9 @@
 
         const fallbackOrder = MASTER_STEP_ORDER.indexOf(this.state.currentStepId);
         if (fallbackOrder !== -1) {
-          const nextIndex = this.steps.findIndex((step) => MASTER_STEP_ORDER.indexOf(step.id) >= fallbackOrder);
+          const nextIndex = this.steps.findIndex(
+            (step) => MASTER_STEP_ORDER.indexOf(step.id) >= fallbackOrder
+          );
           if (nextIndex !== -1) {
             return nextIndex;
           }
@@ -867,7 +1056,11 @@
           return false;
         }
 
-        return dropdown.dataset.open === 'true' || dropdown.querySelector('[data-dropdown-trigger]')?.getAttribute('aria-expanded') === 'true';
+        return (
+          dropdown.dataset.open === 'true' ||
+          dropdown.querySelector('[data-dropdown-trigger]')?.getAttribute('aria-expanded') ===
+            'true'
+        );
       }
 
       getHighlightRect(step, target) {
@@ -900,9 +1093,19 @@
       }
 
       advance() {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
         const step = this.getCurrentStep();
         if (!step) {
           return;
+        }
+
+        if (!this.singleStepMode) {
+          this.markStepSeen(step.id);
         }
 
         if (this.currentIndex >= this.steps.length - 1) {
@@ -937,6 +1140,12 @@
       }
 
       render(scrollIntoView) {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
         const step = this.getCurrentStep();
         if (!step) {
           this.close(false);
@@ -944,6 +1153,7 @@
         }
 
         const target = this.resolveTarget(step);
+
         if (!target) {
           if (this.singleStepMode) {
             this.close(false);
@@ -968,20 +1178,32 @@
           this.pendingRenderTimers.push(timer);
         }
 
-        this.markStepSeen(step.id);
         this.title.textContent = step.title;
         this.body.textContent = step.body;
-        this.progress.textContent = this.singleStepMode ? 'Quick tip' : `${this.currentIndex + 1} of ${this.steps.length}`;
-        this.nextButton.innerHTML = this.getNextButtonMarkup(this.singleStepMode ? 'Close' : this.currentIndex === this.steps.length - 1 ? 'Finish' : 'Next');
+        this.progress.textContent = this.singleStepMode
+          ? 'Quick tip'
+          : `${this.currentIndex + 1} of ${this.steps.length}`;
+        this.nextButton.innerHTML = this.getNextButtonMarkup(
+          this.singleStepMode
+            ? 'Close'
+            : this.currentIndex === this.steps.length - 1
+              ? 'Finish'
+              : 'Next'
+        );
         this.nextButton.disabled = false;
         this.restartButton.hidden = this.singleStepMode;
         this.syncHelpButtons();
 
-        this.hint.hidden = true;
-        this.hint.textContent = '';
+        if (step.id === 'scroll-to-top') {
+          this.hint.hidden = false;
+          this.hint.textContent = 'Click the highlighted button to return to the top and close the tour.';
+        } else {
+          this.hint.hidden = true;
+          this.hint.textContent = '';
+        }
 
         const rawRect = this.getHighlightRect(step, target);
-        const padding = 12;
+        const padding = getStepHighlightPadding(step.id);
         const hole = {
           top: clamp(rawRect.top - padding, 0, window.innerHeight),
           left: clamp(rawRect.left - padding, 0, window.innerWidth),
@@ -991,9 +1213,185 @@
         hole.right = clamp(hole.left + hole.width, 0, window.innerWidth);
         hole.bottom = clamp(hole.top + hole.height, 0, window.innerHeight);
 
+        const shouldMoveFocus =
+          step.id !== this.lastRenderedStepId || !this.isFocusWithinCurrentStep(target);
+
         this.positionBackdrop(hole);
         this.positionSpotlight(hole);
         this.positionCard(hole);
+        this.lastRenderedStepId = step.id;
+
+        if (shouldMoveFocus) {
+          this.focusCurrentStep(target);
+        }
+      }
+
+      focusCurrentStep(target) {
+        const targetFocusables = this.getTargetFocusables(target);
+        const focusTarget = targetFocusables[0] ?? this.closeButton ?? this.nextButton;
+
+        if (focusTarget instanceof HTMLElement) {
+          focusTarget.focus({ preventScroll: true });
+        }
+      }
+
+      getTargetFocusables(target) {
+        if (!(target instanceof HTMLElement) || !isUsableTarget(target)) {
+          return [];
+        }
+
+        const focusables = [];
+        const seen = new Set();
+        const nestedFocusableElements = [];
+        const push = (element) => {
+          if (!(element instanceof HTMLElement) || seen.has(element) || !isUsableTarget(element)) {
+            return;
+          }
+
+          seen.add(element);
+          focusables.push(element);
+        };
+
+        target
+          .querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex], [contenteditable="true"]'
+          )
+          .forEach((element) => {
+            if (!(element instanceof HTMLElement)) {
+              return;
+            }
+
+            if (element.getAttribute('tabindex') === '-1' && element !== this.managedFocusTarget) {
+              return;
+            }
+
+            if (!this.isFocusable(element)) {
+              return;
+            }
+
+            nestedFocusableElements.push(element);
+          });
+
+        if (this.isFocusable(target)) {
+          push(target);
+        } else if (nestedFocusableElements.length === 0) {
+          push(this.makeTemporarilyFocusable(target));
+        } else {
+          this.releaseManagedFocusTarget();
+        }
+
+        nestedFocusableElements.forEach((element) => push(element));
+
+        return focusables;
+      }
+
+      getCardFocusables() {
+        return [this.closeButton, this.restartButton, this.nextButton].filter(
+          (element) => element instanceof HTMLElement && !element.hidden && !element.disabled
+        );
+      }
+
+      getFocusSequence() {
+        const step = this.getCurrentStep();
+        const target = step ? this.resolveTarget(step) : null;
+        return [...this.getTargetFocusables(target), ...this.getCardFocusables()];
+      }
+
+      isFocusWithinCurrentStep(target) {
+        const focusSequence = [...this.getTargetFocusables(target), ...this.getCardFocusables()];
+        return focusSequence.includes(document.activeElement);
+      }
+
+      handleTabKey(event) {
+        const focusSequence = this.getFocusSequence();
+        if (focusSequence.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        const currentIndex = focusSequence.findIndex(
+          (element) => element === document.activeElement
+        );
+        const fallbackIndex = event.shiftKey ? 0 : -1;
+        const baseIndex = currentIndex === -1 ? fallbackIndex : currentIndex;
+        const nextIndex =
+          (baseIndex + (event.shiftKey ? -1 : 1) + focusSequence.length) % focusSequence.length;
+        focusSequence[nextIndex].focus({ preventScroll: true });
+      }
+
+      isFocusable(element) {
+        if (!(element instanceof HTMLElement) || element.hidden) {
+          return false;
+        }
+
+        if (element.matches('[disabled], [aria-disabled="true"]')) {
+          return false;
+        }
+
+        const tagName = element.tagName;
+        if (tagName === 'A') {
+          return element.hasAttribute('href') || element.tabIndex >= 0;
+        }
+
+        if (['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY'].includes(tagName)) {
+          return true;
+        }
+
+        return element.tabIndex >= 0 || element.getAttribute('contenteditable') === 'true';
+      }
+
+      makeTemporarilyFocusable(element) {
+        if (!(element instanceof HTMLElement)) {
+          return element;
+        }
+
+        if (this.managedFocusTarget === element) {
+          return element;
+        }
+
+        this.releaseManagedFocusTarget();
+
+        element.dataset.tourManagedFocus = 'true';
+        if (element.hasAttribute('tabindex')) {
+          element.dataset.tourManagedTabindex = element.getAttribute('tabindex') ?? '';
+        }
+        element.setAttribute('tabindex', '-1');
+        this.managedFocusTarget = element;
+        return element;
+      }
+
+      releaseManagedFocusTarget() {
+        if (!(this.managedFocusTarget instanceof HTMLElement)) {
+          this.managedFocusTarget = null;
+          return;
+        }
+
+        const target = this.managedFocusTarget;
+        const previousTabindex = target.dataset.tourManagedTabindex;
+        if (previousTabindex === undefined) {
+          target.removeAttribute('tabindex');
+        } else {
+          target.setAttribute('tabindex', previousTabindex);
+          delete target.dataset.tourManagedTabindex;
+        }
+
+        delete target.dataset.tourManagedFocus;
+        this.managedFocusTarget = null;
+      }
+
+      restoreFocus() {
+        const candidate = this.lastFocusedElement;
+        this.lastFocusedElement = null;
+
+        if (
+          !(candidate instanceof HTMLElement) ||
+          !document.contains(candidate) ||
+          !isUsableTarget(candidate)
+        ) {
+          return;
+        }
+
+        candidate.focus({ preventScroll: true });
       }
 
       positionBackdrop(hole) {
@@ -1038,8 +1436,16 @@
         const isCompactViewport = window.innerWidth <= 768;
 
         if (isCompactViewport) {
-          const left = clamp((window.innerWidth - cardRect.width) / 2, 8, window.innerWidth - cardRect.width - 8);
-          const top = clamp(window.innerHeight - cardRect.height - 8, 8, window.innerHeight - cardRect.height - 8);
+          const left = clamp(
+            (window.innerWidth - cardRect.width) / 2,
+            8,
+            window.innerWidth - cardRect.width - 8
+          );
+          const top = clamp(
+            window.innerHeight - cardRect.height - 8,
+            8,
+            window.innerHeight - cardRect.height - 8
+          );
 
           Object.assign(this.card.style, {
             left: `${left}px`,
@@ -1066,7 +1472,11 @@
           top = hole.bottom + margin;
         } else {
           left = clamp(hole.left, margin, window.innerWidth - cardRect.width - margin);
-          top = clamp(hole.top - cardRect.height - margin, margin, window.innerHeight - cardRect.height - margin);
+          top = clamp(
+            hole.top - cardRect.height - margin,
+            margin,
+            window.innerHeight - cardRect.height - margin
+          );
         }
 
         Object.assign(this.card.style, {
@@ -1083,7 +1493,9 @@
     window.__aspireSiteTour = new AspireSiteTour();
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => window.__aspireSiteTour.init(), { once: true });
+      document.addEventListener('DOMContentLoaded', () => window.__aspireSiteTour.init(), {
+        once: true,
+      });
     } else {
       window.__aspireSiteTour.init();
     }

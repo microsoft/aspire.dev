@@ -73,7 +73,7 @@ Optional frontmatter fields:
 Import Starlight components at the top of your MDX file:
 
 ```tsx
-import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
 ```
 
 Additional commonly used imports:
@@ -104,24 +104,24 @@ When you introduce or change a custom component that is used by docs pages:
 
 #### Aside (Callouts)
 
-Use for tips, notes, cautions, and warnings:
+Prefer fenced `:::` callouts for tips, notes, cautions, and warnings. Use the `Aside` component only when a JSX-only composition pattern is required.
 
 ```mdx
-<Aside type="tip" title="Pro Tip">
+:::tip[Pro Tip]
 This is a helpful tip for users.
-</Aside>
+:::
 
-<Aside type="note">
+:::note
 Important information users should be aware of.
-</Aside>
+:::
 
-<Aside type="caution">
+:::caution
 Proceed with care - this may have unexpected consequences.
-</Aside>
+:::
 
-<Aside type="danger">
+:::danger
 Critical warning - this could cause data loss or security issues.
-</Aside>
+:::
 ```
 
 #### Steps
@@ -192,6 +192,20 @@ Python specific content here.
 
 If a heading needs to appear in the **On this page** table of contents, keep the heading outside the `Pivot` content and put only the variant-specific body content inside each `Pivot`.
 
+For Aspire AppHost docs, use a single page-level `PivotSelector` with `key="aspire-lang"` when the surrounding section flow should switch as one unit. If a page would otherwise need multiple `aspire-lang` selectors, keep the page-level selector for the main flow and use synced `Tabs`/`TabItem` with `syncKey='aspire-lang'` for repeated language-specific examples later on the page.
+
+```mdx
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+C# example content here.
+</TabItem>
+
+<TabItem id='typescript' label='TypeScript'>
+TypeScript example content here.
+</TabItem>
+</Tabs>
+```
+
 #### CardGrid and LinkCard
 
 Use for navigation and feature highlights:
@@ -250,10 +264,10 @@ For more information, see [Service Defaults](/fundamentals/service-defaults/).
 </LearnMore>
 ```
 
-The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside `<Aside>` blocks or after `<Steps>`:
+The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside fenced `:::` callouts or after `<Steps>`:
 
 ````mdx
-<Aside type="tip" title="Feature flag">
+:::tip[Feature flag]
 Enable polyglot support by running:
 
 ```bash
@@ -263,7 +277,7 @@ aspire config set features:polyglotSupportEnabled true --global
 <LearnMore>
 For more information, see [aspire config command reference](/reference/cli/commands/aspire-config-set/)
 </LearnMore>
-</Aside>
+:::
 ````
 
 #### Aspire Custom Components
