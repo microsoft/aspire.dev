@@ -4,7 +4,7 @@ import { pipeline } from 'stream/promises';
 
 import fetch from 'node-fetch';
 
-const REPO = 'dotnet/aspire-samples';
+const REPO = 'microsoft/aspire-samples';
 const BRANCH = 'main';
 const SAMPLES_DIR = 'samples';
 const OUTPUT_PATH = './src/data/samples.json';
