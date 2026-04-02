@@ -192,6 +192,18 @@ When contributing to `aspire.dev`, follow these writing guidelines to ensure con
 - **Follow formatting conventions** - Use consistent formatting for code snippets, commands, and technical terms. Refer to the examples in this guide for guidance.
 - **Review existing content** - Before adding new content, review existing documentation to avoid duplication and ensure coherence.
 
+### AppHost-specific C# and TypeScript content
+
+When you are documenting AppHost-specific content that changes between C# and TypeScript, add an in-page `PivotSelector` with the title `Select your Aspire programming language`, the key `aspire-lang`, and `C#` and `TypeScript` options. Pair it with `Pivot` blocks for the language-specific content.
+
+Use `Tabs` for other choices such as package managers, deployment targets, IDEs, or CLI variants.
+
+If a feature is only available in the C# AppHost today, show the C# example by itself and add an explanatory note. Do not add a language selector for a single-language example.
+
+If the page already has another `PivotSelector`, stop and review the layout before adding a second selector. Those pages need a manual pass so the page does not end up with competing selector UIs.
+
+For the **On this page** table of contents to pick up a heading reliably, define the heading outside `Pivot` and `Tabs`. Headings inside those components are often missed or can produce incomplete results in the generated table of contents.
+
 ## 📝 Write Markdown
 
 Here are some common Markdown formatting examples to help you write documentation:
@@ -507,6 +519,8 @@ graph TD
 
 The `:::` syntax creates asides given a type of `note`, `tip`, `caution`, or `danger` in both Markdown and [MDX](#write-mdx):
 
+Use the `:::` syntax as the default pattern in `aspire.dev` docs, including `.mdx` pages. Prefer the `Aside` component only when you specifically need a JSX-only composition pattern that fenced callouts cannot express cleanly.
+
 ````md title="src/content/docs/example.md"
 :::note
 Some content in an aside.
@@ -574,7 +588,7 @@ Renders as:
 See the full demo here: [Starlight: GitHub Alerts](https://starlight-github-alerts.netlify.app/demo/).
 
 <LearnMore>
-For the Starlight component, see the [Aside component](#aside-component) section below.
+If you need a JSX-only fallback, see the [Aside component](#aside-component) section below.
 </LearnMore>
 
 ## ☑️ Write MDX
@@ -619,7 +633,7 @@ For all available components, see: [Starlight: Components](https://starlight.ast
 
 ### Aside component
 
-The `Aside` component from Starlight can be used to create asides in your documentation:
+Prefer `:::` callouts for new docs content. The `Aside` component from Starlight is the fallback option when you need JSX composition inside a callout:
 
 ````mdx title="src/content/docs/example.mdx"
 ---
@@ -686,6 +700,94 @@ Here's an example of using the `LearnMore` component:
   Please give our [repository a star on GitHub! ⭐](https://github.com/microsoft/aspire.dev)
 </LearnMore>
 ```
+
+### Aspire language selectors
+
+Use an in-page `PivotSelector` plus `Pivot` blocks when the surrounding AppHost content should switch between C# and TypeScript as a single unit.
+
+If a page would otherwise need multiple `PivotSelector` controls with `key="aspire-lang"`, do not repeat the selector. Keep the page-level `PivotSelector` for the main flow, and use synced `Tabs` and `TabItem` blocks for repeated language-specific examples instead.
+
+Keep shared section headings outside the pivots or tabs. For example, write `## Add a Redis resource` before the selector and the `Pivot` blocks, then place the language-specific prose and code inside the `csharp` and `typescript` pivots. This helps the **On this page** navigation stay accurate.
+
+````mdx title="src/content/docs/example.mdx"
+---
+title: Example MDX Page
+---
+
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
+
+<PivotSelector
+  title="Select your programming language"
+  key="aspire-lang"
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+
+<Pivot id="csharp">
+
+  ```csharp title="AppHost.cs"
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  var cache = builder.AddRedis("cache");
+
+  builder.AddProject<Projects.Api>("api")
+      .WithReference(cache);
+
+  builder.Build().Run();
+  ```
+
+</Pivot>
+<Pivot id="typescript">
+
+  ```typescript title="apphost.ts"
+  import { createBuilder } from './.modules/aspire.js';
+
+  const builder = await createBuilder();
+
+  const cache = await builder.addRedis("cache");
+
+  const api = await builder.addProject("api", "../Api/Api.csproj");
+  await api.withReference(cache);
+
+  await builder.build().run();
+  ```
+
+</Pivot>
+````
+
+Use this pattern when entire sections differ by AppHost language, not just a single code fence. For example, each `Pivot` can contain explanatory prose, steps, asides, and code blocks together.
+
+For repeated language-specific code examples later on the same page, use synced tabs instead of adding another `PivotSelector`:
+
+````mdx title="src/content/docs/example.mdx"
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddRedis("cache");
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+const builder = await createBuilder();
+await builder.addRedis("cache");
+```
+
+</TabItem>
+</Tabs>
+````
+
+If the difference is not about AppHost language, keep using regular `Tabs`.
+
+The same TOC rule applies to `Tabs` and `Pivot`: if a heading should appear in **On this page**, keep that heading outside the component and only put the variant-specific body content inside.
 
 Renders as:
 

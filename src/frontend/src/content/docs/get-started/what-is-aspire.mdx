@@ -5,7 +5,9 @@ tableOfContents: true
 lastUpdated: true
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 import { Kbd } from 'starlight-kbd/components'
 import LearnMore from '@components/LearnMore.astro';
 
@@ -76,9 +78,16 @@ aspire run
 
 And your AppHost defines the whole system in code, even for multi-language stacks:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C# AppHost">
-
+<PivotSelector
+  title="Select your programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -95,10 +104,8 @@ builder.AddNpmApp("frontend", "../frontend")
 
 builder.Build().Run();
 ```
-
-</TabItem>
-<TabItem label="TypeScript AppHost">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -107,22 +114,20 @@ const builder = await createBuilder();
 const db = await builder.addPostgres("db");
 
 const api = await builder
-    .addNodeApp("api", "../api", "server.js")
-    .withReference(db);
+  .addNodeApp("api", "../api", "server.js")
+  .withReference(db);
 
 const worker = await builder
-    .addPythonApp("worker", "../worker", "main.py")
-    .withReference(db);
+  .addPythonApp("worker", "../worker", "main.py")
+  .withReference(db);
 
 await builder
-    .addViteApp("frontend", "../frontend")
-    .withReference(api);
+  .addViteApp("frontend", "../frontend")
+  .withReference(api);
 
 await builder.build().run();
 ```
-
-</TabItem>
-</Tabs>
+</Pivot>
 
 <Aside type="tip" title="The real win">
 Your AppHost becomes the single source of truth for your application's architecture. New team members can understand your entire system by reading one file.

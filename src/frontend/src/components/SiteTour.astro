@@ -1,0 +1,1911 @@
+---
+const tt = (
+  key: string,
+  fallback: string,
+  values?: Record<string, string | number>
+) => {
+  const translated = Astro.locals.t(key as any, values as any);
+  return translated && translated !== key ? translated : fallback;
+};
+
+const siteTourStrings = {
+  eyebrow: tt('siteTour.eyebrow', 'Site tour'),
+  quickTip: tt('siteTour.quickTip', 'Quick tip'),
+  progress: tt('siteTour.progress', '{{current}} of {{total}}'),
+  unavailable: tt('siteTour.unavailable', 'Site tour is available on larger screens'),
+  labels: {
+    dismiss: tt('siteTour.labels.dismiss', 'Dismiss site tour'),
+    previous: tt('siteTour.labels.previous', 'Previous'),
+    restart: tt('siteTour.labels.restart', 'Start over'),
+    next: tt('siteTour.labels.next', 'Next'),
+    finish: tt('siteTour.labels.finish', 'Finish'),
+    close: tt('siteTour.labels.close', 'Close'),
+  },
+  trigger: {
+    viewNewTip: tt('siteTour.trigger.viewNewTip', 'View {{count}} new tour tip'),
+    viewNewTips: tt('siteTour.trigger.viewNewTips', 'View {{count}} new tour tips'),
+    resume: tt('siteTour.trigger.resume', 'Resume site tour'),
+    start: tt('siteTour.trigger.start', 'Start site tour'),
+  },
+  tooltips: {
+    restart: tt(
+      'siteTour.tooltips.restart',
+      'Start the site tour over from the beginning'
+    ),
+    closeQuickTip: tt('siteTour.tooltips.closeQuickTip', 'Close quick tip'),
+    finish: tt('siteTour.tooltips.finish', 'Finish site tour'),
+    previous: tt('siteTour.tooltips.previous', 'Go to previous step: {{title}}'),
+    next: tt('siteTour.tooltips.next', 'Go to next step: {{title}}'),
+    firstStep: tt('siteTour.tooltips.firstStep', 'You are on the first step'),
+    currentStep: tt('siteTour.tooltips.currentStep', 'Current step: {{title}}'),
+    jumpToStep: tt('siteTour.tooltips.jumpToStep', 'Jump to {{title}}'),
+  },
+  hint: {
+    scrollToTop: tt(
+      'siteTour.hint.scrollToTop',
+      'Click the highlighted button to return to the top and close the tour.'
+    ),
+  },
+  steps: {
+    sidebarToggle: {
+      title: tt('siteTour.steps.sidebarToggle.title', 'Show or hide the sidebar'),
+      body: tt(
+        'siteTour.steps.sidebarToggle.body',
+        'Use this control to collapse the sidebar for more reading space, or bring it back when you need the page and section navigation.'
+      ),
+    },
+    topicsDropdown: {
+      title: tt('siteTour.steps.topicsDropdown.title', 'Jump to another doc area'),
+      body: tt(
+        'siteTour.steps.topicsDropdown.body',
+        'Open this menu to move between top-level doc areas without leaving the docs layout.'
+      ),
+    },
+    search: {
+      title: tt('siteTour.steps.search.title', 'Search the docs'),
+      body: tt(
+        'siteTour.steps.search.body',
+        'Search guides, integrations, and reference pages from anywhere.'
+      ),
+    },
+    installCli: {
+      title: tt('siteTour.steps.installCli.title', 'View CLI install commands'),
+      body: tt(
+        'siteTour.steps.installCli.body',
+        'Open this modal to copy install commands for the Aspire CLI without leaving the page.'
+      ),
+    },
+    cookiePreferences: {
+      title: tt('siteTour.steps.cookiePreferences.title', 'Manage cookie consent'),
+      body: tt(
+        'siteTour.steps.cookiePreferences.body',
+        'Open this dialog to review or change your cookie consent choices.'
+      ),
+    },
+    tourHelp: {
+      title: tt('siteTour.steps.tourHelp.title', 'Reopen the tour'),
+      body: tt(
+        'siteTour.steps.tourHelp.body',
+        'Use this help button to restart the tour or open any new tips later.'
+      ),
+    },
+    pageActions: {
+      title: tt('siteTour.steps.pageActions.title', 'Use page actions'),
+      body: tt(
+        'siteTour.steps.pageActions.body',
+        'Use these actions to copy this page as Markdown, share it, or send it to an AI tool.'
+      ),
+    },
+    pivotSelector: {
+      title: tt('siteTour.steps.pivotSelector.title', 'Switch code examples'),
+      body: tt(
+        'siteTour.steps.pivotSelector.body',
+        'On pages with multiple code paths, use this selector to switch between the available versions. If it becomes sticky while you scroll, the arrow controls can collapse it or bring it back.'
+      ),
+    },
+    editPage: {
+      title: tt('siteTour.steps.editPage.title', 'Edit this page on GitHub'),
+      body: tt(
+        'siteTour.steps.editPage.body',
+        "Open this page's source on GitHub if you want to suggest a correction or contribute an update."
+      ),
+    },
+    footerPreferences: {
+      title: tt('siteTour.steps.footerPreferences.title', 'Change site preferences'),
+      body: tt(
+        'siteTour.steps.footerPreferences.body',
+        'Use these footer controls to change the theme, language, or keyboard shortcut conventions.'
+      ),
+    },
+    scrollToTop: {
+      title: tt('siteTour.steps.scrollToTop.title', 'Back to top'),
+      body: tt(
+        'siteTour.steps.scrollToTop.body',
+        'Use this button to return to the top of the page. If the tour is open, clicking it also closes the tour.'
+      ),
+    },
+  },
+};
+---
+
+<style is:global>
+  .aspire-site-tour-layer[hidden] {
+    display: none !important;
+  }
+
+  .aspire-site-tour-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-backdrop,
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-spotlight {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-card {
+    width: min(22rem, calc(100vw - 1rem));
+    max-width: min(22rem, calc(100vw - 1rem));
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-close,
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-actions {
+    display: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-footer {
+    gap: 0.4rem;
+  }
+
+  .aspire-site-tour-backdrop {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(4px) saturate(0.9);
+    pointer-events: auto;
+  }
+
+  .aspire-site-tour-spotlight {
+    position: fixed;
+    border-radius: 1rem;
+    border: 2px solid color-mix(in srgb, var(--sl-color-white) 70%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--sl-color-text-accent) 60%, transparent),
+      0 20px 60px rgba(5, 8, 20, 0.35);
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-card {
+    position: fixed;
+    width: min(36rem, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 94%, var(--sl-color-bg));
+    color: var(--sl-color-text);
+    box-shadow:
+      var(--sl-shadow-lg),
+      0 18px 42px color-mix(in srgb, var(--sl-color-black) 38%, transparent);
+    overflow: auto;
+    pointer-events: auto;
+  }
+
+  .aspire-site-tour-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .aspire-site-tour-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .aspire-site-tour-eyebrow {
+    margin: 0 0 0.45rem;
+    color: var(--aspire-color-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .aspire-site-tour-title {
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  .aspire-site-tour-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 80%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-bg) 75%, transparent);
+    color: var(--sl-color-gray-2);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      border-color 0.14s ease,
+      color 0.14s ease,
+      background-color 0.14s ease,
+      transform 0.14s ease;
+  }
+
+  .aspire-site-tour-close:hover {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-text);
+    background: color-mix(in srgb, var(--sl-color-gray-6) 88%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .aspire-site-tour-body {
+    margin: 0.7rem 0 0;
+    color: var(--sl-color-gray-1);
+    font-size: 0.96rem;
+    line-height: 1.6;
+  }
+
+  .aspire-site-tour-hint {
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--aspire-color-secondary) 22%, var(--sl-color-gray-5));
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--sl-color-accent-low) 70%, var(--sl-color-bg-nav));
+    color: var(--sl-color-gray-1);
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .aspire-site-tour-footer {
+    display: grid;
+    gap: 0.9rem;
+    margin-top: 1rem;
+  }
+
+  .aspire-site-tour-progress {
+    color: var(--sl-color-gray-2);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .aspire-site-tour-step-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .aspire-site-tour-step-nav[hidden] {
+    display: none;
+  }
+
+  .aspire-site-tour-step-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-gray-4) 80%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-3) 55%, transparent);
+    cursor: pointer;
+    transition:
+      transform 0.14s ease,
+      background-color 0.14s ease,
+      box-shadow 0.14s ease;
+  }
+
+  .aspire-site-tour-step-dot:hover,
+  .aspire-site-tour-step-dot:focus-visible {
+    background: color-mix(in srgb, var(--sl-color-text-accent) 72%, white 12%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--sl-color-text-accent) 55%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent);
+    outline: none;
+    transform: scale(1.08);
+  }
+
+  .aspire-site-tour-step-dot[aria-current='step'] {
+    background: var(--aspire-color-secondary);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--aspire-color-secondary) 72%, white 12%),
+      0 0 0 3px color-mix(in srgb, var(--aspire-color-secondary) 18%, transparent);
+  }
+
+  .aspire-site-tour-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .aspire-site-tour-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.875rem;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    aspect-ratio: auto !important;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 90%, transparent);
+    padding: 0.7rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      transform 0.14s ease,
+      border-color 0.14s ease,
+      background-color 0.14s ease,
+      color 0.14s ease;
+  }
+
+  .aspire-site-tour-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .aspire-site-tour-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .aspire-site-tour-btn-secondary {
+    background: color-mix(in srgb, var(--sl-color-bg) 70%, var(--sl-color-bg-nav));
+    color: var(--sl-color-text);
+  }
+
+  .aspire-site-tour-btn-secondary:hover:not(:disabled) {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-text);
+  }
+
+  .aspire-site-tour-btn-primary {
+    background: var(--aspire-color-secondary);
+    border-color: color-mix(in srgb, var(--aspire-color-secondary) 75%, var(--sl-color-gray-4));
+    color: var(--aspire-color-black);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--aspire-color-secondary) 24%, transparent);
+  }
+
+  .aspire-site-tour-btn-icon {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 0.85rem !important;
+    height: 0.85rem !important;
+    min-width: 0.85rem;
+    min-height: 0.85rem;
+    flex: 0 0 auto;
+    opacity: 0.9;
+  }
+
+  .aspire-site-tour-btn-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .aspire-site-tour-btn-label {
+    display: inline-block;
+    min-width: 0;
+  }
+
+  .aspire-site-tour-btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--aspire-color-secondary) 88%, white 12%);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-card {
+    background: color-mix(in srgb, var(--sl-color-bg) 96%, var(--sl-color-accent-low));
+    box-shadow:
+      var(--sl-shadow-lg),
+      0 18px 34px color-mix(in srgb, var(--sl-color-gray-4) 18%, transparent);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-eyebrow {
+    color: var(--aspire-color-primary);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-body,
+  :root[data-theme='light'] .aspire-site-tour-hint,
+  :root[data-theme='light'] .aspire-site-tour-progress {
+    color: var(--sl-color-gray-2);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-btn-secondary {
+    background: color-mix(in srgb, var(--sl-color-bg) 85%, var(--sl-color-gray-7));
+  }
+
+  @media (max-width: 48rem) {
+    .aspire-site-tour-card {
+      width: calc(100vw - 1rem);
+      max-width: calc(100vw - 1rem);
+      max-height: calc(100vh - 0.75rem);
+      padding: 0.95rem;
+      border-radius: 1.1rem;
+    }
+
+    .aspire-site-tour-title {
+      font-size: 1.05rem;
+    }
+
+    .aspire-site-tour-body {
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .aspire-site-tour-btn {
+      min-height: 2.75rem;
+      padding-inline: 0.9rem;
+    }
+  }
+
+  @media (max-width: 32rem) {
+    .aspire-site-tour-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aspire-site-tour-actions .aspire-site-tour-btn {
+      width: 100%;
+    }
+
+    .aspire-site-tour-actions .aspire-site-tour-btn-primary {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ siteTourStrings }}>
+  (() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const strings = siteTourStrings;
+
+    function interpolate(template, values = {}) {
+      return String(template ?? '').replace(/\{\{(\w+)\}\}/g, (_, key) => {
+        const value = values[key];
+        return value === undefined || value === null ? '' : String(value);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    if (window.__aspireSiteTour) {
+      window.__aspireSiteTour.refresh();
+      return;
+    }
+
+    const STORAGE_KEY = 'aspire-site-tour-v1';
+    const MOBILE_TOUR_MEDIA_QUERY = '(max-width: 49.999rem)';
+    const MASTER_STEP_ORDER = [
+      'sidebar-toggle',
+      'topics-dropdown',
+      'search',
+      'install-cli',
+      'cookie-preferences',
+      'tour-help',
+      'page-actions',
+      'pivot-selector',
+      'edit-page',
+      'footer-preferences',
+      'scroll-to-top',
+    ];
+    const STEP_DEFINITIONS = [
+      {
+        id: 'sidebar-toggle',
+        title: strings.steps.sidebarToggle.title,
+        body: strings.steps.sidebarToggle.body,
+        selectors: ['[data-tour-step="sidebar-toggle"]', '[data-tour-target="sidebar-toggle"]'],
+      },
+      {
+        id: 'topics-dropdown',
+        title: strings.steps.topicsDropdown.title,
+        body: strings.steps.topicsDropdown.body,
+        selectors: [
+          '[data-tour-step="topics-dropdown"] [data-dropdown-trigger]',
+          '[data-tour-target="topics-dropdown"] [data-dropdown-trigger]',
+          '[data-tour-step="topics-dropdown"]',
+          '[data-tour-target="topics-dropdown"]',
+        ],
+      },
+      {
+        id: 'search',
+        title: strings.steps.search.title,
+        body: strings.steps.search.body,
+        selectors: [
+          '[data-tour-target="search"] button',
+          '[data-tour-step="search"] button',
+          '[data-tour-step="search"]',
+          '[data-tour-target="search"]',
+        ],
+      },
+      {
+        id: 'install-cli',
+        title: strings.steps.installCli.title,
+        body: strings.steps.installCli.body,
+        selectors: ['[data-tour-step="install-cli"]', '[data-tour-target="install-cli"]'],
+      },
+      {
+        id: 'cookie-preferences',
+        title: strings.steps.cookiePreferences.title,
+        body: strings.steps.cookiePreferences.body,
+        selectors: [
+          '[data-tour-step="cookie-preferences"]',
+          '[data-tour-target="cookie-preferences"]',
+        ],
+      },
+      {
+        id: 'tour-help',
+        title: strings.steps.tourHelp.title,
+        body: strings.steps.tourHelp.body,
+        selectors: ['[data-tour-step="tour-help"]', '[data-tour-target="tour-help"]'],
+      },
+      {
+        id: 'page-actions',
+        title: strings.steps.pageActions.title,
+        body: strings.steps.pageActions.body,
+        selectors: ['[data-tour-step="page-actions"]', '[data-tour-target="page-actions"]'],
+      },
+      {
+        id: 'pivot-selector',
+        title: strings.steps.pivotSelector.title,
+        body: strings.steps.pivotSelector.body,
+        selectors: ['[data-tour-step="pivot-selector"]', '[data-tour-target="pivot-selector"]'],
+      },
+      {
+        id: 'edit-page',
+        title: strings.steps.editPage.title,
+        body: strings.steps.editPage.body,
+        selectors: ['[data-tour-step="edit-page"]', '[data-tour-target="edit-page"]'],
+      },
+      {
+        id: 'footer-preferences',
+        title: strings.steps.footerPreferences.title,
+        body: strings.steps.footerPreferences.body,
+        selectors: [
+          '[data-tour-step="footer-preferences"]',
+          '[data-tour-target="footer-preferences"]',
+        ],
+      },
+      {
+        id: 'scroll-to-top',
+        title: strings.steps.scrollToTop.title,
+        body: strings.steps.scrollToTop.body,
+        selectors: [
+          '#scroll-to-top-button',
+          '[data-tour-step="scroll-to-top"]',
+          '[data-tour-target="scroll-to-top"]',
+        ],
+      },
+    ];
+
+    function getDefaultState() {
+      return {
+        started: false,
+        completed: false,
+        hasCompletedOnce: false,
+        currentStepId: STEP_DEFINITIONS[0].id,
+        seenStepIds: [],
+      };
+    }
+
+    function readState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return getDefaultState();
+        }
+
+        const parsed = JSON.parse(raw);
+        return {
+          ...getDefaultState(),
+          ...parsed,
+        };
+      } catch {
+        return getDefaultState();
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function isLocaleSegment(segment) {
+      return /^[a-z]{2}(?:-[a-z]{2})?$/i.test(segment);
+    }
+
+    function isLandingPath(pathname) {
+      const parts = pathname.replace(/\/$/, '').split('/').filter(Boolean);
+      if (parts.length === 0) {
+        return true;
+      }
+
+      return parts.length === 1 && isLocaleSegment(parts[0]);
+    }
+
+    function isUsableTarget(element) {
+      if (!(element instanceof HTMLElement)) {
+        return false;
+      }
+
+      if (element.hidden) {
+        return false;
+      }
+
+      const style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }
+
+    function isMobileTourViewport() {
+      return window.matchMedia(MOBILE_TOUR_MEDIA_QUERY).matches;
+    }
+
+    function getStepHighlightPadding(stepId) {
+      if (stepId === 'search') {
+        return 2;
+      }
+
+      return 12;
+    }
+
+    class AspireSiteTour {
+      constructor() {
+        this.state = readState();
+        this.isOpen = false;
+        this.currentIndex = 0;
+        this.steps = [];
+        this.activeStepIds = null;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
+        this.renderFrame = 0;
+        this.bound = false;
+        this.pendingRenderTimers = [];
+        this.singleStepMode = false;
+        this.lastPath = window.location.pathname;
+        this.lastFocusedElement = null;
+        this.managedFocusTarget = null;
+        this.lastRenderedStepId = null;
+        this.suppressedTooltipState = new Map();
+      }
+
+      init() {
+        this.ensureRoot();
+        this.bindEvents();
+        this.refresh();
+      }
+
+      clearPendingPaintLock() {
+        document.documentElement.removeAttribute('data-site-tour-pending');
+      }
+
+      refresh() {
+        const currentPath = window.location.pathname;
+        const hasNavigated = this.lastPath !== currentPath;
+        this.lastPath = currentPath;
+
+        this.ensureRoot();
+        this.ensurePageMarkers();
+
+        if (hasNavigated && this.isOpen) {
+          this.close(!this.singleStepMode);
+        }
+
+        this.steps = this.buildSteps();
+        this.syncHelpButtons();
+
+        if (
+          !this.isEnabled() ||
+          isLandingPath(window.location.pathname) ||
+          this.steps.length === 0
+        ) {
+          this.clearPendingPaintLock();
+          this.close(false);
+          return;
+        }
+
+        if (!this.state.started && !this.hasSeenAnySteps()) {
+          this.start(false);
+          return;
+        }
+
+        this.clearPendingPaintLock();
+
+        if (this.isOpen) {
+          if (!this.singleStepMode) {
+            this.currentIndex = this.resolveStoredIndex();
+          }
+          this.render(true);
+        }
+      }
+
+      ensureRoot() {
+        if (this.root && document.body.contains(this.root)) {
+          return;
+        }
+
+        const root = document.createElement('div');
+        root.className = 'aspire-site-tour-layer';
+        root.hidden = true;
+        root.innerHTML = `
+          <div class="aspire-site-tour-backdrop" data-tour-segment="top"></div>
+          <div class="aspire-site-tour-backdrop" data-tour-segment="left"></div>
+          <div class="aspire-site-tour-backdrop" data-tour-segment="right"></div>
+          <div class="aspire-site-tour-backdrop" data-tour-segment="bottom"></div>
+          <div class="aspire-site-tour-spotlight"></div>
+          <section class="aspire-site-tour-card" role="dialog" aria-modal="true" aria-labelledby="aspire-site-tour-title">
+            <div class="aspire-site-tour-card-head">
+              <div class="aspire-site-tour-copy">
+                <p class="aspire-site-tour-eyebrow">${escapeHtml(strings.eyebrow)}</p>
+                <h2 class="aspire-site-tour-title" id="aspire-site-tour-title"></h2>
+              </div>
+              <button type="button" class="aspire-site-tour-close" data-tour-action="dismiss" aria-label="${escapeHtml(strings.labels.dismiss)}">&times;</button>
+            </div>
+            <p class="aspire-site-tour-body"></p>
+            <p class="aspire-site-tour-hint" hidden></p>
+            <div class="aspire-site-tour-footer">
+              <span class="aspire-site-tour-progress"></span>
+              <div class="aspire-site-tour-step-nav" hidden></div>
+              <div class="aspire-site-tour-actions">
+                <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-secondary" data-tour-action="previous">
+                  <span class="aspire-site-tour-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M13 8H3" />
+                      <path d="m7 12l-4-4l4-4" />
+                    </svg>
+                  </span>
+                  <span class="aspire-site-tour-btn-label">${escapeHtml(strings.labels.previous)}</span>
+                </button>
+                <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-secondary" data-tour-action="restart">
+                  <span class="aspire-site-tour-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9" />
+                      <path d="M2.5 3.2v3.2h3.2" />
+                    </svg>
+                  </span>
+                  <span class="aspire-site-tour-btn-label">${escapeHtml(strings.labels.restart)}</span>
+                </button>
+                <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-primary" data-tour-action="next">
+                  <span class="aspire-site-tour-btn-label">${escapeHtml(strings.labels.next)}</span>
+                  <span class="aspire-site-tour-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 8h10" />
+                      <path d="m9 4l4 4l-4 4" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </section>
+        `;
+
+        document.body.append(root);
+
+        this.root = root;
+        this.spotlight = root.querySelector('.aspire-site-tour-spotlight');
+        this.card = root.querySelector('.aspire-site-tour-card');
+        this.title = root.querySelector('.aspire-site-tour-title');
+        this.body = root.querySelector('.aspire-site-tour-body');
+        this.hint = root.querySelector('.aspire-site-tour-hint');
+        this.progress = root.querySelector('.aspire-site-tour-progress');
+        this.stepNav = root.querySelector('.aspire-site-tour-step-nav');
+        this.previousButton = root.querySelector('[data-tour-action="previous"]');
+        this.nextButton = root.querySelector('[data-tour-action="next"]');
+        this.restartButton = root.querySelector('[data-tour-action="restart"]');
+        this.closeButton = root.querySelector('[data-tour-action="dismiss"]');
+        this.segments = {
+          top: root.querySelector('[data-tour-segment="top"]'),
+          left: root.querySelector('[data-tour-segment="left"]'),
+          right: root.querySelector('[data-tour-segment="right"]'),
+          bottom: root.querySelector('[data-tour-segment="bottom"]'),
+        };
+
+        root
+          .querySelector('[data-tour-action="dismiss"]')
+          .addEventListener('click', () => this.close(true));
+        root
+          .querySelector('[data-tour-action="restart"]')
+          .addEventListener('click', () => this.restart());
+        this.previousButton.addEventListener('click', () => this.goBack());
+        this.nextButton.addEventListener('click', () => this.advance());
+        this.stepNav.addEventListener('click', (event) => {
+          const jumpButton =
+            event.target instanceof Element ? event.target.closest('[data-tour-step-index]') : null;
+          if (!(jumpButton instanceof HTMLButtonElement)) {
+            return;
+          }
+
+          const targetIndex = Number(jumpButton.dataset.tourStepIndex);
+          if (Number.isNaN(targetIndex)) {
+            return;
+          }
+
+          this.jumpTo(targetIndex);
+        });
+      }
+
+      bindEvents() {
+        if (this.bound) {
+          return;
+        }
+
+        this.bound = true;
+
+        document.addEventListener(
+          'click',
+          (event) => {
+            if (event.target instanceof Element && event.target.closest('.aspire-site-tour-backdrop')) {
+              this.close(true);
+              this.syncHelpButtons();
+              return;
+            }
+
+            if (event.target instanceof Element && this.isClickOnCurrentTarget(event.target)) {
+              this.close(true);
+              this.syncHelpButtons();
+              return;
+            }
+
+            const trigger =
+              event.target instanceof Element ? event.target.closest('[data-tour-trigger]') : null;
+            if (trigger) {
+              if (!this.isEnabled()) {
+                return;
+              }
+
+              event.preventDefault();
+              if (this.getNewSteps().length > 0) {
+                this.openNew();
+              } else if (
+                !this.state.hasCompletedOnce &&
+                this.state.started &&
+                !this.state.completed
+              ) {
+                this.resume();
+              } else {
+                this.restart();
+              }
+              return;
+            }
+          },
+          true
+        );
+
+        document.addEventListener('keydown', (event) => {
+          if (!this.isOpen) {
+            return;
+          }
+
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            this.close(true);
+            return;
+          }
+
+          if (event.key === 'Tab') {
+            this.handleTabKey(event);
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          this.refresh();
+          this.scheduleRender();
+        });
+        window.addEventListener('scroll', () => this.scheduleRender(), true);
+        document.addEventListener('astro:after-swap', () => this.refresh());
+        document.addEventListener('astro:page-load', () => this.refresh());
+      }
+
+      isEnabled() {
+        return !isMobileTourViewport();
+      }
+
+      ensurePageMarkers() {
+        const actions = document.querySelector('.actions-container');
+        if (actions instanceof HTMLElement) {
+          actions.setAttribute('data-tour-target', 'page-actions');
+          actions.setAttribute('data-tour-step', 'page-actions');
+        }
+
+        const scrollToTopButton = document.querySelector('#scroll-to-top-button');
+        if (scrollToTopButton instanceof HTMLElement) {
+          scrollToTopButton.setAttribute('data-tour-target', 'scroll-to-top');
+          scrollToTopButton.setAttribute('data-tour-step', 'scroll-to-top');
+        }
+      }
+
+      buildSteps(filterMode = this.stepFilterMode) {
+        if (!this.isEnabled()) {
+          return [];
+        }
+
+        const availableSteps = STEP_DEFINITIONS.filter((step) => {
+          if (step.id === 'install-cli' && window.innerWidth < 800) {
+            return false;
+          }
+
+          return this.resolveTarget(step);
+        });
+
+        if (filterMode === 'new') {
+          return availableSteps.filter((step) => !this.hasSeenStep(step.id));
+        }
+
+        if (filterMode === 'single' && this.singleStepId) {
+          return availableSteps.filter((step) => step.id === this.singleStepId);
+        }
+
+        return availableSteps;
+      }
+
+      refreshActiveSteps(preserveStepId) {
+        let nextSteps = Array.isArray(this.activeStepIds) ? this.buildSteps('all') : this.buildSteps();
+        if (Array.isArray(this.activeStepIds) && this.activeStepIds.length > 0) {
+          const stepOrder = new Map(this.activeStepIds.map((stepId, index) => [stepId, index]));
+          nextSteps = nextSteps
+            .filter((step) => stepOrder.has(step.id))
+            .sort((left, right) => stepOrder.get(left.id) - stepOrder.get(right.id));
+        }
+
+        if (nextSteps.length === 0) {
+          this.steps = [];
+          this.currentIndex = 0;
+          return false;
+        }
+
+        this.steps = nextSteps;
+
+        const exactIndex = preserveStepId
+          ? this.steps.findIndex((step) => step.id === preserveStepId)
+          : -1;
+        if (exactIndex !== -1) {
+          this.currentIndex = exactIndex;
+          return true;
+        }
+
+        this.currentIndex = clamp(this.resolveStoredIndex(), 0, this.steps.length - 1);
+        return true;
+      }
+
+      getNewSteps() {
+        return this.buildSteps('new');
+      }
+
+      syncHelpButtons() {
+        const buttons = document.querySelectorAll('[data-tour-trigger]');
+
+        if (!this.isEnabled()) {
+          buttons.forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+              return;
+            }
+
+            button.disabled = true;
+            button.setAttribute('aria-hidden', 'true');
+            button.removeAttribute('data-tour-state');
+            button.removeAttribute('data-tour-badge');
+            button.removeAttribute('data-tour-badge-mode');
+            button.setAttribute('title', strings.unavailable);
+            button.setAttribute('aria-label', strings.unavailable);
+          });
+
+          return;
+        }
+
+        const newSteps = this.getNewSteps();
+        const hasNewSteps = newSteps.length > 0;
+        const state = hasNewSteps
+          ? 'new'
+          : !this.state.hasCompletedOnce && this.state.started && !this.state.completed
+            ? 'resume'
+            : 'start';
+        const label = hasNewSteps
+          ? interpolate(
+              newSteps.length === 1 ? strings.trigger.viewNewTip : strings.trigger.viewNewTips,
+              { count: newSteps.length }
+            )
+          : state === 'resume'
+            ? strings.trigger.resume
+            : strings.trigger.start;
+
+        buttons.forEach((button) => {
+          if (!(button instanceof HTMLButtonElement)) {
+            return;
+          }
+
+          button.disabled = false;
+          button.removeAttribute('aria-hidden');
+          button.setAttribute('title', label);
+          button.setAttribute('aria-label', label);
+          button.setAttribute('data-tour-state', state);
+          button.setAttribute(
+            'data-tour-badge',
+            hasNewSteps && newSteps.length > 1 ? String(newSteps.length) : ''
+          );
+          button.setAttribute(
+            'data-tour-badge-mode',
+            hasNewSteps && newSteps.length === 1 ? 'dot' : hasNewSteps ? 'count' : 'none'
+          );
+        });
+      }
+
+      saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        } catch {}
+      }
+
+      hasSeenStep(stepId) {
+        return Array.isArray(this.state.seenStepIds) && this.state.seenStepIds.includes(stepId);
+      }
+
+      hasSeenAnySteps() {
+        return Array.isArray(this.state.seenStepIds) && this.state.seenStepIds.length > 0;
+      }
+
+      markStepSeen(stepId) {
+        if (!Array.isArray(this.state.seenStepIds)) {
+          this.state.seenStepIds = [];
+        }
+
+        if (!this.state.seenStepIds.includes(stepId)) {
+          this.state.seenStepIds.push(stepId);
+          this.saveState();
+        }
+      }
+
+      isClickOnCurrentTarget(element) {
+        if (!(element instanceof Element) || !this.isOpen) {
+          return false;
+        }
+
+        const step = this.getCurrentStep();
+        if (!step) {
+          return false;
+        }
+
+        const target = this.resolveTarget(step);
+        return target instanceof Element ? target.contains(element) : false;
+      }
+
+      start(scrollIntoView) {
+        this.singleStepMode = false;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
+        this.state.started = true;
+        this.state.completed = false;
+        this.state.currentStepId = STEP_DEFINITIONS[0].id;
+        this.saveState();
+        this.openAt(this.resolveStoredIndex(), scrollIntoView);
+      }
+
+      resume() {
+        this.singleStepMode = false;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
+        this.openAt(this.resolveStoredIndex(), true);
+      }
+
+      openNew() {
+        const newSteps = this.getNewSteps();
+        if (newSteps.length === 0) {
+          this.restart();
+          return;
+        }
+
+        this.singleStepMode = false;
+        this.stepFilterMode = 'new';
+        this.singleStepId = null;
+        this.openAt(0, true);
+      }
+
+      restart() {
+        this.singleStepMode = false;
+        this.stepFilterMode = 'all';
+        this.singleStepId = null;
+        this.state.started = true;
+        this.state.completed = false;
+        this.state.currentStepId = STEP_DEFINITIONS[0].id;
+        this.saveState();
+        this.openAt(0, true);
+      }
+
+      openAt(index, scrollIntoView) {
+        this.steps = this.buildSteps();
+        if (this.steps.length === 0) {
+          this.clearPendingPaintLock();
+          return;
+        }
+
+        this.activeStepIds = this.steps.map((step) => step.id);
+
+        this.lastFocusedElement =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        this.isOpen = true;
+        this.root.hidden = false;
+        this.root.dataset.modalOpen = 'false';
+        this.currentIndex = clamp(index, 0, this.steps.length - 1);
+        if (!this.singleStepMode) {
+          this.state.currentStepId = this.getCurrentStep().id;
+          this.saveState();
+        }
+        this.syncHelpButtons();
+        this.render(scrollIntoView);
+        this.clearPendingPaintLock();
+      }
+
+      close(keepProgress) {
+        this.isOpen = false;
+        this.clearPendingRenderTimers();
+        this.clearPendingPaintLock();
+        this.releaseManagedFocusTarget();
+        if (this.root) {
+          this.root.dataset.modalOpen = 'false';
+        }
+        if (keepProgress && this.getCurrentStep() && !this.singleStepMode) {
+          this.state.currentStepId = this.getCurrentStep().id;
+          this.saveState();
+        }
+        if (this.root) {
+          this.root.hidden = true;
+        }
+        this.stepFilterMode = 'all';
+        this.activeStepIds = null;
+        this.singleStepId = null;
+        this.singleStepMode = false;
+        this.lastRenderedStepId = null;
+        this.restoreFocus();
+        this.restoreSuppressedTooltips();
+      }
+
+      complete() {
+        this.state.hasCompletedOnce = true;
+        this.state.completed = true;
+        this.state.currentStepId = STEP_DEFINITIONS[0].id;
+        this.saveState();
+        this.close(false);
+        this.syncHelpButtons();
+      }
+
+      getCurrentStep() {
+        return this.steps[this.currentIndex] || null;
+      }
+
+      resolveStoredIndex() {
+        if (this.steps.length === 0) {
+          return 0;
+        }
+
+        const exactIndex = this.steps.findIndex((step) => step.id === this.state.currentStepId);
+        if (exactIndex !== -1) {
+          return exactIndex;
+        }
+
+        const fallbackOrder = MASTER_STEP_ORDER.indexOf(this.state.currentStepId);
+        if (fallbackOrder !== -1) {
+          const nextIndex = this.steps.findIndex(
+            (step) => MASTER_STEP_ORDER.indexOf(step.id) >= fallbackOrder
+          );
+          if (nextIndex !== -1) {
+            return nextIndex;
+          }
+        }
+
+        return 0;
+      }
+
+      resolveTarget(step) {
+        for (const selector of step.selectors) {
+          const matches = document.querySelectorAll(selector);
+          for (const match of matches) {
+            if (isUsableTarget(match)) {
+              return match;
+            }
+          }
+        }
+
+        return null;
+      }
+
+      getTopicsDropdown() {
+        return document.querySelector('[data-tour-target="topics-dropdown"]');
+      }
+
+      isTopicsDropdownOpen() {
+        const dropdown = this.getTopicsDropdown();
+        if (!(dropdown instanceof HTMLElement)) {
+          return false;
+        }
+
+        return (
+          dropdown.dataset.open === 'true' ||
+          dropdown.querySelector('[data-dropdown-trigger]')?.getAttribute('aria-expanded') ===
+            'true'
+        );
+      }
+
+      getHighlightRect(step, target) {
+        const rect = target.getBoundingClientRect();
+
+        if (step.id === 'topics-dropdown') {
+          const dropdown = this.getTopicsDropdown();
+          const trigger =
+            target instanceof HTMLElement && target.matches('[data-dropdown-trigger]')
+              ? target
+              : dropdown?.querySelector('[data-dropdown-trigger]');
+          const triggerRect = trigger instanceof HTMLElement ? trigger.getBoundingClientRect() : rect;
+
+          if (!this.isTopicsDropdownOpen()) {
+            return triggerRect;
+          }
+
+          const panel = dropdown?.querySelector('[data-dropdown-panel]:not([hidden])');
+          if (panel instanceof HTMLElement) {
+            const panelRect = panel.getBoundingClientRect();
+            return {
+              top: Math.min(triggerRect.top, panelRect.top),
+              left: Math.min(triggerRect.left, panelRect.left),
+              right: Math.max(triggerRect.right, panelRect.right),
+              bottom: Math.max(triggerRect.bottom, panelRect.bottom),
+              width:
+                Math.max(triggerRect.right, panelRect.right) -
+                Math.min(triggerRect.left, panelRect.left),
+              height:
+                Math.max(triggerRect.bottom, panelRect.bottom) -
+                Math.min(triggerRect.top, panelRect.top),
+            };
+          }
+
+          return triggerRect;
+        }
+
+        return rect;
+      }
+
+      clearPendingRenderTimers() {
+        for (const timer of this.pendingRenderTimers) {
+          window.clearTimeout(timer);
+        }
+
+        this.pendingRenderTimers = [];
+      }
+
+      advance() {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
+        const step = this.getCurrentStep();
+        if (!step) {
+          return;
+        }
+
+        if (!this.singleStepMode) {
+          this.markStepSeen(step.id);
+        }
+
+        if (this.currentIndex >= this.steps.length - 1) {
+          if (this.singleStepMode) {
+            this.close(false);
+            this.syncHelpButtons();
+            return;
+          }
+
+          this.complete();
+          return;
+        }
+
+        this.markCurrentStepSeen();
+        this.goToIndex(this.currentIndex + 1, true);
+      }
+
+      goBack() {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
+        if (this.singleStepMode || this.currentIndex <= 0) {
+          return;
+        }
+
+        this.markCurrentStepSeen();
+        this.goToIndex(this.currentIndex - 1, true);
+      }
+
+      jumpTo(index) {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
+        if (this.singleStepMode || this.steps.length === 0) {
+          return;
+        }
+
+        const targetIndex = clamp(index, 0, this.steps.length - 1);
+        if (targetIndex === this.currentIndex) {
+          this.render(false);
+          return;
+        }
+
+        this.markCurrentStepSeen();
+        this.goToIndex(targetIndex, true);
+      }
+
+      markCurrentStepSeen() {
+        if (this.singleStepMode) {
+          return;
+        }
+
+        const currentStep = this.getCurrentStep();
+        if (currentStep) {
+          this.markStepSeen(currentStep.id);
+        }
+      }
+
+      goToIndex(index, scrollIntoView) {
+        if (this.steps.length === 0) {
+          return;
+        }
+
+        this.currentIndex = clamp(index, 0, this.steps.length - 1);
+        if (!this.singleStepMode) {
+          this.state.currentStepId = this.getCurrentStep().id;
+          this.saveState();
+        }
+
+        this.render(scrollIntoView);
+      }
+
+      scheduleRender() {
+        if (!this.isOpen || this.root.hidden) {
+          return;
+        }
+
+        if (this.renderFrame) {
+          cancelAnimationFrame(this.renderFrame);
+        }
+
+        this.renderFrame = requestAnimationFrame(() => this.render(false));
+      }
+
+      render(scrollIntoView) {
+        const currentStepId = this.getCurrentStep()?.id ?? this.state.currentStepId;
+        if (!this.refreshActiveSteps(currentStepId)) {
+          this.close(false);
+          return;
+        }
+
+        const step = this.getCurrentStep();
+        if (!step) {
+          this.close(false);
+          return;
+        }
+
+        const target = this.resolveTarget(step);
+
+        if (!target) {
+          if (this.singleStepMode) {
+            this.close(false);
+            return;
+          }
+
+          this.steps = this.buildSteps();
+          if (this.steps.length === 0) {
+            this.close(false);
+            return;
+          }
+
+          this.currentIndex = clamp(this.resolveStoredIndex(), 0, this.steps.length - 1);
+          this.render(scrollIntoView);
+          return;
+        }
+
+        if (scrollIntoView) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          this.clearPendingRenderTimers();
+          const timer = window.setTimeout(() => this.scheduleRender(), 220);
+          this.pendingRenderTimers.push(timer);
+        }
+
+        this.title.textContent = step.title;
+        this.body.textContent = step.body;
+        this.progress.textContent = this.singleStepMode
+          ? strings.quickTip
+          : interpolate(strings.progress, {
+              current: this.currentIndex + 1,
+              total: this.steps.length,
+            });
+        this.renderStepNav();
+        this.previousButton.hidden = this.singleStepMode;
+        this.previousButton.disabled = this.singleStepMode || this.currentIndex === 0;
+        this.previousButton.setAttribute(
+          'title',
+          this.currentIndex > 0
+            ? interpolate(strings.tooltips.previous, {
+                title: this.steps[this.currentIndex - 1].title,
+              })
+            : strings.tooltips.firstStep
+        );
+        this.previousButton.setAttribute(
+          'aria-label',
+          this.currentIndex > 0
+            ? interpolate(strings.tooltips.previous, {
+                title: this.steps[this.currentIndex - 1].title,
+              })
+            : strings.tooltips.firstStep
+        );
+        this.nextButton.innerHTML = this.getNextButtonMarkup(
+          this.singleStepMode
+            ? strings.labels.close
+            : this.currentIndex === this.steps.length - 1
+              ? strings.labels.finish
+              : strings.labels.next
+        );
+        this.nextButton.setAttribute(
+          'title',
+          this.singleStepMode
+            ? strings.tooltips.closeQuickTip
+            : this.currentIndex === this.steps.length - 1
+              ? strings.tooltips.finish
+              : interpolate(strings.tooltips.next, {
+                  title: this.steps[this.currentIndex + 1].title,
+                })
+        );
+        this.nextButton.setAttribute(
+          'aria-label',
+          this.singleStepMode
+            ? strings.tooltips.closeQuickTip
+            : this.currentIndex === this.steps.length - 1
+              ? strings.tooltips.finish
+              : interpolate(strings.tooltips.next, {
+                  title: this.steps[this.currentIndex + 1].title,
+                })
+        );
+        this.nextButton.disabled = false;
+        this.restartButton.hidden = this.singleStepMode;
+        this.restartButton.setAttribute('title', strings.tooltips.restart);
+        this.restartButton.setAttribute('aria-label', strings.tooltips.restart);
+        this.syncHelpButtons();
+
+        if (step.id === 'scroll-to-top') {
+          this.hint.hidden = false;
+          this.hint.textContent = strings.hint.scrollToTop;
+        } else {
+          this.hint.hidden = true;
+          this.hint.textContent = '';
+        }
+
+        const rawRect = this.getHighlightRect(step, target);
+        const padding = getStepHighlightPadding(step.id);
+        const hole = {
+          top: clamp(rawRect.top - padding, 0, window.innerHeight),
+          left: clamp(rawRect.left - padding, 0, window.innerWidth),
+          width: clamp(rawRect.width + padding * 2, 0, window.innerWidth),
+          height: clamp(rawRect.height + padding * 2, 0, window.innerHeight),
+        };
+        hole.right = clamp(hole.left + hole.width, 0, window.innerWidth);
+        hole.bottom = clamp(hole.top + hole.height, 0, window.innerHeight);
+
+        this.updateSuppressedTooltips(target);
+
+        const shouldMoveFocus =
+          step.id !== this.lastRenderedStepId || !this.isFocusWithinCurrentStep(target);
+
+        this.positionBackdrop(hole);
+        this.positionSpotlight(hole);
+        this.positionCard(hole);
+        this.lastRenderedStepId = step.id;
+
+        if (shouldMoveFocus) {
+          this.focusCurrentStep(target);
+        }
+      }
+
+      focusCurrentStep(target) {
+        const targetFocusables = this.getTargetFocusables(target);
+        const focusTarget = targetFocusables[0] ?? this.closeButton ?? this.nextButton;
+
+        if (focusTarget instanceof HTMLElement) {
+          focusTarget.focus({ preventScroll: true });
+        }
+      }
+
+      updateSuppressedTooltips(target) {
+        this.restoreSuppressedTooltips();
+
+        for (const element of this.getTargetFocusables(target)) {
+          this.suppressTooltip(element);
+        }
+      }
+
+      suppressTooltip(element) {
+        if (!(element instanceof HTMLElement) || this.suppressedTooltipState.has(element)) {
+          return;
+        }
+
+        const tippy = element._tippy;
+        this.suppressedTooltipState.set(element, {
+          hadTitle: element.hasAttribute('title'),
+          title: element.getAttribute('title'),
+          tippy,
+          tippyWasEnabled: Boolean(tippy && tippy.state?.isEnabled !== false),
+        });
+
+        if (element.hasAttribute('title')) {
+          element.removeAttribute('title');
+        }
+
+        if (tippy) {
+          tippy.hide();
+          if (tippy.state?.isEnabled !== false) {
+            tippy.disable();
+          }
+        }
+      }
+
+      restoreSuppressedTooltip(element) {
+        const suppressedState = this.suppressedTooltipState.get(element);
+        if (!suppressedState) {
+          return;
+        }
+
+        if (suppressedState.hadTitle && suppressedState.title !== null) {
+          element.setAttribute('title', suppressedState.title);
+        } else {
+          element.removeAttribute('title');
+        }
+
+        if (suppressedState.tippy && suppressedState.tippyWasEnabled) {
+          suppressedState.tippy.enable();
+        }
+
+        this.suppressedTooltipState.delete(element);
+      }
+
+      restoreSuppressedTooltips() {
+        for (const element of [...this.suppressedTooltipState.keys()]) {
+          this.restoreSuppressedTooltip(element);
+        }
+      }
+
+      renderStepNav() {
+        const showStepNav = !this.singleStepMode && this.steps.length > 1;
+        this.stepNav.hidden = !showStepNav;
+
+        if (!showStepNav) {
+          this.stepNav.innerHTML = '';
+          return;
+        }
+
+        this.stepNav.innerHTML = this.steps
+          .map((step, index) => {
+            const isCurrent = index === this.currentIndex;
+            const title = isCurrent
+              ? interpolate(strings.tooltips.currentStep, { title: step.title })
+              : interpolate(strings.tooltips.jumpToStep, { title: step.title });
+            return `<button type="button" class="aspire-site-tour-step-dot" data-tour-step-index="${index}" title="${this.escapeAttribute(title)}" aria-label="${this.escapeAttribute(title)}"${isCurrent ? ' aria-current="step"' : ''}></button>`;
+          })
+          .join('');
+      }
+
+      getTargetFocusables(target) {
+        if (!(target instanceof HTMLElement) || !isUsableTarget(target)) {
+          return [];
+        }
+
+        const focusables = [];
+        const seen = new Set();
+        const nestedFocusableElements = [];
+        const push = (element) => {
+          if (!(element instanceof HTMLElement) || seen.has(element) || !isUsableTarget(element)) {
+            return;
+          }
+
+          seen.add(element);
+          focusables.push(element);
+        };
+
+        target
+          .querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex], [contenteditable="true"]'
+          )
+          .forEach((element) => {
+            if (!(element instanceof HTMLElement)) {
+              return;
+            }
+
+            if (element.getAttribute('tabindex') === '-1' && element !== this.managedFocusTarget) {
+              return;
+            }
+
+            if (!this.isFocusable(element)) {
+              return;
+            }
+
+            nestedFocusableElements.push(element);
+          });
+
+        if (this.isFocusable(target)) {
+          push(target);
+        } else if (nestedFocusableElements.length === 0) {
+          push(this.makeTemporarilyFocusable(target));
+        } else {
+          this.releaseManagedFocusTarget();
+        }
+
+        nestedFocusableElements.forEach((element) => push(element));
+
+        return focusables;
+      }
+
+      getCardFocusables() {
+        const stepButtons = this.stepNav
+          ? Array.from(this.stepNav.querySelectorAll('[data-tour-step-index]'))
+          : [];
+
+        return [
+          this.closeButton,
+          ...stepButtons,
+          this.previousButton,
+          this.restartButton,
+          this.nextButton,
+        ].filter((element) => element instanceof HTMLElement && !element.hidden && !element.disabled);
+      }
+
+      getFocusSequence() {
+        const step = this.getCurrentStep();
+        const target = step ? this.resolveTarget(step) : null;
+        return [...this.getTargetFocusables(target), ...this.getCardFocusables()];
+      }
+
+      isFocusWithinCurrentStep(target) {
+        const focusSequence = [...this.getTargetFocusables(target), ...this.getCardFocusables()];
+        return focusSequence.includes(document.activeElement);
+      }
+
+      handleTabKey(event) {
+        const focusSequence = this.getFocusSequence();
+        if (focusSequence.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        const currentIndex = focusSequence.findIndex(
+          (element) => element === document.activeElement
+        );
+        const fallbackIndex = event.shiftKey ? 0 : -1;
+        const baseIndex = currentIndex === -1 ? fallbackIndex : currentIndex;
+        const nextIndex =
+          (baseIndex + (event.shiftKey ? -1 : 1) + focusSequence.length) % focusSequence.length;
+        focusSequence[nextIndex].focus({ preventScroll: true });
+      }
+
+      isFocusable(element) {
+        if (!(element instanceof HTMLElement) || element.hidden) {
+          return false;
+        }
+
+        if (element.matches('[disabled], [aria-disabled="true"]')) {
+          return false;
+        }
+
+        const tagName = element.tagName;
+        if (tagName === 'A') {
+          return element.hasAttribute('href') || element.tabIndex >= 0;
+        }
+
+        if (['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY'].includes(tagName)) {
+          return true;
+        }
+
+        return element.tabIndex >= 0 || element.getAttribute('contenteditable') === 'true';
+      }
+
+      makeTemporarilyFocusable(element) {
+        if (!(element instanceof HTMLElement)) {
+          return element;
+        }
+
+        if (this.managedFocusTarget === element) {
+          return element;
+        }
+
+        this.releaseManagedFocusTarget();
+
+        element.dataset.tourManagedFocus = 'true';
+        if (element.hasAttribute('tabindex')) {
+          element.dataset.tourManagedTabindex = element.getAttribute('tabindex') ?? '';
+        }
+        element.setAttribute('tabindex', '-1');
+        this.managedFocusTarget = element;
+        return element;
+      }
+
+      releaseManagedFocusTarget() {
+        if (!(this.managedFocusTarget instanceof HTMLElement)) {
+          this.managedFocusTarget = null;
+          return;
+        }
+
+        const target = this.managedFocusTarget;
+        const previousTabindex = target.dataset.tourManagedTabindex;
+        if (previousTabindex === undefined) {
+          target.removeAttribute('tabindex');
+        } else {
+          target.setAttribute('tabindex', previousTabindex);
+          delete target.dataset.tourManagedTabindex;
+        }
+
+        delete target.dataset.tourManagedFocus;
+        this.managedFocusTarget = null;
+      }
+
+      restoreFocus() {
+        const candidate = this.lastFocusedElement;
+        this.lastFocusedElement = null;
+
+        if (
+          !(candidate instanceof HTMLElement) ||
+          !document.contains(candidate) ||
+          !isUsableTarget(candidate)
+        ) {
+          return;
+        }
+
+        const shouldRestoreTooltip = !this.suppressedTooltipState.has(candidate);
+        if (shouldRestoreTooltip) {
+          this.suppressTooltip(candidate);
+        }
+
+        candidate.focus({ preventScroll: true });
+
+        if (shouldRestoreTooltip) {
+          this.restoreSuppressedTooltip(candidate);
+        }
+      }
+
+      positionBackdrop(hole) {
+        Object.assign(this.segments.top.style, {
+          top: '0px',
+          left: '0px',
+          width: '100vw',
+          height: `${hole.top}px`,
+        });
+        Object.assign(this.segments.left.style, {
+          top: `${hole.top}px`,
+          left: '0px',
+          width: `${hole.left}px`,
+          height: `${hole.height}px`,
+        });
+        Object.assign(this.segments.right.style, {
+          top: `${hole.top}px`,
+          left: `${hole.right}px`,
+          width: `${Math.max(window.innerWidth - hole.right, 0)}px`,
+          height: `${hole.height}px`,
+        });
+        Object.assign(this.segments.bottom.style, {
+          top: `${hole.bottom}px`,
+          left: '0px',
+          width: '100vw',
+          height: `${Math.max(window.innerHeight - hole.bottom, 0)}px`,
+        });
+      }
+
+      positionSpotlight(hole) {
+        Object.assign(this.spotlight.style, {
+          top: `${hole.top}px`,
+          left: `${hole.left}px`,
+          width: `${hole.width}px`,
+          height: `${hole.height}px`,
+        });
+      }
+
+      positionCard(hole) {
+        const margin = 16;
+        const cardRect = this.card.getBoundingClientRect();
+        const isCompactViewport = window.innerWidth <= 768;
+
+        if (isCompactViewport) {
+          const left = clamp(
+            (window.innerWidth - cardRect.width) / 2,
+            8,
+            window.innerWidth - cardRect.width - 8
+          );
+          const top = clamp(
+            window.innerHeight - cardRect.height - 8,
+            8,
+            window.innerHeight - cardRect.height - 8
+          );
+
+          Object.assign(this.card.style, {
+            left: `${left}px`,
+            top: `${top}px`,
+          });
+          return;
+        }
+
+        const fitsRight = window.innerWidth - hole.right >= cardRect.width + margin;
+        const fitsLeft = hole.left >= cardRect.width + margin;
+        const fitsBottom = window.innerHeight - hole.bottom >= cardRect.height + margin;
+
+        let left;
+        let top;
+
+        if (fitsRight) {
+          left = hole.right + margin;
+          top = clamp(hole.top, margin, window.innerHeight - cardRect.height - margin);
+        } else if (fitsLeft) {
+          left = hole.left - cardRect.width - margin;
+          top = clamp(hole.top, margin, window.innerHeight - cardRect.height - margin);
+        } else if (fitsBottom) {
+          left = clamp(hole.left, margin, window.innerWidth - cardRect.width - margin);
+          top = hole.bottom + margin;
+        } else {
+          left = clamp(hole.left, margin, window.innerWidth - cardRect.width - margin);
+          top = clamp(
+            hole.top - cardRect.height - margin,
+            margin,
+            window.innerHeight - cardRect.height - margin
+          );
+        }
+
+        Object.assign(this.card.style, {
+          left: `${left}px`,
+          top: `${top}px`,
+        });
+      }
+
+      getNextButtonMarkup(label) {
+        return `<span class="aspire-site-tour-btn-label">${escapeHtml(label)}</span><span class="aspire-site-tour-btn-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10" /><path d="m9 4l4 4l-4 4" /></svg></span>`;
+      }
+
+      escapeAttribute(value) {
+        return escapeHtml(value);
+      }
+    }
+
+    window.__aspireSiteTour = new AspireSiteTour();
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => window.__aspireSiteTour.init(), {
+        once: true,
+      });
+    } else {
+      window.__aspireSiteTour.init();
+    }
+  })();
+</script>

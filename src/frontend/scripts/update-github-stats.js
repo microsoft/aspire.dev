@@ -3,7 +3,7 @@ import { fetchWithProxy as fetch } from './fetch-with-proxy.js';
 
 const REPOS = [
   'microsoft/aspire',
-  'dotnet/aspire-samples',
+  'microsoft/aspire-samples',
   'CommunityToolkit/Aspire',
   'microsoft/aspire.dev',
   'microsoft/dcp'
