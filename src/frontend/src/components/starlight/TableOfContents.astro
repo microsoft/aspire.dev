@@ -1,0 +1,259 @@
+---
+/**
+ * Override of @astrojs/starlight TableOfContents.
+ *
+ * Adds an AppHost language selector (C# / TypeScript) to the top of the TOC.
+ * The selector is only shown on pages that contain `[data-pivot-block="csharp"]`
+ * or `[data-pivot-block="typescript"]` elements (authored with the <Pivot> component).
+ *
+ * When active:
+ * - TOC entries whose target heading lives inside a hidden pivot block are hidden.
+ * - Changing the selector delegates to PivotSelector's button click (when present),
+ *   keeping the existing PivotSelector behavior completely intact.
+ * - A MutationObserver watches pivot-block visibility changes driven by PivotSelector
+ *   and keeps the TOC dropdown and filtered entries in sync.
+ */
+import TocList from './TocList.astro';
+
+interface TocItem {
+  slug: string;
+  text: string;
+  children: TocItem[];
+  depth: number;
+}
+
+const { toc } = Astro.locals.starlightRoute;
+---
+
+{
+  toc && (
+    <starlight-toc data-min-h={toc.minHeadingLevel} data-max-h={toc.maxHeadingLevel}>
+      <nav aria-labelledby="starlight__on-this-page">
+        <div class="toc-header">
+          <h2 id="starlight__on-this-page">{Astro.locals.t('tableOfContents.onThisPage')}</h2>
+          <div class="apphost-lang-filter" id="apphost-lang-filter" hidden>
+            <label for="apphost-lang-select" class="sr-only">AppHost language</label>
+            <div class="select-wrap">
+              <svg
+                aria-hidden="true"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+              <select id="apphost-lang-select" aria-label="AppHost language">
+                <option value="csharp">C#</option>
+                <option value="typescript">TypeScript</option>
+              </select>
+              <svg
+                class="caret"
+                aria-hidden="true"
+                width="10"
+                height="10"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6L8 10L12 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        <TocList toc={toc.items as TocItem[]} />
+      </nav>
+    </starlight-toc>
+  )
+}
+
+<style>
+  .toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .toc-header h2 {
+    /* Prevent the heading from being squeezed by the filter */
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .apphost-lang-filter {
+    flex-shrink: 0;
+  }
+
+  .select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+    background: var(--sl-color-bg-sidebar);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    padding: 0.125rem 0.25rem 0.125rem 0.375rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-2);
+    transition: border-color 0.15s ease;
+  }
+
+  .select-wrap:hover,
+  .select-wrap:focus-within {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-white);
+  }
+
+  .select-wrap select {
+    appearance: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+    padding-inline-end: 0.125rem;
+    font-size: var(--sl-text-xs);
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    font-family: var(--sl-font);
+    line-height: 1.5;
+    /* Expose the native select for keyboard navigation */
+    position: relative;
+    z-index: 1;
+  }
+
+  .select-wrap .caret {
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  /**
+   * AppHost language filter for the TOC.
+   *
+   * NOTE: We do NOT define or extend the `starlight-toc` custom element here.
+   * MobileTableOfContents.astro imports starlight-toc.ts which registers
+   * `StarlightTOC` for `starlight-toc`. Attempting to override that registration
+   * is blocked by the custom-elements API (`customElements.define` throws if the
+   * name is already taken). Instead we run a plain script that adds filter
+   * behaviour directly to the already-existing `<starlight-toc>` DOM element.
+   * The original scroll-spy logic continues to work untouched.
+   */
+
+  /** The two apphost pivot language values we filter on. */
+  const APPHOST_LANGS = ['csharp', 'typescript'] as const;
+  type ApphostLang = (typeof APPHOST_LANGS)[number];
+
+  function isApphostLang(value: string | null): value is ApphostLang {
+    return value === 'csharp' || value === 'typescript';
+  }
+
+  /**
+   * Query DOWN from each non-selected apphost pivot block to collect the IDs
+   * of all elements inside it, then hide matching TOC entries.
+   *
+   * Querying down (pivot block → children) is more reliable than walking up
+   * (heading → ancestor) because it does not depend on intermediate wrapper
+   * elements (e.g. `.sl-heading-wrapper`) being transparent.
+   */
+  function filterToc(selectedLang: ApphostLang): void {
+    const toc = document.querySelector<HTMLElement>('starlight-toc');
+    if (!toc) return;
+
+    // Collect IDs that live inside a non-selected apphost pivot block.
+    const excluded = new Set<string>();
+    for (const lang of APPHOST_LANGS) {
+      if (lang === selectedLang) continue;
+      document
+        .querySelectorAll<HTMLElement>(`[data-pivot-block="${lang}"] [id]`)
+        .forEach((el) => excluded.add(el.id));
+    }
+
+    // Show/hide TOC list items based on whether their href is in the excluded set.
+    toc.querySelectorAll<HTMLAnchorElement>('nav a').forEach((link) => {
+      const href = link.getAttribute('href');
+      if (!href?.startsWith('#')) return;
+      const id = decodeURIComponent(href.slice(1));
+      const li = link.closest<HTMLElement>('li');
+      if (!li) return;
+      li.style.display = excluded.has(id) ? 'none' : '';
+    });
+  }
+
+  function initApphostFilter(): void {
+    const toc = document.querySelector<HTMLElement>('starlight-toc');
+    const filterEl = document.querySelector<HTMLElement>('#apphost-lang-filter');
+    const select = document.querySelector<HTMLSelectElement>('#apphost-lang-select');
+    if (!toc || !filterEl || !select) return;
+
+    // Only activate on pages that actually use apphost pivot blocks.
+    if (!document.querySelector('[data-pivot-block="csharp"], [data-pivot-block="typescript"]')) {
+      return;
+    }
+
+    // Determine the initial language: QS → localStorage → 'csharp'.
+    const qs = new URLSearchParams(window.location.search);
+    const initial: ApphostLang = isApphostLang(qs.get('apphost'))
+      ? (qs.get('apphost') as ApphostLang)
+      : isApphostLang(localStorage.getItem('apphost'))
+        ? (localStorage.getItem('apphost') as ApphostLang)
+        : 'csharp';
+
+    select.value = initial;
+    filterEl.removeAttribute('hidden');
+    filterToc(initial);
+
+    // When the user changes the dropdown, delegate to PivotSelector if present
+    // (so PivotSelector continues to own content visibility, localStorage, and
+    // URL state), then update the TOC.
+    select.addEventListener('change', () => {
+      const lang = select.value;
+      if (!isApphostLang(lang)) return;
+
+      const pivotBtn = document.querySelector<HTMLButtonElement>(
+        `#pivot-selector-apphost [data-pivot-option="${lang}"]`
+      );
+
+      if (pivotBtn) {
+        // PivotSelector is present — let it handle everything.
+        pivotBtn.click();
+      } else {
+        // No PivotSelector on this page — apply blocks and state directly.
+        localStorage.setItem('apphost', lang);
+        const url = new URL(window.location.href);
+        url.searchParams.set('apphost', lang);
+        window.history.replaceState({}, '', url.toString());
+        document.querySelectorAll<HTMLElement>('[data-pivot-block]').forEach((el) => {
+          const ids = (el.dataset.pivotBlock ?? '').split(/[,;]/).map((s) => s.trim());
+          el.style.display = ids.includes(lang) ? '' : 'none';
+        });
+      }
+
+      filterToc(lang);
+    });
+
+    // Watch for PivotSelector-driven display changes on pivot blocks so the TOC
+    // dropdown and entries stay in sync when the user clicks PivotSelector directly.
+    const mo = new MutationObserver(() => {
+      const stored = localStorage.getItem('apphost');
+      const lang: ApphostLang = isApphostLang(stored) ? stored : 'csharp';
+      if (select.value !== lang) select.value = lang;
+      filterToc(lang);
+    });
+    document
+      .querySelectorAll('[data-pivot-block]')
+      .forEach((el) => mo.observe(el, { attributes: true, attributeFilter: ['style'] }));
+  }
+
+  // Astro defers module scripts until after HTML parsing, so the DOM is ready.
+  initApphostFilter();
+</script>
