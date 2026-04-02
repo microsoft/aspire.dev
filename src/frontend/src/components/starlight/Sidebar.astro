@@ -9,40 +9,6 @@ import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
 import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
 
-const routeData = Astro.locals.starlightRoute;
-const topicState = Astro.locals.starlightSidebarTopics;
-const pageId = routeData?.id ?? '';
-const isApiRefPage = pageId.startsWith('reference/api');
-const apiLang = pageId.startsWith('reference/api/typescript')
-  ? 'ts'
-  : pageId.startsWith('reference/api/csharp')
-    ? 'csharp'
-    : undefined;
-const sidebar = routeData?.sidebar ?? [];
-const topics = topicState?.topics ?? [];
-const currentTopic = topics.find((topic) => topic.isCurrent) ?? topics[0];
-const hasTopicSidebar = Boolean(!isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic);
-const appHostOptions = [
-  {
-    id: 'csharp',
-    label: 'C# AppHost',
-    fileName: 'AppHost.cs',
-    icon: csharpIcon,
-  },
-  {
-    id: 'typescript',
-    label: 'TypeScript AppHost',
-    fileName: 'apphost.ts',
-    icon: typescriptIcon,
-  },
-] as const;
-
-// Build a locale-aware back link so it works on localized pages (e.g. /ja/reference/overview/)
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const localePrefix = routeData?.locale ? `/${routeData.locale}` : '';
-const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
----
-
 <div
   class="topics-sidebar"
   data-api-ref={isApiRefPage || undefined}
@@ -73,6 +39,7 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
               type="button"
               class="sidebar-collapse-btn"
               id="sidebar-collapse-btn"
+              data-tour-target="sidebar-toggle"
               aria-label="Collapse sidebar"
               title="Collapse sidebar"
             >
@@ -154,7 +121,12 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
       <>
         <div class="topic-sidebar-sticky not-content">
           <div class="topic-sidebar-toolbar">
-            <div class="sidebar-dropdown-shell apphost-lang-dropdown" data-sidebar-dropdown>
+            <div
+              class="sidebar-dropdown-shell apphost-lang-dropdown"
+              data-sidebar-dropdown
+              data-tour-target="apphost-selector"
+              data-tour-step="apphost-selector"
+            >
               <button
                 type="button"
                 class="sidebar-dropdown-trigger sidebar-dropdown-trigger-apphost"
@@ -236,6 +208,8 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
               type="button"
               class="sidebar-collapse-btn"
               id="topic-sidebar-collapse-btn"
+              data-tour-target="sidebar-toggle"
+              data-tour-step="sidebar-toggle"
               aria-label="Collapse sidebar"
               title="Collapse sidebar"
             >
@@ -253,7 +227,12 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
               </svg>
             </button>
           </div>
-          <div class="sidebar-dropdown-shell topic-selector-dropdown" data-sidebar-dropdown>
+          <div
+            class="sidebar-dropdown-shell topic-selector-dropdown"
+            data-sidebar-dropdown
+            data-tour-target="topics-dropdown"
+            data-tour-step="topics-dropdown"
+          >
             <button
               type="button"
               class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
@@ -359,6 +338,7 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     type="button"
     class="sidebar-expand-btn"
     id="sidebar-expand-btn"
+    data-tour-target="sidebar-toggle"
     aria-label="Expand sidebar"
     title="Expand sidebar"
     hidden
@@ -382,6 +362,41 @@ const referenceOverviewHref = `${base}${localePrefix}/reference/overview/`;
     type="button"
     class="sidebar-expand-btn"
     id="topic-sidebar-expand-btn"
+    data-tour-target="sidebar-toggle"
+    aria-label="Expand sidebar"
+    title="Expand sidebar"
+    hidden
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      aria-hidden="true"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18m5-12l3 3l-3 3" />
+    </svg>
+  </button>
+)}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      aria-hidden="true"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18m5-12l3 3l-3 3" />
+    </svg>
+  </button>
+)}
+{hasTopicSidebar && (
+  <button
+    type="button"
+    class="sidebar-expand-btn"
+    id="topic-sidebar-expand-btn"
+    data-tour-target="sidebar-toggle"
     aria-label="Expand sidebar"
     title="Expand sidebar"
     hidden

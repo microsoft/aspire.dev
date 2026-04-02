@@ -1,0 +1,1099 @@
+<style is:global>
+  .aspire-site-tour-layer[hidden] {
+    display: none !important;
+  }
+
+  :root[data-tour-inspect='true'] [data-tour-step],
+  :root[data-tour-inspect='true'] [data-tour-step] * {
+    cursor: help !important;
+  }
+
+  .aspire-site-tour-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-backdrop,
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-spotlight {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-card {
+    width: min(22rem, calc(100vw - 1rem));
+    max-width: min(22rem, calc(100vw - 1rem));
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-close,
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-actions {
+    display: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-footer {
+    gap: 0.4rem;
+  }
+
+  .aspire-site-tour-backdrop {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(4px) saturate(0.9);
+    pointer-events: auto;
+  }
+
+  .aspire-site-tour-spotlight {
+    position: fixed;
+    border-radius: 1rem;
+    border: 2px solid color-mix(in srgb, var(--sl-color-white) 70%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--sl-color-text-accent) 60%, transparent),
+      0 20px 60px rgba(5, 8, 20, 0.35);
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-card {
+    position: fixed;
+    width: min(36rem, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 94%, var(--sl-color-bg));
+    color: var(--sl-color-text);
+    box-shadow:
+      var(--sl-shadow-lg),
+      0 18px 42px color-mix(in srgb, var(--sl-color-black) 38%, transparent);
+    overflow: auto;
+    pointer-events: auto;
+  }
+
+  .aspire-site-tour-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .aspire-site-tour-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .aspire-site-tour-eyebrow {
+    margin: 0 0 0.45rem;
+    color: var(--aspire-color-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .aspire-site-tour-title {
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  .aspire-site-tour-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 80%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-bg) 75%, transparent);
+    color: var(--sl-color-gray-2);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      border-color 0.14s ease,
+      color 0.14s ease,
+      background-color 0.14s ease,
+      transform 0.14s ease;
+  }
+
+  .aspire-site-tour-close:hover {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-text);
+    background: color-mix(in srgb, var(--sl-color-gray-6) 88%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .aspire-site-tour-body {
+    margin: 0.7rem 0 0;
+    color: var(--sl-color-gray-1);
+    font-size: 0.96rem;
+    line-height: 1.6;
+  }
+
+  .aspire-site-tour-hint {
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--aspire-color-secondary) 22%, var(--sl-color-gray-5));
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--sl-color-accent-low) 70%, var(--sl-color-bg-nav));
+    color: var(--sl-color-gray-1);
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .aspire-site-tour-footer {
+    display: grid;
+    gap: 0.9rem;
+    margin-top: 1rem;
+  }
+
+  .aspire-site-tour-progress {
+    color: var(--sl-color-gray-2);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .aspire-site-tour-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .aspire-site-tour-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.875rem;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    aspect-ratio: auto !important;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 90%, transparent);
+    padding: 0.7rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      transform 0.14s ease,
+      border-color 0.14s ease,
+      background-color 0.14s ease,
+      color 0.14s ease;
+  }
+
+  .aspire-site-tour-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .aspire-site-tour-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .aspire-site-tour-btn-secondary {
+    background: color-mix(in srgb, var(--sl-color-bg) 70%, var(--sl-color-bg-nav));
+    color: var(--sl-color-text);
+  }
+
+  .aspire-site-tour-btn-secondary:hover:not(:disabled) {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-text);
+  }
+
+  .aspire-site-tour-btn-primary {
+    background: var(--aspire-color-secondary);
+    border-color: color-mix(in srgb, var(--aspire-color-secondary) 75%, var(--sl-color-gray-4));
+    color: var(--aspire-color-black);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--aspire-color-secondary) 24%, transparent);
+  }
+
+  .aspire-site-tour-btn-icon {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 0.85rem !important;
+    height: 0.85rem !important;
+    min-width: 0.85rem;
+    min-height: 0.85rem;
+    flex: 0 0 auto;
+    opacity: 0.9;
+  }
+
+  .aspire-site-tour-btn-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .aspire-site-tour-btn-label {
+    display: inline-block;
+    min-width: 0;
+  }
+
+  .aspire-site-tour-btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--aspire-color-secondary) 88%, white 12%);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-card {
+    background: color-mix(in srgb, var(--sl-color-bg) 96%, var(--sl-color-accent-low));
+    box-shadow:
+      var(--sl-shadow-lg),
+      0 18px 34px color-mix(in srgb, var(--sl-color-gray-4) 18%, transparent);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-eyebrow {
+    color: var(--aspire-color-primary);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-body,
+  :root[data-theme='light'] .aspire-site-tour-hint,
+  :root[data-theme='light'] .aspire-site-tour-progress {
+    color: var(--sl-color-gray-2);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-btn-secondary {
+    background: color-mix(in srgb, var(--sl-color-bg) 85%, var(--sl-color-gray-7));
+  }
+
+  @media (max-width: 48rem) {
+    .aspire-site-tour-card {
+      width: calc(100vw - 1rem);
+      max-width: calc(100vw - 1rem);
+      max-height: calc(100vh - 0.75rem);
+      padding: 0.95rem;
+      border-radius: 1.1rem;
+    }
+
+    .aspire-site-tour-title {
+      font-size: 1.05rem;
+    }
+
+    .aspire-site-tour-body {
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .aspire-site-tour-btn {
+      min-height: 2.75rem;
+      padding-inline: 0.9rem;
+    }
+  }
+
+  @media (max-width: 32rem) {
+    .aspire-site-tour-actions {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .aspire-site-tour-btn-secondary,
+    .aspire-site-tour-btn-primary {
+      width: 100%;
+    }
+  }
+</style>
+
+<script is:inline>
+  (() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (window.__aspireSiteTour) {
+      window.__aspireSiteTour.refresh();
+      return;
+    }
+
+    const STORAGE_KEY = 'aspire-site-tour-v1';
+    const MASTER_STEP_ORDER = [
+      'apphost-selector',
+      'pivot-selector',
+      'sidebar-toggle',
+      'topics-dropdown',
+      'search',
+      'page-actions',
+      'edit-page',
+      'install-cli',
+      'cookie-preferences',
+      'tour-help',
+    ];
+    const STEP_DEFINITIONS = [
+      {
+        id: 'apphost-selector',
+        title: 'Choose your AppHost language',
+        body:
+          'Use this selector to keep AppHost walkthroughs aligned with the language you want to follow. It switches the site between C# and TypeScript examples for AppHost content.',
+        selectors: ['[data-tour-step="apphost-selector"]', '[data-tour-target="apphost-selector"]'],
+      },
+      {
+        id: 'pivot-selector',
+        title: 'Switch page-specific examples',
+        body:
+          'This page-level pivot switches the examples on the current page without sending you somewhere else. When it floats near the top while you scroll, use the small arrow controls to collapse it or bring it back.',
+        selectors: ['[data-tour-step="pivot-selector"]', '[data-tour-target="pivot-selector"]'],
+      },
+      {
+        id: 'sidebar-toggle',
+        title: 'Toggle the sidebar',
+        body:
+          'Use this control to collapse the sidebar for more reading space, or reopen it when you want the topic navigation back.',
+        selectors: ['[data-tour-step="sidebar-toggle"]', '[data-tour-target="sidebar-toggle"]'],
+      },
+      {
+        id: 'topics-dropdown',
+        title: 'Jump between topic areas',
+        body:
+          'Open this menu when you want a broader topic map for the docs without leaving the current page context.',
+        selectors: ['[data-tour-step="topics-dropdown"]', '[data-tour-target="topics-dropdown"]'],
+      },
+      {
+        id: 'search',
+        title: 'Search across the docs',
+        body:
+          'Use search whenever you want the fastest route to a guide, integration, or reference page.',
+        selectors: ['[data-tour-step="search"]', '[data-tour-target="search"] button', '[data-tour-target="search"]'],
+      },
+      {
+        id: 'page-actions',
+        title: 'Use the page actions',
+        body:
+          'These actions help you work with the current page, including copying the page as Markdown, sharing it, or opening it with an AI tool.',
+        selectors: ['[data-tour-step="page-actions"]', '[data-tour-target="page-actions"]'],
+      },
+      {
+        id: 'edit-page',
+        title: 'Edit this page on GitHub',
+        body:
+          'Use this link to jump straight to the source file on GitHub when you want to suggest a correction or update the docs.',
+        selectors: ['[data-tour-step="edit-page"]', '[data-tour-target="edit-page"]'],
+      },
+      {
+        id: 'install-cli',
+        title: 'Open quick install commands',
+        body:
+          'This button opens the quick install Aspire CLI modal so you can copy ready-to-run Aspire CLI commands without leaving the page.',
+        selectors: ['[data-tour-step="install-cli"]', '[data-tour-target="install-cli"]'],
+      },
+      {
+        id: 'cookie-preferences',
+        title: 'Review cookie settings',
+        body:
+          'You can reopen cookie preferences from here any time you want to review or change your consent choices.',
+        selectors: ['[data-tour-step="cookie-preferences"]', '[data-tour-target="cookie-preferences"]'],
+      },
+      {
+        id: 'tour-help',
+        title: 'Reopen this tour any time',
+        body:
+          'Use this help button whenever you want to restart the tour or come back for a quick refresher later. You can also hold Shift over supported controls and click them for a quick one-step explanation.',
+        selectors: ['[data-tour-step="tour-help"]', '[data-tour-target="tour-help"]'],
+      },
+    ];
+
+    function getDefaultState() {
+      return {
+        started: false,
+        completed: false,
+        hasCompletedOnce: false,
+        currentStepId: STEP_DEFINITIONS[0].id,
+        seenStepIds: [],
+      };
+    }
+
+    function readState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return getDefaultState();
+        }
+
+        const parsed = JSON.parse(raw);
+        return {
+          ...getDefaultState(),
+          ...parsed,
+        };
+      } catch {
+        return getDefaultState();
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function isLocaleSegment(segment) {
+      return /^[a-z]{2}(?:-[a-z]{2})?$/i.test(segment);
+    }
+
+    function isLandingPath(pathname) {
+      const parts = pathname.replace(/\/$/, '').split('/').filter(Boolean);
+      if (parts.length === 0) {
+        return true;
+      }
+
+      return parts.length === 1 && isLocaleSegment(parts[0]);
+    }
+
+    function isUsableTarget(element) {
+      if (!(element instanceof HTMLElement)) {
+        return false;
+      }
+
+      if (element.hidden) {
+        return false;
+      }
+
+      const style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }
+
+    class AspireSiteTour {
+      constructor() {
+        this.state = readState();
+        this.isOpen = false;
+        this.currentIndex = 0;
+        this.steps = [];
+        this.renderFrame = 0;
+        this.bound = false;
+        this.pendingRenderTimers = [];
+        this.singleStepMode = false;
+      }
+
+      init() {
+        this.ensureRoot();
+        this.bindEvents();
+        this.refresh();
+      }
+
+      clearPendingPaintLock() {
+        document.documentElement.removeAttribute('data-site-tour-pending');
+      }
+
+      refresh() {
+        this.ensureRoot();
+        this.ensurePageMarkers();
+        this.steps = this.buildSteps();
+        this.syncHelpButtons();
+
+        if (isLandingPath(window.location.pathname) || this.steps.length === 0) {
+          this.clearPendingPaintLock();
+          this.close(false);
+          return;
+        }
+
+        if (!this.state.started) {
+          this.start(false);
+          return;
+        }
+
+        this.clearPendingPaintLock();
+
+        if (this.isOpen) {
+          if (!this.singleStepMode) {
+            this.currentIndex = this.resolveStoredIndex();
+          }
+          this.render(true);
+        }
+      }
+
+      ensureRoot() {
+        if (this.root && document.body.contains(this.root)) {
+          return;
+        }
+
+        const root = document.createElement('div');
+        root.className = 'aspire-site-tour-layer';
+        root.hidden = true;
+        root.innerHTML = `
+          <div class="aspire-site-tour-backdrop" data-tour-segment="top"></div>
+          <div class="aspire-site-tour-backdrop" data-tour-segment="left"></div>
+          <div class="aspire-site-tour-backdrop" data-tour-segment="right"></div>
+          <div class="aspire-site-tour-backdrop" data-tour-segment="bottom"></div>
+          <div class="aspire-site-tour-spotlight"></div>
+          <section class="aspire-site-tour-card" role="dialog" aria-modal="true" aria-labelledby="aspire-site-tour-title">
+            <div class="aspire-site-tour-card-head">
+              <div class="aspire-site-tour-copy">
+                <p class="aspire-site-tour-eyebrow">Site tour</p>
+                <h2 class="aspire-site-tour-title" id="aspire-site-tour-title"></h2>
+              </div>
+              <button type="button" class="aspire-site-tour-close" data-tour-action="dismiss" aria-label="Dismiss site tour">&times;</button>
+            </div>
+            <p class="aspire-site-tour-body"></p>
+            <p class="aspire-site-tour-hint" hidden></p>
+            <div class="aspire-site-tour-footer">
+              <span class="aspire-site-tour-progress"></span>
+              <div class="aspire-site-tour-actions">
+                <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-secondary" data-tour-action="restart">
+                  <span class="aspire-site-tour-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9" />
+                      <path d="M2.5 3.2v3.2h3.2" />
+                    </svg>
+                  </span>
+                  <span class="aspire-site-tour-btn-label">Start over</span>
+                </button>
+                <button type="button" class="aspire-site-tour-btn aspire-site-tour-btn-primary" data-tour-action="next">
+                  <span class="aspire-site-tour-btn-label">Next</span>
+                  <span class="aspire-site-tour-btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 8h10" />
+                      <path d="m9 4l4 4l-4 4" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </section>
+        `;
+
+        document.body.append(root);
+
+        this.root = root;
+        this.spotlight = root.querySelector('.aspire-site-tour-spotlight');
+        this.card = root.querySelector('.aspire-site-tour-card');
+        this.title = root.querySelector('.aspire-site-tour-title');
+        this.body = root.querySelector('.aspire-site-tour-body');
+        this.hint = root.querySelector('.aspire-site-tour-hint');
+        this.progress = root.querySelector('.aspire-site-tour-progress');
+        this.nextButton = root.querySelector('[data-tour-action="next"]');
+        this.restartButton = root.querySelector('[data-tour-action="restart"]');
+        this.segments = {
+          top: root.querySelector('[data-tour-segment="top"]'),
+          left: root.querySelector('[data-tour-segment="left"]'),
+          right: root.querySelector('[data-tour-segment="right"]'),
+          bottom: root.querySelector('[data-tour-segment="bottom"]'),
+        };
+
+        root.querySelector('[data-tour-action="dismiss"]').addEventListener('click', () => this.close(true));
+        root.querySelector('[data-tour-action="restart"]').addEventListener('click', () => this.restart());
+        this.nextButton.addEventListener('click', () => this.advance());
+      }
+
+      bindEvents() {
+        if (this.bound) {
+          return;
+        }
+
+        this.bound = true;
+
+        const setInspectMode = (enabled) => {
+          document.documentElement.toggleAttribute('data-tour-inspect', enabled);
+        };
+
+        document.addEventListener('click', (event) => {
+          if (event.target instanceof Element && event.shiftKey) {
+            const inspectStep = this.getStepForElement(event.target);
+            if (inspectStep) {
+              event.preventDefault();
+              event.stopPropagation();
+              this.openSingle(inspectStep.id, true);
+              return;
+            }
+          }
+
+          const trigger = event.target instanceof Element ? event.target.closest('[data-tour-trigger]') : null;
+          if (trigger) {
+            event.preventDefault();
+            if (this.getNewSteps().length > 0) {
+              this.openNew();
+            } else if (!this.state.hasCompletedOnce && this.state.started && !this.state.completed) {
+              this.resume();
+            } else {
+              this.restart();
+            }
+            return;
+          }
+        }, true);
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Shift') {
+            setInspectMode(true);
+          }
+
+          if (!this.isOpen) {
+            return;
+          }
+
+          if (event.key === 'Escape') {
+            this.close(true);
+          }
+
+          if (event.key === 'Enter' && !this.nextButton.disabled) {
+            this.advance();
+          }
+        });
+
+        document.addEventListener('keyup', (event) => {
+          if (event.key === 'Shift') {
+            setInspectMode(false);
+          }
+        });
+
+        window.addEventListener('blur', () => setInspectMode(false));
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            setInspectMode(false);
+          }
+        });
+
+        window.addEventListener('resize', () => this.scheduleRender());
+        window.addEventListener('scroll', () => this.scheduleRender(), true);
+        document.addEventListener('astro:after-swap', () => this.refresh());
+        document.addEventListener('astro:page-load', () => this.refresh());
+      }
+
+      ensurePageMarkers() {
+        const actions = document.querySelector('.actions-container');
+        if (actions instanceof HTMLElement) {
+          actions.setAttribute('data-tour-target', 'page-actions');
+          actions.setAttribute('data-tour-step', 'page-actions');
+        }
+      }
+
+      buildSteps() {
+        return STEP_DEFINITIONS.filter((step) => {
+          if (step.id === 'install-cli' && window.innerWidth < 800) {
+            return false;
+          }
+
+          return this.resolveTarget(step);
+        });
+      }
+
+      getNewSteps() {
+        return this.buildSteps().filter((step) => !this.hasSeenStep(step.id));
+      }
+
+      syncHelpButtons() {
+        const buttons = document.querySelectorAll('[data-tour-trigger]');
+        const newSteps = this.getNewSteps();
+        const hasNewSteps = newSteps.length > 0;
+        const state = hasNewSteps ? 'new' : !this.state.hasCompletedOnce && this.state.started && !this.state.completed ? 'resume' : 'start';
+        const label = hasNewSteps
+          ? `View ${newSteps.length} new tour ${newSteps.length === 1 ? 'tip' : 'tips'}`
+          : state === 'resume'
+            ? 'Resume site tour'
+            : 'Start site tour';
+
+        buttons.forEach((button) => {
+          if (!(button instanceof HTMLElement)) {
+            return;
+          }
+
+          button.setAttribute('title', label);
+          button.setAttribute('aria-label', label);
+          button.setAttribute('data-tour-state', state);
+          button.setAttribute('data-tour-badge', hasNewSteps && newSteps.length > 1 ? String(newSteps.length) : '');
+          button.setAttribute('data-tour-badge-mode', hasNewSteps && newSteps.length === 1 ? 'dot' : hasNewSteps ? 'count' : 'none');
+        });
+      }
+
+      saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        } catch {}
+      }
+
+      hasSeenStep(stepId) {
+        return Array.isArray(this.state.seenStepIds) && this.state.seenStepIds.includes(stepId);
+      }
+
+      markStepSeen(stepId) {
+        if (!Array.isArray(this.state.seenStepIds)) {
+          this.state.seenStepIds = [];
+        }
+
+        if (!this.state.seenStepIds.includes(stepId)) {
+          this.state.seenStepIds.push(stepId);
+          this.saveState();
+        }
+      }
+
+      getAvailableStepById(stepId) {
+        return this.buildSteps().find((step) => step.id === stepId) || null;
+      }
+
+      getStepForElement(element) {
+        const target = element.closest('[data-tour-step], [data-tour-target]');
+        if (!(target instanceof HTMLElement)) {
+          return null;
+        }
+
+        const stepId = target.dataset.tourStep || target.dataset.tourTarget;
+        if (!stepId) {
+          return null;
+        }
+
+        return this.getAvailableStepById(stepId);
+      }
+
+      start(scrollIntoView) {
+        this.singleStepMode = false;
+        this.state.started = true;
+        this.state.completed = false;
+        this.state.currentStepId = STEP_DEFINITIONS[0].id;
+        this.saveState();
+        this.openAt(this.resolveStoredIndex(), scrollIntoView);
+      }
+
+      resume() {
+        this.singleStepMode = false;
+        this.openAt(this.resolveStoredIndex(), true);
+      }
+
+      openNew() {
+        const newSteps = this.getNewSteps();
+        if (newSteps.length === 0) {
+          this.restart();
+          return;
+        }
+
+        this.singleStepMode = false;
+        this.openAt(0, true, newSteps);
+      }
+
+      restart() {
+        this.singleStepMode = false;
+        this.state.started = true;
+        this.state.completed = false;
+        this.state.currentStepId = STEP_DEFINITIONS[0].id;
+        this.saveState();
+        this.openAt(0, true);
+      }
+
+      openSingle(stepId, scrollIntoView) {
+        const step = this.getAvailableStepById(stepId);
+        if (!step) {
+          return;
+        }
+
+        this.singleStepMode = true;
+        this.openAt(0, scrollIntoView, [step]);
+      }
+
+      openAt(index, scrollIntoView, providedSteps) {
+        this.steps = providedSteps ?? this.buildSteps();
+        if (this.steps.length === 0) {
+          this.clearPendingPaintLock();
+          return;
+        }
+
+        this.isOpen = true;
+        this.root.hidden = false;
+        this.root.dataset.modalOpen = 'false';
+        this.currentIndex = clamp(index, 0, this.steps.length - 1);
+        if (!this.singleStepMode) {
+          this.state.currentStepId = this.getCurrentStep().id;
+          this.saveState();
+        }
+        this.syncHelpButtons();
+        this.render(scrollIntoView);
+        this.clearPendingPaintLock();
+      }
+
+      close(keepProgress) {
+        this.isOpen = false;
+        this.clearPendingRenderTimers();
+        this.clearPendingPaintLock();
+        if (this.root) {
+          this.root.dataset.modalOpen = 'false';
+        }
+        if (keepProgress && this.getCurrentStep() && !this.singleStepMode) {
+          this.state.currentStepId = this.getCurrentStep().id;
+          this.saveState();
+        }
+        if (this.root) {
+          this.root.hidden = true;
+        }
+        this.singleStepMode = false;
+      }
+
+      complete() {
+        this.state.hasCompletedOnce = true;
+        this.state.completed = true;
+        this.state.currentStepId = STEP_DEFINITIONS[0].id;
+        this.saveState();
+        this.close(false);
+        this.syncHelpButtons();
+      }
+
+      getCurrentStep() {
+        return this.steps[this.currentIndex] || null;
+      }
+
+      resolveStoredIndex() {
+        if (this.steps.length === 0) {
+          return 0;
+        }
+
+        const exactIndex = this.steps.findIndex((step) => step.id === this.state.currentStepId);
+        if (exactIndex !== -1) {
+          return exactIndex;
+        }
+
+        const fallbackOrder = MASTER_STEP_ORDER.indexOf(this.state.currentStepId);
+        if (fallbackOrder !== -1) {
+          const nextIndex = this.steps.findIndex((step) => MASTER_STEP_ORDER.indexOf(step.id) >= fallbackOrder);
+          if (nextIndex !== -1) {
+            return nextIndex;
+          }
+        }
+
+        return 0;
+      }
+
+      resolveTarget(step) {
+        for (const selector of step.selectors) {
+          const matches = document.querySelectorAll(selector);
+          for (const match of matches) {
+            if (isUsableTarget(match)) {
+              return match;
+            }
+          }
+        }
+
+        return null;
+      }
+
+      getTopicsDropdown() {
+        return document.querySelector('[data-tour-target="topics-dropdown"]');
+      }
+
+      isTopicsDropdownOpen() {
+        const dropdown = this.getTopicsDropdown();
+        if (!(dropdown instanceof HTMLElement)) {
+          return false;
+        }
+
+        return dropdown.dataset.open === 'true' || dropdown.querySelector('[data-dropdown-trigger]')?.getAttribute('aria-expanded') === 'true';
+      }
+
+      getHighlightRect(step, target) {
+        const rect = target.getBoundingClientRect();
+
+        if (step.id === 'topics-dropdown' && this.isTopicsDropdownOpen()) {
+          const panel = target.querySelector('[data-dropdown-panel]:not([hidden])');
+          if (panel instanceof HTMLElement) {
+            const panelRect = panel.getBoundingClientRect();
+            return {
+              top: Math.min(rect.top, panelRect.top),
+              left: Math.min(rect.left, panelRect.left),
+              right: Math.max(rect.right, panelRect.right),
+              bottom: Math.max(rect.bottom, panelRect.bottom),
+              width: Math.max(rect.right, panelRect.right) - Math.min(rect.left, panelRect.left),
+              height: Math.max(rect.bottom, panelRect.bottom) - Math.min(rect.top, panelRect.top),
+            };
+          }
+        }
+
+        return rect;
+      }
+
+      clearPendingRenderTimers() {
+        for (const timer of this.pendingRenderTimers) {
+          window.clearTimeout(timer);
+        }
+
+        this.pendingRenderTimers = [];
+      }
+
+      advance() {
+        const step = this.getCurrentStep();
+        if (!step) {
+          return;
+        }
+
+        if (this.currentIndex >= this.steps.length - 1) {
+          if (this.singleStepMode) {
+            this.close(false);
+            this.syncHelpButtons();
+            return;
+          }
+
+          this.complete();
+          return;
+        }
+
+        this.currentIndex += 1;
+        if (!this.singleStepMode) {
+          this.state.currentStepId = this.getCurrentStep().id;
+          this.saveState();
+        }
+        this.render(true);
+      }
+
+      scheduleRender() {
+        if (!this.isOpen || this.root.hidden) {
+          return;
+        }
+
+        if (this.renderFrame) {
+          cancelAnimationFrame(this.renderFrame);
+        }
+
+        this.renderFrame = requestAnimationFrame(() => this.render(false));
+      }
+
+      render(scrollIntoView) {
+        const step = this.getCurrentStep();
+        if (!step) {
+          this.close(false);
+          return;
+        }
+
+        const target = this.resolveTarget(step);
+        if (!target) {
+          if (this.singleStepMode) {
+            this.close(false);
+            return;
+          }
+
+          this.steps = this.buildSteps();
+          if (this.steps.length === 0) {
+            this.close(false);
+            return;
+          }
+
+          this.currentIndex = clamp(this.resolveStoredIndex(), 0, this.steps.length - 1);
+          this.render(scrollIntoView);
+          return;
+        }
+
+        if (scrollIntoView) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          this.clearPendingRenderTimers();
+          const timer = window.setTimeout(() => this.scheduleRender(), 220);
+          this.pendingRenderTimers.push(timer);
+        }
+
+        this.markStepSeen(step.id);
+        this.title.textContent = step.title;
+        this.body.textContent = step.body;
+        this.progress.textContent = this.singleStepMode ? 'Quick tip' : `${this.currentIndex + 1} of ${this.steps.length}`;
+        this.nextButton.innerHTML = this.getNextButtonMarkup(this.singleStepMode ? 'Close' : this.currentIndex === this.steps.length - 1 ? 'Finish' : 'Next');
+        this.nextButton.disabled = false;
+        this.restartButton.hidden = this.singleStepMode;
+        this.syncHelpButtons();
+
+        this.hint.hidden = true;
+        this.hint.textContent = '';
+
+        const rawRect = this.getHighlightRect(step, target);
+        const padding = 12;
+        const hole = {
+          top: clamp(rawRect.top - padding, 0, window.innerHeight),
+          left: clamp(rawRect.left - padding, 0, window.innerWidth),
+          width: clamp(rawRect.width + padding * 2, 0, window.innerWidth),
+          height: clamp(rawRect.height + padding * 2, 0, window.innerHeight),
+        };
+        hole.right = clamp(hole.left + hole.width, 0, window.innerWidth);
+        hole.bottom = clamp(hole.top + hole.height, 0, window.innerHeight);
+
+        this.positionBackdrop(hole);
+        this.positionSpotlight(hole);
+        this.positionCard(hole);
+      }
+
+      positionBackdrop(hole) {
+        Object.assign(this.segments.top.style, {
+          top: '0px',
+          left: '0px',
+          width: '100vw',
+          height: `${hole.top}px`,
+        });
+        Object.assign(this.segments.left.style, {
+          top: `${hole.top}px`,
+          left: '0px',
+          width: `${hole.left}px`,
+          height: `${hole.height}px`,
+        });
+        Object.assign(this.segments.right.style, {
+          top: `${hole.top}px`,
+          left: `${hole.right}px`,
+          width: `${Math.max(window.innerWidth - hole.right, 0)}px`,
+          height: `${hole.height}px`,
+        });
+        Object.assign(this.segments.bottom.style, {
+          top: `${hole.bottom}px`,
+          left: '0px',
+          width: '100vw',
+          height: `${Math.max(window.innerHeight - hole.bottom, 0)}px`,
+        });
+      }
+
+      positionSpotlight(hole) {
+        Object.assign(this.spotlight.style, {
+          top: `${hole.top}px`,
+          left: `${hole.left}px`,
+          width: `${hole.width}px`,
+          height: `${hole.height}px`,
+        });
+      }
+
+      positionCard(hole) {
+        const margin = 16;
+        const cardRect = this.card.getBoundingClientRect();
+        const isCompactViewport = window.innerWidth <= 768;
+
+        if (isCompactViewport) {
+          const left = clamp((window.innerWidth - cardRect.width) / 2, 8, window.innerWidth - cardRect.width - 8);
+          const top = clamp(window.innerHeight - cardRect.height - 8, 8, window.innerHeight - cardRect.height - 8);
+
+          Object.assign(this.card.style, {
+            left: `${left}px`,
+            top: `${top}px`,
+          });
+          return;
+        }
+
+        const fitsRight = window.innerWidth - hole.right >= cardRect.width + margin;
+        const fitsLeft = hole.left >= cardRect.width + margin;
+        const fitsBottom = window.innerHeight - hole.bottom >= cardRect.height + margin;
+
+        let left;
+        let top;
+
+        if (fitsRight) {
+          left = hole.right + margin;
+          top = clamp(hole.top, margin, window.innerHeight - cardRect.height - margin);
+        } else if (fitsLeft) {
+          left = hole.left - cardRect.width - margin;
+          top = clamp(hole.top, margin, window.innerHeight - cardRect.height - margin);
+        } else if (fitsBottom) {
+          left = clamp(hole.left, margin, window.innerWidth - cardRect.width - margin);
+          top = hole.bottom + margin;
+        } else {
+          left = clamp(hole.left, margin, window.innerWidth - cardRect.width - margin);
+          top = clamp(hole.top - cardRect.height - margin, margin, window.innerHeight - cardRect.height - margin);
+        }
+
+        Object.assign(this.card.style, {
+          left: `${left}px`,
+          top: `${top}px`,
+        });
+      }
+
+      getNextButtonMarkup(label) {
+        return `<span class="aspire-site-tour-btn-label">${label}</span><span class="aspire-site-tour-btn-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10" /><path d="m9 4l4 4l-4 4" /></svg></span>`;
+      }
+    }
+
+    window.__aspireSiteTour = new AspireSiteTour();
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => window.__aspireSiteTour.init(), { once: true });
+    } else {
+      window.__aspireSiteTour.init();
+    }
+  })();
+</script>
