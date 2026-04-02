@@ -54,25 +54,27 @@ const repo = getRepoUrl().replace(/\/$/, '');
 const lines = [`PUBLIC_GIT_COMMIT_ID=${commit}`, `PUBLIC_REPO_URL=${repo}`];
 
 const envPath = join(process.cwd(), '.env.local');
-let updated = false;
-let content = '';
-if (existsSync(envPath)) {
-  content = readFileSync(envPath, 'utf8');
+const fileExists = existsSync(envPath);
+const existingContent = fileExists ? readFileSync(envPath, 'utf8') : '';
+
+let content = fileExists ? existingContent : lines.join('\n') + '\n';
+
+if (fileExists) {
   lines.forEach((line) => {
     const [key] = line.split('=');
     const regex = new RegExp(`^${key}=.*$`, 'm');
     if (regex.test(content)) {
       content = content.replace(regex, line);
-      updated = true;
     } else {
       content += (content.endsWith('\n') ? '' : '\n') + line + '\n';
-      updated = true;
     }
   });
+}
+
+const updated = content !== existingContent;
+
+if (updated) {
   writeFileSync(envPath, content);
-} else {
-  writeFileSync(envPath, lines.join('\n') + '\n');
-  updated = true;
 }
 
 if (process.env.CI) {

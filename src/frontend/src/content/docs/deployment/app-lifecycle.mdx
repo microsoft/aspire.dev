@@ -6,7 +6,7 @@ description: Understand the lifecycle of Aspire applications from development to
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-This guide provides a high-level overview of the lifecycle phases of an Aspire application, from development through local deployment to production release. By using the same `AppHost` configuration across all phases, you ensure consistency and reduce configuration drift between environments. 
+This guide provides a high-level overview of the lifecycle phases of an Aspire application, from development through local deployment to production release. By using the same AppHost configuration across all phases, you ensure consistency and reduce configuration drift between environments. 
 The example in this guide demonstrates how Aspire orchestrates containerized applications with persistent storage and CI/CD automation using the [Docker Integration](/integrations/compute/docker/) and GitHub.
 
 ## App lifecycle
@@ -24,6 +24,8 @@ The Aspire application lifecycle consists of three main phases:
 **Each phase uses the same `AppHost` configuration but serves different purposes in the development and deployment workflows.**
 
 ### Example
+
+The following example uses a C# AppHost, but the same lifecycle applies to TypeScript AppHosts.
 
 Consider [this example](https://github.com/BethMassi/VolumeMount/). You have a distributed application that consists of a Blazor web project that relies on a SQL Server database with a persistent data volume as well as a persistent writable file volume to capture user file uploads. 
 You want to distribute your Blazor app as a Docker container image via the GitHub Container Registry. You need the [Aspire.Hosting.Docker](/integrations/compute/docker/) and [Aspire.Hosting.SqlServer](/integrations/databases/sql-server/sql-server-get-started/) integrations. 
@@ -104,7 +106,7 @@ When you run `aspire run`:
 <Steps>
 
 1. **Aspire dashboard launches** - A web-based dashboard starts, and its URL (often an HTTPS login URL like `https://localhost:<port>/login?...`) is printed to the console.
-2. **Resources start** - All resources defined in your `AppHost.cs` are orchestrated. 
+2. **Resources start** - All resources defined in your AppHost are orchestrated. 
 3. **Live debugging** - You can attach debuggers, set breakpoints, and modify code with hot reload.
 4. **Telemetry & logs** - Dashboard provides real-time logs, metrics, and distributed traces.
 
@@ -132,7 +134,7 @@ Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
 
 In the example above, when resources start with the run command:
 - SQL Server container starts in Docker with persistent volume
-- Blazor Web project runs as a .NET process (**not containerized**)
+- Web project runs as a local process (**not containerized**)
 - Database is automatically created and migrated (containerized)
    
 ## Phase 2: Local Deployment
@@ -193,7 +195,7 @@ In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/wor
 
 <Steps>
 
-1. **Setup Environment** - Install .NET
+1. **Setup Environment** - Install required SDKs
 2. **Install Aspire CLI** - Install the Aspire CLI
 3. **Build and Push Container Images** - Build app and push image to GitHub Container Registry with `aspire do push`
 4. **Publish Docker Compose Artifacts** - Generate deployment files with `aspire publish`
@@ -204,6 +206,7 @@ In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/wor
 #### Step 1: Setup Environment
 
 ```yaml
+# Required for C# AppHost projects
 - name: Setup .NET
   uses: actions/setup-dotnet@v4
   with:
@@ -241,7 +244,7 @@ Replace `your-org/your-repo` with your actual GitHub organization and repository
 </Aside>
 
 The `aspire do push` command does the following:
-- Analyzes your `AppHost.cs` configuration
+- Analyzes your AppHost configuration
 - Restores dependencies and builds the project
 - Builds Docker container images for project resources
 - Tags images with configured registry endpoint and repository
@@ -264,8 +267,12 @@ The `aspire do push` command does the following:
       --output-path ./aspire-output
 ```
 
+<Aside type="note">
+The `--project` flag is needed when your AppHost isn't in the current directory.
+</Aside>
+
 The `aspire publish` command does the following:
-- Analyzes your `AppHost.cs` configuration
+- Analyzes your AppHost configuration
 - Generates `docker-compose.yaml` file with all service definitions
 - Creates `.env` template file for environment variables
 - Packages configuration needed for deployment
@@ -329,11 +336,15 @@ After the workflow completes, you have everything needed for production deployme
 
 | Phase | Command | Purpose | Environment | App | Database |
 |-------|---------|---------|-------------|------------|------------|
-| **Development** | `aspire run` | Inner-loop coding & debugging | Local machine | App process (i.e. .NET) | Container |
+| **Development** | `aspire run` | Inner-loop coding & debugging | Local machine | Local process | Container |
 | **Local Deploy** | `aspire deploy` | Test containerized app locally | Registered compute environment (i.e. Docker Desktop) | Container | Container |
 | **Release** | CI/CD workflow (i.e. GitHub Actions) | Publish to staging/ production | Cloud/Server | Container | Container |
 
-The `AppHost.cs` file is the **single source of truth** for your application architecture. Each phase above uses the exact same `AppHost` configuration. This eliminates configuration drift between development and deployment. It defines things your distributed application needs like:
+<Aside type="tip">
+This example uses a C# AppHost, but the same lifecycle workflow applies to TypeScript AppHosts. Replace `.csproj` references with your `apphost.ts` path as needed.
+</Aside>
+
+The AppHost is the **single source of truth** for your application architecture. Each phase above uses the exact same AppHost configuration. This eliminates configuration drift between development and deployment. It defines things your distributed application needs like:
 - **Services & Dependencies** - Projects, containers, and their relationships
 - **Configuration** - Connection strings, secrets, and parameters
 - **Volumes** - Persistent storage for databases and files

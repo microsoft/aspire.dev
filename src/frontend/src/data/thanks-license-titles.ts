@@ -44,6 +44,7 @@ export const licenseTitles = {
   spectreConsole: 'MIT: https://github.com/spectreconsole/spectre.console/blob/main/LICENSE.md',
   dotnet: 'MIT: https://github.com/dotnet/runtime/blob/main/LICENSE.TXT',
   csharp: 'MIT: https://github.com/dotnet/roslyn/blob/main/License.txt',
+  typescript: 'Apache-2.0: https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt',
   blazor: 'MIT: https://github.com/dotnet/aspnetcore/blob/main/LICENSE.txt',
   dapr: 'Apache-2.0: https://github.com/dapr/dapr/blob/master/LICENSE',
   hex1b: 'MIT: https://hex1b.dev',
