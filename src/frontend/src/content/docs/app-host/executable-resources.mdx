@@ -4,7 +4,8 @@ description: Learn how to host external executable applications in your Aspire A
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 In Aspire, you can host external executable applications alongside your projects using the `AddExecutable` method. This capability is useful when you need to integrate executable applications or tools into your distributed application, such as Node.js applications, Python scripts, or specialized CLI tools.
 
@@ -28,9 +29,16 @@ Common examples include:
 
 The `AddExecutable` method requires a resource name, the executable path, and optionally command-line arguments and a working directory:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -43,10 +51,8 @@ var pythonApp = builder.AddExecutable(
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -60,9 +66,7 @@ const pythonApp = await builder.addExecutable("api", "python", ".", ["-m", "uvic
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 This code demonstrates setting up a basic executable resource. The first example runs a Node.js server script, while the second starts a Python application using Uvicorn with specific configuration options passed as arguments directly to the `AddExecutable` method.
 
@@ -72,9 +76,16 @@ You can provide command-line arguments directly in the `AddExecutable` call and 
 
 ### Arguments in the AddExecutable call
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -82,10 +93,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 var app = builder.AddExecutable(
     "vercel-dev", "vercel", ".", "dev", "--listen", "3000");
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -94,17 +103,22 @@ const builder = await createBuilder();
 // Arguments provided directly in addExecutable
 const app = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--listen", "3000"]);
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ### Resource dependencies with environment variables
 
 For arguments that depend on other resources, use environment variables:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -115,10 +129,8 @@ var app = builder.AddExecutable("worker", "python", ".", "worker.py")
     .WithReference(redis)      // Provides ConnectionStrings__cache
     .WithReference(postgres);  // Provides ConnectionStrings__appdb
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -131,9 +143,7 @@ const app = await builder.addExecutable("worker", "python", ".", ["worker.py"])
     .withReference(redis)      // Provides ConnectionStrings__cache
     .withReference(postgres);  // Provides ConnectionStrings__appdb
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 When one resource depends on another, `WithReference` passes along environment variables containing the dependent resource's connection details. For example, the `worker` executable's reference to `redis` and `postgres` provides it with the `ConnectionStrings__cache` and `ConnectionStrings__appdb` environment variables, which contain connection strings to these resources.
 
@@ -141,9 +151,16 @@ When one resource depends on another, `WithReference` passes along environment v
 
 For more control over how connection information is passed to your executable:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -158,10 +175,8 @@ var app = builder.AddExecutable("app", "node", ".", "app.js")
         context.EnvironmentVariables["REDIS_PORT"] = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
     });
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -174,17 +189,22 @@ const app = await builder.addExecutable("app", "node", ".", ["app.js"])
     .withEnvironment("REDIS_HOST", redis.resource.primaryEndpoint.property("host"))
     .withEnvironment("REDIS_PORT", redis.resource.primaryEndpoint.property("port"));
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Practical example: Vercel CLI
 
 Here's a complete example using the [Vercel CLI](https://vercel.com/docs/cli) to host a frontend application with a backend API:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -200,10 +220,8 @@ var frontend = builder.AddExecutable(
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -220,17 +238,22 @@ const frontend = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev"
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Configure endpoints
 
 Executable resources can expose HTTP endpoints that other resources can reference:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -242,10 +265,8 @@ var frontend = builder.AddExecutable(
 var e2eTests = builder.AddExecutable("playwright", "npx", ".", "playwright", "test")
     .WithEnvironment("BASE_URL", frontend.GetEndpoint("http"));
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -258,17 +279,22 @@ const frontend = await builder.addExecutable("webpack-dev", "npx", ".", ["webpac
 const e2eTests = await builder.addExecutable("playwright", "npx", ".", ["playwright", "test"])
     .withEnvironment("BASE_URL", frontend.getEndpoint("http"));
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Environment configuration
 
 Configure environment variables for your executable:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -282,10 +308,8 @@ var app = builder.AddExecutable(
         context.EnvironmentVariables["START_TIME"] = DateTimeOffset.UtcNow.ToString();
     });
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -296,17 +320,22 @@ const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--r
     .withEnvironment("LOG_LEVEL", "info")
     .withEnvironment("START_TIME", new Date().toISOString());
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Publishing with PublishAsDockerFile
 
 For production deployment, executable resources need to be containerized. Use the `PublishAsDockerFile` method to specify how the executable should be packaged:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -314,10 +343,8 @@ var app = builder.AddExecutable(
         "frontend", "npm", ".", "start", "--port", "3000")
     .PublishAsDockerFile();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -326,9 +353,7 @@ const builder = await createBuilder();
 const app = await builder.addExecutable("frontend", "npm", ".", ["start", "--port", "3000"])
     .publishAsDockerFile();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 When you call `PublishAsDockerFile()`, Aspire generates a Dockerfile during the publish process. You can customize this by providing your own Dockerfile:
 
@@ -348,19 +373,24 @@ CMD ["npm", "start"]
 
 Then reference it in your AppHost:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddExecutable("frontend", "npm", ".", "start")
     .PublishAsDockerFile([new DockerfileBuildArg("NODE_ENV", "production")]);
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -369,9 +399,7 @@ const builder = await createBuilder();
 const app = await builder.addExecutable("frontend", "npm", ".", ["start"])
     .publishAsDockerFile([{ name: "NODE_ENV", value: "production" }]);
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Best practices
 

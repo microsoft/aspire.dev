@@ -10,7 +10,8 @@ import {
   FileTree,
   Steps,
 } from '@astrojs/starlight/components';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
@@ -28,9 +29,16 @@ Kubernetes is a supported deployment target for Aspire applications. By adding t
 
 To configure your AppHost for Kubernetes, add a Kubernetes environment with `AddKubernetesEnvironment`:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs" {3}
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -40,10 +48,8 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts" {5}
 import { createBuilder } from './.modules/aspire.js';
 
@@ -55,9 +61,7 @@ const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Generate Kubernetes artifacts
 
@@ -165,9 +169,16 @@ Use [external parameters](/fundamentals/external-parameters/) to configure value
 
 By default, the Helm chart name is derived from your AppHost project. Configure a custom chart name using `WithProperties`:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -177,10 +188,8 @@ builder.AddKubernetesEnvironment("k8s")
         k8s.HelmChartName = "my-aspire-app";
     });
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -191,17 +200,22 @@ await k8s.withProperties(async (k8s) => {
   await k8s.helmChartName.set('my-aspire-app');
 });
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ## Customize Kubernetes services
 
 Use the `PublishAsKubernetesService` callback to modify the generated Kubernetes resources for individual services. This provides fully typed access to the Kubernetes object model:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -212,10 +226,8 @@ builder.AddContainer("service", "nginx")
         // Customize the generated Kubernetes resource
     });
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -227,9 +239,7 @@ await service.publishAsKubernetesService(async (resource) => {
   // Customize the generated Kubernetes resource
 });
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 <Aside type="tip">
   Use `WithProperties` on the Kubernetes environment for global settings, and

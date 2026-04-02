@@ -5,7 +5,8 @@ description: Learn how to migrate your Docker Compose applications to Aspire and
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 This guide helps you understand how to migrate applications from Docker Compose to Aspire, highlighting the key conceptual differences and providing accurate, practical examples for common migration scenarios.
 
@@ -96,9 +97,16 @@ volumes:
 
 **Aspire equivalent:**
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -124,10 +132,8 @@ var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -155,9 +161,7 @@ const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Fr
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 <Aside type="note" title="build: services become .NET projects">
 In Docker Compose, the `build:` directive creates container images from Dockerfiles. In Aspire, .NET services are added directly as project references with `AddProject<T>()`, providing better debugging, hot reload, and telemetry integration. For services that still build from Dockerfiles, use `AddDockerfile()` instead.
@@ -216,9 +220,16 @@ volumes:
 
 **Aspire equivalent:**
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -242,10 +253,8 @@ var web = builder.AddDockerfile("web", ".")
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -271,9 +280,7 @@ const web = await builder.addDockerfile("web", ".")
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 <Aside type="caution" title="Connection string format differences">
 Aspire generates .NET-format connection strings, which differ from Docker Compose URL formats:
@@ -315,9 +322,16 @@ services:
 
 **Aspire approach:**
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -337,10 +351,8 @@ var app = builder.AddContainer("app", "myapp", "latest")
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -362,9 +374,7 @@ const app = await builder.addContainer("app", "myapp:latest")
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 <Aside type="caution" title="Aspire connection strings differ from Docker Compose URLs">
 `WithReference()` provides connection strings in .NET format, not URL format:
@@ -375,9 +385,16 @@ await builder.build().run();
 If your application expects URL-format variables like `DATABASE_URL` or `REDIS_URL`, construct them manually using the `WithEnvironment` callback:
 </Aside>
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
 
@@ -394,10 +411,8 @@ var app = builder.AddContainer("app", "myapp", "latest")
         context.EnvironmentVariables["REDIS_URL"] = "redis://cache:6379";
     });
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 const dbPassword = builder.addParameter("dbPassword", { secret: true });
 
@@ -410,9 +425,7 @@ const app = await builder.addContainer("app", "myapp:latest")
         builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`)
     .withEnvironment("REDIS_URL", "redis://cache:6379");
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 ### Custom volumes and bind mounts
 
@@ -438,9 +451,16 @@ volumes:
 
 **Aspire equivalent:**
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -456,10 +476,8 @@ var worker = builder.AddContainer("worker", "myworker", "latest")
 
 builder.Build().Run();
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -477,9 +495,7 @@ const worker = await builder.addContainer("worker", "myworker:latest")
 
 await builder.build().run();
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 **Key differences:**
 
@@ -583,9 +599,16 @@ Aspire generates .NET-style connection strings (`ConnectionStrings__*`) rather t
 
 **Solution**: If your application expects specific URL formats, construct them manually using `WithEnvironment()`:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var dbPassword = builder.AddParameter("dbPassword", secret: true);
 
@@ -601,10 +624,8 @@ var app = builder.AddContainer("app", "myapp", "latest")
                 $"postgresql://postgres:{dbPassword}@db:5432/myapp");
     });
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 const dbPassword = builder.addParameter("dbPassword", { secret: true });
 
@@ -616,9 +637,7 @@ const app = await builder.addContainer("app", "myapp:latest")
     .withEnvironment("DATABASE_URL",
         builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`);
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 #### Service startup order issues
 
@@ -626,26 +645,29 @@ const app = await builder.addContainer("app", "myapp:latest")
 
 **Solution**: Use `WaitFor()` to ensure dependencies are ready:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)  // Service discovery
     .WaitFor(database);       // Startup ordering
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withReference(database)  // Service discovery
     .waitFor(database);       // Startup ordering
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 #### Volume mounting issues
 
@@ -659,24 +681,27 @@ Aspire automatically assigns random ports by default.
 
 **Solution**: Use `WithHostPort()` or `WithHttpEndpoint(port:)` for static port mapping:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var redis = builder.AddRedis("cache")
     .WithHostPort(6379);
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 const redis = await builder.addRedis("cache")
     .withHostPort(6379);
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 #### Health check migration
 
@@ -684,30 +709,40 @@ Docker Compose health checks use shell commands. Aspire integrations (like Postg
 
 **Solution**: For resources with HTTP endpoints, use `WithHttpHealthCheck()`:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 var api = builder.AddProject<Projects.Api>("api")
     .WithHttpHealthCheck("/health");
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 const api = await builder.addProject("api", "./Api/Api.csproj", "https")
     .withHttpHealthCheck("/health");
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 For custom container health checks that need shell commands (like RabbitMQ), register a custom health check and associate it with the resource:
 
-<AppHostLangPivot>
-  <div slot="csharp">
-
+<PivotSelector
+  title="Select your Aspire programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="C# — AppHost.cs"
 builder.Services.AddHealthChecks()
     .AddCheck("rabbitmq-health", () =>
@@ -724,10 +759,8 @@ var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpi
 var app = builder.AddProject<Projects.App>("app")
     .WaitFor(rabbit);
 ```
-
-  </div>
-  <div slot="typescript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
     .withHealthCheck("rabbitmq-health");
@@ -736,9 +769,7 @@ const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-managem
 const app = await builder.addProject("app", "./App/App.csproj", "https")
     .waitFor(rabbit);
 ```
-
-  </div>
-</AppHostLangPivot>
+</Pivot>
 
 <Aside type="note">
 Aspire integration packages (like `Aspire.Hosting.PostgreSQL` or `Aspire.Hosting.Redis`) include built-in health checks. You don't need to define custom health checks for these services — `WaitFor()` automatically waits for the built-in health check to pass.
