@@ -1,0 +1,75 @@
+---
+export interface Props {
+  /** Twitch channel name for a live stream */
+  channel?: string;
+  /** Twitch video ID for a past broadcast (e.g. "1234567890") */
+  video?: string;
+  /** Accessible title for the iframe */
+  title?: string;
+  /** Aspect ratio — default 16/9 */
+  aspectRatio?: string;
+  /** Parent domain(s) required by Twitch embed — defaults to current site origin */
+  parent?: string;
+  /** Max width constraint — default 100% */
+  maxWidth?: string;
+}
+
+const {
+  channel,
+  video,
+  title = 'Twitch stream player',
+  aspectRatio = '16 / 9',
+  parent = Astro.url.hostname,
+  maxWidth = '100%',
+} = Astro.props;
+
+if (!channel && !video) {
+  throw new Error('TwitchEmbed requires either a `channel` or `video` prop.');
+}
+
+const params = new URLSearchParams({
+  parent,
+  autoplay: 'false',
+  muted: 'false',
+});
+
+let src: string;
+if (video) {
+  src = `https://player.twitch.tv/?video=${video}&${params.toString()}`;
+} else {
+  src = `https://player.twitch.tv/?channel=${channel}&${params.toString()}`;
+}
+---
+
+<div class="twitch-embed not-content" style={`--aspect-ratio: ${aspectRatio}; --max-width: ${maxWidth};`}>
+  <iframe
+    src={src}
+    title={title}
+    allow="autoplay; encrypted-media; fullscreen"
+    allowfullscreen
+    loading="lazy"
+    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+  ></iframe>
+</div>
+
+<style>
+  .twitch-embed {
+    position: relative;
+    width: 100%;
+    max-width: var(--max-width, 100%);
+    aspect-ratio: var(--aspect-ratio, 16 / 9);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    box-shadow: var(--sl-shadow-sm);
+  }
+
+  .twitch-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+</style>

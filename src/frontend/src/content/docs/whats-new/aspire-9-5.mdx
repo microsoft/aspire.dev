@@ -21,7 +21,7 @@ import dashboardContainerWarning from '@assets/whats-new/aspire-9.5/dashboard-co
 - .NET 9.0 Standard Term Support (STS).
 - .NET 10.0 Release Candidate (RC) 1.
 
-If you have feedback, questions, or want to contribute to Aspire, collaborate with us on [GitHub](https://github.com/dotnet/aspire) or join us on [Discord](https://aka.ms/aspire-discord) to chat with the team and other community members.
+If you have feedback, questions, or want to contribute to Aspire, collaborate with us on [GitHub](https://github.com/microsoft/aspire) or join us on [Discord](https://aka.ms/aspire-discord) to chat with the team and other community members.
 
 It's important to note that Aspire releases are out-of-band from .NET releases. While major versions of Aspire align with major .NET versions, minor versions are released more frequently. For more information on .NET and Aspire version support, see:
 
@@ -32,7 +32,7 @@ It's important to note that Aspire releases are out-of-band from .NET releases. 
 
 <Aside type="note">
 Try out `aspire update`!
-Aspire 9.5 brings a new preview CLI command - [aspire update](#new-aspire-update-command-preview) - that can update your AppHost and its packages for you. Get the latest CLI if you want to try to give us feedback about it on [GitHub](https://github.com/dotnet/aspire/issues)!
+Aspire 9.5 brings a new preview CLI command - [aspire update](#new-aspire-update-command-preview) - that can update your AppHost and its packages for you. Get the latest CLI if you want to try to give us feedback about it on [GitHub](https://github.com/microsoft/aspire/issues)!
 </Aside>
 
 Moving between minor releases of Aspire is simple:
@@ -53,11 +53,11 @@ Moving between minor releases of Aspire is simple:
     <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2" />
     ```
 
-    For more information, see [Aspire SDK](`dotnet/aspire/sdk`).
+    For more information, see [Aspire SDK](`microsoft/aspire/sdk`).
 
 1. Check for any NuGet package updates, either using the NuGet Package Manager in Visual Studio or the **Update NuGet Package** command from C# Dev Kit in Visual Studio (VS) Code.
 
-1. Update to the latest [Aspire templates](fundamentals/aspire-sdk-templates/) by running the following .NET command line:
+1. Update to the latest Aspire templates by running the following .NET command line:
 
     ```bash title='.NET CLI'
     dotnet new install Aspire.ProjectTemplates
@@ -292,7 +292,7 @@ The trace detail page includes several quality-of-life improvements:
 
 ### OpenAI hosting integration
 
-The new `AddOpenAI` integration provides first-class support for modeling OpenAI endpoints and their associated models within your Aspire application model. For more information, see [Aspire OpenAI integration (Preview)](https://aspire.dev/integrations/ai/openai/).
+The new `AddOpenAI` integration provides first-class support for modeling OpenAI endpoints and their associated models within your Aspire application model. For more information, see [Aspire OpenAI integration (Preview)](https://aspire.dev/integrations/ai/openai/openai-get-started/).
 
 **Features:**
 
@@ -343,7 +343,7 @@ var embeddingModel = builder.AddGitHubModel("embeddings", GitHubModel.OpenAI.Ope
 For more information, see:
 
 - [Aspire GitHub Models integration (Preview)](https://aspire.dev/integrations/ai/github-models/).
-- [Aspire Azure AI Foundry integration (Preview)](https://aspire.dev/integrations/cloud/azure/azure-ai-foundry/).
+- [Aspire Azure AI Foundry integration (Preview)](https://aspire.dev/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/).
 
 ### Dev Tunnels hosting integration
 
@@ -456,14 +456,28 @@ builder.Build().Run();
 
 ### RabbitMQ auto activation
 
-RabbitMQ client connections now support auto activation to prevent startup deadlocks and improve application reliability. Auto activation is disabled by default in 9.5, but planned to be enabled by default in a future release.
+RabbitMQ client connections now support auto activation to prevent startup deadlocks and improve application reliability. When enabled, auto activation ensures that the RabbitMQ connection is established during application startup rather than being lazily initialized on first use. This helps detect connection issues early and prevents certain race conditions that can occur with lazy initialization.
+
+Auto activation is **disabled by default** in Aspire 9.5 to maintain backward compatibility. In a future release, it's planned to be **enabled by default**.
+
+**When to enable auto activation:**
+
+- Your application needs to verify RabbitMQ connectivity during startup
+- You want to fail fast if RabbitMQ is unavailable
+- Your application requires connections to be established before accepting traffic
+- You're experiencing startup deadlocks with lazy connection initialization
+
+**Enable auto activation:**
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-// Auto activation is disabled by default for RabbitMQ, enable using DisableAutoActivation=false
+// Auto activation is disabled by default for RabbitMQ
+// Enable using DisableAutoActivation=false
 builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
 ```
+
+For more information, see [RabbitMQ integration - Auto activation](/integrations/messaging/rabbitmq/rabbitmq-client/#auto-activation).
 
 ### Redis integration improvements
 
@@ -547,7 +561,7 @@ var redisEnterprise = builder.AddAzureRedisEnterprise("redis-enterprise")
     .WithAccessKeyAuthentication(keyVault);
 ```
 
-For more information, see [Aspire Azure Managed Redis integration](https://aspire.dev/integrations/cloud/azure/azure-cache-redis/).
+For more information, see [Aspire Azure Managed Redis integration](https://aspire.dev/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-get-started/).
 
 ### Azure App Configuration emulator (preview)
 
@@ -1113,7 +1127,7 @@ var backend = builder.AddProject<Projects.Backend>("backend")
 
 ### InteractionInput API requires Name property
 
-**Breaking change**: `InteractionInput` now requires a `Name` property, while `Label` becomes optional ([#10835](https://github.com/dotnet/aspire/pull/10835)).
+**Breaking change**: `InteractionInput` now requires a `Name` property, while `Label` becomes optional ([#10835](https://github.com/microsoft/aspire/pull/10835)).
 
 #### Migration example
 
@@ -1140,6 +1154,6 @@ This change enables better form serialization and integration with interactive p
 
 ### Notification terminology renamed from MessageBar
 
-**Breaking change**: Notification terminology has been updated, with MessageBar renamed to use new notification terminology ([#10449](https://github.com/dotnet/aspire/pull/10449)).
+**Breaking change**: Notification terminology has been updated, with MessageBar renamed to use new notification terminology ([#10449](https://github.com/microsoft/aspire/pull/10449)).
 
 This change affects APIs and terminology used in the notification system, requiring updates to code that references the old MessageBar naming conventions.

@@ -1,0 +1,771 @@
+---
+/**
+ * /reference/api/csharp/[package]/ ΓÇö Package landing page.
+ *
+ * Lists every type in the package, grouped by namespace.
+ * Includes in-page search scoped to this package's types and members,
+ * and collapsible namespace sections.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { genericArity, typeDisplayName, groupTypesByNamespace, typeHref, nugetHref, packageSlug, slugify, getPackages, memberSlug } from '@utils/packages';
+import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import Expand from '@components/Expand.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import DocContent from '@components/api-reference/DocContent.astro';
+import NuGetButton from '@components/api-reference/NuGetButton.astro';
+import { hasAttribute } from '@utils/api-attributes';
+
+export async function getStaticPaths() {
+  const packages = await getPackages();
+  return packages.map(pkg => ({
+    params: { package: packageSlug(pkg.data.package.name) },
+    props: { pkg: pkg.data },
+  }));
+}
+
+const { pkg } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const validTypes = pkg.types.filter((t: any) => t.name);  // skip types with empty names
+const isOfficial = pkg.package.name.startsWith('Aspire.');
+const namespaceGroups = groupTypesByNamespace(validTypes);
+const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
+
+const headings = [...namespaceGroups.keys()].map((ns) => ({
+  depth: 2 as const,
+  slug: ns.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+  text: ns,
+}));
+
+/* Build package-scoped search index */
+
+interface PkgIndexEntry {
+  /** Short name */
+  n: string;
+  /** Fully-qualified name */
+  f: string;
+  /** Namespace */
+  ns: string;
+  /** Kind (class, interface, enum, method, property, ...) */
+  k: string;
+  /** Summary text (first ~160 chars) */
+  s: string;
+  /** Parent type name (for members only) */
+  t?: string;
+  /** Precomputed anchor slug (when it differs from the name-derived slug) */
+  a?: string;
+}
+
+function extractSummary(summary: any): string {
+  if (!summary || !Array.isArray(summary)) return '';
+  return summary
+    .map((node: any) => {
+      if (node.kind === 'text') return node.text;
+      if (node.kind === 'cref') return node.value?.split('.').pop() ?? '';
+      if (node.kind === 'paramref' || node.kind === 'typeparamref') return node.value ?? '';
+      if (node.kind === 'langword') return node.value ?? '';
+      return '';
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
+}
+
+const pkgIndex: PkgIndexEntry[] = [];
+let memberCount = 0;
+
+for (const type of validTypes) {
+  const typeSlug = slugify(type.name, genericArity(type));
+  pkgIndex.push({
+    n: type.name,
+    f: type.fullName ?? type.name,
+    ns: type.namespace ?? '',
+    k: type.kind ?? 'class',
+    s: extractSummary(type.docs?.summary),
+    ...(typeSlug !== type.name.toLowerCase() ? { g: typeSlug } : {}),
+  });
+
+  const members: any[] = type.members ?? [];
+  for (const member of members) {
+    memberCount++;
+    const memberName = member.name === '.ctor' ? `${type.name} (constructor)` : member.name;
+    const memberFull = `${type.fullName ?? type.name}.${member.name === '.ctor' ? '.ctor' : member.name}`;
+    const slug = memberSlug(member);
+    const defaultSlug = memberName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    pkgIndex.push({
+      n: memberName,
+      f: memberFull,
+      ns: type.namespace ?? '',
+      k: member.kind ?? 'method',
+      s: extractSummary(member.docs?.summary),
+      t: type.name,
+      ...(slug !== defaultSlug ? { a: slug } : {}),
+      ...(typeSlug !== type.name.toLowerCase() ? { ts: typeSlug } : {}),
+    });
+  }
+}
+
+const allKinds = [...new Set(pkgIndex.map(e => e.k))].sort();
+const pkgIndexJson = JSON.stringify(pkgIndex);
+const pkgName = pkg.package.name;
+
+function getCommonSourceDirectory(types: any[]): string | null {
+  const directories = types
+    .map((type: any) => type.sourceFile as string | undefined)
+    .filter((path): path is string => !!path)
+    .map((path) => path.split('/').slice(0, -1));
+
+  if (directories.length === 0) {
+    return null;
+  }
+
+  let common = directories[0];
+  for (const directory of directories.slice(1)) {
+    let index = 0;
+    while (index < common.length && index < directory.length && common[index] === directory[index]) {
+      index++;
+    }
+    common = common.slice(0, index);
+    if (common.length === 0) {
+      return null;
+    }
+  }
+
+  return common.join('/');
+}
+
+const packageSourcePath = getCommonSourceDirectory(validTypes);
+const packageSourceHref = pkg.package.sourceRepository && pkg.package.sourceCommit
+  ? packageSourcePath
+    ? `${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}/${packageSourcePath}`
+    : `${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}`
+  : null;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: pkg.package.name,
+    description: `API reference for ${pkg.package.name} v${pkg.package.version}`,
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    pagefind: false,
+    pageActions: false,
+  }}
+  sidebar={apiSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search C# APIs', href: `${base}/reference/api/csharp/` },
+    { label: pkg.package.name },
+  ]} />
+
+  <div class="api-hero pkg-hero not-content">
+    {isOfficial && (
+      <div class="pkg-official-badge">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.521 2.624a2 2 0 0 1 2.958 0l1.02 1.12a2 2 0 0 0 1.572.651l1.513-.07a2 2 0 0 1 2.092 2.09l-.071 1.514a2 2 0 0 0 .651 1.572l1.12 1.02a2 2 0 0 1 0 2.958l-1.12 1.02a2 2 0 0 0-.651 1.572l.07 1.513a2 2 0 0 1-2.09 2.092l-1.514-.071a2 2 0 0 0-1.572.651l-1.02 1.12a2 2 0 0 1-2.958 0l-1.02-1.12a2 2 0 0 0-1.572-.651l-1.513.07a2 2 0 0 1-2.092-2.09l.071-1.514a2 2 0 0 0-.651-1.572l-1.12-1.02a2 2 0 0 1 0-2.958l1.12-1.02a2 2 0 0 0 .651-1.572l-.07-1.513a2 2 0 0 1 2.09-2.092l1.514.071a2 2 0 0 0 1.572-.651z"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 12l2 2l4-4"/></svg>
+        Official
+      </div>
+    )}
+    <div class="pkg-hero-top">
+      <div class="pkg-hero-badges">
+        <code class="pkg-name">📦 {pkg.package.name}</code>
+        <code class="pkg-version">v{pkg.package.version}</code>
+        <span class="pkg-framework">{pkg.package.targetFramework}</span>
+      </div>
+    </div>
+    <div class="pkg-hero-bottom">
+      <div class="pkg-hero-stats">
+        <div class="pkg-stat">
+          <span class="pkg-stat-value">{validTypes.length}</span>
+          <span class="pkg-stat-label">Types</span>
+        </div>
+        <div class="pkg-stat">
+          <span class="pkg-stat-value">{namespaceGroups.size}</span>
+          <span class="pkg-stat-label">Namespaces</span>
+        </div>
+      </div>
+      <div class="pkg-hero-actions">
+        {packageSourceHref && (
+          <a
+            href={packageSourceHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="api-source-link"
+            title="View source on GitHub"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            Source
+          </a>
+        )}
+        <NuGetButton href={nugetHref(pkg.package.name)} />
+      </div>
+    </div>
+  </div>
+
+  <!-- Package-scoped search -->
+  <div class="pkg-search-section not-content">
+    <InpageSearch
+      id="pkg"
+      placeholder={`Search types, methods, properties in ${pkg.package.name}...`}
+      kinds={allKinds}
+      defaultStatsText={`${validTypes.length.toLocaleString()} types and ${memberCount.toLocaleString()} members`}
+      size="sm"
+    />
+  </div>
+
+  <!-- Namespace / type listing (shown when not searching) -->
+  <div id="pkg-namespace-list" class="pkg-ns-list">
+    {[...namespaceGroups.entries()].map(([ns, types]) => (
+      <Expand summary={`${ns} (${types.length})`}>
+        <div class="api-list not-content">
+          {types.map((t: any) => (
+            <a href={typeHref(base, pkg.package.name, t.name, genericArity(t))} class="api-list-item">
+              <div class="api-list-header">
+                <span class={`api-kind-pill kind-${t.kind.replace(/\s+/g, '-')}`}>{t.kind}</span>
+                <code class="api-type-link" title={typeDisplayName(t)}>{typeDisplayName(t)}</code>
+                {t.isAbstract && <span class="api-mini-badge">abstract</span>}
+                {t.isStatic && <span class="api-mini-badge">static</span>}
+                {t.isSealed && !['enum', 'delegate', 'struct', 'record struct'].includes(t.kind) && <span class="api-mini-badge">sealed</span>}
+                {t.isReadOnly && <span class="api-mini-badge">readonly</span>}
+                {hasAttribute(t.attributes, 'Obsolete') && <span class="api-mini-badge obsolete">obsolete</span>}
+                {hasAttribute(t.attributes, 'AspireExport') && <span class="api-mini-badge">ats export</span>}
+                {hasAttribute(t.attributes, 'AspireDto') && <span class="api-mini-badge">dto</span>}
+                {hasAttribute(t.attributes, 'AspireExportIgnore') && <span class="api-mini-badge">ats ignored</span>}
+              </div>
+              {t.docs?.summary && (
+                <div class="api-list-desc">
+                  <DocContent content={t.docs.summary} allTypes={pkg.types} packageName={pkg.package.name} tag="span" />
+                </div>
+              )}
+            </a>
+          ))}
+        </div>
+      </Expand>
+    ))}
+  </div>
+</StarlightPage>
+
+<!-- Embed the package search index -->
+<script is:inline define:vars={{ pkgIndexJson, base, pkgName, typeCount: validTypes.length, memberCount }}>
+  window.__pkgSearchIndex = JSON.parse(pkgIndexJson);
+  window.__pkgBase = base;
+  window.__pkgName = pkgName;
+  window.__pkgTypeCount = typeCount;
+  window.__pkgMemberCount = memberCount;
+</script>
+
+<script>
+  import '@components/api-reference/inpage-search-sync';
+
+  interface PkgIndexEntry {
+    n: string;
+    f: string;
+    ns: string;
+    k: string;
+    s: string;
+    t?: string;
+    a?: string;
+    /** Precomputed type slug (only present for generic types) */
+    g?: string;
+    /** Precomputed parent type slug (only present for members of generic types) */
+    ts?: string;
+  }
+
+  const PAGE_SIZE = 10;
+  const DEBOUNCE_MS = 200;
+
+  /** Format a number with locale-aware grouping (e.g. 1,234). */
+  function fmtNum(n: number): string { return n.toLocaleString(); }
+
+  const KIND_COLORS: Record<string, string> = {
+    'class': 'var(--api-kind-class)',
+    'interface': 'var(--api-kind-interface)',
+    'enum': 'var(--api-kind-enum)',
+    'struct': 'var(--api-kind-struct)',
+    'record': 'var(--api-kind-record)',
+    'delegate': 'var(--api-kind-delegate)',
+    'record struct': 'var(--api-kind-record-struct)',
+    'method': '#3b82f6',
+    'property': '#10b981',
+    'constructor': '#8b5cf6',
+    'field': '#f59e0b',
+    'event': '#ef4444',
+    'indexer': '#06b6d4',
+  };
+
+  const MEMBER_KIND_SLUGS: Record<string, string> = {
+    constructor: 'constructors',
+    property: 'properties',
+    method: 'methods',
+    field: 'fields',
+    event: 'events',
+    indexer: 'indexers',
+  };
+
+  const TYPE_KINDS = new Set(['class', 'interface', 'enum', 'struct', 'record', 'delegate', 'record struct']);
+
+  class PkgSearchController {
+    private input: HTMLInputElement;
+    private resultsEl: HTMLElement;
+    private nsList: HTMLElement;
+    private status: HTMLElement;
+    private countEl: HTMLElement;
+    private filtersEl: HTMLElement;
+    private clearFiltersBtn: HTMLElement;
+    private index: PkgIndexEntry[];
+    private base: string;
+    private pkgName: string;
+    private debounceTimer: number | null = null;
+    private typeCount: number;
+    private memberCount: number;
+    private activeKinds = new Set<string>();
+    private lastScored: { entry: PkgIndexEntry; score: number }[] = [];
+    private lastTokens: string[] = [];
+    private visibleCount = 0;
+    private sync: any;
+
+    constructor() {
+      this.input = document.getElementById('pkg-search-input') as HTMLInputElement;
+      this.resultsEl = document.getElementById('pkg-search-results') as HTMLElement;
+      this.nsList = document.getElementById('pkg-namespace-list') as HTMLElement;
+      this.status = document.getElementById('pkg-search-status') as HTMLElement;
+      this.countEl = document.getElementById('pkg-search-count') as HTMLElement;
+      this.filtersEl = document.getElementById('pkg-kind-filters') as HTMLElement;
+      this.clearFiltersBtn = document.getElementById('pkg-clear-filters') as HTMLElement;
+      this.index = (window as any).__pkgSearchIndex ?? [];
+      this.base = (window as any).__pkgBase ?? '';
+      this.pkgName = (window as any).__pkgName ?? '';
+      this.typeCount = (window as any).__pkgTypeCount ?? 0;
+      this.memberCount = (window as any).__pkgMemberCount ?? 0;
+
+      this.sync = new (window as any).InpageSearchSync('pkg', () => this.clear());
+
+      this.init();
+      this.restoreFromUrl();
+    }
+
+    private init(): void {
+      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.clear();
+      });
+
+      this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (this.activeKinds.has(kind)) {
+            this.activeKinds.delete(kind);
+            chip.classList.remove('active');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            this.activeKinds.add(kind);
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+          this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+          this.syncUrl();
+          this.applySearch();
+        });
+      });
+
+      this.clearFiltersBtn.addEventListener('click', () => {
+        this.activeKinds.clear();
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        this.clearFiltersBtn.style.display = 'none';
+        this.syncUrl();
+        this.applySearch();
+      });
+    }
+
+    private clear(): void {
+      this.input.value = '';
+      this.sync.updateClearButton();
+      this.syncUrl();
+      this.showNamespaces();
+    }
+
+    private showNamespaces(): void {
+      if (this.activeKinds.size > 0) {
+        this.search('');
+        return;
+      }
+      this.resultsEl.style.display = 'none';
+      this.resultsEl.innerHTML = '';
+      this.nsList.style.display = '';
+      this.countEl.textContent = `${fmtNum(this.typeCount)} types and ${fmtNum(this.memberCount)} members`;
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(() => {
+        this.syncUrl();
+        this.applySearch();
+      }, DEBOUNCE_MS);
+    }
+
+    private syncUrl(): void {
+      this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+    }
+
+    private restoreFromUrl(): void {
+      const q = this.sync.readQuery();
+      const validKinds = new Set(
+        Array.from(this.filtersEl.querySelectorAll('.api-filter-chip'))
+          .map(c => (c as HTMLElement).dataset.kind!)
+      );
+      const kinds = this.sync.readKinds(validKinds);
+
+      if (q) {
+        this.input.value = q;
+        this.sync.updateClearButton();
+      }
+
+      if (kinds.size > 0) {
+        this.activeKinds = kinds;
+        this.filtersEl.querySelectorAll('.api-filter-chip').forEach(chip => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (kinds.has(kind)) {
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        });
+        this.clearFiltersBtn.style.display = '';
+      }
+
+      if (q || kinds.size > 0) {
+        this.applySearch();
+      }
+    }
+
+    private applySearch(): void {
+      const q = this.input.value.trim();
+      if (!q && this.activeKinds.size === 0) {
+        this.showNamespaces();
+        return;
+      }
+      this.search(q);
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+
+      type Scored = { entry: PkgIndexEntry; score: number };
+      const scored: Scored[] = [];
+
+      for (const entry of this.index) {
+        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+
+        if (tokens.length === 0) {
+          scored.push({ entry, score: 50 });
+          continue;
+        }
+
+        const nameLower = entry.n.toLowerCase();
+        const fullLower = entry.f.toLowerCase();
+        const nsLower = entry.ns.toLowerCase();
+        const summaryLower = entry.s.toLowerCase();
+        const parentLower = entry.t?.toLowerCase() ?? '';
+
+        let score = 0;
+        for (const token of tokens) {
+          if (nameLower === token) {
+            score += 100;
+          } else if (nameLower.startsWith(token)) {
+            score += 60;
+          } else if (nameLower.includes(token)) {
+            score += 40;
+          } else if (this.camelMatch(entry.n, token)) {
+            score += 55;
+          } else if (fullLower.includes(token)) {
+            score += 30;
+          } else if (parentLower.includes(token)) {
+            score += 25;
+          } else if (nsLower.includes(token)) {
+            score += 20;
+          } else if (summaryLower.includes(token)) {
+            score += 10;
+          } else {
+            score = 0;
+            break;
+          }
+        }
+
+        if (score > 0 && !entry.t) score += 5;
+        if (score > 0) scored.push({ entry, score });
+      }
+
+      scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+      this.lastScored = scored;
+      this.lastTokens = tokens;
+      this.visibleCount = 0;
+
+      const total = scored.length;
+
+      this.nsList.style.display = 'none';
+      this.resultsEl.style.display = '';
+
+      if (total === 0) {
+        const hint = query
+          ? `No results for "<strong>${this.esc(query)}</strong>"`
+          : 'No results match the selected filters';
+        this.resultsEl.innerHTML = `
+          <div class="api-search-empty">
+            <p>${hint}</p>
+            <p class="api-search-empty-hint">Try a different name, namespace, or keyword.</p>
+          </div>`;
+        this.countEl.textContent = '0 results';
+        this.status.textContent = 'No results';
+        return;
+      }
+
+      this.resultsEl.innerHTML = '';
+      this.loadMore();
+    }
+
+    private loadMore(): void {
+      const total = this.lastScored.length;
+      const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+      this.visibleCount += nextBatch.length;
+
+      const existingBtn = this.resultsEl.querySelector('.api-load-more');
+      if (existingBtn) existingBtn.remove();
+
+      const fragment = document.createDocumentFragment();
+      for (const s of nextBatch) {
+        const div = document.createElement('div');
+        div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+        while (div.firstChild) fragment.appendChild(div.firstChild);
+      }
+      this.resultsEl.appendChild(fragment);
+
+      this.countEl.textContent = this.visibleCount < total
+        ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+        : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+      this.status.textContent = this.countEl.textContent ?? '';
+
+      const remaining = total - this.visibleCount;
+      if (remaining > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'api-load-more';
+        btn.type = 'button';
+        const nextCount = Math.min(remaining, PAGE_SIZE);
+        btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
+        btn.addEventListener('click', () => this.loadMore());
+        this.resultsEl.appendChild(btn);
+      }
+    }
+
+    private renderResult(entry: PkgIndexEntry, tokens: string[]): string {
+      const isMember = !!entry.t;
+      const kindClass = `kind-${entry.k.replace(/\s+/g, '-')}`;
+      const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['class'];
+
+      let href: string;
+      if (isMember) {
+        const kindSlug = MEMBER_KIND_SLUGS[entry.k] ?? entry.k;
+        const anchorName = entry.a ?? (entry.n.includes('(constructor)') ? 'constructor' : entry.n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+        href = `${this.base}/reference/api/csharp/${this.pkgName.toLowerCase()}/${entry.ts ?? entry.t!.toLowerCase()}/${kindSlug}/#${anchorName}`;
+      } else {
+        href = `${this.base}/reference/api/csharp/${this.pkgName.toLowerCase()}/${entry.g ?? entry.n.toLowerCase()}/`;
+      }
+
+      const parentInfo = isMember
+        ? `<span class="api-result-parent">${this.esc(entry.t!)}</span><span class="api-result-dot">.</span>`
+        : '';
+
+      const fullName = isMember ? `${entry.t}.${entry.n.replace(/ \(constructor\)$/, '')}` : entry.n;
+      return `<a href="${this.esc(href)}" class="api-list-item api-search-result" title="${this.esc(fullName)}">
+        <div class="api-list-header">
+          <span class="api-result-name-wrap" title="${this.esc(fullName)}">
+            ${parentInfo}<span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n.replace(/ \(constructor\)$/, ''), tokens)}</span>
+          </span>
+          <span class="api-kind-micro ${kindClass}">${this.esc(entry.k)}</span>
+          <div class="trailing">
+            <span class="api-list-meta">${this.esc(entry.ns)}</span>
+          </div>
+        </div>
+        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+      </a>`;
+    }
+
+    private highlight(text: string, tokens: string[]): string {
+      if (!tokens.length) return this.esc(text);
+      const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+        .replace(re, '<mark>$1</mark>');
+    }
+
+    private camelMatch(name: string, token: string): boolean {
+      const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+      if (uppers.length < 2) return false;
+      return uppers.startsWith(token) || uppers.includes(token);
+    }
+
+    private esc(text: string): string {
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    new PkgSearchController();
+  });
+</script>
+
+<style>
+  /* ΓöÇΓöÇ Hero card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+  .pkg-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+  }
+  .pkg-official-badge {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem 0.35rem 0.55rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: var(--aspire-color-purple, #512bd4);
+    border-radius: 2rem;
+    z-index: 1;
+    line-height: 1;
+  }
+  .pkg-official-badge svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    stroke: #fff;
+    flex-shrink: 0;
+  }
+  .pkg-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .pkg-hero-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .pkg-framework {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+    background: color-mix(in srgb, var(--sl-color-gray-3) 12%, transparent);
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--api-radius-sm, 0.25rem);
+    letter-spacing: 0.02em;
+  }
+  .pkg-version {
+    font-size: var(--api-text-sm);
+    font-weight: 600;
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font-system-mono, monospace);
+  }
+  .pkg-name {
+    font-size: var(--api-text-md);
+    font-weight: 700;
+    color: var(--sl-color-text);
+    background: none;
+    padding: 0;
+  }
+  .pkg-hero-bottom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .pkg-hero-stats {
+    display: flex;
+    gap: 2rem;
+  }
+  .pkg-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+  .pkg-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sl-color-text);
+    line-height: 1;
+  }
+  .pkg-stat-label {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-3);
+    font-weight: 500;
+  }
+  .pkg-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* ΓöÇΓöÇ Package search section ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+  .pkg-search-section {
+    margin-bottom: 1.5rem;
+  }
+
+  /* ΓöÇΓöÇ Namespace list ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+  .pkg-ns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* ΓöÇΓöÇ Responsive ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+  @media (max-width: 768px) {
+    .pkg-official-badge {
+      top: 1rem;
+      right: 1rem;
+    }
+    .pkg-name {
+      width: 100%;
+    }
+    .pkg-hero-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .pkg-hero-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .pkg-hero-stats {
+      gap: 1.5rem;
+    }
+  }
+  @media (max-width: 480px) {
+    .pkg-official-badge {
+      top: 0.75rem;
+      right: 0.75rem;
+    }
+    .pkg-stat-value {
+      font-size: 1.25rem;
+    }
+    .pkg-hero-stats {
+      gap: 1rem;
+    }
+  }
+</style>

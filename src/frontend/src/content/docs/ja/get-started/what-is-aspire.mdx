@@ -1,55 +1,190 @@
 ---
 title: Aspire とは何ですか？
-description: Aspire が分散アプリケーションの開発、デプロイ、デバッグをどのように簡素化するかを学ぶ
+description: Aspire がコードファーストかつエージェント対応のワークフローで、あらゆる分散アプリの構成、デバッグ、デプロイをどのように支援するかを学びます。
 tableOfContents: true
 lastUpdated: true
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components'
 import LearnMore from '@components/LearnMore.astro';
 
-Aspire は、分散アプリケーションの構築、実行、デバッグ、デプロイを効率化します。
-アプリケーションは、サービス、データベース、フロントエンドの集合体として構成され、本番環境ではそれらがシームレスに連携して動作しますが、開発時には個別に起動し、接続する必要があります。
+Aspire は、あらゆる分散アプリを構成し、デバッグし、デプロイするための、エージェント対応のコードファースト ツールです。
 
-Aspire を使えば、複雑な設定を不要にする統合ツールチェーンにより、ローカルでのデバッグが容易になります。
-単一のコマンドで、アプリケーション全体を即座に起動・デバッグできます。
+アプリを、サービス、データベース、キュー、キャッシュ、フロントエンドで構成されたひとつのシステムとして考えてみてください。本番環境ではそれらは一体となって動作しますが、開発時には個別に起動し、手作業で構成し、複数のターミナルやダッシュボードをまたいでデバッグしなければならないことがよくあります。Aspire は、そのシステムを定義する場所、起動するコマンド、観測するためのツールチェーンをひとつにまとめます。
 
-デプロイの準備ができたら、Aspire を使って Kubernetes、クラウド、または自社サーバーなど、あらゆる環境に公開できます。
-さらに高い拡張性を備えており、お好みのツールやサービスを簡単に統合できます。
+アーキテクチャは AppHost で記述し、`aspire run` でローカル実行し、Aspire Dashboard で状態を確認し、そのまま同じアプリ モデルを対象環境へデプロイできます。Aspire CLI、スキル ファイル、MCP サーバーを通じて AI コーディング エージェントとも連携できるため、エージェントも開発者と同じアプリ モデルを理解し、操作できます。
+
+## Aspire を使う理由
+
+現代のアプリケーション開発では、複数のリソース、ランタイム、ワークフローを協調させる必要があります。**Aspire を使わない場合**、次のような課題が生じます。
+
+### 分散開発のつらさ
+
+| 問題 | Aspire なし | Aspire あり |
+|------|-------------|-------------|
+| **サービスの起動** | 5 つのターミナルを開き、5 種類のコマンドを実行し、正しい順序で起動することを祈る | `aspire run` を実行するだけで、すべてが自動起動します。[AppHost の概要](/ja/get-started/app-host/)を参照してください。 |
+| **接続文字列** | いたる所に `localhost:5432` をハードコードし、本番デプロイで壊れる | サービス ディスカバリが処理するため、同じコードがローカルでも本番でも動作します。[サービス ディスカバリ](/ja/fundamentals/service-discovery/)を参照してください。 |
+| **「自分の環境では動く」問題** | メンバーごとにポートも設定も異なる | ひとつの AppHost 定義を全員が同じように実行します。[最初のアプリ チュートリアル](/ja/get-started/first-app/)を参照してください。 |
+| **デバッグ** | 各サービスに個別にデバッガーをアタッチする | <Kbd windows="F5" mac="F5" linux="F5" /> ひとつでスタック全体をデバッグできます。 |
+| **ログの所在** | 5 つのターミナルを見比べる必要がある | Aspire Dashboard にすべてのログが集約されます。[Dashboard overview](/dashboard/overview/)を参照してください。 |
+| **データベースの追加** | ローカルにインストールし、接続を設定し、バージョン差異がないことを祈る | `builder.AddPostgres("db")` で、コンテナー化され、バージョン管理された一貫した構成になります。[Integrations](/integrations/overview/)を参照してください。 |
+| **複数言語での開発** | C#、Node.js、Python などごとに別々のスクリプトや慣習をつなぎ合わせる | 複数言語のスタックを含む同じ分散アプリを、ひとつの AppHost でモデル化できます。[Multi-language architecture](/architecture/multi-language-architecture/)を参照してください。 |
+| **AI コーディング エージェントの利用** | エージェントが環境の断片しか見えず、実行時の状態を推測するしかない | `aspire agent init` により、アプリ モデル、ログ、トレース、リソースへ構造化されたアクセスを与えられます。[Use AI coding agents](/get-started/ai-coding-agents/)を参照してください。 |
+
+### Aspire の前と後
+
+**Aspire を使わない場合**、起動手順は次のようになりがちです。
+
+<Steps>
+
+1. データベース コンテナーを起動する
+
+   ```bash frame="terminal" data-disable-copy
+   docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=secret postgres:15
+   ```
+
+2. C# API サービスを起動する
+
+   ```bash frame="terminal" data-disable-copy
+   cd api && dotnet run
+   ```
+
+3. Python ワーカーを起動する
+
+   ```bash frame="terminal" data-disable-copy
+   cd worker && source .venv/bin/activate && python main.py
+   ```
+
+4. JavaScript フロントエンドを起動する
+
+   ```bash frame="terminal" data-disable-copy
+   cd frontend && npm run dev
+   ```
+
+5. すべてが接続できるか手動で確認する
+
+   面倒で壊れやすい作業が続きます。
+
+</Steps>
+
+**Aspire を使う場合** は、次のコマンドだけです。
+
+```bash
+aspire run
+```
+
+そして AppHost が、複数言語スタックを含めたシステム全体をコードで定義します。
+
+<Tabs syncKey="apphost-lang">
+<TabItem label="C# AppHost">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("db");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);
+
+var worker = builder.AddPythonApp("worker", "../worker", "main.py")
+    .WithReference(db);
+
+builder.AddNpmApp("frontend", "../frontend")
+    .WithReference(api);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = await builder.addPostgres("db");
+
+const api = await builder
+    .addNodeApp("api", "../api", "server.js")
+    .withReference(db);
+
+const worker = await builder
+    .addPythonApp("worker", "../worker", "main.py")
+    .withReference(db);
+
+await builder
+    .addViteApp("frontend", "../frontend")
+    .withReference(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip" title="本当の価値">
+AppHost は、アプリケーション アーキテクチャの単一の信頼できる情報源になります。新しいチーム メンバーも、ひとつのファイルを読むだけでシステム全体を理解できます。
+</Aside>
+
+<LearnMore>
+  そのアプリ モデルを AI コーディング ツールにも使わせたい場合は、[Use AI coding agents](/get-started/ai-coding-agents/)を参照してください。
+</LearnMore>
 
 ## 主なメリット
 
-- **統合された開発体験**: 単一のコマンドで、分散アプリケーション全体を起動・デバッグできます。
-- **コードファーストの構成**: 複雑な設定ファイルは不要で、アプリケーションのアーキテクチャをコードで定義できます。
-- **ローカル オーケストレーション**: 開発時のサービス起動、依存関係、接続を自動的に管理します。
-- **柔軟なデプロイ**: 同じアーキテクチャ定義のまま、Kubernetes、クラウドプロバイダー、自社サーバーへデプロイできます。
-- **高い拡張性**: 豊富な連携エコシステムを通じて、お好みのツールやサービスと統合できます。
+- **コードで構成できる**: スクリプトや設定ファイルにアーキテクチャを分散させる代わりに、AppHost でリソース、参照、依存関係を定義できます。
+- **システム全体をデバッグできる**: ひとつのコマンドでアプリを起動し、ログやトレースを一箇所で確認し、Aspire Dashboard でスタック全体をデバッグできます。
+- **同じモデルをデプロイに使える**: ローカル開発でも、Kubernetes、クラウド、独自インフラへのデプロイでも、同じアーキテクチャ定義を使えます。
+- **複数言語で使える**: C#、Node.js、Python など、サポートされている言語が異なっても同じ分散アプリ モデルを使えます。
+- **AI エージェントを活用できる**: Aspire CLI のワークフロー、スキル ファイル、MCP を通じて、コーディング エージェントに構造化されたアプリ情報を渡せます。
+- **実行対象を拡張できる**: Aspire の統合機能を使って、データベース、キャッシュ、メッセージング、クラウド サービスを追加できます。
 
 ## Aspire の仕組み
 
-Aspire は、**コードファーストのアプローチ** でアプリケーションのアーキテクチャを定義します。
-複雑な設定ファイルを管理する代わりに、サービス、データベース、依存関係をコード上で直接記述します。この方法には、次のような利点があります:
+Aspire は、**コードファーストのアプローチ** でアプリケーションのアーキテクチャを定義します。複雑な設定ファイルを管理する代わりに、サービス、データベース、フロントエンド、依存関係をコードで直接記述します。
 
-- **型安全性**: コンパイル時に構成ミスを検出できます。
-- **入力補完のサポート**: アーキテクチャ定義時に、コード補完やドキュメントを利用できます。
+その AppHost は、分散アプリがどのように構成されるかを表すモデルになります。
+
+- **リソース**: プロジェクト、実行可能ファイル、コンテナー、データベース、キャッシュ、クラウド サービスを追加します。
+- **関係**: 参照、依存関係の順序、サービス ディスカバリの接続を表現します。
+- **実行**: ローカル起動、環境設定、ヘルス チェック、診断を Aspire にオーケストレーションさせます。
+- **運用**: CLI、Dashboard、AI エージェント用ツールから同じモデルを利用します。
+
+AppHost の言語が変わっても、Aspire はそのモデルを一貫して保ちます。TypeScript AppHost でも、ゲスト/ホスト アーキテクチャを通じて、C# AppHost と同じオーケストレーション エンジン、統合機能、サービス ディスカバリ、診断を利用できます。
+
+このアプローチには、次の利点があります。
+
+- **型安全性**: 構成ミスをコンパイル時に検出できます。
+- **入力補完のサポート**: アーキテクチャ定義中にコード補完やドキュメントを利用できます。
 - **バージョン管理**: インフラ定義をコードと一緒に管理できます。
-- **リファクタリング**: 使い慣れた開発ツールで、アプリケーションのアーキテクチャを再構成できます。
+- **リファクタリング**: 使い慣れた開発ツールでアプリケーション アーキテクチャを再構成できます。
+- **共通ツールチェーン**: 開発者と AI エージェントが同じリソース、ログ、トレースを確認できます。
 
 <LearnMore>
-  Aspire
-  がどのようにアプリケーションを支えているのかについては、[`AppHost`とは？](/ja/get-started/app-host/)をご覧ください。
+  Aspire がアプリケーションをどのように支えているかは、[`AppHost`](/ja/get-started/app-host/)をご覧ください。
 </LearnMore>
+
+<Aside type="note" title="同じモデル、異なる AppHost 言語">
+C# で AppHost を書いても TypeScript で書いても、Aspire はリソース、サービス ディスカバリ、診断、デプロイについて同じ基盤モデルを利用します。
+</Aside>
 
 ## 開発環境と本番環境
 
-Aspire は、開発環境と本番環境の間にあるギャップを埋めます:
+Aspire は、開発環境と本番環境のギャップを埋めます。
 
-- **開発環境**: 依存関係管理やサービス検出を自動化し、サービスをローカルで実行できます。
-- **本番環境**: 同じアーキテクチャ定義を、さまざまなクラウド プラットフォームやオーケストレーターにデプロイできます。
-- **一貫性**: ローカルの開発環境が、本番環境のトポロジと一致することを保証します。
+- **開発環境**: 依存関係管理、サービス ディスカバリ、集約された診断を備えた状態で、サービスをローカル実行できます。
+- **本番環境**: 同じアーキテクチャ定義を、クラウド プラットフォーム、Kubernetes、自社環境へデプロイできます。
+- **一貫性**: ローカルのトポロジを、実際にデプロイしたい構成に合わせ続けられます。
+- **自動化**: 人間の開発者も AI エージェントも、同じ単一の情報源から作業できます。
 
-Aspire は、既存のデプロイ ワークフローを置き換えるものではありません。環境をまたいでアプリケーション アーキテクチャを一貫した方法で定義・管理できるようにすることで、それらを強化します。
+Aspire は既存のデプロイ ワークフローを置き換えるものではありません。環境をまたいで一貫した方法でアプリケーション アーキテクチャを定義し管理できるようにすることで、それらを強化します。
 
 <LearnMore>
-  詳しくは、[パイプラインとアプリのトポロジー](/ja/get-started/pipelines/)をご覧ください。
+  詳しくは、[パイプラインとアプリのトポロジー](/ja/deployment/pipelines/)をご覧ください。
 </LearnMore>
+
+<Aside type="tip" title="エージェントや複数言語スタックを扱う場合">
+AI 支援ワークフローでは `aspire agent init` を実行します。ゲスト言語の AppHost については、[Multi-language architecture](/architecture/multi-language-architecture/)を参照してください。
+</Aside>

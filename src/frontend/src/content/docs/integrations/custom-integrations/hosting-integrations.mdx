@@ -1,7 +1,6 @@
 ---
 title: Create custom hosting integrations
 description: Learn how to create a custom Aspire hosting integration for an existing containerized application.
-prev: false
 ---
 
 import { Image } from 'astro:assets';
@@ -91,7 +90,7 @@ cd MailDevResource
 Once the project is created, you should see a listing containing the following:
 
 - `MailDevResource.AppHost`: The [AppHost](/get-started/app-host/) used to test out the custom resource.
-- `MailDevResource.ServiceDefaults`: The [service defaults](/fundamentals/service-defaults/) project for use in service-related projects.
+- `MailDevResource.ServiceDefaults`: The [service defaults](/get-started/csharp-service-defaults/) project for use in service-related projects.
 - `MailDevResource.sln`: The solution file referencing both projects.
 
 Verify that the project can build and run successfully by executing the following command:
@@ -201,7 +200,7 @@ Replace the contents of the `Class1.cs` file in the `MailDev.Hosting` project, a
 // an alternative namespace.
 namespace Aspire.Hosting.ApplicationModel;
 
-public sealed class MailDevResource(string name) 
+public sealed class MailDevResource([ResourceName] string name) 
     : ContainerResource(name), IResourceWithConnectionString
 {
     // Constants used to refer to well known-endpoint names, this is specific
@@ -259,7 +258,7 @@ public static class MailDevResourceBuilderExtensions
     /// </returns>
     public static IResourceBuilder<MailDevResource> AddMailDev(
         this IDistributedApplicationBuilder builder,
-        string name,
+        [ResourceName] string name,
         int? httpPort = null,
         int? smtpPort = null)
     {
@@ -556,11 +555,11 @@ Here's how the flow of execution works:
 7. Because the interpolated string contains references to other reference types such as `EndpointReference` they're also evaluated and real value substituted (which at this time is now available).
 </Steps>
 
-### Manifest publishing
+### Publishing and resource expressions
 
 The `IManifestExpressionProvider` interface is designed to solve the problem of sharing connection information between resources at deployment. Similarly to local development, many of the values are necessary to configure the app, yet they can't be determined until the app is being deployed.
 
-To solve this problem Aspire produces a _manifest file_ which `azd` and other deployment tools interpret. Rather than specifying concrete values for connection information between resources an expression syntax is used which deployment tools evaluate. Generally the manifest file isn't visible to developers but it's possible to generate one for manual inspection. The command below can be used on the AppHost to produce a manifest.
+Aspire uses expression syntax in published artifacts so that deployment tools can evaluate and resolve connection information. Generally these expressions aren't visible to developers, but you can inspect them by generating a publish-manifest. The command below can be used on the AppHost to produce a manifest.
 
 ```bash title="Aspire CLI — publish-manifest"
 aspire do publish-manifest --output-path aspire-manifest.json
@@ -593,7 +592,6 @@ Navigate to the output file specified in the command to inspect the manifest fil
 
 ```json title="JSON — aspire-manifest.json"
 {
-  "$schema": "https://json.schemastore.org/aspire-8.0.json",
   "resources": {
     "maildev": {
       "type": "container.v0",

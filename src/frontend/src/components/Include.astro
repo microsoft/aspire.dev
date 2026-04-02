@@ -1,6 +1,8 @@
 ---
 // Include a Markdown/MDX file from the docs collection inline.
-// Usage in MDX: <Include relativePath="reference/cli/includes/project-search-logic.description.md" />
+// Usage in MDX: <Include relativePath="reference/cli/includes/project-search-logic-description.md" />
+
+import { getEntry, render } from 'astro:content';
 
 interface Props {
   /** Path relative to /src/content/docs (may start with or without a leading slash). */
@@ -9,22 +11,17 @@ interface Props {
 
 const { relativePath } = Astro.props as Props;
 
-// Eagerly import all .md and .mdx under the docs collection so we can render by path.
-const mdModules = {
-  ...(import.meta.glob('/src/content/docs/**/*.md', { eager: true }) as Record<string, unknown>),
-  ...(import.meta.glob('/src/content/docs/**/*.mdx', { eager: true }) as Record<string, unknown>),
-};
+// Resolve the include through the docs collection instead of eagerly globbing
+// the entire docs tree into every page that uses <Include>.
+const normalizedPath = relativePath.replace(/^\/+/, '');
+const entryId = normalizedPath.replace(/\.(md|mdx)$/i, '');
+const entry = await getEntry('docs', entryId);
 
-// Normalize the provided path to match the glob keys (absolute from project root).
-const normalized = `/src/content/docs/${relativePath.replace(/^\/+/, '')}`;
-const mod = mdModules[normalized] as any;
-
-if (!mod) {
-  throw new Error(`Include.astro: File not found: ${normalized}`);
+if (!entry) {
+  throw new Error(`Include.astro: File not found: ${normalizedPath} (entry id: ${entryId})`);
 }
 
-// MD/MDX modules may export either `Content` or a default component.
-const ResolvedContent = (mod?.Content ?? mod?.default) as any;
+const { Content: ResolvedContent } = await render(entry);
 ---
 
 {ResolvedContent ? <ResolvedContent /> : null}

@@ -1,0 +1,182 @@
+---
+/**
+ * /reference/api/typescript/[module]/[item]/[member]/ — Method detail page.
+ *
+ * Renders a single method (capability) of a handle type, showing its signature
+ * in the context of the parent interface, parameters, return type, and a link
+ * back to the parent type.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+import { tsModuleSlug, tsSlugify, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
+import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
+
+export async function getStaticPaths() {
+  const packages = await getTsModules();
+  const paths: any[] = [];
+
+  for (const pkg of packages) {
+    const pkgSlug = tsModuleSlug(pkg.data.package.name);
+
+    for (const handle of pkg.data.handleTypes ?? []) {
+      const itemSlug = tsSlugify(handle.name);
+      if (!itemSlug) continue;
+
+      const methods = (handle.capabilities ?? []).filter(
+        (c: any) => c.kind === 'Method' || c.kind === 'InstanceMethod'
+      );
+
+      for (const method of methods) {
+        const memberSlug = tsSlugify(method.name);
+        if (!memberSlug) continue;
+        paths.push({
+          params: { module: pkgSlug, item: itemSlug, member: memberSlug },
+          props: {
+            pkg: pkg.data,
+            parentType: handle,
+            method,
+          },
+        });
+      }
+    }
+  }
+
+  return paths;
+}
+
+const { pkg, parentType, method } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
+const pkgSlug = tsModuleSlug(pkg.package.name);
+const parentSlug = tsSlugify(parentType.name);
+
+/** Simple string hash → 0–3 for parameter type color assignment. */
+function typeColorIndex(s: string): number {
+  let h = 0;
+  for (const c of s) h = ((h * 31) + c.charCodeAt(0)) | 0;
+  return Math.abs(h) % 4;
+}
+
+/* ── Build hero declaration showing the method in its parent interface ── */
+const params = (method.parameters ?? []).map((p: any) => {
+  const opt = p.isOptional ? '?' : '';
+  const type = p.isCallback && p.callbackSignature ? p.callbackSignature : p.type;
+  return `${p.name}${opt}: ${type}`;
+});
+const memberSig = `${method.name}(${params.join(', ')}): ${method.returnType ?? 'void'};`;
+const formattedMember = formatTsSignature(memberSig);
+const indentedMember = formattedMember.split('\n').map((line: string) => '  ' + line).join('\n');
+const keyword = parentType.isInterface ? 'interface' : 'interface';
+const heroDeclaration = `${keyword} ${parentType.name} {\n  // ... omitted for brevity\n${indentedMember}\n}`;
+
+/* ── Headings for right-side TOC ─────────────────────────────── */
+const headings: { depth: 2; slug: string; text: string }[] = [
+  { depth: 2, slug: 'signature', text: 'Signature' },
+];
+if ((method.parameters ?? []).length > 0 || method.returnType) {
+  // Signature section already includes params & returns via TsMemberCard
+}
+headings.push({ depth: 2, slug: 'defined-on', text: 'Defined on' });
+---
+
+<StarlightPage
+  frontmatter={{
+    title: `${parentType.name}.${method.name}`,
+    description: `Method — TypeScript API reference for ${method.name} on ${parentType.name} in ${pkg.package.name}`,
+    tableOfContents: false,
+    prev: false,
+    next: false,
+    pagefind: false,
+    pageActions: false,
+  }}
+  sidebar={tsSidebar}
+  headings={headings}
+>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search TypeScript APIs', href: `${base}/reference/api/typescript/` },
+    { label: pkg.package.name, href: `${base}/reference/api/typescript/${pkgSlug}/` },
+    { label: parentType.name, href: `${base}/reference/api/typescript/${pkgSlug}/${parentSlug}/` },
+    { label: method.name },
+  ]} />
+
+  <div class="not-content kind-tint-method">
+    {/* ── Hero ────────────────────────────────────────────────── */}
+    <div class="api-hero type-hero not-content">
+      <div class="type-hero-top">
+        <div class="type-hero-badges">
+          <span class="api-kind-pill kind-method">Method</span>
+        </div>
+      </div>
+
+      <span class="type-hero-pkg">📦 {pkg.package.name} {pkg.package.version && <span class="type-hero-ver">v{pkg.package.version}</span>}</span>
+
+      {/* Declaration showing method in context of parent interface */}
+      <div class="ts not-content">
+        <div class="ts-code">
+          <Code code={heroDeclaration} lang="typescript" showLineNumbers={false} />
+        </div>
+      </div>
+    </div>
+
+    {/* ── Signature section with full TsMemberCard ────────────── */}
+    <div id="type-content-sections">
+      <section>
+        <h2 id="signature">Signature</h2>
+        <div class="api-list">
+          <TsMemberCard member={method} variant="method" />
+        </div>
+      </section>
+
+      {/* ── Defined on ─────────────────────────────────────────── */}
+      <section>
+        <h2 id="defined-on">Defined on</h2>
+        <p class="member-defined-desc">This method is defined on the following type:</p>
+        <div class="api-list not-content">
+          <a href={`${base}/reference/api/typescript/${pkgSlug}/${parentSlug}/`} class="api-list-item">
+            <div class="api-list-header">
+              <span class={`api-kind-pill ${parentType.isInterface ? 'kind-interface' : 'kind-handle'}`}>
+                {parentType.isInterface ? 'interface' : 'handle'}
+              </span>
+              <code class="api-type-link">{parentType.name}</code>
+              <span class="api-mini-badge">{(parentType.capabilities ?? []).length} members</span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </div>
+  </div>
+</StarlightPage>
+
+<style>
+  .kind-tint-method { --kind-tint: #3b82f6; }
+
+  .type-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .type-hero :global(.ts) { margin: 0; }
+  .type-hero :global(.ts-code) { margin: 0; }
+  .type-hero :global(.ts-code .astro-code) {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    font-size: var(--api-text-base);
+    line-height: 1.55;
+  }
+  .type-hero :global(.ts-code pre) { margin: 0; }
+  .type-hero :global(.ts-code figure.frame) {
+    margin: 0;
+    border: none;
+  }
+
+  .member-defined-desc {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    margin-bottom: 0.75rem;
+  }
+</style>

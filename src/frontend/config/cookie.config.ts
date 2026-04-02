@@ -412,49 +412,7 @@ export const cookieConfig: CookieConsentConfig = {
           ],
         },
       },
-      'pt-pt': {
-        consentModal: {
-          title: 'Este site utiliza cookies',
-          description:
-            'Utilizamos cookies para melhorar a sua experiência de navegação, analisar o tráfego do site e melhorar os nossos serviços. Ao clicar em "Aceitar tudo", consente a nossa utilização de cookies.',
-          acceptAllBtn: 'Aceitar tudo',
-          acceptNecessaryBtn: 'Rejeitar tudo',
-          showPreferencesBtn: 'Gerir preferências',
-          footer:
-            '<a href="https://go.microsoft.com/fwlink/?LinkId=521839">Privacidade e Cookies</a>',
-        },
-        preferencesModal: {
-          title: 'Preferências de cookies',
-          acceptAllBtn: 'Aceitar tudo',
-          acceptNecessaryBtn: 'Rejeitar tudo',
-          savePreferencesBtn: 'Guardar preferências',
-          closeIconLabel: 'Fechar',
-          sections: [
-            {
-              title: 'Utilização de cookies',
-              description:
-                'Utilizamos cookies para fornecer funcionalidades essenciais do site e melhorar a sua experiência.',
-            },
-            {
-              title: 'Estritamente necessários <span class="pm__badge">Sempre ativado</span>',
-              description:
-                'Necessários para que o site funcione corretamente. Não podem ser desativados.',
-              linkedCategory: 'necessary',
-            },
-            {
-              title: 'Análise',
-              description:
-                'Ajudam-nos a compreender como os visitantes interagem com o nosso site. Todos os dados são anonimizados.',
-              linkedCategory: 'analytics',
-            },
-            {
-              title: 'Mais informações',
-              description:
-                'Para questões sobre a nossa política de cookies, por favor <a href="https://support.microsoft.com/contactus/">contacte-nos</a>.',
-            },
-          ],
-        },
-      },
+
       ko: {
         consentModal: {
           title: '이 사이트는 쿠키를 사용합니다',

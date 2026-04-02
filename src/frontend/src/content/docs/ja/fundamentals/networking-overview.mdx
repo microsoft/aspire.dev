@@ -4,30 +4,29 @@ description: Aspire がネットワーキングとエンドポイントをどの
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import { Image } from 'astro:assets';
 import networkingProxies from '@assets/fundamentals/networking/networking-proxies-1x.png';
 import proxyWithReplicas from '@assets/fundamentals/networking/proxy-with-replicas-1x.png';
 import proxyHostPortAndRandomPort from '@assets/fundamentals/networking/proxy-host-port-and-random-port-1x.png';
-import proxyWithEnvVarPort from '@assets/fundamentals/networking/proxy-with-env-var-port-1x.png';
 import proxyWithRandomPorts from '@assets/fundamentals/networking/proxy-with-random-ports-1x.png';
 import proxyWithDockerPortMapping from '@assets/fundamentals/networking/proxy-with-docker-port-mapping-1x.png';
 
-Aspire を使って開発する利点の一つは、クラウド ネイティブ アプリをローカル環境で開発、テスト、デバッグできることです。内部ループ ネットワーキングは、開発環境内でアプリ同士が相互に通信できるようにする Aspire の重要な要素です。本記事では、プロキシ、エンドポイント、エンドポイント構成、起動プロファイルを用いて、Aspire がさまざまなネットワーキング シナリオをどのように扱うかを学びます。
+Aspire を使って開発する利点の一つは、クラウド ネイティブ アプリをローカル環境で開発、テスト、デバッグできることです。内部ループ ネットワーキングは、開発環境内でアプリ同士が相互に通信できるようにする Aspire の重要な要素です。本記事では、プロキシ、エンドポイント、エンドポイント構成、コンテナー ネットワークを用いて、Aspire がさまざまなネットワーキング シナリオをどのように扱うかを学びます。
 
 ## 内部ループにおけるネットワーキング
 
 内部ループとは、アプリをターゲット環境にデプロイする前に、ローカル環境で開発およびテストを行うプロセスです。Aspire には、内部ループにおけるネットワーキング体験を簡素化し、向上させるためのさまざまなツールや機能が用意されています。例えば次のようなものです:
 
-- **起動プロファイル**: 起動プロファイルは、アプリをローカルでどのように実行するかを指定する構成ファイルです。起動プロファイル（_launchSettings.json_ ファイルなど）を使用して、アプリのエンドポイント、環境変数、起動設定を定義できます。
-- **Kestrel 構成**: Kestrel 構成では、Kestrel Web サーバーが待ち受けるエンドポイントを指定できます。アプリ設定で Kestrel のエンドポイントを構成すると、Aspire はそれらの設定を自動的に使用してエンドポイントを作成します。
-- **エンドポイント/エンドポイント 構成**: エンドポイントは、データベース、メッセージ キュー、API など、アプリが依存するサービスとアプリとの間の接続を表します。エンドポイントには、サービス名、ホスト ポート、スキーム、環境変数などの情報が含まれます。エンドポイントは、起動プロファイルによって暗黙的に追加することも、`WithEndpoint` を呼び出して明示的に追加することもできます。
+- **エンドポイント/エンドポイント 構成**: エンドポイントは、データベース、メッセージ キュー、API など、アプリが依存するサービスとアプリとの間の接続を表します。エンドポイントには、サービス名、ホスト ポート、スキーム、環境変数などの情報が含まれます。Aspire はリソース構成からエンドポイントを自動的に作成でき、`WithEndpoint` を呼び出して明示的に追加することもできます。
 - **プロキシ**: Aspire は、アプリに追加した各サービス バインディングごとに自動的にプロキシを起動し、プロキシが待ち受けるポートを割り当てます。プロキシは、その後、アプリが待ち受けているポート（プロキシ ポートとは異なる場合があります）にリクエストを転送します。これにより、ポートの競合を回避し、一貫性があり予測可能な URL を使用してアプリやサービスにアクセスできるようになります。
+- **コンテナー ネットワーク**: Aspire はコンテナー リソース用の専用ネットワークを作成および管理し、ローカル開発中のコンテナー間のサービス検出と通信を容易にします。
 
 ## エンドポイントの仕組み
 
 Aspire におけるサービス バインディングは、次の 2 つの統合要素で構成されます。1 つは、アプリが必要とする外部リソース（データベース、メッセージ キュー、API など）を表す **サービス**、もう 1 つは、アプリとそのサービスの間の接続を確立し、必要な情報を提供する **バインディング** です。
 
-Aspire は 2 種類のサービス バインディングをサポートしています。1 つは、異なる環境でのアプリの動作を定義する起動プロファイルに基づいて自動的に作成される **暗黙的** なバインディング、もう 1 つは、`WithEndpoint` を使用して手動で作成する **明示的** なバインディングです。
+Aspire は、リソース構成からサービス バインディングを自動的に作成できるほか、`WithEndpoint` を使用して追加のバインディングを明示的に作成することもできます。
 
 暗黙的・明示的のいずれでバインディングが作成された場合でも、Aspire は指定されたポートで軽量なリバース プロキシを起動し、アプリからサービスへのリクエストに対するルーティングや負荷分散を処理します。このプロキシは Aspire の実装上の詳細であり、構成や管理について意識する必要はありません。
 
@@ -65,121 +64,17 @@ Aspire は 2 種類のサービス バインディングをサポートしてい
   [サービス検出](/ja/fundamentals/service-discovery/)を参照してください。
 </Aside>
 
-## 起動プロファイル
+エンドポイントの挙動の一部は、リソースの種類によって異なります。こうした詳細は、この概要ページに重複して書くのではなく、それぞれの専用ドキュメントに分離しました。
 
-`AddProject` を呼び出すと、AppHost は既定のエンドポイント セットを決定するために _Properties/launchSettings.json_ を参照します。AppHost は、次の規則に従って特定の起動プロファイルを選択します:
-
-1. `AddProject` の呼び出し時に明示的に指定された `launchProfileName` 引数。
-1. `DOTNET_LAUNCH_PROFILE` 環境変数。詳細については [.NET の環境変数](https://learn.microsoft.com/ja-jp/dotnet/core/tools/dotnet-environment-variables) を参照してください。
-1. _launchSettings.json_ に定義されている最初の起動プロファイル。
-
-次の _launchSettings.json_ ファイルを例に考えてみましょう:
-
-```json title="launchSettings.json"
-{
-  "$schema": "http://json.schemastore.org/launchsettings.json",
-  "profiles": {
-    "http": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
-      "applicationUrl": "https://localhost:7239;http://localhost:5066",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    }
-  }
-}
-```
-
-この記事の以降では、`DistributedApplication.CreateBuilder` API を使用して、`builder` という名前の変数に割り当てられた `IDistributedApplicationBuilder` を作成したものとします:
-
-```csharp
-var builder = DistributedApplication.CreateBuilder(args);
-```
-
-**http** および **https** の起動プロファイルを指定するには、_launchSettings.json_ ファイル内でそれぞれの `applicationUrl` の値を構成します。これらの URL は、このプロジェクトのエンドポイントを作成するために使用されます。これは次と同等です:
-
-```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_Frontend>("frontend")
-       .WithHttpEndpoint(port: 5066)
-       .WithHttpsEndpoint(port: 7239);
-```
-
-<Aside type="caution">
-  _launchSettings.json_ (または起動プロファイル) が存在しない場合、既定ではバインディングは
-  作成されません。
-</Aside>
-
-詳細については、 [起動プロファイル](/ja/fundamentals/launch-profiles/) を参照してください。
-
-## Kestrel で構成されたエンドポイント
-
-Aspire は Kestrel のエンドポイント構成をサポートしています。たとえば、HTTPS スキームとポート 5271 を持つ Kestrel エンドポイントを定義したプロジェクトの _appsettings.json_ ファイルは、次のようになります:
-
-```json title="appsettings.Development.json" {8-14}
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "Kestrel": {
-    "Endpoints": {
-      "Https": {
-        "Url": "https://*:5271"
-      }
-    }
-  }
-}
-```
-
-前述の構成では、`Https` エンドポイントが指定されています。`Url` プロパティは `https://*:5271` に設定されており、これはポート 5271 で、すべてのインターフェイスを対象に待ち受けることを意味します。詳細については、[ASP.NET Core Kestrel Web サーバーのエンドポイントを構成する](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/servers/kestrel/endpoints) を参照してください。
-
-Kestrel エンドポイントを構成した場合は、_launchSettings.json_ ファイルから、構成されている `applicationUrl` を削除する必要があります。
-
-<Aside type="note">
-  _launchSettings.json_ ファイルに `applicationUrl` が存在し、かつ 
-  Kestrel エンドポイントが構成されている場合、AppHost は例外をスローします。
-</Aside>
-
-プロジェクト リソースを追加する際には、_launchSettings.json_ ファイルの代わりに Kestrel エンドポイントを使用することを指定できるオーバーロードがあります:
-
-```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_ApiService>(
-    name: "apiservice",
-    configure: static project =>
-    {
-        project.ExcludeLaunchProfile = true;
-        project.ExcludeKestrelEndpoints = false;
-    })
-    .WithHttpsEndpoint();
-```
-
-詳細については、`AddProject` を参照してください。
+<LearnMore>
+詳細については、[起動プロファイル](/ja/integrations/dotnet/launch-profiles/) および [プロジェクト リソース](/ja/integrations/dotnet/project-resources/) を参照してください。
+</LearnMore>
 
 ## ポートとプロキシ
 
 サービス バインディングを定義する際、ホスト ポートは _常に_ サービスの前段に配置されるプロキシに割り当てられます。これにより、サービスが単一レプリカの場合でも複数レプリカの場合でも、同様に振る舞うことができます。さらに、`WithReference` API を使用するすべてのリソース依存関係は、環境変数から取得されるプロキシのエンドポイントに依存します。
 
-次の例では、`AddProject`、`WithHttpEndpoint`、`WithReplicas` を順に呼び出すメソッド チェーンを示しています:
-
-```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_Frontend>("frontend")
-       .WithHttpEndpoint(port: 5066)
-       .WithReplicas(2);
-```
+サービスが複数レプリカで実行される場合でも、同じプロキシ パターンが適用されます。ブラウザーは 1 つの安定したホスト ポートに接続し、プロキシが利用可能なレプリカへトラフィックを振り分けます:
 
 前述のコードにより、次のネットワーキング図が得られます:
 
@@ -196,11 +91,11 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 - ランダムに割り当てられたポート 65001 で待ち受ける `frontend_0` フロントエンド サービス レプリカ。
 - ランダムに割り当てられたポート 65002 で待ち受ける `frontend_1` フロントエンド サービス レプリカ。
 
-`WithReplicas` を呼び出さない場合、フロントエンド サービスは 1 つだけになります。この場合でもプロキシはポート 5066 で待ち受けますが、フロントエンド サービス自体はランダムなポートで待ち受けます:
+環境変数から待ち受けポートを読み取る JavaScript アプリでは、次のように安定したホスト ポートを公開できます:
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_Frontend>("frontend")
-       .WithHttpEndpoint(port: 5066);
+builder.AddJavaScriptApp("frontend", "./frontend")
+       .WithHttpEndpoint(port: 5066, env: "PORT");
 ```
 
 次の 2 つのポートが定義されています:
@@ -220,26 +115,7 @@ builder.AddProject<Projects.Networking_Frontend>("frontend")
 - Web ブラウザーとフロントエンド サービスの間に配置され、ポート 5066 で待ち受けるフロントエンド プロキシ。
 - ランダムに割り当てられたポート 65001 で待ち受けるフロントエンド サービス。
 
-基になるサービスには、このポートがプロジェクト リソースの場合は `ASPNETCORE_URLS` を通じて渡されます。その他のリソースは、サービス バインディングに環境変数を指定することでこのポートにアクセスします:
-
-```csharp title="AppHost.cs"
-builder.AddNpmApp("frontend", "../NodeFrontend", "watch")
-       .WithHttpEndpoint(port: 5067, env: "PORT");
-```
-
-前述のコードにより、ランダム ポートが `PORT` 環境変数として利用可能になります。アプリはこのポートを使用して、プロキシからの受信接続を待ち受けます。次の図を参照してください:
-
-<Image
-  src={proxyWithEnvVarPort}
-  alt="特定のホスト ポートと環境変数ポートを持つ Aspire フロントエンド アプリのネットワーキング図。"
-/>
-
-前述の図は、次の内容を示しています:
-
-- アプリへのエントリ ポイントとしての Web ブラウザー。
-- 5067 のホスト ポート。
-- Web ブラウザーとフロントエンド サービスの間に配置され、ポート 5067 で待ち受けるフロントエンド プロキシ。
-- 環境変数で指定されたポート 65001 で待ち受けるフロントエンド サービス。
+基になるサービスは独自のポートで待ち受け、Aspire はその割り当てられたポートを `PORT` 環境変数としてアプリに渡します。
 
 <Aside type="tip">
   エンドポイントをプロキシ経由にしたくない場合は、`WithEndpoint` 拡張メソッドを呼び出す際に
@@ -252,8 +128,8 @@ builder.AddNpmApp("frontend", "../NodeFrontend", "watch")
 ホスト ポートを省略すると、Aspire はホスト ポートとサービス ポートの両方に対してランダムなポートを生成します。これは、ポートの競合を回避したい場合や、ホスト ポートやサービス ポートを特に意識しない場合に便利です。次のコードを例に考えてみましょう:
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_Frontend>("frontend")
-       .WithHttpEndpoint();
+builder.AddJavaScriptApp("frontend", "./frontend")
+       .WithHttpEndpoint(env: "PORT");
 ```
 
 このシナリオでは、次の図に示すように、ホスト ポートとサービス ポートの両方がランダムになります:
@@ -298,25 +174,18 @@ builder.AddContainer("frontend", "mcr.microsoft.com/dotnet/samples", "aspnetapp"
 また、エンドポイントを構成するためのデリゲートを指定できるオーバーロードもあります。これは、環境やその他の要因に応じてエンドポイントを構成する必要がある場合に便利です。次のコードを例に考えてみましょう:
 
 ```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_ApiService>("apiService")
+builder.AddContainer("apiService", "nginx")
        .WithEndpoint(
-            endpointName: "admin",
-            callback: static endpoint =>
-       {
-           endpoint.Port = 17003;
+             endpointName: "admin",
+             callback: static endpoint =>
+        {
+            endpoint.Port = 17003;
            endpoint.UriScheme = "http";
            endpoint.Transport = "http";
        });
 ```
 
-前述のコードでは、エンドポイントを構成するためのコールバック デリゲートが提供されています。このエンドポイントは `admin` という名前で、`http` スキームおよびトランスポートを使用し、ホスト ポート 17003 に構成されています。コンシューマーは、このエンドポイントを名前で参照します。次の `AddHttpClient` の呼び出しを確認してください:
-
-```csharp
-builder.Services.AddHttpClient<WeatherApiClient>(
-    client => client.BaseAddress = new Uri("http://_admin.apiservice"));
-```
-
-`Uri` は、`_` プレフィックスを付けた `admin` エンドポイント名を使用して構築されます。これは、`admin` セグメントが `apiservice` サービスに属するエンドポイント名であることを示すための規約です。詳細については、[サービス検出](/ja/fundamentals/service-discovery/)を参照してください。
+前述のコードでは、エンドポイントを構成するためのコールバック デリゲートが提供されています。このエンドポイントは `admin` という名前で、`http` スキームおよびトランスポートを使用し、ホスト ポート 17003 に構成されています。コンシューマーは `http://_admin.apiservice` のような URI で、このエンドポイントを名前で参照できます。`_` プレフィックスは、`admin` セグメントが `apiservice` サービスに属するエンドポイント名であることを示すための規約です。詳細については、[サービス検出](/ja/fundamentals/service-discovery/)を参照してください。
 
 ### 追加の考慮事項
 
@@ -337,19 +206,4 @@ builder.Services.AddHttpClient<WeatherApiClient>(
 
 詳細については、[EndpointAnnotation のプロパティ一覧](https://learn.microsoft.com/ja-jp/dotnet/api/aspire.hosting.applicationmodel.endpointannotation#properties)を参照してください。
 
-## エンドポイントのフィルタリング
-
-Aspire のすべてのプロジェクト リソース エンドポイントは、あらかじめ定められたルールや判断基準に基づいて扱われます。実行時に `ASPNETCORE_URLS` に含まれるエンドポイントもあれば、`HTTP/HTTPS_PORTS` として公開されるもの、Kestrel の構成から解決されるものもあります。こうした既定の動作に関わらず、`WithEndpointsInEnvironment` 拡張メソッドを使用することで、環境変数に含めるエンドポイントをフィルタリングできます:
-
-```csharp title="AppHost.cs"
-builder.AddProject<Projects.Networking_ApiService>("apiservice")
-    .WithHttpsEndpoint() // Adds a default "https" endpoint
-    .WithHttpsEndpoint(port: 19227, name: "admin")
-    .WithEndpointsInEnvironment(
-        filter: static endpoint =>
-        {
-            return endpoint.Name is not "admin";
-        });
-```
-
-前述のコードでは、既定の HTTPS エンドポイントに加えて、ポート 19227 の `admin` エンドポイントが追加されます。ただし、`admin` エンドポイントは環境変数には含まれません。これは、内部利用のみにエンドポイントを公開したい場合に便利です。
+プロジェクト リソース固有のエンドポイント フィルタリングについては、[プロジェクト リソース](/ja/integrations/dotnet/project-resources/) を参照してください。

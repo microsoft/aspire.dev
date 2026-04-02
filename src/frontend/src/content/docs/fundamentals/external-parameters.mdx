@@ -134,7 +134,7 @@ When you select **Enter values**, Aspire displays a form that you can use to con
 You can also control how the dashboard displays these parameters, by using these methods:
 
 - `WithDescription`: Use this method to provide a text description that helps users understand the purpose of the parameter. To provide a formatted description in [Markdown](https://www.markdownguide.org/basic-syntax/), use the `enableMarkdown: true` parameter.
-- `WithCustomInput`: Use this method to provide a callback method that customizes the parameter dialog. For example, in this callback you can customize the default value, input type, label, and placeholder text.
+- `WithCustomInput`: Use this method to provide a callback method that customizes the parameter dialog. For example, in this callback you can customize the default value, input type, label, and placeholder text. When using `WithCustomInput`, you must copy the `EnableDescriptionMarkdown` property from the parameter to the `InteractionInput` object to preserve markdown rendering.
 
 This code shows how to set a description and use the callback:
 
@@ -143,14 +143,15 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 #pragma warning disable ASPIREINTERACTION001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 var externalServiceUrl = builder.AddParameter("external-service-url")
-    .WithDescription("The URL of the external service.")
+    .WithDescription("The URL of the external service. See [example.com](https://example.com) for details.", enableMarkdown: true)
     .WithCustomInput(p => new()
     {
         InputType = InputType.Text,
         Value = "https://example.com",
         Name = p.Name,
         Placeholder = $"Enter value for {p.Name}",
-        Description = p.Description
+        Description = p.Description,
+        EnableDescriptionMarkdown = p.EnableDescriptionMarkdown
     });
 var externalService = builder.AddExternalService("external-service", externalServiceUrl);
 #pragma warning restore ASPIREINTERACTION001
@@ -165,6 +166,18 @@ The code renders this control in the dashboard:
   alt="Screenshot of the Aspire dashboard parameter completion dialog with customizations."
 />
 
+<Aside type="caution" title="WithCustomInput is an experimental API">
+  The `WithCustomInput` method uses the experimental interaction service APIs, which are marked with the `[Experimental("ASPIREINTERACTION001")]` attribute. If you have `TreatWarningsAsErrors` enabled (or prefer warning-free builds), suppress this warning with `#pragma warning disable ASPIREINTERACTION001` when using the API. The `WithDescription` method is _not_ experimental and doesn't require this pragma. For more information about the diagnostic and other ways to suppress it, see [ASPIREINTERACTION001](/diagnostics/aspireinteraction001/).
+</Aside>
+
+<Aside type="note">
+  When using `WithCustomInput`, the `InteractionInput` object you create replaces the default input generation. To preserve markdown rendering in the parameter dialog, copy `EnableDescriptionMarkdown = p.EnableDescriptionMarkdown` from the parameter. The `enableMarkdown: true` parameter in `WithDescription` sets this property on the parameter resource, but you must explicitly copy it to your custom `InteractionInput` object.
+</Aside>
+
+<Aside type="note">
+  When using `WithCustomInput`, the `InteractionInput` object you create replaces the default input generation. To preserve markdown rendering in the parameter dialog, copy `EnableDescriptionMarkdown = p.EnableDescriptionMarkdown` from the parameter. The `enableMarkdown: true` parameter in `WithDescription` sets this property on the parameter resource, but you must explicitly copy it to your custom `InteractionInput` object.
+</Aside>
+
 <Aside type="note">
   The dashboard parameter dialog includes a **Save to user secret** checkbox.
   Select this option to store sensitive values in your AppHost's user secrets
@@ -172,29 +185,9 @@ The code renders this control in the dashboard:
   [Secret values](#secret-values).
 </Aside>
 
-### Parameter representation in the manifest
-
-Aspire uses a deployment manifest to represent the app's resources and their relationships. Parameters are represented in the manifest as a new primitive called `parameter.v0`:
-
-```json
-{
-  "resources": {
-    "example-parameter-name": {
-      "type": "parameter.v0",
-      "value": "{value.inputs.value}",
-      "inputs": {
-        "value": {
-          "type": "string"
-        }
-      }
-    }
-  }
-}
-```
-
 ## Secret values
 
-Parameters can be used to model secrets. When a parameter is marked as a secret, it serves as a hint to the manifest that the value should be treated as a secret. When you publish the app, the value is prompted for and stored in a secure location. When you run the app locally, the value is read from the `Parameters` section of the AppHost configuration.
+Parameters can be used to model secrets. When a parameter is marked as a secret, it serves as a hint to the deployment system that the value should be treated as a secret. When you publish the app, the value is prompted for and stored in a secure location. When you run the app locally, the value is read from the `Parameters` section of the AppHost configuration.
 
 Consider the following example AppHost _AppHost.cs_ file:
 

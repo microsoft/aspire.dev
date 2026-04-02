@@ -1,0 +1,92 @@
+---
+/**
+ * Examples — renders code examples with syntax highlighting.
+ *
+ * Handles both structured objects ({ code, language, description })
+ * and plain strings from XML doc <example> elements.
+ */
+import { Code } from '@astrojs/starlight/components';
+import DocContent from './DocContent.astro';
+import { dedent } from '@utils/packages';
+
+const { examples = [], allTypes = [], packageName = '' } = Astro.props;
+
+if (!examples || examples.length === 0) return;
+
+const langLabels: Record<string, string> = {
+  csharp: 'C#',
+  typescript: 'TypeScript',
+  python: 'Python',
+  java: 'Java',
+  json: 'JSON',
+  xml: 'XML',
+  bash: 'Bash',
+};
+
+/** Normalize examples to a consistent shape. */
+const normalized = examples.map((ex: any) => {
+  if (typeof ex === 'string') {
+    return { code: ex, language: 'csharp', description: null, region: null };
+  }
+  return ex;
+}).filter((ex: any) => ex.code);
+
+if (normalized.length === 0) return;
+
+const languages = new Set(normalized.map((ex: any) => ex.language ?? 'csharp'));
+const showTitle = languages.size > 1;
+---
+
+<div class="ex-container not-content">
+  {normalized.map((ex: any) => {
+    const lang = ex.language ?? 'csharp';
+    const code = dedent(ex.code);
+    return code ? (
+      <div class="ex-item">
+        {ex.description && (
+          <div class="ex-desc">
+            <DocContent content={ex.description} allTypes={allTypes} packageName={packageName} tag="p" />
+          </div>
+        )}
+        {ex.region && <span class="ex-region">#{ex.region}</span>}
+        <Code code={code} lang={lang} {...(showTitle ? { title: langLabels[lang] ?? lang } : {})} />
+      </div>
+    ) : null;
+  })}
+</div>
+
+<style>
+  .ex-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0.75rem 0;
+  }
+  .ex-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ex-desc {
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+    margin: 0;
+  }
+  .ex-desc :global(p) { margin: 0; }
+  .ex-region {
+    font-size: var(--api-text-xs);
+    background: var(--sl-color-gray-5);
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--api-radius-sm);
+    align-self: flex-start;
+  }
+  /* Ensure Code component integrates cleanly */
+  .ex-item :global(.expressive-code),
+  .ex-item :global(figure.frame) {
+    margin: 0;
+  }
+  .ex-item :global(.expressive-code pre) {
+    margin: 0;
+    border-radius: var(--api-radius-md);
+  }
+</style>
