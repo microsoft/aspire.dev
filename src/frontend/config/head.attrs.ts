@@ -98,7 +98,7 @@ export const headAttrs: HeadAttr[] = [
     tag: 'script',
     attrs: {
       type: 'text/plain',
-      src: '/1ds/',
+      src: '/scripts/analytics/1ds.js',
       defer: true,
       'data-category': 'analytics',
     },
@@ -107,7 +107,7 @@ export const headAttrs: HeadAttr[] = [
     tag: 'script',
     attrs: {
       type: 'text/plain',
-      src: '/track/',
+      src: '/scripts/analytics/track.js',
       defer: true,
       'data-category': 'analytics',
     },
