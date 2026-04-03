@@ -49,6 +49,6 @@ export const licenseTitles = {
   dapr: 'Apache-2.0: https://github.com/dapr/dapr/blob/master/LICENSE',
   hex1b: 'MIT: https://hex1b.dev',
   asciinema: 'GPL-3.0: https://github.com/asciinema/asciinema/blob/develop/LICENSE',
-  perl-assets: 'CC-BY-4.0: https://github.com/metacpan/perl-assets?tab=CC-BY-4.0-1-ov-file#readme',
+  perlAssets: 'CC-BY-4.0: https://github.com/metacpan/perl-assets?tab=CC-BY-4.0-1-ov-file#readme',
   perl: 'Artistic License: https://dev.perl.org/licenses/artistic.html',
 } as const;
