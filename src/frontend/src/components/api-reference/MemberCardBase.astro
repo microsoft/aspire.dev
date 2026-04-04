@@ -64,7 +64,7 @@ const {
 /** Simple string hash → 0–3 for type color assignment. */
 function typeColorIndex(s: string): number {
   let h = 0;
-  for (const c of s) h = ((h * 31) + c.charCodeAt(0)) | 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0;
   return Math.abs(h) % 4;
 }
 
@@ -77,16 +77,23 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
   {/* Header */}
   <div class="mc-header">
     {kindLabel && <span class={`api-kind-pill ${kindClass}`}>{kindLabel}</span>}
-    {href
-      ? <a href={href} class="mc-name-link"><code class="mc-param-name">{name}</code></a>
-      : <code class="mc-param-name">{name}</code>
+    {
+      href ? (
+        <a href={href} class="mc-name-link">
+          <code class="mc-param-name">{name}</code>
+        </a>
+      ) : (
+        <code class="mc-param-name">{name}</code>
+      )
     }
-    {showReturnInHeader && hasReturn && (
-      <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
-        <code>{returnType}</code>
-      </span>
-    )}
-    {badges.map(b => <span class="api-mod-badge">{b}</span>)}
+    {
+      showReturnInHeader && hasReturn && (
+        <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
+          <code>{returnType}</code>
+        </span>
+      )
+    }
+    {badges.map((b) => <span class="api-mod-badge">{b}</span>)}
   </div>
 
   {/* Description */}
@@ -96,51 +103,61 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
   <slot name="after-description" />
 
   {/* Syntax-highlighted signature */}
-  {signature && (
-    <div class="mc-sig">
-      <Code code={lang === 'typescript' ? formatTsSignature(signature) : signature} lang={lang} showLineNumbers={false} />
-    </div>
-  )}
+  {
+    signature && (
+      <div class="mc-sig">
+        <Code
+          code={lang === 'typescript' ? formatTsSignature(signature) : signature}
+          lang={lang}
+          showLineNumbers={false}
+        />
+      </div>
+    )
+  }
 
   {/* Slot: extra content after signature (e.g. source link) */}
   <slot name="after-signature" />
 
   {/* Parameters */}
-  {hasParams && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Parameters</h5>
-      <div class="mc-params">
-        {parameters.map((p) => {
-          const colorIdx = typeColorIndex(p.type);
-          return (
-            <div class="mc-param">
-              <span class="mc-param-header">
-                <code class="mc-param-name">{p.name}</code>
-                <span class={`mc-param-type mc-param-type-${colorIdx}`}>
-                  <code>{p.type}</code>
+  {
+    hasParams && (
+      <div class="mc-section">
+        <p class="api-section-label">Parameters</p>
+        <div class="mc-params">
+          {parameters.map((p) => {
+            const colorIdx = typeColorIndex(p.type);
+            return (
+              <div class="mc-param">
+                <span class="mc-param-header">
+                  <code class="mc-param-name">{p.name}</code>
+                  <span class={`mc-param-type mc-param-type-${colorIdx}`}>
+                    <code>{p.type}</code>
+                  </span>
+                  {p.isOptional && <span class="api-mod-badge">optional</span>}
+                  {p.defaultValue && <span class="api-mod-badge">= {p.defaultValue}</span>}
                 </span>
-                {p.isOptional && <span class="api-mod-badge">optional</span>}
-                {p.defaultValue && <span class="api-mod-badge">= {p.defaultValue}</span>}
-              </span>
-              {p.description && <span class="mc-param-desc">{p.description}</span>}
-            </div>
-          );
-        })}
+                {p.description && <span class="mc-param-desc">{p.description}</span>}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
   {/* Returns */}
-  {hasReturn && !showReturnInHeader && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Returns</h5>
-      <div class="mc-section-body mc-returns">
-        <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
-          <code class="mc-return-inline">{returnType}</code>
-        </span>
+  {
+    hasReturn && !showReturnInHeader && (
+      <div class="mc-section">
+        <p class="api-section-label">Returns</p>
+        <div class="mc-section-body mc-returns">
+          <span class={`mc-param-type mc-param-type-${retColorIdx}`}>
+            <code class="mc-return-inline">{returnType}</code>
+          </span>
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
   {/* Slot: extra sections (e.g. Exceptions, Remarks, Examples) */}
   <slot name="extra-sections" />
@@ -153,7 +170,10 @@ const retColorIdx = hasReturn ? typeColorIndex(returnType) : 0;
     border: 1px solid var(--api-border);
     border-radius: var(--api-radius-lg);
     background: var(--api-surface);
-    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    transition:
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
   }
 
   .mcb:hover {
