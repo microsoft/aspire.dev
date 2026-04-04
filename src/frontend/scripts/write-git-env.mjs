@@ -14,7 +14,9 @@ const __dirname = dirname(__filename);
 
 function tryExec(cmd) {
   try {
-    return execSync(cmd).toString().trim();
+    return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
   } catch {
     return null;
   }
@@ -28,9 +30,7 @@ function getCommit() {
    * Try origin/main first, then fall back to upstream/main for fork workflows.
    */
   return (
-    tryExec('git merge-base origin/main HEAD') ??
-    tryExec('git merge-base upstream/main HEAD') ??
-    ''
+    tryExec('git merge-base origin/main HEAD') ?? tryExec('git merge-base upstream/main HEAD') ?? ''
   );
 }
 

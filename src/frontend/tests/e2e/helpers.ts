@@ -16,6 +16,28 @@ export async function waitForAccessibilityEnhancements(page: Page): Promise<void
     .toBe('true');
 }
 
+export async function waitForApiSidebarReady(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'C# API Reference' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-api-sidebar-ready'))
+    )
+    .toBe(true);
+  await expect(page.locator('#sidebar-collapse-btn')).toBeAttached();
+  await expect(page.locator('#sidebar-expand-btn')).toBeAttached();
+  await expect
+    .poll(async () => {
+      const isCollapsed = await page.evaluate(() =>
+        document.documentElement.hasAttribute('data-sidebar-collapsed')
+      );
+      const collapseVisible = await page.locator('#sidebar-collapse-btn').isVisible();
+      const expandVisible = await page.locator('#sidebar-expand-btn').isVisible();
+
+      return isCollapsed ? expandVisible && !collapseVisible : collapseVisible && !expandVisible;
+    })
+    .toBe(true);
+}
+
 export function isNarrowViewport(page: Page): boolean {
   const viewport = page.viewportSize();
   return Boolean(viewport && viewport.width < 800);

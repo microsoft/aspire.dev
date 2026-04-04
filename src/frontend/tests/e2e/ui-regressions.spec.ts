@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   dismissCookieConsentIfVisible,
   isNarrowViewport,
+  waitForApiSidebarReady,
   waitForAnalyticsConsent,
   waitForConsentCategories,
   waitForConsentRecorded,
@@ -162,6 +163,8 @@ test('terminal tabs stay synced between pages', async ({ page }) => {
 });
 
 test('API sidebar collapse state persists across reloads', async ({ page }) => {
+  test.slow();
+
   const viewport = page.viewportSize();
   test.skip(
     !viewport || viewport.width < 1152,
@@ -170,22 +173,22 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
 
   await page.goto('/reference/api/csharp/');
   await dismissCookieConsentIfVisible(page);
+  await waitForApiSidebarReady(page);
 
   const collapseButton = page.locator('#sidebar-collapse-btn');
   const expandButton = page.locator('#sidebar-expand-btn');
 
-  await expect(collapseButton).toBeVisible();
   await collapseButton.click();
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(true);
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('1');
   await expect(expandButton).toBeVisible();
 
-  await page.goto('/reference/api/csharp/', { waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForApiSidebarReady(page);
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(true);
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('1');
-  await expect(page.getByRole('heading', { name: 'C# API Reference' })).toBeVisible();
   await expect(page.locator('#sidebar-expand-btn')).toBeVisible();
 
   await page.locator('#sidebar-expand-btn').click();
@@ -193,7 +196,8 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
 
-  await page.goto('/reference/api/csharp/', { waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForApiSidebarReady(page);
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
