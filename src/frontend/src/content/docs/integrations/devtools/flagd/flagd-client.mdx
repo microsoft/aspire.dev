@@ -61,6 +61,72 @@ var backgroundColor = await flagClient.GetStringValueAsync(
 
 For more information on the OpenFeature SDK and flagd provider, see the [OpenFeature .NET documentation](https://openfeature.dev/docs/reference/technologies/client/dotnet/) and the [flagd provider documentation](https://flagd.dev/providers/dotnet/).
 
+## Use OFREP provider
+
+As an alternative to the native provider, you can connect to flagd using the [OFREP (OpenFeature Remote Evaluation Protocol)](https://openfeature.dev/specification/appendix-c/). OFREP is a standardized HTTP/REST-based protocol for remote feature flag evaluation, making it language-agnostic and well-suited for polyglot environments.
+
+### Install the OFREP provider
+
+Install the [📦 OpenFeature.Providers.Ofrep](https://www.nuget.org/packages/OpenFeature.Providers.Ofrep) NuGet package in the client-consuming project:
+
+```powershell
+dotnet add package OpenFeature.Providers.Ofrep
+```
+
+### Configure the app host
+
+In your app host project, retrieve the OFREP endpoint from the flagd resource and pass it to your consuming project as an environment variable:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var flagd = builder.AddFlagd("flagd")
+                   .WithBindFileSync("./flags/");
+
+var ofrepEndpoint = flagd.GetEndpoint("ofrep");
+
+builder.AddProject<Projects.ExampleProject>()
+       .WaitFor(flagd)
+       .WithEnvironment("OFREP_ENDPOINT", ofrepEndpoint);
+
+// After adding all resources, run the app...
+```
+
+### Configure the client
+
+In the `Program.cs` file of your client-consuming project, register the OpenFeature SDK with the OFREP provider using dependency injection:
+
+```csharp
+using OpenFeature.Providers.Ofrep;
+using OpenFeature.Providers.Ofrep.DependencyInjection;
+
+builder.Services.AddOpenFeature(featureBuilder =>
+{
+    featureBuilder.AddOfrepProvider();
+});
+```
+
+The OFREP provider automatically reads the `OFREP_ENDPOINT` environment variable to discover the flagd OFREP endpoint. You can then evaluate feature flags by injecting `IFeatureClient`:
+
+```csharp
+using OpenFeature;
+
+app.MapGet("/", async (IFeatureClient flagClient) =>
+{
+    var welcomeBanner = await flagClient.GetBooleanValueAsync(
+        "welcome-banner",
+        defaultValue: false);
+
+    var backgroundColor = await flagClient.GetStringValueAsync(
+        "background-color",
+        defaultValue: "#000000");
+
+    return Results.Ok(new { welcomeBanner, backgroundColor });
+});
+```
+
+For more information, see the [OFREP specification](https://openfeature.dev/specification/appendix-c/).
+
 ## Configuration
 
 The flagd client integration uses the connection string from the `ConnectionStrings` configuration section. The connection string is automatically provided when you reference the flagd resource in your app host project using `WithReference`.
