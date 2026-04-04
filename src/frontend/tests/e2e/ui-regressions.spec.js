@@ -17,6 +17,14 @@ async function hasCollapsedSidebar(page) {
   }
 }
 
+async function readSidebarCollapsedPreference(page) {
+  try {
+    return await page.evaluate(() => localStorage.getItem('api-sidebar-collapsed'));
+  } catch {
+    return null;
+  }
+}
+
 test('install CLI entry adapts to viewport and remembers the selected channel', async ({
   page,
 }) => {
@@ -170,21 +178,23 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
   await collapseButton.click();
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(true);
+  await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('1');
   await expect(expandButton).toBeVisible();
 
-  await page.reload();
-  await page.waitForLoadState('domcontentloaded');
+  await page.goto('/reference/api/csharp/', { waitUntil: 'domcontentloaded' });
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(true);
+  await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('1');
   await expect(page.getByRole('heading', { name: 'C# API Reference' })).toBeVisible();
-  await expect(expandButton).toBeVisible();
+  await expect(page.locator('#sidebar-expand-btn')).toBeVisible();
 
-  await expandButton.click();
-
-  await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
-
-  await page.reload();
-  await page.waitForLoadState('domcontentloaded');
+  await page.locator('#sidebar-expand-btn').click();
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
+  await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
+
+  await page.goto('/reference/api/csharp/', { waitUntil: 'domcontentloaded' });
+
+  await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
+  await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
 });
