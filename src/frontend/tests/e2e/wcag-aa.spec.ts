@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { dismissCookieConsentIfVisible } from './helpers.js';
+import { dismissCookieConsentIfVisible } from './helpers';
 
 const auditedPages = [
   '/',

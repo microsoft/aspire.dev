@@ -1,18 +1,18 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
-export async function dismissCookieConsentIfVisible(page) {
+export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
   const rejectAllButton = page.getByRole('button', { name: /reject all/i });
   if (await rejectAllButton.isVisible().catch(() => false)) {
     await rejectAllButton.click();
   }
 }
 
-export function isNarrowViewport(page) {
+export function isNarrowViewport(page: Page): boolean {
   const viewport = page.viewportSize();
   return Boolean(viewport && viewport.width < 800);
 }
 
-async function readConsentCategories(page) {
+async function readConsentCategories(page: Page): Promise<string[] | null> {
   try {
     return await page.evaluate(() => {
       const cookieEntry = document.cookie
@@ -32,11 +32,11 @@ async function readConsentCategories(page) {
   }
 }
 
-export async function waitForConsentRecorded(page) {
+export async function waitForConsentRecorded(page: Page): Promise<void> {
   await expect.poll(() => readConsentCategories(page)).not.toBeNull();
 }
 
-export async function waitForAnalyticsConsent(page, expected) {
+export async function waitForAnalyticsConsent(page: Page, expected: boolean): Promise<void> {
   await expect
     .poll(async () => {
       const categories = await readConsentCategories(page);
@@ -45,7 +45,10 @@ export async function waitForAnalyticsConsent(page, expected) {
     .toBe(expected);
 }
 
-export async function waitForConsentCategories(page, expectedCategories) {
+export async function waitForConsentCategories(
+  page: Page,
+  expectedCategories: string[]
+): Promise<void> {
   const sortedExpectedCategories = [...expectedCategories].sort();
   await expect.poll(() => readConsentCategories(page)).toEqual(sortedExpectedCategories);
 }

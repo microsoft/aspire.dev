@@ -1,13 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   dismissCookieConsentIfVisible,
   isNarrowViewport,
   waitForAnalyticsConsent,
   waitForConsentCategories,
   waitForConsentRecorded,
-} from './helpers.js';
+} from './helpers';
 
-async function hasCollapsedSidebar(page) {
+async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
   try {
     return await page.evaluate(() =>
       document.documentElement.hasAttribute('data-sidebar-collapsed')
@@ -17,7 +17,7 @@ async function hasCollapsedSidebar(page) {
   }
 }
 
-async function readSidebarCollapsedPreference(page) {
+async function readSidebarCollapsedPreference(page: Page): Promise<string | null> {
   try {
     return await page.evaluate(() => localStorage.getItem('api-sidebar-collapsed'));
   } catch {

@@ -3,18 +3,32 @@
  * It solves the problem of dynamic imports from JSON data.
  */
 
+import type { ImageMetadata } from 'astro';
+
+type ImportedImageModule = {
+  default: ImageMetadata;
+};
+
+type AvatarPath = string | null | undefined;
+
+type AvatarItem = {
+  avatar: AvatarPath;
+  [key: string]: unknown;
+};
+
 // Import all images from the testimonials directory
 // This uses Vite's import.meta.glob feature
-const testimonialImages = import.meta.glob('../assets/testimonials/*.{png,jpg,jpeg,webp}', {
-  eager: true,
-});
+const testimonialImages = import.meta.glob<ImportedImageModule>(
+  '../assets/testimonials/*.{png,jpg,jpeg,webp}',
+  {
+    eager: true,
+  }
+);
 
 /**
  * Get an imported image by path
- * @param {string} path - The path to the image (e.g., "../assets/testimonials/image.png")
- * @returns {string} The processed image URL or the original path if not found
  */
-export function getImageByPath(path) {
+export function getImageByPath(path: AvatarPath): ImageMetadata | AvatarPath {
   if (!path || typeof path !== 'string' || !path.startsWith('../assets/')) {
     return path;
   }
@@ -26,10 +40,10 @@ export function getImageByPath(path) {
 
 /**
  * Process an array of objects with avatar properties to use imported images
- * @param {Array} items - Array of objects containing avatar properties
- * @returns {Array} The processed array with imported images
  */
-export function processAvatars(items) {
+export function processAvatars<T extends AvatarItem>(
+  items: T[]
+): Array<Omit<T, 'avatar'> & { avatar: ImageMetadata | AvatarPath }> {
   if (!Array.isArray(items)) return [];
 
   return items.map((item) => {
