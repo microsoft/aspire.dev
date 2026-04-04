@@ -7,6 +7,15 @@ export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
   }
 }
 
+export async function waitForAccessibilityEnhancements(page: Page): Promise<void> {
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.dataset.accessibilityEnhancementsReady ?? null)
+    )
+    .toBe('true');
+}
+
 export function isNarrowViewport(page: Page): boolean {
   const viewport = page.viewportSize();
   return Boolean(viewport && viewport.width < 800);

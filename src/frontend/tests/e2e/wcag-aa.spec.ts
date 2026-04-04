@@ -1,6 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import {
+  dismissCookieConsentIfVisible,
+  waitForAccessibilityEnhancements,
+} from '@tests/e2e/helpers';
 
 const auditedPages = [
   '/',
@@ -17,6 +20,7 @@ for (const pagePath of auditedPages) {
 
     await page.goto(pagePath);
     await dismissCookieConsentIfVisible(page);
+    await waitForAccessibilityEnhancements(page);
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa'])
