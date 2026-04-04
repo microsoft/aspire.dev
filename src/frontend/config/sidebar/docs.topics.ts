@@ -808,6 +808,18 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
+        {
+          label: 'Debug Aspire apps',
+          slug: 'fundamentals/debug-aspire-apps',
+        },
+        {
+          label: 'Startup performance',
+          slug: 'fundamentals/startup-performance',
+        },
+        {
+          label: 'Hot reload and watch mode',
+          slug: 'fundamentals/hot-reload',
+        },
       ],
     },
     {
