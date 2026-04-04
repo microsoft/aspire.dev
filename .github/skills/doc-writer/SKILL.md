@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: Guidelines for producing accurate and maintainable documentation for the Aspire documentation site. Use when writing or updating user guides, integration docs, tutorials, or any content on aspire.dev.
+description: Guidelines for producing accurate and maintainable documentation for the Aspire documentation site. Use when writing or updating user guides, integration docs, tutorials, custom components used by docs, or documentation-related tests and validation on aspire.dev.
 ---
 
 # Documentation Writer Skill
@@ -92,6 +92,15 @@ import Image from 'astro:assets';
 ```
 
 ### Component Usage
+
+Prefer existing components in `src/frontend/src/components/` over bespoke MDX markup when the site already has a reusable pattern for the content. This keeps docs consistent and reduces duplicated styling, accessibility fixes, and behavior logic.
+
+When you introduce or change a custom component that is used by docs pages:
+
+- Keep the public props intentional and typed so MDX authors get statement completion and editor help.
+- Reuse existing aliases such as `@components/*` and `@assets/*` rather than deep relative imports.
+- Prefer moving heavier shared logic into colocated `.ts` helpers when the `.astro` frontmatter becomes large or is duplicated across components.
+- Treat user-visible behavior, accessibility, and responsive behavior as part of the documentation contract, not as optional polish.
 
 #### Aside (Callouts)
 
@@ -252,6 +261,18 @@ For more information, see [aspire config command reference](/reference/cli/comma
 </LearnMore>
 </Aside>
 ````
+
+#### Aspire Custom Components
+
+Use Aspire's custom components when they express a documentation pattern more clearly than raw Markdown or ad hoc HTML. Common examples include `LearnMore`, `PivotSelector`, `Pivot`, `ThemeImage`, `InstallPackage`, `InstallDotNetPackage`, `AsciinemaPlayer`, and the other components in `src/frontend/src/components/`.
+
+Before introducing a new custom component for docs:
+
+- Check whether an existing component already solves the layout or interaction.
+- Prefer extending an existing component when the semantics stay clear.
+- Only add a new component when the pattern will be reused or the behavior is complex enough to justify a shared abstraction.
+
+If you add or change a custom component, also update the relevant tests so documentation behavior stays covered.
 
 ### Code Blocks
 
@@ -705,11 +726,51 @@ For details on terminal recordings, including how to create and embed them, see 
 
 Before submitting documentation:
 
-1. **Build locally**: Run the site locally to verify rendering
+1. **Preview locally**: Run the site locally to verify rendering and content flow
 2. **Check links**: Ensure all internal and external links work
 3. **Validate code**: Test all code examples compile and run using `aspire run`
 4. **Review formatting**: Verify components render correctly
-5. **Check navigation**: Confirm sidebar entries are correct
+5. **Run relevant tests**: Do not consider documentation or component work done until the affected tests pass
+6. **Check navigation**: Confirm sidebar entries are correct
+
+### Documentation Validation Strategy
+
+Use the smallest set of checks that proves the change is correct:
+
+- For MDX copy, structure, and navigation changes, verify the page locally and check the edited links.
+- For custom component usage changes, run the component render tests that cover the affected behavior.
+- For component prop surface changes, update and run the prop-contract coverage so editor completions and consumer typings stay intact.
+- For interactive behavior changes, run targeted Playwright coverage for the scenario you changed rather than relying on unrelated broad suites.
+- For accessibility-sensitive changes, validate both the rendered page and any focused accessibility tests that exercise the affected interaction.
+
+### Custom Component and Test Expectations
+
+If a documentation change adds, removes, or materially changes a custom component, you should usually update one or more of these test layers:
+
+- `src/frontend/tests/unit/custom-components.vitest.test.ts` for runtime render coverage of custom Astro components.
+- `src/frontend/tests/typecheck/component-props.contracts.ts` when component props change and the public prop contract should remain typed for MDX and other consumers.
+- `src/frontend/tests/e2e/*.spec.ts` for user-visible interactions that depend on hydration, persistence, navigation, or accessibility behavior.
+
+Examples of scenarios that often merit targeted tests:
+
+- query-string or local-storage persistence
+- cookie-consent or preference-driven behavior
+- responsive behavior that changes across desktop, tablet, and mobile
+- keyboard navigation, focus management, or screen-reader labeling
+- repeated code examples that need distinct accessible labels or titles
+- RSS, analytics, or other generated/static asset behaviors exposed through docs pages
+
+### Recommended Frontend Test Commands
+
+Prefer targeted validation over the slowest possible full-site build when the change does not require it.
+
+```bash
+pnpm --dir ./src/frontend run test:unit:components
+pnpm --dir ./src/frontend run test:unit:contracts
+pnpm --dir ./src/frontend exec playwright test tests/e2e/<relevant-spec>.ts
+```
+
+If you changed custom components, docs interactions, or accessibility behavior, make sure the relevant targeted tests pass before submitting the work.
 
 ### Installing the Aspire CLI
 
