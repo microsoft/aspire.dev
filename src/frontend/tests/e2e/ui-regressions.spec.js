@@ -176,8 +176,10 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
   await page.waitForLoadState('domcontentloaded');
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(true);
+  await expect(page.getByRole('heading', { name: 'C# API Reference' })).toBeVisible();
+  await expect(expandButton).toBeVisible();
 
-  await page.locator('#sidebar-expand-btn').click();
+  await expandButton.click();
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
 

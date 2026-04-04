@@ -13,11 +13,117 @@
 ---
 
 <script>
+  function normalizeText(value: string | null | undefined) {
+    return value?.replace(/\s+/g, ' ').trim() || '';
+  }
+
+  function findNearestHeadingText(element: Element) {
+    const headings = document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6');
+    let nearestHeading = '';
+
+    headings.forEach((heading) => {
+      const position = heading.compareDocumentPosition(element);
+      if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+        nearestHeading = normalizeText(heading.textContent || '');
+      }
+    });
+
+    return nearestHeading;
+  }
+
+  function describeCodeRegion(region: Element) {
+    const figure = region.closest('figure.frame, .expressive-code');
+    const titleText = normalizeText(
+      figure?.querySelector('figcaption, .header .title, .frame-title')?.textContent || ''
+    );
+    const language = normalizeText(region.getAttribute('data-language') || '').toLowerCase();
+    const section = findNearestHeadingText(region);
+    const languageLabels: Record<string, string> = {
+      bash: 'Bash',
+      powershell: 'PowerShell',
+      json: 'JSON',
+      txt: 'text',
+      text: 'text',
+      cs: 'C#',
+      csharp: 'C#',
+      ts: 'TypeScript',
+      typescript: 'TypeScript',
+      xml: 'XML',
+      yaml: 'YAML',
+    };
+
+    const languageLabel = languageLabels[language] || (language ? language.toUpperCase() : 'Code');
+
+    const baseLabel = titleText || `${languageLabel} code example`;
+    return section ? `${baseLabel} in ${section}` : baseLabel;
+  }
+
+  function labelCodeRegions() {
+    const regions = Array.from(
+      document.querySelectorAll('figure.frame.has-title pre, pre[role="region"]')
+    );
+    const labels = regions.map((region) => describeCodeRegion(region));
+    const totals = new Map();
+    const seen = new Map();
+
+    labels.forEach((label) => {
+      totals.set(label, (totals.get(label) || 0) + 1);
+    });
+
+    regions.forEach((region, index) => {
+      const label = labels[index];
+      const total = totals.get(label) || 1;
+      const count = (seen.get(label) || 0) + 1;
+      seen.set(label, count);
+
+      const uniqueLabel = total > 1 ? `${label} (${count} of ${total})` : label;
+      region.setAttribute('aria-label', uniqueLabel);
+      region.removeAttribute('aria-labelledby');
+    });
+  }
+
+  function makeScrollableTablesFocusable() {
+    const tables = document.querySelectorAll('main table');
+
+    tables.forEach((table) => {
+      const element = table as HTMLTableElement;
+      const isScrollable = element.scrollWidth > element.clientWidth + 1;
+
+      if (!isScrollable) {
+        if (element.dataset.autoFocusable === 'true') {
+          element.removeAttribute('tabindex');
+          if (element.dataset.autoAriaLabel === 'true') {
+            element.removeAttribute('aria-label');
+            delete element.dataset.autoAriaLabel;
+          }
+          delete element.dataset.autoFocusable;
+        }
+        return;
+      }
+
+      if (!element.hasAttribute('tabindex')) {
+        element.setAttribute('tabindex', '0');
+        element.dataset.autoFocusable = 'true';
+      }
+
+      if (!element.hasAttribute('aria-label')) {
+        const section = findNearestHeadingText(element);
+        if (section) {
+          element.setAttribute('aria-label', `${section} table`);
+          element.dataset.autoAriaLabel = 'true';
+        }
+      }
+    });
+  }
+
   /**
-   * Add accessible labels to code copy buttons and handle copy button visibility
+   * Add accessible labels to code blocks, copy buttons, and scrollable tables.
    * This runs after the page loads and whenever the DOM changes
    */
-  function addAccessibleLabels() {
+  function addAccessibilityEnhancements() {
+    labelCodeRegions();
+    makeScrollableTablesFocusable();
+
     // Find all figures with copy buttons (includes both .expressive-code and direct figures)
     const figures = document.querySelectorAll('figure.frame');
 
@@ -69,13 +175,14 @@
 
   // Run on initial page load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', addAccessibleLabels);
+    document.addEventListener('DOMContentLoaded', addAccessibilityEnhancements);
   } else {
-    addAccessibleLabels();
+    addAccessibilityEnhancements();
   }
 
   // Re-run when navigating with View Transitions
-  document.addEventListener('astro:page-load', addAccessibleLabels);
+  document.addEventListener('astro:page-load', addAccessibilityEnhancements);
+  window.addEventListener('resize', addAccessibilityEnhancements);
 
   // Watch for dynamically added code blocks
   const observer = new MutationObserver((mutations) => {
@@ -97,7 +204,7 @@
     });
 
     if (hasCodeBlocks) {
-      addAccessibleLabels();
+      addAccessibilityEnhancements();
     }
   });
 

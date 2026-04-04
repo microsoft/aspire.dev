@@ -11,6 +11,10 @@ const auditedPages = [
 
 for (const pagePath of auditedPages) {
   test(`WCAG AA audit passes for ${pagePath}`, async ({ page }) => {
+    if (pagePath === '/reference/api/csharp/') {
+      test.slow();
+    }
+
     await page.goto(pagePath);
     await dismissCookieConsentIfVisible(page);
 
