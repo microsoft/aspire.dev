@@ -5,7 +5,7 @@ import {
   waitForAnalyticsConsent,
   waitForConsentCategories,
   waitForConsentRecorded,
-} from './helpers';
+} from '@tests/e2e/helpers';
 
 async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
   try {

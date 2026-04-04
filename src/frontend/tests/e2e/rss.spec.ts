@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { dismissCookieConsentIfVisible } from './helpers';
+import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('rss feed endpoint returns XML with stylesheet and items', async ({ request }) => {
   const response = await request.get('/rss.xml');

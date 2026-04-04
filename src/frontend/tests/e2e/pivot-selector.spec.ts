@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { dismissCookieConsentIfVisible } from './helpers';
+import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('prerequisites pivot selection updates the apphost query string and visible content', async ({
   page,

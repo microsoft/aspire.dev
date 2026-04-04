@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { dismissCookieConsentIfVisible } from './helpers';
+import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 test('app host builder swaps visible code when toggles and language change', async ({ page }) => {
   await page.goto('/');

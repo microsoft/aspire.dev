@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-import { fetchWithProxy as fetch } from './fetch-with-proxy.ts';
+import { fetchWithProxy as fetch } from './fetch-with-proxy';
 
 const REPOS = [
   'microsoft/aspire',

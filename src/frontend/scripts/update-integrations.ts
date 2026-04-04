@@ -1,11 +1,11 @@
 import fs from 'fs';
 
-import { fetchWithProxy as fetch } from './fetch-with-proxy.ts';
+import { fetchWithProxy as fetch } from './fetch-with-proxy';
 import {
   NUGET_ORG_SERVICE_INDEX,
   isOfficialAspirePackage,
   resolveOfficialAspirePackageSource,
-} from './aspire-package-source.ts';
+} from './aspire-package-source';
 
 const OFFICIAL_NUGET_ORG_QUERIES = ['owner:aspire', 'Aspire.Hosting.'];
 const OFFICIAL_RELEASE_FEED_QUERIES = ['Aspire.'];
