@@ -6,82 +6,82 @@ export type MarkerValueType = MarkerDefinition | MarkerDefinition[] | undefined;
 export type CollapseValueType = string | string[] | undefined;
 export type LangType = 'csharp' | 'python' | 'nodejs' | 'go' | 'java';
 
-interface CodeProps {
+interface Props {
   lang?: LangType;
   mark?: MarkerValueType;
   collapse?: CollapseValueType;
 }
 
-const { lang = 'csharp', mark, collapse } = Astro.props as CodeProps;
+const { lang = 'csharp', mark, collapse }: Props = Astro.props;
 
 const typescriptLineOffset = 2;
 
 function shiftLine(line: number, offset: number) {
-    return line + offset;
+  return line + offset;
 }
 
 function shiftRange(value: string, offset: number) {
-    const [startText, endText] = value.split('-');
-    const start = Number.parseInt(startText, 10);
+  const [startText, endText] = value.split('-');
+  const start = Number.parseInt(startText, 10);
 
-    if (Number.isNaN(start)) {
-        return value;
-    }
+  if (Number.isNaN(start)) {
+    return value;
+  }
 
-    const end = endText === undefined ? start : Number.parseInt(endText, 10);
+  const end = endText === undefined ? start : Number.parseInt(endText, 10);
 
-    if (Number.isNaN(end)) {
-        return value;
-    }
+  if (Number.isNaN(end)) {
+    return value;
+  }
 
-    const shiftedStart = shiftLine(start, offset);
-    const shiftedEnd = shiftLine(end, offset);
+  const shiftedStart = shiftLine(start, offset);
+  const shiftedEnd = shiftLine(end, offset);
 
-    return shiftedStart === shiftedEnd ? `${shiftedStart}` : `${shiftedStart}-${shiftedEnd}`;
+  return shiftedStart === shiftedEnd ? `${shiftedStart}` : `${shiftedStart}-${shiftedEnd}`;
 }
 
 function shiftMarkerValue(value: MarkerValueType, offset: number): MarkerValueType {
-    if (value === undefined) {
-        return value;
-    }
-
-    if (Array.isArray(value)) {
-        return value.map((item) => shiftMarkerValue(item, offset) as MarkerDefinition);
-    }
-
-    if (typeof value === 'number') {
-        return shiftLine(value, offset);
-    }
-
-    if (typeof value === 'string') {
-        return shiftRange(value, offset);
-    }
-
-    if (typeof value === 'object' && value !== null && 'range' in value) {
-        const marker = value as Record<string, unknown> & { range?: string | number };
-
-        if (typeof marker.range === 'number') {
-            return { ...marker, range: `${shiftLine(marker.range, offset)}` } as MarkerDefinition;
-        }
-
-        if (typeof marker.range === 'string') {
-            return { ...marker, range: shiftRange(marker.range, offset) } as MarkerDefinition;
-        }
-    }
-
+  if (value === undefined) {
     return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => shiftMarkerValue(item, offset) as MarkerDefinition);
+  }
+
+  if (typeof value === 'number') {
+    return shiftLine(value, offset);
+  }
+
+  if (typeof value === 'string') {
+    return shiftRange(value, offset);
+  }
+
+  if (typeof value === 'object' && value !== null && 'range' in value) {
+    const marker = value as Record<string, unknown> & { range?: string | number };
+
+    if (typeof marker.range === 'number') {
+      return { ...marker, range: `${shiftLine(marker.range, offset)}` } as MarkerDefinition;
+    }
+
+    if (typeof marker.range === 'string') {
+      return { ...marker, range: shiftRange(marker.range, offset) } as MarkerDefinition;
+    }
+  }
+
+  return value;
 }
 
 function shiftCollapseValue(value: CollapseValueType, offset: number): CollapseValueType {
-    if (value === undefined) {
-        return value;
-    }
+  if (value === undefined) {
+    return value;
+  }
 
-    if (Array.isArray(value)) {
-        return value.map((item) => shiftRange(item, offset));
-    }
+  if (Array.isArray(value)) {
+    return value.map((item) => shiftRange(item, offset));
+  }
 
-    return shiftRange(value, offset);
+  return shiftRange(value, offset);
 }
 
 const csharp = `
@@ -273,9 +273,9 @@ const csharpCodeMap: Record<LangType, string> = {
 };
 
 const typescriptCodeMap: Partial<Record<LangType, string>> = {
-    csharp: csharpTypeScript,
-    python: pythonTypeScript,
-    nodejs: nodejsTypeScript,
+  csharp: csharpTypeScript,
+  python: pythonTypeScript,
+  nodejs: nodejsTypeScript,
 };
 
 const csharpCode = csharpCodeMap[lang];
@@ -284,43 +284,45 @@ const typescriptMark = shiftMarkerValue(mark, typescriptLineOffset);
 const typescriptCollapse = shiftCollapseValue(collapse, typescriptLineOffset);
 ---
 
-{typescriptCode ? (
+{
+  typescriptCode ? (
     <Tabs syncKey="apphost-implementation-lang">
-        <TabItem label="C# AppHost">
-            <Code
-                code={csharpCode}
-                lang="cs"
-                title="AppHost.cs"
-                mark={mark}
-                collapse={collapse}
-                collapseStyle={'collapsible-auto'}
-            />
-            <slot name="csharp-content" />
-        </TabItem>
-        <TabItem label="TypeScript AppHost">
-            <Code
-                code={typescriptCode}
-                lang="ts"
-                title="apphost.ts"
-                mark={typescriptMark}
-                collapse={typescriptCollapse}
-                collapseStyle={'collapsible-auto'}
-            />
-            <slot name="typescript-content" />
-        </TabItem>
-    </Tabs>
-) : (
-    <>
+      <TabItem label="C# AppHost">
         <Code
-            code={csharpCode}
-            lang="cs"
-            title="AppHost.cs"
-            mark={mark}
-            collapse={collapse}
-            collapseStyle={'collapsible-auto'}
+          code={csharpCode}
+          lang="cs"
+          title="AppHost.cs"
+          mark={mark}
+          collapse={collapse}
+          collapseStyle={'collapsible-auto'}
         />
-        <slot />
+        <slot name="csharp-content" />
+      </TabItem>
+      <TabItem label="TypeScript AppHost">
+        <Code
+          code={typescriptCode}
+          lang="ts"
+          title="apphost.ts"
+          mark={typescriptMark}
+          collapse={typescriptCollapse}
+          collapseStyle={'collapsible-auto'}
+        />
+        <slot name="typescript-content" />
+      </TabItem>
+    </Tabs>
+  ) : (
+    <>
+      <Code
+        code={csharpCode}
+        lang="cs"
+        title="AppHost.cs"
+        mark={mark}
+        collapse={collapse}
+        collapseStyle={'collapsible-auto'}
+      />
+      <slot />
     </>
-)}
+  )
+}
 
 {typescriptCode && <slot />}

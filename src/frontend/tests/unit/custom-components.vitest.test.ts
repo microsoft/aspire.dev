@@ -6,6 +6,7 @@ import samplesData from '../../src/data/samples.json';
 import AccessibleCodeButtons from '../../src/components/AccessibleCodeButtons.astro';
 import AppHostBuilder from '../../src/components/AppHostBuilder.astro';
 import AspireMap from '../../src/components/AspireMap.astro';
+import AsciinemaPlayer from '../../src/components/AsciinemaPlayer.astro';
 import Breadcrumb from '../../src/components/Breadcrumb.astro';
 import CTABanner from '../../src/components/CTABanner.astro';
 import CapabilityGrid from '../../src/components/CapabilityGrid.astro';
@@ -105,6 +106,23 @@ const journeySteps = [
 ];
 
 const basicRenderCases = [
+  {
+    name: 'AsciinemaPlayer renders player options as data attributes',
+    Component: AsciinemaPlayer,
+    props: {
+      src: '/casts/aspire-help.cast',
+      rows: 18,
+      autoPlay: true,
+      controls: 'auto',
+    },
+    includes: [
+      'asciinema-player-container',
+      'data-src="/casts/aspire-help.cast"',
+      'data-rows="18"',
+      'data-autoplay="true"',
+      'data-controls="auto"',
+    ],
+  },
   {
     name: 'Expand renders summary and slot content',
     Component: Expand,

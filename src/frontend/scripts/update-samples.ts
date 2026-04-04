@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
+
 import fetch from 'node-fetch';
 
 const REPO = 'dotnet/aspire-samples';
@@ -17,13 +18,13 @@ const ASPIRE_DOC_URL_REWRITES = [
   [
     `${LEGACY_DOCS_HOST}/${['dotnet', 'aspire', 'fundamentals', 'dashboard', 'explore'].join('/')}` +
       '#dashboard-authentication',
-    'https://aspire.dev/dashboard/explore/#dashboard-authentication'
+    'https://aspire.dev/dashboard/explore/#dashboard-authentication',
   ],
-];
+] as const;
 
 const CONCURRENCY = 5;
 
-const headers = {
+const headers: Record<string, string> = {
   'User-Agent': 'aspire-samples-script',
   Accept: 'application/vnd.github.v3+json',
 };
@@ -31,17 +32,52 @@ if (process.env.GITHUB_TOKEN) {
   headers.Authorization = `token ${process.env.GITHUB_TOKEN}`;
 }
 
-// ---------- Tag detection ----------
+interface TagRule {
+  tag: string;
+  patterns: RegExp[];
+}
 
-const TAG_RULES = [
-  // Languages
+interface ImageReference {
+  full: string;
+  alt: string;
+  src: string;
+}
+
+interface DownloadedImage {
+  filename: string;
+  localPath: string;
+  remoteUrl: string;
+}
+
+interface GitHubContentEntry {
+  type: string;
+  name: string;
+}
+
+interface SampleResult {
+  name: string;
+  title: string;
+  description: string | null;
+  href: string;
+  readme: string;
+  tags: string[];
+  thumbnail: string | null;
+}
+
+const TAG_RULES: TagRule[] = [
   { tag: 'csharp', patterns: [/\bC#\b/i, /\.NET\b/i, /\bcsproj\b/i] },
   { tag: 'python', patterns: [/\bPython\b/i, /\.py\b/] },
   { tag: 'javascript', patterns: [/\bJavaScript\b/i, /\bJS\b/, /\.js\b/] },
   { tag: 'node', patterns: [/\bNode\.?js\b/i, /\bnpm\b/i] },
-  { tag: 'go', patterns: [/\bGolang\b/i, /\bGo\s+(?:app|service|project)\b/i, /\b(?:written|built)\s+(?:in|using)\s+Go\b/i, /\bGo\b.*\bGin\b/i] },
-
-  // Services & Technologies
+  {
+    tag: 'go',
+    patterns: [
+      /\bGolang\b/i,
+      /\bGo\s+(?:app|service|project)\b/i,
+      /\b(?:written|built)\s+(?:in|using)\s+Go\b/i,
+      /\bGo\b.*\bGin\b/i,
+    ],
+  },
   { tag: 'redis', patterns: [/\bRedis\b/i] },
   { tag: 'postgresql', patterns: [/\bPostgre(?:SQL|s)\b/i, /\bNpgsql\b/i] },
   { tag: 'sql-server', patterns: [/\bSQL\s*Server\b/i, /\bMSSQL\b/i] },
@@ -52,14 +88,10 @@ const TAG_RULES = [
   { tag: 'prometheus', patterns: [/\bPrometheus\b/i] },
   { tag: 'grafana', patterns: [/\bGrafana\b/i] },
   { tag: 'docker', patterns: [/\bDocker\b/i] },
-
-  // Azure
   { tag: 'azure', patterns: [/\bAzure\b/i] },
   { tag: 'azure-functions', patterns: [/\bAzure\s+Functions?\b/i] },
   { tag: 'azure-storage', patterns: [/\bAzure\s+Storage\b/i] },
   { tag: 'azure-service-bus', patterns: [/\bAzure\s+Service\s+Bus\b/i] },
-
-  // Frameworks & Features
   { tag: 'blazor', patterns: [/\bBlazor\b/i] },
   { tag: 'orleans', patterns: [/\bOrleans\b/i] },
   { tag: 'grpc', patterns: [/\bgRPC\b/i] },
@@ -73,9 +105,13 @@ const TAG_RULES = [
   { tag: 'dashboard', patterns: [/\bdashboard\b/i] },
 ];
 
-function detectTags(name, readme) {
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function detectTags(name: string, readme: string): string[] {
   const corpus = `${name} ${readme}`;
-  const tags = new Set();
+  const tags = new Set<string>();
 
   for (const rule of TAG_RULES) {
     for (const pattern of rule.patterns) {
@@ -89,68 +125,66 @@ function detectTags(name, readme) {
   return [...tags].sort();
 }
 
-// ---------- README parsing ----------
-
-function extractTitle(readme) {
+function extractTitle(readme: string): string | null {
   const match = readme.match(/^#\s+(.+)$/m);
   return match ? match[1].trim() : null;
 }
 
-function extractDescription(readme) {
-  // Get text between the first # heading and the first ## heading (or end)
+function extractDescription(readme: string): string | null {
   const lines = readme.split('\n');
   let started = false;
-  const descLines = [];
+  const descriptionLines: string[] = [];
 
   for (const line of lines) {
     if (!started) {
-      // Skip until we pass the first # heading
       if (/^#\s+/.test(line)) {
         started = true;
       }
       continue;
     }
 
-    // Stop at next ## heading
-    if (/^##\s+/.test(line)) break;
+    if (/^##\s+/.test(line)) {
+      break;
+    }
 
-    // Skip image lines and empty lines at the start
     const trimmed = line.trim();
     if (trimmed === '') {
-      if (descLines.length > 0) descLines.push('');
+      if (descriptionLines.length > 0) {
+        descriptionLines.push('');
+      }
       continue;
     }
 
-    // Skip standalone image references
-    if (/^!\[.*\]\(.*\)$/.test(trimmed)) continue;
+    if (/^!\[.*\]\(.*\)$/.test(trimmed)) {
+      continue;
+    }
 
-    descLines.push(trimmed);
+    descriptionLines.push(trimmed);
   }
 
-  // Clean up: trim trailing empty lines and join preserving structure
-  while (descLines.length > 0 && descLines[descLines.length - 1] === '') {
-    descLines.pop();
+  while (descriptionLines.length > 0 && descriptionLines[descriptionLines.length - 1] === '') {
+    descriptionLines.pop();
   }
 
-  // Preserve newlines so markdown structure (lists, paragraphs) is kept
-  return descLines.join('\n').trim() || null;
+  return descriptionLines.join('\n').trim() || null;
 }
 
-// ---------- Image downloading ----------
+function resolveRemoteImageUrl(name: string, src: string): string {
+  if (src.startsWith('http')) {
+    return src;
+  }
 
-function resolveRemoteImageUrl(name, src) {
-  if (src.startsWith('http')) return src;
   const relative = src.startsWith('./') ? src.slice(2) : src;
   return `${RAW_BASE}/${SAMPLES_DIR}/${name}/${relative}`;
 }
 
-function ensureDir(dir) {
+function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-async function downloadImage(url, destPath) {
+async function downloadImage(url: string, destPath: string): Promise<boolean> {
   const res = await fetch(url, {
     headers: { 'User-Agent': 'aspire-samples-script' },
   });
@@ -158,47 +192,62 @@ async function downloadImage(url, destPath) {
     console.warn(`  ⚠️  Failed to download image: ${url} (${res.status})`);
     return false;
   }
+
+  if (!res.body) {
+    console.warn(`  ⚠️  Failed to download image: ${url} (empty response body)`);
+    return false;
+  }
+
   ensureDir(path.dirname(destPath));
   const fileStream = fs.createWriteStream(destPath);
+
   try {
     await pipeline(res.body, fileStream);
     return true;
-  } catch (err) {
-    // Remove partial file on failure so we don't leave corrupt assets on disk
-    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
-    console.warn(`  ⚠️  Failed to write image: ${destPath} (${err.message})`);
+  } catch (error: unknown) {
+    try {
+      fs.unlinkSync(destPath);
+    } catch {
+      // Ignore cleanup failures for partial files.
+    }
+    console.warn(`  ⚠️  Failed to write image: ${destPath} (${getErrorMessage(error)})`);
     return false;
   }
 }
 
-function collectImageRefs(readme) {
-  // Match all markdown image references: ![alt](src)
+function collectImageRefs(readme: string): ImageReference[] {
   const regex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-  const refs = [];
-  let match;
+  const refs: ImageReference[] = [];
+  let match: RegExpExecArray | null;
+
   while ((match = regex.exec(readme)) !== null) {
     refs.push({ full: match[0], alt: match[1], src: match[2] });
   }
+
   return refs;
 }
 
-async function downloadAndRewriteImages(name, readme) {
+async function downloadAndRewriteImages(
+  name: string,
+  readme: string
+): Promise<{ readme: string; images: DownloadedImage[] }> {
   const imageRefs = collectImageRefs(readme);
-  if (imageRefs.length === 0) return { readme, images: [] };
+  if (imageRefs.length === 0) {
+    return { readme, images: [] };
+  }
 
   const sampleAssetsDir = path.join(ASSETS_DIR, name);
   let rewritten = readme;
-  const downloadedImages = [];
+  const downloadedImages: DownloadedImage[] = [];
 
   for (const ref of imageRefs) {
     const remoteUrl = resolveRemoteImageUrl(name, ref.src);
-    const filename = path.basename(ref.src.split('?')[0]); // strip query params
+    const filename = path.basename(ref.src.split('?')[0]);
     const localPath = path.join(sampleAssetsDir, filename);
     const assetImportPath = `${ASSETS_IMPORT_PREFIX}/${name}/${filename}`;
 
     const ok = await downloadImage(remoteUrl, localPath);
     if (ok) {
-      // Rewrite the markdown image reference to the local asset path
       rewritten = rewritten.replace(ref.full, `![${ref.alt}](${assetImportPath})`);
       downloadedImages.push({ filename, localPath, remoteUrl });
       console.log(`  🖼️  Downloaded: ${filename}`);
@@ -208,14 +257,12 @@ async function downloadAndRewriteImages(name, readme) {
   return { readme: rewritten, images: downloadedImages };
 }
 
-function extractThumbnail(_name, readme) {
-  // Find the first image reference in the (already-rewritten) README
+function extractThumbnail(_name: string, readme: string): string | null {
   const match = readme.match(/!\[.*?\]\((.+?)\)/);
-  if (!match) return null;
-  return match[1];
+  return match ? match[1] : null;
 }
 
-function rewriteAspireDocLinks(readme) {
+function rewriteAspireDocLinks(readme: string): string {
   let rewritten = readme;
 
   for (const [sourceUrl, destinationUrl] of ASPIRE_DOC_URL_REWRITES) {
@@ -225,49 +272,47 @@ function rewriteAspireDocLinks(readme) {
   return rewritten;
 }
 
-// ---------- GitHub API ----------
-
-async function fetchJson(url) {
+async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers });
   if (!res.ok) {
     throw new Error(`GitHub API error: ${res.status} ${res.statusText} for ${url}`);
   }
-  return res.json();
+  return (await res.json()) as T;
 }
 
-async function fetchText(url) {
+async function fetchText(url: string): Promise<string | null> {
   const res = await fetch(url, {
     headers: { 'User-Agent': 'aspire-samples-script' },
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    return null;
+  }
   return res.text();
 }
 
-async function listSampleDirs() {
-  const contents = await fetchJson(
+async function listSampleDirs(): Promise<string[]> {
+  const contents = await fetchJson<GitHubContentEntry[]>(
     `${GITHUB_API}/repos/${REPO}/contents/${SAMPLES_DIR}?ref=${BRANCH}`
   );
+
   return contents
     .filter((entry) => entry.type === 'dir')
     .map((entry) => entry.name)
     .sort();
 }
 
-async function fetchReadme(sampleName) {
+async function fetchReadme(sampleName: string): Promise<string | null> {
   const url = `${RAW_BASE}/${SAMPLES_DIR}/${sampleName}/README.md`;
   return fetchText(url);
 }
 
-// ---------- Main ----------
-
-async function processSample(name) {
+async function processSample(name: string): Promise<SampleResult | null> {
   const rawReadme = await fetchReadme(name);
   if (!rawReadme) {
     console.warn(`⚠️  No README.md found for sample: ${name}`);
     return null;
   }
 
-  // Download images and rewrite paths in README
   const { readme: imageRewrittenReadme } = await downloadAndRewriteImages(name, rawReadme);
   const readme = rewriteAspireDocLinks(imageRewrittenReadme);
 
@@ -288,15 +333,14 @@ async function processSample(name) {
   };
 }
 
-async function main() {
+async function main(): Promise<void> {
   console.log(`📦 Fetching sample directories from ${REPO}...`);
   const dirs = await listSampleDirs();
   console.log(`📂 Found ${dirs.length} sample directories`);
 
-  const results = [];
-  // Process in batches for concurrency control
-  for (let i = 0; i < dirs.length; i += CONCURRENCY) {
-    const batch = dirs.slice(i, i + CONCURRENCY);
+  const results: SampleResult[] = [];
+  for (let index = 0; index < dirs.length; index += CONCURRENCY) {
+    const batch = dirs.slice(index, index + CONCURRENCY);
     const batchResults = await Promise.all(batch.map((name) => processSample(name)));
     for (const result of batchResults) {
       if (result) {
@@ -306,14 +350,13 @@ async function main() {
     }
   }
 
-  // Sort by name
   results.sort((a, b) => a.name.localeCompare(b.name));
 
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(results, null, 2));
   console.log(`\n✅ Saved ${results.length} samples to ${OUTPUT_PATH}`);
 }
 
-main().catch((err) => {
-  console.error('❌ Error:', err);
+main().catch((error: unknown) => {
+  console.error('❌ Error:', getErrorMessage(error));
   process.exit(1);
 });
