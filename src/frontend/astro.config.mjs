@@ -20,6 +20,7 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+import starlightDocSearch from '@astrojs/starlight-docsearch';
 
 // https://astro.build/config
 export default defineConfig({
@@ -58,7 +59,6 @@ export default defineConfig({
         Hero: './src/components/starlight/Hero.astro',
         MarkdownContent: './src/components/starlight/MarkdownContent.astro',
         PageTitle: './src/components/starlight/PageTitle.astro',
-        Search: './src/components/starlight/Search.astro',
         Sidebar: './src/components/starlight/Sidebar.astro',
         SocialIcons: './src/components/starlight/SocialIcons.astro',
       },
@@ -69,6 +69,9 @@ export default defineConfig({
         styleOverrides: { borderRadius: '0.5rem', codeFontSize: '1rem' },
       },
       plugins: [
+        starlightDocSearch({
+          clientOptionsModule: './config/docsearch.config.ts',
+        }),
         starlightPageActions({
           share: true,
           actions: {
