@@ -8,9 +8,32 @@ const AZURE_ARTIFACTS_PACKAGING_BASE =
 const ASPIRE_REPO_CANDIDATES = [
   process.env.ASPIRE_GITHUB_REPO_URL,
   'https://github.com/microsoft/aspire',
-].filter(Boolean);
+].filter((value): value is string => Boolean(value));
 
-function tryExecFile(command, args) {
+interface ExplicitReleaseFeed {
+  serviceIndex: string;
+  feedName: string | null;
+  resolution: string;
+  sourceCommit?: string;
+}
+
+interface ReleaseBranchCommit {
+  repoUrl: string;
+  commit: string;
+}
+
+export interface OfficialAspirePackageSource {
+  branchName: string;
+  isReleaseBranch: boolean;
+  serviceIndex: string;
+  feedName: string | null;
+  displayName: string;
+  resolution: string;
+  sourceCommit?: string | null;
+  sourceRepository?: string;
+}
+
+function tryExecFile(command: string, args: string[]): string | null {
   try {
     return execFileSync(command, args, {
       encoding: 'utf8',
@@ -21,7 +44,7 @@ function tryExecFile(command, args) {
   }
 }
 
-function normalizeBranchName(branchName) {
+function normalizeBranchName(branchName: string | undefined | null): string {
   if (!branchName) {
     return '';
   }
@@ -29,7 +52,7 @@ function normalizeBranchName(branchName) {
   return branchName.replace(/^refs\/heads\//i, '').trim();
 }
 
-function getReleaseFeedNameFromCommit(commit) {
+function getReleaseFeedNameFromCommit(commit: string | undefined | null): string | null {
   const normalizedCommit = commit?.trim();
   if (!normalizedCommit) {
     return null;
@@ -38,11 +61,11 @@ function getReleaseFeedNameFromCommit(commit) {
   return `darc-pub-dotnet-aspire-${normalizedCommit.slice(0, 8)}`;
 }
 
-function buildReleaseFeedServiceIndex(feedName) {
+function buildReleaseFeedServiceIndex(feedName: string): string {
   return `${AZURE_ARTIFACTS_PACKAGING_BASE}/${feedName}/nuget/v3/index.json`;
 }
 
-function getFeedNameFromInput(value) {
+function getFeedNameFromInput(value: string | undefined | null): string | null {
   if (!value) {
     return null;
   }
@@ -69,7 +92,7 @@ function getFeedNameFromInput(value) {
   return /^[a-z0-9][a-z0-9._-]*$/i.test(trimmed) ? trimmed : null;
 }
 
-function getServiceIndexFromInput(value) {
+function getServiceIndexFromInput(value: string | undefined | null): string | null {
   if (!value) {
     return null;
   }
@@ -87,7 +110,7 @@ function getServiceIndexFromInput(value) {
   return feedName ? buildReleaseFeedServiceIndex(feedName) : null;
 }
 
-function resolveExplicitReleaseFeed() {
+function resolveExplicitReleaseFeed(): ExplicitReleaseFeed | null {
   const explicitServiceIndex = getServiceIndexFromInput(process.env.ASPIRE_RELEASE_FEED_URL);
   if (explicitServiceIndex) {
     return {
@@ -116,14 +139,14 @@ function resolveExplicitReleaseFeed() {
       serviceIndex: buildReleaseFeedServiceIndex(derivedFeedName),
       feedName: derivedFeedName,
       resolution: 'ASPIRE_RELEASE_COMMIT',
-      sourceCommit: explicitCommit.trim(),
+      sourceCommit: explicitCommit?.trim(),
     };
   }
 
   return null;
 }
 
-function resolveReleaseBranchCommit(branchName) {
+function resolveReleaseBranchCommit(branchName: string): ReleaseBranchCommit | null {
   for (const repoUrl of ASPIRE_REPO_CANDIDATES) {
     const output = tryExecFile('git', ['ls-remote', repoUrl, `refs/heads/${branchName}`]);
     const match = output?.match(/^([0-9a-f]{40})\s+/im);
@@ -138,7 +161,7 @@ function resolveReleaseBranchCommit(branchName) {
   return null;
 }
 
-export function getCurrentBranchName() {
+export function getCurrentBranchName(): string {
   return (
     normalizeBranchName(process.env.BUILD_SOURCEBRANCH) ||
     normalizeBranchName(process.env.GITHUB_HEAD_REF) ||
@@ -148,15 +171,15 @@ export function getCurrentBranchName() {
   );
 }
 
-export function isOfficialAspirePackage(packageId) {
+export function isOfficialAspirePackage(packageId: string): boolean {
   return packageId.toLowerCase().startsWith('aspire.');
 }
 
-export function isReleaseBranch(branchName) {
+export function isReleaseBranch(branchName: string): boolean {
   return branchName.toLowerCase().startsWith(RELEASE_BRANCH_PREFIX);
 }
 
-export function resolveOfficialAspirePackageSource() {
+export function resolveOfficialAspirePackageSource(): OfficialAspirePackageSource {
   const branchName = getCurrentBranchName();
 
   if (!isReleaseBranch(branchName)) {
@@ -192,6 +215,10 @@ export function resolveOfficialAspirePackageSource() {
   }
 
   const feedName = getReleaseFeedNameFromCommit(branchCommit.commit);
+  if (!feedName) {
+    throw new Error(`Unable to derive a release feed name from commit ${branchCommit.commit}.`);
+  }
+
   return {
     branchName,
     isReleaseBranch: true,

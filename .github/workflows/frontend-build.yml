@@ -37,6 +37,53 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Run frontend unit tests
+        run: pnpm test:unit
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run frontend smoke tests
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+        run: pnpm test:e2e
+
+      - name: Upload Playwright HTML report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: frontend-playwright-report
+          path: src/frontend/playwright-report
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload Playwright raw results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: frontend-test-results
+          path: src/frontend/test-results
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Summarize frontend quality gates
+        if: ${{ always() }}
+        run: |
+          {
+            echo '## Frontend quality reports'
+            echo ''
+            echo '- Unit contracts: static analytics delivery and route regressions.'
+            echo '- Browser coverage: Playwright runs on desktop, tablet, and mobile Chromium profiles.'
+            echo '- Accessibility gate: WCAG 2.0 A/AA audit, including color-contrast.'
+            echo '- Responsive gate: viewport-specific UI behavior is asserted in Playwright.'
+            echo '- GitHub diagnostics: Playwright github reporter emits workflow annotations.'
+            echo '- Artifacts: HTML report, JUnit XML, screenshots, traces, videos, and raw test outputs.'
+            echo ''
+            echo 'Artifacts:'
+            echo '- `frontend-playwright-report`'
+            echo '- `frontend-test-results`'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build frontend
         env:
           MODE: production
