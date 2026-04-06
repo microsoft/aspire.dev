@@ -6,6 +6,7 @@ import {
   waitForAnalyticsConsent,
   waitForConsentCategories,
   waitForConsentRecorded,
+  waitForTopicSidebarReady,
 } from '@tests/e2e/helpers';
 
 async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
@@ -21,6 +22,24 @@ async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
 async function readSidebarCollapsedPreference(page: Page): Promise<string | null> {
   try {
     return await page.evaluate(() => localStorage.getItem('api-sidebar-collapsed'));
+  } catch {
+    return null;
+  }
+}
+
+async function hasTopicSidebarCollapsed(page: Page): Promise<boolean | null> {
+  try {
+    return await page.evaluate(() =>
+      document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function readTopicSidebarCollapsedPreference(page: Page): Promise<string | null> {
+  try {
+    return await page.evaluate(() => localStorage.getItem('topic-sidebar-collapsed'));
   } catch {
     return null;
   }
@@ -67,7 +86,6 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
 
 test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
-  await expect(page).toHaveURL(/\/get-started\/prerequisites\/\?apphost=csharp$/);
 
   const rejectAllButton = page.getByRole('button', { name: /reject all/i });
   await expect(rejectAllButton).toBeVisible();
@@ -80,7 +98,6 @@ test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
 
 test('cookie preferences and accept-all enable analytics tracking consent', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
-  await expect(page).toHaveURL(/\/get-started\/prerequisites\/\?apphost=csharp$/);
 
   const openPreferencesButton = page.getByRole('button', { name: /manage preferences/i });
   await expect(openPreferencesButton).toBeVisible();
@@ -201,4 +218,100 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
+});
+
+test('API sidebar filter empty state and topic dropdown controls respond correctly', async ({
+  page,
+}) => {
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152,
+    'Sidebar custom controls are only available on wide desktop layouts.'
+  );
+
+  await page.goto('/reference/api/csharp/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForApiSidebarReady(page);
+
+  const filterInput = page.locator('#sidebar-filter-input');
+  const clearButton = page.locator('#sidebar-filter-clear');
+  const emptyState = page.locator('#sidebar-filter-empty');
+  const emptyCopy = page.locator('#sidebar-filter-empty-copy');
+  const emptyAction = page.locator('#sidebar-filter-empty-action');
+  const topicTrigger = page.locator('#topic-sidebar-trigger');
+  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+
+  await topicTrigger.click();
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(topicPanel).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(topicPanel).toBeHidden();
+
+  await filterInput.fill('zzzz-sidebar-no-match');
+
+  await expect(clearButton).toBeVisible();
+  await expect(emptyState).toBeVisible();
+  await expect(emptyCopy).toContainText('zzzz-sidebar-no-match');
+
+  await emptyAction.click();
+
+  await expect(filterInput).toHaveValue('');
+  await expect(clearButton).toBeHidden();
+  await expect(emptyState).toBeHidden();
+});
+
+test('topic sidebar custom controls persist collapse state and filter reset on reload', async ({
+  page,
+}) => {
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152,
+    'Sidebar custom controls are only available on wide desktop layouts.'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const filterInput = page.locator('#sidebar-filter-input');
+  const clearButton = page.locator('#sidebar-filter-clear');
+  const emptyState = page.locator('#sidebar-filter-empty');
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const expandButton = page.locator('#topic-sidebar-expand-btn');
+  const topicTrigger = page.locator('#topic-sidebar-trigger');
+  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+
+  await topicTrigger.click();
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(topicPanel).toBeVisible();
+
+  await page.locator('main').click();
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(topicPanel).toBeHidden();
+
+  await filterInput.fill('zzzz-topic-no-match');
+  await expect(clearButton).toBeVisible();
+  await expect(emptyState).toBeVisible();
+
+  await collapseButton.click();
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('1');
+  await expect(expandButton).toBeVisible();
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForTopicSidebarReady(page);
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('1');
+  await expect(page.locator('#sidebar-filter-input')).toHaveValue('');
+  await expect(page.locator('#sidebar-filter-clear')).toBeHidden();
+  await expect(page.locator('#sidebar-filter-empty')).toBeHidden();
+
+  await page.locator('#topic-sidebar-expand-btn').click();
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(false);
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('0');
 });

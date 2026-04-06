@@ -37,9 +37,7 @@ interface TopicMatch {
   path: SidebarItemConfig[];
 }
 
-export function getContentBreadcrumbs(
-  routeData?: RouteDataLike,
-): BreadcrumbItem[] | undefined {
+export function getContentBreadcrumbs(routeData?: RouteDataLike): BreadcrumbItem[] | undefined {
   const slug = resolveRoutePath(routeData);
   if (!slug || slug.startsWith('reference/api/')) {
     return undefined;
@@ -89,7 +87,7 @@ export function getContentBreadcrumbs(
 
 function resolveRoutePath(routeData?: RouteDataLike): string {
   return normalizePath(
-    routeData?.slug ?? routeData?.entry?.slug ?? routeData?.id ?? routeData?.entry?.id,
+    routeData?.slug ?? routeData?.entry?.slug ?? routeData?.id ?? routeData?.entry?.id
   );
 }
 
