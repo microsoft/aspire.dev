@@ -342,6 +342,12 @@ export function resolveStoredStepIndex(
     if (nextIndex !== -1) {
       return nextIndex;
     }
+
+    for (let index = steps.length - 1; index >= 0; index -= 1) {
+      if (SITE_TOUR_STEP_ORDER.indexOf(steps[index].id as SiteTourStepId) < fallbackOrder) {
+        return index;
+      }
+    }
   }
 
   return 0;
