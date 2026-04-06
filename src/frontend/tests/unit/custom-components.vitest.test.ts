@@ -779,6 +779,33 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('https://x.com/aspiredotdev');
   });
 
+  it('hides footer community links when the pathname fallback matches 404 routes', async () => {
+    const fallbackRoute: StarlightRoute = {
+      editUrl:
+        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/test.mdx',
+      entry: {
+        id: 'docs/test',
+        slug: '',
+        filePath: 'src/content/docs/test.mdx',
+        data: {},
+      },
+    };
+
+    for (const requestUrl of ['https://aspire.dev/404/', 'https://aspire.dev/ja/404/']) {
+      const html = normalizeHtml(
+        await renderComponent(FooterLinks, {
+          requestUrl,
+          locals: {
+            starlightRoute: fallbackRoute,
+          },
+        })
+      );
+
+      expect(html).not.toContain('footer.community');
+      expect(html).not.toContain('https://x.com/aspiredotdev');
+    }
+  });
+
   it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {
     const html = normalizeHtml(
       await renderComponent(OsAwareTabs, {
