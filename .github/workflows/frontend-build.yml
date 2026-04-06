@@ -37,16 +37,13 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Run frontend unit tests
-        run: pnpm test:unit
-
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run frontend smoke tests
+      - name: Run frontend all tests
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm test:e2e
+        run: pnpm test:all
 
       - name: Upload Playwright HTML report
         if: ${{ always() }}
@@ -72,6 +69,7 @@ jobs:
           {
             echo '## Frontend quality reports'
             echo ''
+            echo '- Lint gate: ESLint runs before browser and unit coverage.'
             echo '- Unit contracts: static analytics delivery and route regressions.'
             echo '- Browser coverage: Playwright runs on desktop, tablet, and mobile Chromium profiles.'
             echo '- Accessibility gate: WCAG 2.0 A/AA audit, including color-contrast.'
