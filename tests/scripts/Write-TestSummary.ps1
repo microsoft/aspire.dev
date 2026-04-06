@@ -147,7 +147,15 @@ $overall = @(
     ""
 ) -join [Environment]::NewLine
 
-[void]$summary.Insert(0, "$overall$([Environment]::NewLine)")
+$summaryText = $summary.ToString()
+$titleEndIndex = $summaryText.IndexOf([Environment]::NewLine)
+$overallInsertIndex = if ($titleEndIndex -ge 0) {
+    $titleEndIndex + [Environment]::NewLine.Length
+}
+else {
+    0
+}
+[void]$summary.Insert($overallInsertIndex, "$overall$([Environment]::NewLine)")
 
 if (-not [string]::IsNullOrWhiteSpace($SummaryOutputPath)) {
     $summary.ToString() | Out-File -FilePath $SummaryOutputPath -Encoding utf8 -Append
