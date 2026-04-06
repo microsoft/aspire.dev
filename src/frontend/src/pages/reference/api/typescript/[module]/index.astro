@@ -7,8 +7,9 @@
  * and collapsible module sections.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { tsModuleSlug, tsSlugify, getTsModules, simplifyType } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import { getTsItemSlug, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
@@ -25,18 +26,18 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
 const pkgSlug = tsModuleSlug(pkg.package.name);
 const isOfficial = pkg.package.name.startsWith('Aspire.');
+const topLevelItems = getTsTopLevelRouteItems(pkg);
 
 /* ── Flatten all items into a single sorted list ─────────────── */
 
 const allTypes = [
-  ...(pkg.handleTypes ?? []).map((h: any) => ({ ...h, _typeKind: 'handle' as const })),
-  ...(pkg.dtoTypes ?? []).map((d: any) => ({ ...d, _typeKind: 'dto' as const })),
-].sort((a: any, b: any) => a.name.localeCompare(b.name));
+  ...(pkg.handleTypes ?? []).map((item: any) => ({ item, _typeKind: 'handle' as const })),
+  ...(pkg.dtoTypes ?? []).map((item: any) => ({ item, _typeKind: 'dto' as const })),
+].sort((a: any, b: any) => a.item.name.localeCompare(b.item.name));
 
 const allEnums = [...(pkg.enumTypes ?? [])].sort((a: any, b: any) => a.name.localeCompare(b.name));
 
-const standaloneFunctions = (pkg.functions ?? [])
-  .filter((f: any) => !f.qualifiedName || !f.qualifiedName.includes('.'))
+const standaloneFunctions = getTsStandaloneFunctions(pkg)
   .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
 /* ── Stats ───────────────────────────────────────────────────── */
@@ -76,6 +77,8 @@ interface PkgIndexEntry {
   s: string;
   /** Parent type name (for members only) */
   t?: string;
+  /** Resolved destination for the search result */
+  h?: string;
 }
 
 const pkgIndex: PkgIndexEntry[] = [];
@@ -95,60 +98,74 @@ function capabilityKindToSearchKind(capKind: string): string {
 }
 
 // Handle types
-for (const h of (pkg.handleTypes ?? [])) {
+for (const h of ((pkg.handleTypes ?? []) as any[])) {
   const kind = h.isInterface ? 'interface' : 'handle';
+  const typeHref = `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(h, topLevelItems)}/`;
+  const methods = (h.capabilities ?? []).filter(
+    (cap: any) => cap.kind === 'Method' || cap.kind === 'InstanceMethod'
+  );
+
   pkgIndex.push({
     n: h.name,
     f: h.fullName ?? h.name,
     ns: nsOf(h.fullName ?? h.name),
     k: kind,
     s: (h.description ?? '').slice(0, 160),
+    h: typeHref,
   });
   // Index members from capabilities
   for (const cap of (h.capabilities ?? [])) {
     memberCount++;
+    const memberName = cap.name ?? cap.capabilityId?.split('/').pop() ?? '';
+    const memberHref = cap.kind === 'Method' || cap.kind === 'InstanceMethod'
+      ? `${typeHref}${getTsMethodSlug(cap, methods, h.name)}/`
+      : typeHref;
+
     pkgIndex.push({
-      n: cap.name ?? cap.capabilityId?.split('/').pop() ?? '',
-      f: `${h.fullName ?? h.name}.${cap.name ?? ''}`,
+      n: memberName,
+      f: `${h.fullName ?? h.name}.${memberName}`,
       ns: nsOf(h.fullName ?? h.name),
       k: capabilityKindToSearchKind(cap.kind ?? 'method'),
       s: (cap.description ?? '').slice(0, 160),
       t: h.name,
+      h: memberHref,
     });
   }
 }
 
 // DTO types
-for (const d of (pkg.dtoTypes ?? [])) {
+for (const d of ((pkg.dtoTypes ?? []) as any[])) {
   pkgIndex.push({
     n: d.name,
     f: d.fullName ?? d.name,
     ns: nsOf(d.fullName ?? d.name),
     k: 'type',
     s: (d.description ?? '').slice(0, 160),
+    h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(d, topLevelItems)}/`,
   });
 }
 
 // Enum types
-for (const e of (pkg.enumTypes ?? [])) {
+for (const e of ((pkg.enumTypes ?? []) as any[])) {
   pkgIndex.push({
     n: e.name,
     f: e.fullName ?? e.name,
     ns: nsOf(e.fullName ?? e.name),
     k: 'enum',
     s: (e.description ?? '').slice(0, 160),
+    h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(e, topLevelItems)}/`,
   });
 }
 
 // Standalone functions
-for (const f of (pkg.functions ?? [])) {
-  if (f.qualifiedName && f.qualifiedName.includes('.')) continue;
+for (const f of (getTsStandaloneFunctions(pkg) as any[])) {
   pkgIndex.push({
     n: f.name,
     f: f.qualifiedName ?? f.name,
     ns: modOf(f.capabilityId ?? f.name),
     k: 'function',
     s: (f.description ?? '').slice(0, 160),
+    h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(f, topLevelItems)}/`,
   });
 }
 
@@ -223,17 +240,17 @@ const pkgName = pkg.package.name;
         <h2 id="types">Types</h2>
         <div class="api-list not-content">
           {allTypes.map((t: any) => (
-            <a href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(t.name)}/`} class="api-list-item">
+            <a href={`${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(t.item, topLevelItems)}/`} class="api-list-item">
               <div class="api-list-header">
-                <span class={`api-kind-pill ${t.isInterface ? 'kind-interface' : t._typeKind === 'dto' ? 'kind-struct' : 'kind-handle'}`}>
-                  {t.isInterface ? 'interface' : t._typeKind === 'dto' ? 'type' : 'handle'}
+                <span class={`api-kind-pill ${t.item.isInterface ? 'kind-interface' : t._typeKind === 'dto' ? 'kind-struct' : 'kind-handle'}`}>
+                  {t.item.isInterface ? 'interface' : t._typeKind === 'dto' ? 'type' : 'handle'}
                 </span>
-                <code class="api-type-link">{t.name}</code>
-                {t._typeKind === 'handle' && (t.capabilities?.length ?? 0) > 0 && (
-                  <span class="api-mini-badge">{t.capabilities.length} members</span>
+                <code class="api-type-link">{t.item.name}</code>
+                {t._typeKind === 'handle' && (t.item.capabilities?.length ?? 0) > 0 && (
+                  <span class="api-mini-badge">{t.item.capabilities.length} members</span>
                 )}
                 {t._typeKind === 'dto' && (
-                  <span class="api-mini-badge">{t.fields?.length ?? 0} fields</span>
+                  <span class="api-mini-badge">{t.item.fields?.length ?? 0} fields</span>
                 )}
               </div>
             </a>
@@ -248,7 +265,7 @@ const pkgName = pkg.package.name;
         <h2 id="functions">Functions</h2>
         <div class="api-list not-content">
           {standaloneFunctions.map((f: any) => (
-            <a href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(f.name)}/`} class="api-list-item">
+            <a href={`${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(f, topLevelItems)}/`} class="api-list-item">
               <div class="api-list-header">
                 <span class="api-kind-pill kind-method">function</span>
                 <code class="api-type-link">{f.name}</code>
@@ -272,7 +289,7 @@ const pkgName = pkg.package.name;
         <h2 id="enums">Enums</h2>
         <div class="api-list not-content">
           {allEnums.map((e: any) => (
-            <a href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(e.name)}/`} class="api-list-item">
+            <a href={`${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(e, topLevelItems)}/`} class="api-list-item">
               <div class="api-list-header">
                 <span class="api-kind-pill kind-enum">enum</span>
                 <code class="api-type-link">{e.name}</code>
@@ -305,6 +322,7 @@ const pkgName = pkg.package.name;
     k: string;
     s: string;
     t?: string;
+    h?: string;
   }
 
   const PAGE_SIZE = 10;
@@ -587,14 +605,7 @@ const pkgName = pkg.package.name;
       const kindClass = `kind-${entry.k.replace(/\s+/g, '-')}`;
       const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['handle'];
 
-      let href: string | null = null;
-      if (isType) {
-        // Types link to their detail page
-        href = `${this.base}/reference/api/typescript/${this.pkgName.toLowerCase()}/${entry.n.toLowerCase()}/`;
-      } else if (isMember && entry.t) {
-        // Members link to their parent type's detail page
-        href = `${this.base}/reference/api/typescript/${this.pkgName.toLowerCase()}/${entry.t.toLowerCase()}/`;
-      }
+      const href = entry.h ?? null;
 
       const parentInfo = isMember
         ? `<span class="api-result-parent">${this.esc(entry.t!)}</span><span class="api-result-dot">.</span>`

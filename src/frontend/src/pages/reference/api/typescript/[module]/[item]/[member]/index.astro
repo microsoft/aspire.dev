@@ -8,8 +8,9 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
-import { tsModuleSlug, tsSlugify, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import { getTsItemSlug, getTsMethodSlug, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
 
@@ -19,9 +20,11 @@ export async function getStaticPaths() {
 
   for (const pkg of packages) {
     const pkgSlug = tsModuleSlug(pkg.data.package.name);
+    const topLevelItems = getTsTopLevelRouteItems(pkg.data);
+    const handles = (pkg.data.handleTypes ?? []) as any[];
 
-    for (const handle of pkg.data.handleTypes ?? []) {
-      const itemSlug = tsSlugify(handle.name);
+    for (const handle of handles) {
+      const itemSlug = getTsItemSlug(handle, topLevelItems);
       if (!itemSlug) continue;
 
       const methods = (handle.capabilities ?? []).filter(
@@ -29,7 +32,7 @@ export async function getStaticPaths() {
       );
 
       for (const method of methods) {
-        const memberSlug = tsSlugify(method.name);
+        const memberSlug = getTsMethodSlug(method, methods, handle.name);
         if (!memberSlug) continue;
         paths.push({
           params: { module: pkgSlug, item: itemSlug, member: memberSlug },
@@ -50,7 +53,8 @@ const { pkg, parentType, method } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
 const pkgSlug = tsModuleSlug(pkg.package.name);
-const parentSlug = tsSlugify(parentType.name);
+const topLevelItems = getTsTopLevelRouteItems(pkg);
+const parentSlug = Astro.params.item ?? getTsItemSlug(parentType, topLevelItems);
 
 /** Simple string hash → 0–3 for parameter type color assignment. */
 function typeColorIndex(s: string): number {

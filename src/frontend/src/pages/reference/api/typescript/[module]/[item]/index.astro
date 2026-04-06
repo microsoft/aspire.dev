@@ -7,8 +7,9 @@
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
-import { tsModuleSlug, tsSlugify, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
+import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import { getTsItemSlug, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
@@ -19,10 +20,11 @@ export async function getStaticPaths() {
 
   for (const pkg of packages) {
     const pkgSlug = tsModuleSlug(pkg.data.package.name);
+    const topLevelItems = getTsTopLevelRouteItems(pkg.data);
 
     // Handle types
     for (const handle of pkg.data.handleTypes ?? []) {
-      const slug = tsSlugify(handle.name);
+      const slug = getTsItemSlug(handle, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
@@ -32,7 +34,7 @@ export async function getStaticPaths() {
 
     // DTO types
     for (const dto of pkg.data.dtoTypes ?? []) {
-      const slug = tsSlugify(dto.name);
+      const slug = getTsItemSlug(dto, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
@@ -42,7 +44,7 @@ export async function getStaticPaths() {
 
     // Enum types
     for (const enumType of pkg.data.enumTypes ?? []) {
-      const slug = tsSlugify(enumType.name);
+      const slug = getTsItemSlug(enumType, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
@@ -51,9 +53,8 @@ export async function getStaticPaths() {
     }
 
     // Standalone functions (no dot in qualifiedName)
-    for (const fn of pkg.data.functions ?? []) {
-      if (fn.qualifiedName && fn.qualifiedName.includes('.')) continue;
-      const slug = tsSlugify(fn.name);
+    for (const fn of getTsStandaloneFunctions(pkg.data)) {
+      const slug = getTsItemSlug(fn, topLevelItems);
       if (!slug) continue;
       paths.push({
         params: { module: pkgSlug, item: slug },
@@ -69,6 +70,13 @@ const { pkg, item, itemKind } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const tsSidebar = await getTsApiReferenceSidebar({ packageName: pkg.package.name });
 const pkgSlug = tsModuleSlug(pkg.package.name);
+const topLevelItems = getTsTopLevelRouteItems(pkg);
+const typeItems = [
+  ...(pkg.handleTypes ?? []),
+  ...(pkg.dtoTypes ?? []),
+  ...(pkg.enumTypes ?? []),
+];
+const currentItemSlug = Astro.params.item ?? getTsItemSlug(item, topLevelItems);
 
 /* ── Handle type: group capabilities into properties & methods ── */
 const capabilities = item.capabilities ?? [];
@@ -181,7 +189,7 @@ interface TypeIndexEntry { n: string; k: string; s: string; r?: string; a: strin
 const typeIndex: TypeIndexEntry[] = [];
 if (itemKind === 'handle') {
   for (const g of getters) typeIndex.push({ n: g.name, k: 'property', s: g.description ?? '', r: g.returnType, a: memberAnchor(g.name) });
-  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', r: m.returnType, a: memberAnchor(m.name) });
+  for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', r: m.returnType, a: getTsMethodSlug(m, methods, item.name) });
 } else if (itemKind === 'dto') {
   for (const f of (item.fields ?? [])) typeIndex.push({ n: f.name, k: 'field', s: '', r: f.type, a: memberAnchor(f.name) });
 } else if (itemKind === 'enum') {
@@ -317,11 +325,11 @@ if (itemKind === 'handle') {
             <h2 id="methods">Methods</h2>
                <div class="api-list ts-member-stack">
               {methods.sort((a: any, b: any) => a.name.localeCompare(b.name)).map((m: any) => (
-                <div id={memberAnchor(m.name)}>
+                <div id={getTsMethodSlug(m, methods, item.name)}>
                   <TsMemberCard
                     member={m}
                     variant="method"
-                    href={`${base}/reference/api/typescript/${pkgSlug}/${tsSlugify(item.name)}/${tsSlugify(m.name)}/`}
+                    href={`${base}/reference/api/typescript/${pkgSlug}/${currentItemSlug}/${getTsMethodSlug(m, methods, item.name)}/`}
                   />
                 </div>
               ))}
@@ -396,7 +404,8 @@ if (itemKind === 'handle') {
             <div class="api-list not-content">
               {item.expandedTargetTypes.map((t: string) => {
                 const simpleName = simplifyType(t);
-                const typeSlug = tsSlugify(simpleName);
+                const targetType = typeItems.find((candidate: any) => candidate.name === simpleName);
+                const typeSlug = targetType ? getTsItemSlug(targetType, topLevelItems) : simpleName.toLowerCase();
                 return (
                   <a href={`${base}/reference/api/typescript/${pkgSlug}/${typeSlug}/`} class="api-list-item">
                     <div class="api-list-header">

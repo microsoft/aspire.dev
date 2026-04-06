@@ -8,9 +8,9 @@ import {
   type TsModuleCollectionEntry,
   type TsNamedItem,
   tsModuleSlug,
-  tsSlugify,
   getTsModules,
 } from './ts-modules';
+import { getTsItemSlug, getTsStandaloneFunctions } from './ts-api-routes';
 
 interface SidebarLinkItem {
   label: string;
@@ -34,6 +34,12 @@ interface TsApiSidebarOptions {
 
 function buildModuleSidebarEntry(mod: TsApiDocument, collapsed: boolean = true): SidebarGroupItem {
   const modSlug = tsModuleSlug(mod.package.name);
+  const topLevelItems = [
+    ...(mod.handleTypes ?? []),
+    ...(mod.dtoTypes ?? []),
+    ...(mod.enumTypes ?? []),
+    ...getTsStandaloneFunctions(mod),
+  ];
   const items: SidebarItem[] = [
     { label: 'Overview', link: `/reference/api/typescript/${modSlug}/` },
   ];
@@ -58,15 +64,13 @@ function buildModuleSidebarEntry(mod: TsApiDocument, collapsed: boolean = true):
       collapsed: true,
       items: allTypes.map((t) => ({
         label: t.name,
-        link: `/reference/api/typescript/${modSlug}/${tsSlugify(t.name)}/`,
+        link: `/reference/api/typescript/${modSlug}/${getTsItemSlug(t, topLevelItems)}/`,
       })),
     });
   }
 
   // Functions — individual pages
-  const functions = (mod.functions ?? []).filter(
-    (f: TsFunction) => f.name && (!f.qualifiedName || !f.qualifiedName.includes('.'))
-  );
+  const functions = getTsStandaloneFunctions(mod).filter((f: TsFunction) => f.name);
   if (functions.length > 0) {
     items.push({
       label: 'Functions',
@@ -75,7 +79,7 @@ function buildModuleSidebarEntry(mod: TsApiDocument, collapsed: boolean = true):
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((f) => ({
           label: f.name,
-          link: `/reference/api/typescript/${modSlug}/${tsSlugify(f.name)}/`,
+          link: `/reference/api/typescript/${modSlug}/${getTsItemSlug(f, topLevelItems)}/`,
         })),
     });
   }
@@ -90,7 +94,7 @@ function buildModuleSidebarEntry(mod: TsApiDocument, collapsed: boolean = true):
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((e) => ({
           label: e.name,
-          link: `/reference/api/typescript/${modSlug}/${tsSlugify(e.name)}/`,
+          link: `/reference/api/typescript/${modSlug}/${getTsItemSlug(e, topLevelItems)}/`,
         })),
     });
   }
