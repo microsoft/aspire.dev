@@ -32,6 +32,8 @@ describe('API markdown routes', () => {
 
     expect(markdown).toContain('# C# API Reference');
     expect(markdown).toMatch(/\/reference\/api\/csharp\/[^)\s]+\.md/);
+    expect(markdown).not.toContain('·');
+    expect(markdown).not.toContain('—');
   });
 
   it('returns markdown for a C# package route', async () => {
@@ -81,6 +83,8 @@ describe('API markdown routes', () => {
 
     expect(markdown).toContain('# TypeScript API Reference');
     expect(markdown).toMatch(/\/reference\/api\/typescript\/[^)\s]+\.md/);
+    expect(markdown).not.toContain('·');
+    expect(markdown).not.toContain('—');
   });
 
   it('returns markdown for a TypeScript module route', async () => {

@@ -9,7 +9,16 @@ export function finalizeMarkdown(blocks: Array<string | null | undefined | false
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n');
 
-  return markdown ? `${markdown}\n` : '';
+  return markdown ? `${normalizeMarkdownText(markdown)}\n` : '';
+}
+
+export function normalizeMarkdownText(markdown: string): string {
+  return markdown
+    .replace(/\u00A0/g, ' ')
+    .replace(/[ \t]*[·•][ \t]*/g, ' - ')
+    .replace(/[ \t]*—[ \t]*/g, ' -- ')
+    .replace(/[ \t]*–[ \t]*/g, ' - ')
+    .replace(/…/g, '...');
 }
 
 export function section(title: string, content?: string | null, level: number = 2): string {
