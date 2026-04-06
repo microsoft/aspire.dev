@@ -54,7 +54,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 import samplesData from '@data/samples.json';
-import { normalizeHtml, renderComponent } from './astro-test-utils';
+import { normalizeHtml, renderComponent, type StarlightRoute } from './astro-test-utils';
 
 type BasicRenderCase = {
   name: string;
@@ -717,29 +717,31 @@ describe('custom Astro component render coverage', () => {
   });
 
   it('preserves the homepage hero image aspect ratio for non-square assets', async () => {
+    const starlightRoute: StarlightRoute = {
+      editUrl:
+        'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
+      entry: {
+        id: 'index',
+        slug: '',
+        filePath: 'src/content/docs/index.mdx',
+        data: {
+          title: 'Aspire',
+          hero: {
+            title: 'Aspire',
+            tagline: 'Your stack, streamlined.',
+            image: {
+              alt: 'Aspire logo',
+              file: heroImage,
+            },
+          },
+        },
+      },
+    };
+
     const html = normalizeHtml(
       await renderComponent(StarlightHero, {
         locals: {
-          starlightRoute: {
-            editUrl:
-              'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
-            entry: {
-              id: 'index',
-              slug: '',
-              filePath: 'src/content/docs/index.mdx',
-              data: {
-                title: 'Aspire',
-                hero: {
-                  title: 'Aspire',
-                  tagline: 'Your stack, streamlined.',
-                  image: {
-                    alt: 'Aspire logo',
-                    file: heroImage,
-                  },
-                },
-              },
-            },
-          } as any,
+          starlightRoute,
         },
       })
     );

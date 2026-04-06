@@ -4,6 +4,18 @@ import { getCollection } from 'astro:content';
 
 type FeedDocData = Record<string, unknown>;
 
+function toText(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return `${value}`;
+  }
+
+  return undefined;
+}
+
 function isDateInput(value: unknown): value is Date | string | number | null | undefined {
   return (
     value == null || value instanceof Date || typeof value === 'string' || typeof value === 'number'
@@ -33,8 +45,8 @@ export async function GET(context: APIContext) {
 
   const items = feedDocs.map((doc) => {
     const data = doc.data as FeedDocData;
-    const title = data.title ? String(data.title) : String(doc.id ?? '');
-    const description = data.description ? String(data.description) : undefined;
+    const title = toText(data.title) ?? String(doc.id ?? '');
+    const description = toText(data.description);
 
     const rawDate = data.lastUpdated ?? data.date ?? data.published ?? data.created;
     const pubDate = toDate(isDateInput(rawDate) ? rawDate : undefined);

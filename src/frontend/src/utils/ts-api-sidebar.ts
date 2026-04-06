@@ -2,21 +2,44 @@
 /*  Build sidebar configuration for TypeScript API reference pages.    */
 /* ------------------------------------------------------------------ */
 
-import { tsModuleSlug, tsSlugify, getTsModules } from './ts-modules';
+import {
+  type TsApiDocument,
+  type TsFunction,
+  type TsModuleCollectionEntry,
+  type TsNamedItem,
+  tsModuleSlug,
+  tsSlugify,
+  getTsModules,
+} from './ts-modules';
 
-const tsApiSidebarCache = new Map<string, Promise<any[]>>();
+interface SidebarLinkItem {
+  label: string;
+  link: string;
+}
+
+interface SidebarGroupItem {
+  label: string;
+  collapsed: boolean;
+  items: Array<SidebarLinkItem | SidebarGroupItem>;
+}
+
+type SidebarItem = SidebarLinkItem | SidebarGroupItem;
+
+const tsApiSidebarCache = new Map<string, Promise<SidebarItem[]>>();
 const shouldCacheTsApiSidebar = import.meta.env.PROD;
 
 interface TsApiSidebarOptions {
   packageName?: string;
 }
 
-function buildModuleSidebarEntry(mod: any, collapsed: boolean = true) {
+function buildModuleSidebarEntry(mod: TsApiDocument, collapsed: boolean = true): SidebarGroupItem {
   const modSlug = tsModuleSlug(mod.package.name);
-  const items: any[] = [{ label: 'Overview', link: `/reference/api/typescript/${modSlug}/` }];
+  const items: SidebarItem[] = [
+    { label: 'Overview', link: `/reference/api/typescript/${modSlug}/` },
+  ];
 
   // Types (handles + DTOs merged into one group)
-  const allTypes: any[] = [];
+  const allTypes: TsNamedItem[] = [];
   for (const type of mod.handleTypes ?? []) {
     if (type.name) {
       allTypes.push(type);
@@ -27,13 +50,13 @@ function buildModuleSidebarEntry(mod: any, collapsed: boolean = true) {
       allTypes.push(type);
     }
   }
-  allTypes.sort((a: any, b: any) => a.name.localeCompare(b.name));
+  allTypes.sort((a, b) => a.name.localeCompare(b.name));
 
   if (allTypes.length > 0) {
     items.push({
       label: 'Types',
       collapsed: true,
-      items: allTypes.map((t: any) => ({
+      items: allTypes.map((t) => ({
         label: t.name,
         link: `/reference/api/typescript/${modSlug}/${tsSlugify(t.name)}/`,
       })),
@@ -42,15 +65,15 @@ function buildModuleSidebarEntry(mod: any, collapsed: boolean = true) {
 
   // Functions — individual pages
   const functions = (mod.functions ?? []).filter(
-    (f: any) => f.name && (!f.qualifiedName || !f.qualifiedName.includes('.'))
+    (f: TsFunction) => f.name && (!f.qualifiedName || !f.qualifiedName.includes('.'))
   );
   if (functions.length > 0) {
     items.push({
       label: 'Functions',
       collapsed: true,
       items: functions
-        .sort((a: any, b: any) => a.name.localeCompare(b.name))
-        .map((f: any) => ({
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((f) => ({
           label: f.name,
           link: `/reference/api/typescript/${modSlug}/${tsSlugify(f.name)}/`,
         })),
@@ -58,14 +81,14 @@ function buildModuleSidebarEntry(mod: any, collapsed: boolean = true) {
   }
 
   // Enum types
-  const enums = (mod.enumTypes ?? []).filter((t: any) => t.name);
+  const enums = (mod.enumTypes ?? []).filter((t) => t.name);
   if (enums.length > 0) {
     items.push({
       label: 'Enums',
       collapsed: true,
       items: enums
-        .sort((a: any, b: any) => a.name.localeCompare(b.name))
-        .map((e: any) => ({
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((e) => ({
           label: e.name,
           link: `/reference/api/typescript/${modSlug}/${tsSlugify(e.name)}/`,
         })),
@@ -90,7 +113,7 @@ async function buildTsApiReferenceSidebar(options: TsApiSidebarOptions = {}) {
 
   if (options.packageName) {
     const currentModule = modules.find(
-      (mod) => mod.data.package.name === options.packageName
+      (mod: TsModuleCollectionEntry) => mod.data.package.name === options.packageName
     )?.data;
     return currentModule
       ? [sidebarRoot, buildModuleSidebarEntry(currentModule, false)]

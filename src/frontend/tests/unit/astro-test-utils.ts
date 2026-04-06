@@ -2,13 +2,13 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 
 type Translator = ((key: string) => string) & { dir: () => 'ltr' };
 
-interface StarlightRoute {
+export interface StarlightRoute {
   editUrl: string;
   entry: {
     id: string;
     slug: string;
     filePath: string;
-    data: Record<string, never>;
+    data: Record<string, unknown>;
   };
 }
 
@@ -86,6 +86,6 @@ export async function renderComponent(
   });
 }
 
-export function normalizeHtml(html) {
+export function normalizeHtml(html: string): string {
   return html.replace(/\s+/g, ' ').trim();
 }

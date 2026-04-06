@@ -47,7 +47,7 @@ import YouTubeCard from '@components/YouTubeCard.astro';
 import YouTubeEmbed from '@components/YouTubeEmbed.astro';
 import YouTubeGrid from '@components/YouTubeGrid.astro';
 
-type PropsOf<T extends (args: any) => any> = ComponentProps<T>;
+type PropsOf<T extends (...args: never[]) => unknown> = ComponentProps<T>;
 
 const capabilityItems = [
   {

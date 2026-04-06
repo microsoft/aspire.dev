@@ -2,26 +2,73 @@
 /*  Shared helpers for the auto-generated API-reference pages.        */
 /* ------------------------------------------------------------------ */
 
+import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 
-let packagesPromise: Promise<any[]> | undefined;
+export interface GenericParameter {
+  name: string;
+}
+
+export interface PackageParameter {
+  type: string;
+}
+
+export interface PackageMember {
+  name: string;
+  kind?: string;
+  parameters?: PackageParameter[];
+}
+
+export interface PackageEnumMember {
+  name: string;
+}
+
+export interface PackageType {
+  name: string;
+  kind: string;
+  namespace?: string;
+  fullName?: string;
+  isGeneric?: boolean;
+  genericParameters?: GenericParameter[];
+  members?: PackageMember[];
+  enumMembers?: PackageEnumMember[];
+}
+
+export interface PackageMetadata {
+  name: string;
+  version: string;
+  targetFramework: string;
+  sourceRepository?: string;
+  sourceCommit?: string;
+}
+
+export interface PackageApiDocument {
+  package: PackageMetadata;
+  types: PackageType[];
+}
+
+export type PackageCollectionEntry = Omit<CollectionEntry<'packages'>, 'data'> & {
+  data: PackageApiDocument;
+};
+
+let packagesPromise: Promise<PackageCollectionEntry[]> | undefined;
 const shouldCachePackages = import.meta.env.PROD;
 
 /**
  * Fetch all package entries from the content collection.
  * Memoized so Astro's many API routes reuse a single collection load.
  */
-export function getPackages() {
+export function getPackages(): Promise<PackageCollectionEntry[]> {
   if (!shouldCachePackages) {
-    return getCollection('packages');
+    return getCollection('packages') as Promise<PackageCollectionEntry[]>;
   }
 
-  packagesPromise ??= getCollection('packages');
+  packagesPromise ??= getCollection('packages') as Promise<PackageCollectionEntry[]>;
   return packagesPromise;
 }
 
 /** Count generic type parameters on a type object. */
-export function genericArity(type: { genericParameters?: any[] }): number {
+export function genericArity(type: { genericParameters?: GenericParameter[] }): number {
   return type.genericParameters?.length ?? 0;
 }
 
@@ -104,14 +151,14 @@ export const memberKindSlugs: Record<string, string> = {
 /* ---- type helpers ------------------------------------------------ */
 
 /** Group an array of types by their `kind`, maintaining a meaningful order. */
-export function groupTypesByKind(types: any[]): Map<string, any[]> {
-  const groups = new Map<string, any[]>();
+export function groupTypesByKind(types: PackageType[]): Map<string, PackageType[]> {
+  const groups = new Map<string, PackageType[]>();
   for (const kind of kindOrder) {
-    const matching = types.filter((t: any) => t.kind === kind);
+    const matching = types.filter((t) => t.kind === kind);
     if (matching.length > 0) {
       groups.set(
         kind,
-        matching.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        matching.sort((a, b) => a.name.localeCompare(b.name))
       );
     }
   }
@@ -122,8 +169,8 @@ export function groupTypesByKind(types: any[]): Map<string, any[]> {
  * Group types by their `namespace`, sorted alphabetically.
  * Each namespace maps to its types sorted by name.
  */
-export function groupTypesByNamespace(types: any[]): Map<string, any[]> {
-  const nsMap = new Map<string, any[]>();
+export function groupTypesByNamespace(types: PackageType[]): Map<string, PackageType[]> {
+  const nsMap = new Map<string, PackageType[]>();
   for (const t of types) {
     const ns = t.namespace || '(global)';
     const list = nsMap.get(ns) ?? [];
@@ -134,7 +181,7 @@ export function groupTypesByNamespace(types: any[]): Map<string, any[]> {
   const sorted = new Map(
     [...nsMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([ns, ts]) => [ns, ts.sort((a: any, b: any) => a.name.localeCompare(b.name))])
+      .map(([ns, ts]) => [ns, ts.sort((a, b) => a.name.localeCompare(b.name))])
   );
   return sorted;
 }
@@ -185,10 +232,10 @@ export function memberDisplayName(member: {
 }
 
 /** Group members by their `kind`, maintaining a meaningful order. */
-export function groupMembersByKind(members: any[]): Map<string, any[]> {
-  const groups = new Map<string, any[]>();
+export function groupMembersByKind(members: PackageMember[]): Map<string, PackageMember[]> {
+  const groups = new Map<string, PackageMember[]>();
   for (const kind of memberKindOrder) {
-    const matching = members.filter((m: any) => m.kind === kind);
+    const matching = members.filter((m) => m.kind === kind);
     if (matching.length > 0) {
       groups.set(kind, matching);
     }
@@ -224,7 +271,7 @@ export function nugetHref(packageName: string): string {
  */
 export function resolveTypeLink(
   raw: string,
-  types: any[],
+  types: PackageType[],
   base: string,
   packageName: string
 ): { href: string; label: string } | null {
@@ -234,7 +281,7 @@ export function resolveTypeLink(
     .replace(/^System\.Threading\.Tasks\.Task<(.+)>$/, '$1')
     .replace(/^System\.Collections\.Generic\.\w+<(.+)>$/, '$1');
 
-  const match = types.find((t: any) => t.fullName === clean || t.fullName === raw);
+  const match = types.find((t) => t.fullName === clean || t.fullName === raw);
   if (match) {
     return {
       href: typeHref(base, packageName, match.name, genericArity(match)),

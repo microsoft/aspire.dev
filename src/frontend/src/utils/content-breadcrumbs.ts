@@ -32,9 +32,7 @@ interface TopicMatch {
   path: SidebarItemConfig[];
 }
 
-export function getContentBreadcrumbs(
-  routeData?: RouteDataLike,
-): BreadcrumbItem[] | undefined {
+export function getContentBreadcrumbs(routeData?: RouteDataLike): BreadcrumbItem[] | undefined {
   const slug = normalizePath(routeData?.slug);
   if (!slug || slug.startsWith('reference/api/')) {
     return undefined;
@@ -42,7 +40,7 @@ export function getContentBreadcrumbs(
 
   const locale = routeData?.locale;
 
-  for (const topic of sidebarTopics as TopicConfig[]) {
+  for (const topic of sidebarTopics) {
     if (normalizePath(topic.link) === slug) {
       return undefined;
     }
@@ -63,7 +61,11 @@ export function getContentBreadcrumbs(
     ];
 
     for (let index = 0; index < path.length; index++) {
-      const item = path[index]!;
+      const item = path[index];
+      if (!item) {
+        continue;
+      }
+
       const isCurrent = index === path.length - 1;
 
       crumbs.push({
@@ -88,8 +90,11 @@ function collapseOverviewPath(path: SidebarItemConfig[]): SidebarItemConfig[] {
     return path;
   }
 
-  const currentItem = path[path.length - 1]!;
-  const parentItem = path[path.length - 2]!;
+  const currentItem = path[path.length - 1];
+  const parentItem = path[path.length - 2];
+  if (!currentItem || !parentItem) {
+    return path;
+  }
 
   if (
     isOverviewItem(currentItem) &&
@@ -132,8 +137,9 @@ function matchesItem(item: SidebarItemConfig, slug: string): boolean {
 }
 
 function resolveAncestorHref(item: SidebarItemConfig, locale?: string): string | undefined {
-  if (item.slug || item.link) {
-    return buildHref(item.slug ?? item.link!, locale);
+  const directTarget = item.slug ?? item.link;
+  if (directTarget) {
+    return buildHref(directTarget, locale);
   }
 
   const overviewItem = item.items?.find((child) => isOverviewItem(child));
@@ -141,7 +147,8 @@ function resolveAncestorHref(item: SidebarItemConfig, locale?: string): string |
     return undefined;
   }
 
-  return buildHref(overviewItem.slug ?? overviewItem.link!, locale);
+  const overviewTarget = overviewItem.slug ?? overviewItem.link;
+  return overviewTarget ? buildHref(overviewTarget, locale) : undefined;
 }
 
 function isOverviewItem(item: SidebarItemConfig): boolean {

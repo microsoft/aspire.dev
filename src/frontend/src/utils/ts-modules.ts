@@ -2,21 +2,68 @@
 /*  Shared helpers for the auto-generated TypeScript API reference.    */
 /* ------------------------------------------------------------------ */
 
+import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
 
-let tsModulesPromise: Promise<any[]> | undefined;
+export interface TsFunctionParameter {
+  name: string;
+  type?: string;
+  callbackSignature?: string;
+}
+
+export interface TsFunction {
+  name: string;
+  kind?: string;
+  qualifiedName?: string;
+  targetTypeId?: string;
+  callbackSignature?: string;
+  type?: string;
+}
+
+export interface TsNamedItem {
+  name: string;
+  fullName?: string;
+  isInterface?: boolean;
+  fields?: unknown[];
+}
+
+export interface TsEnumType extends TsNamedItem {
+  members?: string[];
+}
+
+export interface TsModulePackage {
+  name: string;
+  version?: string;
+  language?: string;
+  sourceRepository?: string;
+  sourceCommit?: string;
+}
+
+export interface TsApiDocument {
+  package: TsModulePackage;
+  functions?: TsFunction[];
+  handleTypes?: TsNamedItem[];
+  dtoTypes?: TsNamedItem[];
+  enumTypes?: TsEnumType[];
+}
+
+export type TsModuleCollectionEntry = Omit<CollectionEntry<'tsModules'>, 'data'> & {
+  data: TsApiDocument;
+};
+
+let tsModulesPromise: Promise<TsModuleCollectionEntry[]> | undefined;
 const shouldCacheTsModules = import.meta.env.PROD;
 
 /**
  * Fetch all TypeScript module entries from the content collection.
  * Memoized so Astro's many API routes reuse a single collection load.
  */
-export function getTsModules() {
+export function getTsModules(): Promise<TsModuleCollectionEntry[]> {
   if (!shouldCacheTsModules) {
-    return getCollection('tsModules');
+    return getCollection('tsModules') as Promise<TsModuleCollectionEntry[]>;
   }
 
-  tsModulesPromise ??= getCollection('tsModules');
+  tsModulesPromise ??= getCollection('tsModules') as Promise<TsModuleCollectionEntry[]>;
   return tsModulesPromise;
 }
 
@@ -68,14 +115,14 @@ export const typeKindLabels: Record<string, string> = {
 /**
  * Group functions by their capability kind, maintaining a meaningful order.
  */
-export function groupFunctionsByKind(functions: any[]): Map<string, any[]> {
-  const groups = new Map<string, any[]>();
+export function groupFunctionsByKind(functions: TsFunction[]): Map<string, TsFunction[]> {
+  const groups = new Map<string, TsFunction[]>();
   for (const kind of capabilityKindOrder) {
-    const matching = functions.filter((f: any) => f.kind === kind);
+    const matching = functions.filter((f) => f.kind === kind);
     if (matching.length > 0) {
       groups.set(
         kind,
-        matching.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        matching.sort((a, b) => a.name.localeCompare(b.name))
       );
     }
   }
@@ -86,10 +133,10 @@ export function groupFunctionsByKind(functions: any[]): Map<string, any[]> {
  * Group top-level functions by their target handle type for display.
  * Returns a map from handle type display name to the functions that target it.
  */
-export function groupFunctionsByTarget(functions: any[]): Map<string, any[]> {
-  const groups = new Map<string, any[]>();
+export function groupFunctionsByTarget(functions: TsFunction[]): Map<string, TsFunction[]> {
+  const groups = new Map<string, TsFunction[]>();
   for (const func of functions) {
-    const targetId = func.targetTypeId as string | undefined;
+    const targetId = func.targetTypeId;
     if (!targetId) continue;
 
     // Extract simple name from "Assembly/Full.Type.Name"
@@ -104,7 +151,7 @@ export function groupFunctionsByTarget(functions: any[]): Map<string, any[]> {
 
   // Sort functions within each group
   for (const [, funcs] of groups) {
-    funcs.sort((a: any, b: any) => a.name.localeCompare(b.name));
+    funcs.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   return groups;
@@ -219,9 +266,9 @@ export function simplifyType(typeRef: string): string {
 /**
  * Format a callback parameter for display.
  */
-export function formatCallbackParam(param: any): string {
+export function formatCallbackParam(param: TsFunctionParameter): string {
   if (param.callbackSignature) {
     return param.callbackSignature;
   }
-  return param.type;
+  return param.type ?? '';
 }
