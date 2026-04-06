@@ -1,4 +1,5 @@
 ---
+import type { ComponentProps } from 'astro/types';
 import { Image } from 'astro:assets';
 import { LinkButton } from '@astrojs/starlight/components';
 
@@ -7,10 +8,10 @@ const MAX_HERO_IMAGE_WIDTH = 1000;
 
 type HeroAction = {
   attrs?: Record<string, unknown> & { class?: string };
-  icon?: { name?: string; html?: string };
+  icon?: { name?: ComponentProps<typeof LinkButton>['icon']; html?: string };
   link: string;
   text: string;
-  variant?: 'primary' | 'secondary' | 'minimal';
+  variant?: ComponentProps<typeof LinkButton>['variant'];
 };
 
 const { data } = Astro.locals.starlightRoute.entry;
@@ -72,7 +73,13 @@ if (image) {
         <div class="sl-flex actions">
           {heroActions.map(
             ({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
-              <LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+              <LinkButton
+                {href}
+                {variant}
+                icon={icon?.name as ComponentProps<typeof LinkButton>['icon']}
+                class:list={[className]}
+                {...attrs}
+              >
                 {text}
                 {icon?.html && <Fragment set:html={icon.html} />}
               </LinkButton>
