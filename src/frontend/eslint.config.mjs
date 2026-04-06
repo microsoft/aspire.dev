@@ -50,8 +50,15 @@ export default [
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    files: ['tests/**/*.ts'],
+    files: ['tests/e2e/**/*.ts'],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ['tests/unit/**/*.ts', 'tests/typecheck/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+    },
   },
 
   // Disable all formatting rules.
