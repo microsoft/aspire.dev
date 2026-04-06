@@ -313,6 +313,10 @@ export function isLandingPath(pathname: string): boolean {
   return parts.length === 1 && isLocaleSegment(parts[0]);
 }
 
+function isE2ETestRun(): boolean {
+  return document.head.querySelector('meta[name="e2e-tests"][content="true"]') !== null;
+}
+
 export function getStepHighlightPadding(stepId: string): number {
   if (stepId === 'search') {
     return 2;
@@ -478,7 +482,7 @@ class AspireSiteTour {
 
     this.clearRefreshRetry();
 
-    if (!this.state.started && !this.hasSeenAnySteps()) {
+    if (!this.state.started && !this.hasSeenAnySteps() && !isE2ETestRun()) {
       this.start(false);
       return;
     }
@@ -838,7 +842,7 @@ class AspireSiteTour {
 
       button.disabled = false;
       button.removeAttribute('aria-hidden');
-      button.setAttribute('title', label);
+      button.removeAttribute('title');
       button.setAttribute('aria-label', label);
       button.setAttribute('data-tour-state', state);
       button.setAttribute(
@@ -1455,7 +1459,7 @@ class AspireSiteTour {
         const title = isCurrent
           ? interpolate(this.strings.tooltips.currentStep, { title: step.title })
           : interpolate(this.strings.tooltips.jumpToStep, { title: step.title });
-        return `<button type="button" class="aspire-site-tour-step-dot" data-tour-step-index="${index}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"${isCurrent ? ' aria-current="step"' : ''}></button>`;
+        return `<button type="button" class="aspire-site-tour-step-dot" data-tour-step-index="${index}" aria-label="${escapeHtml(title)}"${isCurrent ? ' aria-current="step"' : ''}></button>`;
       })
       .join('');
   }

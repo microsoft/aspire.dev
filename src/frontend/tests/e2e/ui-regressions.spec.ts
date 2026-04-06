@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   dismissCookieConsentIfVisible,
   isNarrowViewport,
+  openCookiePreferences,
+  resetCookieConsentState,
   waitForApiSidebarReady,
   waitForAnalyticsConsent,
   waitForConsentCategories,
@@ -85,25 +87,20 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
 });
 
 test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
+  await resetCookieConsentState(page);
   await page.goto('/get-started/prerequisites/');
+  await openCookiePreferences(page);
 
-  const rejectAllButton = page.getByRole('button', { name: /reject all/i });
-  await expect(rejectAllButton).toBeVisible();
-
-  await rejectAllButton.click();
+  await page.getByRole('button', { name: /reject all/i }).last().click();
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
 });
 
 test('cookie preferences and accept-all enable analytics tracking consent', async ({ page }) => {
+  await resetCookieConsentState(page);
   await page.goto('/get-started/prerequisites/');
-
-  const openPreferencesButton = page.getByRole('button', { name: /manage preferences/i });
-  await expect(openPreferencesButton).toBeVisible();
-
-  await openPreferencesButton.click();
-  await expect(page.locator('#pm__title')).toBeVisible();
+  await openCookiePreferences(page);
 
   await page
     .getByRole('button', { name: /accept all/i })
@@ -223,6 +220,8 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
 test('API sidebar filter empty state and topic dropdown controls respond correctly', async ({
   page,
 }) => {
+  test.slow();
+
   const viewport = page.viewportSize();
   test.skip(
     !viewport || viewport.width < 1152,

@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = Boolean(process.env.CI);
+const e2ePort = Number(process.env.PLAYWRIGHT_TEST_PORT || '4322');
+const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -18,7 +20,7 @@ export default defineConfig({
     : [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   outputDir: 'test-results/artifacts',
   use: {
-    baseURL: 'http://127.0.0.1:4321',
+    baseURL: e2eBaseUrl,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
@@ -48,14 +50,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm test:e2e:serve',
+    command: `pnpm git-env && pnpm check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
     env: {
       ...process.env,
       ASTRO_TELEMETRY_DISABLED: '1',
       E2E_TESTS: '1',
     },
-    url: 'http://127.0.0.1:4321',
-    reuseExistingServer: !process.env.CI,
+    url: e2eBaseUrl,
+    reuseExistingServer: false,
     stdout: 'pipe',
     stderr: 'pipe',
     timeout: 120000,

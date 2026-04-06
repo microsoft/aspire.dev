@@ -1,5 +1,23 @@
 import { expect, type Page } from '@playwright/test';
 
+export async function resetCookieConsentState(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await page.addInitScript(() => {
+    localStorage.removeItem('cc_cookie');
+    sessionStorage.removeItem('cc_cookie');
+    document.cookie = 'cc_cookie=; Max-Age=0; path=/';
+  });
+}
+
+export async function openCookiePreferences(page: Page): Promise<void> {
+  const openPreferencesButton = page.locator('.cookie-consent-btn:visible').first();
+  await expect(openPreferencesButton).toBeVisible({ timeout: 15000 });
+  await openPreferencesButton.click();
+  await expect(page.locator('#pm__title')).toBeVisible({
+    timeout: 15000,
+  });
+}
+
 export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
   const siteTourDismissButton = page.locator('[data-tour-action="dismiss"]');
   if (await siteTourDismissButton.isVisible().catch(() => false)) {
