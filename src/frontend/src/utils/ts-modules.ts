@@ -15,16 +15,21 @@ export interface TsFunction {
   name: string;
   kind?: string;
   qualifiedName?: string;
+  capabilityId?: string;
   targetTypeId?: string;
   callbackSignature?: string;
   type?: string;
+  signature?: string;
+  description?: string;
 }
 
 export interface TsNamedItem {
   name: string;
   fullName?: string;
   isInterface?: boolean;
+  description?: string;
   fields?: unknown[];
+  capabilities?: TsFunction[];
 }
 
 export interface TsEnumType extends TsNamedItem {

@@ -17,6 +17,9 @@ export interface PackageMember {
   name: string;
   kind?: string;
   parameters?: PackageParameter[];
+  docs?: {
+    summary?: unknown;
+  };
 }
 
 export interface PackageEnumMember {
@@ -32,6 +35,9 @@ export interface PackageType {
   genericParameters?: GenericParameter[];
   members?: PackageMember[];
   enumMembers?: PackageEnumMember[];
+  docs?: {
+    summary?: unknown;
+  };
 }
 
 export interface PackageMetadata {
