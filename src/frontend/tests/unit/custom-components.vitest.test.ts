@@ -42,6 +42,7 @@ import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
 import SimpleCard from '@components/SimpleCard.astro';
+import StarlightHero from '@components/starlight/Hero.astro';
 import TestimonialCarousel from '@components/TestimonialCarousel.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import ThreeTierAspire from '@components/ThreeTierAspire.astro';
@@ -713,5 +714,42 @@ describe('custom Astro component render coverage', () => {
 
     expect(html).toContain(sampleFromRepo.title);
     expect(html).toContain('View on GitHub');
+  });
+
+  it('preserves the homepage hero image aspect ratio for non-square assets', async () => {
+    const html = normalizeHtml(
+      await renderComponent(StarlightHero, {
+        locals: {
+          starlightRoute: {
+            editUrl:
+              'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/index.mdx',
+            entry: {
+              id: 'index',
+              slug: '',
+              filePath: 'src/content/docs/index.mdx',
+              data: {
+                title: 'Aspire',
+                hero: {
+                  title: 'Aspire',
+                  tagline: 'Your stack, streamlined.',
+                  image: {
+                    alt: 'Aspire logo',
+                    file: heroImage,
+                  },
+                },
+              },
+            },
+          } as any,
+        },
+      })
+    );
+
+    const expectedHeight = Math.round((heroImage.height / heroImage.width) * 1000);
+
+    expect(html).toContain('width="1000"');
+    expect(html).toContain(`height="${expectedHeight}"`);
+    expect(html).toContain(`origWidth%3D${heroImage.width}`);
+    expect(html).toContain(`origHeight%3D${heroImage.height}`);
+    expect(html).not.toContain('h=1000');
   });
 });
