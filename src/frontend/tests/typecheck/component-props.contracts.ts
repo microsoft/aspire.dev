@@ -577,9 +577,9 @@ const invalidStreamCardProps: PropsOf<typeof StreamCard> = {
   unexpected: true,
 };
 
-const validSiteTourProps = {} satisfies PropsOf<typeof SiteTour>;
+const _validSiteTourProps = {} satisfies PropsOf<typeof SiteTour>;
 // @ts-expect-error SiteTour does not accept props.
-const invalidSiteTourProps: PropsOf<typeof SiteTour> = {
+const _invalidSiteTourProps: PropsOf<typeof SiteTour> = {
   unexpected: true,
 };
 
