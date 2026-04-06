@@ -86,6 +86,120 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
   await expect(versionSelect).toHaveValue('dev');
 });
 
+test('homepage header actions stay reachable at zoomed and reflow widths', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'This regression is covered once from the desktop project with explicit narrow widths.'
+  );
+
+  const expectedCompactHeaderOrder = [
+    'Aspire',
+    'Search',
+    'Start site tour',
+    'Open cookie preferences dialog',
+    'Open install Aspire CLI dialog',
+    'Docs',
+    'Try',
+  ];
+
+  for (const width of [640, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await resetCookieConsentState(page);
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const banner = page.getByRole('banner');
+
+    await expect
+      .poll(() =>
+        banner.evaluate((header) =>
+          Array.from(header.querySelectorAll('a, button'))
+            .filter((element) => {
+              if (!(element instanceof HTMLElement)) {
+                return false;
+              }
+
+              const style = window.getComputedStyle(element);
+              if (style.display === 'none' || style.visibility === 'hidden') {
+                return false;
+              }
+
+              const rect = element.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            })
+            .map((element) => {
+              if (!(element instanceof HTMLElement)) {
+                return '';
+              }
+
+              if (element.matches('.site-title')) {
+                return 'Aspire';
+              }
+
+              if (element.matches('button[data-open-modal]')) {
+                return 'Search';
+              }
+
+              const tourTarget = element.dataset.tourTarget;
+              if (tourTarget === 'tour-help') {
+                return 'Start site tour';
+              }
+
+              if (tourTarget === 'cookie-preferences') {
+                return 'Open cookie preferences dialog';
+              }
+
+              if (tourTarget === 'install-cli') {
+                return 'Open install Aspire CLI dialog';
+              }
+
+              if (element instanceof HTMLAnchorElement) {
+                if (element.pathname.endsWith('/docs/')) {
+                  return 'Docs';
+                }
+
+                if (element.pathname.endsWith('/get-started/first-app/')) {
+                  return 'Try';
+                }
+              }
+
+              return element.getAttribute('aria-label')?.trim() || element.textContent?.trim() || '';
+            })
+        )
+      )
+      .toEqual(expectedCompactHeaderOrder);
+
+    await expect
+      .poll(() => page.locator('main').evaluate((element) => element.getBoundingClientRect().top))
+      .toBeLessThan(170);
+
+    await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
+    await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
+    await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
+    await expect(banner.getByRole('link', { name: /^Try$/ })).toBeVisible();
+    await expect(
+      banner.getByRole('button', { name: /open cookie preferences dialog/i }).first()
+    ).toBeVisible();
+
+    const installButton = banner.getByRole('button', {
+      name: /open install aspire cli dialog/i,
+    }).first();
+    await expect(installButton).toBeVisible();
+    await installButton.click();
+
+    if (isNarrowViewport(page)) {
+      await expect(page).toHaveURL(/\/get-started\/install-cli\/?$/);
+      await expect(page.getByRole('heading', { name: /install aspire cli/i })).toBeVisible();
+      continue;
+    }
+
+    const installModal = page.locator('#install-cli-modal').first();
+    await expect(installModal).toBeVisible();
+    await installModal.getByRole('button', { name: /close modal/i }).click();
+    await expect(installModal).not.toBeVisible();
+  }
+});
+
 test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await resetCookieConsentState(page);
   await page.goto('/get-started/prerequisites/');
