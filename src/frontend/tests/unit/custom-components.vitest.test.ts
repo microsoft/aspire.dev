@@ -10,6 +10,7 @@ import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
 import Expand from '@components/Expand.astro';
+import FooterLinks from '@components/FooterLinks.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
 import FluidGrid from '@components/FluidGrid.astro';
 import FooterPreferences from '@components/FooterPreferences.astro';
@@ -753,5 +754,41 @@ describe('custom Astro component render coverage', () => {
     expect(html).toContain(`origWidth%3D${heroImage.width}`);
     expect(html).toContain(`origHeight%3D${heroImage.height}`);
     expect(html).not.toContain('h=1000');
+  });
+
+  it('hides footer community links on localized 404 pages', async () => {
+    const html = normalizeHtml(
+      await renderComponent(FooterLinks, {
+        requestUrl: 'https://aspire.dev/ja/404/',
+        locals: {
+          starlightRoute: {
+            editUrl:
+              'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/src/content/docs/404.mdx',
+            entry: {
+              id: '404',
+              slug: '404',
+              filePath: 'src/content/docs/404.mdx',
+              data: {},
+            },
+          },
+        },
+      })
+    );
+
+    expect(html).not.toContain('footer.community');
+    expect(html).not.toContain('https://x.com/aspiredotdev');
+  });
+
+  it('renders OsAwareTabs activation logic without anchor-only tab assumptions', async () => {
+    const html = normalizeHtml(
+      await renderComponent(OsAwareTabs, {
+        props: { syncKey: 'terminal' },
+        slots: { unix: 'echo unix', windows: 'Write-Host windows' },
+      })
+    );
+    const inlineScript = html.split('<script>').at(-1) ?? '';
+
+    expect(inlineScript).toContain('tab.textContent?.trim() === label');
+    expect(inlineScript).not.toContain('HTMLAnchorElement');
   });
 });
