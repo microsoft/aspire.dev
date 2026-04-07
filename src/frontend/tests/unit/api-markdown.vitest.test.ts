@@ -5,13 +5,38 @@
   @typescript-eslint/no-unsafe-return
   -- route module imports and test props are intentionally dynamic in this harness
 */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { renderCSharpDocMarkdown } from '@utils/csharp-api-markdown';
 import { memberKindSlugs } from '@utils/packages';
 import { tsSlugify } from '@utils/ts-modules';
 import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
 import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
+
+vi.mock('astro:content', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('astro:content')>();
+  const [{ default: csharpPackageFixture }, { default: typeScriptModuleFixture }] = await Promise.all([
+    import('../../src/data/pkgs/Aspire.Hosting.13.2.0.json'),
+    import('../../src/data/ts-modules/Aspire.Hosting.13.2.0.json'),
+  ]);
+
+  return {
+    ...actual,
+    // Route tests need deterministic content entries even when Astro's test-time
+    // content layer comes up empty in CI.
+    getCollection: async (collectionName: string) => {
+      if (collectionName === 'packages') {
+        return [{ id: 'Aspire.Hosting.13.2.0.json', data: csharpPackageFixture }];
+      }
+
+      if (collectionName === 'tsModules') {
+        return [{ id: 'Aspire.Hosting.13.2.0.json', data: typeScriptModuleFixture }];
+      }
+
+      return actual.getCollection(collectionName as never);
+    },
+  };
+});
 
 type StaticRoute = {
   params: Record<string, string | undefined>;
