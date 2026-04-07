@@ -313,10 +313,6 @@ export function isLandingPath(pathname: string): boolean {
   return parts.length === 1 && isLocaleSegment(parts[0]);
 }
 
-function isE2ETestRun(): boolean {
-  return document.head.querySelector('meta[name="e2e-tests"][content="true"]') !== null;
-}
-
 export function getStepHighlightPadding(stepId: string): number {
   if (stepId === 'search') {
     return 2;
@@ -481,12 +477,6 @@ class AspireSiteTour {
     }
 
     this.clearRefreshRetry();
-
-    if (!this.state.started && !this.hasSeenAnySteps() && !isE2ETestRun()) {
-      this.start(false);
-      return;
-    }
-
     this.clearPendingPaintLock();
 
     if (this.isOpen) {
@@ -917,6 +907,10 @@ class AspireSiteTour {
     this.singleStepMode = false;
     this.stepFilterMode = 'new';
     this.singleStepId = null;
+    if (!this.state.started) {
+      this.state.started = true;
+      this.saveState();
+    }
     this.openAt(0, true);
   }
 

@@ -14,7 +14,7 @@ const commit = import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMI
 const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
-const isE2ETestRun = import.meta.env.E2E_TESTS === '1' || import.meta.env.E2E_TESTS === 'true';
+const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 
 function computeRepoPath() {
   if (path) {
@@ -33,31 +33,8 @@ function computeSourceUrl() {
 
 <meta name="git-commit-id" content={commit} />
 <meta name="git-source-url" content={computeSourceUrl()} />
-<meta name="e2e-tests" content={isE2ETestRun ? 'true' : 'false'} />
 
 <DefaultHead {...Astro.props} />
-
-<style is:inline>
-  html[data-site-tour-pending] body {
-    opacity: 0;
-  }
-</style>
-
-<script is:inline>
-  (function () {
-    function clearSiteTourPending() {
-      document.documentElement.removeAttribute('data-site-tour-pending');
-    }
-
-    setTimeout(clearSiteTourPending, 150);
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', clearSiteTourPending, { once: true });
-    } else {
-      clearSiteTourPending();
-    }
-  })();
-</script>
 
 <!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
 <script is:inline>
@@ -91,35 +68,6 @@ function computeSourceUrl() {
 
       if (localStorage.getItem('topic-sidebar-collapsed') === '1' && path.indexOf('/reference/api') === -1) {
         document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
-      }
-    } catch (e) {}
-  })();
-</script>
-
-<script is:inline>
-  (function () {
-    function isLocaleSegment(segment) {
-      return /^[a-z]{2}(?:-[a-z]{2})?$/i.test(segment);
-    }
-
-    function isLandingPath(pathname) {
-      var parts = pathname.replace(/\/$/, '').split('/').filter(Boolean);
-      if (parts.length === 0) {
-        return true;
-      }
-
-      return parts.length === 1 && isLocaleSegment(parts[0]);
-    }
-
-    try {
-      if (isLandingPath(window.location.pathname)) {
-        return;
-      }
-
-      var raw = localStorage.getItem('aspire-site-tour-v1');
-      var state = raw ? JSON.parse(raw) : null;
-      if (!state || state.started !== true) {
-        document.documentElement.setAttribute('data-site-tour-pending', 'true');
       }
     } catch (e) {}
   })();
@@ -199,4 +147,4 @@ function computeSourceUrl() {
 </script>
 
 <AccessibleCodeButtons />
-<SiteTour />
+{isSiteTourEnabled && <SiteTour />}

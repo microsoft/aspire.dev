@@ -11,6 +11,8 @@ import {
   waitForTopicSidebarReady,
 } from '@tests/e2e/helpers';
 
+const isSiteTourEnabled = process.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+
 async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
   try {
     return await page.evaluate(() =>
@@ -95,12 +97,15 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
-    'Start site tour',
     'Open cookie preferences dialog',
     'Open install Aspire CLI dialog',
     'Docs',
     'Try',
   ];
+
+  if (isSiteTourEnabled) {
+    expectedCompactHeaderOrder.splice(2, 0, 'Start site tour');
+  }
 
   for (const width of [640, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -177,6 +182,11 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
     await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
     await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
     await expect(banner.getByRole('link', { name: /^Try$/ })).toBeVisible();
+
+    if (!isSiteTourEnabled) {
+      await expect(banner.locator('[data-tour-trigger]')).toHaveCount(0);
+    }
+
     await expect(
       banner.getByRole('button', { name: /open cookie preferences dialog/i }).first()
     ).toBeVisible();

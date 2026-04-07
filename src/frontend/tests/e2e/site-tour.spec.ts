@@ -4,6 +4,7 @@ import { isNarrowViewport } from '@tests/e2e/helpers';
 
 const SITE_TOUR_STORAGE_KEY = 'aspire-site-tour-v1';
 const SITE_TOUR_TEST_PAGE = '/app-host/certificate-configuration/';
+const isSiteTourEnabled = process.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 
 type StoredSiteTourState = {
   started?: boolean;
@@ -43,10 +44,21 @@ async function advanceUntilFinish(page: Page): Promise<void> {
   throw new Error('Site tour never reached the finish step.');
 }
 
+test('site tour feature flag hides the trigger and bootstrap when disabled', async ({ page }) => {
+  test.skip(isSiteTourEnabled, 'This assertion only applies when the site tour feature is disabled.');
+
+  await page.goto(SITE_TOUR_TEST_PAGE);
+
+  await expect(page.locator('[data-tour-trigger]')).toHaveCount(0);
+  await expect(page.locator('.aspire-site-tour-layer')).toHaveCount(0);
+  await expect.poll(() => readSiteTourState(page)).toBeNull();
+});
+
 test('site tour opens from the help trigger, resumes progress, and completes on larger screens', async ({
   page,
 }) => {
   test.slow();
+  test.skip(!isSiteTourEnabled, 'Site tour is disabled by feature flag.');
   test.skip(isNarrowViewport(page), 'Site tour is disabled on narrow viewports.');
 
   await page.goto(SITE_TOUR_TEST_PAGE);
@@ -59,12 +71,15 @@ test('site tour opens from the help trigger, resumes progress, and completes on 
   const nextLabel = nextButton.locator('.aspire-site-tour-btn-label');
   const trigger = page.locator('[data-tour-trigger]').first();
 
-  await expect(trigger).toHaveAttribute('data-tour-state', /(new|resume|start)/);
+  await expect(layer).toBeHidden();
+  await expect.poll(() => readSiteTourState(page)).toBeNull();
+  await expect(trigger).toHaveAttribute('data-tour-state', 'new');
   await trigger.dispatchEvent('click');
 
   await expect(card).toBeVisible();
   await expect(nextLabel).toHaveText('Next');
 
+  await expect.poll(async () => (await readSiteTourState(page))?.started ?? null).toBe(true);
   await expect.poll(async () => (await readSiteTourState(page))?.currentStepId ?? null).not.toBe(
     null
   );
@@ -117,14 +132,16 @@ test('site tour opens from the help trigger, resumes progress, and completes on 
 });
 
 test('site tour stays disabled on narrow viewports', async ({ page }) => {
+  test.skip(!isSiteTourEnabled, 'Site tour is disabled by feature flag.');
   test.skip(!isNarrowViewport(page), 'This assertion only applies to narrow viewports.');
 
   await page.goto(SITE_TOUR_TEST_PAGE);
 
   const layer = page.locator('.aspire-site-tour-layer');
+  const trigger = page.locator('[data-tour-trigger]').first();
   await expect(layer).toBeHidden();
 
-  const triggerState = await page.locator('[data-tour-trigger]').evaluate((element) => {
+  const triggerState = await trigger.evaluate((element) => {
     const button = element as HTMLButtonElement;
     return {
       disabled: button.disabled,
