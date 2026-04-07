@@ -1,4 +1,12 @@
 import { formatTsSignature, getTsModules, simplifyType, tsModuleSlug, tsSlugify } from '@utils/ts-modules';
+import type {
+  TsApiDocument,
+  TsDtoType,
+  TsEnumType,
+  TsFunction,
+  TsFunctionParameter,
+  TsHandleType,
+} from '@utils/ts-modules';
 import {
   bulletList,
   codeBlock,
@@ -10,6 +18,12 @@ import {
   normalizeBase,
   section,
 } from '@utils/api-markdown-shared';
+
+type TypeScriptItemKind = 'handle' | 'dto' | 'enum' | 'function';
+type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
+type TypeScriptModuleType =
+  | (TsHandleType & { _typeKind: 'interface' | 'handle' })
+  | (TsDtoType & { _typeKind: 'type' });
 
 export function typeScriptIndexMdHref(base: string): string {
   return `${normalizeBase(base)}/reference/api/typescript.md`;
@@ -32,7 +46,7 @@ export function typeScriptMemberMdHref(
   return `${normalizeBase(base)}/reference/api/typescript/${tsModuleSlug(moduleName)}/${tsSlugify(itemName)}/${tsSlugify(memberName)}.md`;
 }
 
-export function renderTypeScriptIndexMarkdown(modules: any[], base: string): string {
+export function renderTypeScriptIndexMarkdown(modules: TsApiDocument[], base: string): string {
   const sorted = [...modules].sort((left, right) => left.package.name.localeCompare(right.package.name));
 
   const lines = sorted.map((pkg) => {
@@ -52,40 +66,38 @@ export function renderTypeScriptIndexMarkdown(modules: any[], base: string): str
   ]);
 }
 
-export function renderTypeScriptModuleMarkdown(pkg: any, base: string): string {
-  const moduleLinkBase = typeScriptModuleMdHref(base, pkg.package.name);
-  void moduleLinkBase;
-
-  const allTypes = [
-    ...(pkg.handleTypes ?? []).map((item: any) => ({ ...item, _typeKind: item.isInterface ? 'interface' : 'handle' })),
-    ...(pkg.dtoTypes ?? []).map((item: any) => ({ ...item, _typeKind: 'type' })),
-  ].sort((left: any, right: any) => left.name.localeCompare(right.name));
-  const allEnums = [...(pkg.enumTypes ?? [])].sort((left: any, right: any) => left.name.localeCompare(right.name));
+export function renderTypeScriptModuleMarkdown(pkg: TsApiDocument, base: string): string {
+  const sourceHref = getTypeScriptSourceHref(pkg);
+  const allTypes: TypeScriptModuleType[] = [
+    ...(pkg.handleTypes ?? []).map((item) => ({ ...item, _typeKind: item.isInterface ? 'interface' as const : 'handle' as const })),
+    ...(pkg.dtoTypes ?? []).map((item) => ({ ...item, _typeKind: 'type' as const })),
+  ].sort(compareByName);
+  const allEnums = [...(pkg.enumTypes ?? [])].sort(compareByName);
   const standaloneFunctions = (pkg.functions ?? [])
-    .filter((fn: any) => !fn.qualifiedName || !fn.qualifiedName.includes('.'))
-    .sort((left: any, right: any) => left.name.localeCompare(right.name));
+    .filter((fn) => !fn.qualifiedName || !fn.qualifiedName.includes('.'))
+    .sort(compareByName);
 
   const metadata = keyValueBullets([
     { label: 'Module', value: inlineCode(pkg.package.name) },
     { label: 'Version', value: pkg.package.version ? inlineCode(pkg.package.version) : null },
-    { label: 'Source', value: pkg.package.sourceRepository ? link('GitHub', pkg.package.sourceRepository) : null },
+    { label: 'Source', value: sourceHref ? link('GitHub', sourceHref) : null },
     { label: 'Functions', value: inlineCode(String(standaloneFunctions.length)) },
     { label: 'Types', value: inlineCode(String(allTypes.length + allEnums.length)) },
   ]);
 
-  const typeLines = allTypes.map((item: any) => {
+  const typeLines = allTypes.map((item) => {
     const kind = item._typeKind === 'type' ? 'type' : item.isInterface ? 'interface' : 'handle';
     const count = item._typeKind === 'type' ? `${item.fields?.length ?? 0} fields` : `${item.capabilities?.length ?? 0} members`;
     const description = item.description ? ` — ${item.description}` : '';
     return `- ${link(item.name, typeScriptItemMdHref(base, pkg.package.name, item.name))} — ${inlineCode(kind)} · ${count}${description}`;
   });
 
-  const functionLines = standaloneFunctions.map((fn: any) => {
+  const functionLines = standaloneFunctions.map((fn) => {
     const description = fn.description ? ` — ${fn.description}` : '';
     return `- ${link(fn.name, typeScriptItemMdHref(base, pkg.package.name, fn.name))} — ${inlineCode('function')}${description}`;
   });
 
-  const enumLines = allEnums.map((item: any) => {
+  const enumLines = allEnums.map((item) => {
     const description = item.description ? ` — ${item.description}` : '';
     return `- ${link(item.name, typeScriptItemMdHref(base, pkg.package.name, item.name))} — ${inlineCode('enum')} · ${(item.members ?? []).length} values${description}`;
   });
@@ -100,16 +112,21 @@ export function renderTypeScriptModuleMarkdown(pkg: any, base: string): string {
 }
 
 export function renderTypeScriptItemMarkdown(
-  pkg: any,
-  item: any,
-  itemKind: 'handle' | 'dto' | 'enum' | 'function',
+  pkg: TsApiDocument,
+  item: TypeScriptItem,
+  itemKind: TypeScriptItemKind,
   base: string
 ): string {
+  const handleItem = itemKind === 'handle' ? (item as TsHandleType) : null;
+  const dtoItem = itemKind === 'dto' ? (item as TsDtoType) : null;
+  const enumItem = itemKind === 'enum' ? (item as TsEnumType) : null;
+  const functionItem = itemKind === 'function' ? (item as TsFunction) : null;
+  const sourceHref = getTypeScriptSourceHref(pkg);
   const metadata = keyValueBullets([
     { label: 'Module', value: link(pkg.package.name, typeScriptModuleMdHref(base, pkg.package.name)) },
     { label: 'Version', value: pkg.package.version ? inlineCode(pkg.package.version) : null },
-    { label: 'Kind', value: inlineCode(getItemKindLabel(item, itemKind).toLowerCase()) },
-    { label: 'Source', value: pkg.package.sourceRepository ? link('GitHub', pkg.package.sourceRepository) : null },
+    { label: 'Kind', value: inlineCode(getItemKindLabel(itemKind, handleItem?.isInterface).toLowerCase()) },
+    { label: 'Source', value: sourceHref ? link('GitHub', sourceHref) : null },
   ]);
 
   return finalizeMarkdown([
@@ -117,17 +134,22 @@ export function renderTypeScriptItemMarkdown(
     metadata,
     item.description ?? '',
     section('Definition', codeBlock(buildTypeScriptDeclaration(item, itemKind), 'typescript')),
-    itemKind === 'handle' ? section('Properties', renderHandlePropertiesMarkdown(item, pkg, base)) : '',
-    itemKind === 'handle' ? section('Methods', renderHandleMethodsMarkdown(item, pkg, base)) : '',
-    itemKind === 'dto' ? section('Fields', renderDtoFieldsMarkdown(item, pkg, base)) : '',
-    itemKind === 'enum' ? section('Values', renderEnumValuesMarkdown(item)) : '',
-    itemKind === 'function' ? section('Parameters', renderTypeScriptParametersMarkdown(item.parameters ?? [], pkg, base)) : '',
-    itemKind === 'function' ? section('Returns', renderTypeScriptReturnMarkdown(item.returnType, pkg, base, item.returnsBuilder)) : '',
-    itemKind === 'function' ? section('Applies to', renderAppliesToMarkdown(item.expandedTargetTypes ?? [], pkg, base)) : '',
+    handleItem ? section('Properties', renderHandlePropertiesMarkdown(handleItem, pkg, base)) : '',
+    handleItem ? section('Methods', renderHandleMethodsMarkdown(handleItem, pkg, base)) : '',
+    dtoItem ? section('Fields', renderDtoFieldsMarkdown(dtoItem, pkg, base)) : '',
+    enumItem ? section('Values', renderEnumValuesMarkdown(enumItem)) : '',
+    functionItem ? section('Parameters', renderTypeScriptParametersMarkdown(functionItem.parameters ?? [], pkg, base)) : '',
+    functionItem ? section('Returns', renderTypeScriptReturnMarkdown(functionItem.returnType, pkg, base, functionItem.returnsBuilder)) : '',
+    functionItem ? section('Applies to', renderAppliesToMarkdown(functionItem.expandedTargetTypes ?? [], pkg, base)) : '',
   ]);
 }
 
-export function renderTypeScriptMemberMarkdownPage(pkg: any, parentType: any, method: any, base: string): string {
+export function renderTypeScriptMemberMarkdownPage(
+  pkg: TsApiDocument,
+  parentType: TsHandleType,
+  method: TsFunction,
+  base: string
+): string {
   const metadata = keyValueBullets([
     { label: 'Module', value: link(pkg.package.name, typeScriptModuleMdHref(base, pkg.package.name)) },
     {
@@ -157,9 +179,9 @@ export function renderTypeScriptMemberMarkdownPage(pkg: any, parentType: any, me
   ]);
 }
 
-function getItemKindLabel(item: any, itemKind: 'handle' | 'dto' | 'enum' | 'function'): string {
+function getItemKindLabel(itemKind: TypeScriptItemKind, isInterface: boolean | undefined): string {
   if (itemKind === 'handle') {
-    return item.isInterface ? 'Interface' : 'Handle';
+    return isInterface ? 'Interface' : 'Handle';
   }
 
   if (itemKind === 'dto') {
@@ -173,69 +195,67 @@ function getItemKindLabel(item: any, itemKind: 'handle' | 'dto' | 'enum' | 'func
   return 'Enum';
 }
 
-function buildTypeScriptDeclaration(item: any, itemKind: 'handle' | 'dto' | 'enum' | 'function'): string {
+function buildTypeScriptDeclaration(item: TypeScriptItem, itemKind: TypeScriptItemKind): string {
   if (itemKind === 'handle') {
-    const getters = (item.capabilities ?? []).filter((capability: any) => capability.kind === 'PropertyGetter');
-    const setters = (item.capabilities ?? []).filter((capability: any) => capability.kind === 'PropertySetter');
-    const methods = (item.capabilities ?? [])
-      .filter((capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod')
-      .sort((left: any, right: any) => left.name.localeCompare(right.name));
-
-    const members: string[] = [];
-
-    for (const getter of getters) {
-      const hasSetter = setters.some(
-        (setter: any) => setter.name.replace(/^set/, '').toLowerCase() === getter.name.toLowerCase()
-      );
-      members.push(`  ${hasSetter ? '' : 'readonly '}${getter.name}: ${getter.returnType};`);
-    }
-
-    for (const setter of setters) {
-      if (!getters.some((getter: any) => getter.name.toLowerCase() === setter.name.replace(/^set/, '').toLowerCase())) {
-        members.push(`  ${setter.name}(value: ${setter.parameters?.[0]?.type ?? 'unknown'}): void;`);
-      }
-    }
-
-    for (const method of methods) {
-      const rawSignature = `${method.name}(${(method.parameters ?? [])
-        .map((parameter: any) => {
-          const optional = parameter.isOptional ? '?' : '';
-          const type = parameter.isCallback && parameter.callbackSignature ? parameter.callbackSignature : parameter.type;
-          return `${parameter.name}${optional}: ${type}`;
-        })
-        .join(', ')}): ${method.returnType};`;
-      const formatted = formatTsSignature(rawSignature);
-      members.push(formatted.split('\n').map((line) => `  ${line}`).join('\n'));
-    }
-
-    const interfaces = (item.implementedInterfaces ?? []).map((iface: string) => simplifyType(iface));
-    const extendsClause = interfaces.length === 0
-      ? ''
-      : interfaces.length === 1
-        ? ` extends ${interfaces[0]}`
-        : `\n  extends ${interfaces.join(',\n    ')}`;
-
-    return `interface ${item.name}${extendsClause}${members.length > 0 ? ` {\n${members.join('\n')}\n}` : ' { }'}`;
+    return buildHandleTypeDeclaration(item as TsHandleType);
   }
 
   if (itemKind === 'dto') {
-    const fields = (item.fields ?? []).map(
-      (field: any) => `  ${field.name}${field.isOptional ? '?' : ''}: ${field.type};`
-    );
-    return fields.length > 0 ? `type ${item.name} = {\n${fields.join('\n')}\n}` : `type ${item.name} = { }`;
+    return buildDtoTypeDeclaration(item as TsDtoType);
   }
 
   if (itemKind === 'enum') {
-    const members = (item.members ?? []).map((member: string, index: number) => `  ${member} = ${index},`);
-    return members.length > 0 ? `enum ${item.name} {\n${members.join('\n')}\n}` : `enum ${item.name} { }`;
+    return buildEnumDeclaration(item as TsEnumType);
   }
 
-  const params = (item.parameters ?? []).map((parameter: any) => {
-    const optional = parameter.isOptional ? '?' : '';
-    const type = parameter.isCallback && parameter.callbackSignature ? parameter.callbackSignature : parameter.type;
-    return `${parameter.name}${optional}: ${type}`;
-  });
-  const memberSignature = `${item.name}(${params.join(', ')}): ${item.returnType ?? 'void'}`;
+  return buildFunctionDeclaration(item as TsFunction);
+}
+
+function buildHandleTypeDeclaration(item: TsHandleType): string {
+  const getters = (item.capabilities ?? []).filter(isPropertyGetter);
+  const setters = (item.capabilities ?? []).filter(isPropertySetter);
+  const methods = (item.capabilities ?? []).filter(isMethodCapability).sort(compareByName);
+  const members: string[] = [];
+
+  for (const getter of getters) {
+    const hasSetter = setters.some((setter) => normalizeSetterName(setter.name) === getter.name.toLowerCase());
+    members.push(`  ${hasSetter ? '' : 'readonly '}${getter.name}: ${getter.returnType ?? 'unknown'};`);
+  }
+
+  for (const setter of setters) {
+    if (!getters.some((getter) => getter.name.toLowerCase() === normalizeSetterName(setter.name))) {
+      members.push(`  ${setter.name}(value: ${setter.parameters?.[0]?.type ?? 'unknown'}): void;`);
+    }
+  }
+
+  for (const method of methods) {
+    const rawSignature = `${method.name}(${formatParameterList(method.parameters ?? [])}): ${method.returnType ?? 'void'};`;
+    const formatted = formatTsSignature(rawSignature);
+    members.push(formatted.split('\n').map((line) => `  ${line}`).join('\n'));
+  }
+
+  const interfaces = (item.implementedInterfaces ?? []).map((iface) => simplifyType(iface));
+  const extendsClause = interfaces.length === 0
+    ? ''
+    : interfaces.length === 1
+      ? ` extends ${interfaces[0]}`
+      : `\n  extends ${interfaces.join(',\n    ')}`;
+
+  return `interface ${item.name}${extendsClause}${members.length > 0 ? ` {\n${members.join('\n')}\n}` : ' { }'}`;
+}
+
+function buildDtoTypeDeclaration(item: TsDtoType): string {
+  const fields = (item.fields ?? []).map((field) => `  ${field.name}${field.isOptional ? '?' : ''}: ${field.type ?? 'unknown'};`);
+  return fields.length > 0 ? `type ${item.name} = {\n${fields.join('\n')}\n}` : `type ${item.name} = { }`;
+}
+
+function buildEnumDeclaration(item: TsEnumType): string {
+  const members = (item.members ?? []).map((member, index) => `  ${member} = ${index},`);
+  return members.length > 0 ? `enum ${item.name} {\n${members.join('\n')}\n}` : `enum ${item.name} { }`;
+}
+
+function buildFunctionDeclaration(item: TsFunction): string {
+  const memberSignature = `${item.name}(${formatParameterList(item.parameters ?? [])}): ${item.returnType ?? 'void'}`;
 
   if ((item.expandedTargetTypes ?? []).length > 0) {
     const targetName = simplifyType(item.expandedTargetTypes[0]);
@@ -245,39 +265,29 @@ function buildTypeScriptDeclaration(item: any, itemKind: 'handle' | 'dto' | 'enu
   return `function ${formatTsSignature(memberSignature)}`;
 }
 
-function buildMethodDeclaration(parentType: any, method: any): string {
-  const params = (method.parameters ?? []).map((parameter: any) => {
-    const optional = parameter.isOptional ? '?' : '';
-    const type = parameter.isCallback && parameter.callbackSignature ? parameter.callbackSignature : parameter.type;
-    return `${parameter.name}${optional}: ${type}`;
-  });
-
-  const memberSignature = `${method.name}(${params.join(', ')}): ${method.returnType ?? 'void'};`;
+function buildMethodDeclaration(parentType: TsHandleType, method: TsFunction): string {
+  const memberSignature = `${method.name}(${formatParameterList(method.parameters ?? [])}): ${method.returnType ?? 'void'};`;
   const formattedMember = formatTsSignature(memberSignature);
   const indentedMember = formattedMember.split('\n').map((line) => `  ${line}`).join('\n');
   return `interface ${parentType.name} {\n  // ... omitted for brevity\n${indentedMember}\n}`;
 }
 
-function renderHandlePropertiesMarkdown(item: any, pkg: any, base: string): string {
-  const getters = (item.capabilities ?? []).filter((capability: any) => capability.kind === 'PropertyGetter');
-  const setters = (item.capabilities ?? []).filter((capability: any) => capability.kind === 'PropertySetter');
+function renderHandlePropertiesMarkdown(item: TsHandleType, pkg: TsApiDocument, base: string): string {
+  const getters = (item.capabilities ?? []).filter(isPropertyGetter);
+  const setters = (item.capabilities ?? []).filter(isPropertySetter);
   if (getters.length === 0 && setters.length === 0) {
     return '';
   }
 
-  const getterLines = getters.map((getter: any) => {
-    const hasSetter = setters.some(
-      (setter: any) => setter.name.replace(/^set/, '').toLowerCase() === getter.name.toLowerCase()
-    );
+  const getterLines = getters.map((getter) => {
+    const hasSetter = setters.some((setter) => normalizeSetterName(setter.name) === getter.name.toLowerCase());
     const access = hasSetter ? 'get · set' : 'get';
     return `- ${inlineCode(getter.name)}: ${formatTypeScriptTypeReferenceMarkdown(getter.returnType, pkg, base)} ${inlineCode(access)}${getter.description ? ` — ${getter.description}` : ''}`;
   });
 
   const setterLines = setters
-    .filter(
-      (setter: any) => !getters.some((getter: any) => getter.name.toLowerCase() === setter.name.replace(/^set/, '').toLowerCase())
-    )
-    .map((setter: any) => {
+    .filter((setter) => !getters.some((getter) => getter.name.toLowerCase() === normalizeSetterName(setter.name)))
+    .map((setter) => {
       const valueType = setter.parameters?.[0]?.type ?? 'unknown';
       return `- ${inlineCode(setter.name)}(${formatTypeScriptTypeReferenceMarkdown(valueType, pkg, base)}) ${inlineCode('set')}${setter.description ? ` — ${setter.description}` : ''}`;
     });
@@ -285,16 +295,14 @@ function renderHandlePropertiesMarkdown(item: any, pkg: any, base: string): stri
   return bulletList([...getterLines, ...setterLines]);
 }
 
-function renderHandleMethodsMarkdown(item: any, pkg: any, base: string): string {
-  const methods = (item.capabilities ?? [])
-    .filter((capability: any) => capability.kind === 'Method' || capability.kind === 'InstanceMethod')
-    .sort((left: any, right: any) => left.name.localeCompare(right.name));
+function renderHandleMethodsMarkdown(item: TsHandleType, pkg: TsApiDocument, base: string): string {
+  const methods = (item.capabilities ?? []).filter(isMethodCapability).sort(compareByName);
   if (methods.length === 0) {
     return '';
   }
 
   return bulletList(
-    methods.map((method: any) => {
+    methods.map((method) => {
       const href = typeScriptMemberMdHref(base, pkg.package.name, item.name, method.name);
       const description = method.description ? ` — ${method.description}` : '';
       return `- ${link(method.name, href)} — ${inlineCode('method')}${description}\n  ${indentMarkdown(codeBlock(method.signature ?? '', 'typescript'), '  ')}`;
@@ -302,21 +310,21 @@ function renderHandleMethodsMarkdown(item: any, pkg: any, base: string): string 
   );
 }
 
-function renderDtoFieldsMarkdown(item: any, pkg: any, base: string): string {
+function renderDtoFieldsMarkdown(item: TsDtoType, pkg: TsApiDocument, base: string): string {
   const fields = item.fields ?? [];
   if (fields.length === 0) {
     return '';
   }
 
   return bulletList(
-    fields.map((field: any) => {
+    fields.map((field) => {
       const optional = field.isOptional ? ` ${inlineCode('optional')}` : '';
       return `- ${inlineCode(field.name)}: ${formatTypeScriptTypeReferenceMarkdown(field.type, pkg, base)}${optional}`;
     })
   );
 }
 
-function renderEnumValuesMarkdown(item: any): string {
+function renderEnumValuesMarkdown(item: TsEnumType): string {
   const members = item.members ?? [];
   if (members.length === 0) {
     return '';
@@ -325,13 +333,17 @@ function renderEnumValuesMarkdown(item: any): string {
   return bulletList(members.map((member: string, index: number) => `- ${inlineCode(member)} = ${inlineCode(String(index))}`));
 }
 
-function renderTypeScriptParametersMarkdown(parameters: any[], pkg: any, base: string): string {
-  if (!parameters || parameters.length === 0) {
+function renderTypeScriptParametersMarkdown(
+  parameters: TsFunctionParameter[],
+  pkg: TsApiDocument,
+  base: string
+): string {
+  if (parameters.length === 0) {
     return '';
   }
 
   return bulletList(
-    parameters.map((parameter: any) => {
+    parameters.map((parameter) => {
       const type = parameter.isCallback && parameter.callbackSignature
         ? inlineCode(parameter.callbackSignature)
         : formatTypeScriptTypeReferenceMarkdown(parameter.type, pkg, base);
@@ -348,7 +360,7 @@ function renderTypeScriptParametersMarkdown(parameters: any[], pkg: any, base: s
 
 function renderTypeScriptReturnMarkdown(
   returnType: string | undefined,
-  pkg: any,
+  pkg: TsApiDocument,
   base: string,
   returnsBuilder?: boolean
 ): string {
@@ -360,7 +372,7 @@ function renderTypeScriptReturnMarkdown(
   return returnsBuilder ? `${formatted} ${inlineCode('builder')}` : formatted;
 }
 
-function renderAppliesToMarkdown(targetTypes: string[], pkg: any, base: string): string {
+function renderAppliesToMarkdown(targetTypes: string[], pkg: TsApiDocument, base: string): string {
   if (!targetTypes || targetTypes.length === 0) {
     return '';
   }
@@ -373,7 +385,7 @@ function renderAppliesToMarkdown(targetTypes: string[], pkg: any, base: string):
   );
 }
 
-function formatTypeScriptTypeReferenceMarkdown(typeRef: string | undefined, pkg: any, base: string): string {
+function formatTypeScriptTypeReferenceMarkdown(typeRef: string | undefined, pkg: TsApiDocument, base: string): string {
   if (!typeRef) {
     return inlineCode('unknown');
   }
@@ -384,9 +396,9 @@ function formatTypeScriptTypeReferenceMarkdown(typeRef: string | undefined, pkg:
 
   const simpleName = simplifyType(typeRef);
   const allItems = [
-    ...(pkg.handleTypes ?? []).map((item: any) => item.name),
-    ...(pkg.dtoTypes ?? []).map((item: any) => item.name),
-    ...(pkg.enumTypes ?? []).map((item: any) => item.name),
+    ...(pkg.handleTypes ?? []).map((item) => item.name),
+    ...(pkg.dtoTypes ?? []).map((item) => item.name),
+    ...(pkg.enumTypes ?? []).map((item) => item.name),
   ];
 
   return allItems.includes(simpleName)
@@ -394,7 +406,47 @@ function formatTypeScriptTypeReferenceMarkdown(typeRef: string | undefined, pkg:
     : inlineCode(simpleName);
 }
 
-export async function getTypeScriptMarkdownRouteProps() {
+function compareByName<T extends { name: string }>(left: T, right: T): number {
+  return left.name.localeCompare(right.name);
+}
+
+function isMethodCapability(capability: TsFunction): boolean {
+  return capability.kind === 'Method' || capability.kind === 'InstanceMethod';
+}
+
+function isPropertyGetter(capability: TsFunction): boolean {
+  return capability.kind === 'PropertyGetter';
+}
+
+function isPropertySetter(capability: TsFunction): boolean {
+  return capability.kind === 'PropertySetter';
+}
+
+function normalizeSetterName(name: string): string {
+  return name.replace(/^set/, '').toLowerCase();
+}
+
+function formatParameterDeclaration(parameter: TsFunctionParameter): string {
+  const optional = parameter.isOptional ? '?' : '';
+  const type = parameter.isCallback && parameter.callbackSignature ? parameter.callbackSignature : parameter.type ?? 'unknown';
+  return `${parameter.name}${optional}: ${type}`;
+}
+
+function formatParameterList(parameters: TsFunctionParameter[]): string {
+  return parameters.map(formatParameterDeclaration).join(', ');
+}
+
+function getTypeScriptSourceHref(pkg: TsApiDocument): string | undefined {
+  if (!pkg.package.sourceRepository) {
+    return undefined;
+  }
+
+  return pkg.package.sourceCommit
+    ? `${pkg.package.sourceRepository}/tree/${pkg.package.sourceCommit}`
+    : pkg.package.sourceRepository;
+}
+
+export async function getTypeScriptMarkdownRouteProps(): Promise<TsApiDocument[]> {
   const packages = await getTsModules();
   return packages.map((entry) => entry.data);
 }

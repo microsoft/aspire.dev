@@ -1,7 +1,17 @@
+/* eslint-disable
+  @typescript-eslint/no-explicit-any,
+  @typescript-eslint/no-unsafe-call,
+  @typescript-eslint/no-unsafe-member-access,
+  @typescript-eslint/no-unsafe-return
+  -- route module imports and test props are intentionally dynamic in this harness
+*/
 import { describe, expect, it } from 'vitest';
 
+import { renderCSharpDocMarkdown } from '@utils/csharp-api-markdown';
 import { memberKindSlugs } from '@utils/packages';
 import { tsSlugify } from '@utils/ts-modules';
+import { renderTypeScriptItemMarkdown, renderTypeScriptModuleMarkdown } from '@utils/typescript-api-markdown';
+import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
 
 type StaticRoute = {
   params: Record<string, string | undefined>;
@@ -175,6 +185,71 @@ describe('API markdown routes', () => {
     expect(markdown).toContain(`# ${route.props.parentType.name}.${route.props.method.name}`);
     expect(markdown).toContain('## Signature');
     expect(markdown).toContain(`/reference/api/typescript/${route.params.module}/${route.params.item}.md`);
+  });
+});
+
+describe('API markdown helpers', () => {
+  it('normalizes note blockquotes to a single level', () => {
+    const markdown = renderCSharpDocMarkdown(
+      [
+        {
+          kind: 'note',
+          value: 'note',
+          children: [
+            {
+              kind: 'para',
+              children: [{ kind: 'text', text: '> Keep a single quote level' }],
+            },
+          ],
+        },
+      ],
+      { allTypes: [], base: '', packageName: 'Test.Package' }
+    );
+
+    expect(markdown).toBe('> **Note:**\n>\n> Keep a single quote level');
+  });
+
+  it('pins TypeScript module source links to a source commit when available', () => {
+    const pkg: TsApiDocument = {
+      package: {
+        name: 'Aspire.Hosting',
+        sourceCommit: 'abc123',
+        sourceRepository: 'https://github.com/microsoft/aspire',
+        version: '1.0.0',
+      },
+      functions: [],
+      handleTypes: [],
+      dtoTypes: [],
+      enumTypes: [],
+    };
+
+    const markdown = renderTypeScriptModuleMarkdown(pkg, '');
+
+    expect(markdown).toContain('[GitHub](https://github.com/microsoft/aspire/tree/abc123)');
+  });
+
+  it('pins TypeScript item source links to a source commit when available', () => {
+    const item: TsHandleType = {
+      name: 'IDistributedApplicationBuilder',
+      isInterface: true,
+      capabilities: [],
+    };
+    const pkg: TsApiDocument = {
+      package: {
+        name: 'Aspire.Hosting',
+        sourceCommit: 'abc123',
+        sourceRepository: 'https://github.com/microsoft/aspire',
+        version: '1.0.0',
+      },
+      functions: [],
+      handleTypes: [item],
+      dtoTypes: [],
+      enumTypes: [],
+    };
+
+    const markdown = renderTypeScriptItemMarkdown(pkg, item, 'handle', '');
+
+    expect(markdown).toContain('[GitHub](https://github.com/microsoft/aspire/tree/abc123)');
   });
 });
 

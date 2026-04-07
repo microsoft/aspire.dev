@@ -1,3 +1,12 @@
+/* eslint-disable
+  @typescript-eslint/no-explicit-any,
+  @typescript-eslint/no-unsafe-argument,
+  @typescript-eslint/no-unsafe-assignment,
+  @typescript-eslint/no-unsafe-call,
+  @typescript-eslint/no-unsafe-member-access,
+  @typescript-eslint/no-unsafe-return
+  -- generated package metadata and C# doc AST nodes are intentionally heterogeneous
+*/
 import {
   buildClassBodySignature,
   cleanMemberSignature,
@@ -131,7 +140,14 @@ export function renderCSharpDocMarkdown(content: any, context: CSharpDocContext)
           const label = noteLabels[node.value ?? 'note'] ?? (node.value ?? 'Note');
           const quoted = body
             .split('\n')
-            .map((line) => (line ? `> ${line}` : '>'))
+            .map((line) => {
+              if (!line) {
+                return '>';
+              }
+
+              const normalizedLine = line.replace(/^>\s?/, '');
+              return `> ${normalizedLine}`;
+            })
             .join('\n');
           blocks.push(`> **${label}:**\n>\n${quoted}`);
         }
@@ -381,7 +397,7 @@ function buildTypeSignature(type: any): string {
     .join(' ');
 
   const namespacePrefix = type.namespace ? `namespace ${type.namespace};\n\n` : '';
-  let signature = '';
+  let signature: string;
 
   if (type.kind === 'delegate') {
     const returnType = type.delegateReturnType ?? 'void';
@@ -627,7 +643,7 @@ function renderMemberParametersMarkdown(
         collectPolyglotNotes(parameter.attributes, 'parameter', parameter.name, context.packageName, context.allTypes, context.base)
       );
       const baseLine = `- ${inlineCode(parameter.name)} (${formatCSharpTypeReferenceMarkdown(parameter.type, context)})${badges ? ` ${badges}` : ''}`;
-      const detailBlocks = [description, notes].filter(Boolean) as string[];
+      const detailBlocks = [description, notes].filter((value): value is string => Boolean(value));
 
       if (detailBlocks.length === 0) {
         return baseLine;
