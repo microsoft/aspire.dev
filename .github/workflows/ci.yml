@@ -68,6 +68,9 @@ jobs:
     uses: ./.github/workflows/frontend-build.yml
     with:
       node_version: '24.x'
+      artifact_name: ${{ github.event_name == 'pull_request' && format('frontend-dist-pr-{0}', github.event.pull_request.number) || 'frontend-dist' }}
+      artifact_retention_days: ${{ github.event_name == 'pull_request' && 30 || 7 }}
+      site_base_path: ${{ github.event_name == 'pull_request' && format('/prs/{0}', github.event.pull_request.number) || '/' }}
 
   apphost-build:
     needs: changes
@@ -82,12 +85,14 @@ jobs:
       - name: Verify CI results
         shell: bash
         env:
+          IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
           APPHOST_CHANGED: ${{ needs.changes.outputs.apphost }}
           FRONTEND_RESULT: ${{ needs['frontend-build'].result }}
           APPHOST_RESULT: ${{ needs['apphost-build'].result }}
         run: |
+          echo "is pull_request event: $IS_PULL_REQUEST"
           echo "changes result: $CHANGES_RESULT"
           echo "frontend changed: $FRONTEND_CHANGED"
           echo "frontend-build result: $FRONTEND_RESULT"
