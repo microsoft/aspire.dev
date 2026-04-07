@@ -21,6 +21,9 @@ import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 
+const modeArgIndex = process.argv.indexOf('--mode');
+const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
+
 // https://astro.build/config
 export default defineConfig({
   prefetch: true,
@@ -34,6 +37,7 @@ export default defineConfig({
       iconPacks,
     }),
     starlight({
+      pagefind: !isSkipSearchBuild,
       title: 'Aspire',
       routeMiddleware: ['./src/route-data-middleware'],
       defaultLocale: 'root',
