@@ -120,7 +120,7 @@ Do _not_ call `.WithHttpEndpoint()` on a Vite resource. `AddViteApp` already reg
 
 :::note
 The Vite dev server is only used for local development. During publish, Aspire
-builds the front-end assets, but another resource must serve those built files in
+builds the frontend assets, but another resource must serve those built files in
 production.
 :::
 
@@ -376,10 +376,10 @@ export async function fetchData() {
   `import.meta.env` variables are replaced at **build time** by Vite. For
   dynamic runtime values (such as a URL that changes per environment), consider
   using a server-rendered configuration endpoint instead. See [Pass runtime
-  configuration to SPA front ends](#pass-runtime-configuration-to-spa-frontends).
+  configuration to SPA frontends](#pass-runtime-configuration-to-spa-frontends).
 </Aside>
 
-## Pass runtime configuration to SPA front ends
+## Pass runtime configuration to SPA frontends
 
 Vite and other SPA build tools bake environment variables (such as `VITE_*`) into the JavaScript bundle at **build time** (for example, when building the client for production). However, Aspire sets environment variables at **runtime**. This means calling `.WithEnvironment("VITE_GOOGLE_CLIENT_ID", parameter)` on a Vite resource won't change values that were already baked into a previously built production bundle.
 
@@ -389,7 +389,7 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 
 1. **Pass the parameter to the API in the AppHost**
 
-   Define the parameter in the AppHost and pass it to the API project using `WithEnvironment`. Then reference the API from the front end so it can call the endpoint:
+   Define the parameter in the AppHost and pass it to the API project using `WithEnvironment`. Then reference the API from the frontend so it can call the endpoint:
 
    ```csharp title="C# — AppHost.cs"
    var builder = DistributedApplication.CreateBuilder(args);
@@ -427,12 +427,12 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 
      Use this pattern only for non-secret/public configuration values (for
      example OAuth client IDs). Do not expose secrets such as client secrets,
-     API keys, or connection strings via a front-end config endpoint.
+     API keys, or connection strings via a frontend config endpoint.
    </Aside>
 
 3. **Fetch the config value in the SPA**
 
-   In your front-end application, fetch the configuration value at startup instead of reading from `import.meta.env`:
+   In your frontend application, fetch the configuration value at startup instead of reading from `import.meta.env`:
 
    ```typescript title="TypeScript — config.ts"
    export async function getConfig() {
@@ -519,32 +519,32 @@ When you publish your application, Aspire automatically:
 1. Generates publish-time build artifacts for containerized deployment
 2. Installs dependencies using deterministic install commands based on lockfiles
 3. Runs the build script (typically "build") to create production assets
-4. Produces front-end build output that another resource can include or serve
+4. Produces frontend build output that another resource can include or serve
 
 This ensures your JavaScript applications are built consistently across
 environments and can participate in Aspire publishing workflows.
 
 :::caution[Production deployment rule]
 `AddJavaScriptApp` and `AddViteApp` are not, by themselves, the production web
-server for your front end.
+server for your frontend.
 
-During publish, Aspire uses them to build front-end assets. To deploy that
-front end, you must choose another resource to serve those built files in
+During publish, Aspire uses them to build frontend assets. To deploy that
+frontend, you must choose another resource to serve those built files in
 production.
 
 Adding `AddJavaScriptApp` or `AddViteApp` plus `.WithReference(...)` is not
-enough to make the front end independently deployable.
+enough to make the frontend independently deployable.
 :::
 
 :::note
 Local Vite proxy and route behavior does not automatically become production
-behavior. If your front end depends on Vite development-server routing or proxy
+behavior. If your frontend depends on Vite development-server routing or proxy
 configuration, configure the production-serving resource separately.
 :::
 
 <LearnMore>
   For the production deployment patterns used by `AddJavaScriptApp` and
-  `AddViteApp`, including who serves the built front end in production, see
+  `AddViteApp`, including who serves the built frontend in production, see
   [Deploy JavaScript apps](/deployment/javascript-apps/).
 </LearnMore>
 

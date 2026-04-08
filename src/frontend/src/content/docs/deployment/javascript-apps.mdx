@@ -1,18 +1,18 @@
 ---
 title: Deploy JavaScript apps
-description: Learn the main production deployment models for Vite and JavaScript front ends in Aspire.
+description: Learn the main production deployment models for Vite and JavaScript frontends in Aspire.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-For Vite and other JavaScript front ends, there are three common production deployment models:
+For Vite and other JavaScript frontends, there are three common production deployment models:
 
-- A backend service serves the built front-end files.
-- A reverse proxy serves the built front-end files.
-- A standalone static front end talks directly to a separately hosted backend.
+- A backend service serves the built frontend files.
+- A reverse proxy serves the built frontend files.
+- A standalone static frontend talks directly to a separately hosted backend.
 
-All three models use `AddViteApp` for local development and for producing the front-end build output during publishing. The difference is which resource becomes the production entrypoint and whether the browser talks to the backend directly.
+All three models use `AddViteApp` for local development and for producing the frontend build output during publishing. The difference is which resource becomes the production entrypoint and whether the browser talks to the backend directly.
 
 These same production models also apply to `AddJavaScriptApp`. The difference
 is that `AddViteApp` knows about Vite's development conventions, while
@@ -23,20 +23,20 @@ specific deployment target.
 
 ## Deployment rule
 
-For deployment, `AddViteApp` and `AddJavaScriptApp` should be treated as front-end build resources, not as the final production web server.
+For deployment, `AddViteApp` and `AddJavaScriptApp` should be treated as frontend build resources, not as the final production web server.
 
-To deploy a JavaScript front end, you must choose which other resource owns the public HTTP surface in production:
+To deploy a JavaScript frontend, you must choose which other resource owns the public HTTP surface in production:
 
-- Use `PublishWithContainerFiles(...)` when your backend or web server will serve the built front-end files.
-- Use `PublishWithStaticFiles(...)` when your reverse proxy, gateway, or <abbr title="Backend for Frontend">BFF</abbr> will serve the built front-end files.
+- Use `PublishWithContainerFiles(...)` when your backend or web server will serve the built frontend files.
+- Use `PublishWithStaticFiles(...)` when your reverse proxy, gateway, or <abbr title="Backend for Frontend">BFF</abbr> will serve the built frontend files.
 
-If you only add a Vite or JavaScript app and reference backend services, Aspire still needs one of these production hosting patterns to know who serves the built front end in deployment.
+If you only add a Vite or JavaScript app and reference backend services, Aspire still needs one of these production hosting patterns to know who serves the built frontend in deployment.
 
 <Aside type="tip">
   If you expected `AddViteApp(...).PublishAsDockerFile()` to behave like a
   standalone Nginx- or Apache-style static web container by default, that is not
   the primary deployment model Aspire is guiding you toward. The intended
-  default is that another resource serves the built front-end assets in
+  default is that another resource serves the built frontend assets in
   production.
 </Aside>
 
@@ -52,30 +52,30 @@ If you only add a Vite or JavaScript app and reference backend services, Aspire 
 
 | Model                                  | Production entrypoint      | Aspire publish API          | Best for                                                                          |
 | -------------------------------------- | -------------------------- | --------------------------- | --------------------------------------------------------------------------------- |
-| Backend serves front end               | API or web server          | `PublishWithContainerFiles` | Apps where one service serves both the API and the front end                      |
-| Reverse proxy serves front end         | Reverse proxy              | `PublishWithStaticFiles`    | Apps that want a gateway or BFF in front of APIs and static front-end assets      |
-| Static front end calls backend directly | Static site + separate API | Custom / less integrated    | Apps that intentionally keep front-end hosting separate and can manage CORS/config |
+| Backend serves frontend               | API or web server          | `PublishWithContainerFiles` | Apps where one service serves both the API and the frontend                      |
+| Reverse proxy serves frontend         | Reverse proxy              | `PublishWithStaticFiles`    | Apps that want a gateway or BFF in front of APIs and static frontend assets      |
+| Static frontend calls backend directly | Static site + separate API | Custom / less integrated    | Apps that intentionally keep frontend hosting separate and can manage CORS/config |
 
 <Aside type="caution">
   `AddViteApp` already registers its local development endpoint. Do not call
   `.WithHttpEndpoint()` on a Vite resource.
 </Aside>
 
-## Model 1: Backend serves the built front end
+## Model 1: Backend serves the built frontend
 
-Use this model when your backend, API, or server is responsible for serving static front-end files in production from `wwwroot`, `static`, or a similar directory.
+Use this model when your backend, API, or server is responsible for serving static frontend files in production from `wwwroot`, `static`, or a similar directory.
 
-This model only works if that backend or server can actually serve the built front-end assets. In other words, the deployed application service must be both the API host and the static file host for the front end.
+This model only works if that backend or server can actually serve the built frontend assets. In other words, the deployed application service must be both the API host and the static file host for the frontend.
 
 <Aside type="note">
-  `PublishWithContainerFiles(...)` only copies the built front-end assets into
+  `PublishWithContainerFiles(...)` only copies the built frontend assets into
   the destination container. The important requirement is easy to miss in the
   helper name: the destination app must be configured to serve those files.
 </Aside>
 
 ```mermaid
 flowchart LR
-    Browser --> App["Node app<br/>serving built front-end files"]
+    Browser --> App["Node app<br/>serving built frontend files"]
     App --> Frontend["Vite build output"]
 ```
 
@@ -129,31 +129,31 @@ await builder.build().run();
 ### How it works
 
 1. `AddViteApp` runs the Vite dev server during `aspire run`.
-2. During publish, Aspire builds the front end and extracts its production output.
+2. During publish, Aspire builds the frontend and extracts its production output.
 3. `PublishWithContainerFiles` copies those files into the Node app container.
-4. The Node app becomes the deployed HTTP endpoint and serves the front-end files.
+4. The Node app becomes the deployed HTTP endpoint and serves the frontend files.
 
 ### Why Aspire supports this model
 
-This model keeps the production topology simple. The front-end build output becomes part of the same deployable unit as the backend, so one service owns the application surface, static files, and API behavior together.
+This model keeps the production topology simple. The frontend build output becomes part of the same deployable unit as the backend, so one service owns the application surface, static files, and API behavior together.
 
-It also maps well to frameworks that already know how to serve static files from `wwwroot`, `static`, or a similar folder. Instead of introducing an extra gateway or front-end-serving container, Aspire lets the backend stay responsible for the final HTTP response.
+It also maps well to frameworks that already know how to serve static files from `wwwroot`, `static`, or a similar folder. Instead of introducing an extra gateway or frontend-serving container, Aspire lets the backend stay responsible for the final HTTP response.
 
 ### When to use this model
 
 - Your backend already serves static files, or you are willing to make it do so.
-- You want one deployed service to host both the API and the front end.
+- You want one deployed service to host both the API and the frontend.
 - You want the same resource to own routing, auth, and static asset hosting.
 
 ### Implications
 
-- Your backend container gets larger because it now contains both backend code and front-end assets.
-- Front end and backend are deployed together, which is convenient when they change together but less flexible if you want to scale or release them independently.
+- Your backend container gets larger because it now contains both backend code and frontend assets.
+- Frontend and backend are deployed together, which is convenient when they change together but less flexible if you want to scale or release them independently.
 - Authentication, caching, headers, and fallback routing are handled where the backend serves the files.
 - This usually gives the simplest mental model: one deployed service, one public endpoint, one place to troubleshoot.
-- This is the default pattern Aspire is steering you toward for Vite front ends unless you intentionally introduce a gateway or BFF to own the public surface.
+- This is the default pattern Aspire is steering you toward for Vite frontends unless you intentionally introduce a gateway or BFF to own the public surface.
 
-## Model 2: Reverse proxy serves the built front end
+## Model 2: Reverse proxy serves the built frontend
 
 Use this model when a reverse proxy should be the public entrypoint for your app, either as a gateway or as a backend-for-frontend (BFF).
 
@@ -230,7 +230,7 @@ await builder.build().run();
 
 ### Dev-only gateway wiring
 
-If your gateway or BFF needs to know about the front-end dev server during local
+If your gateway or BFF needs to know about the frontend dev server during local
 development, gate that wiring to run mode only:
 
 <Tabs syncKey="apphost-lang">
@@ -275,21 +275,21 @@ if (await builder.executionContext.isRunMode()) {
 
 <Aside type="caution">
   Dev-only waits, references, and environment variables that point at the
-  front-end development server can be correct in run mode, but wrong in
+  frontend development server can be correct in run mode, but wrong in
   publish/deploy if you leave them unconditional. Publish must not depend on the
-  front-end development endpoint.
+  frontend development endpoint.
 </Aside>
 
 ### How it works
 
-1. The reverse proxy owns the public URL surface for both front-end and backend routes.
+1. The reverse proxy owns the public URL surface for both frontend and backend routes.
 2. API requests such as `/api/*` are routed to the backend service.
-3. During publish, Aspire builds the front end and `PublishWithStaticFiles` copies the output into the proxy resource.
-4. In production, the proxy serves front-end routes itself while continuing to proxy API routes.
+3. During publish, Aspire builds the frontend and `PublishWithStaticFiles` copies the output into the proxy resource.
+4. In production, the proxy serves frontend routes itself while continuing to proxy API routes.
 
 ### Why Aspire supports this model
 
-This model keeps the public entrypoint separate from the application services behind it. The reverse proxy becomes the stable edge for the app, while the front-end build and any backend services remain behind that gateway or BFF.
+This model keeps the public entrypoint separate from the application services behind it. The reverse proxy becomes the stable edge for the app, while the frontend build and any backend services remain behind that gateway or BFF.
 
 It is a good fit when you want one place to centralize routing, transforms, headers, and gateway or BFF concerns. YARP is Aspire's first-class option here, which is why the example uses it, but the architectural tradeoffs are the same for other reverse proxies.
 
@@ -302,16 +302,16 @@ It is a good fit when you want one place to centralize routing, transforms, head
 ### Implications
 
 - The reverse proxy owns the public endpoint, so backend services can stay internal behind the gateway or BFF.
-- Front-end hosting is decoupled from any individual backend service, which can make routing cleaner in multi-service apps.
-- Route rules now matter directly because the proxy decides which requests go to APIs and which requests go to the front end.
+- Frontend hosting is decoupled from any individual backend service, which can make routing cleaner in multi-service apps.
+- Route rules now matter directly because the proxy decides which requests go to APIs and which requests go to the frontend.
 - You now have a dedicated gateway/BFF in the deployment, which adds one more moving part but also gives you more control over ingress behavior.
-- This is often the better choice when the front end needs BFF-style behavior or when a standalone Vite build would otherwise need deployment-time configuration from backend resources.
+- This is often the better choice when the frontend needs BFF-style behavior or when a standalone Vite build would otherwise need deployment-time configuration from backend resources.
 
 ## A third model you may be considering
 
 Another common deployment shape is:
 
-- The front end is deployed to its own static file host.
+- The frontend is deployed to its own static file host.
 - The backend is deployed to separate compute.
 - The browser calls the backend directly.
 
@@ -427,17 +427,17 @@ await builder.build().run();
 - **Pit 2 — Switching the same value to a build arg**
 
   Example: `WithBuildArg(...)` / `withBuildArg(...)` to set the backend URL
-  during the front-end image build.
+  during the frontend image build.
 
-  Associated failure: the backend URL is usually not known when the front end
+  Associated failure: the backend URL is usually not known when the frontend
   image is being built.
 
 - **Pit 3 — Trying to wire both sides of the relationship**
 
-  Example: the front end needs the backend URL, while the backend also needs the
-  front-end origin for CORS.
+  Example: the frontend needs the backend URL, while the backend also needs the
+  frontend origin for CORS.
 
-  Associated failure: this creates a deployment-time cycle between the front end
+  Associated failure: this creates a deployment-time cycle between the frontend
   and backend. In publish/deploy, the Vite resource is a build resource, not the
   runtime web server, so it cannot be the place where the browser discovers the
   backend URL.
@@ -446,7 +446,7 @@ await builder.build().run();
   If publish throws `The given key 'Aspire.Hosting.JavaScript.ViteAppResource'
   was not present in the dictionary.`, treat that as a modeling problem, not as
   a missing dictionary entry. Move that runtime relationship to the backend,
-  reverse proxy, or other deployed resource that actually serves the front end or
+  reverse proxy, or other deployed resource that actually serves the frontend or
   owns the public HTTP surface.
 </Aside>
 
@@ -456,26 +456,26 @@ This model looks familiar if you are used to deploying:
 
 - A Vite or React app to a static site host.
 - An API to another host.
-- Front-end JavaScript that calls the API directly from the browser.
+- Frontend JavaScript that calls the API directly from the browser.
 
-It can seem like the most obvious path because it keeps the front end as "just a
-static site" and avoids adding a backend-served front end or reverse proxy layer.
+It can seem like the most obvious path because it keeps the frontend as "just a
+static site" and avoids adding a backend-served frontend or reverse proxy layer.
 
 ### Why it gets harder
 
-This model pushes more work onto the browser/front-end boundary:
+This model pushes more work onto the browser/frontend boundary:
 
 - The browser now talks to a different origin, so you often need to configure CORS.
-- The front end needs to know the backend URL for each environment.
+- The frontend needs to know the backend URL for each environment.
 - Vite apps usually consume those values at build time, which means the backend
-  URL must be known when the front end is built or injected through a separate
+  URL must be known when the frontend is built or injected through a separate
   runtime configuration pattern.
 - Local Vite proxy behavior often hides these production concerns until you try
   to deploy.
 
 ### What this means in Aspire
 
-Aspire can still orchestrate the front-end build and the backend resource, but
+Aspire can still orchestrate the frontend build and the backend resource, but
 this topology is less integrated than the two primary models above. In
 particular, Aspire does not automatically solve:
 
@@ -484,17 +484,17 @@ particular, Aspire does not automatically solve:
 - The split ownership between a standalone static site host and a separate API host.
 
 If this is the model you want, plan for explicit runtime configuration and CORS
-management. Otherwise, the backend-serves-front-end or reverse-proxy-serves-front-end
+management. Otherwise, the backend-serves-frontend or reverse-proxy-serves-frontend
 models are usually easier to reason about in Aspire.
 
 ## How to choose
 
-Choose **backend serves front end** when the backend already owns the app surface and should also own static file hosting.
+Choose **backend serves frontend** when the backend already owns the app surface and should also own static file hosting.
 
-Choose **reverse proxy serves front end** when you want a gateway or BFF to stay in front of everything and route both front-end and backend traffic.
+Choose **reverse proxy serves frontend** when you want a gateway or BFF to stay in front of everything and route both frontend and backend traffic.
 
-Choose the **standalone static front end + direct browser-to-backend** model only
-when you intentionally want separate front-end and backend hosting and are
+Choose the **standalone static frontend + direct browser-to-backend** model only
+when you intentionally want separate frontend and backend hosting and are
 willing to manage backend URL configuration and CORS explicitly.
 
 In practice, the decision is usually about **who should own the public HTTP surface in production**:
@@ -504,10 +504,10 @@ In practice, the decision is usually about **who should own the public HTTP surf
 
 ## What `AddViteApp` means in production
 
-`AddViteApp` is best thought of as a development server plus a front-end build resource:
+`AddViteApp` is best thought of as a development server plus a frontend build resource:
 
 - In run mode, it gives you the Vite dev server and HMR.
-- In publish mode, it produces front-end build artifacts.
+- In publish mode, it produces frontend build artifacts.
 - Another resource serves those artifacts in production.
 
 That distinction is easy to miss if you only read the JavaScript integration page or release notes. This article exists to make the production story explicit.
@@ -527,7 +527,7 @@ The difference is that `AddJavaScriptApp` does not assume a particular developme
 
 - Expecting `AddViteApp` to be the deployed production web server.
 - Exposing the Vite resource instead of the backend or reverse proxy resource that serves the built files.
-- Adding `AddViteApp` plus `.WithReference(...)` and assuming that is enough to deploy the front end.
+- Adding `AddViteApp` plus `.WithReference(...)` and assuming that is enough to deploy the frontend.
 - Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA.
 - Calling `.WithHttpEndpoint()` on `AddViteApp`.
 - Using `VITE_*` variables for values that must be resolved at runtime in an already-built SPA.
