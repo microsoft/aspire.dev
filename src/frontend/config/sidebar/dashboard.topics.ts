@@ -219,7 +219,20 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Увімкнути телеметрію браузера',
         'zh-CN': '启用浏览器遥测',
       },
-      slug: 'dashboard/enable-browser-telemetry',
+      items: [
+        {
+          label: 'Overview',
+          slug: 'dashboard/enable-browser-telemetry',
+        },
+        {
+          label: 'Browser app configuration',
+          slug: 'dashboard/enable-browser-telemetry/browser-app-configuration',
+        },
+        {
+          label: 'Blazor WebAssembly integration',
+          slug: 'dashboard/enable-browser-telemetry/blazor-webassembly',
+        },
+      ],
     },
     {
       label: 'Microsoft telemetry',
