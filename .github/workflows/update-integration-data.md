@@ -23,10 +23,14 @@ network:
     - dotnet
     - github
 safe-outputs:
+  github-app:
+    app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+    private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
   create-pull-request:
     title-prefix: "chore: "
     labels: [":octocat: auto-merge"]
     draft: false
+    fallback-as-issue: false
   noop:
 ---
 
@@ -44,19 +48,24 @@ You are an automation agent that updates integration data and GitHub statistics 
 ## Before Creating a PR
 
 Before creating a PR, check if there is already an open PR with a similar title using:
-```
+
+```bash
 gh pr list --search "is:open in:title \"Update integration data\""
 ```
+
 If an open PR already exists, update it instead of creating a new one:
+
 1. Check out the existing PR branch: `gh pr checkout <PR_NUMBER>`
 2. Run `pnpm update:all` from the repository root
 3. Check if any files were modified using `git diff --stat`
 4. If there are changes, commit and push them to the existing branch:
-   ```
-   git add -A
-   git commit -m "chore: Update integration data and GitHub stats (DATE)"
-   git push
-   ```
+
+    ```bash
+    git add -A
+    git commit -m "chore: Update integration data and GitHub stats (DATE)"
+    git push
+    ```
+
 5. If there are no changes after updating, call `noop` and explain that integration data is already up to date
 6. Do NOT use `create-pull-request` when updating an existing PR
 
@@ -75,6 +84,7 @@ If an open PR already exists, update it instead of creating a new one:
 **Title**: `Update integration data and GitHub stats (DATE)`
 
 **Body** (use this template):
+
 ```markdown
 ## Automated Integration Data Update - DATE
 
