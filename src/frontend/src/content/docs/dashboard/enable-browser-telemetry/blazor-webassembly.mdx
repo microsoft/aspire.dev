@@ -15,11 +15,11 @@ Blazor WASM apps can't read server-side environment variables directly. When the
 ```csharp title="C# — Program.cs (Server)"
 using Microsoft.AspNetCore.Authorization;
 
-app.MapGet("/api/telemetry-config", [Authorize] () => new
+app.MapGet("/api/telemetry-config", [Authorize] (IConfiguration config) => new
 {
-    Endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? string.Empty,
-    Headers = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS") ?? string.Empty,
-    ResourceAttributes = Environment.GetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES") ?? string.Empty
+    Endpoint = config.GetValue<string>("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+    Headers = config.GetValue<string>("OTEL_EXPORTER_OTLP_HEADERS", ""),
+    ResourceAttributes = config.GetValue<string>("OTEL_RESOURCE_ATTRIBUTES", "")
 });
 ```
 
