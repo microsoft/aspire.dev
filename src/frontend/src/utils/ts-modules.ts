@@ -9,25 +9,56 @@ export interface TsFunctionParameter {
   name: string;
   type?: string;
   callbackSignature?: string;
+  isCallback?: boolean;
+  isOptional?: boolean;
+  defaultValue?: string;
 }
 
 export interface TsFunction {
   name: string;
   kind?: string;
   qualifiedName?: string;
+  capabilityId?: string;
   targetTypeId?: string;
   callbackSignature?: string;
   type?: string;
+  signature?: string;
+  description?: string;
+  parameters?: TsFunctionParameter[];
+  returnType?: string;
+  returnsBuilder?: boolean;
+  expandedTargetTypes?: string[];
 }
 
 export interface TsNamedItem {
   name: string;
   fullName?: string;
+  kind?: string;
   isInterface?: boolean;
-  fields?: unknown[];
+  description?: string;
+}
+
+export interface TsField {
+  name: string;
+  type?: string;
+  isOptional?: boolean;
+  description?: string;
+}
+
+export interface TsHandleType extends TsNamedItem {
+  kind?: 'handle';
+  exposeProperties?: boolean;
+  implementedInterfaces?: string[];
+  capabilities?: TsFunction[];
+}
+
+export interface TsDtoType extends TsNamedItem {
+  kind?: 'dto';
+  fields?: TsField[];
 }
 
 export interface TsEnumType extends TsNamedItem {
+  kind?: 'enum';
   members?: string[];
 }
 
@@ -42,8 +73,8 @@ export interface TsModulePackage {
 export interface TsApiDocument {
   package: TsModulePackage;
   functions?: TsFunction[];
-  handleTypes?: TsNamedItem[];
-  dtoTypes?: TsNamedItem[];
+  handleTypes?: TsHandleType[];
+  dtoTypes?: TsDtoType[];
   enumTypes?: TsEnumType[];
 }
 

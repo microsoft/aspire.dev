@@ -249,12 +249,17 @@ pre.mermaid[data-processed='true'] {
   border-radius: 0.25rem;
 }
 
-.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code:not(:where(.not-content *)) {
-  font-size: inherit;
+/* Keep inline code together when it fits, but allow long tokens to wrap if needed. */
+:root:not(:has(.topics-sidebar[data-api-ref])) .sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+  max-width: 100%;
+  vertical-align: baseline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
-.sl-markdown-content a>code {
-  white-space: pre;
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code:not(:where(.not-content *)) {
+  font-size: inherit;
 }
 
 .float-inline-left {
@@ -349,6 +354,10 @@ starlight-file-tree .directory>details[open]>summary::before {
 
 #starlight__sidebar ul.top-level li details ul li {
   font-size: var(--sl-text-sm) !important;
+}
+
+#starlight__sidebar [aria-current='page'] {
+  border-radius: .5rem;
 }
 
 footer .meta,
@@ -911,6 +920,10 @@ li a.external-link::after {
   --sl-content-width: 68rem;
 }
 
+:root:has(.topics-sidebar[data-topic-nav]) {
+  --sl-sidebar-width: 20.625rem;
+}
+
 /* Widen sidebar for API reference pages (long package names) */
 :root:has(.topics-sidebar[data-api-ref]) {
   --sl-sidebar-width: 40rem;  
@@ -926,6 +939,10 @@ li a.external-link::after {
   padding-top: 0;
 }
 
+:root:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar .sidebar-content {
+  padding-top: 0;
+}
+
 /* ── API sidebar collapse/expand (desktop only, ≥ 72rem) ──────── */
 
 /* Animate the sidebar panel width */
@@ -936,17 +953,54 @@ li a.external-link::after {
   :root:has(.topics-sidebar[data-api-ref]) .main-frame {
     transition: padding-inline-start 0.25s ease;
   }
+
+  :root:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    transition: width 0.25s ease;
+  }
+
+  :root:has(.topics-sidebar[data-topic-nav]) .main-frame {
+    transition: padding-inline-start 0.25s ease;
+  }
+
+  :root[data-has-toc]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar,
+  :root[data-has-toc]:has(.topics-sidebar[data-api-ref]) .main-frame,
+  :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar,
+  :root[data-has-toc]:has(.topics-sidebar[data-topic-nav]) .main-frame {
+    transition: none;
+  }
 }
 
 :root:has(.topics-sidebar[data-api-ref])[data-sidebar-collapsed] {
   --sl-sidebar-width: 3.75rem;
 }
 
+:root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
+  --sl-sidebar-width: 3.75rem;
+}
+
+:root[data-has-toc] {
+  --aspire-toc-panel-width: clamp(13.5rem, 16vw, 16rem);
+}
+
 /* Hide the entire sidebar content; the expand button is a sibling and stays visible.
    Scoped to ≥ 72rem so the mobile overlay sidebar still works when
    the user previously collapsed the desktop sidebar. */
 @media (min-width: 72rem) {
+  :root[data-has-toc] .right-sidebar-panel {
+    flex: 0 0 var(--aspire-toc-panel-width);
+    min-width: var(--aspire-toc-panel-width);
+  }
+
+  :root[data-has-toc] .right-sidebar-panel > .sl-container {
+    width: var(--aspire-toc-panel-width);
+    max-width: var(--aspire-toc-panel-width);
+  }
+
   :root[data-sidebar-collapsed] .topics-sidebar[data-api-ref] {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed] .topics-sidebar[data-topic-nav] {
     display: none !important;
   }
 
@@ -955,10 +1009,19 @@ li a.external-link::after {
     padding-inline: 0;
   }
 
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar .sidebar-content {
+    padding-inline: 0;
+  }
+
   /* The sidebar border when collapsed */
   :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
     border-inline-end: 1px solid var(--sl-color-hairline-light);
   }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    border-inline-end: 1px solid var(--sl-color-hairline-light);
+  }
+
 }
 
 /* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
@@ -1170,4 +1233,16 @@ header starlight-social-icons {
 
 sl-sidebar-state-persist > span.sl-badge.small {
   padding-right: .2rem;
+}
+
+.pagination-links a {
+  color: var(--aspire-color-secondary);
+}
+
+.pagination-links .links-title {
+  color: var(--sl-color-text);
+}
+
+:root[data-theme='light'] .pagination-links a {
+  color: var(--aspire-color-purple);
 }

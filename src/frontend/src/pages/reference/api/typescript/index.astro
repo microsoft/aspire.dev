@@ -9,6 +9,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
+import Breadcrumb from '@components/Breadcrumb.astro';
 
 const tsSidebar = await getTsApiReferenceSidebar();
 const packages = await getTsModules();
@@ -51,7 +52,7 @@ for (const pkg of sorted) {
     functionCount++;
     index.push({
       n: func.name,
-      f: func.signature ?? func.qualifiedName,
+      f: func.signature ?? func.qualifiedName ?? func.name,
       k: func.kind === 'PropertyGetter' ? 'property' :
          func.kind === 'PropertySetter' ? 'property' :
          func.kind === 'InstanceMethod' ? 'method' : 'method',
@@ -66,7 +67,7 @@ for (const pkg of sorted) {
     typeCount++;
     index.push({
       n: handle.name,
-      f: handle.fullName,
+      f: handle.fullName ?? handle.name,
       k: handle.isInterface ? 'interface' : 'handle',
       p: pkgName,
       s: `Handle type${handle.isInterface ? ' (interface)' : ''}`,
@@ -79,7 +80,7 @@ for (const pkg of sorted) {
     typeCount++;
     index.push({
       n: dto.name,
-      f: dto.fullName,
+      f: dto.fullName ?? dto.name,
       k: 'type',
       p: pkgName,
       s: `Type with ${dto.fields?.length ?? 0} fields`,
@@ -92,7 +93,7 @@ for (const pkg of sorted) {
     typeCount++;
     index.push({
       n: enumType.name,
-      f: enumType.fullName,
+      f: enumType.fullName ?? enumType.name,
       k: 'enum',
       p: pkgName,
       s: `Enum: ${(enumType.members ?? []).join(', ')}`,
@@ -113,15 +114,21 @@ const indexJson = JSON.stringify(index);
     next: false,
     tableOfContents: false,
     pagefind: false,
-    pageActions: false,
+    pageActions: true,
   }}
   sidebar={tsSidebar}
   headings={[]}
 >
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search TypeScript APIs' },
+  ]} />
+
   <div class="api-ref-landing not-content">
     <p class="ts-api-intro">
       Browse the TypeScript APIs available when writing an
-      <a href={`${base}/get-started/first-app-typescript-apphost/`}>Aspire TypeScript AppHost</a>.
+      <a href={`${base}/get-started/first-app/?lang=typescript`}>Aspire TypeScript AppHost</a>.
       These are the capabilities exposed by the Aspire hosting modules for use in <code>apphost.ts</code>.
     </p>
 

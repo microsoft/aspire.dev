@@ -73,7 +73,7 @@ Optional frontmatter fields:
 Import Starlight components at the top of your MDX file:
 
 ```tsx
-import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
 ```
 
 Additional commonly used imports:
@@ -104,24 +104,24 @@ When you introduce or change a custom component that is used by docs pages:
 
 #### Aside (Callouts)
 
-Use for tips, notes, cautions, and warnings:
+Prefer fenced `:::` callouts for tips, notes, cautions, and warnings. Use the `Aside` component only when a JSX-only composition pattern is required.
 
 ```mdx
-<Aside type="tip" title="Pro Tip">
+:::tip[Pro Tip]
 This is a helpful tip for users.
-</Aside>
+:::
 
-<Aside type="note">
+:::note
 Important information users should be aware of.
-</Aside>
+:::
 
-<Aside type="caution">
+:::caution
 Proceed with care - this may have unexpected consequences.
-</Aside>
+:::
 
-<Aside type="danger">
+:::danger
 Critical warning - this could cause data loss or security issues.
-</Aside>
+:::
 ```
 
 #### Steps
@@ -165,6 +165,8 @@ Press F5 to start debugging.
 </Tabs>
 ```
 
+If a heading should appear in the **On this page** table of contents, keep that heading outside the `Tabs` component. Headings placed inside `TabItem` content may be skipped by the generated TOC.
+
 #### Pivot/PivotSelector
 
 Use for programming language selection that persists across page:
@@ -186,6 +188,22 @@ C# specific content here.
 <Pivot id="python">
 Python specific content here.
 </Pivot>
+```
+
+If a heading needs to appear in the **On this page** table of contents, keep the heading outside the `Pivot` content and put only the variant-specific body content inside each `Pivot`.
+
+For Aspire AppHost docs, use a single page-level `PivotSelector` with `key="aspire-lang"` when the surrounding section flow should switch as one unit. If a page would otherwise need multiple `aspire-lang` selectors, keep the page-level selector for the main flow and use synced `Tabs`/`TabItem` with `syncKey='aspire-lang'` for repeated language-specific examples later on the page.
+
+```mdx
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+C# example content here.
+</TabItem>
+
+<TabItem id='typescript' label='TypeScript'>
+TypeScript example content here.
+</TabItem>
+</Tabs>
 ```
 
 #### CardGrid and LinkCard
@@ -246,10 +264,10 @@ For more information, see [Service Defaults](/fundamentals/service-defaults/).
 </LearnMore>
 ```
 
-The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside `<Aside>` blocks or after `<Steps>`:
+The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside fenced `:::` callouts or after `<Steps>`:
 
 ````mdx
-<Aside type="tip" title="Feature flag">
+:::tip[Feature flag]
 Enable polyglot support by running:
 
 ```bash
@@ -259,7 +277,7 @@ aspire config set features:polyglotSupportEnabled true --global
 <LearnMore>
 For more information, see [aspire config command reference](/reference/cli/commands/aspire-config-set/)
 </LearnMore>
-</Aside>
+:::
 ````
 
 #### Aspire Custom Components
@@ -333,20 +351,20 @@ Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** 
 
 ### Core Principles
 
-1. **Always show both languages**: Every AppHost code example must include both C# and TypeScript variants unless the feature is genuinely language-specific.
+1. **Always show both languages**: Every AppHost-focused example or walkthrough must include both C# and TypeScript variants unless the feature is genuinely language-specific.
 2. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
 3. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
 4. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
 
-### Tab Pattern for AppHost Code
+### AppHostLangPivot Pattern for AppHost Content
 
-Use `<Tabs syncKey="apphost-lang">` so the reader's language choice persists across the page and across pages:
+Use `AppHostLangPivot` for AppHost-specific content that changes between C# and TypeScript. The component is controlled by the site-wide AppHost selector in the sidebar, so it should be the default choice for AppHost walkthroughs, code samples, and prose that should switch together.
 
 ````mdx
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -359,8 +377,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -375,17 +393,23 @@ await api.withReference(cache);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 ````
+
+Use `AppHostLangPivot` for more than code blocks when needed. Entire paragraphs, lists, asides, or multi-step sections can live inside the `csharp` and `typescript` slots when the workflows differ. The pivot itself is the shared wrapper; the slot names are the language discriminator.
+
+Use `Tabs` for other concerns such as CLI vs IDE, deployment targets, or platform choices. Do not use `Tabs syncKey="apphost-lang"` for new AppHost content.
+
+If a section heading should appear in the **On this page** table of contents, keep that heading outside `AppHostLangPivot`. Headings inside the `csharp` and `typescript` slots can be missed by the TOC generator, so the recommended pattern is a shared heading followed by an `AppHostLangPivot` containing only the language-specific body content.
 
 ### Conventions
 
 | Aspect | C# | TypeScript |
 |---|---|---|
 | File title | `title="AppHost.cs"` | `title="apphost.ts"` |
-| Tab label | `C#` | `TypeScript` |
-| Sync key | `apphost-lang` | `apphost-lang` |
+| Pivot wrapper | Shared `AppHostLangPivot` container | Shared `AppHostLangPivot` container |
+| Language slot | `slot="csharp"` | `slot="typescript"` |
 | Builder creation | `DistributedApplication.CreateBuilder(args)` |  `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
 | Method casing | PascalCase (`AddRedis`) | camelCase (`addRedis`) |
 | Async pattern | Synchronous fluent calls | `await` each builder call |
@@ -400,11 +424,11 @@ When writing narrative text around AppHost examples:
 - ❌ "Call `builder.AddRedis()` in your _Program.cs_" (C#-specific)
 - ❌ "Add the following C# code to your AppHost" (when both languages should be shown)
 
-When a concept differs between languages (e.g., configuration files, async patterns), explain both within the tabs or in language-neutral prose above the tabs.
+When a concept differs between languages (e.g., configuration files, async patterns), explain both within the AppHostLangPivot slots or in language-neutral prose above the pivot.
 
 ### When TypeScript Is Not Yet Supported
 
-If a hosting integration does not yet have TypeScript AppHost support, show only the C# example **without tabs** and add a note:
+If a hosting integration does not yet have TypeScript AppHost support, show only the C# example without `AppHostLangPivot` and add a note:
 
 ```mdx
 <Aside type="note">
@@ -412,7 +436,7 @@ TypeScript AppHost support for this integration is not yet available.
 </Aside>
 ```
 
-Do **not** wrap a single language in a `<Tabs>` component — that creates a misleading UI suggesting another option exists.
+Do **not** wrap a single language in `AppHostLangPivot` or a single-language `<Tabs>` component — that creates a misleading UI suggesting another option exists.
 
 ## Integration Documentation
 
@@ -443,7 +467,8 @@ title: [Technology] integration
 description: Learn how to use the [Technology] integration with Aspire.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import Image from 'astro:assets';
 
@@ -459,8 +484,8 @@ Brief description of the technology and what the integration enables.
 
 ### Add [Technology] resource
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -471,8 +496,8 @@ var tech = builder.AddTechnology("tech");
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -484,8 +509,8 @@ const tech = await builder.addTechnology("tech");
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ### Configuration options
 
@@ -508,8 +533,8 @@ Include both hosting and client sections:
 
 ### Add [Technology] resource
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<AppHostLangPivot>
+  <div slot="csharp">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -522,8 +547,8 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 ```
 
-</TabItem>
-<TabItem label="TypeScript">
+  </div>
+  <div slot="typescript">
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -538,8 +563,8 @@ await api.withReference(tech);
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ### Hosting integration health checks
 

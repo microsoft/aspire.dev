@@ -3,7 +3,12 @@ import type { StarlightIcon } from '@astrojs/starlight/types';
 
 interface RouteDataLike {
   slug?: string;
+  id?: string;
   locale?: string;
+  entry?: {
+    slug?: string;
+    id?: string;
+  };
 }
 
 interface BreadcrumbItem {
@@ -33,7 +38,7 @@ interface TopicMatch {
 }
 
 export function getContentBreadcrumbs(routeData?: RouteDataLike): BreadcrumbItem[] | undefined {
-  const slug = normalizePath(routeData?.slug);
+  const slug = resolveRoutePath(routeData);
   if (!slug || slug.startsWith('reference/api/')) {
     return undefined;
   }
@@ -78,6 +83,12 @@ export function getContentBreadcrumbs(routeData?: RouteDataLike): BreadcrumbItem
   }
 
   return undefined;
+}
+
+function resolveRoutePath(routeData?: RouteDataLike): string {
+  return normalizePath(
+    routeData?.slug ?? routeData?.entry?.slug ?? routeData?.id ?? routeData?.entry?.id
+  );
 }
 
 function findTopicMatch(topic: TopicConfig, slug: string): TopicMatch | undefined {
@@ -183,5 +194,8 @@ function normalizePath(path?: string): string {
     return '';
   }
 
-  return path.replace(/^\//, '').replace(/\/$/, '');
+  return path
+    .replace(/^\//, '')
+    .replace(/\/$/, '')
+    .replace(/\.(md|mdx)$/i, '');
 }

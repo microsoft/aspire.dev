@@ -4,6 +4,8 @@ description: Learn how to use the Azure Developer CLI as an alternative deployme
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 The Azure Developer CLI (`azd`) is a developer-oriented command-line tool that can provision Azure resources and deploy applications from your local environment or CI/CD pipelines. It integrates with Aspire by consuming the deployment manifest format to understand your app model and automatically provision the corresponding Azure resources.
 
@@ -68,19 +70,24 @@ While `aspire deploy` is the recommended path, `azd` remains useful in several s
 
 The `aspire deploy` path and `azd` use different resource naming schemes by default. If you're upgrading from an existing `azd` deployment to `aspire deploy`, use `WithAzdResourceNaming()` to preserve the original naming convention. This avoids creating duplicate Azure resources:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<PivotSelector
+  title="Select your programming language"
+  key="aspire-lang"
+  marginTop={1}
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+<Pivot id="csharp">
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureContainerAppEnvironment("env")
     .WithAzdResourceNaming();
 ```
-
-</TabItem>
-<TabItem label="TypeScript">
-
+</Pivot>
+<Pivot id="typescript">
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -89,9 +96,7 @@ const builder = await createBuilder();
 const env = await builder.addAzureContainerAppEnvironment('env');
 await env.withAzdResourceNaming();
 ```
-
-</TabItem>
-</Tabs>
+</Pivot>
 
 ## Deployment manifest
 

@@ -1,28 +1,39 @@
 import { expect, test } from '@playwright/test';
 import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
-test('prerequisites pivot selection updates the apphost query string and visible content', async ({
+test('prerequisites apphost tabs switch visible content and persist selection', async ({
   page,
 }) => {
   await page.goto('/get-started/prerequisites/');
   await dismissCookieConsentIfVisible(page);
 
-  const pivotSelector = page.locator('#pivot-selector-apphost');
-  const csharpButton = pivotSelector.getByRole('button', { name: 'C#' });
-  const typeScriptButton = pivotSelector.getByRole('button', { name: 'TypeScript' });
+  const appHostTabs = page.locator('starlight-tabs[data-sync-key="aspire-lang"]').first();
+  const csharpTab = appHostTabs.getByRole('tab', { name: 'C#' });
+  const typeScriptTab = appHostTabs.getByRole('tab', { name: 'TypeScript' });
   const csharpContent = page.getByText('The .NET 10.0 SDK is required for C# AppHosts', {
     exact: false,
   });
   const typeScriptContent = page.getByRole('link', { name: 'Node.js installation instructions' });
 
-  await expect(csharpButton).toHaveClass(/active/);
+  await expect(csharpTab).toHaveAttribute('aria-selected', 'true');
   await expect(csharpContent).toBeVisible();
+  await expect(typeScriptContent).toBeHidden();
 
-  await typeScriptButton.click();
+  await typeScriptTab.click();
 
-  await expect(page).toHaveURL(/\?apphost=typescript$/);
-  await expect(typeScriptButton).toHaveClass(/active/);
-  await expect(csharpButton).not.toHaveClass(/active/);
+  await expect(typeScriptTab).toHaveAttribute('aria-selected', 'true');
+  await expect(csharpTab).toHaveAttribute('aria-selected', 'false');
+  await expect(typeScriptContent).toBeVisible();
+  await expect(csharpContent).toBeHidden();
+
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('starlight-synced-tabs__aspire-lang')))
+    .toBe('TypeScript');
+
+  await page.reload();
+  await dismissCookieConsentIfVisible(page);
+
+  await expect(typeScriptTab).toHaveAttribute('aria-selected', 'true');
   await expect(typeScriptContent).toBeVisible();
   await expect(csharpContent).toBeHidden();
 });

@@ -1,6 +1,29 @@
 import { expect, type Page } from '@playwright/test';
 
+export async function resetCookieConsentState(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await page.addInitScript(() => {
+    localStorage.removeItem('cc_cookie');
+    sessionStorage.removeItem('cc_cookie');
+    document.cookie = 'cc_cookie=; Max-Age=0; path=/';
+  });
+}
+
+export async function openCookiePreferences(page: Page): Promise<void> {
+  const openPreferencesButton = page.locator('.cookie-consent-btn:visible').first();
+  await expect(openPreferencesButton).toBeVisible({ timeout: 15000 });
+  await openPreferencesButton.click();
+  await expect(page.locator('#pm__title')).toBeVisible({
+    timeout: 15000,
+  });
+}
+
 export async function dismissCookieConsentIfVisible(page: Page): Promise<void> {
+  const siteTourDismissButton = page.locator('[data-tour-action="dismiss"]');
+  if (await siteTourDismissButton.isVisible().catch(() => false)) {
+    await siteTourDismissButton.click();
+  }
+
   const rejectAllButton = page.getByRole('button', { name: /reject all/i });
   if (await rejectAllButton.isVisible().catch(() => false)) {
     await rejectAllButton.click();
@@ -32,6 +55,30 @@ export async function waitForApiSidebarReady(page: Page): Promise<void> {
       );
       const collapseVisible = await page.locator('#sidebar-collapse-btn').isVisible();
       const expandVisible = await page.locator('#sidebar-expand-btn').isVisible();
+
+      return isCollapsed ? expandVisible && !collapseVisible : collapseVisible && !expandVisible;
+    })
+    .toBe(true);
+}
+
+export async function waitForTopicSidebarReady(page: Page): Promise<void> {
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-topic-sidebar-ready'))
+    )
+    .toBe(true);
+  await expect(page.locator('#topic-sidebar-collapse-btn')).toBeAttached();
+  await expect(page.locator('#topic-sidebar-expand-btn')).toBeAttached();
+  await expect(page.locator('#topic-sidebar-trigger')).toBeAttached();
+  await expect(page.locator('#sidebar-filter-input')).toBeAttached();
+  await expect
+    .poll(async () => {
+      const isCollapsed = await page.evaluate(() =>
+        document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
+      );
+      const collapseVisible = await page.locator('#topic-sidebar-collapse-btn').isVisible();
+      const expandVisible = await page.locator('#topic-sidebar-expand-btn').isVisible();
 
       return isCollapsed ? expandVisible && !collapseVisible : collapseVisible && !expandVisible;
     })

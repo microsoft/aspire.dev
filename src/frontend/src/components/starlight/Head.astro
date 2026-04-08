@@ -2,6 +2,7 @@
 import { Tooltips } from 'astro-tooltips';
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
+import SiteTour from '../SiteTour.astro';
 
 const repoUrl = (
   import.meta.env.PUBLIC_REPO_URL ||
@@ -13,6 +14,7 @@ const commit = import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMI
 const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
+const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 
 function computeRepoPath() {
   if (path) {
@@ -34,16 +36,38 @@ function computeSourceUrl() {
 
 <DefaultHead {...Astro.props} />
 
-<!-- Restore sidebar collapsed state before paint to avoid layout shift (API pages only) -->
+<!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
 <script is:inline>
   (function () {
+    function normalizeAppHostLang(value) {
+      var normalized = (value || '').toLowerCase();
+      if (normalized.indexOf('typescript') !== -1) {
+        return 'typescript';
+      }
+      if (normalized.indexOf('c#') !== -1 || normalized.indexOf('csharp') !== -1) {
+        return 'csharp';
+      }
+      return '';
+    }
+
     try {
-      if (localStorage.getItem('api-sidebar-collapsed') === '1') {
-        // Only apply on API reference pages to avoid affecting regular docs sidebar
-        var path = window.location.pathname.replace(/\/$/, '');
-        if (path.indexOf('/reference/api') !== -1) {
-          document.documentElement.setAttribute('data-sidebar-collapsed', '');
-        }
+      var rawAppHostLang =
+        localStorage.getItem('aspire-lang') ||
+        localStorage.getItem('aspire-apphost-lang') ||
+        localStorage.getItem('starlight-synced-tabs__aspire-lang') ||
+        localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
+        localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
+        'csharp';
+      var appHostLang = normalizeAppHostLang(rawAppHostLang) || 'csharp';
+      document.documentElement.setAttribute('data-apphost-lang', appHostLang);
+
+      var path = window.location.pathname.replace(/\/$/, '');
+      if (localStorage.getItem('api-sidebar-collapsed') === '1' && path.indexOf('/reference/api') !== -1) {
+        document.documentElement.setAttribute('data-sidebar-collapsed', '');
+      }
+
+      if (localStorage.getItem('topic-sidebar-collapsed') === '1' && path.indexOf('/reference/api') === -1) {
+        document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
       }
     } catch (e) {}
   })();
@@ -123,3 +147,4 @@ function computeSourceUrl() {
 </script>
 
 <AccessibleCodeButtons />
+{isSiteTourEnabled && <SiteTour />}

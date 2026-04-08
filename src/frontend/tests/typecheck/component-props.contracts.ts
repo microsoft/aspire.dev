@@ -36,6 +36,7 @@ import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
 import SimpleCard from '@components/SimpleCard.astro';
+import SiteTour from '@components/SiteTour.astro';
 import StreamCard from '@components/StreamCard.astro';
 import TerminalShowcase from '@components/TerminalShowcase.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -573,6 +574,12 @@ const invalidStreamCardProps: PropsOf<typeof StreamCard> = {
   href: 'https://www.youtube.com/@dotnet',
   label: 'Watch now',
   color: '#f00',
+  unexpected: true,
+};
+
+const _validSiteTourProps = {} satisfies PropsOf<typeof SiteTour>;
+// @ts-expect-error SiteTour does not accept props.
+const _invalidSiteTourProps: PropsOf<typeof SiteTour> = {
   unexpected: true,
 };
 

@@ -43,6 +43,7 @@ import SessionCard from '@components/SessionCard.astro';
 import SessionGrid from '@components/SessionGrid.astro';
 import SimpleAppHostCode from '@components/SimpleAppHostCode.astro';
 import SimpleCard from '@components/SimpleCard.astro';
+import SiteTour from '@components/SiteTour.astro';
 import StarlightHero from '@components/starlight/Hero.astro';
 import TestimonialCarousel from '@components/TestimonialCarousel.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -817,5 +818,32 @@ describe('custom Astro component render coverage', () => {
 
     expect(inlineScript).toContain('tab.textContent?.trim() === label');
     expect(inlineScript).not.toContain('HTMLAnchorElement');
+  });
+
+  it('renders SiteTour bootstrap data with translated copy', async () => {
+    const translator = ((key: string) => {
+      if (key === 'siteTour.trigger.start') {
+        return 'Localized site tour start';
+      }
+
+      if (key === 'siteTour.steps.search.title') {
+        return 'Localized search title';
+      }
+
+      return key;
+    }) as ((key: string) => string) & { dir: () => 'ltr' };
+    translator.dir = () => 'ltr';
+
+    const html = normalizeHtml(
+      await renderComponent(SiteTour, {
+        locals: {
+          t: translator,
+        },
+      })
+    );
+
+    expect(html).toContain('__aspireSiteTourStrings');
+    expect(html).toContain('Localized site tour start');
+    expect(html).toContain('Localized search title');
   });
 });

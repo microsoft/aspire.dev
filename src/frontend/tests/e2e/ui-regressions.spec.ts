@@ -2,11 +2,16 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   dismissCookieConsentIfVisible,
   isNarrowViewport,
+  openCookiePreferences,
+  resetCookieConsentState,
   waitForApiSidebarReady,
   waitForAnalyticsConsent,
   waitForConsentCategories,
   waitForConsentRecorded,
+  waitForTopicSidebarReady,
 } from '@tests/e2e/helpers';
+
+const isSiteTourEnabled = process.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 
 async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
   try {
@@ -21,6 +26,24 @@ async function hasCollapsedSidebar(page: Page): Promise<boolean | null> {
 async function readSidebarCollapsedPreference(page: Page): Promise<string | null> {
   try {
     return await page.evaluate(() => localStorage.getItem('api-sidebar-collapsed'));
+  } catch {
+    return null;
+  }
+}
+
+async function hasTopicSidebarCollapsed(page: Page): Promise<boolean | null> {
+  try {
+    return await page.evaluate(() =>
+      document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function readTopicSidebarCollapsedPreference(page: Page): Promise<string | null> {
+  try {
+    return await page.evaluate(() => localStorage.getItem('topic-sidebar-collapsed'));
   } catch {
     return null;
   }
@@ -65,28 +88,143 @@ test('install CLI entry adapts to viewport and remembers the selected channel', 
   await expect(versionSelect).toHaveValue('dev');
 });
 
+test('homepage header actions stay reachable at zoomed and reflow widths', async ({ page }) => {
+  test.skip(
+    page.viewportSize()?.width !== 1440,
+    'This regression is covered once from the desktop project with explicit narrow widths.'
+  );
+
+  const expectedCompactHeaderOrder = [
+    'Aspire',
+    'Search',
+    'Open cookie preferences dialog',
+    'Open install Aspire CLI dialog',
+    'Docs',
+    'Try',
+  ];
+
+  if (isSiteTourEnabled) {
+    expectedCompactHeaderOrder.splice(2, 0, 'Start site tour');
+  }
+
+  for (const width of [640, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await resetCookieConsentState(page);
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const banner = page.getByRole('banner');
+
+    await expect
+      .poll(() =>
+        banner.evaluate((header) =>
+          Array.from(header.querySelectorAll('a, button'))
+            .filter((element) => {
+              if (!(element instanceof HTMLElement)) {
+                return false;
+              }
+
+              const style = window.getComputedStyle(element);
+              if (style.display === 'none' || style.visibility === 'hidden') {
+                return false;
+              }
+
+              const rect = element.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            })
+            .map((element) => {
+              if (!(element instanceof HTMLElement)) {
+                return '';
+              }
+
+              if (element.matches('.site-title')) {
+                return 'Aspire';
+              }
+
+              if (element.matches('button[data-open-modal]')) {
+                return 'Search';
+              }
+
+              const tourTarget = element.dataset.tourTarget;
+              if (tourTarget === 'tour-help') {
+                return 'Start site tour';
+              }
+
+              if (tourTarget === 'cookie-preferences') {
+                return 'Open cookie preferences dialog';
+              }
+
+              if (tourTarget === 'install-cli') {
+                return 'Open install Aspire CLI dialog';
+              }
+
+              if (element instanceof HTMLAnchorElement) {
+                if (element.pathname.endsWith('/docs/')) {
+                  return 'Docs';
+                }
+
+                if (element.pathname.endsWith('/get-started/first-app/')) {
+                  return 'Try';
+                }
+              }
+
+              return element.getAttribute('aria-label')?.trim() || element.textContent?.trim() || '';
+            })
+        )
+      )
+      .toEqual(expectedCompactHeaderOrder);
+
+    await expect
+      .poll(() => page.locator('main').evaluate((element) => element.getBoundingClientRect().top))
+      .toBeLessThan(170);
+
+    await expect(banner.getByRole('link', { name: 'Aspire', exact: true })).toBeVisible();
+    await expect(banner.getByRole('button', { name: 'Search' })).toBeVisible();
+    await expect(banner.getByRole('link', { name: 'Docs', exact: true })).toBeVisible();
+    await expect(banner.getByRole('link', { name: /^Try$/ })).toBeVisible();
+
+    if (!isSiteTourEnabled) {
+      await expect(banner.locator('[data-tour-trigger]')).toHaveCount(0);
+    }
+
+    await expect(
+      banner.getByRole('button', { name: /open cookie preferences dialog/i }).first()
+    ).toBeVisible();
+
+    const installButton = banner.getByRole('button', {
+      name: /open install aspire cli dialog/i,
+    }).first();
+    await expect(installButton).toBeVisible();
+    await installButton.click();
+
+    if (isNarrowViewport(page)) {
+      await expect(page).toHaveURL(/\/get-started\/install-cli\/?$/);
+      await expect(page.getByRole('heading', { name: /install aspire cli/i })).toBeVisible();
+      continue;
+    }
+
+    const installModal = page.locator('#install-cli-modal').first();
+    await expect(installModal).toBeVisible();
+    await installModal.getByRole('button', { name: /close modal/i }).click();
+    await expect(installModal).not.toBeVisible();
+  }
+});
+
 test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
+  await resetCookieConsentState(page);
   await page.goto('/get-started/prerequisites/');
-  await expect(page).toHaveURL(/\/get-started\/prerequisites\/\?apphost=csharp$/);
+  await openCookiePreferences(page);
 
-  const rejectAllButton = page.getByRole('button', { name: /reject all/i });
-  await expect(rejectAllButton).toBeVisible();
-
-  await rejectAllButton.click();
+  await page.getByRole('button', { name: /reject all/i }).last().click();
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
 });
 
 test('cookie preferences and accept-all enable analytics tracking consent', async ({ page }) => {
+  await resetCookieConsentState(page);
   await page.goto('/get-started/prerequisites/');
-  await expect(page).toHaveURL(/\/get-started\/prerequisites\/\?apphost=csharp$/);
-
-  const openPreferencesButton = page.getByRole('button', { name: /manage preferences/i });
-  await expect(openPreferencesButton).toBeVisible();
-
-  await openPreferencesButton.click();
-  await expect(page.locator('#pm__title')).toBeVisible();
+  await openCookiePreferences(page);
 
   await page
     .getByRole('button', { name: /accept all/i })
@@ -201,4 +339,102 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
 
   await expect.poll(() => hasCollapsedSidebar(page)).toBe(false);
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
+});
+
+test('API sidebar filter empty state and topic dropdown controls respond correctly', async ({
+  page,
+}) => {
+  test.slow();
+
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152,
+    'Sidebar custom controls are only available on wide desktop layouts.'
+  );
+
+  await page.goto('/reference/api/csharp/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForApiSidebarReady(page);
+
+  const filterInput = page.locator('#sidebar-filter-input');
+  const clearButton = page.locator('#sidebar-filter-clear');
+  const emptyState = page.locator('#sidebar-filter-empty');
+  const emptyCopy = page.locator('#sidebar-filter-empty-copy');
+  const emptyAction = page.locator('#sidebar-filter-empty-action');
+  const topicTrigger = page.locator('#topic-sidebar-trigger');
+  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+
+  await topicTrigger.click();
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(topicPanel).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(topicPanel).toBeHidden();
+
+  await filterInput.fill('zzzz-sidebar-no-match');
+
+  await expect(clearButton).toBeVisible();
+  await expect(emptyState).toBeVisible();
+  await expect(emptyCopy).toContainText('zzzz-sidebar-no-match');
+
+  await emptyAction.click();
+
+  await expect(filterInput).toHaveValue('');
+  await expect(clearButton).toBeHidden();
+  await expect(emptyState).toBeHidden();
+});
+
+test('topic sidebar custom controls persist collapse state and filter reset on reload', async ({
+  page,
+}) => {
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152,
+    'Sidebar custom controls are only available on wide desktop layouts.'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const filterInput = page.locator('#sidebar-filter-input');
+  const clearButton = page.locator('#sidebar-filter-clear');
+  const emptyState = page.locator('#sidebar-filter-empty');
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const expandButton = page.locator('#topic-sidebar-expand-btn');
+  const topicTrigger = page.locator('#topic-sidebar-trigger');
+  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+
+  await topicTrigger.click();
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(topicPanel).toBeVisible();
+
+  await page.locator('main').click();
+  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(topicPanel).toBeHidden();
+
+  await filterInput.fill('zzzz-topic-no-match');
+  await expect(clearButton).toBeVisible();
+  await expect(emptyState).toBeVisible();
+
+  await collapseButton.click();
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('1');
+  await expect(expandButton).toBeVisible();
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForTopicSidebarReady(page);
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('1');
+  await expect(page.locator('#sidebar-filter-input')).toHaveValue('');
+  await expect(page.locator('#sidebar-filter-clear')).toBeHidden();
+  await expect(page.locator('#sidebar-filter-empty')).toBeHidden();
+
+  await page.locator('#topic-sidebar-expand-btn').click();
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(false);
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('0');
 });
