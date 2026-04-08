@@ -827,6 +827,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
+      issues: write
       pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-update-integration-data"
@@ -854,6 +855,7 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: write
+          permission-issues: write
           permission-pull-requests: write
       - name: Download agent output artifact
         id: download-agent-output
@@ -949,6 +951,9 @@ jobs:
           TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
         run: |
           echo "Revoking GitHub App installation token..."
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          export GH_HOST
           # GitHub CLI will auth with the token being revoked.
           gh api \
             --method DELETE \
@@ -1116,6 +1121,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
+      issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
@@ -1173,6 +1179,7 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: write
+          permission-issues: write
           permission-pull-requests: write
       - name: Checkout repository
         if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
@@ -1229,6 +1236,9 @@ jobs:
           TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
         run: |
           echo "Revoking GitHub App installation token..."
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          export GH_HOST
           # GitHub CLI will auth with the token being revoked.
           gh api \
             --method DELETE \
@@ -1243,4 +1253,3 @@ jobs:
           name: safe-output-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
-
