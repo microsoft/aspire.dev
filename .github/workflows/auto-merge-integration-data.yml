@@ -1,0 +1,121 @@
+name: Auto Merge Integration Data PRs
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-merge-integration-data-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  approve-and-auto-merge:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, ':octocat: auto-merge') &&
+      contains(github.event.pull_request.body, 'gh-aw-workflow-id: update-integration-data') &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
+        with:
+          app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Approve PR and enable squash auto-merge
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const pullNumber = context.payload.pull_request.number;
+            const { owner, repo } = context.repo;
+
+            const pr = (await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pullNumber
+            })).data;
+
+            if (pr.draft) {
+              core.info(`Pull request #${pullNumber} is still a draft; skipping.`);
+              return;
+            }
+
+            const viewer = await github.graphql(`query ViewerLogin {
+              viewer {
+                login
+              }
+            }`);
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number: pullNumber,
+              per_page: 100
+            });
+
+            const alreadyApproved = reviews.some(review =>
+              review.user?.login === viewer.viewer.login && review.state === 'APPROVED');
+
+            if (!alreadyApproved) {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: pullNumber,
+                event: 'APPROVE',
+                body: 'Automatically approving the workflow-generated integration data update.'
+              });
+              core.info(`Approved pull request #${pullNumber} as ${viewer.viewer.login}.`);
+            } else {
+              core.info(`Pull request #${pullNumber} is already approved by ${viewer.viewer.login}.`);
+            }
+
+            const currentMergeMethod = pr.auto_merge?.merge_method ?? null;
+
+            if (currentMergeMethod === 'squash') {
+              core.info(`Pull request #${pullNumber} already has squash auto-merge enabled.`);
+              return;
+            }
+
+            if (currentMergeMethod) {
+              await github.graphql(
+                `mutation DisableAutoMerge($pullRequestId: ID!) {
+                  disablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId }) {
+                    clientMutationId
+                  }
+                }`,
+                { pullRequestId: pr.node_id }
+              );
+
+              core.info(`Disabled existing ${currentMergeMethod} auto-merge setting.`);
+            }
+
+            await github.graphql(
+              `mutation EnableAutoMerge($pullRequestId: ID!) {
+                enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
+                  pullRequest {
+                    number
+                    autoMergeRequest {
+                      mergeMethod
+                    }
+                  }
+                }
+              }`,
+              { pullRequestId: pr.node_id }
+            );
+
+            core.info(`Enabled squash auto-merge for pull request #${pullNumber}.`);
