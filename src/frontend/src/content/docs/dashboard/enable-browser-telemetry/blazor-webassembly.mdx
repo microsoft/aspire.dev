@@ -6,60 +6,91 @@ description: Learn how to integrate browser telemetry in a Blazor WebAssembly ap
 import LearnMore from '@components/LearnMore.astro';
 import { Aside } from '@astrojs/starlight/components';
 
-Blazor WebAssembly (WASM) apps run entirely in the browser using a .NET runtime compiled to WebAssembly. Like other browser apps, Blazor WASM apps use the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) to send telemetry to the Aspire dashboard via JavaScript interop. The dashboard configuration for [OTLP HTTP](/dashboard/enable-browser-telemetry/#otlp-configuration) and [CORS](/dashboard/enable-browser-telemetry/#cors-configuration) described in [Enable browser telemetry](/dashboard/enable-browser-telemetry/) applies to Blazor WASM apps as well.
+Blazor WebAssembly (WASM) apps run entirely in the browser using a .NET runtime compiled to WebAssembly. Like other browser apps, Blazor WASM apps use the [JavaScript OTEL SDK](https://opentelemetry.io/docs/languages/js/getting-started/browser/) to send telemetry to the Aspire dashboard via JavaScript interop. 
 
-## Provide OTEL configuration to the browser
+## Provide OTEL configuration to the browser using a CORS proxy
 
-Blazor WASM apps can't read server-side environment variables directly. When the app is hosted by an ASP.NET Core server (for example, a Blazor Web App or hosted Blazor WASM project), expose the OTEL configuration through an API endpoint on the server:
+Blazor WASM apps can't read server-side environment variables directly. When the app is hosted by an ASP.NET Core server (for example, a Blazor Web App or hosted Blazor WASM project), expose the OTEL configuration through a server-side CORS proxy. Because the browser sends telemetry to the same-origin proxy rather than directly to the dashboard, no CORS configuration is required on the dashboard and no sensitive values reach the browser.
+
+Add a lightweight configuration endpoint that returns only the proxy path:
 
 ```csharp title="C# — Program.cs (Server)"
-using Microsoft.AspNetCore.Authorization;
+// Register an HttpClient for forwarding OTEL traffic
+builder.Services.AddHttpClient("otel-proxy");
 
-app.MapGet("/api/telemetry-config", [Authorize] (IConfiguration config) => new
+// Configuration endpoint — returns the proxy URL only (no API key)
+app.MapGet("/api/telemetry-config", () => new
 {
-    Endpoint = config.GetValue<string>("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-    Headers = config.GetValue<string>("OTEL_EXPORTER_OTLP_HEADERS", ""),
-    ResourceAttributes = config.GetValue<string>("OTEL_RESOURCE_ATTRIBUTES", "")
+    Endpoint = "/api/otel-proxy"
+});
+
+// CORS proxy endpoint — forwards OTEL traffic with the API key added server-side
+app.MapPost("/api/otel-proxy/{**path}", async (
+    string path,
+    HttpContext context,
+    IHttpClientFactory httpClientFactory,
+    IConfiguration config) =>
+{
+    var dashboardEndpoint = config.GetValue<string>("OTEL_EXPORTER_OTLP_ENDPOINT");
+    if (string.IsNullOrEmpty(dashboardEndpoint))
+        return Results.NotFound();
+
+    var client = httpClientFactory.CreateClient("otel-proxy");
+
+    using var requestBody = new StreamContent(context.Request.Body);
+    requestBody.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue
+        .Parse(context.Request.ContentType ?? "application/x-protobuf");
+
+    using var request = new HttpRequestMessage(
+        HttpMethod.Post,
+        $"{dashboardEndpoint.TrimEnd('/')}/{path}")
+    {
+        Content = requestBody
+    };
+
+    // Attach OTLP API key server-side — never sent to the browser
+    var headersEnv = config.GetValue<string>("OTEL_EXPORTER_OTLP_HEADERS") ?? string.Empty;
+    foreach (var header in headersEnv.Split(',', StringSplitOptions.RemoveEmptyEntries))
+    {
+        var parts = header.Split('=', 2);
+        if (parts.Length == 2)
+            request.Headers.TryAddWithoutValidation(parts[0].Trim(), parts[1].Trim());
+    }
+
+    var response = await client.SendAsync(request);
+    context.Response.StatusCode = (int)response.StatusCode;
+    await response.Content.CopyToAsync(context.Response.Body);
+    return Results.Empty;
 });
 ```
 
-<Aside type="caution">
-This approach exposes the OTLP API key to the browser in the HTTP response. For environments where the API key must remain secret, use an [authenticated OTEL proxy](#authenticated-otel-proxy) instead. In production, consider adding authentication or authorization to restrict access to this endpoint.
+The browser fetches this endpoint and receives only the proxy URL. In the Blazor WASM app, call `initializeTelemetry` with the proxy URL so the JavaScript OTEL SDK sends data to the same-origin proxy rather than the dashboard directly. For more details, see [Initialize OTEL from a JavaScript initializer](#initialize-otel-from-a-javascript-initializer) below.
+
+<Aside type="tip">
+Because the browser only ever communicates with the same-origin proxy, CORS does not need to be enabled on the Aspire dashboard and the OTLP API key remains entirely server-side.
 </Aside>
 
-## Initialize OTEL from a Blazor component
+## Initialize OTEL from a JavaScript initializer
 
-In the Blazor WASM app, call the JavaScript `initializeTelemetry` function using `IJSRuntime` after the component has rendered. Add the [JavaScript OTEL SDK initialization code](/dashboard/enable-browser-telemetry/browser-app-configuration/#example-browser-telemetry-code) to a JavaScript file bundled with your app, then call it from a Razor component:
+Blazor WASM supports [JavaScript initializers](https://learn.microsoft.com/aspnet/core/blazor/javascript-interoperability/?view=aspnetcore-9.0#javascript-initializers) that run automatically during the Blazor startup lifecycle. You can use these initializers to initialize OTEL telemetry. Create a file named `{AssemblyName}.lib.module.js` in the `wwwroot` folder of your Blazor WASM project, replacing `{AssemblyName}` with your project's assembly name, then export an `afterWebAssemblyStarted` function:
 
-```razor title="Razor — TelemetryInitializer.razor (Client)"
-@inject IJSRuntime JS
-@inject HttpClient Http
+```javascript title="JavaScript — {YourApp}.lib.module.js (Client wwwroot)"
+export async function afterWebAssemblyStarted(blazor) {
+    const response = await fetch('/api/telemetry-config');
+    if (!response.ok) return;
 
-@code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            var config = await Http.GetFromJsonAsync<TelemetryConfig>("/api/telemetry-config");
-            if (config is { Endpoint.Length: > 0 })
-            {
-                await JS.InvokeVoidAsync(
-                    "initializeTelemetry",
-                    config.Endpoint,
-                    config.Headers,
-                    config.ResourceAttributes);
-            }
-        }
+    const config = await response.json();
+    if (config.endpoint) {
+        initializeTelemetry(config.endpoint, config.headers, config.resourceAttributes);
     }
-
-    private sealed record TelemetryConfig(
-        string Endpoint,
-        string Headers,
-        string ResourceAttributes);
 }
 ```
 
-Include this component in your `App.razor` or another top-level component so that telemetry is initialized when the app loads.
+<Aside type="tip">
+The file name must match your Blazor WASM project's assembly name. For example, if your project assembly is named `MyApp.Client`, use `MyApp.Client.lib.module.js`.
+</Aside>
+
+Blazor automatically discovers and executes the initializer during startup — no Razor component or `IJSRuntime` injection is needed. Because `afterWebAssemblyStarted` fires after the Blazor runtime has loaded but before components render, telemetry is active from the very first component lifecycle.
 
 ## Backend-to-frontend trace correlation
 
