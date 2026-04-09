@@ -53,7 +53,7 @@ If you only add a Vite or JavaScript app and reference backend services, Aspire 
 | Model                                  | Production entrypoint      | Aspire publish API          | Best for                                                                          |
 | -------------------------------------- | -------------------------- | --------------------------- | --------------------------------------------------------------------------------- |
 | Backend serves frontend               | API or web server          | `PublishWithContainerFiles` | Apps where one service serves both the API and the frontend                      |
-| Reverse proxy serves frontend         | Reverse proxy              | `PublishWithStaticFiles`    | Apps that want a gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> in front of APIs and static frontend assets      |
+| Reverse proxy serves frontend         | Reverse proxy              | `PublishWithStaticFiles`    | Apps that want a gateway or BFF in front of APIs and static frontend assets      |
 | Static frontend calls backend directly | Static site + separate API | Custom / less integrated    | Apps that intentionally keep frontend hosting separate and can manage CORS/config |
 
 <Aside type="caution">
@@ -147,13 +147,13 @@ It also maps well to frameworks that already know how to serve static files from
 - Frontend and backend are deployed together, which is convenient when they change together but less flexible if you want to scale or release them independently.
 - Authentication, caching, headers, and fallback routing are handled where the backend serves the files.
 - This usually gives the simplest mental model: one deployed service, one public endpoint, one place to troubleshoot.
-- This is the default pattern Aspire is steering you toward for Vite frontends unless you intentionally introduce a gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> to own the public surface.
+- This is the default pattern Aspire is steering you toward for Vite frontends unless you intentionally introduce a gateway or BFF to own the public surface.
 
 ## Model 2: Reverse proxy serves the built frontend
 
-Use this model when a reverse proxy should be the public entrypoint for your app, either as a gateway or as a backend-for-frontend (<abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr>).
+Use this model when a reverse proxy should be the public entrypoint for your app, either as a gateway or as a backend-for-frontend (BFF).
 
-This model works well when you want a dedicated gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> in front of the rest of the application. In Aspire, YARP is the built-in example, but the same topology also applies when you use another reverse proxy such as Nginx or Caddy.
+This model works well when you want a dedicated gateway or BFF in front of the rest of the application. In Aspire, YARP is the built-in example, but the same topology also applies when you use another reverse proxy such as Nginx or Caddy.
 
 ```mermaid
 flowchart LR
@@ -222,7 +222,7 @@ await builder.build().run();
 
 ### Dev-only gateway wiring
 
-If your gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> needs to know about the frontend dev server during local
+If your gateway or BFF needs to know about the frontend dev server during local
 development, gate that wiring to run mode only:
 
 <Tabs syncKey='aspire-lang'>
@@ -277,23 +277,23 @@ if (await builder.executionContext.isRunMode()) {
 
 ### Why Aspire supports this model
 
-This model keeps the public entrypoint separate from the application services behind it. The reverse proxy becomes the stable edge for the app, while the frontend build and any backend services remain behind that gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr>.
+This model keeps the public entrypoint separate from the application services behind it. The reverse proxy becomes the stable edge for the app, while the frontend build and any backend services remain behind that gateway or BFF.
 
-It is a good fit when you want one place to centralize routing, transforms, headers, and gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> concerns. YARP is Aspire's first-class option here, which is why the example uses it, but the architectural tradeoffs are the same for other reverse proxies.
+It is a good fit when you want one place to centralize routing, transforms, headers, and gateway or BFF concerns. YARP is Aspire's first-class option here, which is why the example uses it, but the architectural tradeoffs are the same for other reverse proxies.
 
 ### When to use this model
 
-- You want a gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> in front of your application.
-- You already use a reverse proxy for API routing, aggregation, path transforms, or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr>-style concerns.
+- You want a gateway or BFF in front of your application.
+- You already use a reverse proxy for API routing, aggregation, path transforms, or BFF-style concerns.
 - You want one public endpoint in both development and production.
 
 ### Implications
 
-- The reverse proxy owns the public endpoint, so backend services can stay internal behind the gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr>.
+- The reverse proxy owns the public endpoint, so backend services can stay internal behind the gateway or BFF.
 - Frontend hosting is decoupled from any individual backend service, which can make routing cleaner in multi-service apps.
 - Route rules now matter directly because the proxy decides which requests go to APIs and which requests go to the frontend.
 - You now have a dedicated gateway/BFF in the deployment, which adds one more moving part but also gives you more control over ingress behavior.
-- This is often the better choice when the frontend needs <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr>-style behavior or when a standalone Vite build would otherwise need deployment-time configuration from backend resources.
+- This is often the better choice when the frontend needs BFF-style behavior or when a standalone Vite build would otherwise need deployment-time configuration from backend resources.
 
 ## A third model you may be considering
 
@@ -471,7 +471,7 @@ models are usually easier to reason about in Aspire.
 
 Choose **backend serves frontend** when the backend already owns the app surface and should also own static file hosting.
 
-Choose **reverse proxy serves frontend** when you want a gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> to stay in front of everything and route both frontend and backend traffic.
+Choose **reverse proxy serves frontend** when you want a gateway or BFF to stay in front of everything and route both frontend and backend traffic.
 
 Choose the **standalone static frontend + direct browser-to-backend** model only
 when you intentionally want separate frontend and backend hosting and are
@@ -480,7 +480,7 @@ willing to manage backend URL configuration and CORS explicitly.
 In practice, the decision is usually about **who should own the public HTTP surface in production**:
 
 - If that should be your backend, use `PublishWithContainerFiles`.
-- If that should be your gateway or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr>, use `PublishWithStaticFiles`.
+- If that should be your gateway or BFF, use `PublishWithStaticFiles`.
 
 ## What `AddViteApp` means in production
 

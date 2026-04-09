@@ -6,9 +6,9 @@ description: Learn about the Aspire MCP server tools, security model, and troubl
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server gives AI coding agents direct runtime access to your running Aspire application. Through the Model Context Protocol (<abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>), agents can query resource status, read logs, inspect distributed traces, and execute commands — without you copy-pasting terminal output.
+The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server gives AI coding agents direct runtime access to your running Aspire application. Through the Model Context Protocol (MCP), agents can query resource status, read logs, inspect distributed traces, and execute commands — without you copy-pasting terminal output.
 
-The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server is configured automatically when you run `aspire agent init` and select **Install Aspire MCP server**.
+The MCP server is configured automatically when you run `aspire agent init` and select **Install Aspire MCP server**.
 
 <LearnMore>
   To set up your project for AI coding agents, see [Use AI coding agents](/get-started/ai-coding-agents/).
@@ -16,7 +16,7 @@ The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>
 
 ## Configuration
 
-The `aspire agent init` command creates <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server configuration files for your detected AI environment:
+The `aspire agent init` command creates MCP server configuration files for your detected AI environment:
 
 <Tabs syncKey='ai-ide'>
   <TabItem label="VS Code" id="vscode">
@@ -95,7 +95,7 @@ The `aspire agent init` command creates <abbr title="Model Context Protocol" dat
 
 ## Tools
 
-The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server provides the following tools to AI agents:
+The Aspire MCP server provides the following tools to AI agents:
 
 | Tool | Description |
 |------|-------------|
@@ -115,9 +115,9 @@ The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP
 | `doctor` | Diagnoses Aspire environment issues and verifies setup |
 | `refresh_tools` | Requests the server to re-emit its tool list for clients to re-fetch |
 
-### Exclude resources from <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>
+### Exclude resources from MCP
 
-By default, all resources, console logs, and telemetry are accessible through the <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server. You can exclude specific resources and their associated telemetry by annotating them with `ExcludeFromMcp()`:
+By default, all resources, console logs, and telemetry are accessible through the MCP server. You can exclude specific resources and their associated telemetry by annotating them with `ExcludeFromMcp()`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -156,24 +156,24 @@ await builder.build().run();
 
 ## Security
 
-The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server is a development-time tool designed for local use.
+The Aspire MCP server is a development-time tool designed for local use.
 
 ### How it works
 
-The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server uses the **STDIO transport protocol** when started via `aspire agent mcp`:
+The MCP server uses the **STDIO transport protocol** when started via `aspire agent mcp`:
 
-- The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server runs as a **local child process** spawned by your AI assistant.
+- The MCP server runs as a **local child process** spawned by your AI assistant.
 - Communication happens over **standard input/output (STDIO) pipes**.
 - There are **no open network ports** — the server doesn't listen on any network interface.
-- Only the parent process (your AI assistant) can communicate with the <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server.
+- Only the parent process (your AI assistant) can communicate with the MCP server.
 
 <Aside type="tip">
-Because STDIO transport uses pipes rather than network sockets, there is no network attack surface. The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server is only accessible to the AI assistant process that started it.
+Because STDIO transport uses pipes rather than network sockets, there is no network attack surface. The MCP server is only accessible to the AI assistant process that started it.
 </Aside>
 
 ### What data is accessible
 
-The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server provides access to:
+The MCP server provides access to:
 
 - **Resource metadata** — names, types, states, health status, endpoints, and commands
 - **Console logs** — standard output and error streams
@@ -182,7 +182,7 @@ The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>
 - **Integration catalog** — available hosting integration packages
 - **Product documentation** — Official LLMS.txt-based `aspire.dev` content 
 
-The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server does **not** expose:
+The MCP server does **not** expose:
 
 - Source code or file system contents
 - Environment variable values or secrets
@@ -193,11 +193,11 @@ The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr>
 
 With STDIO transport (the default), no additional authentication is required — communication is restricted to the local process pipe.
 
-For the HTTP-based <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> endpoint exposed by the Aspire dashboard (used in [manual MCP configuration](/dashboard/mcp-server/) for older Aspire versions), an API key (`x-mcp-api-key` header) is required.
+For the HTTP-based MCP endpoint exposed by the Aspire dashboard (used in [manual MCP configuration](/dashboard/mcp-server/) for older Aspire versions), an API key (`x-mcp-api-key` header) is required.
 
 ### Enterprise considerations
 
-For teams evaluating the Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server:
+For teams evaluating the Aspire MCP server:
 
 - **Development-time only** — not included in published or deployed applications
 - **No external network access** — no network listeners when using STDIO transport
@@ -208,7 +208,7 @@ For teams evaluating the Aspire <abbr title="Model Context Protocol" data-toolti
 
 ## Deployment considerations
 
-The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server is part of the Aspire CLI tooling and runs separately from your AppHost — it doesn't require explicit exclusion from deployments.
+The MCP server is part of the Aspire CLI tooling and runs separately from your AppHost — it doesn't require explicit exclusion from deployments.
 
 If your AppHost includes dev-only resources, use `ExecutionContext.IsRunMode` to exclude them from production:
 
@@ -249,7 +249,7 @@ await builder.build().run();
 
 ## Limitations
 
-AI models have limits on how much data they can process. The Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server may limit data returned from tools:
+AI models have limits on how much data they can process. The Aspire MCP server may limit data returned from tools:
 
 - Large data fields (e.g., long stack traces) may be truncated
 - Large collections of telemetry may be shortened by omitting older items
@@ -260,7 +260,7 @@ If you run into issues, check the [open MCP issues on GitHub](https://github.com
 
 ### AppHost detection
 
-The <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server automatically detects running AppHosts within the working directory scope:
+The MCP server automatically detects running AppHosts within the working directory scope:
 
 - It continuously monitors for AppHost changes — no restart needed
 - Use `list_apphosts` to see detected AppHosts
@@ -286,7 +286,7 @@ If your AI assistant doesn't detect your AppHost, verify it's running with `aspi
    aspire start
    ```
 
-1. Test the <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server directly:
+1. Test the MCP server directly:
 
    ```bash title="Aspire CLI"
    aspire agent mcp
@@ -306,7 +306,7 @@ If your AI assistant doesn't detect your AppHost, verify it's running with `aspi
 
 - Ensure `.mcp.json` exists in your project root — run `aspire agent init` to regenerate
 - On Windows, commands like `npx` require a `cmd.exe /c` prefix
-- Restart Claude Code to re-establish stale <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> connections
+- Restart Claude Code to re-establish stale MCP connections
 
 ## See also
 
