@@ -42,7 +42,19 @@ The AppHost is the orchestration layer. Your choice here changes how you express
 Use a C# AppHost when your repo already centers on C# or when you want a single-file orchestrator that still fits naturally into .NET SDK and IDE workflows.
 
 - Lives in a single `apphost.cs` file that uses `#:sdk` and `#:package` directives
-- Uses methods such as `AddUvicornApp`, `AddPythonApp`, `AddNodeApp`, `AddViteApp`, `AddContainer`, and `AddCSharpApp`
+- Common APIs include:
+
+  | API | Description |
+  | --- | --- |
+  | `AddContainer()` | Run a prebuilt container image that already exists in your current workflow. |
+  | `AddCSharpApp()` | Point a file-based AppHost at an existing C# app or `.csproj` without creating a separate AppHost project graph. |
+  | `AddDockerfile()` | Build and run a container from an existing Dockerfile in your repo. |
+  | `AddExecutable()` | Fall back to a custom command when a dedicated hosting API does not exist yet. |
+  | `AddJavaScriptApp()`, `AddNodeApp()`, `AddViteApp()` | Model JavaScript and TypeScript workloads, from general package-script apps to Node entrypoints and Vite frontends. |
+  | `AddParameter()` | Define reusable config values and secrets for the resources in your model. |
+  | `AddPostgres()`, `AddRedis()` | Add shared infrastructure with first-class integrations and connection wiring. |
+  | `AddPythonApp()`, `AddUvicornApp()` | Model Python scripts, workers, and ASGI apps such as FastAPI. |
+  | `WaitFor()`, `WithHttpEndpoint()`, `WithReference()` | Wire service discovery, startup ordering, and HTTP endpoints between resources. |
 - Fits naturally into existing .NET SDK, IDE, and repo workflows
 
 </TabItem>
@@ -51,7 +63,20 @@ Use a C# AppHost when your repo already centers on C# or when you want a single-
 Use a TypeScript AppHost when your repo already centers on a Node.js workspace or when you prefer path-based orchestration in TypeScript.
 
 - Lives in `apphost.ts`
-- Uses methods such as `addUvicornApp`, `addPythonApp`, `addNodeApp`, `addViteApp`, `addContainer`, and `addProject`
+- Common APIs include:
+
+  | API | Description |
+  | --- | --- |
+  | `addContainer()` | Run a prebuilt container image that you already publish or pull today. |
+  | `addCSharpApp()` | Point at an existing C# app, `.csproj`, or directory directly from a TypeScript AppHost without relying only on `addProject()`. |
+  | `addDockerfile()` | Build and run a container directly from a Dockerfile in the repo. |
+  | `addExecutable()` | Fall back to a custom command for unsupported runtimes or one-off tools. |
+  | `addNodeApp()`, `addViteApp()` | Model Node.js services and Vite frontends with JavaScript-aware defaults. |
+  | `addParameter()` | Define reusable config values and secrets that multiple resources can consume. |
+  | `addPostgres()`, `addRedis()` | Add shared infrastructure with first-class integrations and references. |
+  | `addProject()` | Add an existing project by path, such as a `.csproj`, into a TypeScript AppHost. |
+  | `addPythonApp()`, `addUvicornApp()` | Model Python scripts, workers, and ASGI apps such as FastAPI. |
+  | `waitFor()`, `withHttpEndpoint()`, `withReference()` | Wire service discovery, startup ordering, and HTTP endpoints between resources. |
 - Fits naturally into existing package-manager and monorepo workflows
 
 </TabItem>
@@ -170,7 +195,7 @@ After initialization, a typical C#-centric repo might look like this:
 Starter AppHost:
 
 ```csharp title="apphost.cs — Initial state"
-#:sdk Aspire.AppHost.Sdk@13.1.0
+#:sdk Aspire.AppHost.Sdk@13.2.0
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -246,25 +271,29 @@ Let the Aspire CLI manage `.modules/` rather than editing generated SDK files ma
 
 ## Model your existing apps in the AppHost
 
-Once you have an AppHost, register the resources you already run today. Each service, container, integration, database, queue, project reference, or, when necessary, executable becomes a resource in the AppHost.
+Once you have an AppHost, use it to model the parts of your system that matter during local development: workloads, supporting infrastructure, and the connections between them. A resource does not need to mirror every repo boundary or implementation detail; it should represent something Aspire needs to start, observe, or connect.
 
-Two patterns stay the same across AppHost styles:
+Think first about relationships: which workloads consume which backing services, which endpoints need to be reachable, and which resources must be ready before others can do useful work.
 
-- Use `WithReference` or `withReference` to declare resource dependencies and enable service discovery.
-- Use `WaitFor` or `waitFor` when one resource should wait for another to be ready.
+The same patterns apply across AppHost styles:
+
+- Use `WithReference` or `withReference` to express that one resource depends on another and to flow connection information through the model.
+- Use `WaitFor` or `waitFor` when readiness matters and one resource should not start until another is available.
 
 ### Scenario: Existing services with hosting integrations
 
-Use this approach when your app includes supported service types such as Node.js apps, Vite frontends, Python scripts, or Uvicorn-based APIs. In these cases, prefer the dedicated hosting APIs over raw executable resources.
+Use this approach when Aspire already has a first-class resource type for the workload you want to run. That keeps the application model focused on what the service is and what it depends on, instead of reducing it to a generic shell command.
+
+Common examples include Node.js apps, Vite frontends, Python workers, and Uvicorn-based APIs.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing services with hosting integrations"
-#:sdk Aspire.AppHost.Sdk@13.1.0
-#:package Aspire.Hosting.Redis@*
-#:package Aspire.Hosting.Python@*
-#:package Aspire.Hosting.JavaScript@*
+#:sdk Aspire.AppHost.Sdk@13.2.0
+#:package Aspire.Hosting.Redis@13.2.0
+#:package Aspire.Hosting.Python@13.2.0
+#:package Aspire.Hosting.JavaScript@13.2.0
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -316,7 +345,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-If a workload does not have a dedicated hosting API yet, use `AddExecutable` or `addExecutable` as the fallback path for custom CLIs, bespoke build tools, or unsupported runtime commands.
+If a workload does not have a dedicated hosting API yet, model it as an executable resource with `AddExecutable` or `addExecutable` so it can still participate in the same application model.
 
 <LearnMore>
 For first-class workload guidance, see [JavaScript integration](/integrations/frameworks/javascript/), [Python integration](/integrations/frameworks/python/), and [Multi-language architecture](/architecture/multi-language-architecture/).
@@ -328,9 +357,9 @@ These examples show how to run supported frontend and service workloads with Asp
 
 ### Scenario: Existing containers and shared infrastructure
 
-Use this approach when you already have container images, Docker Compose services, or an infrastructure topology that you want to model directly in the AppHost.
+Use this approach when the important boundary is the runtime environment itself: a published container image, a shared database, a cache, a queue, or an existing infrastructure topology. Model the shared resources first, then attach the workloads that consume them so connectivity, configuration, and startup order are explicit.
 
-Before you model shared infrastructure with Aspire, add the integrations you need:
+When Aspire has a first-class integration for that infrastructure, add it first:
 
 ```bash title="Add hosting integrations"
 aspire add postgres
@@ -341,9 +370,9 @@ aspire add redis
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing containers and shared infrastructure"
-#:sdk Aspire.AppHost.Sdk@13.1.0
-#:package Aspire.Hosting.PostgreSQL@*
-#:package Aspire.Hosting.Redis@*
+#:sdk Aspire.AppHost.Sdk@13.2.0
+#:package Aspire.Hosting.PostgreSQL@13.2.0
+#:package Aspire.Hosting.Redis@13.2.0
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -395,9 +424,9 @@ await builder.build().run();
 
 ### Scenario: Existing C# services
 
-Use this approach when you want a file-based C# AppHost to orchestrate existing C# services without creating an AppHost `.csproj` and project-reference graph.
+Use this approach when your repo already contains .NET services that should stay where they are. The goal is to register those services as resources by pointing at their existing paths, then connect the infrastructure, endpoints, and health checks they already need as part of the larger application model.
 
-In a file-based C# AppHost, use `AddCSharpApp` to point at existing C# service paths directly. This works with single-file C# apps, directories, or existing `.csproj` files.
+In a file-based C# AppHost, `AddCSharpApp` is the direct way to point at an existing C# service path. This works with single-file C# apps, directories, or existing `.csproj` files.
 
 :::caution[AddCSharpApp is experimental]
 `AddCSharpApp` is currently experimental. If you want details on limitations or diagnostic suppression, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/).
@@ -407,8 +436,8 @@ In a file-based C# AppHost, use `AddCSharpApp` to point at existing C# service p
 <TabItem id='csharp' label='C#'>
 
 ```csharp title="apphost.cs — Existing C# services"
-#:sdk Aspire.AppHost.Sdk@13.1.0
-#:package Aspire.Hosting.Redis@*
+#:sdk Aspire.AppHost.Sdk@13.2.0
+#:package Aspire.Hosting.Redis@13.2.0
 
 #pragma warning disable ASPIRECSHARPAPPS001
 
@@ -451,7 +480,90 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Nothing requires a single pattern. It is common to keep some services as C# apps referenced from a file-based AppHost, run others with language-specific hosting APIs, and model shared infrastructure with integrations or containers in the same AppHost. A single application model can span C#, Node.js, Python, Go, Rust, Java, and containerized services side by side.
+### Scenario: Docker Compose
+
+Use this scenario when Docker Compose already captures the shape of your system. Treat the Compose file as a map of workloads, shared infrastructure, exposed ports, and dependency edges that you want to restate in the AppHost.
+
+The goal is not a line-by-line translation of every field, but a clearer resource model of the same relationships.
+
+<Tabs>
+<TabItem label='Docker Compose'>
+
+```yaml title="docker-compose.yml" showLineNumbers
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mydb
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./api
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
+    depends_on:
+      - postgres
+
+  web:
+    build: ./web
+    environment:
+      - API_URL=http://api:8080
+    depends_on:
+      - api
+```
+
+</TabItem>
+<TabItem label='C#'>
+
+```csharp title="apphost.cs" showLineNumbers
+#:sdk Aspire.AppHost.Sdk@13.2.0
+#:package Aspire.Hosting.PostgreSQL@13.2.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("mydb");
+
+var api = builder.AddDockerfile("api", "./api")
+    .WithReference(db)
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
+
+var web = builder.AddDockerfile("web", "./web")
+    .WithReference(api)
+    .WithHttpEndpoint(port: 3000, targetPort: 3000, name: "http");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label='TypeScript'>
+
+```typescript title="apphost.ts" showLineNumbers
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
+
+const api = await builder
+    .addDockerfile('api', './api')
+    .withReference(db)
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
+
+await builder
+    .addDockerfile('web', './web')
+    .withReference(api)
+    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+These scenarios are starting points, not mutually exclusive modes. Most real apps mix workload-specific resources, containers, shared infrastructure, project-path references, and occasional custom commands in a single application model. The key is that dependencies, endpoints, configuration, and startup behavior become explicit.
 
 <LearnMore>
 For more examples, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
@@ -459,9 +571,10 @@ For more examples, see [C# file-based apps](/integrations/dotnet/csharp-file-bas
 
 ## Add telemetry configuration (optional)
 
-Telemetry is configured inside your workloads, not in the AppHost itself. The right setup depends on the service language you are bringing into Aspire.
+Telemetry is configured inside the workloads that emit it, not in the AppHost itself. Aspire gives those workloads an OTLP destination and a shared dashboard during local orchestration, but each service still uses the observability libraries that fit its runtime.
 
-### For C# services
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 If your app includes C# services, ServiceDefaults is the standard way to add observability, resilience, and health checks.
 
@@ -494,9 +607,10 @@ If your app includes C# services, ServiceDefaults is the standard way to add obs
 For more information, see [Service Defaults](/get-started/csharp-service-defaults/).
 </LearnMore>
 
-### For Node.js and TypeScript services
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-If your app includes Node.js services, configure OpenTelemetry inside the service and point it at the Aspire <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint.
+If your app includes Node.js or TypeScript services, configure OpenTelemetry inside the service and point it at the Aspire <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint.
 
 <Steps>
 
@@ -534,109 +648,14 @@ If your app includes Node.js services, configure OpenTelemetry inside the servic
 
 </Steps>
 
-### For other runtimes
-
-Use the OpenTelemetry SDK or instrumentation library that matches the runtime you are already using, then export telemetry to the OTLP endpoint Aspire provides during local orchestration.
-
-## Add integrations (optional)
-
-Aspire integrations simplify common infrastructure such as Redis, PostgreSQL, RabbitMQ, and more. They are often the fastest way to make an existing setup easier to run because they replace copied connection strings and hand-managed startup order with explicit resource relationships. When you add an integration to the AppHost and reference it from dependent workloads, Aspire injects the configuration those workloads need.
-
-<Steps>
-
-1. Identify the shared resources in your system, such as databases, caches, queues, or storage.
-2. Add the integration to the AppHost.
-3. Reference that resource from the apps that depend on it.
-4. Configure the client library inside each consuming service.
-
-</Steps>
-
-For example, to add Redis:
-
-```bash title="Add a Redis integration"
-aspire add redis
-```
-
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-
-```csharp title="apphost.cs — Share Redis across existing workloads"
-#:sdk Aspire.AppHost.Sdk@13.1.0
-#:package Aspire.Hosting.Redis@*
-#:package Aspire.Hosting.Python@*
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-var cache = builder.AddRedis("cache");
-
-var api = builder.AddContainer("api", "ghcr.io/contoso/api:latest")
-    .WithReference(cache)
-    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
-
-var worker = builder.AddPythonApp("worker", "../worker", "worker.py")
-    .WithReference(cache);
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-
-```typescript title="apphost.ts — Share Redis across existing workloads"
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const cache = await builder.addRedis('cache');
-
-const api = await builder
-    .addContainer('api', 'ghcr.io/contoso/api:latest')
-    .withReference(cache)
-    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
-
-await builder
-    .addPythonApp('worker', './worker', 'worker.py')
-    .withReference(cache);
-
-await builder.build().run();
-```
-
 </TabItem>
 </Tabs>
 
-The client configuration stays inside each consuming service, whether that service is a C# project, container image, or executable launched by Aspire.
-
-```bash title="Add Redis client to a C# service"
-dotnet add YourApi package Aspire.StackExchange.Redis
-```
-
-```csharp title="Program.cs — Configure Redis in C#"
-var builder = WebApplication.CreateBuilder(args);
-builder.AddRedisClient("cache");
-```
-
-```bash title="Add Redis client to a Node.js project"
-npm install redis
-```
-
-```javascript title="Configure Redis in Node.js"
-import { createClient } from 'redis';
-
-const client = createClient({
-    socket: {
-        host: process.env.CACHE_HOST,
-        port: Number(process.env.CACHE_PORT),
-    },
-});
-```
-
-<LearnMore>
-For concrete integration walkthroughs, see [Redis integration](/integrations/caching/redis/redis-get-started/), [PostgreSQL integration](/integrations/databases/postgres/postgres-get-started/), and [RabbitMQ integration](/integrations/messaging/rabbitmq/rabbitmq-get-started/). Browse the full [Integrations gallery](/integrations/gallery/) for more options.
-</LearnMore>
+For other runtimes, use the OpenTelemetry SDK or instrumentation library that matches the runtime you are already using, then export telemetry to the OTLP endpoint Aspire provides during local orchestration.
 
 ## Run and verify
 
-Once your AppHost models the system you want to run, start everything together with the Aspire CLI.
+Once the AppHost captures the resources and relationships you care about, start everything together with the Aspire CLI.
 
 <Steps>
 
@@ -673,96 +692,12 @@ Once your AppHost models the system you want to run, start everything together w
 The [Aspire dashboard](/dashboard/explore/) is useful even before you add deeper telemetry or integrations. It gives you a single place to inspect startup order, logs, endpoints, and configuration.
 :::
 
-### Compare with Docker Compose
-
-If you currently orchestrate the app with Docker Compose, the same relationships translate into an AppHost without forcing every workload to become a project resource.
-
-<Tabs>
-<TabItem label='Docker Compose'>
-
-```yaml title="docker-compose.yml" showLineNumbers
-services:
-  postgres:
-    image: postgres:latest
-    environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=mydb
-    ports:
-      - "5432:5432"
-
-  api:
-    build: ./api
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
-    depends_on:
-      - postgres
-
-  web:
-    build: ./web
-    environment:
-      - API_URL=http://api:8080
-    depends_on:
-      - api
-```
-
-</TabItem>
-<TabItem label='C#'>
-
-```csharp title="apphost.cs" showLineNumbers
-#:sdk Aspire.AppHost.Sdk@13.1.0
-#:package Aspire.Hosting.PostgreSQL@*
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-var db = builder.AddPostgres("postgres")
-    .AddDatabase("mydb");
-
-var api = builder.AddContainer("api", "contoso/api:latest")
-    .WithReference(db)
-    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
-
-var web = builder.AddContainer("web", "contoso/web:latest")
-    .WithReference(api)
-    .WithHttpEndpoint(port: 3000, targetPort: 3000, name: "http");
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem label='TypeScript'>
-
-```typescript title="apphost.ts" showLineNumbers
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
-
-const api = await builder
-    .addContainer('api', 'contoso/api:latest')
-    .withReference(db)
-    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
-
-await builder
-    .addContainer('web', 'contoso/web:latest')
-    .withReference(api)
-    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
-
 ## Next steps
 
-After you have Aspire orchestrating the existing app, a few natural next steps are:
+At this point, you have the core workflow: describe the resources your app needs, connect the workloads that depend on them, and let Aspire run the system together during local development. From there, you can deepen the setup incrementally instead of trying to remodel the entire app at once.
 
-- Explore [Aspire integrations](/integrations/gallery/) for databases, caches, message queues, and cloud services
-- Learn more about [Executable resources](/app-host/executable-resources/)
-- Review [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/) if your current setup is Compose-heavy
-- Learn more about the [Aspire dashboard](/dashboard/overview/)
-- Add [C# Service Defaults](/get-started/csharp-service-defaults/) for C# services
-- Add [standalone dashboard support for Node.js](/dashboard/standalone-for-nodejs/) if your system includes Node services
-- Follow [Deploy your first app](/get-started/deploy-first-app/) when you're ready to move beyond local orchestration
+- Learn more about [Executable resources](/app-host/executable-resources/) for custom commands and non-project workloads
+- Follow [Deploy your first app](/get-started/deploy-first-app/) when you are ready to move beyond local orchestration
 - Use the [Aspire extension for VS Code](/get-started/aspire-vscode-extension/) to run and inspect your app from the editor
+- Check the [Troubleshooting guide](/get-started/troubleshooting/) for common setup issues
+- Ask questions and share feedback on [Discord](https://aka.ms/aspire-discord)
