@@ -271,16 +271,20 @@ Let the Aspire CLI manage `.modules/` rather than editing generated SDK files ma
 
 ## Model your existing apps in the AppHost
 
-Once you have an AppHost, register the resources you already run today. Each service, container, integration, database, queue, project reference, or, when necessary, executable becomes a resource in the AppHost.
+Once you have an AppHost, use it to model the parts of your system that matter during local development: workloads, supporting infrastructure, and the connections between them. A resource does not need to mirror every repo boundary or implementation detail; it should represent something Aspire needs to start, observe, or connect.
 
-Two patterns stay the same across AppHost styles:
+Think first about relationships: which workloads consume which backing services, which endpoints need to be reachable, and which resources must be ready before others can do useful work.
 
-- Use `WithReference` or `withReference` to declare resource dependencies and enable service discovery.
-- Use `WaitFor` or `waitFor` when one resource should wait for another to be ready.
+The same patterns apply across AppHost styles:
+
+- Use `WithReference` or `withReference` to express that one resource depends on another and to flow connection information through the model.
+- Use `WaitFor` or `waitFor` when readiness matters and one resource should not start until another is available.
 
 ### Scenario: Existing services with hosting integrations
 
-Use this approach when your app includes supported service types such as Node.js apps, Vite frontends, Python scripts, or Uvicorn-based APIs. In these cases, prefer the dedicated hosting APIs over raw executable resources.
+Use this approach when Aspire already has a first-class resource type for the workload you want to run. That keeps the application model focused on what the service is and what it depends on, instead of reducing it to a generic shell command.
+
+Common examples include Node.js apps, Vite frontends, Python workers, and Uvicorn-based APIs.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -341,7 +345,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-If a workload does not have a dedicated hosting API yet, use `AddExecutable` or `addExecutable` as the fallback path for custom CLIs, bespoke build tools, or unsupported runtime commands.
+If a workload does not have a dedicated hosting API yet, model it as an executable resource with `AddExecutable` or `addExecutable` so it can still participate in the same application model.
 
 <LearnMore>
 For first-class workload guidance, see [JavaScript integration](/integrations/frameworks/javascript/), [Python integration](/integrations/frameworks/python/), and [Multi-language architecture](/architecture/multi-language-architecture/).
@@ -353,9 +357,9 @@ These examples show how to run supported frontend and service workloads with Asp
 
 ### Scenario: Existing containers and shared infrastructure
 
-Use this approach when you already have container images, Docker Compose services, or an infrastructure topology that you want to model directly in the AppHost.
+Use this approach when the important boundary is the runtime environment itself: a published container image, a shared database, a cache, a queue, or an existing infrastructure topology. Model the shared resources first, then attach the workloads that consume them so connectivity, configuration, and startup order are explicit.
 
-Before you model shared infrastructure with Aspire, add the integrations you need:
+When Aspire has a first-class integration for that infrastructure, add it first:
 
 ```bash title="Add hosting integrations"
 aspire add postgres
@@ -420,9 +424,9 @@ await builder.build().run();
 
 ### Scenario: Existing C# services
 
-Use this approach when you want a file-based C# AppHost to orchestrate existing C# services without creating an AppHost `.csproj` and project-reference graph.
+Use this approach when your repo already contains .NET services that should stay where they are. The goal is to register those services as resources by pointing at their existing paths, then connect the infrastructure, endpoints, and health checks they already need as part of the larger application model.
 
-In a file-based C# AppHost, use `AddCSharpApp` to point at existing C# service paths directly. This works with single-file C# apps, directories, or existing `.csproj` files.
+In a file-based C# AppHost, `AddCSharpApp` is the direct way to point at an existing C# service path. This works with single-file C# apps, directories, or existing `.csproj` files.
 
 :::caution[AddCSharpApp is experimental]
 `AddCSharpApp` is currently experimental. If you want details on limitations or diagnostic suppression, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/).
@@ -478,7 +482,9 @@ await builder.build().run();
 
 ### Scenario: Docker Compose
 
-If Docker Compose is your current source of truth, the same relationships translate into an AppHost without forcing every workload to become a project resource.
+Use this scenario when Docker Compose already captures the shape of your system. Treat the Compose file as a map of workloads, shared infrastructure, exposed ports, and dependency edges that you want to restate in the AppHost.
+
+The goal is not a line-by-line translation of every field, but a clearer resource model of the same relationships.
 
 <Tabs>
 <TabItem label='Docker Compose'>
@@ -557,7 +563,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Nothing requires a single pattern. It is common to keep some services as C# apps referenced from a file-based AppHost, run others with language-specific hosting APIs, and model shared infrastructure with integrations or containers in the same AppHost. A single application model can span C#, Node.js, Python, Go, Rust, Java, and containerized services side by side.
+These scenarios are starting points, not mutually exclusive modes. Most real apps mix workload-specific resources, containers, shared infrastructure, project-path references, and occasional custom commands in a single application model. The key is that dependencies, endpoints, configuration, and startup behavior become explicit.
 
 <LearnMore>
 For more examples, see [C# file-based apps](/integrations/dotnet/csharp-file-based-apps/), [Executable resources](/app-host/executable-resources/), and [Migrate from Docker Compose](/app-host/migrate-from-docker-compose/).
@@ -565,7 +571,7 @@ For more examples, see [C# file-based apps](/integrations/dotnet/csharp-file-bas
 
 ## Add telemetry configuration (optional)
 
-Telemetry is configured inside your workloads, not in the AppHost itself. The right setup depends on the service language you are bringing into Aspire.
+Telemetry is configured inside the workloads that emit it, not in the AppHost itself. Aspire gives those workloads an OTLP destination and a shared dashboard during local orchestration, but each service still uses the observability libraries that fit its runtime.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -649,7 +655,7 @@ For other runtimes, use the OpenTelemetry SDK or instrumentation library that ma
 
 ## Run and verify
 
-Once your AppHost models the system you want to run, start everything together with the Aspire CLI.
+Once the AppHost captures the resources and relationships you care about, start everything together with the Aspire CLI.
 
 <Steps>
 
