@@ -476,6 +476,87 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
+### Scenario: Docker Compose
+
+If Docker Compose is your current source of truth, the same relationships translate into an AppHost without forcing every workload to become a project resource.
+
+<Tabs>
+<TabItem label='Docker Compose'>
+
+```yaml title="docker-compose.yml" showLineNumbers
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mydb
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./api
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
+    depends_on:
+      - postgres
+
+  web:
+    build: ./web
+    environment:
+      - API_URL=http://api:8080
+    depends_on:
+      - api
+```
+
+</TabItem>
+<TabItem label='C#'>
+
+```csharp title="apphost.cs" showLineNumbers
+#:sdk Aspire.AppHost.Sdk@13.2.0
+#:package Aspire.Hosting.PostgreSQL@13.2.0
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("postgres")
+    .AddDatabase("mydb");
+
+var api = builder.AddContainer("api", "contoso/api:latest")
+    .WithReference(db)
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
+
+var web = builder.AddContainer("web", "contoso/web:latest")
+    .WithReference(api)
+    .WithHttpEndpoint(port: 3000, targetPort: 3000, name: "http");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label='TypeScript'>
+
+```typescript title="apphost.ts" showLineNumbers
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
+
+const api = await builder
+    .addContainer('api', 'contoso/api:latest')
+    .withReference(db)
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
+
+await builder
+    .addContainer('web', 'contoso/web:latest')
+    .withReference(api)
+    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 Nothing requires a single pattern. It is common to keep some services as C# apps referenced from a file-based AppHost, run others with language-specific hosting APIs, and model shared infrastructure with integrations or containers in the same AppHost. A single application model can span C#, Node.js, Python, Go, Rust, Java, and containerized services side by side.
 
 <LearnMore>
@@ -604,87 +685,6 @@ Once your AppHost models the system you want to run, start everything together w
 :::tip
 The [Aspire dashboard](/dashboard/explore/) is useful even before you add deeper telemetry or integrations. It gives you a single place to inspect startup order, logs, endpoints, and configuration.
 :::
-
-### Scenario: Docker Compose
-
-If Docker Compose is your current source of truth, the same relationships translate into an AppHost without forcing every workload to become a project resource.
-
-<Tabs>
-<TabItem label='Docker Compose'>
-
-```yaml title="docker-compose.yml" showLineNumbers
-services:
-  postgres:
-    image: postgres:latest
-    environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=mydb
-    ports:
-      - "5432:5432"
-
-  api:
-    build: ./api
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/mydb
-    depends_on:
-      - postgres
-
-  web:
-    build: ./web
-    environment:
-      - API_URL=http://api:8080
-    depends_on:
-      - api
-```
-
-</TabItem>
-<TabItem label='C#'>
-
-```csharp title="apphost.cs" showLineNumbers
-#:sdk Aspire.AppHost.Sdk@13.2.0
-#:package Aspire.Hosting.PostgreSQL@13.2.0
-
-var builder = DistributedApplication.CreateBuilder(args);
-
-var db = builder.AddPostgres("postgres")
-    .AddDatabase("mydb");
-
-var api = builder.AddContainer("api", "contoso/api:latest")
-    .WithReference(db)
-    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http");
-
-var web = builder.AddContainer("web", "contoso/web:latest")
-    .WithReference(api)
-    .WithHttpEndpoint(port: 3000, targetPort: 3000, name: "http");
-
-builder.Build().Run();
-```
-
-</TabItem>
-<TabItem label='TypeScript'>
-
-```typescript title="apphost.ts" showLineNumbers
-import { createBuilder } from './.modules/aspire.js';
-
-const builder = await createBuilder();
-
-const db = (await builder.addPostgres('postgres')).addDatabase('mydb');
-
-const api = await builder
-    .addContainer('api', 'contoso/api:latest')
-    .withReference(db)
-    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: 'http' });
-
-await builder
-    .addContainer('web', 'contoso/web:latest')
-    .withReference(api)
-    .withHttpEndpoint({ port: 3000, targetPort: 3000, name: 'http' });
-
-await builder.build().run();
-```
-
-</TabItem>
-</Tabs>
 
 ## Next steps
 
