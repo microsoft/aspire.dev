@@ -1,0 +1,65 @@
+---
+title: What's new in Aspire 13.3
+description: Aspire 13.3 introduces Azure Network Security Perimeter support and more.
+sidebar:
+  label: Aspire 13.3
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Welcome to Aspire 13.3! Whether you're a long-time Aspire user or just getting started, we're excited for you to try what's new. If you have questions, feedback, or run into issues, come say hi on [Discord](https://aka.ms/aspire-discord) or open an issue on [GitHub](https://github.com/dotnet/aspire/issues).
+
+## 🆙 Upgrade to Aspire 13.3
+
+<span id="upgrade-to-aspire-13-3"></span>
+<br/>
+
+For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
+
+The easiest way to upgrade to Aspire 13.3 is using the `aspire update` command:
+
+<Steps>
+
+1. Update the Aspire CLI:
+
+   ```bash
+   aspire update
+   ```
+
+1. Update your projects:
+
+   ```bash
+   aspire update project
+   ```
+
+</Steps>
+
+## 🌐 Azure Network Security Perimeter support
+
+Aspire 13.3 adds support for [Azure Network Security Perimeters (NSPs)](https://learn.microsoft.com/azure/private-link/network-security-perimeter-concepts), which provide a logical security boundary for Azure PaaS services. NSPs complement the existing virtual network and private endpoint support by operating at the PaaS layer — grouping resources like Storage, Key Vault, Cosmos DB, and SQL so they can communicate with each other while restricting public access via access rules.
+
+### Create a perimeter and associate resources
+
+```csharp title="C# — AppHost.cs"
+var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
+    .WithAccessRule(new AzureNspAccessRule
+    {
+        Name = "allow-my-ip",
+        Direction = NetworkSecurityPerimeterAccessRuleDirection.Inbound,
+        AddressPrefixes = { "203.0.113.0/24" }
+    });
+
+var storage = builder.AddAzureStorage("storage")
+    .WithNetworkSecurityPerimeter(nsp);
+var keyVault = builder.AddAzureKeyVault("kv")
+    .WithNetworkSecurityPerimeter(nsp);
+```
+
+NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Learning** mode (logs violations without blocking), making it easy to audit traffic before locking down access.
+
+<LearnMore href="/integrations/cloud/azure/azure-virtual-network/#add-a-network-security-perimeter" />

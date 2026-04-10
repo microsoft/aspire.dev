@@ -1,6 +1,6 @@
 ---
 title: Azure Virtual Network
-description: Learn how to use the Azure Virtual Network integration to configure virtual networks, subnets, NAT gateways, network security groups, and private endpoints.
+description: Learn how to use the Azure Virtual Network integration to configure virtual networks, subnets, NAT gateways, network security groups, private endpoints, and network security perimeters.
 ---
 
 import InstallPackage from '@components/InstallPackage.astro';
@@ -28,6 +28,7 @@ The Azure Virtual Network hosting integration models network resources as the fo
 - `AzureNetworkSecurityGroupResource`: Represents a network security group for traffic control.
 - `AzureNatGatewayResource`: Represents a NAT gateway for deterministic outbound IP addresses.
 - `AzurePublicIPAddressResource`: Represents a public IP address.
+- `AzureNetworkSecurityPerimeterResource`: Represents an Azure Network Security Perimeter for PaaS service isolation.
 
 To access these types and APIs, add the [📦 Aspire.Hosting.Azure.Network](https://www.nuget.org/packages/Aspire.Hosting.Azure.Network) NuGet package in the [AppHost](/get-started/app-host/) project:
 
@@ -224,6 +225,114 @@ storage.ConfigureInfrastructure(infra =>
 
 [Azure SQL Server](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/) uses a deployment script to grant your application's managed identity access to the SQL database. When you add a private endpoint for a SQL Server resource, the deployment script needs to run inside the virtual network via Azure Container Instances (ACI). Aspire automatically creates a delegated subnet and a storage account for the deployment script container. For details on customizing this behavior, see [Admin deployment script](/integrations/cloud/azure/azure-sql-database/azure-sql-database-host/#admin-deployment-script).
 
+### Add a network security perimeter
+
+[Azure Network Security Perimeters (NSPs)](https://learn.microsoft.com/azure/private-link/network-security-perimeter-concepts) provide a logical security boundary for Azure PaaS services such as Storage, Key Vault, Cosmos DB, and SQL. Where virtual networks and private endpoints secure connectivity at the infrastructure layer, NSPs operate at the PaaS layer—grouping resources so they can communicate with each other while restricting public access via access rules.
+
+#### Why use a network security perimeter?
+
+NSPs complement private endpoints with a higher-level grouping model. Instead of configuring a private endpoint for every resource pair, you place all related PaaS resources inside a single perimeter. Resources within the perimeter communicate freely, and you define inbound and outbound access rules that apply to the entire boundary. This is useful when:
+
+- You have many PaaS resources that need to talk to each other but shouldn't be publicly accessible.
+- You want a single set of access rules (IP ranges, subscription allow-lists, FQDN allow-lists) that apply uniformly to the group.
+- You want to audit traffic before enforcing restrictions by using **Learning** mode.
+
+#### Create a perimeter
+
+Call `AddNetworkSecurityPerimeter` on the `builder` instance to create an NSP with a default profile:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nsp = builder.AddNetworkSecurityPerimeter("my-nsp");
+
+// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+#### Add access rules
+
+Access rules control traffic flowing into and out of the perimeter. Call `WithAccessRule` and pass an `AzureNspAccessRule` to define a rule:
+
+```csharp title="C# — AppHost.cs"
+var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
+    .WithAccessRule(new AzureNspAccessRule
+    {
+        Name = "allow-my-ip",
+        Direction = NetworkSecurityPerimeterAccessRuleDirection.Inbound,
+        AddressPrefixes = { "203.0.113.0/24" }
+    })
+    .WithAccessRule(new AzureNspAccessRule
+    {
+        Name = "allow-outbound-fqdn",
+        Direction = NetworkSecurityPerimeterAccessRuleDirection.Outbound,
+        FullyQualifiedDomainNames = { "*.blob.core.windows.net" }
+    });
+```
+
+The following properties are available on `AzureNspAccessRule`:
+
+| Property | Direction | Description |
+|---|---|---|
+| `AddressPrefixes` | Inbound | CIDR ranges allowed to reach the perimeter. |
+| `Subscriptions` | Inbound | Subscription resource IDs (format: `/subscriptions/{id}`) allowed access. |
+| `FullyQualifiedDomainNames` | Outbound | FQDNs that resources inside the perimeter can communicate with. |
+
+Each property also has a corresponding `*References` variant (for example, `AddressPrefixReferences`) that accepts `ReferenceExpression` values resolved at deploy time.
+
+<Aside type="note">
+  `Name` and `Direction` are required on every rule. Rule names must be unique
+  within the perimeter. The `NetworkSecurityPerimeterAccessRuleDirection` type
+  requires a `using` directive for the `Azure.Provisioning.Network` namespace.
+</Aside>
+
+#### Associate resources with a perimeter
+
+Call `WithNetworkSecurityPerimeter` on a PaaS resource builder to associate it with an NSP:
+
+```csharp title="C# — AppHost.cs"
+var nsp = builder.AddNetworkSecurityPerimeter("my-nsp");
+
+var storage = builder.AddAzureStorage("storage")
+    .WithNetworkSecurityPerimeter(nsp);
+var keyVault = builder.AddAzureKeyVault("kv")
+    .WithNetworkSecurityPerimeter(nsp);
+```
+
+Once associated, resources within the perimeter can communicate with each other, while public access is governed by the perimeter's access rules.
+
+The following Azure resources support NSP association:
+
+- [Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/)
+- [Azure AI Search](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/)
+- [Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-get-started/)
+- [Azure Event Hubs](/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-get-started/)
+- [Azure Key Vault](/integrations/cloud/azure/azure-key-vault/azure-key-vault-get-started/)
+- [Azure Log Analytics](/integrations/cloud/azure/azure-log-analytics/)
+- [Azure OpenAI](/integrations/cloud/azure/azure-openai/azure-openai-get-started/)
+- [Azure Service Bus](/integrations/cloud/azure/azure-service-bus/azure-service-bus-get-started/)
+- [Azure SQL Server](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/)
+- [Azure Storage](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started/)
+
+#### Enforced vs. Learning mode
+
+By default, associations use **Enforced** mode—resources within the perimeter can communicate with each other, and any public traffic that doesn't match an access rule is blocked. You can switch to **Learning** mode to log violations without blocking traffic, which is helpful when onboarding resources to identify which access rules are needed before switching to enforced mode:
+
+```csharp title="C# — AppHost.cs"
+// Enforced mode (default) — blocks traffic that violates the rules
+storage.WithNetworkSecurityPerimeter(nsp);
+
+// Learning mode — logs violations without blocking
+keyVault.WithNetworkSecurityPerimeter(
+    nsp, NetworkSecurityPerimeterAssociationAccessMode.Learning);
+```
+
+<Aside type="tip">
+  Start with **Learning** mode when you first add an NSP to an existing
+  application. Review the logged violations to determine which access rules
+  you need, then switch to **Enforced** mode once the rules are in place.
+</Aside>
+
 ## Complete example
 
 The following example demonstrates a complete network topology with a virtual network, subnets, NSG rules, a NAT gateway, private endpoints, and an Azure Container Apps environment:
@@ -293,5 +402,6 @@ builder.Build().Run();
 - [Azure Virtual Network documentation](https://learn.microsoft.com/azure/virtual-network/)
 - [Azure NAT Gateway documentation](https://learn.microsoft.com/azure/nat-gateway/)
 - [Azure Private Link documentation](https://learn.microsoft.com/azure/private-link/)
+- [Azure Network Security Perimeter documentation](https://learn.microsoft.com/azure/private-link/network-security-perimeter-concepts)
 - [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
 - [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
