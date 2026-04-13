@@ -117,6 +117,46 @@ aspire do docker-compose-down-env
 
 This command stops and removes all containers, networks, and volumes created by the Docker Compose deployment.
 
+## Multi-environment deployments
+
+Docker Compose deployments support multiple environments through the `--environment` flag. Each environment produces its own `.env.{environment}` file with environment-specific parameter values, while sharing the same `docker-compose.yaml`.
+
+### Deploy to staging and production
+
+Use the `--environment` flag to deploy the same application to different environments on the same or different Docker hosts:
+
+```bash title="Deploy to staging"
+aspire deploy --environment staging
+```
+
+```bash title="Deploy to production"
+aspire deploy --environment production
+```
+
+Each deployment:
+
+- Runs the AppHost with the specified environment, so `builder.Environment.EnvironmentName` reflects `staging` or `production`. Any environment-based branching in your AppHost applies automatically.
+- Generates an `.env.staging` or `.env.production` file with filled-in parameter values.
+- Maintains a separate [deployment state cache](/deployment/deployment-state-caching/) per environment.
+
+### Publish artifacts for multiple environments
+
+To generate artifacts without deploying, use `aspire do prepare-{resource-name}` with the `--environment` flag:
+
+```bash title="Prepare staging and production artifacts"
+aspire do prepare-env --environment staging
+aspire do prepare-env --environment production
+```
+
+This generates environment-specific `.env` files that you can deploy independently, for example from a CI pipeline that targets different Docker hosts per environment.
+
+<LearnMore>
+  For more on how environments work across all deployment targets, see the
+  [Environments](/deployment/environments/) guide. For command details on
+  `prepare-*` steps, see the [CLI reference: `aspire
+  do`](/reference/cli/commands/aspire-do/).
+</LearnMore>
+
 ## Output artifacts
 
 When you publish or deploy, Aspire generates the following artifacts in the `aspire-output` directory:

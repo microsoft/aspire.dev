@@ -64,6 +64,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/overview',
     },
     {
+      label: 'Environments',
+      slug: 'deployment/environments',
+    },
+    {
       label: 'Pipelines (aspire do)',
       slug: 'deployment/pipelines',
     },

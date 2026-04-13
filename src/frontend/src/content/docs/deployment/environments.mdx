@@ -1,0 +1,396 @@
+---
+title: Environments
+description: Learn how to use Aspire environments to configure your application for development, staging, and production deployments.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+When you run or deploy an Aspire application, the **environment** determines how the AppHost configures resources, what parameter values are used, and how your deployment is organized. Environments let you use the same AppHost to target different deployment contexts — development, staging, production, or any custom name — without duplicating your application model.
+
+## How environments work
+
+The Aspire environment is a single named value — like `Development`, `Staging`, or `Production` — that the AppHost receives as input. Environment names are case-insensitive strings; you can use any name that makes sense for your workflow. Your AppHost code can branch on this value to change resource topology, resolve different parameter values, or set environment variables on child services.
+
+The environment name flows through the system in three stages:
+
+1. **Input**: You pass the environment name to the AppHost. Deployment commands such as `aspire deploy`, `aspire publish`, and `aspire do` expose `--environment` directly, and `aspire start` can forward it to the AppHost with `-- --environment <name>`.
+2. **AppHost evaluation**: Your AppHost code reads the environment to branch logic, resolve parameters, or configure resources.
+3. **Downstream configuration**: Your AppHost explicitly sets framework-specific environment variables (like `DOTNET_ENVIRONMENT` or `NODE_ENV`) on child resources as needed.
+
+<Aside type="note">
+  The Aspire environment is an **AppHost concept** — it controls how the AppHost
+  configures your application. Framework-specific runtime variables like
+  `DOTNET_ENVIRONMENT` and `NODE_ENV` are separate and must be set explicitly on
+  each resource. Aspire does not automatically propagate the environment name to
+  child services.
+</Aside>
+
+## Set the environment
+
+### During local development
+
+`aspire run` is a development-oriented command, so the AppHost runs in development mode by default. If you want to evaluate a different AppHost environment locally, start the AppHost explicitly and pass the environment through:
+
+```bash title="Start locally with a staging environment"
+aspire start -- --environment Staging
+```
+
+### During deployment
+
+Deployment-oriented commands such as `aspire publish`, `aspire deploy`, and `aspire do` default to `Production`. Override them with the `--environment` flag:
+
+```bash title="Deploy to staging"
+aspire deploy --environment staging
+```
+
+```bash title="Publish for production"
+aspire publish --environment production
+```
+
+Each environment maintains its own [deployment state cache](/deployment/deployment-state-caching/), so staging and production deployments track their provisioning settings independently.
+
+### Environment vs execution context
+
+The environment name and the execution context are independent concepts:
+
+| Concept           | What it answers                | Default for `aspire run` | Default for `aspire publish` |
+| ----------------- | ------------------------------ | ------------------------ | ---------------------------- |
+| Environment       | _Where_ is the app targeting?  | `Development`            | `Production`                 |
+| Execution context | _How_ was the AppHost invoked? | Run mode                 | Publish mode                 |
+
+You can start an AppHost locally with `aspire start -- --environment Staging` for validation, or publish to a `Development` cloud environment if your workflow needs that. The two axes are independent — environment names are arbitrary strings, not tied to run vs publish.
+
+## Read the environment in your AppHost
+
+Your AppHost code can check the current environment to change behavior. The environment is available through the builder's host environment API:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Check for specific environments
+if (builder.Environment.IsDevelopment())
+{
+    // Development-specific configuration
+}
+
+// Check for a custom environment name
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // Testing-specific configuration
+}
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+const env = await builder.environment.get();
+
+// Check for specific environments
+if (await env.isDevelopment()) {
+  // Development-specific configuration
+}
+
+// Check for a custom environment name
+if (await env.isEnvironment('Testing')) {
+  // Testing-specific configuration
+}
+```
+
+</TabItem>
+</Tabs>
+
+The following convenience methods are available:
+
+| Method                                        | Returns `true` when environment is |
+| --------------------------------------------- | ---------------------------------- |
+| `IsDevelopment()` / `isDevelopment()`         | `Development`                      |
+| `IsStaging()` / `isStaging()`                 | `Staging`                          |
+| `IsProduction()` / `isProduction()`           | `Production`                       |
+| `IsEnvironment(name)` / `isEnvironment(name)` | Any custom name                    |
+
+## Common patterns
+
+### Set environment variables on child resources
+
+Your services often need to know which environment they're running in. Different frameworks use different environment variables — use `WithEnvironment` to set the appropriate one for each service:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var isDevelopment = builder.Environment.IsDevelopment();
+var dotnetEnvironment = isDevelopment ? "Development" : "Production";
+var appEnvironment = isDevelopment ? "development" : "production";
+
+// .NET services use DOTNET_ENVIRONMENT
+builder.AddProject<Projects.Api>("api")
+    .WithEnvironment("DOTNET_ENVIRONMENT", dotnetEnvironment);
+
+// Node.js services use NODE_ENV
+builder.AddNodeApp("frontend", "../frontend", "server.js")
+    .WithEnvironment("NODE_ENV", appEnvironment);
+
+// Any container can receive custom env vars
+builder.AddContainer("worker", "myorg/worker")
+    .WithEnvironment("APP_ENV", appEnvironment);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+const env = await builder.environment.get();
+const isDevelopment = await env.isDevelopment();
+const dotnetEnvironment = isDevelopment ? 'Development' : 'Production';
+const appEnvironment = isDevelopment ? 'development' : 'production';
+
+// .NET services use DOTNET_ENVIRONMENT
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEnvironment('DOTNET_ENVIRONMENT', dotnetEnvironment);
+
+// Node.js services use NODE_ENV
+const frontend = await builder.addNodeApp(
+  'frontend',
+  '../frontend',
+  'server.js'
+);
+await frontend.withEnvironment('NODE_ENV', appEnvironment);
+
+// Any container can receive custom env vars
+const worker = await builder.addContainer('worker', 'myorg/worker');
+await worker.withEnvironment('APP_ENV', appEnvironment);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Common environment variable conventions by framework and ecosystem:
+
+| Framework       | Environment variable       | Typical values                         |
+| --------------- | -------------------------- | -------------------------------------- |
+| ASP.NET Core    | `ASPNETCORE_ENVIRONMENT`   | `Development`, `Staging`, `Production` |
+| .NET (non-web)  | `DOTNET_ENVIRONMENT`       | `Development`, `Staging`, `Production` |
+| Node.js         | `NODE_ENV`                 | `development`, `production`            |
+| Python (Flask)  | `FLASK_ENV` _(deprecated)_ | `development`, `production`            |
+| Python (Django) | `DJANGO_SETTINGS_MODULE`   | Module path                            |
+| Ruby on Rails   | `RAILS_ENV`                | `development`, `staging`, `production` |
+| Go              | `APP_ENV`                  | `development`, `staging`, `production` |
+| Rust            | `APP_ENV` / `RUST_ENV`     | `development`, `staging`, `production` |
+| Java (Spring)   | `SPRING_PROFILES_ACTIVE`   | `dev`, `test`, `prod`                  |
+
+<Aside type="tip">
+  `AddNodeApp` automatically sets `NODE_ENV` to `development` or `production`
+  based on whether the AppHost environment is `Development`. If you need a
+  different value (such as `staging`), override it with an explicit
+  `WithEnvironment("NODE_ENV", ...)` call as shown above.
+</Aside>
+
+### Use parameters for per-environment values
+
+Use [parameters](/fundamentals/external-parameters/) to externalize values that change between environments, such as SKU tiers, replica counts, or API endpoints:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiKey = builder.AddParameter("apiKey", secret: true);
+
+builder.AddProject<Projects.Api>("api")
+    .WithEnvironment("API_KEY", apiKey);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const apiKey = await builder.addParameter('apiKey', { secret: true });
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEnvironment('API_KEY', apiKey);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+#### How parameter values are resolved
+
+When you call `AddParameter("apiKey")`, Aspire looks for a value under the configuration key `Parameters:apiKey`. The value can come from multiple sources:
+
+**All AppHost languages:**
+
+| Source                     | Example                         | When to use                 |
+| -------------------------- | ------------------------------- | --------------------------- |
+| **Environment variables**  | `Parameters__apiKey=value`      | CI/CD pipelines, containers |
+| **Command-line arguments** | `--Parameters:apiKey=value`     | Quick overrides             |
+| **Interactive prompt**     | Prompted during `aspire deploy` | First-time setup            |
+
+**C# AppHosts only** (via .NET configuration):
+
+| Source                       | Example                                               | When to use                                |
+| ---------------------------- | ----------------------------------------------------- | ------------------------------------------ |
+| **`appsettings.{env}.json`** | `{ "Parameters": { "apiKey": "value" } }`             | Per-environment defaults in source control |
+| **`appsettings.json`**       | Same structure                                        | Baseline defaults                          |
+| **User secrets**             | `dotnet user-secrets set "Parameters:apiKey" "value"` | Local development secrets                  |
+
+The double-underscore (`__`) in environment variable names replaces the colon (`:`) used in configuration keys. So the parameter `apiKey` maps to the environment variable `Parameters__apiKey`.
+
+#### Per-environment defaults with config files (C# AppHosts)
+
+C# AppHosts can use `appsettings.{environment}.json` files to set different parameter values per environment:
+
+```json title="appsettings.json"
+{
+  "Parameters": {
+    "apiKey": "dev-key-for-local-testing"
+  }
+}
+```
+
+```json title="appsettings.Staging.json"
+{
+  "Parameters": {
+    "apiKey": "staging-key-value"
+  }
+}
+```
+
+When the AppHost runs with `--environment Staging`, the staging file overrides the base values automatically. This is standard [.NET configuration layering](https://learn.microsoft.com/dotnet/core/extensions/configuration) — no Aspire-specific mechanism is needed.
+
+#### Providing parameters in CI/CD
+
+In CI/CD pipelines, set parameters as environment variables. This works for any AppHost language:
+
+```yaml title=".github/workflows/deploy.yml"
+- name: Deploy to production
+  run: aspire deploy --environment production
+  env:
+    Parameters__apiKey: ${{ secrets.API_KEY }}
+    Parameters__replicas: '3'
+    Parameters__sku: 'Premium'
+```
+
+Environment variables take the highest priority, so they override any values from config files or defaults.
+
+### Use execution context for run vs publish decisions
+
+Use the [execution context](#environment-vs-execution-context) for choices that differ between local orchestration and publish/deploy workflows. For example, use a local Redis container in run mode and an Azure Managed Redis resource when publishing:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.ExecutionContext.IsRunMode
+    ? builder.AddRedis("cache")
+    : builder.AddAzureManagedRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+const isRunMode = await builder.executionContext.isRunMode();
+
+const cache = isRunMode
+  ? await builder.addRedis('cache')
+  : await builder.addAzureManagedRedis('cache');
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(cache);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Environments in CI/CD
+
+In a CI/CD pipeline, you typically pass the environment name as part of the deployment command. Many CI systems have their own environment concepts that map naturally to Aspire environments.
+
+### GitHub Actions
+
+GitHub Environments provide scoped secrets and protection rules. Map them to Aspire environments by passing the environment name to the CLI:
+
+```yaml title=".github/workflows/deploy.yml"
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: aspire deploy --environment staging
+        env:
+          Parameters__apiKey: ${{ secrets.API_KEY }}
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: aspire deploy --environment production
+        env:
+          Parameters__apiKey: ${{ secrets.API_KEY }}
+```
+
+With this approach:
+
+- Each GitHub Environment scopes its own secrets (the `API_KEY` secret has different values in staging and production).
+- Protection rules on the `production` environment can require approvals before deployment.
+- The `--environment` flag ensures Aspire uses the correct deployment state cache and passes the environment name to your AppHost.
+
+<LearnMore>
+  For more information on deployment lifecycle, see [App lifecycle
+  (CI/CD)](/deployment/app-lifecycle/). For GitHub workflow guidance that
+  complements this page, see [Deployment state
+  caching](/deployment/deployment-state-caching/#github-actions-example).
+</LearnMore>
+
+## See also
+
+- [Deployment state caching](/deployment/deployment-state-caching/) — how environment-specific state is persisted
+- [AppHost configuration](/app-host/configuration/) — launch profile and environment variable configuration
+- [External parameters](/fundamentals/external-parameters/) — parameterize values that change between environments
+- [Deploy to Docker Compose](/deployment/docker-compose/) — environment-specific `.env` files
+- [CLI reference: `aspire deploy`](/reference/cli/commands/aspire-deploy/) — `--environment` flag details

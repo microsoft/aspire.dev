@@ -98,6 +98,108 @@ await env.withAzdResourceNaming();
 ```
 </Pivot>
 
+## Environments and configuration
+
+The `azd` CLI has its own environment management system that maps to Aspire environments. Understanding how these two systems connect helps you deploy the same application to multiple targets like staging and production.
+
+### azd environments
+
+Each `azd` environment is a named configuration scope stored under `.azure/{name}/` in your project. Create and switch between environments with:
+
+```bash title="Create and select environments"
+azd env new staging
+azd env new production
+azd env select staging
+```
+
+Each environment stores its own:
+
+- **Configuration** — `.azure/{name}/config.json` for infrastructure parameters (subscription, location, resource group)
+- **Environment variables** — `.azure/{name}/.env` for deployment-specific values
+- **Secrets** — referenced through a local vault in `~/.azd/vaults/`
+
+### How azd passes the environment to Aspire
+
+When `azd` invokes your AppHost to generate the deployment manifest, it passes the `DOTNET_ENVIRONMENT` value from the active azd environment's `.env` file to the AppHost process. This means your AppHost's `builder.Environment.EnvironmentName` reflects that value.
+
+To configure this, set `DOTNET_ENVIRONMENT` in your azd environment:
+
+```bash title="Set the Aspire environment for an azd environment"
+azd env set DOTNET_ENVIRONMENT staging
+azd up
+# → AppHost runs with DOTNET_ENVIRONMENT=staging
+# → builder.Environment.IsEnvironment("staging") returns true
+```
+
+<Aside type="caution">
+  The azd environment name (from `azd env select staging`) does **not**
+  automatically set `DOTNET_ENVIRONMENT`. You must explicitly set
+  `DOTNET_ENVIRONMENT` in each azd environment using `azd env set`. Without
+  this, the AppHost defaults to `Production` when no environment is specified.
+</Aside>
+
+Your AppHost code can branch on this value to vary topology or configuration per environment, as described in the [Environments](/deployment/environments/) guide.
+
+### How parameters work with azd
+
+Parameters in Aspire and `azd` follow different paths:
+
+| Parameter type                                     | How it reaches Azure resources                                                                                                                     |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Aspire parameters** (`AddParameter`)             | Resolved by the AppHost through .NET configuration when generating the manifest. Use `appsettings.{env}.json` or environment variables.            |
+| **`azd` infrastructure inputs (Bicep parameters)** | Prompted by `azd provision` and stored in `.azure/{name}/config.json`. Used by `azd` directly during Bicep deployment — not passed to the AppHost. |
+| **Secrets**                                        | Prompted by `azd provision` and stored in a local vault. Injected into Bicep parameters during provisioning.                                       |
+
+<Aside type="note">
+  `azd` infrastructure inputs stored in `.azure/{name}/config.json` are consumed
+  as Bicep parameters during provisioning. They are **not** passed as
+  environment variables to the AppHost process. If you need a value available in
+  both your AppHost code and your infrastructure, define it as an Aspire
+  parameter and provide it through .NET configuration or an environment
+  variable.
+</Aside>
+
+### Deploy to multiple environments
+
+To deploy the same application to staging and production with different Azure resources:
+
+<Steps>
+
+1. **Create environments:**
+
+   ```bash
+   azd env new staging
+   azd env new production
+   ```
+
+2. **Configure the Aspire environment for each:**
+
+   ```bash
+   azd env select staging
+   azd env set DOTNET_ENVIRONMENT staging
+
+   azd env select production
+   azd env set DOTNET_ENVIRONMENT production
+   ```
+
+3. **Deploy to staging** — `azd` prompts for subscription, location, and any required parameters on the first deployment:
+
+   ```bash
+   azd env select staging
+   azd up
+   ```
+
+4. **Deploy to production** — switch environments and deploy. Each environment provisions its own independent set of Azure resources:
+
+   ```bash
+   azd env select production
+   azd up
+   ```
+
+</Steps>
+
+Each environment maintains completely separate state — different resource groups, different secrets, different configuration. The AppHost receives the environment name through `DOTNET_ENVIRONMENT`, so any environment-based branching in your AppHost code (resource topology, parameter defaults) applies automatically.
+
 ## Deployment manifest
 
 The `azd` tool relies on the [deployment manifest format](/deployment/azure/manifest-format/) to understand your application topology. The manifest is a JSON document generated from the AppHost that describes resources, bindings, and parameters. It's produced automatically when `azd` invokes the AppHost during deployment.
