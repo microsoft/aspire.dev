@@ -8,6 +8,11 @@ on:
         required: true
         default: "24.x"
         type: string
+      pull_number:
+        description: Pull request number when available
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -25,7 +30,18 @@ jobs:
           fetch-depth: 0
 
       - name: Ensure full git history for Lunaria
-        run: git fetch --unshallow 2>/dev/null || true
+        env:
+          PULL_NUMBER: ${{ inputs.pull_number }}
+        run: |
+          if [ -n "$PULL_NUMBER" ]; then
+            git fetch origin \
+              "+refs/pull/${PULL_NUMBER}/head:refs/remotes/pull/${PULL_NUMBER}/head" \
+              --unshallow 2>/dev/null || \
+            git fetch origin \
+              "+refs/pull/${PULL_NUMBER}/head:refs/remotes/pull/${PULL_NUMBER}/head"
+          else
+            git fetch --unshallow 2>/dev/null || true
+          fi
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
