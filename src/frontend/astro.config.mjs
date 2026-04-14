@@ -8,7 +8,7 @@ import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
-import lunaria from '@lunariajs/starlight';
+import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';

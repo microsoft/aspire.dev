@@ -33,8 +33,6 @@ jobs:
         env:
           PULL_NUMBER: ${{ inputs.pull_number }}
         run: |
-          shallow_file="$(git rev-parse --git-dir)/shallow"
-
           if [ -n "$PULL_NUMBER" ]; then
             case "$PULL_NUMBER" in
               (*[!0-9]*)
@@ -44,20 +42,14 @@ jobs:
             esac
 
             pull_ref="+refs/pull/${PULL_NUMBER}/head:refs/remotes/origin/pull/${PULL_NUMBER}/head"
-            git fetch origin "$pull_ref"
-          fi
 
-          if [ "$(git rev-parse --is-shallow-repository)" = "true" ] || [ -f "$shallow_file" ]; then
-            git fetch --unshallow 2>/dev/null || true
-          fi
-
-          if [ -f "$shallow_file" ]; then
-            rm -f "$shallow_file"
-          fi
-
-          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-            echo "Git repository is still shallow after history remediation." >&2
-            exit 1
+            if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+              git fetch origin "$pull_ref" --unshallow
+            else
+              git fetch origin "$pull_ref"
+            fi
+          elif [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow
           fi
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
