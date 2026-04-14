@@ -65,6 +65,45 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      # Build BEFORE tests so that Lunaria (i18n status) runs against a
+      # pristine working tree.  The lint step inside test:all calls
+      # `astro sync` which can leave generated artifacts on disk; when
+      # the build ran second, Lunaria would see those as uncommitted
+      # changes and fail with a doubled rootDir path
+      # (src/frontend/src/frontend/…).
+      - name: Build frontend
+        env:
+          MODE: production
+          ASTRO_TELEMETRY_DISABLED: 1
+        run: pnpm build:production
+
+      # Upload before the dist sanity-check so the artifact is always
+      # available for debugging, even when the check step fails.
+      # Note: `uses` actions ignore the job-level working-directory,
+      # so the path is repo-root-relative (src/frontend/dist).
+      - name: Upload build artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: frontend-dist
+          path: src/frontend/dist
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Check dist
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Frontend build failed - dist directory not found"
+            exit 1
+          fi
+
+          if [ ! -f "dist/index.html" ]; then
+            echo "Frontend build incomplete - index.html not found"
+            exit 1
+          fi
+
+          ls -la dist
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
@@ -109,32 +148,3 @@ jobs:
             echo '- `frontend-playwright-report`'
             echo '- `frontend-test-results`'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Build frontend
-        env:
-          MODE: production
-          ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm build:production
-
-      - name: Check dist
-        run: |
-          if [ ! -d "dist" ]; then
-            echo "Frontend build failed - dist directory not found"
-            exit 1
-          fi
-
-          if [ ! -f "dist/index.html" ]; then
-            echo "Frontend build incomplete - index.html not found"
-            exit 1
-          fi
-
-          ls -la dist
-
-      - name: Upload artifact
-        if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: frontend-dist
-          path: src/frontend/dist
-          if-no-files-found: warn
-          retention-days: 7
