@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { buildTsApiSearchIndex } from '../../src/utils/ts-api-search';
+import { getTsApiSearchStats } from '../../src/utils/ts-api-search-stats';
 
 test('buildTsApiSearchIndex produces canonical hrefs for standalone functions and handle members', () => {
   const index = buildTsApiSearchIndex([
@@ -76,4 +77,50 @@ test('buildTsApiSearchIndex produces canonical hrefs for standalone functions an
   );
 
   expect(index.filter((entry) => entry.n === 'withBun')).toHaveLength(1);
+});
+
+test('getTsApiSearchStats counts capabilities from indexed members and properties', () => {
+  const index = buildTsApiSearchIndex([
+    {
+      package: {
+        name: 'Aspire.Hosting.JavaScript',
+        version: '13.2.0',
+      },
+      functions: [
+        {
+          name: 'withBun',
+          capabilityId: 'Aspire.Hosting.JavaScript/withBun',
+          qualifiedName: 'withBun',
+          signature: 'withBun(install?: boolean, installArgs?: string[]): JavaScriptAppResource',
+          description: 'Configures Bun as the package manager',
+          expandedTargetTypes: [
+            'Aspire.Hosting.JavaScript.JavaScriptAppResource',
+          ],
+          parameters: [
+            { name: 'install', type: 'boolean' },
+          ],
+        },
+      ],
+      handleTypes: [
+        {
+          name: 'JavaScriptAppResource',
+          fullName: 'Aspire.Hosting.JavaScript.JavaScriptAppResource',
+          capabilities: [
+            {
+              name: 'command',
+              kind: 'PropertyGetter',
+              signature: 'command(): string',
+              description: 'Gets the Command property',
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+
+  expect(getTsApiSearchStats(index)).toEqual({
+    packageCount: 1,
+    capabilityCount: 2,
+    typeCount: 1,
+  });
 });

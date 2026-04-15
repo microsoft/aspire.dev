@@ -9,6 +9,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
 import { buildTsApiSearchIndex } from '@utils/ts-api-search';
+import { formatTsApiSearchStats, getTsApiSearchStats } from '@utils/ts-api-search-stats';
 import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
@@ -25,26 +26,7 @@ const allTsVersions = [...new Set(sorted.map(p => p.package.version).filter(Bool
 
 /* ── Build the search index ─────────────────────────────────────── */
 const index = buildTsApiSearchIndex(sorted, base);
-let functionCount = 0;
-let typeCount = 0;
-
-for (const pkg of sorted) {
-  for (const func of pkg.functions ?? []) {
-    functionCount++;
-  }
-
-  for (const handle of pkg.handleTypes ?? []) {
-    typeCount++;
-  }
-
-  for (const dto of pkg.dtoTypes ?? []) {
-    typeCount++;
-  }
-
-  for (const enumType of pkg.enumTypes ?? []) {
-    typeCount++;
-  }
-}
+const defaultStats = getTsApiSearchStats(index);
 
 const allKinds = [...new Set(index.map(e => e.k))].sort();
 const indexJson = JSON.stringify(index);
@@ -81,7 +63,7 @@ const indexJson = JSON.stringify(index);
       placeholder="Search functions, methods, properties, types…"
       kinds={allKinds}
       versions={allTsVersions}
-      defaultStatsText={`${functionCount.toLocaleString()} functions and ${typeCount.toLocaleString()} types across ${sorted.length.toLocaleString()} modules`}
+      defaultStatsText={formatTsApiSearchStats(defaultStats)}
       size="lg"
     />
 
@@ -113,15 +95,13 @@ const indexJson = JSON.stringify(index);
 </StarlightPage>
 
 <!-- Embed the search index -->
-<script is:inline define:vars={{ indexJson, base, functionCount, typeCount }}>
+<script is:inline define:vars={{ indexJson }}>
   window.__tsApiSearchIndex = JSON.parse(indexJson);
-  window.__tsApiBase = base;
-  window.__tsApiFunctionCount = functionCount;
-  window.__tsApiTypeCount = typeCount;
 </script>
 
 <script>
   import '@components/api-reference/inpage-search-sync';
+  import { formatTsApiSearchStats, getTsApiSearchStats } from '@utils/ts-api-search-stats';
 
   interface IndexEntry {
     n: string;
@@ -158,11 +138,7 @@ const indexJson = JSON.stringify(index);
     private filtersEl: HTMLElement;
     private clearFiltersBtn: HTMLElement;
     private index: IndexEntry[];
-    private base: string;
     private debounceTimer: number | null = null;
-    private functionCount: number;
-    private typeCount: number;
-    private packageCount: number;
     private activeKinds = new Set<string>();
     private activeVersions: Set<string> | null = null;
     private lastScored: { entry: IndexEntry; score: number }[] = [];
@@ -179,10 +155,6 @@ const indexJson = JSON.stringify(index);
       this.filtersEl = document.getElementById('ts-api-kind-filters') as HTMLElement;
       this.clearFiltersBtn = document.getElementById('ts-api-clear-filters') as HTMLElement;
       this.index = (window as any).__tsApiSearchIndex ?? [];
-      this.base = (window as any).__tsApiBase ?? '';
-      this.functionCount = (window as any).__tsApiFunctionCount ?? 0;
-      this.typeCount = (window as any).__tsApiTypeCount ?? 0;
-      this.packageCount = new Set(this.index.map(e => e.p)).size;
 
       this.sync = new (window as any).InpageSearchSync('ts-api', () => this.clear());
 
@@ -236,17 +208,8 @@ const indexJson = JSON.stringify(index);
       }
     }
 
-    private getVisiblePackageStats(): { packageCount: number; functionCount: number; typeCount: number } {
-      const visibleEntries = this.activeVersions === null
-        ? this.index
-        : this.index.filter(entry => entry.v && this.activeVersions!.has(entry.v));
-      const functionKinds = new Set(['function', 'method']);
-
-      return {
-        packageCount: new Set(visibleEntries.filter(entry => !entry.m).map(entry => entry.p)).size,
-        functionCount: visibleEntries.filter(entry => !entry.m && functionKinds.has(entry.k)).length,
-        typeCount: visibleEntries.filter(entry => !entry.m && !functionKinds.has(entry.k)).length,
-      };
+    private getVisiblePackageStats(): { packageCount: number; capabilityCount: number; typeCount: number } {
+      return getTsApiSearchStats(this.index, this.activeVersions);
     }
 
     private init(): void {
@@ -318,8 +281,7 @@ const indexJson = JSON.stringify(index);
       this.resultsEl.innerHTML = '';
       this.packageList.style.display = '';
 
-      const stats = this.getVisiblePackageStats();
-      this.countEl.textContent = `${fmtNum(stats.functionCount)} functions and ${fmtNum(stats.typeCount)} types across ${fmtNum(stats.packageCount)} modules`;
+      this.countEl.textContent = formatTsApiSearchStats(this.getVisiblePackageStats());
     }
 
     private handleInput(): void {

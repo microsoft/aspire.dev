@@ -1,4 +1,5 @@
 import type { TsApiDocument, TsFunction, TsHandleType } from './ts-modules';
+import type { TsApiSearchIndexEntry } from './ts-api-search-stats';
 import { tsModuleSlug } from './ts-modules';
 import {
   getTsCallableIdentityKey,
@@ -12,17 +13,7 @@ import {
   getTsTopLevelRouteItems,
 } from './ts-api-routes';
 
-export interface TsApiSearchIndexEntry {
-  n: string;
-  f: string;
-  k: string;
-  p: string;
-  s: string;
-  h: string;
-  t?: string;
-  v?: string;
-  m?: boolean;
-}
+export type { TsApiSearchIndexEntry } from './ts-api-search-stats';
 
 export function buildTsApiSearchIndex(packages: TsApiDocument[], base = ''): TsApiSearchIndexEntry[] {
   const normalizedBase = base.replace(/\/$/, '');
