@@ -402,6 +402,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           label: 'Troubleshooting',
           slug: 'get-started/troubleshooting',
         },
+        {
+          label: 'FAQ',
+          slug: 'get-started/faq',
+        },
       ],
     },
     {
