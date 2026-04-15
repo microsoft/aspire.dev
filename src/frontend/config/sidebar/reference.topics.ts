@@ -496,6 +496,28 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                   label: 'aspire docs search',
                   slug: 'reference/cli/commands/aspire-docs-search',
                 },
+                {
+                  label: 'aspire docs api',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'aspire docs api',
+                      slug: 'reference/cli/commands/aspire-docs-api',
+                    },
+                    {
+                      label: 'aspire docs api get',
+                      slug: 'reference/cli/commands/aspire-docs-api-get',
+                    },
+                    {
+                      label: 'aspire docs api list',
+                      slug: 'reference/cli/commands/aspire-docs-api-list',
+                    },
+                    {
+                      label: 'aspire docs api search',
+                      slug: 'reference/cli/commands/aspire-docs-api-search',
+                    },
+                  ],
+                },
               ],
             },
             {
