@@ -30,7 +30,7 @@ builder.AddProject<Projects.Api>("api");
 
 builder.Build().Run();
 
-````
+```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.ts"
@@ -43,7 +43,7 @@ await builder.addDockerComposeEnvironment('env');
 await builder.addProject('api', '../Api/Api.csproj', 'http');
 
 await builder.build().run();
-````
+```
 
 </TabItem>
 </Tabs>
@@ -65,7 +65,7 @@ A pipeline step is a named unit of work in the Aspire pipeline. Any resource can
 | [`aspire deploy`](/reference/cli/commands/aspire-deploy/)   | The deploy entry point            | Generate target-specific output, resolve parameters, and apply deployment changes directly |
 | [`aspire do <step>`](/reference/cli/commands/aspire-do/)    | A named step and its dependencies | Run a specific step directly                                                               |
 
-If no resource contributes work for a given entry point, Aspire can still run the pipeline successfully as a no-op. That usually means your AppHost hasn't added a target or other resource that contributes steps for that path yet.
+If no resource contributes work for `publish` or `deploy`, Aspire has nothing to execute for that entry point. In current Aspire CLI builds, that entry point completes as a no-op. That usually means your AppHost hasn't added a target or other resource that contributes steps for that path yet.
 
 These are separate entry points. Use `aspire publish` when you want a one-way handoff out of Aspire: it emits artifacts that another tool or a manual step will apply later. Use `aspire deploy` when you want Aspire to stay in control, generate the target-specific output behind the scenes, resolve parameter values, and apply the deployment in one operation. `aspire deploy` does not consume previously published assets.
 
@@ -104,11 +104,11 @@ var apiKey = builder.AddParameter("apiKey", secret: true);
 builder.AddDockerComposeEnvironment("env");
 
 builder.AddProject<Projects.Api>("api")
-.WithEnvironment("API_KEY", apiKey);
+    .WithEnvironment("API_KEY", apiKey);
 
 builder.Build().Run();
 
-````
+```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.ts"
@@ -123,7 +123,7 @@ const api = await builder.addProject('api', '../Api/Api.csproj', 'http');
 await api.withEnvironment('API_KEY', apiKey);
 
 await builder.build().run();
-````
+```
 
 </TabItem>
 </Tabs>
@@ -133,6 +133,7 @@ In this example:
 - `apiKey` is the Aspire parameter name in the AppHost.
 - `API_KEY` is the environment variable the deployed app receives.
 - `Parameters__apiKey` is an environment variable you can use to supply the value to the AppHost when the pipeline runs.
+- `APIKEY` is the publish-time placeholder name Docker Compose emits in generated `.env` and `${...}` references.
 
 When the Docker Compose target publishes artifacts, the publish path preserves that relationship in target-specific output:
 
@@ -148,6 +149,8 @@ services:
 # Parameter apiKey
 APIKEY=
 ```
+
+In this Docker Compose output, the placeholder name is `APIKEY` rather than `API_KEY`. The app still receives `API_KEY`; `APIKEY` is only the generated publish-time placeholder that the emitted artifacts use later.
 
 The placeholder name in published output is target-specific, but the mapping stays the same:
 

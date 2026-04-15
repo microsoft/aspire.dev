@@ -305,18 +305,25 @@ const basicRenderCases: BasicRenderCase[] = [
     includes: ['Build', 'faster', 'Get started', '/get-started/', 'Docs'],
   },
   {
-    name: 'TopicHero renders optional CTAs and floating icons',
+    name: 'TopicHero renders optional CTAs, floating icons, and inline code in subtitles',
     Component: TopicHero,
     props: {
       title: 'Platform',
       highlight: 'overview',
-      subtitle: 'Understand the building blocks.',
+      subtitle: 'Use `aspire publish` for handoff.',
       primaryCta: { label: 'Explore', href: '/docs/' },
       secondaryCta: { label: 'Deploy', href: '/deployment/' },
       icon: 'rocket',
       floatingIcons: ['open-book', 'puzzle'],
     },
-    includes: ['Platform', 'overview', 'Explore', '/deployment/', 'floating-icon'],
+    includes: [
+      'Platform',
+      'overview',
+      'Explore',
+      '/deployment/',
+      'floating-icon',
+      '>aspire publish</code>',
+    ],
   },
   {
     name: 'ThemeImage renders light and dark sources',
