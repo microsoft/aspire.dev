@@ -3,11 +3,12 @@
  * /reference/api/typescript/ — TypeScript API Reference landing page with search.
  *
  * Lists all TypeScript API modules with a client-side search bar that lets
- * users filter across functions, handle types, types, and enums.
+ * users filter across functions, handle members, handle types, types, and enums.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import { buildTsApiSearchIndex } from '@utils/ts-api-search';
 import ApiSearchBar from '@components/api-reference/ApiSearchBar.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
 
@@ -23,82 +24,25 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const allTsVersions = [...new Set(sorted.map(p => p.package.version).filter(Boolean))] as string[];
 
 /* ── Build the search index ─────────────────────────────────────── */
-
-interface IndexEntry {
-  /** Short name */
-  n: string;
-  /** Fully-qualified name or signature */
-  f: string;
-  /** Kind (method, handle, dto, enum, property, etc.) */
-  k: string;
-  /** Package name */
-  p: string;
-  /** Description text */
-  s: string;
-  /** Parent type name (for capabilities on handle types) */
-  t?: string;
-}
-
-const index: IndexEntry[] = [];
+const index = buildTsApiSearchIndex(sorted, base);
 let functionCount = 0;
 let typeCount = 0;
 
 for (const pkg of sorted) {
-  const pkgName = pkg.package.name;
-  const pkgVersion = pkg.package.version;
-
-  // Index functions
   for (const func of pkg.functions ?? []) {
     functionCount++;
-    index.push({
-      n: func.name,
-      f: func.signature ?? func.qualifiedName ?? func.name,
-      k: func.kind === 'PropertyGetter' ? 'property' :
-         func.kind === 'PropertySetter' ? 'property' :
-         func.kind === 'InstanceMethod' ? 'method' : 'method',
-      p: pkgName,
-      s: func.description ?? '',
-      ...(pkgVersion ? { v: pkgVersion } : {}),
-    });
   }
 
-  // Index handle types
   for (const handle of pkg.handleTypes ?? []) {
     typeCount++;
-    index.push({
-      n: handle.name,
-      f: handle.fullName ?? handle.name,
-      k: handle.isInterface ? 'interface' : 'handle',
-      p: pkgName,
-      s: `Handle type${handle.isInterface ? ' (interface)' : ''}`,
-      ...(pkgVersion ? { v: pkgVersion } : {}),
-    });
   }
 
-  // Index DTO types
   for (const dto of pkg.dtoTypes ?? []) {
     typeCount++;
-    index.push({
-      n: dto.name,
-      f: dto.fullName ?? dto.name,
-      k: 'type',
-      p: pkgName,
-      s: `Type with ${dto.fields?.length ?? 0} fields`,
-      ...(pkgVersion ? { v: pkgVersion } : {}),
-    });
   }
 
-  // Index enum types
   for (const enumType of pkg.enumTypes ?? []) {
     typeCount++;
-    index.push({
-      n: enumType.name,
-      f: enumType.fullName ?? enumType.name,
-      k: 'enum',
-      p: pkgName,
-      s: `Enum: ${(enumType.members ?? []).join(', ')}`,
-      ...(pkgVersion ? { v: pkgVersion } : {}),
-    });
   }
 }
 
@@ -134,7 +78,7 @@ const indexJson = JSON.stringify(index);
 
     <ApiSearchBar
       id="ts-api"
-      placeholder="Search functions, types, enums…"
+      placeholder="Search functions, methods, properties, types…"
       kinds={allKinds}
       versions={allTsVersions}
       defaultStatsText={`${functionCount.toLocaleString()} functions and ${typeCount.toLocaleString()} types across ${sorted.length.toLocaleString()} modules`}
@@ -185,8 +129,10 @@ const indexJson = JSON.stringify(index);
     k: string;
     p: string;
     s: string;
+    h: string;
     t?: string;
     v?: string;
+    m?: boolean;
   }
 
   const PAGE_SIZE = 10;
@@ -194,6 +140,7 @@ const indexJson = JSON.stringify(index);
   function fmtNum(n: number): string { return n.toLocaleString(); }
 
   const KIND_COLORS: Record<string, string> = {
+    function: '#3b82f6',
     method: '#3b82f6',
     property: '#10b981',
     handle: '#8b5cf6',
@@ -293,12 +240,12 @@ const indexJson = JSON.stringify(index);
       const visibleEntries = this.activeVersions === null
         ? this.index
         : this.index.filter(entry => entry.v && this.activeVersions!.has(entry.v));
-      const functionKinds = new Set(['method', 'property']);
+      const functionKinds = new Set(['function', 'method']);
 
       return {
-        packageCount: new Set(visibleEntries.map(entry => entry.p)).size,
-        functionCount: visibleEntries.filter(entry => functionKinds.has(entry.k)).length,
-        typeCount: visibleEntries.filter(entry => !functionKinds.has(entry.k)).length,
+        packageCount: new Set(visibleEntries.filter(entry => !entry.m).map(entry => entry.p)).size,
+        functionCount: visibleEntries.filter(entry => !entry.m && functionKinds.has(entry.k)).length,
+        typeCount: visibleEntries.filter(entry => !entry.m && !functionKinds.has(entry.k)).length,
       };
     }
 
@@ -461,6 +408,7 @@ const indexJson = JSON.stringify(index);
         const fullLower = entry.f.toLowerCase();
         const descLower = entry.s.toLowerCase();
         const pkgLower = entry.p.toLowerCase();
+        const parentLower = entry.t?.toLowerCase() ?? '';
 
         let score = 0;
         for (const token of tokens) {
@@ -469,6 +417,7 @@ const indexJson = JSON.stringify(index);
           else if (nameLower.includes(token)) score += 40;
           else if (this.camelMatch(entry.n, token)) score += 55;
           else if (fullLower.includes(token)) score += 30;
+          else if (parentLower.includes(token)) score += 25;
           else if (pkgLower.includes(token)) score += 15;
           else if (descLower.includes(token)) score += 10;
           else { score = 0; break; }
@@ -546,26 +495,21 @@ const indexJson = JSON.stringify(index);
 
     private renderResult(entry: IndexEntry, tokens: string[]): string {
       const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['method'];
-      const pkgSlug = entry.p.toLowerCase();
-      const itemSlug = entry.n.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const kindClass = entry.k.replace(/\s+/g, '-');
 
-      // Only types (handle, interface, type, enum) have detail pages
-      const TYPE_KINDS = new Set(['handle', 'interface', 'type', 'enum']);
-      const isType = TYPE_KINDS.has(entry.k);
-      const href = isType ? `${this.base}/reference/api/typescript/${pkgSlug}/${itemSlug}/` : null;
-      const tag = href ? 'a' : 'div';
-      const hrefAttr = href ? ` href="${this.esc(href)}"` : '';
-
-      return `<${tag}${hrefAttr} class="api-list-item api-search-result" title="${this.esc(entry.f)} — ${this.esc(entry.p)}">
+      return `<a href="${this.esc(entry.h)}" class="api-list-item api-search-result" title="${this.esc(entry.f)} — ${this.esc(entry.p)}${entry.t ? ` (${this.esc(entry.t)})` : ''}">
         <div class="api-list-header">
-          <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
-          <span class="api-kind-micro kind-${entry.k}">${this.esc(entry.k)}</span>
+          <span class="api-result-name-wrap">
+            <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n, tokens)}</span>
+            ${entry.t ? `<span class="api-result-dot">&nbsp;·&nbsp;</span><span class="api-result-parent">${this.esc(entry.t)}</span>` : ''}
+          </span>
+          <span class="api-kind-micro kind-${kindClass}">${this.esc(entry.k)}</span>
           <div class="trailing">
             <span class="api-list-meta" title="${this.esc(entry.p)}">${this.esc(entry.p)}</span>
           </div>
         </div>
         ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
-      </${tag}>`;
+      </a>`;
     }
 
     private highlight(text: string, tokens: string[]): string {

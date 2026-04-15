@@ -18,6 +18,7 @@ import {
   normalizeBase,
   section,
 } from '@utils/api-markdown-shared';
+import { getTsFunctionDisplayKind, getTsFunctionDisplayLabel } from '@utils/ts-api-function-kind';
 
 type TypeScriptItemKind = 'handle' | 'dto' | 'enum' | 'function';
 type TypeScriptItem = TsHandleType | TsDtoType | TsEnumType | TsFunction;
@@ -94,7 +95,7 @@ export function renderTypeScriptModuleMarkdown(pkg: TsApiDocument, base: string)
 
   const functionLines = standaloneFunctions.map((fn) => {
     const description = fn.description ? ` — ${fn.description}` : '';
-    return `- ${link(fn.name, typeScriptItemMdHref(base, pkg.package.name, fn.name))} — ${inlineCode('function')}${description}`;
+    return `- ${link(fn.name, typeScriptItemMdHref(base, pkg.package.name, fn.name))} — ${inlineCode(getTsFunctionDisplayKind(fn))}${description}`;
   });
 
   const enumLines = allEnums.map((item) => {
@@ -125,7 +126,7 @@ export function renderTypeScriptItemMarkdown(
   const metadata = keyValueBullets([
     { label: 'Module', value: link(pkg.package.name, typeScriptModuleMdHref(base, pkg.package.name)) },
     { label: 'Version', value: pkg.package.version ? inlineCode(pkg.package.version) : null },
-    { label: 'Kind', value: inlineCode(getItemKindLabel(itemKind, handleItem?.isInterface).toLowerCase()) },
+    { label: 'Kind', value: inlineCode(getItemKindLabel(itemKind, handleItem?.isInterface, functionItem).toLowerCase()) },
     { label: 'Source', value: sourceHref ? link('GitHub', sourceHref) : null },
   ]);
 
@@ -179,7 +180,11 @@ export function renderTypeScriptMemberMarkdownPage(
   ]);
 }
 
-function getItemKindLabel(itemKind: TypeScriptItemKind, isInterface: boolean | undefined): string {
+function getItemKindLabel(
+  itemKind: TypeScriptItemKind,
+  isInterface: boolean | undefined,
+  functionItem?: TsFunction | null
+): string {
   if (itemKind === 'handle') {
     return isInterface ? 'Interface' : 'Handle';
   }
@@ -189,7 +194,7 @@ function getItemKindLabel(itemKind: TypeScriptItemKind, isInterface: boolean | u
   }
 
   if (itemKind === 'function') {
-    return 'Function';
+    return getTsFunctionDisplayLabel(functionItem ?? { expandedTargetTypes: [] });
   }
 
   return 'Enum';
