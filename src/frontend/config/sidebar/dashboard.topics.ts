@@ -210,7 +210,20 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Увімкнути телеметрію браузера',
         'zh-CN': '启用浏览器遥测',
       },
-      slug: 'dashboard/enable-browser-telemetry',
+      items: [
+        {
+          label: 'Overview',
+          slug: 'dashboard/enable-browser-telemetry',
+        },
+        {
+          label: 'Browser app configuration',
+          slug: 'dashboard/enable-browser-telemetry/browser-app-configuration',
+        },
+        {
+          label: 'Blazor WebAssembly integration',
+          slug: 'dashboard/enable-browser-telemetry/blazor-webassembly',
+        },
+      ],
     },
     {
       label: 'Microsoft telemetry',
@@ -233,6 +246,29 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': 'Microsoft 遥测',
       },
       slug: 'dashboard/microsoft-collected-dashboard-telemetry',
+    },
+    {
+      label: 'Telemetry after deployment',
+      translations: {
+        da: 'Telemetri efter implementering',
+        de: 'Telemetrie nach der Bereitstellung',
+        en: 'Telemetry after deployment',
+        es: 'Telemetría después de la implementación',
+        fr: 'Télémétrie après le déploiement',
+        hi: 'परिनियोजन के बाद टेलीमेट्री',
+        id: 'Telemetri setelah penerapan',
+        it: 'Telemetria dopo la distribuzione',
+        ja: 'デプロイ後のテレメトリ',
+        ko: '배포 후 텔레메트리',
+        pt: 'Telemetria após a implantação',
+        'pt-BR': 'Telemetria após a implantação',
+        'pt-PT': 'Telemetria após a implementação',
+        ru: 'Телеметрия после развертывания',
+        tr: 'Dağıtımdan sonra telemetri',
+        uk: 'Телеметрія після розгортання',
+        'zh-CN': '部署后的遥测',
+      },
+      slug: 'dashboard/telemetry-after-deployment',
     },
   ],
 };
