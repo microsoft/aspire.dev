@@ -23,6 +23,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
   items: [
     {
       label: 'Welcome to Aspire',
+      collapsed: false,
       translations: {
         da: 'Velkommen til Aspire',
         de: 'Willkommen bei Aspire',
@@ -40,7 +41,51 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
         uk: 'Ласкаво просимо до Aspire',
         'zh-CN': '欢迎使用 Aspire',
       },
-      slug: 'docs',
+      items: [
+        {
+          label: 'Overview',
+          translations: {
+            da: 'Oversigt',
+            de: 'Übersicht',
+            en: 'Overview',
+            es: 'Descripción general',
+            fr: "Vue d'ensemble",
+            hi: 'अवलोकन',
+            id: 'Ikhtisar',
+            it: 'Panoramica',
+            ja: '概要',
+            ko: '개요',
+            pt: 'Visão geral',
+            'pt-BR': 'Visão geral',
+            ru: 'Обзор',
+            tr: 'Genel Bakış',
+            uk: 'Огляд',
+            'zh-CN': '概述',
+          },
+          slug: 'docs',
+        },
+        {
+          label: 'What is Aspire?',
+          translations: {
+            da: 'Hvad er Aspire?',
+            de: 'Was ist Aspire?',
+            en: 'What is Aspire?',
+            es: '¿Qué es Aspire?',
+            fr: 'Qu’est-ce qu’Aspire ?',
+            hi: 'Aspire क्या है?',
+            id: 'Apa itu Aspire?',
+            it: 'Che cos’è Aspire?',
+            ja: 'Aspire とは何ですか?',
+            ko: 'Aspire란 무엇인가요?',
+            'pt-BR': 'O que é Aspire?',
+            ru: 'Что такое Aspire?',
+            tr: 'Aspire nedir?',
+            uk: 'Що таке Aspire?',
+            'zh-CN': 'Aspire 是什么？',
+          },
+          slug: 'get-started/what-is-aspire',
+        },
+      ],
     },
     {
       label: "What's new",
@@ -445,27 +490,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '概览与概念',
           },
           items: [
-            {
-              label: 'What is Aspire?',
-              translations: {
-                da: 'Hvad er Aspire?',
-                de: 'Was ist Aspire?',
-                en: 'What is Aspire?',
-                es: '¿Qué es Aspire?',
-                fr: 'Qu’est-ce qu’Aspire ?',
-                hi: 'Aspire क्या है?',
-                id: 'Apa itu Aspire?',
-                it: 'Che cos’è Aspire?',
-                ja: 'Aspire とは何ですか?',
-                ko: 'Aspire란 무엇인가요?',
-                'pt-BR': 'O que é Aspire?',
-                ru: 'Что такое Aspire?',
-                tr: 'Aspire nedir?',
-                uk: 'Що таке Aspire?',
-                'zh-CN': 'Aspire 是什么？',
-              },
-              slug: 'get-started/what-is-aspire',
-            },
             {
               label: 'What is the AppHost?',
               translations: {
