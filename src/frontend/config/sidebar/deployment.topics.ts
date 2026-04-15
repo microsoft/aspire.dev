@@ -68,7 +68,7 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/environments',
     },
     {
-      label: 'Pipelines',
+      label: 'Pipeline model',
       collapsed: false,
       items: [
         {

@@ -8,8 +8,6 @@ lastUpdated: true
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
 
 When you compose your distributed app in Aspire's **AppHost**, you're not just defining services for local development and orchestration—you're also setting up the foundation for deployment. The same composition you use to run and debug locally is leveraged when you publish your app, ensuring consistency from development through to production.
 
@@ -32,23 +30,26 @@ architecture-beta
 
 This table shows how you can deploy the same resources across different platforms:
 
-| Resource | Local | AWS | Azure | On-Premises |
-|-|-|-|-|-|
-| Frontend | `npm run dev` | Elastic Container Service | Container Apps | Custom |
-| API Service | Local process | AWS Lambda | Functions | Custom |
-| PostgreSQL | `docker.io/library/postgres` | Relational Database Service | Database for Postgres | Custom |
+| Resource    | Local                        | AWS                         | Azure                 | On-Premises |
+| ----------- | ---------------------------- | --------------------------- | --------------------- | ----------- |
+| Frontend    | `npm run dev`                | Elastic Container Service   | Container Apps        | Custom      |
+| API Service | Local process                | AWS Lambda                  | Functions             | Custom      |
+| PostgreSQL  | `docker.io/library/postgres` | Relational Database Service | Database for Postgres | Custom      |
 
 <Aside type="tip">
-Aspire's AppHost allows you to define your app's architecture in a way that is platform-agnostic, meaning you can run the same code locally or deploy it to any environment without changes.
+  Aspire's AppHost allows you to define your app's architecture in a way that is
+  platform-agnostic, meaning you can run the same code locally or deploy it to
+  any environment without changes.
 </Aside>
 
 Aspire uses a pipeline-based deployment system that enables extensible, composable deployment workflows. This system allows you to customize how your applications are deployed while maintaining consistency across different environments.
 
 <Aside type="note">
-Pipeline-based deployment is an experimental feature in Aspire 13. APIs and functionality may change in future releases.
+  Pipeline-based deployment is an experimental feature in Aspire 13. APIs and
+  functionality may change in future releases.
 </Aside>
 
-## Overview
+## Pipeline model
 
 The pipeline deployment system provides a flexible, concurrent model for deploying cloud applications. Pipelines break deployment into discrete, well-defined steps that can be optimized for performance and reliability while maintaining clear visibility into the deployment process.
 
@@ -91,16 +92,19 @@ Each step has:
 Pipeline steps operate at different levels of granularity. For example, when deploying a typical web application with a frontend, API service, database, and storage, the pipeline might include:
 
 **Infrastructure steps** (can run in parallel):
+
 - `provision-cosmosdb`: Provision the CosmosDB database
 - `provision-storage`: Provision Azure Storage account
 - `provision-aca-env`: Provision Azure Container Apps environment
 - `provision-container-registry`: Set up the container image registry
 
 **Build steps** (can run in parallel):
+
 - `build-apiservice`: Build container image for the API service
 - `build-webfrontend`: Build container image for the frontend
 
 **Deployment steps** (depend on builds and infrastructure):
+
 - `push-apiservice`: Push API service image to registry
 - `push-webfrontend`: Push frontend image to registry
 - `deploy-apiservice`: Deploy API service to compute platform
@@ -115,24 +119,26 @@ The pipeline system operates through three distinct phases:
 <Steps>
 
 1. #### Registration phase
-    Steps are collected from two sources:
-    - **Resource annotations**: Steps contributed by resources in your application model (e.g., a database resource contributes its provisioning step)
-    - **Pipeline API calls**: Steps added directly through pipeline configuration in your AppHost
 
-    This decentralized approach allows both framework components and user code to participate in the deployment process without requiring changes to a central configuration.
+   Steps are collected from two sources:
+   - **Resource annotations**: Steps contributed by resources in your application model (e.g., a database resource contributes its provisioning step)
+   - **Pipeline API calls**: Steps added directly through pipeline configuration in your AppHost
 
-1. #### Resolution phase  
-    The pipeline system analyzes all registered steps to:
-    - **Validate dependencies**: Ensure all referenced steps exist and no circular dependencies are present
-    - **Calculate execution order**: Determine the optimal sequence that respects all dependency constraints
-    - **Identify concurrency opportunities**: Group steps that can run in parallel
+   This decentralized approach allows both framework components and user code to participate in the deployment process without requiring changes to a central configuration.
+
+1. #### Resolution phase
+
+   The pipeline system analyzes all registered steps to:
+   - **Validate dependencies**: Ensure all referenced steps exist and no circular dependencies are present
+   - **Calculate execution order**: Determine the optimal sequence that respects all dependency constraints
+   - **Identify concurrency opportunities**: Group steps that can run in parallel
 
 1. #### Execution phase
-    Steps run according to the resolved plan:
-    - **Parallel execution**: Independent steps start simultaneously
-    - **Dependency waiting**: Steps wait only for their specific dependencies, not for unrelated operations
-    - **Progress reporting**: Real-time status updates for both individual steps and overall pipeline progress
-    - **Error isolation**: Failed steps don't block unrelated operations
+   Steps run according to the resolved plan:
+   - **Parallel execution**: Independent steps start simultaneously
+   - **Dependency waiting**: Steps wait only for their specific dependencies, not for unrelated operations
+   - **Progress reporting**: Real-time status updates for both individual steps and overall pipeline progress
+   - **Error isolation**: Failed steps don't block unrelated operations
 
 </Steps>
 
@@ -157,13 +163,15 @@ graph TD
 ```
 
 In this example:
+
 - `push-apiservice` depends on both the image being built AND the registry being available
 - `deploy-apiservice` can start as soon as its image is pushed, the database is provisioned, and managed identity is configured
 - `provision-cosmosdb` and `build-apiservice` can run in parallel since they don't depend on each other
 
 The pipeline system validates dependencies to ensure:
+
 - **No circular dependencies**: Step A cannot depend on Step B if Step B depends on Step A
-- **All references exist**: All dependency declarations reference actual registered steps  
+- **All references exist**: All dependency declarations reference actual registered steps
 - **Logical consistency**: The dependency graph represents a valid execution plan
 
 ## Deployment patterns
@@ -175,12 +183,14 @@ Aspire's pipeline system is designed around intelligent orchestration of deploym
 The pipeline system uses fine-grained steps to provide precise control and visibility while maintaining deployment efficiency:
 
 **Resource-level granularity**: Each infrastructure resource (databases, storage accounts, container registries) is provisioned as a separate step, enabling:
+
 - **Precise error reporting**: When a specific resource fails, you know exactly what went wrong
 - **Targeted retry capabilities**: Retry only the failed resource without affecting successfully provisioned components
 - **Progress transparency**: Clear visibility into which resources are provisioning and their current status
 - **Flexible recovery**: Ability to fix issues and continue from the point of failure
 
 **Operation-level organization**: Related operations are grouped logically while maintaining independence:
+
 - **Build operations**: Multiple container images can build in parallel using available system resources
 - **Push operations**: Images can be pushed to registries as soon as they're built and the registry is available
 - **Deployment operations**: Services deploy as soon as their dependencies (images, infrastructure) are ready
@@ -220,7 +230,7 @@ Resources in your application model can contribute their own pipeline steps thro
 <Steps>
 
 1. **Annotation-based registration**: Resources use annotations to declare their pipeline steps
-2. **Automatic discovery**: The pipeline system automatically discovers steps from all resources during the registration phase  
+2. **Automatic discovery**: The pipeline system automatically discovers steps from all resources during the registration phase
 3. **Dependency integration**: Resource steps can depend on well-known steps or other resource steps
 
 </Steps>
@@ -241,7 +251,7 @@ Each step handles a specific aspect of static site deployment:
 <Steps>
 
 1. **Building site artifacts**: Compile, optimize, and prepare static files
-2. **Configuring storage permissions**: Set up appropriate access controls  
+2. **Configuring storage permissions**: Set up appropriate access controls
 3. **Uploading files**: Transfer built artifacts to cloud storage
 4. **Configuring CDN**: Set up content distribution and routing
 
@@ -262,16 +272,8 @@ Applications can add custom steps directly through the pipeline API for scenario
 
 **Example: Adding a custom validation step**
 
-<PivotSelector
-  title="Select your programming language"
-  key="aspire-lang"
-  marginTop={1}
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
-<Pivot id="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.Pipelines;
 
@@ -281,22 +283,24 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add custom deployment validation
 builder.Pipeline.AddStep("validate-deployment", async context =>
 {
-    // Custom validation logic
-    await ValidateApiHealth(context);
-    await ValidateDatabaseConnection(context);
+// Custom validation logic
+await ValidateApiHealth(context);
+await ValidateDatabaseConnection(context);
 }, requiredBy: WellKnownPipelineSteps.Deploy);
 #pragma warning restore ASPIREPIPELINES001
 
 // Define resources
 var database = builder.AddPostgres("myapp-db");
 var api = builder.AddProject<Api>("api").WithReference(database);
-```
-</Pivot>
-<Pivot id="typescript">
+
+````
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 :::note
-The `builder.pipeline` API is not yet available in the TypeScript AppHost SDK.
+The `builder.pipeline` API is not yet available in the TypeScript AppHost SDK, so this custom pipeline example is currently C#-only.
 :::
-</Pivot>
+</TabItem>
+</Tabs>
 
 This pattern enables applications to extend the deployment process with custom logic while benefiting from the pipeline's dependency management and execution coordination.
 
@@ -333,12 +337,12 @@ When you specify a step to run, the pipeline system automatically:
 # Provision only infrastructure resources
 aspire do provision-infra
 
-# Deploy only a specific service after code changes  
+# Deploy only a specific service after code changes
 aspire do deploy-apiservice
 
 # Run database migrations without full redeployment
 aspire do migrate-database
-```
+````
 
 ### Parallel execution and performance optimization
 
@@ -349,7 +353,7 @@ The pipeline system is designed to maximize deployment performance through intel
 The system performs sophisticated dependency analysis to identify and leverage opportunities for parallelization:
 
 - **Independent operations**: Steps with no dependencies on each other execute simultaneously, fully utilizing available system resources
-- **Resource grouping**: Related operations (such as multiple image builds) are coordinated to use shared resources efficiently  
+- **Resource grouping**: Related operations (such as multiple image builds) are coordinated to use shared resources efficiently
 - **Critical path optimization**: The system identifies the longest dependency chain and optimizes execution to minimize total deployment time
 - **Resource-aware scheduling**: CPU-intensive, I/O-intensive, and network operations are balanced to avoid resource contention
 
@@ -358,8 +362,9 @@ The system performs sophisticated dependency analysis to identify and leverage o
 A typical web application deployment demonstrates the effectiveness of pipeline parallelization:
 
 **Pipeline execution delivers optimal performance**: 5-7 minutes total
+
 - Infrastructure provisioning (parallel): 3 minutes (limited by slowest resource)
-- Image building (parallel): 2 minutes (limited by slowest build)  
+- Image building (parallel): 2 minutes (limited by slowest build)
 - Deployment operations: 2-3 minutes (respecting dependencies)
 
 **Intelligent resource utilization:**
