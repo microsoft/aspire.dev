@@ -7,6 +7,7 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
 const docsRoot = path.join(frontendRoot, 'src', 'content', 'docs');
 const fileTreeBlockPattern = /<FileTree\b[^>]*>([\s\S]*?)<\/FileTree>/g;
+const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---/;
 
 function collectDocs(dirPath: string): string[] {
   const entries = readdirSync(dirPath, { withFileTypes: true });
@@ -78,6 +79,46 @@ function findFileTreeIssues(source: string): Array<{ line: number; reason: strin
   return issues;
 }
 
+function isTableOfContentsEnabled(source: string): boolean {
+  const frontmatterMatch = source.match(frontmatterPattern);
+  const frontmatter = frontmatterMatch?.[1] ?? '';
+
+  return !/^\s*tableOfContents\s*:\s*false\b/m.test(frontmatter);
+}
+
+function findOverviewHeadingIssues(source: string): Array<{ line: number; reason: string }> {
+  if (!isTableOfContentsEnabled(source)) {
+    return [];
+  }
+
+  const issues: Array<{ line: number; reason: string }> = [];
+  const lines = source.split(/\r?\n/);
+  let currentFence: string | null = null;
+
+  for (const [index, line] of lines.entries()) {
+    const fenceMatch = line.match(/^\s*(```+|~~~+)/);
+    if (fenceMatch) {
+      const fence = fenceMatch[1][0];
+      currentFence = currentFence === fence ? null : fence;
+      continue;
+    }
+
+    if (currentFence) {
+      continue;
+    }
+
+    if (/^\s*##+\s+Overview\s*$/.test(line)) {
+      issues.push({
+        line: index + 1,
+        reason:
+          'TOC-enabled pages must not include an explicit "Overview" heading; use intro text or a more specific heading.',
+      });
+    }
+  }
+
+  return issues;
+}
+
 test('FileTree markdown lists remain newline-delimited in docs source', () => {
   const docPaths = collectDocs(docsRoot);
   const failures = docPaths.flatMap((docPath) => {
@@ -85,6 +126,20 @@ test('FileTree markdown lists remain newline-delimited in docs source', () => {
     const relativePath = path.relative(frontendRoot, docPath).replaceAll(path.sep, '/');
 
     return findFileTreeIssues(source).map(
+      ({ line, reason }) => `${relativePath}:${line} ${reason}`
+    );
+  });
+
+  expect(failures, failures.join('\n')).toEqual([]);
+});
+
+test('TOC-enabled docs do not include an explicit Overview heading', () => {
+  const docPaths = collectDocs(docsRoot);
+  const failures = docPaths.flatMap((docPath) => {
+    const source = readFileSync(docPath, 'utf8');
+    const relativePath = path.relative(frontendRoot, docPath).replaceAll(path.sep, '/');
+
+    return findOverviewHeadingIssues(source).map(
       ({ line, reason }) => `${relativePath}:${line} ${reason}`
     );
   });
