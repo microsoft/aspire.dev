@@ -71,7 +71,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-For a standard App Service deployment, you only need the environment and a supported app resource. When you want to customize the generated website or deployment slot, use the App Service hosting integration guidance.
+For a standard App Service deployment, you only need the environment and a supported app resource. Use `PublishAsAzureAppServiceWebsite` only when you want to customize the generated website or deployment slot.
 
 ## How Aspire maps your app to Azure App Service
 
@@ -119,6 +119,127 @@ This lets App Service pull deployed images without manual registry credentials.
 ### Health checks
 
 App Service exposes one health check path per website. If you configure multiple probes, Aspire prefers the liveness probe and uses that path for the App Service health check.
+
+## Customize generated App Service websites
+
+Use `PublishAsAzureAppServiceWebsite` when you want to customize the generated website or deployment slot. It isn't required for a standard App Service deployment.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureAppServiceWebsite((infrastructure, website) =>
+    {
+        website.AppSettings.Add("ASPNETCORE_ENVIRONMENT", new AppServiceConfigurationSetting
+        {
+            Name = "ASPNETCORE_ENVIRONMENT",
+            Value = "Production"
+        });
+
+        website.Tags.Add("Environment", "Production");
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment("app-service-env");
+
+await builder
+    .addProject("api", "../Api/Api.csproj", "https")
+    .publishAsAzureAppServiceWebsite({
+        configure: async (_infrastructure, _website) => {
+            // Customize the generated production website here.
+        }
+    });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### Customize deployment slots separately
+
+When you use deployment slots, production website customizations and slot customizations are configured separately.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithDeploymentSlot("staging");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureAppServiceWebsite(
+        configure: (infrastructure, website) =>
+        {
+            website.Tags.Add("Environment", "Production");
+        },
+        configureSlot: (infrastructure, slot) =>
+        {
+            slot.Tags.Add("Environment", "Staging");
+        });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment("app-service-env")
+    .withDeploymentSlot("staging");
+
+await builder
+    .addProject("api", "../Api/Api.csproj", "https")
+    .publishAsAzureAppServiceWebsite({
+        configureSlot: async (_infrastructure, _slot) => {
+            // Customize the generated deployment slot here.
+        }
+    });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### Environment-variable name validation
+
+Azure App Service application settings accept only letters, numbers, and underscores. If a connection name contains dashes and you intentionally want to bypass App Service name validation for that website, call `SkipEnvironmentVariableNameChecks()` after `PublishAsAzureAppServiceWebsite`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureAppServiceWebsite()
+    .SkipEnvironmentVariableNameChecks();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+await builder
+    .addProject("api", "../Api/Api.csproj", "https")
+    .publishAsAzureAppServiceWebsite()
+    .skipEnvironmentVariableNameChecks();
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For general Azure resource customization such as naming, existing resources, role assignments, and outputs, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For App Service-specific hosting details, see [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
+</LearnMore>
 
 ## Deploy with aspire deploy
 

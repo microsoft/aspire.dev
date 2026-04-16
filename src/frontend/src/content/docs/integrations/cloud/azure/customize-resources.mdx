@@ -1,11 +1,130 @@
 ---
 title: Customize Azure resources
-description: Learn how to customize Azure resource infrastructure in Aspire using ConfigureInfrastructure and custom Bicep.
+description: Learn how to customize Azure resource provisioning, existing resources, role assignments, naming, and outputs in Aspire.
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
-When working with Azure integrations in Aspire, you often need to customize the generated infrastructure beyond the default settings. Aspire provides two main approaches for customizing Azure resources: using the `ConfigureInfrastructure` API and creating custom Bicep templates.
+When working with Azure integrations in Aspire, you often need to customize the generated infrastructure beyond the default settings. This page covers the shared Azure customization patterns that apply regardless of whether your compute ultimately deploys to Azure Container Apps, Azure App Service, or another Azure target.
+
+<LearnMore>
+For target-specific generated resource customization, see [Deploy to Azure Container Apps](/deployment/azure/container-apps/) and [Deploy to Azure App Service](/deployment/azure/app-service/).
+</LearnMore>
+
+## Common Azure customization patterns
+
+### Use existing Azure resources
+
+Use `AsExisting`, `RunAsExisting`, and `PublishAsExisting` when you want Aspire to reference an Azure resource that already exists instead of provisioning a new one.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var existingBusName = builder.AddParameter("existingServiceBusName");
+var existingBusResourceGroup = builder.AddParameter("existingServiceBusResourceGroup");
+
+var serviceBus = builder.AddAzureServiceBus("messaging")
+    .PublishAsExisting(existingBusName, existingBusResourceGroup);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const existingBusName = await builder.addParameter("existingServiceBusName");
+const existingBusResourceGroup = await builder.addParameter("existingServiceBusResourceGroup");
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.publishAsExisting(existingBusName, { resourceGroup: existingBusResourceGroup });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Use `RunAsExisting` when only local run mode should use the existing resource, `PublishAsExisting` when only deployed Azure environments should use it, and `AsExisting` when both modes should point at the same Azure resource.
+
+<Aside type="note">
+  Cross-subscription resource references aren't supported. The existing resource
+  must be in the same Azure subscription as your deployment target.
+</Aside>
+
+### Manage default role assignments
+
+Aspire automatically assigns Azure RBAC roles based on how resources reference one another. When you need to opt out of those defaults before applying different permissions, use `ClearDefaultRoleAssignments`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureServiceBus("messaging")
+    .ClearDefaultRoleAssignments();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const serviceBus = await builder.addAzureServiceBus("messaging");
+await serviceBus.clearDefaultRoleAssignments();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For built-in and custom RBAC guidance, see [Manage Azure role assignments](/integrations/cloud/azure/role-assignments/).
+</LearnMore>
+
+### Read generated names and outputs
+
+Azure resources expose normalized Bicep identifiers and output references for generated values. Use those references when another resource, deployment step, or app setting needs the generated Azure value.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var identity = builder.AddAzureUserAssignedIdentity("identity");
+
+builder.AddProject<Projects.Api>("api")
+    .WithEnvironment("IDENTITY_CLIENT_ID", identity.Resource.ClientId)
+    .WithEnvironment("IDENTITY_NAME", identity.Resource.NameOutputReference);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const identity = await builder.addAzureUserAssignedIdentity("identity");
+const clientId = await identity.getOutput("clientId");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withEnvironment("IDENTITY_CLIENT_ID", clientId);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Use `GetBicepIdentifier()` inside `ConfigureInfrastructure` or infrastructure resolvers when you need a stable identifier for generated Azure constructs. Use output references such as `NameOutputReference`, `ClientId`, or `GetOutput("...")` when you need the generated Azure value itself.
 
 ## Azure.Provisioning customization
 
@@ -210,7 +329,7 @@ storage.ConfigureInfrastructure(infra =>
 });
 ```
 
-### Use an infrastructure resolver to customize Azure provisioning options
+### Customize naming and provisioning behavior with an infrastructure resolver
 
 Another method you can use to customize Azure provisioning is to create an [`InfrastructureResolver`](https://learn.microsoft.com/dotnet/api/azure.provisioning.primitives.infrastructureresolver) and write code in it to implement your requirements. Then add that class to the configuration options for your AppHost.
 
@@ -250,6 +369,8 @@ builder.Services.Configure<AzureProvisioningOptions>(options =>
 
 builder.Build().Run();
 ```
+
+This pattern is useful when you need organization-wide naming conventions or other centralized provisioning behavior that should apply across many Azure resources.
 
 ## Custom Bicep templates
 

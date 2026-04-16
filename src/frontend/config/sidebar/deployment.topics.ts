@@ -129,10 +129,6 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'deployment/azure/container-apps',
             },
             {
-              label: 'Customize Azure Container Apps',
-              slug: 'deployment/azure/customize-container-apps',
-            },
-            {
               label: 'Azure App Service',
               slug: 'deployment/azure/app-service',
             },
@@ -142,6 +138,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           label: 'Guidance',
           collapsed: false,
           items: [
+            {
+              label: 'Customize Azure resources',
+              slug: 'integrations/cloud/azure/customize-resources',
+            },
             {
               label: 'Azure security best practices',
               translations: {

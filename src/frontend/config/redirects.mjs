@@ -88,5 +88,6 @@ export const redirects = {
   '/ja/get-started/pipelines/': '/ja/deployment/pipelines/',
   '/deployment/manifest-format/': '/deployment/azure/manifest-format/',
   '/deployment/azure/aca-deployment-aspire-cli/': '/deployment/azure/container-apps/',
+  '/deployment/azure/customize-container-apps/': '/integrations/cloud/azure/customize-resources/',
   '/fundamentals/app-lifecycle/': '/deployment/app-lifecycle/',
 };
