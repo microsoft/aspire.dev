@@ -12,7 +12,6 @@ interface FaqEntry {
   question: string;
 }
 
-const defaultSiteUrl = 'https://aspire.dev';
 const organizationName = 'Aspire';
 const organizationAlternateNames = ['.NET Aspire', 'Aspire.dev'];
 const organizationDescription =
@@ -34,6 +33,13 @@ const aspireConfReplayUrl =
   'https://www.youtube.com/playlist?list=PLSi5JsxQ5oNvRCeQj5v6ZYUe1gwzTSUfR';
 const aspireConfStartDate = '2026-03-23T09:00:00-07:00';
 const aspireConfEndDate = '2026-03-23T16:45:00-07:00';
+const escapedJsonCharacters: Record<string, string> = {
+  '<': '\\u003c',
+  '>': '\\u003e',
+  '&': '\\u0026',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+};
 
 export function getStructuredData(
   route: StarlightRouteData,
@@ -49,30 +55,16 @@ export function getStructuredData(
   const pageUrl = resolvePageUrl(route, currentUrl, siteUrl);
   const language = route.entryMeta.lang || route.lang;
   const description = route.entry.data.description ?? organizationDescription;
+  const structuredData = buildStructuredData(
+    route,
+    contentBasePath,
+    siteUrl,
+    pageUrl,
+    language,
+    description
+  );
 
-  if (contentBasePath === 'index') {
-    return JSON.stringify(buildHomePageSchema(siteUrl, language, description));
-  }
-
-  if (contentBasePath === 'get-started/faq') {
-    const faqPageSchema = buildFaqPageSchema(route, siteUrl, pageUrl, language, description);
-    if (faqPageSchema) {
-      return JSON.stringify(faqPageSchema);
-    }
-  }
-
-  if (contentBasePath === 'aspireconf' || contentBasePath === 'aspireconf/index') {
-    return JSON.stringify(buildAspireConfSchema(siteUrl, pageUrl, language, description));
-  }
-
-  const releaseVersion = getReleaseVersion(contentBasePath);
-  if (releaseVersion) {
-    return JSON.stringify(
-      buildReleaseNotesSchema(route, siteUrl, pageUrl, language, description, releaseVersion)
-    );
-  }
-
-  return JSON.stringify(buildTechArticleSchema(route, siteUrl, pageUrl, language, description));
+  return structuredData ? serializeStructuredData(structuredData) : undefined;
 }
 
 function buildHomePageSchema(siteUrl: string, language: string, description: string): JsonObject {
@@ -101,6 +93,37 @@ function buildHomePageSchema(siteUrl: string, language: string, description: str
       },
     ],
   };
+}
+
+function buildStructuredData(
+  route: StarlightRouteData,
+  contentBasePath: string,
+  siteUrl: string,
+  pageUrl: string,
+  language: string,
+  description: string
+): JsonObject {
+  if (contentBasePath === 'index') {
+    return buildHomePageSchema(siteUrl, language, description);
+  }
+
+  if (contentBasePath === 'get-started/faq') {
+    return (
+      buildFaqPageSchema(route, siteUrl, pageUrl, language, description) ??
+      buildTechArticleSchema(route, siteUrl, pageUrl, language, description)
+    );
+  }
+
+  if (contentBasePath === 'aspireconf' || contentBasePath === 'aspireconf/index') {
+    return buildAspireConfSchema(siteUrl, pageUrl, language, description);
+  }
+
+  const releaseVersion = getReleaseVersion(contentBasePath);
+  if (releaseVersion) {
+    return buildReleaseNotesSchema(route, siteUrl, pageUrl, language, description, releaseVersion);
+  }
+
+  return buildTechArticleSchema(route, siteUrl, pageUrl, language, description);
 }
 
 function buildFaqPageSchema(
@@ -243,8 +266,15 @@ function buildSoftwareApplication(siteUrl: string): JsonObject {
   };
 }
 
+function serializeStructuredData(structuredData: JsonObject): string {
+  return JSON.stringify(structuredData).replace(
+    /[<>&\u2028\u2029]/g,
+    (character) => escapedJsonCharacters[character] ?? character
+  );
+}
+
 function resolveSiteUrl(site: URL | undefined, currentUrl: URL): string {
-  const siteHref = site?.href ?? new URL('/', currentUrl).href ?? defaultSiteUrl;
+  const siteHref = site?.href ?? new URL('/', currentUrl).href;
   return siteHref.replace(/\/$/, '');
 }
 
