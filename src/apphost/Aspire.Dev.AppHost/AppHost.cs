@@ -41,7 +41,6 @@ else
             // Configure origin group
             var originGroup = resources.OfType<FrontDoorOriginGroup>().Single();
             originGroup.Name = BicepFunction.Take(BicepFunction.Interpolate($"appservice-origin-group-{uniqueStr}"), 50);
-            originGroup.SessionAffinityState = EnabledState.Disabled;
 
             // Configure origin
             var origin = resources.OfType<FrontDoorOrigin>().Single();
@@ -69,10 +68,6 @@ else
                 },
                 QueryStringCachingBehavior = FrontDoorQueryStringCachingBehavior.IgnoreQueryString
             };
-            route.SupportedProtocols.Add(FrontDoorEndpointProtocol.Http);
-            route.SupportedProtocols.Add(FrontDoorEndpointProtocol.Https);
-            route.OriginPath = "/";
-            route.EnabledState = EnabledState.Enabled;
 
             // WAF Policy for DDoS compliance
             var wafPolicy = new FrontDoorWebApplicationFirewallPolicy("wafPolicy")
