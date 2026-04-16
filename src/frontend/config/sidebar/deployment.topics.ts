@@ -68,57 +68,55 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       slug: 'deployment/environments',
     },
     {
-      label: 'Pipelines (aspire do)',
-      slug: 'deployment/pipelines',
+      label: 'Pipeline model',
+      collapsed: false,
+      items: [
+        {
+          label: 'Overview',
+          slug: 'deployment/pipelines',
+        },
+        {
+          label: 'Custom deployment pipelines',
+          slug: 'deployment/custom-deployments',
+        },
+        {
+          label: 'Deployment state caching',
+          slug: 'deployment/deployment-state-caching',
+        },
+      ],
     },
     {
-      label: 'Deploy to Docker Compose',
+      label: 'CI/CD',
+      collapsed: false,
+      items: [
+        {
+          label: 'Overview',
+          slug: 'deployment/ci-cd',
+        },
+        {
+          label: 'Example app lifecycle workflow',
+          slug: 'deployment/app-lifecycle',
+        },
+      ],
+    },
+    {
+      label: 'JavaScript apps',
+      slug: 'deployment/javascript-apps',
+    },
+    {
+      label: 'Docker Compose',
       slug: 'deployment/docker-compose',
     },
     {
-      label: 'Deploy to Kubernetes',
+      label: 'Kubernetes',
       slug: 'deployment/kubernetes',
     },
     {
-      label: 'Deploy to Azure',
+      label: 'Azure',
       collapsed: false,
-      translations: {
-        da: 'Udrul til Azure',
-        de: 'In Azure bereitstellen',
-        en: 'Deploy to Azure',
-        es: 'Desplegar en Azure',
-        fr: 'Déployer sur Azure',
-        hi: 'Azure पर तैनात करें',
-        id: 'Deploy ke Azure',
-        it: 'Distribuisci in Azure',
-        ja: 'Azure にデプロイ',
-        ko: 'Azure에 배포',
-        'pt-BR': 'Implantar no Azure',
-        ru: 'Развертывание в Azure',
-        tr: "Azure'a dağıt",
-        uk: 'Розгортання в Azure',
-        'zh-CN': '部署到 Azure',
-      },
       items: [
         {
-          label: 'Deploy using the Aspire CLI',
-          translations: {
-            da: 'Udrul ved hjælp af Aspire CLI',
-            de: 'Bereitstellen mit der Aspire CLI',
-            en: 'Deploy using the Aspire CLI',
-            es: 'Desplegar usando la CLI de Aspire',
-            fr: "Déployer à l'aide de la CLI Aspire",
-            hi: 'Aspire CLI का उपयोग करके तैनात करें',
-            id: 'Deploy menggunakan Aspire CLI',
-            it: 'Distribuisci usando Aspire CLI',
-            ja: 'Aspire CLI を使用したデプロイ',
-            ko: 'Aspire CLI를 사용하여 배포',
-            'pt-BR': 'Implantar usando a CLI do Aspire',
-            ru: 'Развертывание с помощью Aspire CLI',
-            tr: 'Aspire CLI kullanarak dağıt',
-            uk: 'Розгортання за допомогою Aspire CLI',
-            'zh-CN': '使用 Aspire CLI 部署',
-          },
+          label: 'Aspire CLI',
           slug: 'deployment/azure/aca-deployment-aspire-cli',
         },
         {
@@ -159,28 +157,6 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'deployment/azure/manifest-format',
             },
           ],
-        },
-      ],
-    },
-    {
-      label: 'Deploy JavaScript apps',
-      slug: 'deployment/javascript-apps',
-    },
-    {
-      label: 'App lifecycle (CI/CD)',
-      slug: 'deployment/app-lifecycle',
-    },
-    {
-      label: 'Advanced',
-      collapsed: true,
-      items: [
-        {
-          label: 'Deployment state caching',
-          slug: 'deployment/deployment-state-caching',
-        },
-        {
-          label: 'Custom deployment pipelines',
-          slug: 'deployment/custom-deployments',
         },
       ],
     },

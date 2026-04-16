@@ -1,0 +1,189 @@
+---
+title: CI/CD overview
+description: Use the Aspire CLI as the source of truth in CI/CD and design workflows around environments, parameters, and target-specific deployment guidance.
+---
+
+import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+<abbr
+  title="Continuous Integration & Continuous Delivery"
+  data-tooltip-placement="top"
+>
+  CI/CD
+</abbr>
+with Aspire has two layers that work together:
+
+- Your **CI/CD pipeline** decides when jobs run, which approvals they require, how artifacts move between stages, and which credentials are available.
+- Aspire's **pipeline system** decides how your AppHost is evaluated, which application-specific steps run, and how build, publish, push, and deploy work is ordered.
+
+Your AppHost remains the single source of truth for the application model across local development, automation, and production targets. Use this page to decide how those layers fit together, how environments and parameters flow into the AppHost, and when to use `aspire do`, `aspire publish`, or `aspire deploy`.
+
+## Two pipelines, different responsibilities
+
+| Layer           | What it owns                                                                                                        | Examples                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| CI/CD pipeline  | Source checkout, tests, approvals, identities, artifact retention, promotion, job boundaries                        | GitHub Actions, Azure DevOps, GitLab CI        |
+| Aspire pipeline | AppHost evaluation, environment selection, parameter resolution, build/push/publish/deploy steps, resource ordering | `aspire do`, `aspire publish`, `aspire deploy` |
+
+The two pipelines overlap, but they are not duplicates. Your CI/CD system decides **when** a stage runs and **which credentials or approvals** it uses. Aspire decides **what the application means** and **which deployment steps and dependencies** are required for that stage.
+
+## Choose the Aspire command for your workflow
+
+Keep deployment behavior in your AppHost and invoke it from automation with the Aspire CLI. This keeps CI/CD YAML focused on orchestration instead of re-encoding resource topology, target behavior, or parameter wiring in every workflow.
+
+| Command            | Use it when                                                                                              | Typical workflow role          |
+| ------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `aspire deploy`    | The pipeline can authenticate to the target and let Aspire generate, resolve, and apply changes directly | Direct deploy from a stage     |
+| `aspire publish`   | You want to emit artifacts as a one-way handoff for a later manual or external deployment step           | Artifact-first workflows       |
+| `aspire do <step>` | You want CI/CD to call specific AppHost-defined steps                                                    | Split or interleaved workflows |
+
+```bash title="Aspire CLI"
+aspire do push
+aspire publish --output-path ./aspire-output
+aspire deploy --environment production
+```
+
+Use the CI/CD system to choose which command runs in which stage. `aspire publish` emits artifacts as a one-way handoff for another tool or manual step to apply later. `aspire deploy` keeps the full flow inside Aspire: it evaluates the AppHost, generates target-specific output, resolves parameters, and applies the deployment in one operation.
+
+## Run the same pipeline locally and in CI/CD
+
+Because the Aspire pipeline also runs locally, you can define reusable steps once in the AppHost and exercise the same workflow on your machine before CI/CD calls it. That makes deployment automation easier to test because you can debug the real `aspire do`, `aspire publish`, or `aspire deploy` behavior locally instead of validating it only after pushing changes to your CI system.
+
+Run the deployment workflow locally when you want to validate the production shape, troubleshoot a step, or refine a custom pipeline before you wire it into automation.
+
+## Pass environments into the AppHost
+
+In CI/CD, pass the environment name explicitly. The `--environment` flag does more than label a stage:
+
+- Selects the environment the AppHost sees
+- Scopes deployment state caching
+- Lets the AppHost branch on environment-specific behavior
+- Aligns Aspire environments with CI environments such as staging or production
+
+```bash title="Aspire CLI"
+aspire deploy --environment staging
+```
+
+<LearnMore>
+  For more information on environment mapping and CI examples, see
+  [Environments](/deployment/environments/).
+</LearnMore>
+
+## Pass parameters into the AppHost
+
+<Steps>
+
+1. Store secrets and environment-specific values in the CI system or an external secret store.
+
+2. Expose those values to the workflow as environment variables.
+
+3. Let the AppHost read them through standard configuration, commonly with the `Parameters__*` convention, together with the `--environment` flag.
+
+4. Pass the resolved values into resources, or keep them as placeholders in published artifacts for a later stage to supply.
+
+</Steps>
+
+Environment and parameters are complementary: `--environment` selects the deployment context, while `Parameters__*` supplies the external values that flow into the AppHost.
+
+```yaml title=".github/workflows/deploy.yml"
+- name: Push images with Aspire
+  env:
+    Parameters__registry_endpoint: ghcr.io
+    Parameters__registry_repository: your-org/your-repo
+  run: aspire do push --environment staging
+```
+
+<LearnMore>
+  For more information on parameter resolution and configuration sources, see
+  [External parameters](/fundamentals/external-parameters/).
+</LearnMore>
+
+## Structure the workflow
+
+You can keep release automation in one workflow or break it into multiple workflows or stages.
+
+| Shape                          | When it fits                                                                                          | Typical Aspire commands                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Single workflow                | One system can build and deploy directly, with fewer handoffs                                         | `aspire deploy --environment production`                         |
+| Split workflows or stages      | Build and release are separated by approvals, artifact promotion, or different runners and identities | `aspire do push`, `aspire publish --output-path ./aspire-output` |
+| Interleaved app-specific steps | You want CI/CD stages around specific AppHost steps rather than one all-in-one deploy                 | `aspire do build`, `aspire do push`, `aspire do deploy-api`      |
+
+Use `aspire do` when you want to expose Aspire's application-specific steps inside a larger CI/CD pipeline. The CI/CD system handles the outer workflow boundaries. Aspire handles the inner application-specific sequencing and dependencies.
+
+<LearnMore>
+  For more information on Aspire pipeline concepts and extending the pipeline
+  with your own steps, see [Pipelines and app topology](/deployment/pipelines/)
+  and [Building custom deployment pipelines](/deployment/custom-deployments/).
+</LearnMore>
+
+## Follow target-specific deployment guidance
+
+CI/CD pages should focus on concerns that stay the same across platforms:
+
+- which Aspire command to run in automation
+- how to pass parameters and secrets into the pipeline
+- how to map CI environments to Aspire environments with `--environment`
+- how to publish, store, download, and promote artifacts
+- how to debug pipeline runs
+
+Platform-specific pages should focus on concerns that depend on the deployment target:
+
+- Docker Compose or self-hosted host setup and runtime operations
+- Kubernetes chart generation, apply steps, and cluster-specific troubleshooting
+- Azure authentication, RBAC, provisioning behavior, and Azure-specific troubleshooting
+
+:::note
+Keep CI/CD pages workflow-oriented. Link to target-specific pages for
+platform-specific authentication, provisioning, and troubleshooting instead of
+repeating those details in every pipeline example.
+:::
+
+<CardGrid>
+  <LinkCard
+    title="Deploy to Docker Compose"
+    description="Use published artifacts with Docker Compose for self-hosted and on-premises environments."
+    href="/deployment/docker-compose/"
+  />
+  <LinkCard
+    title="Deploy to Kubernetes"
+    description="Generate Kubernetes artifacts and apply them with your existing cluster workflow."
+    href="/deployment/kubernetes/"
+  />
+  <LinkCard
+    title="Deploy to Azure"
+    description="Use Aspire to authenticate, provision, and deploy to Azure targets."
+    href="/deployment/azure/aca-deployment-aspire-cli/"
+  />
+</CardGrid>
+
+Use these guides when you need more detail on a workflow pattern, example, or
+pipeline behavior:
+
+<CardGrid>
+  <LinkCard
+    title="Pipeline overview"
+    description="Understand the Aspire pipeline itself and how named steps fit inside a larger CI/CD workflow."
+    href="/deployment/pipelines/"
+  />
+  <LinkCard
+    title="Custom deployment pipelines"
+    description="Extend the Aspire pipeline with custom steps, callbacks, and reporting APIs."
+    href="/deployment/custom-deployments/"
+  />
+  <LinkCard
+    title="Example app lifecycle workflow"
+    description="Follow one end-to-end example that uses GitHub Actions, GHCR, and Docker Compose."
+    href="/deployment/app-lifecycle/"
+  />
+  <LinkCard
+    title="Environments"
+    description="Map CI environments to Aspire environments and scope configuration correctly."
+    href="/deployment/environments/"
+  />
+  <LinkCard
+    title="Deployment state caching"
+    description="Understand how repeated deployments reuse cached state safely."
+    href="/deployment/deployment-state-caching/"
+  />
+</CardGrid>

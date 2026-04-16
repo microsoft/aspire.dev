@@ -1,34 +1,42 @@
 ---
-title: Aspire app lifecycle guide
-description: Understand the lifecycle of Aspire applications from development to deployment.
+title: Example app lifecycle workflow
+description: Follow a worked example that uses GitHub Actions to publish Aspire artifacts and Docker Compose to deploy them later.
 ---
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-This guide provides a high-level overview of the lifecycle phases of an Aspire application, from development through local deployment to production release. By using the same AppHost configuration across all phases, you ensure consistency and reduce configuration drift between environments. 
-The example in this guide demonstrates how Aspire orchestrates containerized applications with persistent storage and CI/CD automation using the [Docker Integration](/integrations/compute/docker/) and GitHub.
+This guide is a worked example of one CI/CD workflow for Aspire. It uses GitHub Actions to build and publish release artifacts, GitHub Container Registry to store container images, and Docker Compose to run the published output later.
 
-## App lifecycle
+Use this page when you want a concrete end-to-end example. For workflow guidance that applies across CI systems and deployment targets, see [CI/CD overview](/deployment/ci-cd/).
 
-The Aspire application lifecycle consists of three main phases:
+<LearnMore>
+  For workflow-first guidance, see [CI/CD overview](/deployment/ci-cd/). For
+  Docker Compose deployment details, see [Deploy to Docker
+  Compose](/deployment/docker-compose/).
+</LearnMore>
+
+## Example workflow
+
+This example moves through four phases:
 
 <Steps>
 
-1. **Inner-Loop Development** - Local development and debugging with `aspire run`
-2. **Local Deployment** - Deployment to your defined compute environment(s) with `aspire deploy`. This example shows containerized deployment to Docker Desktop. 
-3. **Publish Release (CI/CD)** - Automated build & publish pipeline. This example shows using GitHub Actions to build and push images and publish release artifacts for deployment later. 
+1. **Inner-loop development** - Local development and debugging with `aspire run`
+2. **Local deployment validation** - Containerized deployment to your defined compute environment(s) with `aspire deploy`
+3. **Publish release artifacts** - Automated build and publish steps in GitHub Actions
+4. **Deploy the published artifacts** - Runtime deployment with Docker Compose
 
 </Steps>
 
-**Each phase uses the same `AppHost` configuration but serves different purposes in the development and deployment workflows.**
+Each phase uses the same `AppHost` configuration, but each phase answers a different question: local correctness, containerized validation, release automation, or runtime deployment.
 
-### Example
+### Example application
 
-The following example uses a C# AppHost, but the same lifecycle applies to TypeScript AppHosts.
+The following example uses a C# AppHost, but the same workflow shape applies to TypeScript AppHosts.
 
-Consider [this example](https://github.com/BethMassi/VolumeMount/). You have a distributed application that consists of a Blazor web project that relies on a SQL Server database with a persistent data volume as well as a persistent writable file volume to capture user file uploads. 
-You want to distribute your Blazor app as a Docker container image via the GitHub Container Registry. You need the [Aspire.Hosting.Docker](/integrations/compute/docker/) and [Aspire.Hosting.SqlServer](/integrations/databases/sql-server/sql-server-get-started/) integrations. 
+Consider [this example](https://github.com/BethMassi/VolumeMount/). You have a distributed application that consists of a Blazor web project that relies on a SQL Server database with a persistent data volume as well as a persistent writable file volume to capture user file uploads.
+You want to distribute your Blazor app as a Docker container image via the GitHub Container Registry. You need the [Aspire.Hosting.Docker](/integrations/compute/docker/) and [Aspire.Hosting.SqlServer](/integrations/databases/sql-server/sql-server-get-started/) integrations.
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -58,12 +66,12 @@ builder.AddContainerRegistry("container-registry", endpoint, repository);
 var sqlPassword = builder.AddParameter("sqlserver-password", secret: true);
 var sqlserver = builder.AddSqlServer("sqlserver", password: sqlPassword)
     .WithDataVolume("volumemount-sqlserver-data")
-    .WithLifetime(ContainerLifetime.Persistent);   
+    .WithLifetime(ContainerLifetime.Persistent);
 
 var sqlDatabase = sqlserver.AddDatabase("sqldb");
 
 //Add the Blazor web app with reference to the database
-//Deploy as a docker image with a volume mount for user upload files 
+//Deploy as a docker image with a volume mount for user upload files
 var blazorweb = builder.AddProject<Projects.VolumeMount_BlazorWeb>("blazorweb")
         .WithExternalHttpEndpoints()
         .WithReference(sqlDatabase)
@@ -79,8 +87,8 @@ var blazorweb = builder.AddProject<Projects.VolumeMount_BlazorWeb>("blazorweb")
                 Type = "volume",
                 ReadOnly = false
             });
-            
-            // Override the entrypoint to allow write permissions to the volume 
+
+            // Override the entrypoint to allow write permissions to the volume
             // then run the default entrypoint as app user
             service.User = "root";
             service.Command = new List<string>
@@ -95,9 +103,9 @@ var blazorweb = builder.AddProject<Projects.VolumeMount_BlazorWeb>("blazorweb")
 builder.Build().Run();
 ```
 
-## Phase 1: Inner-Loop Development
+## Phase 1: Develop locally
 
-### What is `aspire run`?
+### Run the app locally
 
 The `aspire run` command starts your Aspire application in **development mode**. This is the inner-loop development experience where you write code, test changes, and debug your application locally.
 
@@ -106,7 +114,7 @@ When you run `aspire run`:
 <Steps>
 
 1. **Aspire dashboard launches** - A web-based dashboard starts, and its URL (often an HTTPS login URL like `https://localhost:<port>/login?...`) is printed to the console.
-2. **Resources start** - All resources defined in your AppHost are orchestrated. 
+2. **Resources start** - All resources defined in your AppHost are orchestrated.
 3. **Live debugging** - You can attach debuggers, set breakpoints, and modify code with hot reload.
 4. **Telemetry & logs** - Dashboard provides real-time logs, metrics, and distributed traces.
 
@@ -133,18 +141,21 @@ Dashboard:  https://localhost:17244/login?t=9db79f2885dae24ee06c6ef10290b8b2
 ```
 
 In the example above, when resources start with the run command:
+
 - SQL Server container starts in Docker with persistent volume
 - Web project runs as a local process (**not containerized**)
 - Database is automatically created and migrated (containerized)
-   
-## Phase 2: Local Deployment
 
-### What is `aspire deploy`?
+## Phase 2: Validate a containerized deployment
+
+### Deploy the example locally
 
 The `aspire deploy` command creates a **fully containerized deployment** of your application in the [compute environment(s)](/deployment/overview/#compute-environments) you define. This simulates a production-like environment on your local machine. In this example, local containers and volumes are created on Docker Desktop using the [Docker Integration](/integrations/compute/docker/). It requires all parameters to be set.
 
 <Aside type="note">
-Aspire will prompt you for parameters the first time you deploy and save them for later use. For more info, see [External Parameters](https://aspire.dev/fundamentals/external-parameters).
+  Aspire will prompt you for parameters the first time you deploy and save them
+  for later use. For more info, see [External
+  Parameters](https://aspire.dev/fundamentals/external-parameters).
 </Aside>
 
 When you run `aspire deploy` Aspire will:
@@ -161,17 +172,21 @@ When you run `aspire deploy` Aspire will:
 In this example, the following gets deployed:
 
 **Containers:**
-- `aspire-volumemount-env` - Docker Compose stack 
+
+- `aspire-volumemount-env` - Docker Compose stack
 - `sqlserver` - SQL Server with persistent data volume
 - `blazorweb` - Blazor Web app with persistent file uploads volume
 - `volumemount-env-dashboard` - Monitoring dashboard
 
 **Volumes:**
+
 - `volumemount-sqlserver-data` - Stores database files (`.mdf`, `.ldf`)
 - `volumemount-blazor-uploads` - Stores user-uploaded images
 
 <Aside type="note">
-You will need a GitHub personal access token to access the GitHub Container Registry. See [Authenticating to the GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry) 
+  You will need a GitHub personal access token to access the GitHub Container
+  Registry. See [Authenticating to the GitHub Container
+  Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
 </Aside>
 
 You can login to your GitHub Container Registry before deploying.
@@ -187,9 +202,9 @@ aspire deploy
   [Command reference: `aspire deploy`](/reference/cli/commands/aspire-deploy/)
 </LearnMore>
 
-## Phase 3: Publish Release (CI/CD)
+## Phase 3: Publish release artifacts in GitHub Actions
 
-You can create a workflow that automates the process of building and pushing the image, and publishing of deployment artifacts using the [Aspire CLI](/reference/cli/overview/) in a CI/CD pipeline. The Aspire CLI can be used to build your app, push images, and publish artifacts. This allows you to deploy the app later via standard Docker Compose. 
+You can create a workflow that automates the process of building and pushing the image, and publishing deployment artifacts using the [Aspire CLI](/reference/cli/overview/) in a CI/CD pipeline. The Aspire CLI can build your app, push images, and emit deployment artifacts as a one-way handoff. This allows you to deploy the app later via standard Docker Compose.
 
 In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/workflows/aspire-build-push.yml), the workflow runs on every push to `main`, does a checkout, and then performs these steps:
 
@@ -211,9 +226,9 @@ In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/wor
   uses: actions/setup-dotnet@v4
   with:
     dotnet-version: '10.0.x'
-
 ```
-#### Step 2: Install Aspire CLI 
+
+#### Step 2: Install Aspire CLI
 
 ```yaml
 - name: Install Aspire CLI
@@ -239,11 +254,13 @@ In [this example](https://github.com/BethMassi/VolumeMount/blob/main/.github/wor
     Parameters__registry_repository: your-org/your-repo
   run: aspire do push
 ```
+
 <Aside type="note">
 Replace `your-org/your-repo` with your actual GitHub organization and repository name, or use `${{ github.repository_owner }}/${{ github.event.repository.name }}` for automatic values. _Values must be lowercase._
 </Aside>
 
 The `aspire do push` command does the following:
+
 - Analyzes your AppHost configuration
 - Restores dependencies and builds the project
 - Builds Docker container images for project resources
@@ -268,10 +285,12 @@ The `aspire do push` command does the following:
 ```
 
 <Aside type="note">
-The `--project` flag is needed when your AppHost isn't in the current directory.
+  The `--project` flag is needed when your AppHost isn't in the current
+  directory.
 </Aside>
 
 The `aspire publish` command does the following:
+
 - Analyzes your AppHost configuration
 - Generates `docker-compose.yaml` file with all service definitions
 - Creates `.env` template file for environment variables
@@ -279,9 +298,9 @@ The `aspire publish` command does the following:
 - Outputs artifacts to `./aspire-output/` directory
 
 <FileTree>
-- aspire-output/
-  - docker-compose.yaml  Service definitions for all containers
-  - .env  Template for required environment variables
+  - aspire-output/
+    - docker-compose.yaml Service definitions for all containers
+    - .env Template for required environment variables
 </FileTree>
 
 <LearnMore>
@@ -302,7 +321,7 @@ The `aspire publish` command does the following:
 
 In this example, artifacts are available for download from the Actions workflow run for 30 days. Hidden files are included so that the `.env` file is also available in the artifacts.
 
-### Deploying to Production
+## Phase 4: Deploy the published artifacts
 
 After the workflow completes, you have everything needed for production deployment:
 
@@ -313,13 +332,15 @@ After the workflow completes, you have everything needed for production deployme
    - `.env` - Environment variable template
 
 2. **Configure Environment Variables** in `.env`. For example:
+
    ```bash
-   BLAZORWEB_IMAGE=ghcr.io/bethmassi/volumemount/blazorweb:latest 
+   BLAZORWEB_IMAGE=ghcr.io/bethmassi/volumemount/blazorweb:latest
    BLAZORWEB_PORT=8080
    SQLSERVER_PASSWORD=YourSecurePassword
    ```
 
 3. **Deploy with Docker Compose**:
+
    ```bash
    docker compose up -d
    ```
@@ -332,19 +353,22 @@ After the workflow completes, you have everything needed for production deployme
 
 </Steps>
 
-## Lifecycle Summary
+## Workflow summary
 
-| Phase | Command | Purpose | Environment | App | Database |
-|-------|---------|---------|-------------|------------|------------|
-| **Development** | `aspire run` | Inner-loop coding & debugging | Local machine | Local process | Container |
-| **Local Deploy** | `aspire deploy` | Test containerized app locally | Registered compute environment (i.e. Docker Desktop) | Container | Container |
-| **Release** | CI/CD workflow (i.e. GitHub Actions) | Publish to staging/ production | Cloud/Server | Container | Container |
+| Phase            | Command                              | Purpose                        | Environment                                          | App           | Database  |
+| ---------------- | ------------------------------------ | ------------------------------ | ---------------------------------------------------- | ------------- | --------- |
+| **Development**  | `aspire run`                         | Inner-loop coding & debugging  | Local machine                                        | Local process | Container |
+| **Local Deploy** | `aspire deploy`                      | Test containerized app locally | Registered compute environment (i.e. Docker Desktop) | Container     | Container |
+| **Release**      | CI/CD workflow (i.e. GitHub Actions) | Publish to staging/ production | Cloud/Server                                         | Container     | Container |
 
 <Aside type="tip">
-This example uses a C# AppHost, but the same lifecycle workflow applies to TypeScript AppHosts. Replace `.csproj` references with your `apphost.ts` path as needed.
+  This example uses a C# AppHost, but the same workflow shape applies to
+  TypeScript AppHosts. Replace `.csproj` references with your `apphost.ts` path
+  as needed.
 </Aside>
 
 The AppHost is the **single source of truth** for your application architecture. Each phase above uses the exact same AppHost configuration. This eliminates configuration drift between development and deployment. It defines things your distributed application needs like:
+
 - **Services & Dependencies** - Projects, containers, and their relationships
 - **Configuration** - Connection strings, secrets, and parameters
 - **Volumes** - Persistent storage for databases and files
