@@ -38,32 +38,15 @@ else
             var frontDoorEndpoint = resources.OfType<FrontDoorEndpoint>().Single();
             frontDoorEndpoint.Name = BicepFunction.Take(BicepFunction.Interpolate($"frontdoor-endp-{uniqueStr}"), 50);
 
-            // Configure origin group with custom load balancing and health probe settings
+            // Configure origin group
             var originGroup = resources.OfType<FrontDoorOriginGroup>().Single();
             originGroup.Name = BicepFunction.Take(BicepFunction.Interpolate($"appservice-origin-group-{uniqueStr}"), 50);
-            originGroup.LoadBalancingSettings = new LoadBalancingSettings
-            {
-                SampleSize = 4,
-                SuccessfulSamplesRequired = 3,
-                AdditionalLatencyInMilliseconds = 50
-            };
-            originGroup.HealthProbeSettings = new HealthProbeSettings
-            {
-                ProbePath = "/",
-                ProbeRequestType = HealthProbeRequestType.Head,
-                ProbeProtocol = HealthProbeProtocol.Https,
-                ProbeIntervalInSeconds = 240
-            };
             originGroup.SessionAffinityState = EnabledState.Disabled;
 
             // Configure origin
             var origin = resources.OfType<FrontDoorOrigin>().Single();
             origin.Name = BicepFunction.Take(BicepFunction.Interpolate($"appservice-origin-{uniqueStr}"), 50);
-            origin.HttpPort = 80;
-            origin.HttpsPort = 443;
-            origin.Priority = 1;
             origin.Weight = 1000;
-            origin.EnabledState = EnabledState.Enabled;
             origin.EnforceCertificateNameCheck = true;
 
             // Configure route with caching
