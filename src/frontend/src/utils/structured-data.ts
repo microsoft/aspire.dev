@@ -40,8 +40,8 @@ export function getStructuredData(
   currentUrl: URL,
   site?: URL
 ): string | undefined {
-  const entryId = normalizeEntryId(route.entry.id);
-  if (is404Page(entryId)) {
+  const contentBasePath = getContentBasePath(route);
+  if (contentBasePath === '404') {
     return undefined;
   }
 
@@ -50,22 +50,22 @@ export function getStructuredData(
   const language = route.entryMeta.lang || route.lang;
   const description = route.entry.data.description ?? organizationDescription;
 
-  if (isHomePage(entryId)) {
+  if (contentBasePath === 'index') {
     return JSON.stringify(buildHomePageSchema(siteUrl, language, description));
   }
 
-  if (isFaqPage(entryId)) {
+  if (contentBasePath === 'get-started/faq') {
     const faqPageSchema = buildFaqPageSchema(route, siteUrl, pageUrl, language, description);
     if (faqPageSchema) {
       return JSON.stringify(faqPageSchema);
     }
   }
 
-  if (isAspireConfPage(entryId)) {
+  if (contentBasePath === 'aspireconf' || contentBasePath === 'aspireconf/index') {
     return JSON.stringify(buildAspireConfSchema(siteUrl, pageUrl, language, description));
   }
 
-  const releaseVersion = getReleaseVersion(entryId);
+  const releaseVersion = getReleaseVersion(contentBasePath);
   if (releaseVersion) {
     return JSON.stringify(
       buildReleaseNotesSchema(route, siteUrl, pageUrl, language, description, releaseVersion)
@@ -267,6 +267,19 @@ function normalizeEntryId(entryId: string): string {
   return entryId.replace(/\\/g, '/');
 }
 
+function getContentBasePath(route: StarlightRouteData): string {
+  const entryId = normalizeEntryId(route.entry.id);
+  const localePrefix = route.locale ? `${route.locale}/` : '';
+  const contentPath =
+    localePrefix && entryId.startsWith(localePrefix) ? entryId.slice(localePrefix.length) : entryId;
+
+  return stripMarkdownExtension(contentPath);
+}
+
+function stripMarkdownExtension(value: string): string {
+  return value.replace(/\.mdx?$/i, '');
+}
+
 function extractFaqEntries(body: string): FaqEntry[] {
   const entries: FaqEntry[] = [];
   const lines = body.replace(/\r\n/g, '\n').split('\n');
@@ -365,28 +378,13 @@ function cleanInlineMarkdown(value: string): string {
     .trim();
 }
 
-function is404Page(entryId: string): boolean {
-  return /^([a-z]{2}(?:-[a-z]{2,4})?\/)?404\.mdx?$/i.test(entryId);
-}
+function getReleaseVersion(contentBasePath: string): string | undefined {
+  if (!contentBasePath.startsWith('whats-new/aspire-')) {
+    return undefined;
+  }
 
-function isFaqPage(entryId: string): boolean {
-  return /^([a-z]{2}(?:-[a-z]{2,4})?\/)?get-started\/faq\.mdx?$/i.test(entryId);
-}
-
-function isAspireConfPage(entryId: string): boolean {
-  return /^([a-z]{2}(?:-[a-z]{2,4})?\/)?aspireconf\/index\.mdx?$/i.test(entryId);
-}
-
-function isHomePage(entryId: string): boolean {
-  return /^([a-z]{2}(?:-[a-z]{2,4})?\/)?index\.mdx?$/i.test(entryId);
-}
-
-function getReleaseVersion(entryId: string): string | undefined {
-  const match = entryId.match(
-    /^(?:[a-z]{2}(?:-[a-z]{2,4})?\/)?whats-new\/aspire-(\d+(?:-\d+)*)\.mdx?$/i
-  );
-
-  return match ? match[1].replace(/-/g, '.') : undefined;
+  const version = contentBasePath.slice('whats-new/aspire-'.length);
+  return version ? version.replace(/-/g, '.') : undefined;
 }
 
 function ensureTrailingSlash(url: string): string {
