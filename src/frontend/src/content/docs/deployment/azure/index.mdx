@@ -8,6 +8,10 @@ import LearnMore from '@components/LearnMore.astro';
 
 Use `aspire deploy` to deploy Aspire applications to Azure. Aspire uses the Azure-targeted environments in your AppHost to determine where each compute resource should go, then resolves parameters, provisions infrastructure, builds and pushes container images when needed, and applies the deployment.
 
+<LearnMore>
+To see the Azure resources and integrations Aspire can model in your AppHost, browse the [Azure integrations overview](/integrations/cloud/azure/overview/).
+</LearnMore>
+
 ## Shared prerequisites
 
 - [Aspire prerequisites](/get-started/prerequisites/)
@@ -15,16 +19,64 @@ Use `aspire deploy` to deploy Aspire applications to Azure. Aspire uses the Azur
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
 - An active Azure account and subscription
 
-Authenticate with Azure CLI before deploying:
+## Authenticate to Azure
+
+How you authenticate to Azure depends on where `aspire deploy` runs.
+
+### Local deploys
+
+Use Azure CLI sign-in:
 
 ```bash title="Authenticate with Azure"
 az login
 ```
 
-The first `aspire deploy` run prompts for your Azure tenant, subscription, and resource group unless you provide values through configuration such as `Azure__SubscriptionId`, `Azure__Location`, and `Azure__ResourceGroup`.
+### GitHub Actions
+
+Use [`azure/login`](https://github.com/Azure/login) with OpenID Connect (OIDC) / workload identity federation so the workflow can exchange its GitHub identity for Azure credentials.
+
+### Azure DevOps
+
+Use an Azure Resource Manager service connection. Prefer workload identity federation over secret-based connections.
 
 <LearnMore>
-For the full command surface, see the [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/).
+For provider-specific setup, see [Configuring OpenID Connect in Azure](https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure) and [Connect to Azure with an Azure Resource Manager service connection](https://learn.microsoft.com/azure/devops/pipelines/library/connect-to-azure?view=azure-devops).
+</LearnMore>
+
+## Shared Azure settings
+
+After authentication succeeds, `aspire deploy` still needs a small set of shared Azure settings. The tenant comes from your Azure sign-in context, while the settings below tell Aspire which subscription, location, and resource group to target.
+
+| Setting | Environment variable | Purpose |
+| --- | --- | --- |
+| `Azure:SubscriptionId` | `Azure__SubscriptionId` | Target Azure subscription |
+| `Azure:Location` | `Azure__Location` | Default Azure region for provisioned resources |
+| `Azure:ResourceGroup` | `Azure__ResourceGroup` | Resource group to create or reuse |
+
+### Local settings
+
+For local deployment, Aspire can prompt for missing values on the first deploy, or you can persist them locally:
+
+```bash title="Set shared Azure settings locally"
+aspire secret set "Azure:SubscriptionId" "your-subscription-id"
+aspire secret set "Azure:Location" "eastus"
+aspire secret set "Azure:ResourceGroup" "my-app-rg"
+```
+
+### CI/CD settings
+
+After your CI/CD system authenticates to Azure, provide the shared Azure settings and any AppHost parameters to the deploy step.
+
+| Input | How you provide it | Purpose |
+| --- | --- | --- |
+| Azure subscription | `Azure__SubscriptionId` | Select the target Azure subscription |
+| Azure location | `Azure__Location` | Set the default region for provisioned resources |
+| Azure resource group | `Azure__ResourceGroup` | Select the resource group to create or reuse |
+| AppHost parameters | `Parameters__*` environment variables | Supply any required AppHost inputs |
+| Aspire environment | `aspire deploy --environment <name>` | Select the deployment context, such as `Production` |
+
+<LearnMore>
+For parameter resolution and broader pipeline guidance, see [Environments](/deployment/environments/#how-parameter-values-are-resolved), [CI/CD](/deployment/ci-cd/), and the [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/).
 </LearnMore>
 
 ## How Azure deployment works
@@ -37,7 +89,7 @@ Azure deployment starts from the compute environments in your AppHost. Each comp
 
 2. Configure the Azure environment in your AppHost.
 
-3. Run `aspire deploy`.
+3. Run `aspire deploy`. Local deploys can prompt for missing values after you sign in to Azure, while CI/CD pipelines should authenticate to Azure and provide the shared Azure settings and AppHost parameters ahead of time.
 
 4. Aspire resolves parameters, provisions the target infrastructure, builds and pushes container images when needed, configures managed identity and image pull access, and deploys each resource into its assigned environment.
 
