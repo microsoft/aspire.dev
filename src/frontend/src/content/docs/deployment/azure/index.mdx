@@ -16,8 +16,7 @@ To see the Azure resources and integrations Aspire can model in your AppHost, br
 
 - [Aspire prerequisites](/get-started/prerequisites/)
 - [Aspire CLI](/get-started/install-cli/) installed
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
-- An active Azure account and subscription
+- Access to an Azure tenant and subscription for the identity that runs `aspire deploy`
 
 ## Authenticate to Azure
 
@@ -25,11 +24,13 @@ How you authenticate to Azure depends on where `aspire deploy` runs.
 
 ### Local deploys
 
-Use Azure CLI sign-in:
+By default, local `aspire deploy` uses Azure CLI credentials:
 
 ```bash title="Authenticate with Azure"
 az login
 ```
+
+If you want a different local credential source, set `Azure:CredentialSource` (or `Azure__CredentialSource`) to one of the supported values: `AzureCli`, `AzureDeveloperCli`, `VisualStudio`, `VisualStudioCode`, `AzurePowerShell`, `InteractiveBrowser`, or `Default`.
 
 ### GitHub Actions
 
@@ -45,7 +46,7 @@ For provider-specific setup, see [Configuring OpenID Connect in Azure](https://d
 
 ## Shared Azure settings
 
-After authentication succeeds, `aspire deploy` still needs a small set of shared Azure settings. The tenant comes from your Azure sign-in context, while the settings below tell Aspire which subscription, location, and resource group to target.
+After authentication succeeds, `aspire deploy` still needs a small set of shared Azure settings. By default, the tenant comes from your active Azure credential context, while the settings below tell Aspire which subscription, location, and resource group to target.
 
 | Setting | Environment variable | Purpose |
 | --- | --- | --- |
@@ -63,9 +64,15 @@ aspire secret set "Azure:Location" "eastus"
 aspire secret set "Azure:ResourceGroup" "my-app-rg"
 ```
 
+Use `Azure:TenantId` when you need to pin a tenant, `Azure:CredentialSource` to force a specific local credential type, and `Azure:AllowResourceGroupCreation` when deployment must reuse an existing resource group instead of creating one automatically.
+
+<LearnMore>
+For the full local Azure configuration surface, see [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/).
+</LearnMore>
+
 ### CI/CD settings
 
-After your CI/CD system authenticates to Azure, provide the shared Azure settings and any AppHost parameters to the deploy step.
+After your CI/CD system authenticates to Azure, provide the shared Azure settings and any AppHost parameters to the deploy step. `--environment` selects the Aspire environment for environment-scoped parameter resolution, but your pipeline still supplies the `Azure__*` and `Parameters__*` values it needs, typically through environment variables or secrets.
 
 | Input | How you provide it | Purpose |
 | --- | --- | --- |
@@ -73,7 +80,7 @@ After your CI/CD system authenticates to Azure, provide the shared Azure setting
 | Azure location | `Azure__Location` | Set the default region for provisioned resources |
 | Azure resource group | `Azure__ResourceGroup` | Select the resource group to create or reuse |
 | AppHost parameters | `Parameters__*` environment variables | Supply any required AppHost inputs |
-| Aspire environment | `aspire deploy --environment <name>` | Select the deployment context, such as `Production` |
+| Aspire environment | `aspire deploy --environment <name>` | Select the Aspire environment, such as `Production`, for environment-scoped parameter resolution |
 
 <LearnMore>
 For parameter resolution and broader pipeline guidance, see [Environments](/deployment/environments/#how-parameter-values-are-resolved), [CI/CD](/deployment/ci-cd/), and the [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/).
@@ -91,11 +98,11 @@ Azure deployment starts from the compute environments in your AppHost. Each comp
 
 3. Run `aspire deploy`. Local deploys can prompt for missing values after you sign in to Azure, while CI/CD pipelines should authenticate to Azure and provide the shared Azure settings and AppHost parameters ahead of time.
 
-4. Aspire resolves parameters, provisions the target infrastructure, builds and pushes container images when needed, configures managed identity and image pull access, and deploys each resource into its assigned environment.
+4. Aspire resolves parameters, provisions the target infrastructure, signs the local container runtime in to the target Azure Container Registry when images need to be pushed, builds and pushes container images, configures managed identity and image pull access, and deploys each resource into its assigned environment.
 
 </Steps>
 
-Both Azure Container Apps and Azure App Service provision or attach an Azure Container Registry by default so deployed resources can pull images without manual registry credentials.
+Both Azure Container Apps and Azure App Service provision or attach an Azure Container Registry by default. Aspire uses the active deployment credential to log the local container runtime in for image push, and the deployed resources later pull those images with managed identity and `AcrPull` permissions instead of stored registry usernames or passwords.
 
 ## Resource naming
 
