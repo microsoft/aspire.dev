@@ -1,0 +1,234 @@
+---
+title: Deploy to Azure App Service
+description: Learn how to deploy Aspire applications to Azure App Service with the aspire deploy command.
+---
+
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+<Badge text="🧪 Preview" variant="note" size="large" />
+
+Use `aspire deploy` to deploy Aspire applications to Azure App Service. Aspire provisions the App Service plan, Azure Container Registry, managed identity, and the App Service websites for supported web-facing app resources in the App Service environment.
+
+<LearnMore>
+Start with [Deploy to Azure](/deployment/azure/) for the shared Azure deployment model and target selection.
+</LearnMore>
+
+## Prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
+- An active Azure account and subscription
+
+Authenticate with Azure CLI before deploying:
+
+```bash title="Authenticate with Azure CLI"
+az login
+```
+
+## Configure your AppHost for Azure App Service
+
+Add Azure App Service support to your AppHost:
+
+```bash title="Aspire CLI — Add Azure App Service"
+aspire add azure-appservice
+```
+
+The Aspire CLI adds the [📦 Aspire.Hosting.Azure.AppService](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppService) integration to your AppHost. If prompted, select the matching package result.
+
+Then add the App Service environment in your AppHost and a supported web app or API resource. App Service environments automatically target supported project resources and Dockerfile-backed web containers:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env");
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment("app-service-env");
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+For a standard App Service deployment, you only need the environment and a supported app resource. When you want to customize the generated website or deployment slot, use the App Service hosting integration guidance.
+
+## How Aspire maps your app to Azure App Service
+
+### Supported app workloads
+
+App Service environments automatically target:
+
+- project resources for web apps and APIs
+- Dockerfile-backed web containers with a supported public HTTP or HTTPS endpoint
+
+Use managed services for backing infrastructure such as databases, caches, and brokers. App Service websites aren't deployment targets for those workloads.
+
+If one AppHost uses multiple Azure environments, assign each supported resource to the environment you want it to use.
+
+### Default mapping
+
+Start with the common case:
+
+| AppHost endpoint shape | Azure App Service result |
+| --- | --- |
+| One external HTTP or HTTPS endpoint | One public website endpoint |
+
+App Service routes public traffic to the app's target port, even if the app listens on a development port such as `8080`.
+
+### Constraints
+
+Azure App Service uses a public website model:
+
+- only external `http` and `https` endpoints are supported
+- only one distinct external target port is supported for each deployed app
+- internal-only endpoints, multi-port public apps, and arbitrary infrastructure containers such as Redis or databases don't fit this deployment model
+
+### Image publishing and identity
+
+During `aspire deploy`, Aspire:
+
+- provisions or attaches an Azure Container Registry
+- builds container images for supported resources
+- pushes those images to the registry
+- creates a user-assigned managed identity
+- grants the deployed websites permission to pull images
+
+This lets App Service pull deployed images without manual registry credentials.
+
+### Health checks
+
+App Service exposes one health check path per website. If you configure multiple probes, Aspire prefers the liveness probe and uses that path for the App Service health check.
+
+## Deploy with aspire deploy
+
+Once your AppHost is configured, deploy it with:
+
+```bash title="Deploy to Azure App Service"
+aspire deploy
+```
+
+Aspire prompts for your Azure tenant, subscription, resource group, and any AppHost parameters it needs, then provisions and deploys the App Service resources behind the scenes.
+
+## Monitoring and diagnostics
+
+### Aspire Dashboard
+
+The Azure App Service environment includes the Aspire Dashboard by default, so you can inspect logs, traces, metrics, and topology after deployment. If you don't want to deploy it, disable it on the environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithDashboard(false);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-env");
+await appServiceEnv.withDashboard(false);
+```
+</TabItem>
+</Tabs>
+
+### Application Insights
+
+Enable Azure Application Insights on the App Service environment when you want Aspire to provision monitoring resources and flow the connection string into your deployed websites:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithAzureApplicationInsights();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-env");
+await appServiceEnv.withAzureApplicationInsights();
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For existing Application Insights resources and advanced configuration, see [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
+</LearnMore>
+
+## Deployment slots
+
+Use deployment slots when you want to deploy the websites in your environment into a staging slot before swapping into production:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithDeploymentSlot("staging");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-env");
+await appServiceEnv.withDeploymentSlot("staging");
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For existing plans, advanced customization, and deployment slot behavior, see [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
+</LearnMore>
+
+## Deployment considerations
+
+:::caution
+Azure App Service application settings accept only letters, numbers, and underscores. If a connection name contains dashes, review the App Service hosting integration guidance for the environment-variable validation workaround before deployment.
+:::
+
+<LearnMore>
+For environment-variable validation details and advanced App Service customization, see [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/).
+</LearnMore>
+
+## See also
+
+- [Deploy to Azure](/deployment/azure/)
+- [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/)
+- [Azure security best practices](/deployment/azure/azure-security-best-practices/)
+- [App Service overview](https://learn.microsoft.com/azure/app-service/overview)
+- [Configure a custom container for Azure App Service](https://learn.microsoft.com/azure/app-service/configure-custom-container#configure-port-number)

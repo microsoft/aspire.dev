@@ -13,6 +13,7 @@ export const collections = {
           renderBlocking: z.string().optional(),
           giscus: z.boolean().optional().default(false),
           crumbs: z.boolean().optional().default(true),
+          topic: z.string().optional(),
           category: z
             .enum(['conceptual', 'quickstart', 'tutorial', 'blog', 'reference', 'sample'])
             .optional(),

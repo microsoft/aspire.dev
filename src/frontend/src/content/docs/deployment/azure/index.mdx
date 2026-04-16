@@ -1,0 +1,96 @@
+---
+title: Deploy to Azure
+description: Learn how Azure deployment works in Aspire, the shared prerequisites, and how to choose between Azure Container Apps and Azure App Service.
+---
+
+import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Use `aspire deploy` to deploy Aspire applications to Azure. Aspire uses the Azure-targeted environments in your AppHost to determine where each compute resource should go, then resolves parameters, provisions infrastructure, builds and pushes container images when needed, and applies the deployment.
+
+## Shared prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
+- An active Azure account and subscription
+
+Authenticate with Azure CLI before deploying:
+
+```bash title="Authenticate with Azure"
+az login
+```
+
+The first `aspire deploy` run prompts for your Azure tenant, subscription, and resource group unless you provide values through configuration such as `Azure__SubscriptionId`, `Azure__Location`, and `Azure__ResourceGroup`.
+
+<LearnMore>
+For the full command surface, see the [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/).
+</LearnMore>
+
+## How Azure deployment works
+
+Azure deployment starts from the compute environments in your AppHost. Each compute resource deploys into the environment assigned to it, and a single AppHost can use multiple Azure environments when you need different targets in the same app.
+
+<Steps>
+
+1. Add the Azure target integration that matches where you want to run your app.
+
+2. Configure the Azure environment in your AppHost.
+
+3. Run `aspire deploy`.
+
+4. Aspire resolves parameters, provisions the target infrastructure, builds and pushes container images when needed, configures managed identity and image pull access, and deploys each resource into its assigned environment.
+
+</Steps>
+
+Both Azure Container Apps and Azure App Service provision or attach an Azure Container Registry by default so deployed resources can pull images without manual registry credentials.
+
+## Resource naming
+
+Aspire treats AppHost resource names as inputs to generated Azure resource names, not as a guarantee that the exact same name appears in Azure. Generated names are normalized to satisfy Azure resource constraints, and one Azure environment can create related resources such as identities, registries, file shares, and managed environment storage.
+
+If you're deploying to Azure Container Apps and upgrading an environment that previously used `azd`-managed naming, review the ACA naming guidance before deploying so you don't create duplicate Azure resources.
+
+<LearnMore>
+For ACA naming details, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/#handle-naming-conventions).
+</LearnMore>
+
+## Target differences
+
+| Target | Endpoint model | Best fit |
+| --- | --- | --- |
+| [Azure Container Apps](/deployment/azure/container-apps/) | Public or internal endpoints, with one primary HTTP ingress per app. | Distributed apps and containerized services that fit the Container Apps environment model. |
+| [Azure App Service](/deployment/azure/app-service/) | Public website model with external `http`/`https` endpoints only. | Web apps and APIs that fit the App Service website and deployment slot model and use managed services for backing infrastructure such as databases and caches. |
+
+:::note
+Azure Container Apps can also host supporting service containers such as databases, caches, and brokers. That flexibility can be useful for development or specialized deployments, but managed services are still the recommended production default for those dependencies.
+:::
+
+## Deployment targets
+
+<CardGrid>
+  <LinkCard
+    title="Azure Container Apps"
+    description="Understand ingress, registry, identity, and optional dashboard settings for Container Apps deployments."
+    href="/deployment/azure/container-apps/"
+  />
+  <LinkCard
+    title="Azure App Service"
+    description="Understand the App Service website model, slots, dashboard, and Application Insights for deployment."
+    href="/deployment/azure/app-service/"
+  />
+</CardGrid>
+
+## Guidance
+
+<CardGrid>
+  <LinkCard
+    title="Azure security best practices"
+    description="Review Azure-specific security guidance for Aspire deployments."
+    href="/deployment/azure/azure-security-best-practices/"
+  />
+</CardGrid>
+
+<LearnMore>
+If you need to keep an existing `azd` workflow, see [Use existing azd workflows](/deployment/azure/azure-developer-cli/).
+</LearnMore>

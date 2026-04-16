@@ -1,6 +1,7 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
 
 export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
+  id: 'deployment',
   label: {
     da: 'Udrulning',
     de: 'Bereitstellung',
@@ -116,45 +117,51 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       collapsed: false,
       items: [
         {
-          label: 'Aspire CLI',
-          slug: 'deployment/azure/aca-deployment-aspire-cli',
+          label: 'Overview',
+          slug: 'deployment/azure',
         },
         {
-          label: 'Customize Azure Container Apps',
-          slug: 'deployment/azure/customize-container-apps',
-        },
-        {
-          label: 'Azure security best practices',
-          translations: {
-            da: 'Bedste praksis for Azure-sikkerhed',
-            de: 'Bewährte Methoden für Azure-Sicherheit',
-            en: 'Azure security best practices',
-            es: 'Prácticas recomendadas de seguridad de Azure',
-            fr: 'Bonnes pratiques de sécurité Azure',
-            hi: 'Azure सुरक्षा सर्वोत्तम प्रथाएँ',
-            id: 'Praktik terbaik keamanan Azure',
-            it: 'Procedure consigliate per la sicurezza di Azure',
-            ja: 'Azure セキュリティのベスト プラクティス',
-            ko: 'Azure 보안 모범 사례',
-            'pt-BR': 'Práticas recomendadas de segurança do Azure',
-            ru: 'Рекомендации по безопасности Azure',
-            tr: 'Azure güvenlik en iyi uygulamaları',
-            uk: 'Найкращі практики безпеки Azure',
-            'zh-CN': 'Azure 安全最佳实践',
-          },
-          slug: 'deployment/azure/azure-security-best-practices',
-        },
-        {
-          label: 'Azure Developer CLI (azd)',
-          collapsed: true,
+          label: 'Deployment targets',
+          collapsed: false,
           items: [
             {
-              label: 'Overview',
-              slug: 'deployment/azure/azure-developer-cli',
+              label: 'Azure Container Apps',
+              slug: 'deployment/azure/container-apps',
             },
             {
-              label: 'Deployment manifest format',
-              slug: 'deployment/azure/manifest-format',
+              label: 'Customize Azure Container Apps',
+              slug: 'deployment/azure/customize-container-apps',
+            },
+            {
+              label: 'Azure App Service',
+              slug: 'deployment/azure/app-service',
+            },
+          ],
+        },
+        {
+          label: 'Guidance',
+          collapsed: false,
+          items: [
+            {
+              label: 'Azure security best practices',
+              translations: {
+                da: 'Bedste praksis for Azure-sikkerhed',
+                de: 'Bewährte Methoden für Azure-Sicherheit',
+                en: 'Azure security best practices',
+                es: 'Prácticas recomendadas de seguridad de Azure',
+                fr: 'Bonnes pratiques de sécurité Azure',
+                hi: 'Azure सुरक्षा सर्वोत्तम प्रथाएँ',
+                id: 'Praktik terbaik keamanan Azure',
+                it: 'Procedure consigliate per la sicurezza di Azure',
+                ja: 'Azure セキュリティのベスト プラクティス',
+                ko: 'Azure 보안 모범 사례',
+                'pt-BR': 'Práticas recomendadas de segurança do Azure',
+                ru: 'Рекомендации по безопасности Azure',
+                tr: 'Azure güvenlik en iyi uygulamaları',
+                uk: 'Найкращі практики безпеки Azure',
+                'zh-CN': 'Azure 安全最佳实践',
+              },
+              slug: 'deployment/azure/azure-security-best-practices',
             },
           ],
         },
