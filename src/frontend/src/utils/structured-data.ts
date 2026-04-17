@@ -67,6 +67,14 @@ export function getStructuredData(
   return structuredData ? serializeStructuredData(structuredData) : undefined;
 }
 
+function isHomePagePath(contentBasePath: string): boolean {
+  return contentBasePath === 'index' || contentBasePath === '';
+}
+
+function isCommunityPagePath(contentBasePath: string): boolean {
+  return contentBasePath === 'community' || contentBasePath === 'community/index';
+}
+
 function buildHomePageSchema(siteUrl: string, language: string, description: string): JsonObject {
   const organizationId = `${siteUrl}/#org`;
 
@@ -103,8 +111,12 @@ function buildStructuredData(
   language: string,
   description: string
 ): JsonObject {
-  if (contentBasePath === 'index') {
+  if (isHomePagePath(contentBasePath)) {
     return buildHomePageSchema(siteUrl, language, description);
+  }
+
+  if (isCommunityPagePath(contentBasePath)) {
+    return buildCommunityPageSchema(route, siteUrl, pageUrl, language, description);
   }
 
   if (contentBasePath === 'get-started/faq') {
@@ -126,6 +138,42 @@ function buildStructuredData(
   return buildTechArticleSchema(route, siteUrl, pageUrl, language, description);
 }
 
+function buildCommunityPageSchema(
+  route: StarlightRouteData,
+  siteUrl: string,
+  pageUrl: string,
+  language: string,
+  description: string
+): JsonObject {
+  const organizationId = `${siteUrl}/#org`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': organizationId,
+        name: organizationName,
+        alternateName: [...organizationAlternateNames],
+        url: `${siteUrl}/`,
+        logo: `${siteUrl}/og-image.png`,
+        description: organizationDescription,
+        sameAs: [...sameAsLinks],
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${pageUrl}#webpage`,
+        url: pageUrl,
+        name: route.entry.data.title,
+        description,
+        inLanguage: language,
+        isPartOf: { '@id': `${siteUrl}/#website` },
+        about: { '@id': organizationId },
+      },
+    ],
+  };
+}
+
 function buildFaqPageSchema(
   route: StarlightRouteData,
   siteUrl: string,
@@ -133,7 +181,7 @@ function buildFaqPageSchema(
   language: string,
   description: string
 ): JsonObject | undefined {
-  const faqEntries = extractFaqEntries(route.entry.body);
+  const faqEntries = extractFaqEntries(route.entry.body ?? '');
   if (faqEntries.length === 0) {
     return undefined;
   }
