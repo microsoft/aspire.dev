@@ -7,7 +7,7 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
 const docsRoot = path.join(frontendRoot, 'src', 'content', 'docs');
 const fileTreeBlockPattern = /<FileTree\b[^>]*>([\s\S]*?)<\/FileTree>/g;
-const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---/;
+const frontmatterPattern = /^\uFEFF?\s*---\r?\n([\s\S]*?)\r?\n---/;
 
 function collectDocs(dirPath: string): string[] {
   const entries = readdirSync(dirPath, { withFileTypes: true });
@@ -93,14 +93,24 @@ function findOverviewHeadingIssues(source: string): Array<{ line: number; reason
 
   const issues: Array<{ line: number; reason: string }> = [];
   const lines = source.split(/\r?\n/);
-  let currentFence: string | null = null;
+  let currentFence: { char: '`' | '~'; length: number } | null = null;
 
   for (const [index, line] of lines.entries()) {
-    const fenceMatch = line.match(/^\s*(```+|~~~+)/);
+    const fenceMatch = line.match(/^\s*((`{3,})|(~{3,}))/);
     if (fenceMatch) {
-      const fence = fenceMatch[1][0];
-      currentFence = currentFence === fence ? null : fence;
-      continue;
+      const fenceDelimiter = fenceMatch[1];
+      const fenceChar = fenceDelimiter[0] as '`' | '~';
+      const fenceLength = fenceDelimiter.length;
+
+      if (!currentFence) {
+        currentFence = { char: fenceChar, length: fenceLength };
+        continue;
+      }
+
+      if (currentFence.char === fenceChar && fenceLength >= currentFence.length) {
+        currentFence = null;
+        continue;
+      }
     }
 
     if (currentFence) {
