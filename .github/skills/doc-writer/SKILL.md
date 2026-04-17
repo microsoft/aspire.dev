@@ -194,7 +194,7 @@ If a heading needs to appear in the **On this page** table of contents, keep the
 
 #### On this page and "Overview" headings
 
-When a page shows the **On this page** table of contents (the default behavior unless `tableOfContents: false` is set), do **not** add an explicit `## Overview` heading. The docs site already provides an implicit overview link to the top of the page, so an explicit `Overview` section becomes redundant.
+When a page shows the **On this page** table of contents (the default behavior unless `tableOfContents: false` is set), do **not** add an `Overview` heading at any level (`##`, `###`, etc.). The docs site already provides an implicit overview link to the top of the page, so an explicit `Overview` heading becomes redundant.
 
 If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
 
