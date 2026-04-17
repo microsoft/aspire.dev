@@ -192,6 +192,12 @@ Python specific content here.
 
 If a heading needs to appear in the **On this page** table of contents, keep the heading outside the `Pivot` content and put only the variant-specific body content inside each `Pivot`.
 
+#### On this page and "Overview" headings
+
+When a page shows the **On this page** table of contents (the default behavior unless `tableOfContents: false` is set), do **not** add an `Overview` heading at any level (`##`, `###`, etc.). The docs site already provides an implicit overview link to the top of the page, so an explicit `Overview` heading becomes redundant.
+
+If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
+
 For Aspire AppHost docs, use a single page-level `PivotSelector` with `key="aspire-lang"` when the surrounding section flow should switch as one unit. If a page would otherwise need multiple `aspire-lang` selectors, keep the page-level selector for the main flow and use synced `Tabs`/`TabItem` with `syncKey='aspire-lang'` for repeated language-specific examples later on the page.
 
 ```mdx
