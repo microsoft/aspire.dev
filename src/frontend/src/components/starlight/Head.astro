@@ -3,6 +3,7 @@ import { Tooltips } from 'astro-tooltips';
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
 import SiteTour from '../SiteTour.astro';
+import { getStructuredData } from '@utils/structured-data';
 
 const repoUrl = (
   import.meta.env.PUBLIC_REPO_URL ||
@@ -15,6 +16,7 @@ const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+const structuredData = route ? getStructuredData(route, Astro.url, Astro.site) : undefined;
 
 function computeRepoPath() {
   if (path) {
@@ -35,6 +37,7 @@ function computeSourceUrl() {
 <meta name="git-source-url" content={computeSourceUrl()} />
 
 <DefaultHead {...Astro.props} />
+{structuredData && <script type="application/ld+json" is:inline set:html={structuredData} />}
 
 <!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
 <script is:inline>
@@ -62,11 +65,17 @@ function computeSourceUrl() {
       document.documentElement.setAttribute('data-apphost-lang', appHostLang);
 
       var path = window.location.pathname.replace(/\/$/, '');
-      if (localStorage.getItem('api-sidebar-collapsed') === '1' && path.indexOf('/reference/api') !== -1) {
+      if (
+        localStorage.getItem('api-sidebar-collapsed') === '1' &&
+        path.indexOf('/reference/api') !== -1
+      ) {
         document.documentElement.setAttribute('data-sidebar-collapsed', '');
       }
 
-      if (localStorage.getItem('topic-sidebar-collapsed') === '1' && path.indexOf('/reference/api') === -1) {
+      if (
+        localStorage.getItem('topic-sidebar-collapsed') === '1' &&
+        path.indexOf('/reference/api') === -1
+      ) {
         document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
       }
     } catch (e) {}
@@ -132,7 +141,7 @@ function computeSourceUrl() {
     }
   }}
 />
-  
+
 <script is:inline>
   (function () {
     document.addEventListener('keydown', function (event) {
