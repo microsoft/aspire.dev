@@ -291,24 +291,28 @@ Unlike existing resources modeled with [the first-class `AsExisting` API](#use-e
 
 ## Publish as Azure Container App
 
-Aspire allows you to publish primitive resources as [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/overview), a serverless platform that reduces infrastructure management. Supported resource types include:
+Aspire deploys compute resources to [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/overview) through an ACA environment. Supported resource types include:
 
 - `ContainerResource`: Represents a specified container.
 - `ExecutableResource`: Represents a specified executable process.
 - `ProjectResource`: Represents a specified .NET project.
 
-To publish these resources, use the following APIs:
+Add an ACA environment with `AddAzureContainerAppEnvironment` to target these resources to Azure Container Apps.
+
+Use the following APIs when you want to customize the generated Container App resource for a specific resource:
 
 - `PublishAsAzureContainerApp` for containers
 - `PublishAsAzureContainerApp` for executables
 - `PublishAsAzureContainerApp` for projects
 
-These APIs configure the resource to be published as an Azure Container App and implicitly call `AddAzureContainerAppsInfrastructure` to add the necessary infrastructure and Bicep files to your AppHost. As an example, consider the following code:
+You don't need `PublishAsAzureContainerApp` for a standard ACA deployment. Use it only when you want to customize the generated Container App resource. As an example, consider the following code:
 
 ```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder();
+var builder = DistributedApplication.CreateBuilder(args);
 
 var env = builder.AddParameter("env");
+
+builder.AddAzureContainerAppEnvironment("aca-env");
 
 var api = builder.AddProject<Projects.AspireApi>("api")
     .PublishAsAzureContainerApp<Projects.AspireApi>((infra, app) =>
@@ -325,8 +329,9 @@ The preceding code:
 
 - Creates a new `builder` instance.
 - Adds a parameter named `env` to the builder.
+- Adds an ACA environment named `aca-env`.
 - Adds a project named `api` to the builder.
-- Calls the `PublishAsAzureContainerApp` method on the `api` resource builder, passing a lambda expression that configures the Azure Container App infrastructure—where `infra` is the `AzureResourceInfrastructure` and `app` is the `ContainerApp`.
+- Calls the `PublishAsAzureContainerApp` method on the `api` resource builder to customize the generated Container App—where `infra` is the `AzureResourceInfrastructure` and `app` is the `ContainerApp`.
   - Adds an environment variable named `Hello` to the container app, using the `env` parameter.
   - The `AsProvisioningParameter` method is used to treat `env` as either a new `ProvisioningParameter` in infrastructure, or reuses an existing bicep parameter if one with the same name already exists.
 

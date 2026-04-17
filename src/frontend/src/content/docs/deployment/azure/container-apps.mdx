@@ -1,0 +1,346 @@
+---
+title: Deploy to Azure Container Apps
+description: Learn how to deploy Aspire applications to Azure Container Apps with the aspire deploy command.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Use `aspire deploy` to deploy Aspire applications to Azure Container Apps. Aspire provisions the Container Apps environment, Azure Container Registry, managed identity, and the Container Apps resources needed for the compute resources in your AppHost.
+
+<LearnMore>
+Start with [Deploy to Azure](/deployment/azure/) for the shared Azure deployment model and target selection. If you need to keep an existing `azd` deployment workflow, see [Use existing azd workflows](/deployment/azure/azure-developer-cli/).
+</LearnMore>
+
+## Prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- For local deployment with the default credential source, [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
+- An active Azure account and subscription
+
+By default, local deployment uses Azure CLI credentials. Authenticate with Azure CLI before deploying:
+
+```bash title="Authenticate with Azure CLI"
+az login
+```
+
+## Configure your AppHost for Azure Container Apps
+
+Add Azure Container Apps support to your AppHost:
+
+```bash title="Aspire CLI — Add Azure App Containers"
+aspire add azure-appcontainers
+```
+
+The Aspire CLI adds the [📦 Aspire.Hosting.Azure.AppContainers](https://www.nuget.org/packages/Aspire.Hosting.Azure.AppContainers) integration to your AppHost. If prompted, select the matching package result.
+
+<LearnMore>
+Learn more about the `aspire add` command in the [reference docs](/reference/cli/commands/aspire-add/).
+</LearnMore>
+
+Then add the Azure Container Apps environment in your AppHost and a web app you want to place in that environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aca-env");
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment("aca-env");
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+For a standard Azure Container Apps deployment, you only need the environment and the app resource. Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource.
+
+<LearnMore>
+For general Azure resource customization such as naming, existing resources, role assignments, and outputs, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For environment configuration, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/).
+</LearnMore>
+
+## How Aspire maps your app to Azure Container Apps
+
+### Supported compute resources
+
+Compute resources assigned to an Azure Container Apps environment are deployed to Azure Container Apps. If one AppHost uses multiple Azure environments, assign each resource to the environment you want it to use.
+
+:::note
+Azure Container Apps can host both your app containers and supporting service containers such as databases, caches, or brokers. That flexibility is useful in development and some specialized deployments, but managed services are still the recommended production default for those dependencies.
+:::
+
+### Default mapping
+
+Start with the common cases:
+
+| AppHost endpoint shape | Azure Container Apps result |
+| --- | --- |
+| One external HTTP endpoint | One public HTTP ingress, exposed through the platform HTTPS endpoint by default |
+| One internal HTTP endpoint | One internal-only HTTP ingress inside the Container Apps environment |
+| One TCP endpoint | One TCP ingress |
+
+### How Aspire decides
+
+Aspire groups endpoints by target port before it generates Azure Container Apps ingress settings. In practice, that means:
+
+- Azure Container Apps supports `http`, `http2`, and `tcp` transports for deployment.
+- One HTTP or HTTP/2 target-port group becomes the main ingress.
+- The environment can host both internal and external endpoints.
+- HTTP and TCP traffic can't share the same target port.
+
+### HTTP and HTTPS behavior
+
+Azure Container Apps uses an Envoy-based HTTP edge proxy for HTTP ingress:
+
+- public HTTP-style ingress is exposed through the platform HTTPS endpoint by default
+- HTTP requests sent to the app are redirected to HTTPS
+- you can turn off that default upgrade behavior on the environment if you need to keep HTTP behavior
+
+### Constraints and edge cases
+
+Most apps map cleanly from one endpoint group to one ingress. When an app exposes more than one endpoint group, keep these rules in mind:
+
+- each app gets one HTTP ingress
+- additional endpoint groups are published as additional TCP ports
+- built-in HTTP ingress features apply only to the main HTTP ingress
+- external non-HTTP endpoints aren't supported
+- Azure Container Apps supports up to five additional ports per app
+
+### Volumes and bind mounts
+
+When you deploy to Azure Container Apps, Aspire translates both named volumes and bind mounts into Azure Files-backed mounts in the Container Apps environment.
+
+- Aspire provisions Azure Storage file shares and managed environment storage entries for the mounts used by deployed resources.
+- Both named volumes and bind mounts become mounted Azure Files shares in the deployed app.
+- A bind mount's local host path isn't preserved as a host bind mount in Azure deployment.
+
+Use these mounts as persistent storage for the deployed app, not as a way to project files from the AppHost machine into the deployed environment.
+
+### Image publishing and identity
+
+During `aspire deploy`, Aspire:
+
+- provisions or attaches an Azure Container Registry
+- builds container images for the compute resources in the environment
+- pushes those images to the registry
+- creates a user-assigned managed identity
+- grants the deployed Container Apps permission to pull images
+
+This lets Container Apps pull deployed images without manual registry credentials.
+
+### Health checks and probes
+
+Probe traffic stays on the internal container network. If a probe is associated with an ingress-enabled endpoint, Aspire still configures the probe against the container target port instead of sending probe traffic through Container Apps ingress.
+
+## Customize generated Container Apps
+
+Use `PublishAsAzureContainerApp` when you want to customize the generated Container App resource for a project, container, or executable. It isn't required for a standard Container Apps deployment.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("env");
+
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureContainerApp((infrastructure, app) =>
+    {
+        app.Template.Scale.MinReplicas = 1;
+        app.Template.Scale.MaxReplicas = 10;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureContainerAppEnvironment("env");
+
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsAzureContainerApp(async (_infrastructure, _app) => {
+    // Customize the generated Container App here.
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### Custom domains
+
+Use `ConfigureCustomDomain` when you want Aspire to configure a custom domain and managed certificate on the generated Container App.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var customDomain = builder.AddParameter("customDomain");
+var certificateName = builder.AddParameter("certificateName");
+
+builder.AddAzureContainerAppEnvironment("env");
+
+#pragma warning disable ASPIREACADOMAINS001
+builder.AddProject<Projects.Api>("api")
+    .PublishAsAzureContainerApp((infrastructure, app) =>
+    {
+        app.ConfigureCustomDomain(customDomain, certificateName);
+    });
+#pragma warning restore ASPIREACADOMAINS001
+
+builder.Build().Run();
+```
+
+:::caution
+The `ConfigureCustomDomain` API is experimental and may change or be removed in future updates. For more information, see [ASPIREACADOMAINS001](/diagnostics/aspireacadomains001/).
+:::
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+The `ConfigureCustomDomain` API is not yet available in the TypeScript AppHost SDK.
+:::
+</TabItem>
+</Tabs>
+
+### Internal service discovery
+
+Services deployed to Azure Container Apps use internal DNS for service discovery. Use `WithExternalHttpEndpoints()` only for endpoints you want reachable outside the Container Apps environment.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.withExternalHttpEndpoints();
+```
+</TabItem>
+</Tabs>
+
+## Optional environment settings
+
+### Use a specific Azure Container Registry
+
+By default, Aspire provisions an Azure Container Registry for the environment. If you want to use a shared or explicitly named registry instead, add an Azure Container Registry resource and attach it to the environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var acr = builder.AddAzureContainerRegistry("shared-acr");
+
+builder.AddAzureContainerAppEnvironment("aspire-env")
+    .WithAzureContainerRegistry(acr);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const acr = await builder.addAzureContainerRegistry("shared-acr");
+const env = await builder.addAzureContainerAppEnvironment("aspire-env");
+await env.withAzureContainerRegistry(acr);
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+For more information, see [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/).
+</LearnMore>
+
+### Aspire Dashboard
+
+The Azure Container Apps environment includes the Aspire Dashboard by default. It helps you inspect the compute resources deployed into that environment. Managed Azure backing services aren't shown as dashboard resources there. If you don't want to deploy it, disable it on the environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aspire-env")
+    .WithDashboard(false);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const env = await builder.addAzureContainerAppEnvironment("aspire-env");
+await env.withDashboard(false);
+```
+</TabItem>
+</Tabs>
+
+## Deploy with aspire deploy
+
+Once your AppHost is configured, deploy it with:
+
+```bash title="Deploy to Azure Container Apps"
+aspire deploy
+```
+
+Aspire can prompt for missing Azure settings and AppHost parameters during an interactive deploy, then provisions and deploys the Container Apps resources behind the scenes.
+
+<LearnMore>
+For Azure authentication, shared Azure settings, and `Parameters__*` inputs, see [Deploy to Azure](/deployment/azure/) and [Environments](/deployment/environments/#how-parameter-values-are-resolved).
+</LearnMore>
+
+## After deployment
+
+After deployment, use the dashboard URL in the CLI output, the Azure portal, or `az containerapp show` to inspect the deployed compute resources and application URLs.
+
+## Clean up resources
+
+To remove deployed resources, delete the resource group:
+
+```bash title="Delete resource group"
+az group delete --name <resource-group-name>
+```
+
+:::danger
+This command deletes all resources in the resource group, including any resources not created by the Aspire CLI.
+:::
+
+## See also
+
+- [Deploy to Azure](/deployment/azure/)
+- [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
+- [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/)
+- [Azure Container Apps overview](https://learn.microsoft.com/azure/container-apps/overview)
+- [Ingress in Azure Container Apps](https://learn.microsoft.com/azure/container-apps/ingress-overview)
+- [Networking in Azure Container Apps environment](https://learn.microsoft.com/azure/container-apps/networking#http-edge-proxy-behavior)
