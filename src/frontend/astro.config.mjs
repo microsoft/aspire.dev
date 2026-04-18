@@ -56,6 +56,7 @@ export default defineConfig({
       components: {
         Banner: './src/components/starlight/Banner.astro',
         EditLink: './src/components/starlight/EditLink.astro',
+        TableOfContents: './src/components/starlight/TableOfContents.astro',
         Footer: './src/components/starlight/Footer.astro',
         Head: './src/components/starlight/Head.astro',
         Header: './src/components/starlight/Header.astro',
