@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MODULES_DIR = resolve(__dirname, '..', 'src', 'data', 'ts-modules');
+const PKGS_DIR = resolve(__dirname, '..', 'src', 'data', 'pkgs');
 const OUTPUT_DIR = resolve(__dirname, '..', '.twoslash-types');
 const OUTPUT_FILE = resolve(OUTPUT_DIR, 'aspire.d.ts');
 
@@ -270,6 +271,27 @@ const modules: ModuleJson[] = files.map((f) =>
 );
 
 console.log(`📚 Loaded ${modules.length} module JSON files`);
+
+// Load class-inheritance metadata from the richer pkgs/*.json dumps. The
+// ts-modules JSON captures implemented interfaces but not class-level `extends`,
+// so resource types like ViteAppResource lose inherited methods such as
+// publishAsDockerFile. Map each class short-name to its base class short-name.
+const classBaseByName = new Map<string, string>();
+try {
+  const pkgFiles = readdirSync(PKGS_DIR).filter((f) => f.endsWith('.json'));
+  for (const f of pkgFiles) {
+    const pkg = JSON.parse(readFileSync(resolve(PKGS_DIR, f), 'utf8'));
+    for (const t of pkg.types ?? []) {
+      if (t.kind !== 'class' || !t.baseType) continue;
+      const base = lastDotted(t.baseType).split('<')[0];
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(base)) continue;
+      if (!classBaseByName.has(t.name)) classBaseByName.set(t.name, base);
+    }
+  }
+  console.log(`   + ${classBaseByName.size} class-inheritance links from pkgs/`);
+} catch {
+  // pkgs directory is optional — older snapshots may not include it.
+}
 
 // ---------- collect ----------
 
@@ -534,6 +556,19 @@ for (const h of handleTypes) {
     // Put ContainerResource first so chains like `.withImageTag(...).withLifetime(...)`
     // resolve to inherited members before the marker interfaces contribute noise.
     uniqueParents.unshift('ContainerResource');
+  }
+  // Chase the class-inheritance chain so methods defined on a parent class
+  // (e.g. publishAsDockerFile on ExecutableResource) are visible on subclasses
+  // (e.g. ViteAppResource). The ts-modules dump only lists implemented
+  // interfaces, so without this step subclasses lose inherited members.
+  let ancestor = classBaseByName.get(h.name);
+  const seen = new Set<string>([h.name]);
+  while (ancestor && !seen.has(ancestor)) {
+    seen.add(ancestor);
+    if (handleByName.has(ancestor) && !uniqueParents.includes(ancestor)) {
+      uniqueParents.unshift(ancestor);
+    }
+    ancestor = classBaseByName.get(ancestor);
   }
   const implementsClause =
     uniqueParents.length > 0 ? ` extends ${uniqueParents.join(', ')}` : '';
