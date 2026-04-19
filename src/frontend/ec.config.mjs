@@ -15,8 +15,8 @@ const aspireTypes = existsSync(ASPIRE_TYPES_PATH)
 
 if (!aspireTypes) {
   // Non-fatal — twoslash blocks that import the SDK will just show `any`.
-  // Run `pnpm tsx scripts/generate-twoslash-types.ts` to refresh.
-  console.warn('[ec] .twoslash-types/aspire.d.ts missing — run scripts/generate-twoslash-types.ts');
+  // Run `pnpm twoslash-types` to refresh.
+  console.warn('[ec] .twoslash-types/aspire.d.ts missing — run `pnpm twoslash-types`');
 }
 
 /** @type {import('@astrojs/starlight/expressive-code').StarlightExpressiveCodeOptions} */
@@ -43,7 +43,7 @@ export default {
           target: 99,
           strict: true,
           noEmit: true,
-          lib: ['lib.es2022.d.ts'],
+          lib: ['es2022'],
         },
         handbookOptions: {
           // Keep type squigglies rendered inline but don't fail the build when
