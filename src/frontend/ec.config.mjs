@@ -43,7 +43,10 @@ export default {
           target: 99,
           strict: true,
           noEmit: true,
-          lib: ['es2022'],
+          // Omit `lib` so twoslash falls back to `lib.esnext.full.d.ts`
+          // (target: ESNext) — that bundle pulls in `Date`, `URL`, DOM,
+          // and other common globals via triple-slash references. Pinning
+          // an explicit `lib` array breaks those references in the VFS.
         },
         handbookOptions: {
           // Keep type squigglies rendered inline but don't fail the build when
@@ -54,11 +57,7 @@ export default {
         // Virtual files merged into the Twoslash VFS. The Aspire SDK types
         // are declared at `.modules/aspire.ts` so docs samples that import
         // `'./.modules/aspire.js'` resolve against the real API surface.
-        extraFiles: {
-          'console.d.ts':
-            'declare var console: { log(...args: unknown[]): void; error(...args: unknown[]): void; warn(...args: unknown[]): void; info(...args: unknown[]): void; debug(...args: unknown[]): void; };\n',
-          ...(aspireTypes ? { '.modules/aspire.ts': aspireTypes } : {}),
-        },
+        extraFiles: aspireTypes ? { '.modules/aspire.ts': aspireTypes } : {},
       },
     }),
   ],

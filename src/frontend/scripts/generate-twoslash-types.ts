@@ -75,6 +75,16 @@ interface ModuleJson {
   handleTypes?: HandleType[];
 }
 
+interface PkgTypeEntry {
+  name: string;
+  kind: string;
+  baseType?: string;
+}
+
+interface PkgJson {
+  types?: PkgTypeEntry[];
+}
+
 // ---------- helpers ----------
 
 function lastDotted(id: string): string {
@@ -266,8 +276,8 @@ const files = readdirSync(MODULES_DIR)
   .filter((f) => f.endsWith('.json'))
   .sort();
 
-const modules: ModuleJson[] = files.map((f) =>
-  JSON.parse(readFileSync(resolve(MODULES_DIR, f), 'utf8'))
+const modules: ModuleJson[] = files.map(
+  (f) => JSON.parse(readFileSync(resolve(MODULES_DIR, f), 'utf8')) as ModuleJson
 );
 
 console.log(`📚 Loaded ${modules.length} module JSON files`);
@@ -280,7 +290,7 @@ const classBaseByName = new Map<string, string>();
 try {
   const pkgFiles = readdirSync(PKGS_DIR).filter((f) => f.endsWith('.json'));
   for (const f of pkgFiles) {
-    const pkg = JSON.parse(readFileSync(resolve(PKGS_DIR, f), 'utf8'));
+    const pkg = JSON.parse(readFileSync(resolve(PKGS_DIR, f), 'utf8')) as PkgJson;
     for (const t of pkg.types ?? []) {
       if (t.kind !== 'class' || !t.baseType) continue;
       const base = lastDotted(t.baseType).split('<')[0];
