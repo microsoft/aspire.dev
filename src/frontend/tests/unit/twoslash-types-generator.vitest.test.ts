@@ -13,7 +13,10 @@ let output = '';
 
 beforeAll(() => {
   if (existsSync(outputFile)) unlinkSync(outputFile);
-  execFileSync('pnpm', ['tsx', generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
+  // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
+  // resolution issues (and the DEP0190 warning from `shell: true`).
+  const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  execFileSync(process.execPath, [tsxBin, generatorScript], { cwd: frontendRoot, stdio: 'pipe' });
   output = readFileSync(outputFile, 'utf8');
 }, 60_000);
 
