@@ -525,6 +525,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Front Door',
+              slug: 'integrations/cloud/azure/azure-front-door',
+            },
+            {
               label: 'Azure Functions',
               collapsed: true,
               items: [
