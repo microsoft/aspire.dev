@@ -44,20 +44,23 @@ During project creation, you may be prompted:
 
 > **Use \*.dev.localhost URLs?**
 
-`*.dev.localhost` is a wildcard subdomain pattern that resolves to your local machine (`127.0.0.1` or `::1`) in most modern browsers without additional DNS configuration. The ASP.NET Core HTTPS development certificate includes `*.dev.localhost` as a Subject Alternative Name (SAN), so browsers trust connections to any subdomain under `*.dev.localhost` when the certificate is installed and trusted.
+This prompt determines whether the generated launch profile configures your Aspire services to be accessible via `*.dev.localhost` wildcard subdomain URLs (for example, `https://myservice.dev.localhost`) instead of standard `http://localhost` with port numbers.
+
 #### What are \*.dev.localhost URLs?
 
-`*.dev.localhost` is a wildcard subdomain pattern that resolves to your local machine (`127.0.0.1` or `::1`) in most modern browsers without additional DNS configuration. Safari on macOS is an exception and may require **hosts** file entries for `*.dev.localhost` subdomains. The ASP.NET Core HTTPS development certificate includes `*.dev.localhost` as a Subject Alternative Name (SAN), so browsers trust connections to any subdomain under `*.dev.localhost` when the certificate is installed and trusted.
+`*.dev.localhost` is a wildcard subdomain pattern that resolves to your local machine (`127.0.0.1` or `::1`) in most modern browsers without additional DNS configuration. This resolution is a browser feature — non-browser HTTP clients (for example, `curl`, `HttpClient`, or other command-line tools) don't automatically resolve `*.dev.localhost` subdomains and may require **hosts** file entries to reach them.
+
+The Aspire developer certificate trusts `*.dev.localhost` subdomains, so browsers accept HTTPS connections to any subdomain when the certificate is trusted.
 
 #### Yes — use \*.dev.localhost URLs
 
 Choosing **Yes** configures the generated project so that each service gets a unique subdomain URL such as `https://myservice.dev.localhost`. This option:
 
-- Enables HTTPS for all services from the start, leveraging the wildcard development certificate.
+- Enables HTTPS for all services from the start, leveraging the Aspire developer certificate.
 - Gives each service its own origin, which prevents cookie and authentication token collisions between services running on the same machine.
 - More closely mirrors a production setup where services are hosted on separate domains or subdomains.
 
-**Prerequisite:** The ASP.NET Core HTTPS development certificate must be installed and trusted on your machine. Run the following command if you haven't done so already:
+**Prerequisite:** The Aspire developer certificate must be trusted on your machine. If you haven't already done so, run:
 
 ```bash title="Aspire CLI"
 aspire certs trust
@@ -70,8 +73,10 @@ aspire certs trust
 <Aside type="note">
   Safari on macOS does not resolve `*.dev.localhost` subdomains to
   `127.0.0.1` by default. If you use Safari, choose **No** or add entries to
-  your hosts file (for example, `127.0.0.1 myservice.dev.localhost`).
+  your **hosts** file (for example, `127.0.0.1 myservice.dev.localhost`).
 </Aside>
+
+#### No — use standard localhost URLs (default)
 
 Choosing **No** (the default) configures services with standard `http://localhost:<port>` addresses. This option requires no certificate setup and works in all browsers and tools without additional configuration.
 
