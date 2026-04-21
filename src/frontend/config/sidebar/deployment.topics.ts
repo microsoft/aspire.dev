@@ -110,10 +110,45 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
     },
     {
       label: 'Kubernetes',
-      slug: 'deployment/kubernetes',
+      collapsed: false,
+      items: [
+        {
+          label: 'Overview',
+          slug: 'deployment/kubernetes',
+        },
+        {
+          label: 'Kubernetes clusters',
+          slug: 'deployment/kubernetes/kubernetes',
+        },
+        {
+          label: 'Azure Kubernetes Service (AKS)',
+          slug: 'deployment/kubernetes/aks',
+        },
+      ],
     },
     {
-      label: 'Azure',
+      label: 'Custom deployment pipelines',
+      translations: {
+        da: 'Brugerdefinerede implementeringspipelines',
+        de: 'Benutzerdefinierte Bereitstellungspipelines',
+        en: 'Custom deployment pipelines',
+        es: 'Canalizaciones de despliegue personalizadas',
+        fr: 'Pipelines de déploiement personnalisés',
+        hi: 'कस्टम तैनाती पाइपलाइन',
+        id: 'Pipeline penyebaran kustom',
+        it: 'Pipeline di distribuzione personalizzate',
+        ja: 'カスタム デプロイ パイプライン',
+        ko: '사용자 지정 배포 파이프라인',
+        'pt-BR': 'Pipelines de implantação personalizados',
+        ru: 'Пользовательские конвейеры развертывания',
+        tr: 'Özel dağıtım işlem hatları',
+        uk: 'Користувацькі конвеєри розгортання',
+        'zh-CN': '自定义部署管道',
+      },
+      slug: 'deployment/custom-deployments',
+    },
+    {
+      label: 'Deploy to Azure',
       collapsed: false,
       items: [
         {
