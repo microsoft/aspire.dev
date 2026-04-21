@@ -9,15 +9,17 @@ import { pluginDisableCopy } from './src/expressive-code-plugins/disable-copy.mj
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASPIRE_TYPES_PATH = resolve(__dirname, 'src/data/twoslash/aspire.d.ts');
-const aspireTypes = existsSync(ASPIRE_TYPES_PATH)
-  ? readFileSync(ASPIRE_TYPES_PATH, 'utf8')
-  : '';
 
-if (!aspireTypes) {
-  // Non-fatal — twoslash blocks that import the SDK will just show `any`.
-  // Run `pnpm twoslash-types` to refresh.
-  console.warn('[ec] src/data/twoslash/aspire.d.ts missing — run `pnpm twoslash-types`');
+// The bundle is source-controlled (see #741), so a missing file means the
+// tree is corrupted — not a normal path. Fail the build rather than silently
+// shipping samples that can't resolve `./.modules/aspire.js`.
+if (!existsSync(ASPIRE_TYPES_PATH)) {
+  throw new Error(
+    `[ec] src/data/twoslash/aspire.d.ts not found at ${ASPIRE_TYPES_PATH}. ` +
+      'Run `pnpm twoslash-types` to regenerate it from src/data/ts-modules.'
+  );
 }
+const aspireTypes = readFileSync(ASPIRE_TYPES_PATH, 'utf8');
 
 /** @type {import('@astrojs/starlight/expressive-code').StarlightExpressiveCodeOptions} */
 export default {
@@ -49,15 +51,17 @@ export default {
           // an explicit `lib` array breaks those references in the VFS.
         },
         handbookOptions: {
-          // Keep type squigglies rendered inline but don't fail the build when
-          // a sample has unannotated compiler errors — the generated SDK is a
-          // best-effort shape and docs samples shouldn't need `// @errors` tags.
-          noErrorValidation: true,
+          // Fail the build on unannotated TS errors instead of rendering them
+          // as squigglies in shipped HTML. Blocks that deliberately illustrate
+          // a compiler error must opt in with `// @errors: <codes>`; otherwise
+          // an error means the sample (or the generated SDK shape) is wrong
+          // and should be fixed, not rendered to readers.
+          noErrorValidation: false,
         },
         // Virtual files merged into the Twoslash VFS. The Aspire SDK types
         // are declared at `.modules/aspire.ts` so docs samples that import
         // `'./.modules/aspire.js'` resolve against the real API surface.
-        extraFiles: aspireTypes ? { '.modules/aspire.ts': aspireTypes } : {},
+        extraFiles: { '.modules/aspire.ts': aspireTypes },
       },
     }),
   ],
