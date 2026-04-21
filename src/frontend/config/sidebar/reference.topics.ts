@@ -345,6 +345,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire dashboard',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire dashboard',
+                  slug: 'reference/cli/commands/aspire-dashboard',
+                },
+                {
+                  label: 'aspire dashboard run',
+                  slug: 'reference/cli/commands/aspire-dashboard-run',
+                },
+              ],
+            },
+            {
               label: 'aspire deploy',
               slug: 'reference/cli/commands/aspire-deploy',
             },
