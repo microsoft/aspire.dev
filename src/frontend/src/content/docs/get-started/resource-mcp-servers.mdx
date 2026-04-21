@@ -6,7 +6,7 @@ description: Learn how to expose MCP tools from Aspire resources and interact wi
 import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Aspire resources can expose their own MCP (Model Context Protocol) servers, enabling AI coding agents to interact directly with databases, APIs, and other services. For example, a PostgreSQL resource can expose SQL query tools, allowing an agent to run queries without leaving the conversation.
+Aspire resources can expose their own <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> (Model Context Protocol) servers, enabling AI coding agents to interact directly with databases, APIs, and other services. For example, a PostgreSQL resource can expose SQL query tools, allowing an agent to run queries without leaving the conversation.
 
 ## How it works
 
@@ -19,9 +19,8 @@ When a resource is annotated with `WithMcpServer()` in the AppHost, Aspire disco
 
 Use the `WithMcpServer()` extension method to declare that a resource hosts an MCP server:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREMCP001
 
@@ -35,25 +34,22 @@ db.WithPostgresMcp();
 
 builder.Build().Run();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const db = await builder
-    .addPostgres("db")
-    .addDatabase("appdata");
+  .addPostgres("db")
+  .addDatabase("appdata");
 
 // Expose PostgreSQL MCP tools (SQL queries, schema inspection, etc.)
 await db.withPostgresMcp();
 
 await builder.build().run();
 ```
-
 </TabItem>
 </Tabs>
 
@@ -93,9 +89,8 @@ aspire mcp call appdata query --input '{"sql": "SELECT * FROM users LIMIT 5"}'
 
 You can add any container that implements the MCP protocol as an MCP-enabled resource. Use `WithMcpServer()` to tell Aspire where the MCP endpoint lives:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREMCP001
 
@@ -108,24 +103,21 @@ var myMcpServer = builder.AddContainer("my-mcp", "myregistry/my-mcp-server")
 
 builder.Build().Run();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 // Add a custom MCP server container
 const myMcpServer = await builder
-    .addContainer("my-mcp", "myregistry/my-mcp-server")
-    .withHttpEndpoint({ targetPort: 8080 })
-    .withMcpServer("/mcp");
+  .addContainer("my-mcp", "myregistry/my-mcp-server")
+  .withHttpEndpoint({ targetPort: 8080 })
+  .withMcpServer("/mcp");
 
 await builder.build().run();
 ```
-
 </TabItem>
 </Tabs>
 
@@ -141,3 +133,4 @@ The `WithMcpServer()` method accepts an optional path and endpoint name:
 - [Aspire MCP server](/get-started/aspire-mcp-server/) — the built-in MCP server tools
 - [ASPIREMCP001 diagnostic](/diagnostics/aspiremcp001/) — experimental MCP server API warning
 - [ASPIREPOSTGRES001 diagnostic](/diagnostics/aspirepostgres001/) — experimental PostgreSQL MCP warning
+

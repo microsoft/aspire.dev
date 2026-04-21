@@ -8,7 +8,7 @@ import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
-import lunaria from '@lunariajs/starlight';
+import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';
@@ -20,6 +20,9 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+
+const modeArgIndex = process.argv.indexOf('--mode');
+const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 
 // https://astro.build/config
 export default defineConfig({
@@ -34,6 +37,7 @@ export default defineConfig({
       iconPacks,
     }),
     starlight({
+      pagefind: !isSkipSearchBuild,
       title: 'Aspire',
       routeMiddleware: ['./src/route-data-middleware'],
       defaultLocale: 'root',

@@ -28,7 +28,7 @@ For deployment, `AddViteApp` and `AddJavaScriptApp` should be treated as fronten
 To deploy a JavaScript frontend, you must choose which other resource owns the public HTTP surface in production:
 
 - Use `PublishWithContainerFiles(...)` when your backend or web server will serve the built frontend files.
-- Use `PublishWithStaticFiles(...)` when your reverse proxy, gateway, or BFF will serve the built frontend files.
+- Use `PublishWithStaticFiles(...)` when your reverse proxy, gateway, or <abbr title="Backend for Frontend" data-tooltip-placement="top">BFF</abbr> will serve the built frontend files.
 
 If you only add a Vite or JavaScript app and reference backend services, Aspire still needs one of these production hosting patterns to know who serves the built frontend in deployment.
 
@@ -52,8 +52,8 @@ If you only add a Vite or JavaScript app and reference backend services, Aspire 
 
 | Model                                  | Production entrypoint      | Aspire publish API          | Best for                                                                          |
 | -------------------------------------- | -------------------------- | --------------------------- | --------------------------------------------------------------------------------- |
-| Backend serves frontend                | API or web server          | `PublishWithContainerFiles` | Apps where one service serves both the API and the frontend                       |
-| Reverse proxy serves frontend          | Reverse proxy              | `PublishWithStaticFiles`    | Apps that want a gateway or BFF in front of APIs and static frontend assets       |
+| Backend serves frontend               | API or web server          | `PublishWithContainerFiles` | Apps where one service serves both the API and the frontend                      |
+| Reverse proxy serves frontend         | Reverse proxy              | `PublishWithStaticFiles`    | Apps that want a gateway or BFF in front of APIs and static frontend assets      |
 | Static frontend calls backend directly | Static site + separate API | Custom / less integrated    | Apps that intentionally keep frontend hosting separate and can manage CORS/config |
 
 <Aside type="caution">
@@ -79,9 +79,8 @@ flowchart LR
     App --> Frontend["Vite build output"]
 ```
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -99,11 +98,9 @@ app.PublishWithContainerFiles(frontend, "./static");
 
 builder.Build().Run();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="TypeScript — apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="TypeScript — apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -122,7 +119,6 @@ await app.publishWithContainerFiles(frontend, './static');
 
 await builder.build().run();
 ```
-
 </TabItem>
 </Tabs>
 
@@ -166,9 +162,8 @@ flowchart LR
     YARP --> Frontend["Frontend routes"]
 ```
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -190,11 +185,9 @@ builder
 
 builder.Build().Run();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="TypeScript — apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="TypeScript — apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -218,14 +211,13 @@ await builder
 
 await builder.build().run();
 ```
-
 </TabItem>
 </Tabs>
 
 <Aside type="note">
-  `AddViteApp` is still fine in this model. The trap is not `AddViteApp` itself
-  — it is treating the Vite development server endpoint as a publish-time
-  dependency.
+  `AddViteApp` is still fine in this model but it's important to
+  understand that the Vite development server endpoint is not used at
+  publish-time.
 </Aside>
 
 ### Dev-only gateway wiring
@@ -233,9 +225,8 @@ await builder.build().run();
 If your gateway or BFF needs to know about the frontend dev server during local
 development, gate that wiring to run mode only:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var frontend = builder
     .AddViteApp("frontend", "./frontend");
@@ -251,10 +242,8 @@ if (builder.ExecutionContext.IsRunMode)
     gateway.WithEnvironment("FRONTEND_DEV_URL", frontend.GetEndpoint("http"));
 }
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
+<TabItem id='typescript' label='TypeScript'>
 ```typescript title="TypeScript — apphost.ts"
 const frontend = await builder.addViteApp('frontend', './frontend');
 
@@ -269,7 +258,6 @@ if (await builder.executionContext.isRunMode()) {
   await gateway.withEnvironment('FRONTEND_DEV_URL', frontendDevEndpoint);
 }
 ```
-
 </TabItem>
 </Tabs>
 
@@ -326,9 +314,8 @@ This is a natural model for many SPA teams, especially when they already think
 in terms of "static site + API". It can work, but it is not the primary Aspire
 deployment story for `AddViteApp` and `AddJavaScriptApp`.
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -344,11 +331,9 @@ builder
 
 builder.Build().Run();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="TypeScript — apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="TypeScript — apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -365,15 +350,13 @@ await builder
 
 await builder.build().run();
 ```
-
 </TabItem>
 </Tabs>
 
 The following example looks reasonable, but it is a trap in publish/deploy:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -389,11 +372,9 @@ builder
 
 builder.Build().Run();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="TypeScript — apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="TypeScript — apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -409,7 +390,6 @@ await builder
 
 await builder.build().run();
 ```
-
 </TabItem>
 </Tabs>
 

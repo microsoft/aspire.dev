@@ -152,6 +152,87 @@ pageActions: false    # disable AI/share actions
   ```
   ````
 
+### Bulleted List Grammar
+
+Items in a bulleted list must follow consistent grammar and punctuation:
+
+- Use parallel construction so all items in the same list share the same grammatical form (all noun phrases, all verb phrases, all complete sentences, etc.).
+- Do not use a trailing period when items are sentence fragments that don't complete a sentence on their own or with the introductory text.
+- Use a trailing period when items are complete sentences, or when they complete a sentence begun in the introductory text.
+- Do not mix complete sentences and fragments in the same list. If one item needs to be a full sentence, rewrite all items as full sentences.
+
+#### Examples
+
+Fragments — no periods:
+
+```md
+The dashboard displays:
+
+- Resource status and health indicators
+- Logs, traces, and metrics
+- Container and endpoint information
+```
+
+Complete sentences — periods:
+
+```md
+Use the dashboard to monitor your app:
+
+- The **Resources** page shows the status of each service in your app.
+- The **Console** page displays the log output from each resource.
+- The **Traces** page shows the distributed traces from your app.
+```
+
+Fragments completing an introductory sentence — periods:
+
+```md
+The app host project is responsible for:
+
+- acting as the orchestrator of your app.
+- managing the lifecycle of all resources.
+- passing configuration and connection strings to dependent resources.
+```
+
+Bad — mixed forms and inconsistent punctuation:
+
+```md
+<!-- DON'T: mixed forms and missing parallel construction -->
+- Resource monitoring
+- You can view the logs from the console page.
+- traces
+```
+
+### Term Lists
+
+A term list is a bulleted list that defines, describes, or explains a set of terms. Format each item as:
+
+```md
+- **Term in sentence case**: Definition starting with a capital letter and ending with a period.
+```
+
+Rules:
+
+- **Bold the term only** — the colon that follows is not bold
+- **Sentence case** for the term (capitalize the first word and proper nouns only)
+- **Capital letter** at the start of every definition
+- **Trailing period** on every definition, even when it is a fragment
+
+#### Examples
+
+```md
+- **AppHost**: The orchestrator project that defines and manages the resources in your app.
+- **Integration**: A NuGet package that configures a service or client for use with Aspire.
+- **Resource**: A dependency of your cloud-native app, such as a database, cache, or messaging service.
+```
+
+Bad:
+
+```md
+<!-- DON'T: bold the colon, use title case, or omit the period -->
+- **AppHost Project:** the orchestrator project
+- **integration**: A NuGet package that configures a service or client for use with .NET Aspire
+```
+
 ### Starlight Components in MDX
 
 Import from `@astrojs/starlight/components`:
