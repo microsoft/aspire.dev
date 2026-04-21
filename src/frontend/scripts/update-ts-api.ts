@@ -79,6 +79,23 @@ function main(): void {
     console.error('❌ Generation failed:', getErrorMessage(error));
     process.exit(1);
   }
+
+  // Refresh the twoslash .d.ts bundle so docs hover tooltips stay in sync
+  // with the regenerated ts-modules JSON. The bundle is source-controlled
+  // at src/data/twoslash/aspire.d.ts — commit the diff alongside the JSON.
+  const generatorScript = resolve(__dirname, 'generate-twoslash-types.ts');
+  const tsxBin = resolve(__dirname, '..', 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  console.log('🔄 Regenerating twoslash .d.ts bundle...');
+  try {
+    execFileSync(process.execPath, [tsxBin, generatorScript], {
+      stdio: 'inherit',
+      cwd: resolve(__dirname, '..'),
+    });
+    console.log('✅ Twoslash types refreshed (src/data/twoslash/aspire.d.ts).');
+  } catch (error: unknown) {
+    console.error('❌ Twoslash type generation failed:', getErrorMessage(error));
+    process.exit(1);
+  }
 }
 
 main();

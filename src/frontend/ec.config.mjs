@@ -8,7 +8,7 @@ import ecTwoSlash from 'expressive-code-twoslash';
 import { pluginDisableCopy } from './src/expressive-code-plugins/disable-copy.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ASPIRE_TYPES_PATH = resolve(__dirname, '.twoslash-types/aspire.d.ts');
+const ASPIRE_TYPES_PATH = resolve(__dirname, 'src/data/twoslash/aspire.d.ts');
 const aspireTypes = existsSync(ASPIRE_TYPES_PATH)
   ? readFileSync(ASPIRE_TYPES_PATH, 'utf8')
   : '';
@@ -16,7 +16,7 @@ const aspireTypes = existsSync(ASPIRE_TYPES_PATH)
 if (!aspireTypes) {
   // Non-fatal — twoslash blocks that import the SDK will just show `any`.
   // Run `pnpm twoslash-types` to refresh.
-  console.warn('[ec] .twoslash-types/aspire.d.ts missing — run `pnpm twoslash-types`');
+  console.warn('[ec] src/data/twoslash/aspire.d.ts missing — run `pnpm twoslash-types`');
 }
 
 /** @type {import('@astrojs/starlight/expressive-code').StarlightExpressiveCodeOptions} */
