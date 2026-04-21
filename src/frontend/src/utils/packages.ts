@@ -66,10 +66,10 @@ const shouldCachePackages = import.meta.env.PROD;
  */
 export function getPackages(): Promise<PackageCollectionEntry[]> {
   if (!shouldCachePackages) {
-    return getCollection('packages') as Promise<PackageCollectionEntry[]>;
+    return getCollection('packages');
   }
 
-  packagesPromise ??= getCollection('packages') as Promise<PackageCollectionEntry[]>;
+  packagesPromise ??= getCollection('packages');
   return packagesPromise;
 }
 
