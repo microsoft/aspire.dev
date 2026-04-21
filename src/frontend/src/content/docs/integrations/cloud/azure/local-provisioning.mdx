@@ -101,6 +101,7 @@ The following configuration options are available:
 | `Azure:ResourceGroupPrefix` | Prefix used when Aspire generates a resource group name | `rg-aspire` |
 | `Azure:CredentialSource` | Authentication method for local provisioning | `Default` |
 | `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true` |
+| `Azure:CredentialProcessTimeoutSeconds` | Timeout in seconds for credential subprocess operations (must be between 5 and 600) | Azure SDK default |
 
 ## Resource group management
 
@@ -191,6 +192,22 @@ If you want to force a specific local credential, set `Azure:CredentialSource` t
 | `VisualStudioCode` | Visual Studio Code Azure account |
 | `AzurePowerShell` | Azure PowerShell sign-in |
 | `InteractiveBrowser` | Browser-based sign-in prompt |
+
+### Credential process timeout
+
+Most local credential sources (Azure CLI, Azure PowerShell, Visual Studio, Azure Developer CLI, and the development `Default` chain) acquire tokens by invoking a subprocess. On machines where these tools are slow to respond — for example, due to antivirus scanning or network latency — credential validation can time out before authentication completes.
+
+Use `Azure:CredentialProcessTimeoutSeconds` to override the credential subprocess timeout. The value must be between **5** and **600** seconds. When unset, the Azure SDK's default timeout is used.
+
+```json title="appsettings.Development.json"
+{
+  "Azure": {
+    "CredentialProcessTimeoutSeconds": 120
+  }
+}
+```
+
+This setting applies to the `AzureCli`, `AzurePowerShell`, `VisualStudio`, and `AzureDeveloperCli` credential sources, and to the development credential chain used when `CredentialSource` isn't explicitly set. It has no effect on `InteractiveBrowser`, which doesn't shell out to a subprocess.
 
 ## Provisioned resource naming
 
