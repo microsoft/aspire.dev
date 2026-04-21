@@ -282,12 +282,14 @@ function buildTechArticleNode(
   language: string,
   description: string
 ): JsonObject {
+  const publisher = buildPublisher(siteUrl);
+
   return {
     '@type': 'TechArticle',
     headline: route.entry.data.title,
     description,
-    author: buildPublisher(siteUrl),
-    publisher: buildPublisher(siteUrl),
+    author: publisher,
+    publisher,
     url: pageUrl,
     inLanguage: language,
     about: buildSoftwareApplication(siteUrl),
@@ -424,6 +426,7 @@ function cleanFaqAnswer(answerLines: string[]): string {
     }
 
     const cleanedLine = cleanInlineMarkdown(trimmed)
+      .replace(/^#{3,6}\s+/, '')
       .replace(/^\d+\.\s+/, '')
       .replace(/^[-*]\s+/, '');
 

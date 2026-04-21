@@ -222,6 +222,26 @@ describe('getStructuredData', () => {
       expect(secondAnswer).toBe('Run the installer and follow the prompts.');
     });
 
+    it('strips nested heading markers from FAQ answers', () => {
+      const route = createRoute({
+        entryId: 'get-started/faq.mdx',
+        title: 'FAQ',
+        description: 'Frequently asked questions.',
+        body: ['## How does it work?', '', '### Details', 'Aspire helps compose distributed apps.'].join(
+          '\n'
+        ),
+      });
+
+      const json = parse(
+        getStructuredData(route, new URL('https://aspire.dev/get-started/faq/'), site)
+      );
+      const mainEntity = json.mainEntity as Array<Record<string, unknown>>;
+      const answer = (mainEntity[0].acceptedAnswer as Record<string, unknown>).text;
+
+      expect(answer).toBe('Details\nAspire helps compose distributed apps.');
+      expect(answer).not.toContain('###');
+    });
+
     it('falls back to TechArticle when no FAQ entries are detected', () => {
       const route = createRoute({
         entryId: 'get-started/faq.mdx',
