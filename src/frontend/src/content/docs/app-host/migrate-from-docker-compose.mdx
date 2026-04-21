@@ -124,7 +124,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -238,7 +238,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -329,7 +329,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -440,20 +440,17 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-// Create a named volume for sharing data
-const appData = builder.addVolume("app-data");
-
 const app = await builder.addContainer("app", "myapp:latest")
-    .withVolume(appData, "/data")
+    .withVolume("/data", { name: "app-data", isReadOnly: true })
     .withBindMount("./config", "/app/config", { isReadOnly: true });
 
 const worker = await builder.addContainer("worker", "myworker:latest")
-    .withVolume(appData, "/shared");
+    .withVolume("/shared", { name: "app-data" });
 
 await builder.build().run();
 ```

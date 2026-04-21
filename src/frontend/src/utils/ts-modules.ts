@@ -91,10 +91,10 @@ const shouldCacheTsModules = import.meta.env.PROD;
  */
 export function getTsModules(): Promise<TsModuleCollectionEntry[]> {
   if (!shouldCacheTsModules) {
-    return getCollection('tsModules') as Promise<TsModuleCollectionEntry[]>;
+    return getCollection('tsModules');
   }
 
-  tsModulesPromise ??= getCollection('tsModules') as Promise<TsModuleCollectionEntry[]>;
+  tsModulesPromise ??= getCollection('tsModules');
   return tsModulesPromise;
 }
 

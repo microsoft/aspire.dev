@@ -9,6 +9,11 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { tsModuleSlug, getTsModules, simplifyType } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
+import {
+  getTsCallableIdentityKey,
+  getTsFunctionDisplayKind,
+  getTsFunctionDisplayLabel,
+} from '@utils/ts-api-function-kind';
 import { getTsItemSlug, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import Breadcrumb from '@components/Breadcrumb.astro';
@@ -83,6 +88,7 @@ interface PkgIndexEntry {
 
 const pkgIndex: PkgIndexEntry[] = [];
 let memberCount = 0;
+const standaloneFunctionKeys = new Set(standaloneFunctions.map((fn: any) => getTsCallableIdentityKey(fn)));
 
 function capabilityKindToSearchKind(capKind: string): string {
   switch (capKind) {
@@ -115,6 +121,10 @@ for (const h of ((pkg.handleTypes ?? []) as any[])) {
   });
   // Index members from capabilities
   for (const cap of (h.capabilities ?? [])) {
+    if ((cap.kind === 'Method' || cap.kind === 'InstanceMethod') && standaloneFunctionKeys.has(getTsCallableIdentityKey(cap))) {
+      continue;
+    }
+
     memberCount++;
     const memberName = cap.name ?? cap.capabilityId?.split('/').pop() ?? '';
     const memberHref = cap.kind === 'Method' || cap.kind === 'InstanceMethod'
@@ -163,7 +173,7 @@ for (const f of (getTsStandaloneFunctions(pkg) as any[])) {
     n: f.name,
     f: f.qualifiedName ?? f.name,
     ns: modOf(f.capabilityId ?? f.name),
-    k: 'function',
+    k: getTsFunctionDisplayKind(f),
     s: (f.description ?? '').slice(0, 160),
     h: `${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(f, topLevelItems)}/`,
   });
@@ -268,7 +278,7 @@ const pkgName = pkg.package.name;
           {standaloneFunctions.map((f: any) => (
             <a href={`${base}/reference/api/typescript/${pkgSlug}/${getTsItemSlug(f, topLevelItems)}/`} class="api-list-item">
               <div class="api-list-header">
-                <span class="api-kind-pill kind-method">function</span>
+                <span class="api-kind-pill kind-method">{getTsFunctionDisplayLabel(f).toLowerCase()}</span>
                 <code class="api-type-link">{f.name}</code>
                 {f.returnsBuilder && <span class="api-mini-badge">builder</span>}
               </div>

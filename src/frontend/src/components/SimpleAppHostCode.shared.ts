@@ -51,11 +51,11 @@ export function shiftMarkerValue(value: MarkerValueType, offset: number): Marker
     const marker = value as Record<string, unknown> & { range?: string | number };
 
     if (typeof marker.range === 'number') {
-      return { ...marker, range: `${shiftLine(marker.range, offset)}` } as MarkerDefinition;
+      return { ...marker, range: `${shiftLine(marker.range, offset)}` };
     }
 
     if (typeof marker.range === 'string') {
-      return { ...marker, range: shiftRange(marker.range, offset) } as MarkerDefinition;
+      return { ...marker, range: shiftRange(marker.range, offset) };
     }
   }
 

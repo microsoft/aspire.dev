@@ -9,7 +9,8 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { Code } from '@astrojs/starlight/components';
 import { tsModuleSlug, getTsModules, simplifyType, formatTsSignature } from '@utils/ts-modules';
 import { getTsApiReferenceSidebar } from '@utils/ts-api-sidebar';
-import { getTsItemSlug, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
+import { getTsFunctionDisplayLabel, isTsExtensionStyleFunction } from '@utils/ts-api-function-kind';
+import { getTsItemSlug, getTsMemberAnchor, getTsMethodSlug, getTsStandaloneFunctions, getTsTopLevelRouteItems } from '@utils/ts-api-routes';
 import Breadcrumb from '@components/Breadcrumb.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import TsMemberCard from '@components/api-reference/TsMemberCard.astro';
@@ -93,9 +94,11 @@ function typeColorIndex(s: string): number {
   return Math.abs(h) % 4;
 }
 
+const isExtensionStyleFunction = itemKind === 'function' && isTsExtensionStyleFunction(item);
+
 const kindLabel = itemKind === 'handle' ? (item.isInterface ? 'Interface' : 'Handle')
                : itemKind === 'dto' ? 'Type'
-               : itemKind === 'function' ? 'Function'
+               : itemKind === 'function' ? getTsFunctionDisplayLabel(item)
                : 'Enum';
 
 const kindPillClass = itemKind === 'handle'
@@ -181,19 +184,15 @@ const memberCount = getters.length + setters.length + methods.length +
   (itemKind === 'enum' ? (item.members ?? []).length : 0);
 const hasSearchableMembers = memberCount >= 5;
 
-function memberAnchor(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-}
-
 interface TypeIndexEntry { n: string; k: string; s: string; r?: string; a: string; }
 const typeIndex: TypeIndexEntry[] = [];
 if (itemKind === 'handle') {
-  for (const g of getters) typeIndex.push({ n: g.name, k: 'property', s: g.description ?? '', r: g.returnType, a: memberAnchor(g.name) });
+  for (const g of getters) typeIndex.push({ n: g.name, k: 'property', s: g.description ?? '', r: g.returnType, a: getTsMemberAnchor(g.name) });
   for (const m of methods) typeIndex.push({ n: m.name, k: 'method', s: m.description ?? '', r: m.returnType, a: getTsMethodSlug(m, methods, item.name) });
 } else if (itemKind === 'dto') {
-  for (const f of (item.fields ?? [])) typeIndex.push({ n: f.name, k: 'field', s: '', r: f.type, a: memberAnchor(f.name) });
+  for (const f of (item.fields ?? [])) typeIndex.push({ n: f.name, k: 'field', s: '', r: f.type, a: getTsMemberAnchor(f.name) });
 } else if (itemKind === 'enum') {
-  for (const m of (item.members ?? [])) typeIndex.push({ n: m, k: 'enum member', s: '', a: memberAnchor(m) });
+  for (const m of (item.members ?? [])) typeIndex.push({ n: m, k: 'enum member', s: '', a: getTsMemberAnchor(m) });
 }
 const typeSearchKinds = [...new Set(typeIndex.map((e: TypeIndexEntry) => e.k))].sort();
 const typeIndexJson = JSON.stringify(typeIndex);
@@ -298,7 +297,7 @@ if (itemKind === 'handle') {
               {getters.map((g: any) => {
                 const hasSetter = setters.some((s: any) => s.name.replace(/^set/, '').toLowerCase() === g.name.toLowerCase());
                 return (
-                  <div id={memberAnchor(g.name)}>
+                  <div id={getTsMemberAnchor(g.name)}>
                     <TsMemberCard
                       member={{ ...g, accessorLabel: hasSetter ? 'get · set' : 'get' }}
                       variant="property"
@@ -309,7 +308,7 @@ if (itemKind === 'handle') {
               {setters.filter((s: any) =>
                 !getters.some((g: any) => g.name.toLowerCase() === s.name.replace(/^set/, '').toLowerCase())
               ).map((s: any) => (
-                <div id={memberAnchor(s.name)}>
+                <div id={getTsMemberAnchor(s.name)}>
                   <TsMemberCard
                     member={{ ...s, accessorLabel: 'set' }}
                     variant="property"
@@ -347,7 +346,7 @@ if (itemKind === 'handle') {
         <h2 id="fields">Fields</h2>
            <div class="api-list ts-member-stack">
           {item.fields.map((f: any) => (
-            <div id={memberAnchor(f.name)}>
+            <div id={getTsMemberAnchor(f.name)}>
               <TsMemberCard
                 member={{ name: f.name, returnType: f.type, isOptional: f.isOptional, description: null }}
                 variant="field"
@@ -364,7 +363,7 @@ if (itemKind === 'handle') {
         <h2 id="values">Values</h2>
            <div class="api-list ts-member-stack">
           {item.members.map((m: string, i: number) => (
-            <div id={memberAnchor(m)}>
+            <div id={getTsMemberAnchor(m)}>
               <div class="api-list-item mc">
                 <div class="api-list-header">
                   <code class="mc-param-name">{m}</code>
@@ -401,7 +400,7 @@ if (itemKind === 'handle') {
         {(item.expandedTargetTypes ?? []).length > 0 && (
           <section>
             <h2 id="applies-to">Applies to</h2>
-            <p class="fn-applies-desc">This function is an extension method on the following types:</p>
+            <p class="fn-applies-desc">This {isExtensionStyleFunction ? 'method' : 'function'} applies to the following types:</p>
             <div class="api-list not-content">
               {item.expandedTargetTypes.map((t: string) => {
                 const simpleName = simplifyType(t);

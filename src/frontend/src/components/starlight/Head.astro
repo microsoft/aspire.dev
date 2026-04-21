@@ -3,6 +3,7 @@ import { Tooltips } from 'astro-tooltips';
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
 import SiteTour from '../SiteTour.astro';
+import { getStructuredData } from '@utils/structured-data';
 
 const repoUrl = (
   import.meta.env.PUBLIC_REPO_URL ||
@@ -15,6 +16,7 @@ const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+const structuredData = route ? getStructuredData(route, Astro.url, Astro.site) : undefined;
 
 function computeRepoPath() {
   if (path) {
@@ -35,6 +37,7 @@ function computeSourceUrl() {
 <meta name="git-source-url" content={computeSourceUrl()} />
 
 <DefaultHead {...Astro.props} />
+{structuredData && <script type="application/ld+json" is:inline set:html={structuredData} />}
 
 <!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
 <script is:inline>
@@ -62,11 +65,17 @@ function computeSourceUrl() {
       document.documentElement.setAttribute('data-apphost-lang', appHostLang);
 
       var path = window.location.pathname.replace(/\/$/, '');
-      if (localStorage.getItem('api-sidebar-collapsed') === '1' && path.indexOf('/reference/api') !== -1) {
+      if (
+        localStorage.getItem('api-sidebar-collapsed') === '1' &&
+        path.indexOf('/reference/api') !== -1
+      ) {
         document.documentElement.setAttribute('data-sidebar-collapsed', '');
       }
 
-      if (localStorage.getItem('topic-sidebar-collapsed') === '1' && path.indexOf('/reference/api') === -1) {
+      if (
+        localStorage.getItem('topic-sidebar-collapsed') === '1' &&
+        path.indexOf('/reference/api') === -1
+      ) {
         document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
       }
     } catch (e) {}
@@ -132,7 +141,7 @@ function computeSourceUrl() {
     }
   }}
 />
-  
+
 <script is:inline>
   (function () {
     document.addEventListener('keydown', function (event) {
@@ -142,6 +151,121 @@ function computeSourceUrl() {
           activeElement._tippy.hide();
         }
       }
+    });
+  })();
+</script>
+
+<!--
+  Workaround for expressive-code-twoslash@0.6.1 runtime bug where the popup is
+  rendered as a child of .twoslash-hover but the shipped script looks for it
+  as nextElementSibling and falls back to brittle indexOf pairing. The fallback
+  breaks after the first mouseleave detaches popups, so tooltips stop showing.
+  We replace each hover with a clone (stripping the plugin's listeners), park
+  the popup in .expressive-code (to escape <pre> overflow clipping), and wire
+  correct show/hide handlers.
+-->
+<script is:inline>
+  (function () {
+    if (window.__aspireTwoslashFixInitialized) return;
+    window.__aspireTwoslashFixInitialized = true;
+
+    function position(popup, hover, ec) {
+      // Position absolutely inside .expressive-code (our positioning context).
+      // This keeps popup inside the CSS-variable scope (so background/color/
+      // z-index vars apply) while escaping the <pre overflow:auto> clip.
+      var hoverRect = hover.getBoundingClientRect();
+      var ecRect = ec.getBoundingClientRect();
+      var popupRect = popup.getBoundingClientRect();
+      var gap = 4;
+      var top = hoverRect.bottom - ecRect.top + gap;
+      var left = hoverRect.left - ecRect.left;
+      // Clamp horizontally within .expressive-code bounds.
+      var maxLeft = Math.max(0, ecRect.width - popupRect.width - 8);
+      if (left > maxLeft) left = maxLeft;
+      if (left < 0) left = 0;
+      popup.style.position = 'absolute';
+      popup.style.top = top + 'px';
+      popup.style.left = left + 'px';
+      popup.style.right = 'auto';
+      popup.style.margin = '0';
+    }
+
+    function initHover(hover) {
+      var popup = hover.querySelector(':scope > .twoslash-popup-container');
+      if (!popup) return;
+      var ec = hover.closest('.expressive-code');
+      if (!ec) return;
+
+      // Park popup as a direct child of .expressive-code so it escapes the
+      // <pre overflow:auto> clip while keeping the plugin's CSS variables in
+      // scope. Make .expressive-code a positioning context AND a stacking
+      // context (via isolation:isolate) so the popup's z-index:999 stays
+      // contained below the site nav (z-index:10) instead of bubbling up to
+      // the root stacking context.
+      ec.style.position = ec.style.position || 'relative';
+      ec.style.isolation = 'isolate';
+      if (popup.parentNode !== ec) ec.appendChild(popup);
+      popup.style.display = 'none';
+      popup.setAttribute('aria-hidden', 'true');
+      popup.setAttribute('role', 'tooltip');
+
+      var hideTimer;
+      var hoveringPopup = false;
+
+      function show() {
+        clearTimeout(hideTimer);
+        popup.style.display = 'block';
+        popup.setAttribute('aria-hidden', 'false');
+        position(popup, hover, ec);
+      }
+      function scheduleHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
+          if (hoveringPopup || hover.matches(':hover')) return;
+          popup.style.display = 'none';
+          popup.setAttribute('aria-hidden', 'true');
+        }, 100);
+      }
+
+      hover.addEventListener('mouseenter', show);
+      hover.addEventListener('mouseleave', scheduleHide);
+      hover.addEventListener('focus', show);
+      hover.addEventListener('blur', scheduleHide);
+      popup.addEventListener('mouseenter', function () {
+        clearTimeout(hideTimer);
+        hoveringPopup = true;
+      });
+      popup.addEventListener('mouseleave', function () {
+        hoveringPopup = false;
+        scheduleHide();
+      });
+    }
+
+    function fixAll() {
+      var hovers = document.querySelectorAll('.twoslash-hover');
+      for (var i = 0; i < hovers.length; i++) {
+        var hover = hovers[i];
+        if (hover.dataset.tsFixed === '1') continue;
+        var clone = hover.cloneNode(true);
+        clone.dataset.tsFixed = '1';
+        hover.parentNode.replaceChild(clone, hover);
+        initHover(clone);
+      }
+    }
+
+    function scheduleFix() {
+      // Run after the plugin's own astro:page-load / initial pass.
+      setTimeout(fixAll, 0);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', scheduleFix);
+    } else {
+      scheduleFix();
+    }
+    document.addEventListener('astro:page-load', scheduleFix);
+    document.addEventListener('astro:after-swap', function () {
+      setTimeout(fixAll, 150);
     });
   })();
 </script>

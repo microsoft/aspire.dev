@@ -10,6 +10,10 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: isCI ? 2 : undefined,
+  // Default (30s) is tight once twoslash code blocks add server-side work
+  // during dev mode. 60s gives `page.goto` enough headroom without masking
+  // real regressions.
+  timeout: 60_000,
   reporter: isCI
     ? [
         ['github'],
@@ -50,7 +54,15 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm git-env && pnpm check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
+    // In CI the preceding `pnpm build:production` step has already produced
+    // `dist/`, so serve the built site via `astro preview`. Under `astro dev`
+    // the first request to each page triggers twoslash processing, which
+    // stacks up under parallel test workers and blows past the default
+    // 30s test timeout. Locally we keep `astro dev` so interactive work
+    // doesn't require a full rebuild.
+    command: isCI
+      ? `astro preview --host 127.0.0.1 --port ${e2ePort}`
+      : `pnpm git-env && pnpm check-data && astro dev --host 127.0.0.1 --port ${e2ePort}`,
     env: {
       ...process.env,
       ASTRO_TELEMETRY_DISABLED: '1',

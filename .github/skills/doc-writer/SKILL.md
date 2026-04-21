@@ -192,6 +192,12 @@ Python specific content here.
 
 If a heading needs to appear in the **On this page** table of contents, keep the heading outside the `Pivot` content and put only the variant-specific body content inside each `Pivot`.
 
+#### On this page and "Overview" headings
+
+When a page shows the **On this page** table of contents (the default behavior unless `tableOfContents: false` is set), do **not** add an `Overview` heading at any level (`##`, `###`, etc.). The docs site already provides an implicit overview link to the top of the page, so an explicit `Overview` heading becomes redundant.
+
+If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
+
 For Aspire AppHost docs, use a single page-level `PivotSelector` with `key="aspire-lang"` when the surrounding section flow should switch as one unit. If a page would otherwise need multiple `aspire-lang` selectors, keep the page-level selector for the main flow and use synced `Tabs`/`TabItem` with `syncKey='aspire-lang'` for repeated language-specific examples later on the page.
 
 ```mdx
@@ -347,11 +353,11 @@ For client/library packages:
 
 ## AppHost Language Parity (C# and TypeScript)
 
-Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.ts`). Documentation must treat both languages as first-class citizens. Never write AppHost or hosting-integration documentation with a C#-only bias.
+Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.ts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
 
 ### Core Principles
 
-1. **Always show both languages**: Every AppHost-focused example or walkthrough must include both C# and TypeScript variants unless the feature is genuinely language-specific.
+1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both C# and TypeScript variants unless the feature is genuinely language-specific.
 2. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
 3. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
 4. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
