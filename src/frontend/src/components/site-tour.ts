@@ -1380,7 +1380,7 @@ class AspireSiteTour {
     this.restoreSuppressedTooltips();
 
     for (const element of this.getTargetFocusables(target)) {
-      this.suppressTooltip(element as TooltipElement);
+      this.suppressTooltip(element);
     }
   }
 

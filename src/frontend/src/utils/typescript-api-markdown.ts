@@ -213,7 +213,7 @@ function buildTypeScriptDeclaration(item: TypeScriptItem, itemKind: TypeScriptIt
     return buildEnumDeclaration(item as TsEnumType);
   }
 
-  return buildFunctionDeclaration(item as TsFunction);
+  return buildFunctionDeclaration(item);
 }
 
 function buildHandleTypeDeclaration(item: TsHandleType): string {
