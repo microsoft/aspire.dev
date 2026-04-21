@@ -28,6 +28,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
+          permission-contents: write
 
       - name: Find active release branch
         id: find-branch
@@ -37,12 +38,17 @@ jobs:
         run: |
           # Fetch all branches matching release/{major}.{minor} and pick the
           # latest by version sort.
-          branch=$(gh api "repos/${{ github.repository }}/branches" \
+          if ! branches=$(gh api "repos/${{ github.repository }}/branches" \
             --paginate \
-            --jq '.[].name' \
+            --jq '.[].name'); then
+            echo "::error::Failed to query repository branches via gh api."
+            exit 1
+          fi
+
+          branch=$(printf '%s\n' "$branches" \
             | grep -E '^release/[0-9]+\.[0-9]+$' \
             | sort -V \
-            | tail -1)
+            | tail -1 || true)
 
           if [[ -z "$branch" ]]; then
             echo "No active release branch found. Nothing to do."
