@@ -75,6 +75,12 @@ jobs:
         env:
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
+          # The built artifact is consumed by `astro preview` during the
+          # e2e step below. `config/cookie.config.ts` reads `E2E_TESTS`
+          # at build time to disable the cookie-consent bot check; without
+          # this, the preview serves a production-configured modal that
+          # playwright is mistaken for a bot and never opens.
+          E2E_TESTS: 1
         run: pnpm build:production
 
       # Upload before the dist sanity-check so the artifact is always
