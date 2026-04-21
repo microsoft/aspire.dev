@@ -7,6 +7,7 @@ export interface TsRouteParameterLike {
 
 export interface TsRouteCallableLike {
   name: string;
+  description?: string;
   signature?: string;
   qualifiedName?: string;
   targetTypeId?: string;
@@ -30,6 +31,10 @@ export function tsSlugify(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+}
+
+export function getTsMemberAnchor(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '-');
 }
 
 export function getTsStandaloneFunctions(doc: TsApiDocumentRouteLike): TsTopLevelRouteItemLike[] {

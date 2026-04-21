@@ -16,30 +16,41 @@ import containerApps from '@assets/icons/azure-container-apps-environments.svg';
   data-zoom-off
 />
 
-The [Aspire AppHost](/get-started/app-host/) simplifies infrastructure provisioning by generating code to create Azure resources for your applications. This approach enables you to model and configure deployment-related aspects directly in C#, reducing the need to rely on tools like Bicep. These aspects include configuring ACA environments, which provide a serverless platform for running containerized applications.
+The [Aspire AppHost](/get-started/app-host/) simplifies infrastructure provisioning by generating code to create Azure resources for your applications. This approach lets you model and configure deployment-related aspects directly in your AppHost, reducing the need to rely on tools like Bicep. These aspects include configuring ACA environments, which provide a serverless platform for running containerized applications.
 
-It's easy to [publish resources as Azure Container Apps (ACA)](/integrations/cloud/azure/overview/#publish-as-azure-container-app) using any of the supported APIs:
+Deploy compute resources to Azure Container Apps by adding an ACA environment with `AddAzureContainerAppEnvironment`.
+
+Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource for a project, container, or executable:
 
 - [`AzureContainerAppProjectExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappprojectextensions.publishasazurecontainerapp)
 - [`AzureContainerAppContainerExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappcontainerextensions.publishasazurecontainerapp)
 - [`AzureContainerAppExecutableExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappexecutableextensions.publishasazurecontainerapp)
 
-These APIs automatically create a default ACA environment when you publish your app. While this default setup works well for most scenarios, you might need to customize the ACA environment to meet specific requirements. To achieve this, use the `AddAzureContainerAppEnvironment` method.
+These APIs don't create the ACA environment for you. Add an ACA environment first, then use the callback when you need to customize the generated Container App resource.
 
 By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources](/integrations/cloud/azure/customize-resources/)), you can configure and customize ACA environments along with related resources, such as container registries and file share volumes. Any available deployment setting can be configured. For more information on the available settings, see [Microsoft.App managedEnvironments](https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments).
+
+<Aside type="note">
+  When deployed resources use volumes or bind mounts, Aspire provisions Azure
+  Storage file shares and managed environment storage entries for the ACA
+  environment. Both mount types are translated to Azure Files-backed mounts
+  during deployment, so local host bind-mount semantics don't carry over to
+  Azure Container Apps.
+</Aside>
 
 This article guides you through the process of tailoring ACA environments for your solutions.
 
 <Aside type="note">
-  When you publish resources to Azure Container Apps using the
-  `PublishAsAzureContainerApp` APIs, Aspire automatically sets the
-  `AZURE_TOKEN_CREDENTIALS` environment variable to `managedidentity`. This
-  ensures that `DefaultAzureCredential` uses only `ManagedIdentityCredential`
-  for authentication, following [Azure SDK best
+  When Aspire configures a managed identity for a resource deployed to Azure
+  Container Apps, it automatically sets the `AZURE_TOKEN_CREDENTIALS`
+  environment variable to `ManagedIdentityCredential`. This ensures that
+  `DefaultAzureCredential` uses only `ManagedIdentityCredential` for
+  authentication, following [Azure SDK best
   practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
-  If you need to use a different credential type, you can remove this
-  environment variable in the `PublishAsAzureContainerApp` callback. For more
-  information, see [DefaultAzureCredential behavior in Azure
+  If you need to use a different credential type, remove this environment
+  variable by customizing the generated Container App with
+  `PublishAsAzureContainerApp`. For more information, see
+  [DefaultAzureCredential behavior in Azure
   deployments](/whats-new/aspire-13/#defaultazurecredential-behavior-in-azure-deployments).
 </Aside>
 
@@ -57,7 +68,7 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
 builder.Build().Run();
 ```
 
-By default, the calling this API to add an ACA environment generates the following provisioning Bicep module:
+By default, calling this API to add an ACA environment generates the following provisioning Bicep module:
 
 ```bicep title="aca-env.module.bicep"
 @description('The location for the resource(s) to be deployed.')
