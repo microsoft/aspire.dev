@@ -1,0 +1,82 @@
+name: Update Release Branch
+
+on:
+  schedule:
+    # Runs daily at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-release-branch
+  cancel-in-progress: false
+
+jobs:
+  update-release-branch:
+    name: Merge main into active release branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
+        with:
+          app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+          private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          github-api-url: ${{ github.api_url }}
+
+      - name: Find active release branch
+        id: find-branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          # Fetch all branches matching release/{major}.{minor} and pick the
+          # latest by version sort.
+          branch=$(gh api "repos/${{ github.repository }}/branches" \
+            --paginate \
+            --jq '.[].name' \
+            | grep -E '^release/[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -1)
+
+          if [[ -z "$branch" ]]; then
+            echo "No active release branch found. Nothing to do."
+            echo "branch=" >> "$GITHUB_OUTPUT"
+          else
+            echo "Active release branch: $branch"
+            echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout release branch
+        if: ${{ steps.find-branch.outputs.branch != '' }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.find-branch.outputs.branch }}
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        if: ${{ steps.find-branch.outputs.branch != '' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge main into release branch
+        if: ${{ steps.find-branch.outputs.branch != '' }}
+        shell: bash
+        run: |
+          git fetch origin main
+          if git merge origin/main --no-edit; then
+            echo "Merged main into ${{ steps.find-branch.outputs.branch }} successfully."
+            git push
+          else
+            echo "::error::Merge conflict detected between main and ${{ steps.find-branch.outputs.branch }}. Manual intervention required."
+            git merge --abort
+            exit 1
+          fi
