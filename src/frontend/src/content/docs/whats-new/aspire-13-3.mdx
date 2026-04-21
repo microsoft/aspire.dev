@@ -9,8 +9,10 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
+import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
 
 Welcome to Aspire 13.3! Whether you're a long-time Aspire user or just getting started, we're excited for you to try what's new. If you have questions, feedback, or run into issues, come say hi on [Discord](https://aka.ms/aspire-discord) or open an issue on [GitHub](https://github.com/dotnet/aspire/issues).
 
@@ -39,6 +41,37 @@ The easiest way to upgrade to Aspire 13.3 is using the `aspire update` command:
 
 </Steps>
 
+## Azure Front Door integration
+
+<Image
+  src={azureFrontDoorIcon}
+  alt="Azure Front Door logo"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
+
+```csharp title="C# — AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+
+var web = builder.AddProject<Projects.Web>("web")
+    .WithExternalHttpEndpoints();
+
+builder.AddAzureFrontDoor("frontdoor")
+    .WithOrigin(api)
+    .WithOrigin(web);
+```
+
+Each `WithOrigin` call provisions its own Front Door endpoint, origin group, origin, and route, so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use `ConfigureInfrastructure` to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
+
+<LearnMore>
+  For more details, see [Azure Front Door integration](/integrations/cloud/azure/azure-front-door/).
+</LearnMore>
+
 ## 🌐 Azure Network Security Perimeter support
 
 Aspire 13.3 adds support for [Azure Network Security Perimeters (NSPs)](https://learn.microsoft.com/azure/private-link/network-security-perimeter-concepts), which provide a logical security boundary for Azure PaaS services. NSPs complement the existing virtual network and private endpoint support by operating at the PaaS layer — grouping resources like Storage, Key Vault, Cosmos DB, and SQL so they can communicate with each other while restricting public access via access rules.
@@ -62,4 +95,6 @@ var keyVault = builder.AddAzureKeyVault("kv")
 
 NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Learning** mode (logs violations without blocking), making it easy to audit traffic before locking down access.
 
-<LearnMore href="/integrations/cloud/azure/azure-virtual-network/#add-a-network-security-perimeter" />
+<LearnMore>
+  For more details, see [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/#add-a-network-security-perimeter).
+</LearnMore>
