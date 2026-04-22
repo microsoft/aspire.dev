@@ -62,6 +62,9 @@ export async function getSchemaIndex(): Promise<SchemaIndex> {
 
 /**
  * All known CLI config schema versions, sorted newest-first.
+ *
+ * `localeCompare` with `numeric: true` treats digit sequences as numbers,
+ * so "9.0.9" < "9.0.10" < "10.0.0" — correct for semver-style version strings.
  */
 export function getSchemaVersions(): string[] {
   return [...getSchemaMap().keys()].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));

@@ -14,10 +14,16 @@ type StaticPath = {
 };
 
 export function getStaticPaths(): StaticPath[] {
-  return getSchemaVersions().map((version) => ({
-    params: { version },
-    props: { schema: getSchemaByVersion(version) as Record<string, unknown> },
-  }));
+  return getSchemaVersions()
+    .map((version) => {
+      const schema = getSchemaByVersion(version);
+      if (!schema) return null;
+      return {
+        params: { version },
+        props: { schema },
+      };
+    })
+    .filter((entry): entry is StaticPath => entry !== null);
 }
 
 export const GET: APIRoute = ({ props }) => {
