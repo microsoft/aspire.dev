@@ -5,6 +5,7 @@ description: Learn how to use the Aspire PostgreSQL Hosting integration to orche
 
 import { Image } from 'astro:assets';
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
@@ -17,13 +18,14 @@ import postgresIcon from '@assets/icons/postgresql-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire PostgreSQL integrations, follow the [Get started with PostgreSQL integrations](/integrations/databases/postgres/postgres-get-started/) guide. If you want to learn how to use the PostgreSQL Entity Framework Core (EF Core) client integration, see [Get started with the PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/).
+This article is the reference for the Aspire PostgreSQL Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details on the Aspire PostgreSQL Hosting integration, with examples for both `AppHost.cs` and `apphost.ts`, so you can model PostgreSQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
+If you're new to the PostgreSQL integration, start with the [Get started with PostgreSQL integrations](/integrations/databases/postgres/postgres-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to PostgreSQL](../postgres-connect/). For the PostgreSQL Entity Framework Core (EF Core) client integration, see [Get started with the PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/).
 
 <PivotSelector
     title="Select your AppHost language"
     key="postgres-apphost-lang"
+    marginTop={1}
     options={[
         { id: "csharp", title: "C#" },
         { id: "typescript", title: "TypeScript" },
@@ -50,6 +52,10 @@ To access these types and APIs for expressing them as resources in your [`AppHos
 aspire add postgres
 ```
 
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
 Or, choose a manual installation approach:
 
 ```csharp title="C# — AppHost.cs"
@@ -66,6 +72,10 @@ Or, choose a manual installation approach:
 ```bash title="Terminal"
 aspire add postgres
 ```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
 This updates your `aspire.config.json` with the PostgreSQL hosting integration package:
 
@@ -132,7 +142,7 @@ await builder.addNodeApp("api", "./api", "index.js")
 </Aside>
 
 <Aside type="note">
-    When you reference a PostgreSQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection strings, URIs, and port numbers. For a complete list of these properties, see [Connection properties](../postgres-connect/#connection-properties).
+    When you reference a PostgreSQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, and port numbers. For a complete list of these properties and per-language connection examples, see [Connect to PostgreSQL](../postgres-connect/).
 </Aside>
 
 ## Add PostgreSQL resource with database scripts
@@ -551,11 +561,57 @@ await builder.addNodeApp("api", "./api", "index.js")
 </TabItem>
 </Tabs>
 
-### Connection properties
+## Pass custom environment variables
 
-For a full reference of PostgreSQL connection properties and environment variables — including how to connect from JavaScript, Python, Go, and .NET — see [Connect to PostgreSQL](../postgres-connect/).
+By default, Aspire injects the PostgreSQL connection information using variable names derived from the resource name (for example, `POSTGRESDB_URI`, `POSTGRESDB_HOST`, `POSTGRESDB_PORT`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
 
-### Hosting integration health checks
+<Tabs syncKey="postgres-apphost-lang">
+<TabItem label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var database = postgres.AddDatabase("myDatabase");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(database)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["POSTGRES_HOST"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["POSTGRES_PORT"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["POSTGRES_USER"] = postgres.Resource.UserNameParameter;
+        context.EnvironmentVariables["POSTGRES_PASSWORD"] = postgres.Resource.PasswordParameter;
+        context.EnvironmentVariables["POSTGRES_DATABASE"] = database.Resource.DatabaseName;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres");
+const database = await postgres.addDatabase("myDatabase");
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(database)
+    .withEnvironment("POSTGRES_USER", postgres.userNameParameter)
+    .withEnvironment("POSTGRES_PASSWORD", postgres.passwordParameter)
+    .withEnvironment("POSTGRES_DATABASE", "myDatabase");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Connection properties
+
+For the full reference of PostgreSQL connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to PostgreSQL](../postgres-connect/).
+
+## Hosting integration health checks
 
 The PostgreSQL hosting integration automatically adds a health check for the PostgreSQL server resource. The health check verifies that the PostgreSQL server is running and that a connection can be established to it.
 

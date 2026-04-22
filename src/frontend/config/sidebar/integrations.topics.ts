@@ -1190,10 +1190,6 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/postgres/postgres-connect',
             },
             {
-              label: 'Client integration (.NET)',
-              slug: 'integrations/databases/postgres/postgres-client',
-            },
-            {
               label: 'Community extensions',
               slug: 'integrations/databases/postgres/postgresql-extensions',
             },
