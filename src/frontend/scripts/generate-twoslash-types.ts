@@ -4,7 +4,8 @@
  * in the docs get accurate hover tooltips.
  *
  * Reads: src/data/ts-modules/*.json (produced by update-ts-api.ts)
- * Writes: .twoslash-types/aspire.d.ts
+ * Writes: src/data/twoslash/aspire.d.ts (source-controlled — commit updates
+ * after regenerating).
  */
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -14,7 +15,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MODULES_DIR = resolve(__dirname, '..', 'src', 'data', 'ts-modules');
 const PKGS_DIR = resolve(__dirname, '..', 'src', 'data', 'pkgs');
-const OUTPUT_DIR = resolve(__dirname, '..', '.twoslash-types');
+const OUTPUT_DIR = resolve(__dirname, '..', 'src', 'data', 'twoslash');
 const OUTPUT_FILE = resolve(OUTPUT_DIR, 'aspire.d.ts');
 
 interface Parameter {

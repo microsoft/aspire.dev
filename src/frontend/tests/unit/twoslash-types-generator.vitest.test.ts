@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, test } from 'vitest';
@@ -7,12 +7,13 @@ import { beforeAll, describe, expect, test } from 'vitest';
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
 const generatorScript = path.join(frontendRoot, 'scripts', 'generate-twoslash-types.ts');
-const outputFile = path.join(frontendRoot, '.twoslash-types', 'aspire.d.ts');
+const outputFile = path.join(frontendRoot, 'src', 'data', 'twoslash', 'aspire.d.ts');
 
 let output = '';
 
 beforeAll(() => {
-  if (existsSync(outputFile)) unlinkSync(outputFile);
+  // The output is source-controlled, so don't unlink it. Re-run the generator
+  // in place; subsequent assertions read the refreshed content.
   // Invoke tsx directly via node to avoid cross-platform `pnpm`/`pnpm.cmd`
   // resolution issues (and the DEP0190 warning from `shell: true`).
   const tsxBin = path.join(frontendRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
