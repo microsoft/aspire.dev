@@ -430,12 +430,33 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
           items: [
             {
-              label: 'Overview',
+              label: 'Aspire skills',
               slug: 'get-started/ai-coding-agents',
             },
             {
               label: 'Aspire MCP server',
               slug: 'get-started/aspire-mcp-server',
+              badge: {
+                text: 'Legacy',
+                variant: 'note',
+                translations: {
+                  da: 'Ældre',
+                  de: 'Veraltet',
+                  en: 'Legacy',
+                  es: 'Heredado',
+                  fr: 'Hérité',
+                  hi: 'लेगेसी',
+                  id: 'Lama',
+                  it: 'Legacy',
+                  ja: 'レガシー',
+                  ko: '레거시',
+                  'pt-BR': 'Legado',
+                  ru: 'Устаревшее',
+                  tr: 'Eski',
+                  uk: 'Застаріле',
+                  'zh-CN': '旧版',
+                },
+              },
             },
             {
               label: 'Resource MCP servers',

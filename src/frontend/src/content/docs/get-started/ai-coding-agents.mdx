@@ -4,7 +4,7 @@ description: Set up your AI coding agents with skills, MCP servers, and browser 
 ---
 
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
-import { Aside, Steps, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+import { Steps, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 import LoopingVideo from '@components/LoopingVideo.astro';
@@ -14,11 +14,11 @@ Aspire provides a first-class setup experience for AI coding agents. Run `aspire
 
 ## Why Aspire for coding agents
 
-Aspire gives coding agents the same visibility into your running application that a developer has. The resource data, structured logs, and distributed traces you see in the [Aspire Dashboard](/dashboard/overview/) are exposed to agents through the [Aspire MCP server](/get-started/aspire-mcp-server/) and the [Aspire CLI](/get-started/install-cli/). Whether a person is debugging in the dashboard or an agent is diagnosing through MCP, they see the same picture.
+Aspire gives coding agents the same visibility into your running application that a developer has. The resource data, structured logs, and distributed traces you see in the [Aspire Dashboard](/dashboard/overview/) are also reachable from the [Aspire CLI](/get-started/install-cli/) — so whether a person is debugging in the dashboard or an agent is diagnosing from a prompt, they see the same picture.
 
-The Aspire CLI is built for agent-driven workflows — every command works non-interactively to not block and prompts and supports `--format Json` for structured plain text output. Key commands include `aspire start` (background execution), `aspire start --isolated` (parallel worktrees), `aspire wait` (block until healthy), `aspire describe`, `aspire logs`, and `aspire docs search`.
+The Aspire CLI is built for agent-driven workflows — every command works non-interactively without blocking on prompts and supports `--format Json` for structured plain text output. Key commands include `aspire start` (background execution), `aspire start --isolated` (parallel worktrees), `aspire wait` (block until healthy), `aspire describe`, `aspire logs`, and `aspire docs search`.
 
-The Aspire skill file (installed by `aspire agent init`) teaches agents all of these patterns automatically.
+The **Aspire skill file** (installed by `aspire agent init`) is the primary way agents learn these patterns. The skill file tells your agent when and how to use each CLI command, so it can build, start, debug, and monitor your distributed app without any additional runtime wiring.
 
 ## Get started
 
@@ -38,9 +38,14 @@ When you create a new Aspire project with `aspire new` or `aspire init`, you're 
 
    - **Aspire skill file** (recommended) — teaches your AI agent how to use Aspire CLI commands
    - **Playwright CLI** — enables browser automation for testing web resources
-   - **Aspire MCP server** — gives your AI agent runtime access to resources, logs, and traces
+
+   The Aspire [MCP server](/get-started/aspire-mcp-server/) is also offered as a legacy component. Most projects should use the skill file instead — see the [note below](#skills-vs-mcp-server).
 
 </Steps>
+
+:::caution[Skills vs. MCP server]
+The Aspire skill file and the Aspire MCP server cover overlapping ground, and enabling both at the same time leads to duplicate tools, conflicting guidance, and confused agents. **Pick one — and for new projects, pick the skill file.** If you previously configured the Aspire MCP server, re-run `aspire agent init`, enable the skill file, and remove the `aspire` entry from your MCP configuration. See [Migrate from the Aspire MCP server](#migrate-from-the-aspire-mcp-server).
+:::
 
 <AsciinemaPlayer 
   src="/casts/agent-init.cast" 
@@ -73,9 +78,32 @@ The skill file guides your agent on how to:
 - Add integrations with `aspire add` and search documentation with `aspire docs`
 - Use resource MCP tools for database queries and other resource-specific operations
 
-### Aspire MCP server
+### Aspire MCP server (legacy)
 
-The MCP server gives your AI agent direct runtime access to your running Aspire application — resource status, logs, traces, and commands. See [Aspire MCP server](/get-started/aspire-mcp-server/) for configuration details, available tools, and the security model.
+The [Aspire MCP server](/get-started/aspire-mcp-server/) is a legacy integration path that exposes resource status, logs, traces, and commands to your agent over MCP. It remains available for teams that have specific reasons to use MCP directly, but it is **not recommended alongside the skill file** — the two mechanisms overlap and will confuse the agent if both are active.
+
+For new projects, skip the MCP server and use the skill file. If you need MCP for a specific workflow, see the [Aspire MCP server](/get-started/aspire-mcp-server/) reference.
+
+## Migrate from the Aspire MCP server
+
+If your project was previously configured with the Aspire MCP server (via an earlier `aspire agent init` run, or by hand), switch to the skill file:
+
+<Steps>
+
+1. Re-run `aspire agent init` and select **Install Aspire skill file** (deselect the Aspire MCP server).
+
+2. Open your agent's MCP configuration and remove the `aspire` entry:
+
+   - VS Code: `.vscode/mcp.json`
+   - Claude Code: `.mcp.json`
+   - Copilot CLI: `~/.copilot/mcp-config.json`
+   - OpenCode: `opencode.jsonc`
+
+3. Restart your agent so it picks up the new skill file and drops the MCP tools.
+
+</Steps>
+
+The skill file covers the same workflows the MCP server did (inspecting resources, tailing logs, querying traces, running commands) by driving the Aspire CLI — which keeps the agent working the same way a developer does.
 
 ## Migrate from AGENTS.md
 
@@ -91,9 +119,9 @@ If your project has an `AGENTS.md` file from a previous version of Aspire, you c
 
 </Steps>
 
-<Aside type="tip">
+:::tip
 The skill file is more structured than `AGENTS.md` and includes a complete CLI command reference table, workflow patterns, and rules that the agent follows automatically. You can customize it for your project's specific needs.
-</Aside>
+:::
 
 ## Your first prompts
 
@@ -154,15 +182,14 @@ The `aspire agent init` command supports the following AI assistants:
 - [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
 - [OpenCode](https://opencode.ai/docs/mcp-servers/)
 
-<Aside type="note">
-The Aspire MCP server uses the STDIO transport protocol and may work with other agentic coding environments that support this MCP communication protocol.
-</Aside>
+:::note
+The skill file format (`SKILL.md`) is recognized by a growing number of agents. `aspire agent init` writes files in the locations each supported agent expects, and additional environments can be added over time.
+:::
 
 ## See also
 
-- [Aspire MCP server](/get-started/aspire-mcp-server/) — tools, security, and troubleshooting for the MCP server
 - [aspire agent command](/reference/cli/commands/aspire-agent/)
 - [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
-- [aspire agent mcp command](/reference/cli/commands/aspire-agent-mcp/)
+- [Aspire MCP server](/get-started/aspire-mcp-server/) — legacy runtime integration (not recommended alongside the skill file)
 - [Dashboard security considerations](/dashboard/security-considerations/)
 - [GitHub Copilot in the Dashboard](/dashboard/copilot/)

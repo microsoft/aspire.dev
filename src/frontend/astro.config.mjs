@@ -188,4 +188,11 @@ export default defineConfig({
     }),
     jopSoftwarecookieconsent(cookieConfig),
   ],
+  vite: {
+    server: {
+      // Allow dev server access through VS Code port forwarding / Dev Tunnels
+      // when running `astro dev --host` (e.g. `pnpm dev:host`).
+      allowedHosts: ['.devtunnels.ms'],
+    },
+  },
 });
