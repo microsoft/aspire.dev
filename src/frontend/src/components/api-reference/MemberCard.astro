@@ -6,7 +6,18 @@
  * return info, remarks, exceptions, examples, and badges.
  */
 import { Code, Icon } from '@astrojs/starlight/components';
-import { typeHref, genericArity, resolveTypeLink, parseSeeAlso, formatSignature, cleanMemberSignature, buildClassBodySignature, shortTypeName, memberSlug, memberDisplayName } from '@utils/packages';
+import {
+  typeHref,
+  genericArity,
+  resolveTypeLink,
+  parseSeeAlso,
+  formatSignature,
+  cleanMemberSignature,
+  buildClassBodySignature,
+  shortTypeName,
+  memberSlug,
+  memberDisplayName,
+} from '@utils/packages';
 import { findAttribute } from '@utils/api-attributes';
 import type { ParentTypeInfo } from '@utils/packages';
 import DocContent from './DocContent.astro';
@@ -22,7 +33,14 @@ interface Props {
   diagnosticSlugs?: Set<string>;
 }
 
-const { member, allTypes = [], packageName = '', parentType, sourceBaseUrl, diagnosticSlugs } = Astro.props;
+const {
+  member,
+  allTypes = [],
+  packageName = '',
+  parentType,
+  sourceBaseUrl,
+  diagnosticSlugs,
+} = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const badges: string[] = [];
@@ -58,7 +76,8 @@ const experimentalAttr = findAttribute(member.attributes, 'Experimental');
 const isExperimental = !!experimentalAttr;
 const experimentalId = experimentalAttr?.constructorArguments?.[0] ?? null;
 const experimentalSlug = experimentalId ? experimentalId.toLowerCase() : null;
-const hasDiagnosticsPage = experimentalSlug && diagnosticSlugs ? diagnosticSlugs.has(experimentalSlug) : false;
+const hasDiagnosticsPage =
+  experimentalSlug && diagnosticSlugs ? diagnosticSlugs.has(experimentalSlug) : false;
 
 const params: any[] = member.parameters ?? [];
 const paramDocs: Record<string, any> = member.docs?.parameters ?? {};
@@ -74,7 +93,8 @@ const returnLink = member.returnType
   : null;
 
 const rawDisplayName = memberDisplayName(member);
-const displayName = member.name === '.ctor' ? rawDisplayName.replace('.ctor', 'Constructor') : rawDisplayName;
+const displayName =
+  member.name === '.ctor' ? rawDisplayName.replace('.ctor', 'Constructor') : rawDisplayName;
 const anchorSlug = memberSlug(member);
 const isCtor = member.name === '.ctor';
 const returnShort = member.returnType ? shortTypeName(member.returnType) : member.returnType;
@@ -87,21 +107,24 @@ function formatLineFragment(sourceLines: string): string {
 }
 
 // Build member source link with fallback: file+lines → file → none
-const memberSourceHref = sourceBaseUrl && member.sourceFile && member.sourceLines
-  ? `${sourceBaseUrl}/${member.sourceFile}${formatLineFragment(member.sourceLines)}`
-  : sourceBaseUrl && member.sourceFile
-    ? `${sourceBaseUrl}/${member.sourceFile}`
-    : null;
+const memberSourceHref =
+  sourceBaseUrl && member.sourceFile && member.sourceLines
+    ? `${sourceBaseUrl}/${member.sourceFile}${formatLineFragment(member.sourceLines)}`
+    : sourceBaseUrl && member.sourceFile
+      ? `${sourceBaseUrl}/${member.sourceFile}`
+      : null;
 
 // Short display label: filename + optional line range
 const memberSourceLabel = member.sourceFile
-  ? member.sourceFile.split('/').pop() + (member.sourceLines ? formatLineFragment(member.sourceLines) : '')
+  ? member.sourceFile.split('/').pop() +
+    (member.sourceLines ? formatLineFragment(member.sourceLines) : '')
   : null;
 
 // For methods/constructors, wrap in a class-body context; fall back to flat format
-const classBodySig = parentType && member.signature
-  ? buildClassBodySignature(member.signature, parentType, member.kind)
-  : null;
+const classBodySig =
+  parentType && member.signature
+    ? buildClassBodySignature(member.signature, parentType, member.kind)
+    : null;
 
 const cleanedSig = member.signature ? cleanMemberSignature(member.signature) : '';
 const formattedSigRaw = classBodySig ?? (cleanedSig ? formatSignature(cleanedSig) : '');
@@ -131,192 +154,275 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
 
 <div class={`mc not-content${isObsolete ? ' mc-obsolete' : ''}`} id={anchorSlug}>
   {/* Obsolete aside */}
-  {isObsolete && (
-    <aside class="api-obsolete-aside">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/>
-        <line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <div>
-        <strong>Obsolete</strong>
-        {obsoleteMessage && <span> — {obsoleteMessage}</span>}
-      </div>
-    </aside>
-  )}
+  {
+    isObsolete && (
+      <aside class="api-obsolete-aside">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <div>
+          <strong>Obsolete</strong>
+          {obsoleteMessage && <span> — {obsoleteMessage}</span>}
+        </div>
+      </aside>
+    )
+  }
 
   {/* Experimental aside */}
-  {isExperimental && (
-    <aside class="api-experimental-aside">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
-        <path d="M8.5 2h7"/>
-        <path d="M7 16.5h10"/>
-      </svg>
-      <div>
-        <strong>Experimental</strong>
-        {experimentalId && <span> — {experimentalId}</span>}
-        {hasDiagnosticsPage && (
-          <span> · <a href={`${base}/diagnostics/${experimentalSlug}/`}>Learn more</a></span>
-        )}
-      </div>
-    </aside>
-  )}
+  {
+    isExperimental && (
+      <aside class="api-experimental-aside">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
+          <path d="M8.5 2h7" />
+          <path d="M7 16.5h10" />
+        </svg>
+        <div>
+          <strong>Experimental</strong>
+          {experimentalId && <span> — {experimentalId}</span>}
+          {hasDiagnosticsPage && (
+            <span>
+              {' '}
+              · <a href={`${base}/diagnostics/${experimentalSlug}/`}>Learn more</a>
+            </span>
+          )}
+        </div>
+      </aside>
+    )
+  }
 
   {/* Header — name, badges, return type all on one line */}
   <div class="mc-header">
     <code class="mc-name">{displayName}</code>
     <a class="sl-anchor-link" href={`#${anchorSlug}`}>
-      <span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span>
+      <span aria-hidden="true" class="sl-anchor-icon"
+        ><svg width="16" height="16" viewBox="0 0 24 24"
+          ><path
+            fill="currentcolor"
+            d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"
+          ></path></svg
+        ></span
+      >
       <span class="sr-only" data-pagefind-ignore="">Section titled {displayName}</span>
     </a>
-    {badges.map(b => <span class={`api-mod-badge${b === 'extension' ? ' api-ext-badge' : ''}`}>{b}</span>)}
-    {member.returnType && member.returnType !== 'void' && (
-      <span class={`mc-return-type ${returnColorClass}`}>
-        {returnLink ? (
-          <a href={returnLink.href} class="mc-param-type-link">{returnShort}</a>
-        ) : (
-          <code>{returnShort}</code>
-        )}
-      </span>
-    )}
+    {
+      badges.map((b) => (
+        <span class={`api-mod-badge${b === 'extension' ? ' api-ext-badge' : ''}`}>{b}</span>
+      ))
+    }
+    {
+      member.returnType && member.returnType !== 'void' && (
+        <span class={`mc-return-type ${returnColorClass}`}>
+          {returnLink ? (
+            <a href={returnLink.href} class="mc-param-type-link">
+              {returnShort}
+            </a>
+          ) : (
+            <code>{returnShort}</code>
+          )}
+        </span>
+      )
+    }
   </div>
 
   {/* Summary always appears right after header, then signature, then params */}
-  {summary && (
-    <div class="mc-summary">
-      <DocContent content={summary} allTypes={allTypes} packageName={packageName} tag="div" />
-    </div>
-  )}
+  {
+    summary && (
+      <div class="mc-summary">
+        <DocContent content={summary} allTypes={allTypes} packageName={packageName} tag="div" />
+      </div>
+    )
+  }
 
-  {formattedSig && (
-    <div class="mc-sig">
-      <Code code={formattedSig} lang="csharp" showLineNumbers={false} />
-    </div>
-  )}
+  {
+    formattedSig && (
+      <div class="mc-sig">
+        <Code code={formattedSig} lang="csharp" showLineNumbers={false} />
+      </div>
+    )
+  }
 
-  {memberSourceHref && (
-    <div class="mc-source-meta">
-      <a
-        href={memberSourceHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="mc-source-link"
-        title={memberSourceLabel ?? 'View source on GitHub'}
-      >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-        <span class="mc-source-label">{memberSourceLabel}</span>
-        <Icon name="external" size="0.75em" class="mc-source-external" />
-      </a>
-    </div>
-  )}
+  {
+    memberSourceHref && (
+      <div class="mc-source-meta">
+        <a
+          href={memberSourceHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mc-source-link"
+          title={memberSourceLabel ?? 'View source on GitHub'}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          <span class="mc-source-label">{memberSourceLabel}</span>
+          <Icon name="external" size="0.75em" class="mc-source-external" />
+        </a>
+      </div>
+    )
+  }
 
   {/* Parameters */}
-  {hasParams && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Parameters</h5>
-      <div class="mc-params">
-        {params.map((p: any) => {
-          const pLink = resolveTypeLink(p.type, allTypes, base, packageName);
-          const colorIdx = typeColorIndex(shortTypeName(p.type));
-          const typeColorClass = `mc-param-type-${colorIdx}`;
-          return (
-            <div class="mc-param">
-              <span class="mc-param-header">
-                <code class="mc-param-name">{p.name}</code>
-                <span class={`mc-param-type ${typeColorClass}`}>
-                  {pLink ? (
-                    <a href={pLink.href} class="mc-param-type-link">{shortTypeName(p.type)}</a>
-                  ) : (
-                    <code>{shortTypeName(p.type)}</code>
-                  )}
+  {
+    hasParams && (
+      <div class="mc-section">
+        <p class="api-section-label">Parameters</p>
+        <div class="mc-params">
+          {params.map((p: any) => {
+            const pLink = resolveTypeLink(p.type, allTypes, base, packageName);
+            const colorIdx = typeColorIndex(shortTypeName(p.type));
+            const typeColorClass = `mc-param-type-${colorIdx}`;
+            return (
+              <div class="mc-param">
+                <span class="mc-param-header">
+                  <code class="mc-param-name">{p.name}</code>
+                  <span class={`mc-param-type ${typeColorClass}`}>
+                    {pLink ? (
+                      <a href={pLink.href} class="mc-param-type-link">
+                        {shortTypeName(p.type)}
+                      </a>
+                    ) : (
+                      <code>{shortTypeName(p.type)}</code>
+                    )}
+                  </span>
+                  {p.isOptional && <span class="api-mod-badge">optional</span>}
                 </span>
-                {p.isOptional && <span class="api-mod-badge">optional</span>}
-              </span>
-              {paramDocs[p.name] && (
-                <span class="mc-param-desc">
-                  <DocContent content={paramDocs[p.name]} allTypes={allTypes} packageName={packageName} tag="span" />
-                </span>
-              )}
-              <PolyglotAttributePanel
-                attributes={p.attributes}
-                context="parameter"
-                entityName={p.name}
-                packageName={packageName}
-                allTypes={allTypes}
-              />
-            </div>
-          );
-        })}
+                {paramDocs[p.name] && (
+                  <span class="mc-param-desc">
+                    <DocContent
+                      content={paramDocs[p.name]}
+                      allTypes={allTypes}
+                      packageName={packageName}
+                      tag="span"
+                    />
+                  </span>
+                )}
+                <PolyglotAttributePanel
+                  attributes={p.attributes}
+                  context="parameter"
+                  entityName={p.name}
+                  packageName={packageName}
+                  allTypes={allTypes}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
   {/* Returns */}
-  {hasReturns && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Returns</h5>
-      <div class="mc-section-body mc-returns">
-        {member.returnType && (
-          <code class="mc-return-inline">
-            {returnLink ? (
-              <a href={returnLink.href} class="api-type-link">{returnShort}</a>
-            ) : (
-              <Fragment>{returnShort}</Fragment>
-            )}
-          </code>
-        )}
-        <DocContent content={member.docs.returns} allTypes={allTypes} packageName={packageName} tag="span" />
+  {
+    hasReturns && (
+      <div class="mc-section">
+        <p class="api-section-label">Returns</p>
+        <div class="mc-section-body mc-returns">
+          {member.returnType && (
+            <code class="mc-return-inline">
+              {returnLink ? (
+                <a href={returnLink.href} class="api-type-link">
+                  {returnShort}
+                </a>
+              ) : (
+                <Fragment>{returnShort}</Fragment>
+              )}
+            </code>
+          )}
+          <DocContent
+            content={member.docs.returns}
+            allTypes={allTypes}
+            packageName={packageName}
+            tag="span"
+          />
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
   {/* Exceptions */}
-  {hasExceptions && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Exceptions</h5>
-      <div class="mc-exceptions">
-        {member.docs.exceptions.map((exc: any) => {
-          const { simpleName, fullName } = parseSeeAlso(exc.type);
-          const match = allTypes.find((t: any) => t.fullName === fullName);
-          return (
-            <div class="mc-exc">
-              <code class="mc-exc-type">
-                {match ? (
-                  <a href={typeHref(base, packageName, match.name, genericArity(match))} class="api-type-link">{simpleName}</a>
-                ) : (
-                  <Fragment>{simpleName}</Fragment>
-                )}
-              </code>
-              <span class="mc-exc-desc">
-                <DocContent content={exc.description} allTypes={allTypes} packageName={packageName} tag="span" />
-              </span>
-            </div>
-          );
-        })}
+  {
+    hasExceptions && (
+      <div class="mc-section">
+        <p class="api-section-label">Exceptions</p>
+        <div class="mc-exceptions">
+          {member.docs.exceptions.map((exc: any) => {
+            const { simpleName, fullName } = parseSeeAlso(exc.type);
+            const match = allTypes.find((t: any) => t.fullName === fullName);
+            return (
+              <div class="mc-exc">
+                <code class="mc-exc-type">
+                  {match ? (
+                    <a
+                      href={typeHref(base, packageName, match.name, genericArity(match))}
+                      class="api-type-link"
+                    >
+                      {simpleName}
+                    </a>
+                  ) : (
+                    <Fragment>{simpleName}</Fragment>
+                  )}
+                </code>
+                <span class="mc-exc-desc">
+                  <DocContent
+                    content={exc.description}
+                    allTypes={allTypes}
+                    packageName={packageName}
+                    tag="span"
+                  />
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
   {/* Remarks */}
-  {hasRemarks && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Remarks</h5>
-      <div class="mc-remarks">
-        <DocContent content={member.docs.remarks} allTypes={allTypes} packageName={packageName} tag="div" />
+  {
+    hasRemarks && (
+      <div class="mc-section">
+        <p class="api-section-label">Remarks</p>
+        <div class="mc-remarks">
+          <DocContent
+            content={member.docs.remarks}
+            allTypes={allTypes}
+            packageName={packageName}
+            tag="div"
+          />
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
   {/* Examples */}
-  {hasExamples && (
-    <div class="mc-section">
-      <h5 class="api-section-label">Examples</h5>
-      <Examples examples={member.docs.examples} allTypes={allTypes} packageName={packageName} />
-    </div>
-  )}
+  {
+    hasExamples && (
+      <div class="mc-section">
+        <p class="api-section-label">Examples</p>
+        <Examples examples={member.docs.examples} allTypes={allTypes} packageName={packageName} />
+      </div>
+    )
+  }
 
   <PolyglotAttributePanel
     attributes={member.attributes}
@@ -336,12 +442,14 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
     border-radius: var(--api-radius-lg);
     background: var(--api-surface);
     scroll-margin-top: calc(var(--sl-nav-height, 0px) + var(--sl-mobile-toc-height, 0px) + 1rem);
-    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    transition:
+      border-color 0.18s ease,
+      background 0.18s ease,
+      box-shadow 0.18s ease;
   }
   .mc:hover {
     border-color: var(--api-border-hover);
-    box-shadow:
-      0 12px 28px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
   }
   .mc:target {
     border-color: color-mix(in srgb, var(--sl-color-accent-high) 40%, var(--api-border));
@@ -464,7 +572,9 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
     color: var(--sl-color-gray-2);
     line-height: 1.6;
   }
-  .mc-summary :global(p) { margin: 0; }
+  .mc-summary :global(p) {
+    margin: 0;
+  }
 
   /* ---------- Sections (Parameters, Returns, etc.) ---------- */
   .mc-section {
@@ -511,10 +621,22 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
     font-size: var(--api-text-sm);
     color: var(--sl-color-gray-2);
   }
-  .mc .mc-param-type-0, .mc .mc-return-type.mc-param-type-0 { color: var(--api-param-type-0) !important; }
-  .mc .mc-param-type-1, .mc .mc-return-type.mc-param-type-1 { color: var(--api-param-type-1) !important; }
-  .mc .mc-param-type-2, .mc .mc-return-type.mc-param-type-2 { color: var(--api-param-type-2) !important; }
-  .mc .mc-param-type-3, .mc .mc-return-type.mc-param-type-3 { color: var(--api-param-type-3) !important; }
+  .mc .mc-param-type-0,
+  .mc .mc-return-type.mc-param-type-0 {
+    color: var(--api-param-type-0) !important;
+  }
+  .mc .mc-param-type-1,
+  .mc .mc-return-type.mc-param-type-1 {
+    color: var(--api-param-type-1) !important;
+  }
+  .mc .mc-param-type-2,
+  .mc .mc-return-type.mc-param-type-2 {
+    color: var(--api-param-type-2) !important;
+  }
+  .mc .mc-param-type-3,
+  .mc .mc-return-type.mc-param-type-3 {
+    color: var(--api-param-type-3) !important;
+  }
   .mc .mc-param-type code,
   .mc .mc-return-type code {
     background: none;
@@ -594,9 +716,15 @@ if (formattedSigRaw && (member.kind === 'property' || member.kind === 'indexer')
     max-width: 100%;
     overflow-x: auto;
   }
-  .mc-remarks :global(p) { margin: 0.35rem 0; }
-  .mc-remarks :global(p:first-child) { margin-top: 0; }
-  .mc-remarks :global(p:last-child) { margin-bottom: 0; }
+  .mc-remarks :global(p) {
+    margin: 0.35rem 0;
+  }
+  .mc-remarks :global(p:first-child) {
+    margin-top: 0;
+  }
+  .mc-remarks :global(p:last-child) {
+    margin-bottom: 0;
+  }
 
   /* ---------- Obsolete state ---------- */
   .mc-obsolete {

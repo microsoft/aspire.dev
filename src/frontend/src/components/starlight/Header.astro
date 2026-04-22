@@ -4,22 +4,40 @@ import Search from 'virtual:starlight/components/Search';
 import { Icon } from '@astrojs/starlight/components';
 import InstallCliModal from '@components/InstallCliModal.astro';
 import CookiesSvg from '@assets/icons/cookies.svg';
+import SiteNavHelpSvg from '@assets/icons/site-nav-help.svg';
+
+const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 ---
 
 <div class="header">
   <div class="title-wrapper sl-flex">
     <SiteTitle />
   </div>
-  <div class="sl-flex print:hidden">
+  <div class="sl-flex print:hidden" data-tour-target="search" data-tour-step="search">
     <Search />
   </div>
   <div class="sl-hidden md:sl-flex print:hidden right-group">
+    {
+      isSiteTourEnabled && (
+        <button
+          type="button"
+          class="header-icon-btn tour-help-btn"
+          data-tour-trigger
+          data-tour-target="tour-help"
+          data-tour-step="tour-help"
+          aria-label="Start site tour"
+        >
+          <span class="sr-only">Start site tour</span>
+          <SiteNavHelpSvg />
+        </button>
+      )
+    }
     <button
       type="button"
       class="header-icon-btn cookie-consent-btn"
       data-cc="show-preferencesModal"
-      title="Cookie preferences"
-      data-placement="top"
+      data-tour-target="cookie-preferences"
+      data-tour-step="cookie-preferences"
       aria-label="Open cookie preferences dialog"
     >
       <span class="sr-only">Cookie Preferences</span>
@@ -28,8 +46,8 @@ import CookiesSvg from '@assets/icons/cookies.svg';
     <button
       class="header-icon-btn install-cli-btn"
       data-open-install-modal
-      title="Install Aspire CLI"
-      data-placement="top"
+      data-tour-target="install-cli"
+      data-tour-step="install-cli"
       aria-label="Open install Aspire CLI dialog"
     >
       <span class="sr-only">Install Aspire CLI</span>
@@ -39,6 +57,42 @@ import CookiesSvg from '@assets/icons/cookies.svg';
     <a href="/get-started/first-app/" class="try-aspire-btn">Try Aspire</a>
   </div>
   <div class="sl-flex md:sl-hidden print:hidden right-group-mobile">
+    {
+      isSiteTourEnabled && (
+        <button
+          type="button"
+          class="header-icon-btn tour-help-btn"
+          data-tour-trigger
+          data-tour-target="tour-help"
+          data-tour-step="tour-help"
+          aria-label="Start site tour"
+        >
+          <span class="sr-only">Start site tour</span>
+          <SiteNavHelpSvg />
+        </button>
+      )
+    }
+    <button
+      type="button"
+      class="header-icon-btn cookie-consent-btn"
+      data-cc="show-preferencesModal"
+      data-tour-target="cookie-preferences"
+      data-tour-step="cookie-preferences"
+      aria-label="Open cookie preferences dialog"
+    >
+      <span class="sr-only">Cookie Preferences</span>
+      <CookiesSvg />
+    </button>
+    <button
+      class="header-icon-btn install-cli-btn"
+      data-open-install-modal
+      data-tour-target="install-cli"
+      data-tour-step="install-cli"
+      aria-label="Open install Aspire CLI dialog"
+    >
+      <span class="sr-only">Install Aspire CLI</span>
+      <Icon name="download" />
+    </button>
     <a href="/docs/" class="docs-btn-mobile">Docs</a>
     <a href="/get-started/first-app/" class="try-aspire-btn-mobile">Try</a>
   </div>
@@ -127,6 +181,47 @@ import CookiesSvg from '@assets/icons/cookies.svg';
       --sl-icon-size: 1.25rem !important;
     }
 
+    .tour-help-btn {
+      position: relative;
+      overflow: visible;
+    }
+
+    .tour-help-btn[data-tour-state='resume']::after,
+    .tour-help-btn[data-tour-state='new']::after {
+      content: '';
+      position: absolute;
+      top: -0.05rem;
+      right: -0.05rem;
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: var(--sl-color-orange-high, #f59e0b);
+      box-shadow: 0 0 0 2px var(--sl-color-bg-nav);
+    }
+
+    .tour-help-btn[data-tour-state='new'][data-tour-badge-mode='count']::after {
+      content: attr(data-tour-badge);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0.95rem;
+      height: 0.95rem;
+      padding: 0 0.18rem;
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: var(--aspire-color-black, #1f1e33);
+      width: auto;
+      border-radius: 999px;
+    }
+
+    :global([data-theme='light']) .tour-help-btn[data-tour-state='new'][data-tour-badge-mode='count']::after {
+      color: var(--aspire-color-white, #fff);
+    }
+
+    .tour-help-btn[data-tour-state='new'][data-tour-badge-mode='dot']::after {
+      content: '';
+    }
+
     .install-cli-btn :global(svg) {
       --sl-icon-size: 1.5rem !important;
     }
@@ -159,36 +254,115 @@ import CookiesSvg from '@assets/icons/cookies.svg';
     .right-group-mobile {
       gap: 0.375rem;
       align-items: center;
+      min-width: 0;
+      flex: 0 0 auto;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
     }
 
-    .docs-btn-mobile {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.375rem 0.75rem;
-      background: transparent;
-      border: 1px solid var(--sl-color-gray-5);
-      color: var(--sl-color-text-accent);
-      font-weight: 600;
-      font-size: var(--sl-text-xs);
-      text-decoration: none;
-      border-radius: 0.375rem;
-      white-space: nowrap;
-    }
-
+    .docs-btn-mobile,
     .try-aspire-btn-mobile {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       padding: 0.375rem 0.75rem;
-      background: var(--aspire-color-light, #dcd5f6);
       border: 1px solid var(--sl-color-gray-5);
-      color: var(--aspire-color-black, #1f1e33);
       font-weight: 600;
       font-size: var(--sl-text-xs);
-      text-decoration: none;
       border-radius: 0.375rem;
       white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .docs-btn-mobile {
+      background: transparent;
+      color: var(--sl-color-text-accent);
+    }
+
+    .docs-btn-mobile:hover,
+    .docs-btn-mobile:focus-visible {
+      background: var(--sl-color-gray-6);
+    }
+
+    .right-group-mobile .header-icon-btn {
+      min-width: 2.125rem;
+      min-height: 2.125rem;
+      padding: 0.375rem;
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 0.375rem;
+    }
+
+    .try-aspire-btn-mobile {
+      background: var(--aspire-color-light, #dcd5f6);
+      color: var(--aspire-color-black, #1f1e33);
+    }
+
+    @media (max-width: 49.999rem) {
+      .header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 0.25rem;
+        height: 100%;
+      }
+
+      :global(:root[data-has-sidebar]) .header {
+        padding-inline-end: 0;
+      }
+
+      .title-wrapper {
+        flex: 1 1 auto;
+      }
+
+      .header > [data-tour-target='search'] {
+        margin-inline-start: 0;
+        justify-self: end;
+        flex: 0 0 auto;
+      }
+
+      .right-group-mobile {
+        justify-self: end;
+        width: auto;
+        min-width: 0;
+      }
+
+      .header :global(button[data-open-modal]) {
+        justify-content: center;
+        width: 2.125rem;
+        min-width: 2.125rem;
+        height: 2.125rem;
+        padding: 0;
+        gap: 0;
+      }
+
+      .title-wrapper :global(.site-title) {
+        min-width: 0;
+        max-width: 100%;
+        gap: 0.45rem;
+      }
+
+      .title-wrapper :global(.site-title span) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 30rem) {
+      .docs-btn-mobile,
+      .try-aspire-btn-mobile {
+        padding: 0.3125rem 0.5rem;
+      }
+
+      .right-group-mobile {
+        gap: 0.25rem;
+      }
+
+      .right-group-mobile .header-icon-btn {
+        min-width: 2rem;
+        min-height: 2rem;
+        padding: 0.3125rem;
+      }
     }
 
     @media (max-width: 1200px) {

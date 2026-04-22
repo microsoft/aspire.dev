@@ -1,87 +1,54 @@
 ---
-title: Azure Developer CLI (azd)
-description: Learn how to use the Azure Developer CLI as an alternative deployment path for Aspire applications.
+title: Use existing azd workflows
+description: Learn the Aspire-specific compatibility details that still matter when you keep an existing Azure Developer CLI workflow.
+next: false
+tableOfContents: false
+topic: deployment
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 
-The Azure Developer CLI (`azd`) is a developer-oriented command-line tool that can provision Azure resources and deploy applications from your local environment or CI/CD pipelines. It integrates with Aspire by consuming the deployment manifest format to understand your app model and automatically provision the corresponding Azure resources.
+The Azure Developer CLI (`azd`) is still supported with Aspire for existing workflows, but it is no longer the recommended default deployment path.
 
-<Aside type="tip" title="Recommended: aspire deploy">
-  For new Azure deployments, we recommend using `aspire deploy` directly. It
-  offers a simpler workflow, supports more Azure targets, and doesn't require an
-  intermediate manifest. See [Deploy using the Aspire
-  CLI](/deployment/azure/aca-deployment-aspire-cli/).
-</Aside>
+:::tip[Recommended path: `aspire deploy`]
+For new Azure deployments, use `aspire deploy`. It keeps the deployment flow inside Aspire, supports more Azure targets, and avoids the legacy manifest-based path. Start with [Deploy to Azure](/deployment/azure/).
+:::
 
 ## When to use azd
 
-While `aspire deploy` is the recommended path, `azd` remains useful in several scenarios:
+While `aspire deploy` is the recommended path, `azd` still makes sense when:
 
 - You have **existing `azd` workflows** and infrastructure templates you want to continue using.
 - You need **`azd pipeline config`** for automated CI/CD setup with GitHub Actions or Azure DevOps.
 - You want to use **`azd` environment management** features to manage multiple deployment environments.
 - You're working with **teams already familiar** with `azd` conventions and tooling.
 
-## Prerequisites
+## Use azd docs for the azd workflow
 
-- [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) installed
-- An active Azure subscription — [create one for free](https://azure.microsoft.com/free/)
-- [Aspire CLI](/get-started/install-cli/) installed
+This page does not duplicate `azd`'s full operational workflow. For install, initialization, provisioning, deployment, environment management, and CI/CD setup, use the Azure Developer CLI docs:
 
-## Basic workflow
-
-<Steps>
-
-1. **Initialize your project** — run `azd init` from your AppHost directory. When prompted, select **Use code in the current directory** so `azd` detects the Aspire app model.
-
-   ```bash title="Initialize azd in the AppHost directory"
-   azd init
-   ```
-
-2. **Provision and deploy** — run `azd up` to provision the required Azure resources and deploy your application in a single step. This combines the `azd provision` and `azd deploy` commands.
-
-   ```bash title="Provision infrastructure and deploy"
-   azd up
-   ```
-
-3. **Redeploy without reprovisioning** — after the initial deployment, use `azd deploy` to push code changes without reprovisioning infrastructure.
-
-   ```bash title="Deploy updated code"
-   azd deploy
-   ```
-
-</Steps>
-
-## `aspire deploy` vs `azd` comparison
-
-| Feature                     | `aspire deploy` | `azd`                 |
-| --------------------------- | --------------- | --------------------- |
-| Azure Container Apps        | ✅              | ✅                    |
-| Azure App Service           | ✅              | ❌                    |
-| Infrastructure provisioning | Built-in        | Built-in              |
-| CI/CD pipeline setup        | Manual          | `azd pipeline config` |
-| Environment management      | State caching   | `azd env`             |
-| Manifest dependency         | No              | Yes                   |
+- [Install `azd`](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- [Initialize an existing app with `azd`](https://learn.microsoft.com/azure/developer/azure-developer-cli/azd-commands#azd-init)
+- [Provision and deploy with `azd up`](https://learn.microsoft.com/azure/developer/azure-developer-cli/azd-commands#azd-up)
+- [Manage environments with `azd env`](https://learn.microsoft.com/azure/developer/azure-developer-cli/azd-commands#azd-env)
+- [Configure CI/CD with `azd pipeline config`](https://learn.microsoft.com/azure/developer/azure-developer-cli/azd-commands#azd-pipeline)
 
 ## Resource naming
 
 The `aspire deploy` path and `azd` use different resource naming schemes by default. If you're upgrading from an existing `azd` deployment to `aspire deploy`, use `WithAzdResourceNaming()` to preserve the original naming convention. This avoids creating duplicate Azure resources:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
-
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureContainerAppEnvironment("env")
     .WithAzdResourceNaming();
 ```
-
 </TabItem>
-<TabItem label="TypeScript">
-
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -89,23 +56,57 @@ const builder = await createBuilder();
 const env = await builder.addAzureContainerAppEnvironment('env');
 await env.withAzdResourceNaming();
 ```
-
 </TabItem>
 </Tabs>
 
-## Deployment manifest
+## Environments and configuration
 
-The `azd` tool relies on the [deployment manifest format](/deployment/azure/manifest-format/) to understand your application topology. The manifest is a JSON document generated from the AppHost that describes resources, bindings, and parameters. It's produced automatically when `azd` invokes the AppHost during deployment.
+`azd` has its own environment system, and that environment context can flow into your AppHost. When `azd` invokes the AppHost, it passes the `DOTNET_ENVIRONMENT` value from the active azd environment's `.env` file to the AppHost process.
 
-<Aside type="caution">
-  The deployment manifest format is deprecated and no longer being evolved. New
-  features and deployment targets are delivered through the `aspire deploy`
-  path. See [Deploy using the Aspire
-  CLI](/deployment/azure/aca-deployment-aspire-cli/).
-</Aside>
+To configure this, set `DOTNET_ENVIRONMENT` in your azd environment:
+
+```bash title="Set the Aspire environment for an azd environment"
+azd env set DOTNET_ENVIRONMENT staging
+azd up
+# → AppHost runs with DOTNET_ENVIRONMENT=staging
+# → builder.Environment.IsEnvironment("staging") returns true
+```
+
+:::caution
+The azd environment name (`azd env select staging`) does **not** automatically set `DOTNET_ENVIRONMENT`. You must explicitly set `DOTNET_ENVIRONMENT` in each azd environment. Without it, the AppHost defaults to `Production`.
+:::
+
+Your AppHost code can branch on this value to vary topology or configuration per environment, as described in the [Environments](/deployment/environments/) guide.
+
+### How parameters work with azd
+
+Aspire parameters and `azd` inputs follow different paths:
+
+| Parameter type                                     | How it reaches Azure resources                                                                                                                     |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Aspire parameters** (`AddParameter`)             | Resolved by the AppHost through .NET configuration when generating the manifest. Use `appsettings.{env}.json` or environment variables.            |
+| **`azd` infrastructure inputs (Bicep parameters)** | Prompted by `azd provision` and stored in `.azure/{name}/config.json`. Used by `azd` directly during Bicep deployment — not passed to the AppHost. |
+| **Secrets**                                        | Prompted by `azd provision` and stored in a local vault. Injected into Bicep parameters during provisioning.                                       |
+
+:::note
+`azd` infrastructure inputs stored in `.azure/{name}/config.json` are consumed as Bicep parameters during provisioning. They are **not** passed to the AppHost process. If the same value must be available in both your AppHost code and your infrastructure, define it as an Aspire parameter and provide it through .NET configuration or an environment variable.
+:::
+
+## Manifest compatibility
+
+`azd` currently consumes the legacy deployment manifest behind the scenes. Treat that manifest as an implementation detail, not as part of the recommended Aspire deployment model. In most cases, you do not need to generate, inspect, or edit it directly.
+
+:::caution
+The deployment manifest format is deprecated and no longer being evolved. New Azure deployment features land in the `aspire deploy` path.
+:::
+
+<LearnMore>
+If you're maintaining an existing `azd` integration or debugging legacy manifest generation, see [Legacy deployment manifest format](/deployment/azure/manifest-format/).
+</LearnMore>
 
 ## See also
 
-- [Deploy using the Aspire CLI](/deployment/azure/aca-deployment-aspire-cli/) — recommended deployment path
-- [Deployment manifest format](/deployment/azure/manifest-format/)
+- [Deploy to Azure](/deployment/azure/) — recommended deployment path
+- [Environments](/deployment/environments/)
+- [Legacy deployment manifest format](/deployment/azure/manifest-format/)
 - [Azure Developer CLI documentation](https://learn.microsoft.com/azure/developer/azure-developer-cli/)

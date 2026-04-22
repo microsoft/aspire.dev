@@ -1,6 +1,7 @@
 import type { CookieConsentConfig } from '@jop-software/astro-cookieconsent';
 
 export const cookieConfig: CookieConsentConfig = {
+  hideFromBots: process.env.E2E_TESTS !== '1',
   guiOptions: {
     consentModal: {
       layout: 'box',

@@ -21,7 +21,7 @@ import appServiceIcon from '@assets/icons/azure-app-services.svg';
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-[Azure App Service](https://learn.microsoft.com/azure/app-service) is a fully managed platform for building, deploying, and scaling web apps. Aspire apps often run locally during development but require scalable, production-ready hosting environments for staging and production. The Aspire integration allows you to provision or reference an existing Azure App Service environment (App Service Plan) and seamlessly publish your container, executable, and project resources as Azure App Service websites.
+[Azure App Service](https://learn.microsoft.com/azure/app-service) is a fully managed platform for building, deploying, and scaling web apps. Aspire apps often run locally during development but require scalable, production-ready hosting environments for staging and production. The Aspire integration allows you to provision or reference an existing Azure App Service environment (App Service Plan) and automatically deploy supported web-facing project resources and Dockerfile-backed web containers as Azure App Service websites. Backing services such as databases, caches, and brokers should use managed Azure services instead of App Service websites. Use `PublishAsAzureAppServiceWebsite` when you need to customize the generated website.
 
 In this introduction, you'll see how to install and use the Aspire Azure App Service integration in a simple configuration. If you already have this knowledge, see [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/) for full reference details.
 
@@ -42,11 +42,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env");
 
-builder.AddProject<Projects.WebApi>("api")
-    .PublishAsAzureAppServiceWebsite((infra, website) =>
-    {
-        // Optional: customize the Azure App Service website here
-    });
+builder.AddProject<Projects.WebApi>("api");
 
 builder.Build().Run();
 ```
@@ -63,10 +59,11 @@ The preceding code:
 
 - Creates an Azure App Service environment named `app-service-env`.
 - Adds a project named `api` to the AppHost.
-- Configures the project to be published as an Azure App Service website.
-- Provides an optional callback to customize the website configuration.
+- Targets the `api` project to the App Service environment automatically.
 
 During local development (when running with <Kbd windows='F5' mac='F5' />), the project runs locally. When you publish your app, the project is deployed as an Azure App Service website within the provisioned environment.
+
+You don't need `PublishAsAzureAppServiceWebsite` for standard deployment. Use it only when you want to customize the generated website or deployment slot.
 
 ## See also
 

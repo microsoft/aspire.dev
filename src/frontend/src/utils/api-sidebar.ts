@@ -6,6 +6,10 @@
 /* ------------------------------------------------------------------ */
 
 import {
+  type PackageApiDocument,
+  type PackageCollectionEntry,
+  type PackageMember,
+  type PackageType,
   slugify,
   genericArity,
   typeDisplayName,
@@ -19,7 +23,20 @@ import {
 
 /** Member kinds that get their own sidebar sub-item under a type. */
 const sidebarMemberKinds = memberKindOrder;
-const apiSidebarCache = new Map<string, Promise<any[]>>();
+interface SidebarLinkItem {
+  label: string;
+  link: string;
+}
+
+interface SidebarGroupItem {
+  label: string;
+  collapsed: boolean;
+  items: SidebarItem[];
+}
+
+type SidebarItem = SidebarLinkItem | SidebarGroupItem;
+
+const apiSidebarCache = new Map<string, Promise<SidebarItem[]>>();
 const shouldCacheApiSidebar = import.meta.env.PROD;
 
 interface ApiSidebarOptions {
@@ -30,7 +47,7 @@ interface ApiSidebarOptions {
  * Determine whether a type is a simple marker interface (no members at all).
  * Marker interfaces get a flat link instead of a nested group.
  */
-function isMarkerInterface(type: any): boolean {
+function isMarkerInterface(type: PackageType): boolean {
   if (type.kind !== 'interface') return false;
   const memberCount = type.members?.length ?? 0;
   const enumMemberCount = type.enumMembers?.length ?? 0;
@@ -42,11 +59,11 @@ function isMarkerInterface(type: any): boolean {
  * Returns an array of { label, link } entries for each member-kind group
  * that has at least one member (e.g. Constructors, Properties, Methods).
  */
-function buildTypeSidebarItems(packageName: string, type: any): { label: string; link: string }[] {
+function buildTypeSidebarItems(packageName: string, type: PackageType): SidebarLinkItem[] {
   const base = `/reference/api/csharp/${packageSlug(packageName)}/${slugify(type.name, genericArity(type))}`;
-  const items: { label: string; link: string }[] = [{ label: 'Overview', link: `${base}/` }];
+  const items: SidebarLinkItem[] = [{ label: 'Overview', link: `${base}/` }];
 
-  const members: any[] = type.members ?? [];
+  const members: PackageMember[] = type.members ?? [];
   const memberKindsPresent = new Set<string>();
   for (const member of members) {
     if (member.kind) {
@@ -69,8 +86,11 @@ function buildTypeSidebarItems(packageName: string, type: any): { label: string;
 /**
  * Build the sidebar group for a single C# package.
  */
-function buildPackageSidebarEntry(pkg: any, collapsed: boolean = true) {
-  const validTypes = pkg.types.filter((t: any) => t.name);
+function buildPackageSidebarEntry(
+  pkg: PackageApiDocument,
+  collapsed: boolean = true
+): SidebarGroupItem {
+  const validTypes = pkg.types.filter((t) => t.name.length > 0);
   const nsGroups = groupTypesByNamespace(validTypes);
 
   // If only one namespace, skip the namespace nesting level
@@ -80,9 +100,9 @@ function buildPackageSidebarEntry(pkg: any, collapsed: boolean = true) {
     ? [...nsGroups.entries()].map(([ns, types]) => ({
         label: ns,
         collapsed: true,
-        items: types.map((t: any) => buildTypeSidebarEntry(pkg.package.name, t)),
+        items: types.map((t) => buildTypeSidebarEntry(pkg.package.name, t)),
       }))
-    : [...nsGroups.values()].flat().map((t: any) => buildTypeSidebarEntry(pkg.package.name, t));
+    : [...nsGroups.values()].flat().map((t) => buildTypeSidebarEntry(pkg.package.name, t));
 
   return {
     label: pkg.package.name,
@@ -100,7 +120,7 @@ async function buildApiReferenceSidebar(options: ApiSidebarOptions = {}) {
 
   if (options.packageName) {
     const currentPackage = packages.find(
-      (pkg) => pkg.data.package.name === options.packageName
+      (pkg: PackageCollectionEntry) => pkg.data.package.name === options.packageName
     )?.data;
     return currentPackage
       ? [sidebarRoot, buildPackageSidebarEntry(currentPackage, false)]
@@ -135,7 +155,7 @@ export function getApiReferenceSidebar(options: ApiSidebarOptions = {}) {
 }
 
 /** Build a single sidebar entry for a type (flat link or nested group). */
-function buildTypeSidebarEntry(packageName: string, t: any) {
+function buildTypeSidebarEntry(packageName: string, t: PackageType): SidebarItem {
   const label = typeDisplayName(t);
   if (isMarkerInterface(t)) {
     return {

@@ -7,6 +7,12 @@
  *
  * Also wires up the embedded clear (×) button in the search input.
  */
+declare global {
+  interface Window {
+    InpageSearchSync: typeof InpageSearchSync;
+  }
+}
+
 class InpageSearchSync {
   private input: HTMLInputElement;
   private clearBtn: HTMLElement;
@@ -69,4 +75,4 @@ class InpageSearchSync {
 }
 
 // Expose globally for controller scripts
-(window as any).InpageSearchSync = InpageSearchSync;
+window.InpageSearchSync = InpageSearchSync;

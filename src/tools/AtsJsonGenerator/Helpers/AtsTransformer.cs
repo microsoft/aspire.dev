@@ -211,17 +211,21 @@ internal static class AtsTransformer
     {
         if (param.CallbackParameters is null)
         {
-            return "() => void";
+            return "() => Promise<void>";
         }
 
         var cbParams = param.CallbackParameters.Select(p =>
             $"{p.Name}: {FormatTypeRef(p.Type)}");
 
-        var returnType = param.CallbackReturnType is not null
+        // The generated TypeScript SDK always exposes callbacks as async
+        // (the aspire TS code generator hardcodes `=> Promise<T>` for every
+        // callback because invocation happens over RPC). Mirror that here so
+        // the docs signatures match the actual SDK types.
+        var innerReturnType = param.CallbackReturnType is not null
             ? FormatTypeRef(param.CallbackReturnType)
             : "void";
 
-        return $"({string.Join(", ", cbParams)}) => {returnType}";
+        return $"({string.Join(", ", cbParams)}) => Promise<{innerReturnType}>";
     }
 
     /// <summary>

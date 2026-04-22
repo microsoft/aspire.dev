@@ -3,7 +3,12 @@ import type { StarlightIcon } from '@astrojs/starlight/types';
 
 interface RouteDataLike {
   slug?: string;
+  id?: string;
   locale?: string;
+  entry?: {
+    slug?: string;
+    id?: string;
+  };
 }
 
 interface BreadcrumbItem {
@@ -32,17 +37,15 @@ interface TopicMatch {
   path: SidebarItemConfig[];
 }
 
-export function getContentBreadcrumbs(
-  routeData?: RouteDataLike,
-): BreadcrumbItem[] | undefined {
-  const slug = normalizePath(routeData?.slug);
+export function getContentBreadcrumbs(routeData?: RouteDataLike): BreadcrumbItem[] | undefined {
+  const slug = resolveRoutePath(routeData);
   if (!slug || slug.startsWith('reference/api/')) {
     return undefined;
   }
 
   const locale = routeData?.locale;
 
-  for (const topic of sidebarTopics as TopicConfig[]) {
+  for (const topic of sidebarTopics) {
     if (normalizePath(topic.link) === slug) {
       return undefined;
     }
@@ -63,7 +66,11 @@ export function getContentBreadcrumbs(
     ];
 
     for (let index = 0; index < path.length; index++) {
-      const item = path[index]!;
+      const item = path[index];
+      if (!item) {
+        continue;
+      }
+
       const isCurrent = index === path.length - 1;
 
       crumbs.push({
@@ -78,6 +85,12 @@ export function getContentBreadcrumbs(
   return undefined;
 }
 
+function resolveRoutePath(routeData?: RouteDataLike): string {
+  return normalizePath(
+    routeData?.slug ?? routeData?.entry?.slug ?? routeData?.id ?? routeData?.entry?.id
+  );
+}
+
 function findTopicMatch(topic: TopicConfig, slug: string): TopicMatch | undefined {
   const path = findPath(topic.items ?? [], slug);
   return path ? { topic, path } : undefined;
@@ -88,8 +101,11 @@ function collapseOverviewPath(path: SidebarItemConfig[]): SidebarItemConfig[] {
     return path;
   }
 
-  const currentItem = path[path.length - 1]!;
-  const parentItem = path[path.length - 2]!;
+  const currentItem = path[path.length - 1];
+  const parentItem = path[path.length - 2];
+  if (!currentItem || !parentItem) {
+    return path;
+  }
 
   if (
     isOverviewItem(currentItem) &&
@@ -132,8 +148,9 @@ function matchesItem(item: SidebarItemConfig, slug: string): boolean {
 }
 
 function resolveAncestorHref(item: SidebarItemConfig, locale?: string): string | undefined {
-  if (item.slug || item.link) {
-    return buildHref(item.slug ?? item.link!, locale);
+  const directTarget = item.slug ?? item.link;
+  if (directTarget) {
+    return buildHref(directTarget, locale);
   }
 
   const overviewItem = item.items?.find((child) => isOverviewItem(child));
@@ -141,7 +158,8 @@ function resolveAncestorHref(item: SidebarItemConfig, locale?: string): string |
     return undefined;
   }
 
-  return buildHref(overviewItem.slug ?? overviewItem.link!, locale);
+  const overviewTarget = overviewItem.slug ?? overviewItem.link;
+  return overviewTarget ? buildHref(overviewTarget, locale) : undefined;
 }
 
 function isOverviewItem(item: SidebarItemConfig): boolean {
@@ -176,5 +194,8 @@ function normalizePath(path?: string): string {
     return '';
   }
 
-  return path.replace(/^\//, '').replace(/\/$/, '');
+  return path
+    .replace(/^\//, '')
+    .replace(/\/$/, '')
+    .replace(/\.(md|mdx)$/i, '');
 }
