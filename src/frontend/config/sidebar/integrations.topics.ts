@@ -1343,6 +1343,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
         { label: 'Go', slug: 'integrations/frameworks/go-apps' },
         { label: 'Java', slug: 'integrations/frameworks/java' },
+        { label: 'Orleans', slug: 'integrations/frameworks/orleans' },
+        { label: 'Perl', slug: 'integrations/frameworks/perl' },
         { label: 'PowerShell', slug: 'integrations/frameworks/powershell' },
         { label: 'Python', slug: 'integrations/frameworks/python' },
         { label: 'Rust', slug: 'integrations/frameworks/rust' },
