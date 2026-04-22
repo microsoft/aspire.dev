@@ -10,7 +10,9 @@ const isApiSubpage = currentPath.startsWith('reference/api/');
 <style>
   :global(.content-panel:has(.actions-container)) {
     position: relative;
-    z-index: 50;
+    /* isolate (not z-index) so the dropdown's stacking context is contained
+       without promoting the panel above the fixed nav (z-index: 10). */
+    isolation: isolate;
     overflow: visible;
   }
 
@@ -37,6 +39,12 @@ const isApiSubpage = currentPath.startsWith('reference/api/');
 
 <script is:inline define:vars={{ isApiSubpage }}>
   function initPageTitle() {
+    var actions = document.querySelector('.actions-container');
+    if (actions) {
+      actions.setAttribute('data-tour-target', 'page-actions');
+      actions.setAttribute('data-tour-step', 'page-actions');
+    }
+
     if (isApiSubpage) {
       var h1 = document.querySelector('main h1#_top');
       if (h1) h1.classList.add('api-page-title');

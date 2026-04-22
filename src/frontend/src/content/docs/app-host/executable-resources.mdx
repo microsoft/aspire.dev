@@ -11,7 +11,7 @@ In Aspire, you can host external executable applications alongside your projects
 
 Use executable resources when you need to:
 
-- Host non-.NET applications that don't have containerized equivalents.
+- Run applications or tools directly on the host instead of in a container.
 - Integrate command-line tools or utilities into your application.
 - Run external processes that other resources depend on.
 - Develop with tools that provide local development servers.
@@ -27,8 +27,8 @@ Common examples include:
 
 The `AddExecutable` method requires a resource name, the executable path, and optionally command-line arguments and a working directory:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -42,8 +42,8 @@ var pythonApp = builder.AddExecutable(
 builder.Build().Run();
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -67,8 +67,8 @@ You can provide command-line arguments directly in the `AddExecutable` call and 
 
 ### Arguments in the AddExecutable call
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -77,8 +77,8 @@ var app = builder.AddExecutable(
     "vercel-dev", "vercel", ".", "dev", "--listen", "3000");
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -93,8 +93,8 @@ const app = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--
 
 For arguments that depend on other resources, use environment variables:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -106,8 +106,8 @@ var app = builder.AddExecutable("worker", "python", ".", "worker.py")
     .WithReference(postgres);  // Provides ConnectionStrings__appdb
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -128,8 +128,8 @@ When one resource depends on another, `WithReference` passes along environment v
 
 For more control over how connection information is passed to your executable:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -145,8 +145,8 @@ var app = builder.AddExecutable("app", "node", ".", "app.js")
     });
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -155,8 +155,8 @@ const redis = await builder.addRedis("cache");
 
 const app = await builder.addExecutable("app", "node", ".", ["app.js"])
     .withReference(redis)
-    .withEnvironment("REDIS_HOST", redis.resource.primaryEndpoint.property("host"))
-    .withEnvironment("REDIS_PORT", redis.resource.primaryEndpoint.property("port"));
+    .withEnvironment("REDIS_HOST", redis.host)
+    .withEnvironment("REDIS_PORT", redis.port);
 ```
 </TabItem>
 </Tabs>
@@ -165,8 +165,8 @@ const app = await builder.addExecutable("app", "node", ".", ["app.js"])
 
 Here's a complete example using the [Vercel CLI](https://vercel.com/docs/cli) to host a frontend application with a backend API:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -183,8 +183,8 @@ var frontend = builder.AddExecutable(
 builder.Build().Run();
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -207,8 +207,8 @@ await builder.build().run();
 
 Executable resources can expose HTTP endpoints that other resources can reference:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -221,8 +221,8 @@ var e2eTests = builder.AddExecutable("playwright", "npx", ".", "playwright", "te
     .WithEnvironment("BASE_URL", frontend.GetEndpoint("http"));
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -241,8 +241,8 @@ const e2eTests = await builder.addExecutable("playwright", "npx", ".", ["playwri
 
 Configure environment variables for your executable:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -257,8 +257,8 @@ var app = builder.AddExecutable(
     });
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -275,8 +275,8 @@ const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--r
 
 For production deployment, executable resources need to be containerized. Use the `PublishAsDockerFile` method to specify how the executable should be packaged:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -285,8 +285,8 @@ var app = builder.AddExecutable(
     .PublishAsDockerFile();
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -315,8 +315,8 @@ CMD ["npm", "start"]
 
 Then reference it in your AppHost:
 
-<Tabs syncKey="apphost-lang">
-<TabItem label="C#">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -324,14 +324,14 @@ var app = builder.AddExecutable("frontend", "npm", ".", "start")
     .PublishAsDockerFile([new DockerfileBuildArg("NODE_ENV", "production")]);
 ```
 </TabItem>
-<TabItem label="TypeScript">
-```typescript title="apphost.ts"
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const app = await builder.addExecutable("frontend", "npm", ".", ["start"])
-    .publishAsDockerFile([{ name: "NODE_ENV", value: "production" }]);
+    .publishAsDockerFile();
 ```
 </TabItem>
 </Tabs>

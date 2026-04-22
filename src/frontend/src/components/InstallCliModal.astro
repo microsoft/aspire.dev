@@ -173,8 +173,46 @@ const { id = 'install-cli-modal' } = Astro.props;
 
     const versionSelect = modal.querySelector('#version-select') as HTMLSelectElement;
     const selectIcon = modal.querySelector('.select-icon') as HTMLElement;
-    const openBtn = document.querySelector('[data-open-install-modal]');
+    const openBtns = document.querySelectorAll<HTMLElement>('[data-open-install-modal]');
     const closeBtn = modal.querySelector('[data-close-modal]');
+
+    const openModal = (openBtn: HTMLElement) => {
+      // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
+      // Modal can't compete with mobile sidebar's z-index
+      const mobileMenuBtn = document.querySelector('starlight-menu-button button');
+      const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
+      if (window.innerWidth < 800 || mobileMenuOpen) {
+        window.location.assign('/get-started/install-cli/');
+        return;
+      }
+
+      modal.showModal();
+
+      // Position modal below the button on larger screens
+      const btnRect = openBtn.getBoundingClientRect();
+      const modalContent = modal.querySelector('.modal-content') as HTMLElement;
+
+      if (modalContent) {
+        // Reset any previous positioning
+        modalContent.style.position = '';
+        modalContent.style.top = '';
+        modalContent.style.right = '';
+
+        // Only position absolutely below button on larger screens (72rem/1152px)
+        if (window.innerWidth >= 1152) {
+          modalContent.style.position = 'absolute';
+          modalContent.style.top = `${btnRect.bottom + 8}px`;
+          modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
+        }
+      }
+
+      // Load stored quality or default to release
+      if (versionSelect) {
+        const storedQuality = getStoredQuality();
+        versionSelect.value = storedQuality;
+        updateVersionDisplay(storedQuality);
+      }
+    };
 
     // Quality selector change handler
     if (versionSelect) {
@@ -190,47 +228,17 @@ const { id = 'install-cli-modal' } = Astro.props;
     }
 
     // Open modal and position it
-    if (openBtn) {
+    openBtns.forEach((openBtn) => {
+      if (openBtn.dataset.installModalBound === 'true') {
+        return;
+      }
+
+      openBtn.dataset.installModalBound = 'true';
       openBtn.addEventListener('click', (e) => {
         e.preventDefault();
-
-        // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
-        // Modal can't compete with mobile sidebar's z-index
-        const mobileMenuBtn = document.querySelector('starlight-menu-button button');
-        const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
-        if (window.innerWidth < 800 || mobileMenuOpen) {
-          window.location.assign('/get-started/install-cli/');
-          return;
-        }
-
-        modal.showModal();
-
-        // Position modal below the button on larger screens
-        const btnRect = openBtn.getBoundingClientRect();
-        const modalContent = modal.querySelector('.modal-content') as HTMLElement;
-
-        if (modalContent) {
-          // Reset any previous positioning
-          modalContent.style.position = '';
-          modalContent.style.top = '';
-          modalContent.style.right = '';
-
-          // Only position absolutely below button on larger screens (72rem/1152px)
-          if (window.innerWidth >= 1152) {
-            modalContent.style.position = 'absolute';
-            modalContent.style.top = `${btnRect.bottom + 8}px`;
-            modalContent.style.right = `${window.innerWidth - btnRect.right}px`;
-          }
-        }
-
-        // Load stored quality or default to release
-        if (versionSelect) {
-          const storedQuality = getStoredQuality();
-          versionSelect.value = storedQuality;
-          updateVersionDisplay(storedQuality);
-        }
+        openModal(openBtn);
       });
-    }
+    });
 
     // Close modal handlers
     closeBtn?.addEventListener('click', () => modal.close());
@@ -258,17 +266,6 @@ const { id = 'install-cli-modal' } = Astro.props;
     if (!openBtn) return;
 
     e.preventDefault();
-
-    // On mobile (under 50em/800px), or if mobile menu is open, redirect to the full page
-    // Modal can't compete with mobile sidebar's z-index
-    const mobileMenuBtn = document.querySelector('starlight-menu-button button');
-    const mobileMenuOpen = mobileMenuBtn?.getAttribute('aria-expanded') === 'true';
-    if (window.innerWidth < 800 || mobileMenuOpen) {
-      window.location.assign('/get-started/install-cli/');
-      return;
-    }
-
-    // Otherwise show the modal (handled by initializeModal's listener)
   });
 
   // Initialize on page load

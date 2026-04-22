@@ -1,6 +1,6 @@
 ---
 name: doc-writer
-description: Guidelines for producing accurate and maintainable documentation for the Aspire documentation site. Use when writing or updating user guides, integration docs, tutorials, or any content on aspire.dev.
+description: Guidelines for producing accurate and maintainable documentation for the Aspire documentation site. Use when writing or updating user guides, integration docs, tutorials, custom components used by docs, or documentation-related tests and validation on aspire.dev.
 ---
 
 # Documentation Writer Skill
@@ -73,7 +73,7 @@ Optional frontmatter fields:
 Import Starlight components at the top of your MDX file:
 
 ```tsx
-import { Aside, CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
 ```
 
 Additional commonly used imports:
@@ -93,26 +93,35 @@ import Image from 'astro:assets';
 
 ### Component Usage
 
+Prefer existing components in `src/frontend/src/components/` over bespoke MDX markup when the site already has a reusable pattern for the content. This keeps docs consistent and reduces duplicated styling, accessibility fixes, and behavior logic.
+
+When you introduce or change a custom component that is used by docs pages:
+
+- Keep the public props intentional and typed so MDX authors get statement completion and editor help.
+- Reuse existing aliases such as `@components/*` and `@assets/*` rather than deep relative imports.
+- Prefer moving heavier shared logic into colocated `.ts` helpers when the `.astro` frontmatter becomes large or is duplicated across components.
+- Treat user-visible behavior, accessibility, and responsive behavior as part of the documentation contract, not as optional polish.
+
 #### Aside (Callouts)
 
-Use for tips, notes, cautions, and warnings:
+Prefer fenced `:::` callouts for tips, notes, cautions, and warnings. Use the `Aside` component only when a JSX-only composition pattern is required.
 
 ```mdx
-<Aside type="tip" title="Pro Tip">
+:::tip[Pro Tip]
 This is a helpful tip for users.
-</Aside>
+:::
 
-<Aside type="note">
+:::note
 Important information users should be aware of.
-</Aside>
+:::
 
-<Aside type="caution">
+:::caution
 Proceed with care - this may have unexpected consequences.
-</Aside>
+:::
 
-<Aside type="danger">
+:::danger
 Critical warning - this could cause data loss or security issues.
-</Aside>
+:::
 ```
 
 #### Steps
@@ -156,6 +165,8 @@ Press F5 to start debugging.
 </Tabs>
 ```
 
+If a heading should appear in the **On this page** table of contents, keep that heading outside the `Tabs` component. Headings placed inside `TabItem` content may be skipped by the generated TOC.
+
 #### Pivot/PivotSelector
 
 Use for programming language selection that persists across page:
@@ -177,6 +188,28 @@ C# specific content here.
 <Pivot id="python">
 Python specific content here.
 </Pivot>
+```
+
+If a heading needs to appear in the **On this page** table of contents, keep the heading outside the `Pivot` content and put only the variant-specific body content inside each `Pivot`.
+
+#### On this page and "Overview" headings
+
+When a page shows the **On this page** table of contents (the default behavior unless `tableOfContents: false` is set), do **not** add an `Overview` heading at any level (`##`, `###`, etc.). The docs site already provides an implicit overview link to the top of the page, so an explicit `Overview` heading becomes redundant.
+
+If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
+
+For Aspire AppHost docs, use a single page-level `PivotSelector` with `key="aspire-lang"` when the surrounding section flow should switch as one unit. If a page would otherwise need multiple `aspire-lang` selectors, keep the page-level selector for the main flow and use synced `Tabs`/`TabItem` with `syncKey='aspire-lang'` for repeated language-specific examples later on the page.
+
+```mdx
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+C# example content here.
+</TabItem>
+
+<TabItem id='typescript' label='TypeScript'>
+TypeScript example content here.
+</TabItem>
+</Tabs>
 ```
 
 #### CardGrid and LinkCard
@@ -237,10 +270,10 @@ For more information, see [Service Defaults](/fundamentals/service-defaults/).
 </LearnMore>
 ```
 
-The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside `<Aside>` blocks or after `<Steps>`:
+The component renders an open-book icon alongside the provided content. Place it after a section or code example to point readers to deeper documentation. It works well inside fenced `:::` callouts or after `<Steps>`:
 
-```mdx
-<Aside type="tip" title="Feature flag">
+````mdx
+:::tip[Feature flag]
 Enable polyglot support by running:
 
 ```bash
@@ -250,15 +283,27 @@ aspire config set features:polyglotSupportEnabled true --global
 <LearnMore>
 For more information, see [aspire config command reference](/reference/cli/commands/aspire-config-set/)
 </LearnMore>
-</Aside>
-```
+:::
+````
+
+#### Aspire Custom Components
+
+Use Aspire's custom components when they express a documentation pattern more clearly than raw Markdown or ad hoc HTML. Common examples include `LearnMore`, `PivotSelector`, `Pivot`, `ThemeImage`, `InstallPackage`, `InstallDotNetPackage`, `AsciinemaPlayer`, and the other components in `src/frontend/src/components/`.
+
+Before introducing a new custom component for docs:
+
+- Check whether an existing component already solves the layout or interaction.
+- Prefer extending an existing component when the semantics stay clear.
+- Only add a new component when the pattern will be reused or the behavior is complex enough to justify a shared abstraction.
+
+If you add or change a custom component, also update the relevant tests so documentation behavior stays covered.
 
 ### Code Blocks
 
 Always include a descriptive title:
 
-```mdx
-```csharp title="C# — AppHost.cs"
+````mdx
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
@@ -266,11 +311,23 @@ var api = builder.AddProject<Projects.Api>("api");
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+````
+
+````mdx
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+
+await builder.build().run();
 ```
+````
 
 For JSON configuration:
 
-```mdx
+````mdx
 ```json title="JSON — appsettings.json"
 {
   "ConnectionStrings": {
@@ -278,7 +335,7 @@ For JSON configuration:
   }
 }
 ```
-```
+````
 
 ### Package Installation Components
 
@@ -293,6 +350,99 @@ For client/library packages:
 ```mdx
 <InstallDotNetPackage package="Aspire.StackExchange.Redis" />
 ```
+
+## AppHost Language Parity (C# and TypeScript)
+
+Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** (`apphost.ts`). Documentation must treat both languages as first-class citizens. **Always show both C# and TypeScript code samples for AppHost code unless the feature is genuinely language-specific or TypeScript support does not exist yet.** Never write AppHost or hosting-integration documentation with a C#-only bias.
+
+### Core Principles
+
+1. **Always show both languages**: Every AppHost-focused example, walkthrough, and AppHost code sample must include both C# and TypeScript variants unless the feature is genuinely language-specific.
+2. **Use neutral framing**: Write prose that applies to both languages. Say "In your AppHost" not "In your C# project". Say "Add a Redis resource" not "Call `builder.AddRedis()`".
+3. **Neither language is the default**: Don't present C# first as the "real" example and TypeScript as an afterthought. Both tabs are equal peers.
+4. **Verify TypeScript APIs exist**: Before writing a TypeScript example, confirm the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples — if you are unsure whether an API is available, flag it for review.
+
+### AppHostLangPivot Pattern for AppHost Content
+
+Use `AppHostLangPivot` for AppHost-specific content that changes between C# and TypeScript. The component is controlled by the site-wide AppHost selector in the sidebar, so it should be the default choice for AppHost walkthroughs, code samples, and prose that should switch together.
+
+````mdx
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache);
+
+builder.Build().Run();
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
+````
+
+Use `AppHostLangPivot` for more than code blocks when needed. Entire paragraphs, lists, asides, or multi-step sections can live inside the `csharp` and `typescript` slots when the workflows differ. The pivot itself is the shared wrapper; the slot names are the language discriminator.
+
+Use `Tabs` for other concerns such as CLI vs IDE, deployment targets, or platform choices. Do not use `Tabs syncKey="apphost-lang"` for new AppHost content.
+
+If a section heading should appear in the **On this page** table of contents, keep that heading outside `AppHostLangPivot`. Headings inside the `csharp` and `typescript` slots can be missed by the TOC generator, so the recommended pattern is a shared heading followed by an `AppHostLangPivot` containing only the language-specific body content.
+
+### Conventions
+
+| Aspect | C# | TypeScript |
+|---|---|---|
+| File title | `title="AppHost.cs"` | `title="apphost.ts"` |
+| Pivot wrapper | Shared `AppHostLangPivot` container | Shared `AppHostLangPivot` container |
+| Language slot | `slot="csharp"` | `slot="typescript"` |
+| Builder creation | `DistributedApplication.CreateBuilder(args)` |  `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
+| Method casing | PascalCase (`AddRedis`) | camelCase (`addRedis`) |
+| Async pattern | Synchronous fluent calls | `await` each builder call |
+| Build & run | `builder.Build().Run()` | `await builder.build().run()` |
+
+### Prose Guidelines
+
+When writing narrative text around AppHost examples:
+
+- ✅ "Add a Redis resource to your AppHost"
+- ✅ "The following example shows how to configure a PostgreSQL resource"
+- ❌ "Call `builder.AddRedis()` in your _Program.cs_" (C#-specific)
+- ❌ "Add the following C# code to your AppHost" (when both languages should be shown)
+
+When a concept differs between languages (e.g., configuration files, async patterns), explain both within the AppHostLangPivot slots or in language-neutral prose above the pivot.
+
+### When TypeScript Is Not Yet Supported
+
+If a hosting integration does not yet have TypeScript AppHost support, show only the C# example without `AppHostLangPivot` and add a note:
+
+```mdx
+<Aside type="note">
+TypeScript AppHost support for this integration is not yet available.
+</Aside>
+```
+
+Do **not** wrap a single language in `AppHostLangPivot` or a single-language `<Tabs>` component — that creates a misleading UI suggesting another option exists.
 
 ## Integration Documentation
 
@@ -317,13 +467,14 @@ Place integration docs in the appropriate category folder under `src/frontend/sr
 
 #### For Hosting-Only Integrations
 
-```mdx
+````mdx
 ---
 title: [Technology] integration
 description: Learn how to use the [Technology] integration with Aspire.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import Image from 'astro:assets';
 
@@ -339,7 +490,10 @@ Brief description of the technology and what the integration enables.
 
 ### Add [Technology] resource
 
-```csharp title="C# — AppHost.cs"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var tech = builder.AddTechnology("tech");
@@ -347,6 +501,22 @@ var tech = builder.AddTechnology("tech");
 // After adding all resources, run the app...
 builder.Build().Run();
 ```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const tech = await builder.addTechnology("tech");
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
 
 ### Configuration options
 
@@ -356,20 +526,51 @@ Describe available configuration methods and options.
 
 - [Official Technology documentation](https://...)
 - [Related Aspire documentation](/path/to/related/)
-```
+````
 
 #### For Hosting + Client Integrations
 
 Include both hosting and client sections:
 
-```mdx
+````mdx
 ## Hosting integration
 
 <InstallPackage package="Aspire.Hosting.Technology" />
 
 ### Add [Technology] resource
 
-[Hosting examples...]
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var tech = builder.AddTechnology("tech");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(tech);
+
+builder.Build().Run();
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const tech = await builder.addTechnology("tech");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(tech);
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
 
 ### Hosting integration health checks
 
@@ -424,7 +625,7 @@ The connection name must match the resource name defined in the AppHost.
 ## See also
 
 - [Official documentation](https://...)
-```
+````
 
 ### Community Toolkit Integrations
 
@@ -501,6 +702,9 @@ Use consistent terminology throughout:
 - Use gender-neutral pronouns (they/them) or rewrite to avoid pronouns
 - Avoid ableist language (e.g., "blind to", "crippled by")
 - Use people-first language when discussing disabilities
+- Do **not** frame `.NET` as the default and everything else as an exception. Avoid phrases such as `non-.NET`, `other languages`, or wording that treats Python, JavaScript, Go, or container-based apps as secondary scenarios.
+- When a section is really about a capability or execution model, name that directly instead of contrasting it with `.NET`. For example, prefer headings such as `Pass connection information to app resources` or `Run applications directly on the host` over `.NET` vs. `non-.NET` framing.
+- If specific runtimes matter, name them because the product behavior differs for them—not just as a find-and-replace for `non-.NET`. Otherwise, use positive, capability-based language such as `multi-language apps`, `app resources`, `services built from Dockerfiles`, or `apps that consume environment variables directly`.
 
 ### International Considerations
 
@@ -553,11 +757,51 @@ For details on terminal recordings, including how to create and embed them, see 
 
 Before submitting documentation:
 
-1. **Build locally**: Run the site locally to verify rendering
+1. **Preview locally**: Run the site locally to verify rendering and content flow
 2. **Check links**: Ensure all internal and external links work
 3. **Validate code**: Test all code examples compile and run using `aspire run`
 4. **Review formatting**: Verify components render correctly
-5. **Check navigation**: Confirm sidebar entries are correct
+5. **Run relevant tests**: Do not consider documentation or component work done until the affected tests pass
+6. **Check navigation**: Confirm sidebar entries are correct
+
+### Documentation Validation Strategy
+
+Use the smallest set of checks that proves the change is correct:
+
+- For MDX copy, structure, and navigation changes, verify the page locally and check the edited links.
+- For custom component usage changes, run the component render tests that cover the affected behavior.
+- For component prop surface changes, update and run the prop-contract coverage so editor completions and consumer typings stay intact.
+- For interactive behavior changes, run targeted Playwright coverage for the scenario you changed rather than relying on unrelated broad suites.
+- For accessibility-sensitive changes, validate both the rendered page and any focused accessibility tests that exercise the affected interaction.
+
+### Custom Component and Test Expectations
+
+If a documentation change adds, removes, or materially changes a custom component, you should usually update one or more of these test layers:
+
+- `src/frontend/tests/unit/custom-components.vitest.test.ts` for runtime render coverage of custom Astro components.
+- `src/frontend/tests/typecheck/component-props.contracts.ts` when component props change and the public prop contract should remain typed for MDX and other consumers.
+- `src/frontend/tests/e2e/*.spec.ts` for user-visible interactions that depend on hydration, persistence, navigation, or accessibility behavior.
+
+Examples of scenarios that often merit targeted tests:
+
+- query-string or local-storage persistence
+- cookie-consent or preference-driven behavior
+- responsive behavior that changes across desktop, tablet, and mobile
+- keyboard navigation, focus management, or screen-reader labeling
+- repeated code examples that need distinct accessible labels or titles
+- RSS, analytics, or other generated/static asset behaviors exposed through docs pages
+
+### Recommended Frontend Test Commands
+
+Prefer targeted validation over the slowest possible full-site build when the change does not require it.
+
+```bash
+pnpm --dir ./src/frontend run test:unit:components
+pnpm --dir ./src/frontend run test:unit:contracts
+pnpm --dir ./src/frontend exec playwright test tests/e2e/<relevant-spec>.ts
+```
+
+If you changed custom components, docs interactions, or accessibility behavior, make sure the relevant targeted tests pass before submitting the work.
 
 ### Installing the Aspire CLI
 
@@ -699,7 +943,7 @@ This feature is experimental and may change in future releases.
 
 The site supports Mermaid diagrams for architecture visualization:
 
-```mdx
+````mdx
 ```mermaid
 architecture-beta
   service api(logos:dotnet)[API service]
@@ -707,7 +951,7 @@ architecture-beta
 
   frontend:L --> R:api
 ```
-```
+````
 
 Use the `architecture-beta` diagram type for service architecture diagrams.
 

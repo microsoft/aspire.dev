@@ -1,11 +1,11 @@
 ---
 name: update-samples
-description: Update the samples data file by fetching sample metadata from the dotnet/aspire-samples GitHub repository. Use when adding new samples, refreshing sample data, or ensuring samples.json stays in sync with the upstream repo.
+description: Update the samples data file by fetching sample metadata from the microsoft/aspire-samples GitHub repository. Use when adding new samples, refreshing sample data, or ensuring samples.json stays in sync with the upstream repo.
 ---
 
 # Update Samples Data
 
-This skill synchronizes the samples data file with the `dotnet/aspire-samples` GitHub repository. It enumerates all sample projects in the `samples/` directory, fetches each sample's README.md, and generates a structured JSON catalog.
+This skill synchronizes the samples data file with the `microsoft/aspire-samples` GitHub repository. It enumerates all sample projects in the `samples/` directory, fetches each sample's README.md, and generates a structured JSON catalog.
 
 ## Overview
 
@@ -13,7 +13,7 @@ The aspire.dev site maintains a data file for samples:
 
 - **`src/frontend/src/data/samples.json`** — Sample metadata including titles, descriptions, tags, deep links, and README content extracted from the upstream repo.
 
-This skill keeps that file in sync with the `dotnet/aspire-samples` repository on GitHub.
+This skill keeps that file in sync with the `microsoft/aspire-samples` repository on GitHub.
 
 ## Prerequisites
 
@@ -32,7 +32,7 @@ Fetch the latest sample data from the GitHub API:
 cd src/frontend && node scripts/update-samples.js
 ```
 
-This writes updated sample metadata to `src/frontend/src/data/samples.json`. The script queries the GitHub Contents API for directories in `dotnet/aspire-samples/samples/`, fetches each sample's README.md, and extracts structured metadata.
+This writes updated sample metadata to `src/frontend/src/data/samples.json`. The script queries the GitHub Contents API for directories in `microsoft/aspire-samples/samples/`, fetches each sample's README.md, and extracts structured metadata.
 
 ### 2. What the script does
 
@@ -46,7 +46,7 @@ For each subdirectory in `samples/`:
    - **`name`** — The directory name (e.g., `aspire-shop`)
    - **`title`** — Extracted from the first `# heading` in the README
    - **`description`** — The first paragraph of body text after the title (before any `##` heading)
-   - **`href`** — Deep link to the sample on GitHub: `https://github.com/dotnet/aspire-samples/tree/main/samples/{name}`
+  - **`href`** — Deep link to the sample on GitHub: `https://github.com/microsoft/aspire-samples/tree/main/samples/{name}`
    - **`readme`** — The full Markdown content of the README.md, with image paths rewritten to local assets (see below)
    - **`tags`** — Auto-detected tags based on technologies, languages, services, and features mentioned in the README and directory name
    - **`thumbnail`** — Local asset path to the first image referenced in the README (if any), or `null`
@@ -119,7 +119,7 @@ The output `samples.json` is a JSON array with entries like:
     "name": "aspire-shop",
     "title": "Aspire Shop",
     "description": "The app consists of four .NET services including a Blazor frontend, catalog API, catalog database manager, and basket service.",
-    "href": "https://github.com/dotnet/aspire-samples/tree/main/samples/aspire-shop",
+    "href": "https://github.com/microsoft/aspire-samples/tree/main/samples/aspire-shop",
     "readme": "# Aspire Shop\n\n![Screenshot...](~/assets/samples/aspire-shop/aspireshop-frontend-complete.png)...",
     "tags": ["csharp", "blazor", "postgresql", "redis", "grpc", "ef-core"],
     "thumbnail": "~/assets/samples/aspire-shop/aspireshop-frontend-complete.png"

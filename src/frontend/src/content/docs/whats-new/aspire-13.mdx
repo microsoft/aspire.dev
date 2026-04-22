@@ -33,7 +33,7 @@ This release introduces:
 - **Multi-language infrastructure**: Connection properties work in any language (URI, JDBC, individual properties), certificate trust across languages and containers.
 - **Container files as build artifacts**: A new paradigm where build outputs are containers, not folders - enabling reproducible, isolated, and portable builds.
 - **aspire do: a new platform for build, publish and deployment pipelines**: enabling parallel execution, dependency tracking, and extensible workflows for building, publishing, and deploying applications.
-- **Modern CLI**: `aspire init` to Aspirify existing apps, and improved deployment state management that remembers your configuration across runs.
+- **Modern CLI**: `aspire init` to add Aspire to existing apps, and improved deployment state management that remembers your configuration across runs.
 - **VS Code extension**: Streamlined Aspire development with commands for project creation, integration management, multi-language debugging, and deployment.
 
 Along with the rebranding, Aspire now has a new home at **[aspire.dev](https://aspire.dev)** — your central hub for documentation, getting started guides, and community resources.
@@ -353,9 +353,9 @@ This template includes:
 - **Redis caching** (optional): A distributed cache across requests.
 - **Container files**: Frontend static files served by the Python backend.
 
-Build a full-stack multi-language app—Python back end + JavaScript front end—fast. Explore it, customize it, ship it. [Create one now](/get-started/first-app-csharp-apphost/?lang=python) and [deploy it today](/get-started/deploy-first-app/?lang=python)!
+Build a full-stack multi-language app—Python backend + JavaScript frontend—fast. Use `aspire new aspire-py-starter` to generate it, then explore the [Python integration](/integrations/frameworks/python/) and [JavaScript integration](/integrations/frameworks/javascript/) guides.
 
-The React front end communicates with the FastAPI back end via HTTP endpoints, demonstrating seamless integration between the two languages within a single Aspire application. The new template has a modern UX:
+The React frontend communicates with the FastAPI backend via HTTP endpoints, demonstrating seamless integration between the two languages within a single Aspire application. The new template has a modern UX:
 
 import pythonStarterDarkPng from '@assets/get-started/python-starter-dark.png';
 import pythonStarterLightPng from '@assets/get-started/python-starter-light.png';
@@ -589,7 +589,7 @@ This enables secure HTTPS communication during local development across all lang
 
 #### Simplified service URL environment variables
 
-Aspire 13.0 introduces multi-language-friendly environment variables that make service discovery easier for non-.NET applications.
+Aspire 13.0 introduces multi-language-friendly environment variables that make service discovery easier for apps that consume environment variables directly.
 
 ```csharp title="C# — Simplified service URL environment variables"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -603,7 +603,7 @@ var pythonApp = builder.AddPythonModule("worker", "./worker", "worker.main")
 await builder.Build().RunAsync();
 ```
 
-Instead of complex service discovery formats, non-.NET apps receive simple environment variables:
+Instead of complex service discovery formats, these apps receive simple environment variables:
 
 - `API_HTTP=http://localhost:5000`—HTTP endpoint.
 - `API_HTTPS=https://localhost:5001`—HTTPS endpoint.
@@ -663,8 +663,8 @@ Select a template:
 
 **Available starter templates:**
 
-- [**Blazor & Minimal API starter**](/get-started/first-app-csharp-apphost/?lang=csharp): Full-stack .NET application with Blazor frontend and ASP.NET Core API.
-- [**React (Vite) & FastAPI starter**](/get-started/first-app-csharp-apphost/?lang=python): Multi-language application demonstrating Python and JavaScript integration.
+- [**Blazor & Minimal API starter**](/get-started/first-app/?lang=csharp): Full-stack .NET application with Blazor frontend and ASP.NET Core API.
+- [**React (Vite) & FastAPI starter**](#starter-template-vite--fastapi): Multi-language starter template demonstrating Python and JavaScript integration.
 - **Empty AppHost**: Minimal single-file AppHost for custom applications.
 
 The starter template collection is designed to be extensible and will grow over time to showcase different architectural patterns and technology combinations. This approach makes it easier to explore Aspire's capabilities and learn from working examples.
@@ -866,7 +866,7 @@ api.PublishWithContainerFiles(frontend, "./static");
 **How it works:**
 
 1. The `frontend` resource builds inside its container, producing output files.
-2. Aspire extracts those files from the frontend container.
+2. Aspire extracts those files from the `frontend` container.
 3. The files are copied into the `api` container at `./static`.
 4. The final `api` container contains both the API code and the frontend static files.
 
@@ -874,7 +874,7 @@ api.PublishWithContainerFiles(frontend, "./static");
 
 The FastAPI app can serve the static files:
 
-```python title="Python — Serving front end from back end"
+```python title="Python — Serving frontend from backend"
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -993,7 +993,7 @@ This enables a complete mobile + cloud development experience where you can run 
 
 ## 📊 Dashboard enhancements
 
-### Aspire MCP server
+### Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server
 
 [The Dashboard now includes an MCP server](/dashboard/mcp-server/) that integrates Aspire into your AI development ecosystem. The MCP server enables AI assistants to query resources, access telemetry data, and execute commands directly from your development environment.
 
@@ -1670,7 +1670,7 @@ Aspire 13.0 changes the default behavior of `DefaultAzureCredential` when deploy
 
 **What changed:**
 
-When you deploy to Azure Container Apps or Azure App Service, Aspire now automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable to `managedidentity`. This configures `DefaultAzureCredential` to behave deterministically by only using `ManagedIdentityCredential`, instead of attempting other credential types like `EnvironmentCredential` or `WorkloadIdentityCredential` first.
+When you deploy to Azure Container Apps or Azure App Service, Aspire now automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable to `ManagedIdentityCredential`. This configures `DefaultAzureCredential` to behave deterministically by only using `ManagedIdentityCredential`, instead of attempting other credential types like `EnvironmentCredential` or `WorkloadIdentityCredential` first.
 
 **Why this change:**
 
@@ -1684,7 +1684,7 @@ When you deploy to Azure Container Apps or Azure App Service, Aspire now automat
 
 **New behavior (13.0):**
 
-`DefaultAzureCredential` only uses `ManagedIdentityCredential` when the `AZURE_TOKEN_CREDENTIALS` environment variable is set to `managedidentity`.
+`DefaultAzureCredential` only uses `ManagedIdentityCredential` when the `AZURE_TOKEN_CREDENTIALS` environment variable is set to `ManagedIdentityCredential`.
 
 **Affected APIs:**
 
@@ -1747,7 +1747,7 @@ var api = builder.AddProject<Projects.Api>("api")
     });
 ```
 
-For more details, see [Deployment pipeline documentation](/get-started/pipelines/).
+For more details, see [Deployment pipeline documentation](/deployment/pipelines/).
 
 #### Migrating from lifecycle hooks to events
 

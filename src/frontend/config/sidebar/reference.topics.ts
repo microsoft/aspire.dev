@@ -1,127 +1,4 @@
 import type { StarlightSidebarTopicsUserConfig } from 'starlight-sidebar-topics';
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-/* ------------------------------------------------------------------ */
-/*  Dynamic sidebar: read package data files and build reference tree  */
-/* ------------------------------------------------------------------ */
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const packagesDir = join(__dirname, '..', '..', 'src', 'data', 'pkgs');
-
-function slugify(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
-    .toLowerCase();
-}
-
-const memberKindOrder = [
-  'constructor',
-  'property',
-  'method',
-  'field',
-  'event',
-  'indexer',
-] as const;
-
-const memberKindLabels: Record<string, string> = {
-  constructor: 'Constructors',
-  property: 'Properties',
-  method: 'Methods',
-  field: 'Fields',
-  event: 'Events',
-  indexer: 'Indexers',
-};
-
-const memberKindSlugs: Record<string, string> = {
-  constructor: 'constructors',
-  property: 'properties',
-  method: 'methods',
-  field: 'fields',
-  event: 'events',
-  indexer: 'indexers',
-};
-
-interface PackageMember {
-  name: string;
-  kind: string;
-}
-
-interface PackageType {
-  name: string;
-  kind: string;
-  members?: PackageMember[];
-  enumMembers?: any[];
-}
-
-interface PackageData {
-  package: { name: string; version: string; targetFramework: string };
-  types: PackageType[];
-}
-
-/** Marker interface: interface kind with no members. */
-function isMarkerInterface(type: PackageType): boolean {
-  if (type.kind !== 'interface') return false;
-  return (type.members?.length ?? 0) === 0 && (type.enumMembers?.length ?? 0) === 0;
-}
-
-/** Simple type that doesn't need expandable sub-pages in the sidebar. */
-function isFlatSidebarType(type: PackageType): boolean {
-  return type.kind === 'enum' || isMarkerInterface(type);
-}
-
-function loadReferenceSidebar() {
-  let files: string[];
-  try {
-    files = readdirSync(packagesDir).filter((f: string) => f.endsWith('.json'));
-  } catch {
-    return [];
-  }
-
-  const packages: PackageData[] = files.map((f: string) =>
-    JSON.parse(readFileSync(join(packagesDir, f), 'utf-8')) as PackageData,
-  );
-
-  return packages
-    .sort((a, b) => a.package.name.localeCompare(b.package.name))
-    .map((pkg) => ({
-      label: pkg.package.name,
-      items: [
-        { label: 'Overview', link: `/reference/api/${pkg.package.name}/` },
-        ...pkg.types
-          .slice()
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((t): any => {
-            if (isFlatSidebarType(t)) {
-              return {
-                label: t.name,
-                link: `/reference/api/${pkg.package.name}/${slugify(t.name)}/`,
-              };
-            }
-
-            const base = `/reference/api/${pkg.package.name}/${slugify(t.name)}`;
-            const items: { label: string; link: string }[] = [
-              { label: 'Overview', link: `${base}/` },
-            ];
-            for (const kind of memberKindOrder) {
-              if (t.members?.some((m) => m.kind === kind)) {
-                items.push({
-                  label: memberKindLabels[kind] ?? kind,
-                  link: `${base}/${memberKindSlugs[kind] ?? kind}/`,
-                });
-              }
-            }
-
-            return {
-              label: t.name,
-              collapsed: true,
-              items,
-            };
-          }),
-      ],
-    }));
-}
 
 export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
   label: {
@@ -139,7 +16,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
     ja: 'リファレンス',
     ko: '참고 자료',
     'pt-BR': 'Referência',
-    'pt-PT': 'Referência',
     tr: 'Referans',
     uk: 'Довідник',
   },
@@ -161,7 +37,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
         ko: '개요',
         pt: 'Visão geral',
         'pt-BR': 'Visão geral',
-        'pt-PT': 'Visão geral',
         ru: 'Обзор',
         tr: 'Genel Bakış',
         uk: 'Огляд',
@@ -184,7 +59,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
         ko: '샘플',
         pt: 'Exemplos',
         'pt-BR': 'Exemplos',
-        'pt-PT': 'Exemplos',
         ru: 'Примеры',
         tr: 'Örnekler',
         uk: 'Зразки',
@@ -207,7 +81,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
         ko: 'API 참조',
         pt: 'Referência da API',
         'pt-BR': 'Referência da API',
-        'pt-PT': 'Referência da API',
         ru: 'Справочник по API',
         tr: 'API referansı',
         uk: 'Довідник API',
@@ -230,7 +103,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: 'C# API 검색',
             pt: 'Pesquisar APIs C#',
             'pt-BR': 'Pesquisar APIs C#',
-            'pt-PT': 'Pesquisar APIs C#',
             ru: 'Поиск C# API',
             tr: "C# API'leri Arayın",
             uk: 'Пошук C# API',
@@ -253,7 +125,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: 'TypeScript API 검색',
             pt: 'Pesquisar APIs TypeScript',
             'pt-BR': 'Pesquisar APIs TypeScript',
-            'pt-PT': 'Pesquisar APIs TypeScript',
             ru: 'Поиск TypeScript API',
             tr: "TypeScript API'leri Arayın",
             uk: 'Пошук TypeScript API',
@@ -280,7 +151,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
         ja: 'CLI リファレンス',
         ko: 'CLI 참고서',
         'pt-BR': 'Referência de CLI',
-        'pt-PT': 'Referência de CLI',
         tr: 'CLI referansı',
         uk: 'CLI Довідник',
       },
@@ -301,7 +171,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: '개요',
             pt: 'Visão geral',
             'pt-BR': 'Visão geral',
-            'pt-PT': 'Visão geral',
             ru: 'Обзор',
             tr: 'Genel Bakış',
             uk: 'Огляд',
@@ -324,7 +193,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: '설치 스크립트',
             pt: 'Script de instalação',
             'pt-BR': 'Script de instalação',
-            'pt-PT': 'Script de instalação',
             ru: 'Скрипт установки',
             tr: 'Kurulum Betiği',
             uk: 'Скрипт установки',
@@ -347,7 +215,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: '구성',
             pt: 'Configuração',
             'pt-BR': 'Configuração',
-            'pt-PT': 'Configuração',
             ru: 'Конфигурация',
             tr: 'Yapılandırma',
             uk: 'Конфігурація',
@@ -370,7 +237,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: 'Microsoft 원격 분석',
             pt: 'Telemetria da Microsoft',
             'pt-BR': 'Telemetria da Microsoft',
-            'pt-PT': 'Telemetria da Microsoft',
             ru: 'Телеметрия Microsoft',
             tr: 'Microsoft telemetrisi',
             uk: 'Телеметрія Microsoft',
@@ -393,7 +259,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             ko: '명령어',
             pt: 'Comandos',
             'pt-BR': 'Comandos',
-            'pt-PT': 'Comandos',
             ru: 'Команды',
             tr: 'Komutlar',
             uk: 'Команди',
@@ -640,7 +505,6 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
         ko: '진단',
         pt: 'Diagnósticos',
         'pt-BR': 'Diagnósticos',
-        'pt-PT': 'Diagnósticos',
         ru: 'Диагностика',
         tr: 'Tanılama',
         uk: 'Діагностика',
@@ -829,13 +693,12 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
         ko: '지원',
         pt: 'Suporte',
         'pt-BR': 'Suporte',
-        'pt-PT': 'Suporte',
         ru: 'Поддержка',
         tr: 'Destek',
         uk: 'Підтримка',
         'zh-CN': '支持',
       },
       link: '/support/',
-    }
+    },
   ],
 };

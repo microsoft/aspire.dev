@@ -1,0 +1,160 @@
+---
+title: Deploy to Azure
+description: Learn how Azure deployment works in Aspire, the shared prerequisites, and how to choose between Azure Container Apps and Azure App Service.
+---
+
+import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Use `aspire deploy` to deploy Aspire applications to Azure. Aspire uses the Azure-targeted environments in your AppHost to determine where each compute resource should go, then resolves parameters, provisions infrastructure, builds and pushes container images when needed, and applies the deployment.
+
+<LearnMore>
+To see the Azure resources and integrations Aspire can model in your AppHost, browse the [Azure integrations overview](/integrations/cloud/azure/overview/).
+</LearnMore>
+
+## Shared prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- Access to an Azure tenant and subscription for the identity that runs `aspire deploy`
+
+## Authenticate to Azure
+
+How you authenticate to Azure depends on where `aspire deploy` runs.
+
+### Local deploys
+
+By default, local `aspire deploy` uses Azure CLI credentials:
+
+```bash title="Authenticate with Azure"
+az login
+```
+
+If you want a different local credential source, set `Azure:CredentialSource` (or `Azure__CredentialSource`) to one of the supported values: `AzureCli`, `AzureDeveloperCli`, `VisualStudio`, `VisualStudioCode`, `AzurePowerShell`, `InteractiveBrowser`, or `Default`.
+
+### GitHub Actions
+
+Use [`azure/login`](https://github.com/Azure/login) with OpenID Connect (OIDC) / workload identity federation so the workflow can exchange its GitHub identity for Azure credentials.
+
+### Azure DevOps
+
+Use an Azure Resource Manager service connection. Prefer workload identity federation over secret-based connections.
+
+<LearnMore>
+For provider-specific setup, see [Configuring OpenID Connect in Azure](https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure) and [Connect to Azure with an Azure Resource Manager service connection](https://learn.microsoft.com/azure/devops/pipelines/library/connect-to-azure?view=azure-devops).
+</LearnMore>
+
+## Shared Azure settings
+
+After authentication succeeds, `aspire deploy` still needs a small set of shared Azure settings. By default, the tenant comes from your active Azure credential context, while the settings below tell Aspire which subscription, location, and resource group to target.
+
+| Setting | Environment variable | Purpose |
+| --- | --- | --- |
+| `Azure:SubscriptionId` | `Azure__SubscriptionId` | Target Azure subscription |
+| `Azure:Location` | `Azure__Location` | Default Azure region for provisioned resources |
+| `Azure:ResourceGroup` | `Azure__ResourceGroup` | Resource group to create or reuse |
+
+### Local settings
+
+For local deployment, Aspire can prompt for missing values on the first deploy, or you can persist them locally:
+
+```bash title="Set shared Azure settings locally"
+aspire secret set "Azure:SubscriptionId" "your-subscription-id"
+aspire secret set "Azure:Location" "eastus"
+aspire secret set "Azure:ResourceGroup" "my-app-rg"
+```
+
+Use `Azure:TenantId` when you need to pin a tenant, `Azure:CredentialSource` to force a specific local credential type, and `Azure:AllowResourceGroupCreation` when deployment must reuse an existing resource group instead of creating one automatically.
+
+<LearnMore>
+For the full local Azure configuration surface, see [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/).
+</LearnMore>
+
+### CI/CD settings
+
+After your CI/CD system authenticates to Azure, provide the shared Azure settings and any AppHost parameters to the deploy step. `--environment` selects the Aspire environment for environment-scoped parameter resolution, but your pipeline still supplies the `Azure__*` and `Parameters__*` values it needs, typically through environment variables or secrets.
+
+| Input | How you provide it | Purpose |
+| --- | --- | --- |
+| Azure subscription | `Azure__SubscriptionId` | Select the target Azure subscription |
+| Azure location | `Azure__Location` | Set the default region for provisioned resources |
+| Azure resource group | `Azure__ResourceGroup` | Select the resource group to create or reuse |
+| AppHost parameters | `Parameters__*` environment variables | Supply any required AppHost inputs |
+| Aspire environment | `aspire deploy --environment <name>` | Select the Aspire environment, such as `Production`, for environment-scoped parameter resolution |
+
+<LearnMore>
+For parameter resolution and broader pipeline guidance, see [Environments](/deployment/environments/#how-parameter-values-are-resolved), [CI/CD](/deployment/ci-cd/), and the [`aspire deploy` command reference](/reference/cli/commands/aspire-deploy/).
+</LearnMore>
+
+## How Azure deployment works
+
+Azure deployment starts from the compute environments in your AppHost. Each compute resource deploys into the environment assigned to it, and a single AppHost can use multiple Azure environments when you need different targets in the same app.
+
+<Steps>
+
+1. Add the Azure target integration that matches where you want to run your app.
+
+2. Configure the Azure environment in your AppHost.
+
+3. Run `aspire deploy`. Local deploys can prompt for missing values after you sign in to Azure, while CI/CD pipelines should authenticate to Azure and provide the shared Azure settings and AppHost parameters ahead of time.
+
+4. Aspire resolves parameters, provisions the target infrastructure, signs the local container runtime in to the target Azure Container Registry when images need to be pushed, builds and pushes container images, configures managed identity and image pull access, and deploys each resource into its assigned environment.
+
+</Steps>
+
+Both Azure Container Apps and Azure App Service provision or attach an Azure Container Registry by default. Aspire uses the active deployment credential to log the local container runtime in for image push, and the deployed resources later pull those images with managed identity and `AcrPull` permissions instead of stored registry usernames or passwords.
+
+## Resource naming
+
+Aspire treats AppHost resource names as inputs to generated Azure resource names, not as a guarantee that the exact same name appears in Azure. Generated names are normalized to satisfy Azure resource constraints, and one Azure environment can create related resources such as identities, registries, file shares, and managed environment storage.
+
+If you're deploying to Azure Container Apps and upgrading an environment that previously used `azd`-managed naming, review the ACA naming guidance before deploying so you don't create duplicate Azure resources.
+
+<LearnMore>
+For ACA naming details, see [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/#handle-naming-conventions).
+</LearnMore>
+
+## Target differences
+
+| Target | Endpoint model | Best fit |
+| --- | --- | --- |
+| [Azure Container Apps](/deployment/azure/container-apps/) | Public or internal endpoints, with one primary HTTP ingress per app. | Distributed apps and containerized services that fit the Container Apps environment model. |
+| [Azure App Service](/deployment/azure/app-service/) | Public website model with external `http`/`https` endpoints only. | Web apps and APIs that fit the App Service website and deployment slot model and use managed services for backing infrastructure such as databases and caches. |
+
+:::note
+Azure Container Apps can also host supporting service containers such as databases, caches, and brokers. That flexibility can be useful for development or specialized deployments, but managed services are still the recommended production default for those dependencies.
+:::
+
+## Deployment targets
+
+<CardGrid>
+  <LinkCard
+    title="Azure Container Apps"
+    description="Understand ingress, registry, identity, and optional dashboard settings for Container Apps deployments."
+    href="/deployment/azure/container-apps/"
+  />
+  <LinkCard
+    title="Azure App Service"
+    description="Understand the App Service website model, slots, dashboard, and Application Insights for deployment."
+    href="/deployment/azure/app-service/"
+  />
+</CardGrid>
+
+## Guidance
+
+<CardGrid>
+  <LinkCard
+    title="Customize Azure resources"
+    description="Use shared Azure customization patterns for naming, existing resources, role assignments, outputs, and ConfigureInfrastructure."
+    href="/integrations/cloud/azure/customize-resources/"
+  />
+  <LinkCard
+    title="Azure security best practices"
+    description="Review Azure-specific security guidance for Aspire deployments."
+    href="/deployment/azure/azure-security-best-practices/"
+  />
+</CardGrid>
+
+<LearnMore>
+If you need to keep an existing `azd` workflow, see [Use existing azd workflows](/deployment/azure/azure-developer-cli/).
+</LearnMore>

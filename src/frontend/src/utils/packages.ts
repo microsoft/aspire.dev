@@ -2,24 +2,90 @@
 /*  Shared helpers for the auto-generated API-reference pages.        */
 /* ------------------------------------------------------------------ */
 
+import type { CollectionEntry } from 'astro:content';
 import { getCollection } from 'astro:content';
+
+export interface GenericParameter {
+  name: string;
+}
+
+export interface PackageParameter {
+  type: string;
+}
+
+export interface PackageMember {
+  name: string;
+  kind?: string;
+  parameters?: PackageParameter[];
+  docs?: {
+    summary?: unknown;
+  };
+}
+
+export interface PackageEnumMember {
+  name: string;
+}
+
+export interface PackageType {
+  name: string;
+  kind: string;
+  namespace?: string;
+  fullName?: string;
+  isGeneric?: boolean;
+  genericParameters?: GenericParameter[];
+  members?: PackageMember[];
+  enumMembers?: PackageEnumMember[];
+  docs?: {
+    summary?: unknown;
+  };
+}
+
+export interface PackageMetadata {
+  name: string;
+  version: string;
+  targetFramework: string;
+  sourceRepository?: string;
+  sourceCommit?: string;
+}
+
+export interface PackageApiDocument {
+  package: PackageMetadata;
+  types: PackageType[];
+}
+
+export type PackageCollectionEntry = Omit<CollectionEntry<'packages'>, 'data'> & {
+  data: PackageApiDocument;
+};
+
+let packagesPromise: Promise<PackageCollectionEntry[]> | undefined;
+const shouldCachePackages = import.meta.env.PROD;
 
 /**
  * Fetch all package entries from the content collection.
+ * Memoized so Astro's many API routes reuse a single collection load.
  */
-export async function getPackages() {
-  return await getCollection('packages');
+export function getPackages(): Promise<PackageCollectionEntry[]> {
+  if (!shouldCachePackages) {
+    return getCollection('packages');
+  }
+
+  packagesPromise ??= getCollection('packages');
+  return packagesPromise;
 }
 
 /** Count generic type parameters on a type object. */
-export function genericArity(type: { genericParameters?: any[] }): number {
+export function genericArity(type: { genericParameters?: GenericParameter[] }): number {
   return type.genericParameters?.length ?? 0;
 }
 
 /** Display name including generic type parameters (e.g. `InteractionResult<T>`). */
-export function typeDisplayName(type: { name: string; isGeneric?: boolean; genericParameters?: { name: string }[] }): string {
+export function typeDisplayName(type: {
+  name: string;
+  isGeneric?: boolean;
+  genericParameters?: { name: string }[];
+}): string {
   return type.isGeneric && type.genericParameters?.length
-    ? `${type.name}<${type.genericParameters.map(g => g.name).join(', ')}>`
+    ? `${type.name}<${type.genericParameters.map((g) => g.name).join(', ')}>`
     : type.name;
 }
 
@@ -91,14 +157,14 @@ export const memberKindSlugs: Record<string, string> = {
 /* ---- type helpers ------------------------------------------------ */
 
 /** Group an array of types by their `kind`, maintaining a meaningful order. */
-export function groupTypesByKind(types: any[]): Map<string, any[]> {
-  const groups = new Map<string, any[]>();
+export function groupTypesByKind(types: PackageType[]): Map<string, PackageType[]> {
+  const groups = new Map<string, PackageType[]>();
   for (const kind of kindOrder) {
-    const matching = types.filter((t: any) => t.kind === kind);
+    const matching = types.filter((t) => t.kind === kind);
     if (matching.length > 0) {
       groups.set(
         kind,
-        matching.sort((a: any, b: any) => a.name.localeCompare(b.name)),
+        matching.sort((a, b) => a.name.localeCompare(b.name))
       );
     }
   }
@@ -109,8 +175,8 @@ export function groupTypesByKind(types: any[]): Map<string, any[]> {
  * Group types by their `namespace`, sorted alphabetically.
  * Each namespace maps to its types sorted by name.
  */
-export function groupTypesByNamespace(types: any[]): Map<string, any[]> {
-  const nsMap = new Map<string, any[]>();
+export function groupTypesByNamespace(types: PackageType[]): Map<string, PackageType[]> {
+  const nsMap = new Map<string, PackageType[]>();
   for (const t of types) {
     const ns = t.namespace || '(global)';
     const list = nsMap.get(ns) ?? [];
@@ -121,10 +187,7 @@ export function groupTypesByNamespace(types: any[]): Map<string, any[]> {
   const sorted = new Map(
     [...nsMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([ns, ts]) => [
-        ns,
-        ts.sort((a: any, b: any) => a.name.localeCompare(b.name)),
-      ]),
+      .map(([ns, ts]) => [ns, ts.sort((a, b) => a.name.localeCompare(b.name))])
   );
   return sorted;
 }
@@ -134,16 +197,23 @@ export function groupTypesByNamespace(types: any[]): Map<string, any[]> {
  * Includes parameter types for indexers, methods, and constructors to
  * disambiguate overloads.
  */
-export function memberSlug(member: { name: string; kind?: string; parameters?: { type: string }[] }): string {
+export function memberSlug(member: {
+  name: string;
+  kind?: string;
+  parameters?: { type: string }[];
+}): string {
   let base = member.name === '.ctor' ? 'constructor' : member.name;
   if (member.kind === 'indexer' && member.parameters?.length) {
-    const paramTypes = member.parameters.map(p => shortTypeName(p.type)).join(', ');
+    const paramTypes = member.parameters.map((p) => shortTypeName(p.type)).join(', ');
     base = `this[${paramTypes}]`;
   } else if ((member.kind === 'method' || member.kind === 'constructor') && member.parameters) {
-    const paramTypes = member.parameters.map(p => shortTypeName(p.type)).join(', ');
+    const paramTypes = member.parameters.map((p) => shortTypeName(p.type)).join(', ');
     base = `${base}(${paramTypes})`;
   }
-  return base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 /**
@@ -151,23 +221,27 @@ export function memberSlug(member: { name: string; kind?: string; parameters?: {
  * methods, and constructors.
  * e.g. `this[string]`, `Add(string, int)`, `Constructor(ILogger)`.
  */
-export function memberDisplayName(member: { name: string; kind?: string; parameters?: { type: string }[] }): string {
+export function memberDisplayName(member: {
+  name: string;
+  kind?: string;
+  parameters?: { type: string }[];
+}): string {
   if (member.kind === 'indexer' && member.parameters?.length) {
-    const paramTypes = member.parameters.map(p => shortTypeName(p.type)).join(', ');
+    const paramTypes = member.parameters.map((p) => shortTypeName(p.type)).join(', ');
     return `this[${paramTypes}]`;
   }
   if ((member.kind === 'method' || member.kind === 'constructor') && member.parameters) {
-    const paramTypes = member.parameters.map(p => shortTypeName(p.type)).join(', ');
+    const paramTypes = member.parameters.map((p) => shortTypeName(p.type)).join(', ');
     return `${member.name}(${paramTypes})`;
   }
   return member.name;
 }
 
 /** Group members by their `kind`, maintaining a meaningful order. */
-export function groupMembersByKind(members: any[]): Map<string, any[]> {
-  const groups = new Map<string, any[]>();
+export function groupMembersByKind(members: PackageMember[]): Map<string, PackageMember[]> {
+  const groups = new Map<string, PackageMember[]>();
   for (const kind of memberKindOrder) {
-    const matching = members.filter((m: any) => m.kind === kind);
+    const matching = members.filter((m) => m.kind === kind);
     if (matching.length > 0) {
       groups.set(kind, matching);
     }
@@ -185,7 +259,7 @@ export function typeHref(
   base: string,
   packageName: string,
   typeName: string,
-  arity: number = 0,
+  arity: number = 0
 ): string {
   const b = base.replace(/\/$/, '');
   return `${b}/reference/api/csharp/${packageSlug(packageName)}/${slugify(typeName, arity)}/`;
@@ -203,9 +277,9 @@ export function nugetHref(packageName: string): string {
  */
 export function resolveTypeLink(
   raw: string,
-  types: any[],
+  types: PackageType[],
   base: string,
-  packageName: string,
+  packageName: string
 ): { href: string; label: string } | null {
   // Strip nullable markers and collection wrappers for matching.
   const clean = raw
@@ -213,9 +287,7 @@ export function resolveTypeLink(
     .replace(/^System\.Threading\.Tasks\.Task<(.+)>$/, '$1')
     .replace(/^System\.Collections\.Generic\.\w+<(.+)>$/, '$1');
 
-  const match = types.find(
-    (t: any) => t.fullName === clean || t.fullName === raw,
-  );
+  const match = types.find((t) => t.fullName === clean || t.fullName === raw);
   if (match) {
     return {
       href: typeHref(base, packageName, match.name, genericArity(match)),
@@ -235,7 +307,10 @@ export function resolveTypeLink(
 export function shortTypeName(fullName: string): string {
   let firstAngle = -1;
   for (let i = 0; i < fullName.length; i++) {
-    if (fullName[i] === '<') { firstAngle = i; break; }
+    if (fullName[i] === '<') {
+      firstAngle = i;
+      break;
+    }
   }
 
   if (firstAngle < 0) {
@@ -261,7 +336,7 @@ export function shortTypeName(fullName: string): string {
   }
   if (current.trim()) args.push(current.trim());
 
-  const shortArgs = args.map(a => shortTypeName(a));
+  const shortArgs = args.map((a) => shortTypeName(a));
   return `${outerShort}<${shortArgs.join(', ')}>`;
 }
 
@@ -354,10 +429,17 @@ export function formatSignature(sig: string): string {
   if (params.length === 0) return sig;
 
   const indent = '    ';
-  return prefix + '\n' + params.map((p, i) => {
-    const sep = i < params.length - 1 ? ',' : '';
-    return indent + p.trim() + sep;
-  }).join('\n') + suffix;
+  return (
+    prefix +
+    '\n' +
+    params
+      .map((p, i) => {
+        const sep = i < params.length - 1 ? ',' : '';
+        return indent + p.trim() + sep;
+      })
+      .join('\n') +
+    suffix
+  );
 }
 
 /**
@@ -398,7 +480,7 @@ export interface ParentTypeInfo {
 export function buildClassBodySignature(
   rawSig: string,
   parentType: ParentTypeInfo,
-  memberKind: string,
+  memberKind: string
 ): string | null {
   if (!rawSig) return null;
 
@@ -416,7 +498,7 @@ export function buildClassBodySignature(
 
     let typeName = parentType.name;
     if (parentType.isGeneric && parentType.genericParameters?.length) {
-      typeName += `<${parentType.genericParameters.map(g => g.name).join(', ')}>`;
+      typeName += `<${parentType.genericParameters.map((g) => g.name).join(', ')}>`;
     }
 
     const typeDecl = mods.join(' ') + ' ' + typeName;
@@ -444,11 +526,16 @@ export function buildClassBodySignature(
           memberLine = '    ' + cleaned;
         } else {
           memberLine =
-            '    ' + pre + '\n' +
-            params.map((p, i) => {
-              const sep = i < params.length - 1 ? ',' : '';
-              return '        ' + p.trim() + sep;
-            }).join('\n') + suf;
+            '    ' +
+            pre +
+            '\n' +
+            params
+              .map((p, i) => {
+                const sep = i < params.length - 1 ? ',' : '';
+                return '        ' + p.trim() + sep;
+              })
+              .join('\n') +
+            suf;
         }
       }
     }
@@ -507,7 +594,7 @@ export function dedent(code: string): string {
   }
   if (minIndent === 0 || minIndent === Infinity) return code;
   return lines
-    .map(line => {
+    .map((line) => {
       if (line.trim().length === 0) return '';
       return line.startsWith(' '.repeat(minIndent)) ? line.slice(minIndent) : line;
     })

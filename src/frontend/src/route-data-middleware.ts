@@ -23,12 +23,11 @@ export const onRequest = defineRouteMiddleware((context) => {
   const { entry, pagination, sidebar } = routeData;
 
   // --- Step 1: Group boundary rules ---
-  const location = findCurrentPage(sidebar as SidebarEntry[]);
+  const location = findCurrentPage(sidebar);
   if (location) {
     const { siblings, index } = location;
     const prevSibling = index > 0 ? siblings[index - 1] : undefined;
-    const nextSibling =
-      index < siblings.length - 1 ? siblings[index + 1] : undefined;
+    const nextSibling = index < siblings.length - 1 ? siblings[index + 1] : undefined;
 
     if (!prevSibling || prevSibling.type !== 'link') {
       pagination.prev = undefined;
@@ -91,10 +90,14 @@ interface SidebarEntry {
  * and return its sibling entries along with its index within them.
  */
 function findCurrentPage(
-  entries: SidebarEntry[],
+  entries: SidebarEntry[]
 ): { siblings: SidebarEntry[]; index: number } | undefined {
   for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i]!;
+    const entry = entries[i];
+    if (!entry) {
+      continue;
+    }
+
     if (entry.type === 'link' && entry.isCurrent) {
       return { siblings: entries, index: i };
     }
@@ -124,9 +127,7 @@ function isSplashPage(id: string): boolean {
 }
 
 /** Check whether a frontmatter prev/next value is an explicit link override. */
-function isExplicitLink(
-  config: unknown,
-): config is { link: string; label: string } {
+function isExplicitLink(config: unknown): config is { link: string; label: string } {
   return (
     typeof config === 'object' &&
     config !== null &&

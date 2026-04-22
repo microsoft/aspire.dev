@@ -1,0 +1,78 @@
+name: Tools Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - src/tools/**
+      - tests/**
+      - .github/workflows/tools-tests.yml
+  pull_request:
+    branches: [ main ]
+    paths:
+      - src/tools/**
+      - tests/**
+      - .github/workflows/tools-tests.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tools-generator-tests:
+    name: Tools Generator Tests
+    runs-on: ubuntu-latest
+    env:
+      TEST_RESULTS_DIR: ${{ github.workspace }}/testresults
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore tests
+        run: |
+          dotnet restore tests/PackageJsonGenerator.Tests/PackageJsonGenerator.Tests.csproj
+          dotnet restore tests/AtsJsonGenerator.Tests/AtsJsonGenerator.Tests.csproj
+
+      - name: Run PackageJsonGenerator tests
+        run: >
+          dotnet test tests/PackageJsonGenerator.Tests/PackageJsonGenerator.Tests.csproj
+          --configuration Release
+          --no-restore
+          --verbosity normal
+          --results-directory "$TEST_RESULTS_DIR"
+          --logger "trx;LogFileName=PackageJsonGenerator.Tests.trx"
+          -bl:"$TEST_RESULTS_DIR/PackageJsonGenerator.Tests.binlog"
+
+      - name: Run AtsJsonGenerator tests
+        run: >
+          dotnet test tests/AtsJsonGenerator.Tests/AtsJsonGenerator.Tests.csproj
+          --configuration Release
+          --no-restore
+          --verbosity normal
+          --results-directory "$TEST_RESULTS_DIR"
+          --logger "trx;LogFileName=AtsJsonGenerator.Tests.trx"
+          -bl:"$TEST_RESULTS_DIR/AtsJsonGenerator.Tests.binlog"
+
+      - name: Upload test results
+        id: upload-test-results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: logs-ToolsGenerator-ubuntu-latest
+          path: |
+            testresults/**/*.trx
+            testresults/**/*.binlog
+
+      - name: Generate test results summary
+        if: always()
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}/tests/scripts/Write-TestSummary.ps1" `
+            -TestResultsFolder $env:TEST_RESULTS_DIR `
+            -SummaryOutputPath $env:GITHUB_STEP_SUMMARY `
+            -ArtifactUrl "${{ steps.upload-test-results.outputs.artifact-url }}" `
+            -SummaryTitle "Tools Generator Tests"

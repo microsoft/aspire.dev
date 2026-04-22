@@ -6,6 +6,7 @@ description: Learn about the aspire new command and its usage. This command crea
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 
 import Include from '@components/Include.astro';
+import LearnMore from '@components/LearnMore.astro';
 import { Aside } from '@astrojs/starlight/components';
 
 ## Name
@@ -32,6 +33,52 @@ This command defaults to **interactive** mode. When executed without any options
   In CI/CD pipelines or other non-interactive environments, use `dotnet new`
   with Aspire templates as an alternative for project creation.
 </Aside>
+
+## Interactive prompts
+
+When running `aspire new` in interactive mode, the command asks one or more questions before generating the project. The available prompts depend on the template and options you provide.
+
+### Use \*.dev.localhost URLs?
+
+During project creation, you may be prompted:
+
+> **Use \*.dev.localhost URLs?**
+
+This prompt determines whether the generated launch profile configures your Aspire services to be accessible via `*.dev.localhost` wildcard subdomain URLs (for example, `https://myservice.dev.localhost`) instead of standard `http://localhost` with port numbers.
+
+#### What are \*.dev.localhost URLs?
+
+`*.dev.localhost` is a wildcard subdomain pattern that resolves to your local machine (`127.0.0.1` or `::1`) in most modern browsers without additional DNS configuration. This resolution is a browser feature — non-browser HTTP clients (for example, `curl`, `HttpClient`, or other command-line tools) don't automatically resolve `*.dev.localhost` subdomains and may require **hosts** file entries to reach them.
+
+The Aspire developer certificate trusts `*.dev.localhost` subdomains, so browsers accept HTTPS connections to any subdomain when the certificate is trusted.
+
+#### Yes — use \*.dev.localhost URLs
+
+Choosing **Yes** configures the generated project so that each service gets a unique subdomain URL such as `https://myservice.dev.localhost`. This option:
+
+- Enables HTTPS for all services from the start, leveraging the Aspire developer certificate.
+- Gives each service its own origin, which prevents cookie and authentication token collisions between services running on the same machine.
+- More closely mirrors a production setup where services are hosted on separate domains or subdomains.
+
+**Prerequisite:** The Aspire developer certificate must be trusted on your machine. If you haven't already done so, run:
+
+```bash title="Aspire CLI"
+aspire certs trust
+```
+
+<LearnMore>
+  [Command reference: `aspire certs trust`](../aspire-certs-trust/)
+</LearnMore>
+
+<Aside type="note">
+  Safari on macOS does not resolve `*.dev.localhost` subdomains to
+  `127.0.0.1` by default. If you use Safari, choose **No** or add entries to
+  your **hosts** file (for example, `127.0.0.1 myservice.dev.localhost`).
+</Aside>
+
+#### No — use standard localhost URLs (default)
+
+Choosing **No** (the default) configures services with standard `http://localhost:<port>` addresses. This option requires no certificate setup and works in all browsers and tools without additional configuration.
 
 ## Options
 

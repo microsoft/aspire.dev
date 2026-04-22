@@ -8,7 +8,7 @@ import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
-import lunaria from '@lunariajs/starlight';
+import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';
@@ -20,6 +20,9 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+
+const modeArgIndex = process.argv.indexOf('--mode');
+const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 
 // https://astro.build/config
 export default defineConfig({
@@ -34,6 +37,7 @@ export default defineConfig({
       iconPacks,
     }),
     starlight({
+      pagefind: !isSkipSearchBuild,
       title: 'Aspire',
       routeMiddleware: ['./src/route-data-middleware'],
       defaultLocale: 'root',
@@ -43,7 +47,7 @@ export default defineConfig({
         replacesTitle: false,
       },
       editLink: {
-        baseUrl: 'https://github.com/microsoft/aspire.dev/main/src/frontend/',
+        baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
       },
       favicon: 'favicon.svg',
       head: headAttrs,
@@ -126,7 +130,6 @@ export default defineConfig({
             ja: 'トップへ戻る',
             ko: '맨 위로',
             'pt-br': 'Voltar ao topo',
-            'pt-pt': 'Voltar ao início',
             ru: 'Наверх',
             tr: 'Başa dön',
             uk: 'Прокрутити вгору',
@@ -164,7 +167,6 @@ export default defineConfig({
             'ja/**',
             'ko/**',
             'pt-br/**',
-            'pt-pt/**',
             'ru/**',
             'tr/**',
             'uk/**',

@@ -1,0 +1,489 @@
+---
+import type { SiteTourStrings } from '@components/site-tour';
+
+const tt = (
+  key: string,
+  fallback: string,
+  values?: Record<string, string | number>
+) => {
+  const translated = Astro.locals.t(key as any, values as any);
+  return translated && translated !== key ? translated : fallback;
+};
+
+const siteTourStrings = {
+  eyebrow: tt('siteTour.eyebrow', 'Site tour'),
+  quickTip: tt('siteTour.quickTip', 'Quick tip'),
+  progress: tt('siteTour.progress', '{{current}} of {{total}}'),
+  unavailable: tt('siteTour.unavailable', 'Site tour is available on larger screens'),
+  labels: {
+    dismiss: tt('siteTour.labels.dismiss', 'Dismiss site tour'),
+    previous: tt('siteTour.labels.previous', 'Previous'),
+    restart: tt('siteTour.labels.restart', 'Start over'),
+    next: tt('siteTour.labels.next', 'Next'),
+    finish: tt('siteTour.labels.finish', 'Finish'),
+    close: tt('siteTour.labels.close', 'Close'),
+  },
+  trigger: {
+    viewNewTip: tt('siteTour.trigger.viewNewTip', 'View {{count}} new tour tip'),
+    viewNewTips: tt('siteTour.trigger.viewNewTips', 'View {{count}} new tour tips'),
+    resume: tt('siteTour.trigger.resume', 'Resume site tour'),
+    start: tt('siteTour.trigger.start', 'Start site tour'),
+  },
+  tooltips: {
+    restart: tt(
+      'siteTour.tooltips.restart',
+      'Start the site tour over from the beginning'
+    ),
+    closeQuickTip: tt('siteTour.tooltips.closeQuickTip', 'Close quick tip'),
+    finish: tt('siteTour.tooltips.finish', 'Finish site tour'),
+    previous: tt('siteTour.tooltips.previous', 'Go to previous step: {{title}}'),
+    next: tt('siteTour.tooltips.next', 'Go to next step: {{title}}'),
+    firstStep: tt('siteTour.tooltips.firstStep', 'You are on the first step'),
+    currentStep: tt('siteTour.tooltips.currentStep', 'Current step: {{title}}'),
+    jumpToStep: tt('siteTour.tooltips.jumpToStep', 'Jump to {{title}}'),
+  },
+  hint: {
+    scrollToTop: tt(
+      'siteTour.hint.scrollToTop',
+      'Click the highlighted button to return to the top and close the tour.'
+    ),
+  },
+  steps: {
+    sidebarToggle: {
+      title: tt('siteTour.steps.sidebarToggle.title', 'Show or hide the sidebar'),
+      body: tt(
+        'siteTour.steps.sidebarToggle.body',
+        'Use this control to collapse the sidebar for more reading space, or bring it back when you need the page and section navigation.'
+      ),
+    },
+    topicsDropdown: {
+      title: tt('siteTour.steps.topicsDropdown.title', 'Jump to another doc area'),
+      body: tt(
+        'siteTour.steps.topicsDropdown.body',
+        'Open this menu to move between top-level doc areas without leaving the docs layout.'
+      ),
+    },
+    search: {
+      title: tt('siteTour.steps.search.title', 'Search the docs'),
+      body: tt(
+        'siteTour.steps.search.body',
+        'Search guides, integrations, and reference pages from anywhere.'
+      ),
+    },
+    installCli: {
+      title: tt('siteTour.steps.installCli.title', 'View CLI install commands'),
+      body: tt(
+        'siteTour.steps.installCli.body',
+        'Open this modal to copy install commands for the Aspire CLI without leaving the page.'
+      ),
+    },
+    cookiePreferences: {
+      title: tt('siteTour.steps.cookiePreferences.title', 'Manage cookie consent'),
+      body: tt(
+        'siteTour.steps.cookiePreferences.body',
+        'Open this dialog to review or change your cookie consent choices.'
+      ),
+    },
+    tourHelp: {
+      title: tt('siteTour.steps.tourHelp.title', 'Reopen the tour'),
+      body: tt(
+        'siteTour.steps.tourHelp.body',
+        'Use this help button to restart the tour or open any new tips later.'
+      ),
+    },
+    pageActions: {
+      title: tt('siteTour.steps.pageActions.title', 'Use page actions'),
+      body: tt(
+        'siteTour.steps.pageActions.body',
+        'Use these actions to copy this page as Markdown, share it, or send it to an AI tool.'
+      ),
+    },
+    pivotSelector: {
+      title: tt('siteTour.steps.pivotSelector.title', 'Switch code examples'),
+      body: tt(
+        'siteTour.steps.pivotSelector.body',
+        'On pages with multiple code paths, use this selector to switch between the available versions. If it becomes sticky while you scroll, the arrow controls can collapse it or bring it back.'
+      ),
+    },
+    editPage: {
+      title: tt('siteTour.steps.editPage.title', 'Edit this page on GitHub'),
+      body: tt(
+        'siteTour.steps.editPage.body',
+        "Open this page's source on GitHub if you want to suggest a correction or contribute an update."
+      ),
+    },
+    footerPreferences: {
+      title: tt('siteTour.steps.footerPreferences.title', 'Change site preferences'),
+      body: tt(
+        'siteTour.steps.footerPreferences.body',
+        'Use these footer controls to change the theme, language, or keyboard shortcut conventions.'
+      ),
+    },
+    scrollToTop: {
+      title: tt('siteTour.steps.scrollToTop.title', 'Back to top'),
+      body: tt(
+        'siteTour.steps.scrollToTop.body',
+        'Use this button to return to the top of the page. If the tour is open, clicking it also closes the tour.'
+      ),
+    },
+  },
+} satisfies SiteTourStrings;
+---
+
+<style is:global>
+  .aspire-site-tour-layer[hidden] {
+    display: none !important;
+  }
+
+  .aspire-site-tour-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-backdrop,
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-spotlight {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-card {
+    width: min(22rem, calc(100vw - 1rem));
+    max-width: min(22rem, calc(100vw - 1rem));
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-close,
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-actions {
+    display: none;
+  }
+
+  .aspire-site-tour-layer[data-modal-open='true'] .aspire-site-tour-footer {
+    gap: 0.4rem;
+  }
+
+  .aspire-site-tour-backdrop {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(4px) saturate(0.9);
+    pointer-events: auto;
+  }
+
+  .aspire-site-tour-spotlight {
+    position: fixed;
+    border-radius: 1rem;
+    border: 2px solid color-mix(in srgb, var(--sl-color-white) 70%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--sl-color-text-accent) 60%, transparent),
+      0 20px 60px rgba(5, 8, 20, 0.35);
+    pointer-events: none;
+  }
+
+  .aspire-site-tour-card {
+    position: fixed;
+    width: min(36rem, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    padding: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--sl-color-bg-nav) 94%, var(--sl-color-bg));
+    color: var(--sl-color-text);
+    box-shadow:
+      var(--sl-shadow-lg),
+      0 18px 42px color-mix(in srgb, var(--sl-color-black) 38%, transparent);
+    overflow: auto;
+    pointer-events: auto;
+  }
+
+  .aspire-site-tour-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .aspire-site-tour-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .aspire-site-tour-eyebrow {
+    margin: 0 0 0.45rem;
+    color: var(--aspire-color-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .aspire-site-tour-title {
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  .aspire-site-tour-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 80%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-bg) 75%, transparent);
+    color: var(--sl-color-gray-2);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      border-color 0.14s ease,
+      color 0.14s ease,
+      background-color 0.14s ease,
+      transform 0.14s ease;
+  }
+
+  .aspire-site-tour-close:hover {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-text);
+    background: color-mix(in srgb, var(--sl-color-gray-6) 88%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .aspire-site-tour-body {
+    margin: 0.7rem 0 0;
+    color: var(--sl-color-gray-1);
+    font-size: 0.96rem;
+    line-height: 1.6;
+  }
+
+  .aspire-site-tour-hint {
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--aspire-color-secondary) 22%, var(--sl-color-gray-5));
+    border-radius: 0.8rem;
+    background: color-mix(in srgb, var(--sl-color-accent-low) 70%, var(--sl-color-bg-nav));
+    color: var(--sl-color-gray-1);
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .aspire-site-tour-footer {
+    display: grid;
+    gap: 0.9rem;
+    margin-top: 1rem;
+  }
+
+  .aspire-site-tour-progress {
+    color: var(--sl-color-gray-2);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .aspire-site-tour-step-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .aspire-site-tour-step-nav[hidden] {
+    display: none;
+  }
+
+  .aspire-site-tour-step-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sl-color-gray-4) 80%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-3) 55%, transparent);
+    cursor: pointer;
+    transition:
+      transform 0.14s ease,
+      background-color 0.14s ease,
+      box-shadow 0.14s ease;
+  }
+
+  .aspire-site-tour-step-dot:hover,
+  .aspire-site-tour-step-dot:focus-visible {
+    background: color-mix(in srgb, var(--sl-color-text-accent) 72%, white 12%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--sl-color-text-accent) 55%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent);
+    outline: none;
+    transform: scale(1.08);
+  }
+
+  .aspire-site-tour-step-dot[aria-current='step'] {
+    background: var(--aspire-color-secondary);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--aspire-color-secondary) 72%, white 12%),
+      0 0 0 3px color-mix(in srgb, var(--aspire-color-secondary) 18%, transparent);
+  }
+
+  .aspire-site-tour-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .aspire-site-tour-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.875rem;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem;
+    aspect-ratio: auto !important;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 90%, transparent);
+    padding: 0.7rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      transform 0.14s ease,
+      border-color 0.14s ease,
+      background-color 0.14s ease,
+      color 0.14s ease;
+  }
+
+  .aspire-site-tour-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .aspire-site-tour-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .aspire-site-tour-btn-secondary {
+    background: color-mix(in srgb, var(--sl-color-bg) 70%, var(--sl-color-bg-nav));
+    color: var(--sl-color-text);
+  }
+
+  .aspire-site-tour-btn-secondary:hover:not(:disabled) {
+    border-color: var(--sl-color-gray-3);
+    color: var(--sl-color-text);
+  }
+
+  .aspire-site-tour-btn-primary {
+    background: var(--aspire-color-secondary);
+    border-color: color-mix(in srgb, var(--aspire-color-secondary) 75%, var(--sl-color-gray-4));
+    color: var(--aspire-color-black);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--aspire-color-secondary) 24%, transparent);
+  }
+
+  .aspire-site-tour-btn-icon {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 0.85rem !important;
+    height: 0.85rem !important;
+    min-width: 0.85rem;
+    min-height: 0.85rem;
+    flex: 0 0 auto;
+    opacity: 0.9;
+  }
+
+  .aspire-site-tour-btn-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .aspire-site-tour-btn-label {
+    display: inline-block;
+    min-width: 0;
+  }
+
+  .aspire-site-tour-btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--aspire-color-secondary) 88%, white 12%);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-card {
+    background: color-mix(in srgb, var(--sl-color-bg) 96%, var(--sl-color-accent-low));
+    box-shadow:
+      var(--sl-shadow-lg),
+      0 18px 34px color-mix(in srgb, var(--sl-color-gray-4) 18%, transparent);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-eyebrow {
+    color: var(--aspire-color-primary);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-body,
+  :root[data-theme='light'] .aspire-site-tour-hint,
+  :root[data-theme='light'] .aspire-site-tour-progress {
+    color: var(--sl-color-gray-2);
+  }
+
+  :root[data-theme='light'] .aspire-site-tour-btn-secondary {
+    background: color-mix(in srgb, var(--sl-color-bg) 85%, var(--sl-color-gray-7));
+  }
+
+  @media (max-width: 48rem) {
+    .aspire-site-tour-card {
+      width: calc(100vw - 1rem);
+      max-width: calc(100vw - 1rem);
+      max-height: calc(100vh - 0.75rem);
+      padding: 0.95rem;
+      border-radius: 1.1rem;
+    }
+
+    .aspire-site-tour-title {
+      font-size: 1.05rem;
+    }
+
+    .aspire-site-tour-body {
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .aspire-site-tour-btn {
+      min-height: 2.75rem;
+      padding-inline: 0.9rem;
+    }
+  }
+
+  @media (max-width: 32rem) {
+    .aspire-site-tour-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aspire-site-tour-actions .aspire-site-tour-btn {
+      width: 100%;
+    }
+
+    .aspire-site-tour-actions .aspire-site-tour-btn-primary {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ siteTourStrings }}>
+  window.__aspireSiteTourStrings = siteTourStrings;
+</script>
+
+<script>
+  import { bootstrapAspireSiteTour, type SiteTourStrings } from '@components/site-tour';
+
+  const siteTourWindow = window as Window & {
+    __aspireSiteTourStrings?: SiteTourStrings;
+  };
+
+  if (siteTourWindow.__aspireSiteTourStrings) {
+    bootstrapAspireSiteTour(siteTourWindow.__aspireSiteTourStrings);
+  }
+</script>
