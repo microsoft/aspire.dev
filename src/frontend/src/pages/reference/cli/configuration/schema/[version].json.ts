@@ -13,8 +13,9 @@ type StaticPath = {
   props: RouteProps;
 };
 
-export function getStaticPaths(): StaticPath[] {
-  return getSchemaVersions()
+export async function getStaticPaths(): Promise<StaticPath[]> {
+  const versions = await getSchemaVersions();
+  return versions
     .map((version) => {
       const schema = getSchemaByVersion(version);
       if (!schema) return null;

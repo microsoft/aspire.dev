@@ -61,13 +61,20 @@ export async function getSchemaIndex(): Promise<SchemaIndex> {
 }
 
 /**
- * All known CLI config schema versions, sorted newest-first.
+ * All known CLI config schema versions from the schema index, sorted newest-first.
+ *
+ * Using `index.json` (rather than the globbed schema files) as the source of
+ * truth ensures the versioned endpoint only exposes schemas declared in the
+ * index — `latest` and the served version set stay aligned.
  *
  * `localeCompare` with `numeric: true` treats digit sequences as numbers,
  * so "9.0.9" < "9.0.10" < "10.0.0" — correct for semver-style version strings.
  */
-export function getSchemaVersions(): string[] {
-  return [...getSchemaMap().keys()].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+export async function getSchemaVersions(): Promise<string[]> {
+  const index = await getSchemaIndex();
+  return [...index.versions].sort((a, b) =>
+    b.localeCompare(a, undefined, { numeric: true })
+  );
 }
 
 /**

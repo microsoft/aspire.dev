@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
+import { LATEST_SCHEMA_URL, versionedSchemaUrl } from '../../src/utils/cli-config-schema';
+
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
 const schemasDir = path.join(frontendRoot, 'src', 'data', 'schemas');
@@ -51,55 +53,75 @@ describe('cli-config-schema data files', () => {
 });
 
 describe('cli-config-schema individual schema files', () => {
-  const index = readIndex();
+  test('files are valid JSON', () => {
+    const index = readIndex();
 
-  for (const version of index.versions) {
-    const filePath = schemaFilePath(version);
+    for (const version of index.versions) {
+      const filePath = schemaFilePath(version);
+      const content = readFileSync(filePath, 'utf-8');
+      expect(() => {
+        JSON.parse(content);
+      }).not.toThrow();
+    }
+  });
 
-    describe(`version ${version}`, () => {
-      test('file is valid JSON', () => {
-        const content = readFileSync(filePath, 'utf-8');
-        expect(() => {
-          JSON.parse(content);
-        }).not.toThrow();
-      });
+  test('files have required JSON Schema fields', () => {
+    const index = readIndex();
 
-      test('has required JSON Schema fields', () => {
-        const schema = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
-        expect(typeof schema['$schema']).toBe('string');
-        expect(typeof schema['$id']).toBe('string');
-        expect(schema['type']).toBe('object');
-        expect(typeof schema['title']).toBe('string');
-      });
+    for (const version of index.versions) {
+      const filePath = schemaFilePath(version);
+      const schema = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+      expect(typeof schema['$schema']).toBe('string');
+      expect(typeof schema['$id']).toBe('string');
+      expect(schema['type']).toBe('object');
+      expect(typeof schema['title']).toBe('string');
+    }
+  });
 
-      test('$id points to the versioned aspire.dev URL', () => {
-        const schema = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
-        const expectedId = `https://aspire.dev/reference/cli/configuration/schema/${version}.json`;
-        expect(schema['$id']).toBe(expectedId);
-      });
+  test("files' $id points to the versioned aspire.dev URL", () => {
+    const index = readIndex();
 
-      test('has appHost property', () => {
-        const schema = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<
-          string,
-          Record<string, unknown>
-        >;
-        expect(schema['properties']).toBeDefined();
-        expect(schema['properties']['appHost']).toBeDefined();
-      });
-    });
-  }
+    for (const version of index.versions) {
+      const filePath = schemaFilePath(version);
+      const schema = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
+      const expectedId = `https://aspire.dev/reference/cli/configuration/schema/${version}.json`;
+      expect(schema['$id']).toBe(expectedId);
+    }
+  });
+
+  test('files have appHost property', () => {
+    const index = readIndex();
+
+    for (const version of index.versions) {
+      const filePath = schemaFilePath(version);
+      const schema = JSON.parse(readFileSync(filePath, 'utf-8')) as Record<
+        string,
+        Record<string, unknown>
+      >;
+      expect(schema['properties']).toBeDefined();
+      expect(schema['properties']['appHost']).toBeDefined();
+    }
+  });
 });
 
 describe('cli-config-schema URL helpers', () => {
-  test('LATEST_SCHEMA_URL matches expected pattern', () => {
-    const expected = 'https://aspire.dev/reference/cli/configuration/schema.json';
-    // Verify the constant is predictable without importing the Astro-specific module
-    expect(expected).toMatch(/^https:\/\/aspire\.dev\/reference\/cli\/configuration\/schema\.json$/);
+  test('LATEST_SCHEMA_URL points to the canonical latest schema URL', () => {
+    expect(LATEST_SCHEMA_URL).toBe('https://aspire.dev/reference/cli/configuration/schema.json');
   });
 
-  test('versioned URL pattern is correct', () => {
-    const version = '13.2.3';
-    const expected = `https://aspire.dev/reference/cli/configuration/schema/${version}.json`;
-    expect(expected).toBe('https://aspire.dev/reference/cli/configuration/schema/13.2.3.json');
+  test('versionedSchemaUrl() produces the canonical versioned URL', () => {
+    expect(versionedSchemaUrl('13.2.3')).toBe(
+      'https://aspire.dev/reference/cli/configuration/schema/13.2.3.json'
+    );
+  });
+
+  test('versionedSchemaUrl() round-trips each indexed version', () => {
+    const index = readIndex();
+
+    for (const version of index.versions) {
+      expect(versionedSchemaUrl(version)).toBe(
+        `https://aspire.dev/reference/cli/configuration/schema/${version}.json`
+      );
+    }
   });
 });

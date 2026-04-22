@@ -94,9 +94,25 @@ function readIndex(): SchemaIndex {
   return JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8')) as SchemaIndex;
 }
 
-/** Write the index atomically. */
+/** Write the index atomically by writing a temp file and renaming into place. */
 function writeIndex(index: SchemaIndex): void {
-  fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2) + '\n', 'utf-8');
+  fs.mkdirSync(SCHEMAS_DIR, { recursive: true });
+
+  const contents = JSON.stringify(index, null, 2) + '\n';
+  const tempFile = path.join(
+    SCHEMAS_DIR,
+    `${path.basename(INDEX_FILE)}.${process.pid}.${Date.now()}.tmp`,
+  );
+
+  try {
+    fs.writeFileSync(tempFile, contents, 'utf-8');
+    fs.renameSync(tempFile, INDEX_FILE);
+  } catch (error) {
+    if (fs.existsSync(tempFile)) {
+      fs.unlinkSync(tempFile);
+    }
+    throw error;
+  }
 }
 
 async function main(): Promise<void> {
