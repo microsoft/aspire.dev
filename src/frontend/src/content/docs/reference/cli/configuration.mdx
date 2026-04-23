@@ -22,10 +22,11 @@ focuses on the settings surfaced through `aspire config`.
 
 ## Example `aspire.config.json`
 
-```json title="aspire.config.json"
+```json title="aspire.config.json" {2}
 {
+  "$schema": "https://aspire.dev/reference/cli/configuration/schema.json",
   "appHost": {
-    "path": "./src/MyApp.AppHost/MyApp.AppHost.csproj"
+    "path": "./apphost.ts"
   },
   "channel": "staging",
   "features": {
@@ -36,6 +37,83 @@ focuses on the settings surfaced through `aspire config`.
 }
 ```
 
+:::tip[The highlighted `$schema` property is additive]
+By default, the configuration files do not include the `$schema` property. You can add it manually to enable editor support for JSON Schema.
+:::
+
+## JSON Schema support
+
+Aspire publishes a JSON Schema for `aspire.config.json` so editors can provide
+completions, validation, and hover documentation while you edit the file.
+
+Two URLs are available:
+
+- **Latest** — always points to the newest published schema:
+
+  ```text title="Latest schema URL"
+  https://aspire.dev/reference/cli/configuration/schema.json
+  ```
+
+  [`schema.json`](/reference/cli/configuration/schema.json)
+
+- **Versioned** — pins to a specific Aspire release (for example, `13.2.3`):
+
+  ```text title="Versioned schema URL"
+  https://aspire.dev/reference/cli/configuration/schema/13.2.3.json
+  ```
+
+  [`schema/13.2.3.json`](/reference/cli/configuration/schema/13.2.3.json)
+
+### Reference the schema from `aspire.config.json`
+
+Most editors automatically pick up a schema when the JSON file declares a
+top-level `$schema` property:
+
+```json title="aspire.config.json" ins={2}
+{
+  "$schema": "https://aspire.dev/reference/cli/configuration/schema.json",
+  "appHost": {
+    "path": "./apphost.ts"
+  }
+}
+```
+
+:::note
+Use the versioned URL (for example, `.../schema/13.2.3.json`) when you want
+schema behavior to stay stable alongside a pinned Aspire CLI version, and use
+the unversioned `schema.json` when you want to always validate against the
+latest release.
+:::
+
+### Associate the schema in Visual Studio Code
+
+If you prefer not to commit a `$schema` property, you can associate the schema
+with `aspire.config.json` in your user or workspace `settings.json`:
+
+```json title=".vscode/settings.json"
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["aspire.config.json"],
+      "url": "https://aspire.dev/reference/cli/configuration/schema.json"
+    }
+  ]
+}
+```
+
+VS Code also honors the `$schema` property automatically, so either approach
+enables completions and validation in the built-in JSON language service.
+
+### Other editors
+
+Any editor or tool that understands JSON Schema Draft 2020-12 can consume the
+hosted schema — including JetBrains IDEs (**Settings → Languages & Frameworks →
+Schemas and DTDs → JSON Schema Mappings**), Neovim with
+[`jsonls`](https://github.com/microsoft/vscode-json-languageservice), and
+command-line validators such as
+[`ajv`](https://ajv.js.org/) or [`check-jsonschema`](https://github.com/python-jsonschema/check-jsonschema).
+Point the tool at either the latest or versioned URL above.
+
 ## Settings surfaced by `aspire config`
 
 Use `aspire config list` to see the values that are currently set, and use
@@ -44,11 +122,11 @@ can configure.
 
 <Include relativePath="reference/cli/includes/config-settings-table.md" />
 
-<Aside type="tip">
-  Some feature flags shown by `aspire config list --all` may correspond to
-  preview, migration, or hidden functionality. Treat the output of your
-  installed CLI as the authoritative source for what can be configured.
-</Aside>
+:::tip
+Some feature flags shown by `aspire config list --all` may correspond to
+preview, migration, or hidden functionality. Treat the output of your
+installed CLI as the authoritative source for what can be configured.
+:::
 
 ## Toggle preview feature experiences
 
