@@ -1,0 +1,242 @@
+---
+title: Deploy to Azure Kubernetes Service (AKS)
+description: Learn how to deploy your Aspire application to Azure Kubernetes Service with full provisioning of AKS, ACR, and Azure resources.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Deploy your Aspire application to Azure Kubernetes Service (AKS). Aspire provisions the AKS cluster, Azure Container Registry (ACR), and any Azure resources your app depends on — then deploys your application in a single command.
+
+<LearnMore>
+Start with [Deploy to Kubernetes](/deployment/kubernetes/) for the shared Kubernetes deployment model and target selection. For AKS hosting integration details, see [AKS integration](/integrations/cloud/azure/aks/).
+</LearnMore>
+
+## Prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) installed and available on your `PATH`
+- [Helm](https://helm.sh/docs/intro/install/) installed and available on your `PATH`
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your `PATH`
+- An active Azure account and subscription
+
+By default, local deployment uses Azure CLI credentials. Authenticate with Azure CLI before deploying:
+
+```bash title="Authenticate with Azure CLI"
+az login
+```
+
+## Configure your AppHost for AKS
+
+Add the AKS hosting integration to your AppHost:
+
+```bash title="Aspire CLI — Add Azure Kubernetes"
+aspire add azure-kubernetes
+```
+
+The Aspire CLI adds the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kubernetes) integration to your AppHost.
+
+Then add the AKS environment in your AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs" {3}
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" {5}
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
+
+## What Aspire provisions
+
+When you run `aspire deploy`, Aspire provisions the following Azure resources:
+
+- **AKS cluster** — a managed Kubernetes cluster
+- **Azure Container Registry (ACR)** — to store container images for your application
+- **Managed identity** — for secure, credential-free access between AKS and ACR
+- **Azure resources** — any Azure resources referenced in your AppHost (databases, caches, messaging, etc.)
+
+Aspire builds your container images, pushes them to ACR, generates Helm charts, and installs them to the AKS cluster.
+
+## Configure node pools
+
+### System node pool
+
+Customize the system node pool VM size and scaling using `WithSystemNodePool`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddAzureKubernetesEnvironment("aks")
+    .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
+```
+</TabItem>
+</Tabs>
+
+### Additional node pools
+
+Add additional node pools for workload isolation or specialized hardware, then use `WithNodePool` to schedule workloads on them:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5);
+
+builder.AddContainer("ml-worker", "my-ml-image")
+    .WithNodePool(gpuPool);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
+
+const worker = await builder.addContainer('ml-worker', 'my-ml-image');
+await worker.withNodePool(gpuPool);
+```
+</TabItem>
+</Tabs>
+
+## Deploy to AKS
+
+Deploy your application to AKS with a single command:
+
+```bash title="Deploy to AKS"
+aspire deploy
+```
+
+Aspire performs the following steps:
+
+<Steps>
+
+1. **Provisions Azure infrastructure** — creates the AKS cluster, ACR, managed identity, and any Azure resources defined in your AppHost.
+
+2. **Builds container images** — builds Docker images for your project and container resources.
+
+3. **Pushes images to ACR** — tags and pushes the built images to the provisioned Azure Container Registry.
+
+4. **Generates and installs Helm charts** — creates Kubernetes manifests from your app model and installs them to the AKS cluster using Helm.
+
+</Steps>
+
+:::note
+The first deployment may take several minutes while the AKS cluster and ACR are provisioned. Subsequent deployments are faster as Aspire reuses existing infrastructure.
+:::
+
+## Publish AKS artifacts
+
+To generate deployment artifacts without deploying, use `aspire publish`:
+
+```bash title="Publish AKS artifacts"
+aspire publish -o aks-artifacts
+```
+
+This generates Helm charts and Bicep infrastructure templates that you can review, customize, and deploy using your own CI/CD pipeline or GitOps workflow.
+
+## Azure-specific considerations
+
+### Authentication
+
+By default, local `aspire deploy` uses Azure CLI credentials. If you want a different credential source, set `Azure:CredentialSource` to one of the supported values: `AzureCli`, `AzureDeveloperCli`, `VisualStudio`, `VisualStudioCode`, `AzurePowerShell`, `InteractiveBrowser`, or `Default`.
+
+<LearnMore>
+For detailed Azure authentication configuration, see [Deploy to Azure](/deployment/azure/).
+</LearnMore>
+
+### Azure settings
+
+After authentication, `aspire deploy` needs a target subscription and location. These are configured via external parameters or environment variables:
+
+- `Azure:SubscriptionId` — the Azure subscription to deploy to
+- `Azure:Location` — the Azure region for resource provisioning (for example, `eastus2`)
+
+### Customizing Azure resources
+
+Use `PublishAsKubernetesService` to customize the Kubernetes resources generated for individual services:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddProject<Projects.MyApi>("api")
+    .PublishAsKubernetesService(resource =>
+    {
+        // Scale to 3 replicas
+        if (resource.Workload is Deployment deployment)
+        {
+            deployment.Spec.Replicas = 3;
+        }
+    });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' });
+await api.publishAsKubernetesService(async (resource) => {
+  // Scale to 3 replicas
+  await resource.workload.spec.replicas.set(3);
+});
+```
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+### AKS cluster not reachable after deploy
+
+After `aspire deploy` provisions the AKS cluster, your local `kubectl` context is configured automatically. If you can't reach the cluster, ensure your Azure CLI session is active and fetch credentials:
+
+```bash title="Get AKS credentials"
+az aks get-credentials --resource-group <resource-group> --name <cluster-name>
+```
+
+### Image pull failures
+
+If pods fail with `ImagePullBackOff`, verify that the AKS cluster has the correct role assignment to pull from the provisioned ACR:
+
+```bash title="Check ACR pull access"
+az aks check-acr --resource-group <resource-group> --name <cluster-name> --acr <acr-name>.azurecr.io
+```
+
+## See also
+
+- [AKS integration](/integrations/cloud/azure/aks/)
+- [Kubernetes integration](/integrations/compute/kubernetes/)
+- [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Deploy to Azure](/deployment/azure/)
+- [Pipelines and app topology](/deployment/pipelines/)
+- [Azure Kubernetes Service documentation](https://learn.microsoft.com/azure/aks/)

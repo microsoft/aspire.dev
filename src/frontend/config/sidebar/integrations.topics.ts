@@ -485,6 +485,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Kubernetes Service (AKS)',
+              slug: 'integrations/cloud/azure/aks',
+            },
+            {
               label: 'Azure Cosmos DB',
               collapsed: true,
               items: [
