@@ -485,6 +485,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Kubernetes Service (AKS)',
+              slug: 'integrations/cloud/azure/aks',
+            },
+            {
               label: 'Azure Cosmos DB',
               collapsed: true,
               items: [
@@ -523,6 +527,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client',
                 },
               ],
+            },
+            {
+              label: 'Azure Front Door',
+              slug: 'integrations/cloud/azure/azure-front-door',
             },
             {
               label: 'Azure Functions',

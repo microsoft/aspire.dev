@@ -1,0 +1,88 @@
+---
+title: Deploy to Kubernetes
+description: Learn how to deploy Aspire applications to Kubernetes — whether you manage your own cluster or use Azure Kubernetes Service (AKS).
+---
+
+import { CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Use `aspire publish` or `aspire deploy` to take your Aspire application to Kubernetes. Aspire uses the Kubernetes-targeted environments in your AppHost to determine how each compute resource maps to Kubernetes objects, then generates Helm charts or provisions infrastructure depending on the target you choose.
+
+<LearnMore>
+To understand how Aspire deployment works across all targets, see the [Deployment overview](/deployment/overview/).
+</LearnMore>
+
+## Choose your target
+
+Aspire supports two Kubernetes deployment targets:
+
+<CardGrid>
+  <LinkCard
+    title="Kubernetes"
+    description="Deploy to any existing Kubernetes cluster using Helm charts generated from your AppHost model."
+    href="/deployment/kubernetes/kubernetes/"
+  />
+  <LinkCard
+    title="Azure Kubernetes Service (AKS)"
+    description="Deploy to AKS with full provisioning — Aspire creates the cluster, container registry, and Azure resources for you."
+    href="/deployment/kubernetes/aks/"
+  />
+</CardGrid>
+
+## Shared prerequisites
+
+- [Aspire prerequisites](/get-started/prerequisites/)
+- [Aspire CLI](/get-started/install-cli/) installed
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) installed and available on your `PATH`
+- [Helm](https://helm.sh/docs/intro/install/) installed and available on your `PATH`
+
+## How Aspire maps resources to Kubernetes
+
+When you publish or deploy, Aspire translates your application model into Kubernetes-native resources:
+
+| Aspire resource       | Kubernetes resource                          |
+| --------------------- | -------------------------------------------- |
+| Project resources     | Deployments or StatefulSets                  |
+| Container resources   | Deployments or StatefulSets                  |
+| Connection strings    | ConfigMaps and Secrets                       |
+| Environment variables | ConfigMaps and Secrets                       |
+| Endpoints             | Services                                     |
+| Volumes               | PersistentVolumes and PersistentVolumeClaims |
+
+## Publish vs deploy
+
+Both Kubernetes targets support `aspire publish`. The key difference is whether the target also supports `aspire deploy`:
+
+| Target     | `aspire publish`                                   | `aspire deploy`                                                    |
+| ---------- | -------------------------------------------------- | ------------------------------------------------------------------ |
+| Kubernetes | Generates Helm charts you apply with `helm` or CI  | Deploys to the current `kubectl` context using `helm install`      |
+| AKS        | Generates Helm charts and Bicep infrastructure     | Provisions Azure resources and deploys in a single command         |
+
+<LearnMore>
+For more on the pipeline model and how publish and deploy relate, see [Pipelines and app topology](/deployment/pipelines/).
+</LearnMore>
+
+## Continue learning
+
+<CardGrid>
+  <LinkCard
+    title="Deploy to Kubernetes"
+    description="Step-by-step guide for deploying to an existing Kubernetes cluster."
+    href="/deployment/kubernetes/kubernetes/"
+  />
+  <LinkCard
+    title="Deploy to AKS"
+    description="Step-by-step guide for deploying to Azure Kubernetes Service."
+    href="/deployment/kubernetes/aks/"
+  />
+  <LinkCard
+    title="Kubernetes integration"
+    description="Hosting integration reference for Aspire.Hosting.Kubernetes."
+    href="/integrations/compute/kubernetes/"
+  />
+  <LinkCard
+    title="AKS integration"
+    description="Hosting integration reference for Aspire.Hosting.Azure.Kubernetes."
+    href="/integrations/cloud/azure/aks/"
+  />
+</CardGrid>

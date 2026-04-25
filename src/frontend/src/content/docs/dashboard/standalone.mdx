@@ -23,6 +23,8 @@ The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing tel
 
 ## Start the dashboard
 
+### Docker
+
 The dashboard is started using the Docker command line.
 
 <OsAwareTabs syncKey="terminal">
@@ -51,6 +53,24 @@ The preceding Docker command:
   - Mapping the dashboard's port `18888` to the host's port `18888`. Port `18888` has the dashboard UI. Navigate to `http://localhost:18888` in the browser to view the dashboard.
   - Mapping the dashboard's OTLP/gRPC port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps using [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc).
   - Mapping the dashboard's OTLP/HTTP port `18890` to the host's port `4318`. Port `4318` receives OpenTelemetry data from apps using [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp).
+
+### Aspire CLI
+
+If you have the [Aspire CLI](/reference/cli/) installed, you can start the dashboard with a single command:
+
+```bash title="Aspire CLI"
+aspire dashboard run
+```
+
+The dashboard starts with the following defaults:
+
+- **Frontend UI** at `http://localhost:18888`
+- **OTLP/gRPC** endpoint at `http://localhost:4317`
+- **OTLP/HTTP** endpoint at `http://localhost:4318`
+
+The dashboard is secured with a browser token by default. A login URL with the token is displayed in the terminal output. Use `--allow-anonymous` to disable authentication during local development.
+
+For all available options, see the [`aspire dashboard run`](/reference/cli/commands/aspire-dashboard-run/) command reference.
 
 ## Login to the dashboard
 
@@ -144,6 +164,32 @@ To configure applications:
 <Aside type="note">
 Additional configuration may be required to authenticate with the dashboard if you have configured the dashboard to secure the telemetry endpoint. For more information, see [Securing the telemetry endpoint](/dashboard/security-considerations/#secure-telemetry-endpoint).
 </Aside>
+
+## Query telemetry with the Aspire CLI
+
+The [Aspire CLI](/reference/cli/) can query telemetry data directly from the dashboard's API, allowing you to view logs, traces, and spans from the terminal without opening the dashboard UI.
+
+The dashboard's telemetry API is secured with API key authentication by default. When using the CLI commands, you can pass the dashboard's login URL (including the browser token) via `--dashboard-url` and the token is automatically exchanged for an API key. Alternatively, if the dashboard is started with `aspire dashboard run --allow-anonymous` or the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable is set to `true`, no authentication is required — this should only be used during local development.
+
+### View telemetry with `aspire otel`
+
+The [`aspire otel`](/reference/cli/commands/aspire-otel/) commands retrieve telemetry from the dashboard. Use `--dashboard-url` to point at a standalone dashboard — you can paste the full login URL and the browser token is automatically exchanged for an API key:
+
+```bash title="Aspire CLI"
+aspire otel logs --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel traces --dashboard-url "http://localhost:18888/login?t=<token>"
+aspire otel spans --dashboard-url "http://localhost:18888/login?t=<token>"
+```
+
+For more details, see the [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/), [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/), and [`aspire otel spans`](/reference/cli/commands/aspire-otel-spans/) command references.
+
+### Use AI agents with `aspire agent mcp`
+
+The [`aspire agent mcp`](/reference/cli/commands/aspire-agent-mcp/) command starts an MCP (Model Context Protocol) server that AI assistants can connect to. When used with `--dashboard-url`, it runs in dashboard-only mode and exposes telemetry tools (structured logs and traces) to MCP-compatible clients:
+
+```bash title="Aspire CLI"
+aspire agent mcp --dashboard-url "http://localhost:18888/login?t=<token>"
+```
 
 ## Sample
 
