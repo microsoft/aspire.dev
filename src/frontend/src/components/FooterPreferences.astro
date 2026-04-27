@@ -48,7 +48,6 @@ const kbdTypes = [
           <option value="id">Bahasa Indonesia</option>
           <option value="zh-CN">简体中文</option>
           <option value="pt-BR">Português do Brasil</option>
-          <option value="pt">Português</option>
           <option value="ko">한국어</option>
           <option value="tr">Türkçe</option>
           <option value="ru">Русский</option>
@@ -95,15 +94,34 @@ const kbdTypes = [
 </section>
 
 <script>
+  import { isApiReferencePath, stripApiReferenceLocale } from '@utils/api-reference-routes';
+  import { getStoredPreference, setStoredPreference } from '@utils/browser-storage';
+  import {
+    addLocaleToPath,
+    getLocaleFromPath,
+    normalizeLocale,
+    stripLocaleFromPath,
+    DEFAULT_LOCALE,
+    PREFERRED_LOCALE_STORAGE_KEY,
+    appendSearchAndHash,
+  } from '@utils/locale-routes';
+
   function initFooterPreferences() {
     const themeSelect = document.getElementById('footer-theme-select') as HTMLSelectElement;
     const languageSelect = document.getElementById('footer-language-select') as HTMLSelectElement;
     const kbdSelect = document.getElementById('footer-kbd-select') as HTMLSelectElement;
 
+    function getLanguageOptionValue(locale: string): string {
+      const option = Array.from(languageSelect?.options ?? []).find(
+        (candidate) => candidate.value.toLowerCase() === locale.toLowerCase()
+      );
+
+      return option?.value ?? locale;
+    }
+
     if (themeSelect) {
       // Get current theme from Starlight's storage
-      const storedTheme =
-        typeof localStorage !== 'undefined' ? localStorage.getItem('starlight-theme') : null;
+      const storedTheme = getStoredPreference('starlight-theme');
       if (storedTheme) {
         themeSelect.value = storedTheme;
       }
@@ -113,9 +131,7 @@ const kbdTypes = [
         const theme = target.value;
 
         // Use Starlight's theme system
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('starlight-theme', theme);
-        }
+        setStoredPreference('starlight-theme', theme);
 
         // Apply theme immediately
         const root = document.documentElement;
@@ -139,34 +155,34 @@ const kbdTypes = [
     if (languageSelect) {
       // Get current language from URL
       const currentPath = window.location.pathname;
-      const langMatch = currentPath.match(/^\/([a-z]{2}(?:-[A-Z]{2})?)\//);
-      const currentLang = langMatch ? langMatch[1] : 'en';
-      languageSelect.value = currentLang;
+      const storedPreferredLocale = normalizeLocale(
+        getStoredPreference(PREFERRED_LOCALE_STORAGE_KEY)
+      );
+      const currentLang = getLocaleFromPath(currentPath)
+        ?? (isApiReferencePath(currentPath) ? storedPreferredLocale : undefined)
+        ?? DEFAULT_LOCALE;
+      languageSelect.value = getLanguageOptionValue(currentLang);
 
       languageSelect.addEventListener('change', (e) => {
         const target = e.target as HTMLSelectElement;
-        const newLang = target.value;
+        const newLang = normalizeLocale(target.value) ?? DEFAULT_LOCALE;
         const currentPath = window.location.pathname;
+        const isApiReference = isApiReferencePath(currentPath);
+        setStoredPreference(PREFERRED_LOCALE_STORAGE_KEY, newLang);
 
         // Remove current language prefix if present
-        let pathWithoutLang = currentPath.replace(/^\/[a-z]{2}(?:-[A-Z]{2})?\//, '/');
+        const pathWithoutLang = stripApiReferenceLocale(currentPath) ?? stripLocaleFromPath(currentPath);
 
         // Build new URL
-        let newPath: string;
-        if (newLang === 'en') {
-          newPath = pathWithoutLang;
-        } else {
-          newPath = `/${newLang}${pathWithoutLang}`;
-        }
+        const newPath = isApiReference ? pathWithoutLang : addLocaleToPath(pathWithoutLang, newLang);
 
-        window.location.href = newPath;
+        window.location.href = appendSearchAndHash(newPath, window.location.search, window.location.hash);
       });
     }
 
     if (kbdSelect) {
       // Get stored keyboard type from starlight-kbd's storage
-      const storedKbd =
-        typeof localStorage !== 'undefined' ? localStorage.getItem('sl-kbd-type') : null;
+      const storedKbd = getStoredPreference('sl-kbd-type');
 
       // Auto-detect OS if no stored preference
       if (!storedKbd && typeof navigator !== 'undefined') {
@@ -181,7 +197,7 @@ const kbdTypes = [
         }
 
         kbdSelect.value = detectedType;
-        localStorage?.setItem('sl-kbd-type', detectedType);
+        setStoredPreference('sl-kbd-type', detectedType);
       } else if (storedKbd) {
         kbdSelect.value = storedKbd;
       }
@@ -191,9 +207,7 @@ const kbdTypes = [
         const kbdType = target.value;
 
         // Save to localStorage (using starlight-kbd's key)
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('sl-kbd-type', kbdType);
-        }
+        setStoredPreference('sl-kbd-type', kbdType);
 
         // Update all kbd elements on the page
         for (const kbd of document.querySelectorAll('[data-sl-kbd-type]')) {
