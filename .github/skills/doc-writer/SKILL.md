@@ -49,6 +49,12 @@ src/frontend/src/content/docs/
 └── whats-new/                   # Release notes
 ```
 
+### Localization and Sidebar Labels
+
+When adding, moving, or renaming localized docs pages, keep the sidebar topic config in sync under `src/frontend/config/sidebar/*.topics.ts`. Topic labels and item `translations` should include entries for the supported Starlight locale codes used by the site, such as `pt-BR` and `zh-CN`; do not add obsolete or generic locale keys like `pt` or `pt-PT` unless they are explicitly present in `src/frontend/config/locales.ts`.
+
+Route path segments can be lowercase (`pt-br`, `zh-cn`), but sidebar translation keys follow the locale codes consumed by Starlight. API reference docs under `src/content/docs/reference/api/` are intentionally not localized and should stay excluded from localization/sidebar translation work.
+
 ## Astro and MDX Conventions
 
 When calling `pnpm dev` or `aspire run` to test documentation in the context of CI/CD, or from an LLM, call `astro telemetry disable` to disable telemetry.
@@ -819,7 +825,7 @@ curl -sSL https://aspire.dev/install.sh | bash
 irm https://aspire.dev/install.ps1 | iex
 ```
 
-For complete installation instructions, see [Install Aspire CLI](/get-started/install-cli/).
+For complete installation instructions, see [Install Aspire CLI](https://aspire.dev/get-started/install-cli/).
 
 #### Nightly/Dev Builds
 
