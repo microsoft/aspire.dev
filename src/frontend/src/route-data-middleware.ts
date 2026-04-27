@@ -1,4 +1,5 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
+import { stripApiReferenceLocale } from './utils/api-reference-routes';
 
 /**
  * Custom route middleware that applies implicit pagination rules:
@@ -21,6 +22,15 @@ export const onRequest = defineRouteMiddleware((context) => {
   if (!routeData) return;
 
   const { entry, pagination, sidebar } = routeData;
+
+  // --- Step 0: Canonicalize API reference sidebar links ---
+  // API reference pages under /reference/api/ are only generated for the default
+  // (English) locale because they're produced from package metadata rather than
+  // translated content. Starlight auto-prefixes the active locale to sidebar
+  // links, which produces 404s for non-default locales (e.g.
+  // /it/reference/api/csharp/). Rewrite those hrefs to point to the canonical
+  // English path so the sidebar never emits a link that 404s.
+  canonicalizeApiReferenceLinks(sidebar);
 
   // --- Step 1: Group boundary rules ---
   const location = findCurrentPage(sidebar);
@@ -81,8 +91,31 @@ export const onRequest = defineRouteMiddleware((context) => {
 interface SidebarEntry {
   type: string;
   label: string;
+  href?: string;
   isCurrent?: boolean;
   entries?: SidebarEntry[];
+}
+
+/**
+ * Walk the sidebar tree and rewrite any link whose href is a localized API
+ * reference path (e.g. `/it/reference/api/csharp/`) to the canonical,
+ * locale-stripped path (e.g. `/reference/api/csharp/`).
+ */
+function canonicalizeApiReferenceLinks(entries: SidebarEntry[]): void {
+  for (const entry of entries) {
+    if (!entry) continue;
+
+    if (entry.type === 'link' && typeof entry.href === 'string') {
+      const canonical = stripApiReferenceLocale(entry.href);
+      if (canonical) {
+        entry.href = canonical;
+      }
+    }
+
+    if (entry.entries) {
+      canonicalizeApiReferenceLinks(entry.entries);
+    }
+  }
 }
 
 /**
