@@ -894,6 +894,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 ja: '実行可能リソース',
               },
             },
+            {
+              label: 'Browser logs',
+              slug: 'app-host/browser-logs',
+            },
           ],
         },
         {

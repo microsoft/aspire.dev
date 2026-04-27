@@ -1,0 +1,212 @@
+---
+title: Capture browser logs
+description: Learn how to capture browser console and network logs from web resources in the Aspire dashboard using WithBrowserLogs.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+
+:::caution[Experimental feature]
+Browser logs is an experimental feature. The API and behavior may change in future releases. To suppress the build warning, suppress diagnostic `ASPIREBROWSERLOGS001`.
+:::
+
+Aspire can launch a Chromium-based browser alongside a web resource and stream the browser's console and network logs into the Aspire dashboard. This is useful for monitoring client-side errors, network activity, and JavaScript output without leaving the dashboard.
+
+The feature attaches to the browser using the [Chrome DevTools Protocol (CDP)](https://chromedevtools.github.io/devtools-protocol/) and works with both Microsoft Edge and Google Chrome.
+
+## Add browser logs to a resource
+
+Call `WithBrowserLogs` on any resource that exposes an HTTP or HTTPS endpoint:
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddProject<Projects.MyFrontend>("frontend");
+frontend.WithBrowserLogs();
+
+builder.Build().Run();
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addProject("frontend", "../MyFrontend/MyFrontend.csproj");
+await frontend.withBrowserLogs();
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
+
+Calling `WithBrowserLogs` adds a child `browser-logs` resource in the dashboard. Use the **open-tracked-browser** command on that resource to open a tracked browser session and start streaming logs.
+
+## User data mode
+
+The `userDataMode` parameter controls which Chromium user data directory is used:
+
+| Mode | Description |
+|------|-------------|
+| `Shared` (default) | A persistent Aspire-managed directory shared across all AppHosts on the machine. The browser process stays running after the AppHost exits, and the next AppHost run adopts it via CDP. |
+| `Isolated` | A persistent Aspire-managed directory scoped to the current AppHost project. Each AppHost gets its own state that persists across runs but is not shared with other projects. |
+
+Both modes store browser data under a well-known Aspire-managed path (for example `%LocalAppData%\Aspire\BrowserData\` on Windows). The user's normal browser profile is never used.
+
+### Shared mode (default)
+
+In shared mode, Aspire launches a single debug-enabled browser per machine and browser type. When the AppHost exits, the browser stays running. The next AppHost run validates the existing debug endpoint and adopts the browser rather than launching a new one:
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+frontend.WithBrowserLogs(userDataMode: BrowserUserDataMode.Shared);
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+await frontend.withBrowserLogs({ userDataMode: 'Shared' });
+```
+
+  </div>
+</AppHostLangPivot>
+
+In shared mode, you can also specify a Chromium profile directory name:
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+frontend.WithBrowserLogs(profile: "MyProfile", userDataMode: BrowserUserDataMode.Shared);
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+await frontend.withBrowserLogs({ profile: 'MyProfile', userDataMode: 'Shared' });
+```
+
+  </div>
+</AppHostLangPivot>
+
+:::note
+The `profile` parameter is only valid with `Shared` mode. Using `profile` with `Isolated` mode throws an error.
+:::
+
+### Isolated mode
+
+In isolated mode, each AppHost project gets its own persistent browser data directory keyed on a stable hash of the project path:
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+frontend.WithBrowserLogs(userDataMode: BrowserUserDataMode.Isolated);
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+await frontend.withBrowserLogs({ userDataMode: 'Isolated' });
+```
+
+  </div>
+</AppHostLangPivot>
+
+## Browser selection
+
+By default, shared mode prefers Microsoft Edge when available, and isolated mode prefers Google Chrome. You can specify an explicit browser using the `browser` parameter:
+
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
+// Use Microsoft Edge
+frontend.WithBrowserLogs(browser: "msedge");
+
+// Use Google Chrome
+frontend.WithBrowserLogs(browser: "chrome");
+
+// Use an explicit executable path
+frontend.WithBrowserLogs(browser: "/usr/bin/chromium-browser");
+```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
+// Use Microsoft Edge
+await frontend.withBrowserLogs({ browser: 'msedge' });
+
+// Use Google Chrome
+await frontend.withBrowserLogs({ browser: 'chrome' });
+
+// Use an explicit executable path
+await frontend.withBrowserLogs({ browser: '/usr/bin/chromium-browser' });
+```
+
+  </div>
+</AppHostLangPivot>
+
+## Configuration
+
+Browser, profile, and user data mode can also be supplied via configuration, which lets you override settings per environment without changing code.
+
+Global defaults apply to all browser log resources:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Hosting": {
+      "BrowserLogs": {
+        "Browser": "msedge",
+        "UserDataMode": "Shared"
+      }
+    }
+  }
+}
+```
+
+Per-resource settings (where `{ResourceName}` is the name of the tracked resource, for example `frontend`) override global defaults:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Hosting": {
+      "BrowserLogs": {
+        "frontend": {
+          "Browser": "chrome",
+          "UserDataMode": "Isolated"
+        }
+      }
+    }
+  }
+}
+```
+
+Supported configuration keys:
+
+| Key | Description |
+|-----|-------------|
+| `Browser` | Browser logical name (`msedge`, `chrome`) or executable path |
+| `Profile` | Chromium profile directory name (shared mode only) |
+| `UserDataMode` | `Shared` or `Isolated` |
+
+Explicit arguments passed to `WithBrowserLogs` always take precedence over configuration values.
+
+## See also
+
+- [Enable browser telemetry](/dashboard/enable-browser-telemetry/)
+- [Aspire dashboard overview](/dashboard/overview/)
