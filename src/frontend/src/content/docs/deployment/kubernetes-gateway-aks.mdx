@@ -16,22 +16,20 @@ This walkthrough shows how to use `AddGateway` to expose .NET Aspire services on
 
 Before you begin, ensure you have the following:
 
-- An **AKS cluster** with the ALB controller addon enabled.
-- The **ApplicationLoadBalancer** CRD deployed in your cluster.
-- An **Azure Container Registry (ACR)** attached to the cluster.
-- **cert-manager** installed with Gateway API support enabled:
-  ```bash
-  helm install cert-manager jetstack/cert-manager \
-    --namespace cert-manager \
-    --create-namespace \
-    --set crds.enabled=true \
-    --set config.enableGatewayAPI=true
-  ```
+The AKS environment setup is the same as for the Ingress walkthrough. If you
+haven't already configured your cluster, follow the full setup steps in
+[Configure Ingress on AKS — Set up the AKS environment](/deployment/kubernetes-ingress-aks/#set-up-the-aks-environment).
 
-Depending on your TLS certificate strategy, you may also need:
+You need:
+- An AKS cluster with ALB controller, OIDC issuer, and workload identity
+- An ApplicationLoadBalancer CRD deployed
+- An Azure Container Registry attached to the cluster
+- cert-manager installed with Gateway API support (`--set config.enableGatewayAPI=true`)
 
-- **For DNS-01**: An Azure DNS zone and a managed identity with **DNS Zone Contributor** role.
-- **For HTTP-01**: No DNS infrastructure needed — this is the key advantage of using Gateway API.
+Depending on your TLS certificate strategy:
+
+- **For DNS-01**: An Azure DNS zone and a managed identity with **DNS Zone Contributor** role (covered in the setup steps above)
+- **For HTTP-01 (Gateway API only)**: No DNS infrastructure needed — cert-manager creates a temporary `HTTPRoute` on the existing Gateway
 
 ## Configure the AppHost
 
