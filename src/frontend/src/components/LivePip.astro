@@ -9,6 +9,18 @@
  */
 ---
 
+<div id="aspire-live-source-menu" class="live-source-menu not-content" role="menu" aria-label="Choose live stream" hidden>
+  <p class="live-source-menu__label">Watch live on</p>
+  <button type="button" class="live-source-menu__item" role="menuitem" data-live-source-choice="youtube">
+    <span class="live-source-menu__name">YouTube</span>
+    <span class="live-source-menu__meta">aspiredotdev</span>
+  </button>
+  <button type="button" class="live-source-menu__item" role="menuitem" data-live-source-choice="twitch">
+    <span class="live-source-menu__name">Twitch</span>
+    <span class="live-source-menu__meta">aspiredotdev</span>
+  </button>
+</div>
+
 <script>
   import { getCurrent, subscribe, type LiveSnapshot } from '@components/live-status.ts';
 
@@ -21,7 +33,10 @@
     pipWindow: Window | null;
     activeEmbedKey: string;
     open: boolean;
+    selectedSource: LiveSource | null;
   };
+
+  type LiveSource = 'twitch' | 'youtube';
 
   declare global {
     interface Window {
@@ -35,6 +50,8 @@
 
   const DEFAULT_TWITCH_CHANNEL = 'aspiredotdev';
   const DEFAULT_YOUTUBE_CHANNEL_ID = 'UC8Hyt2P1u3KKnBgRf-Iv6_Q';
+  const SOURCE_PICKER_ID = 'aspire-live-source-menu';
+  const VIDEOS_PATH = '/community/videos/';
 
   let current = getCurrent();
 
@@ -43,6 +60,7 @@
       pipWindow: null,
       activeEmbedKey: '',
       open: false,
+      selectedSource: null,
     });
   }
 
@@ -56,6 +74,7 @@
       state.pipWindow = null;
       state.activeEmbedKey = '';
       state.open = false;
+      state.selectedSource = null;
     }
     return state.pipWindow;
   }
@@ -71,6 +90,7 @@
     const state = getState();
     state.pipWindow = null;
     state.activeEmbedKey = '';
+    state.selectedSource = null;
     publishPipState(false);
   }
 
@@ -86,28 +106,60 @@
     return typeof window.documentPictureInPicture?.requestWindow === 'function';
   }
 
-  function buildEmbed(doc: Document, snapshot: LiveSnapshot): { key: string; iframe: HTMLIFrameElement | null } {
-    if (snapshot.primarySource === 'twitch' && snapshot.twitch.live) {
+  function getLiveSources(snapshot: LiveSnapshot): LiveSource[] {
+    const sources: LiveSource[] = [];
+    if (snapshot.youtube.live) sources.push('youtube');
+    if (snapshot.twitch.live) sources.push('twitch');
+    return sources;
+  }
+
+  function sourceIsLive(snapshot: LiveSnapshot, source: LiveSource | null): source is LiveSource {
+    return source === 'youtube' ? snapshot.youtube.live : source === 'twitch' ? snapshot.twitch.live : false;
+  }
+
+  function chooseSource(snapshot: LiveSnapshot, requestedSource = getState().selectedSource): LiveSource | null {
+    if (sourceIsLive(snapshot, requestedSource)) {
+      return requestedSource;
+    }
+
+    const liveSources = getLiveSources(snapshot);
+    if (liveSources.length === 1) {
+      return liveSources[0];
+    }
+
+    if (sourceIsLive(snapshot, snapshot.primarySource)) {
+      return snapshot.primarySource;
+    }
+
+    return liveSources[0] ?? null;
+  }
+
+  function buildEmbed(
+    doc: Document,
+    snapshot: LiveSnapshot,
+    source: LiveSource | null,
+  ): { key: string; iframe: HTMLIFrameElement | null; source: LiveSource | null } {
+    if (source === 'twitch' && snapshot.twitch.live) {
       const channel = snapshot.twitch.channel ?? DEFAULT_TWITCH_CHANNEL;
       const iframe = doc.createElement('iframe');
       iframe.src = `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(parentHost())}&autoplay=true&muted=true`;
       iframe.allow = 'autoplay; fullscreen';
-      iframe.title = `Twitch live stream from ${channel}`;
-      return { key: `twitch:${channel}`, iframe };
+      iframe.setAttribute('aria-label', `Twitch live stream from ${channel}`);
+      return { key: `twitch:${channel}`, iframe, source };
     }
 
-    if (snapshot.primarySource === 'youtube' && snapshot.youtube.live) {
+    if (source === 'youtube' && snapshot.youtube.live) {
       const id = snapshot.youtube.videoId;
       const iframe = doc.createElement('iframe');
       iframe.src = id
         ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1`
         : `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(DEFAULT_YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1`;
       iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
-      iframe.title = 'YouTube live stream';
-      return { key: id ? `youtube:${id}` : `youtube-channel:${DEFAULT_YOUTUBE_CHANNEL_ID}`, iframe };
+      iframe.setAttribute('aria-label', 'YouTube live stream');
+      return { key: id ? `youtube:${id}` : `youtube-channel:${DEFAULT_YOUTUBE_CHANNEL_ID}`, iframe, source };
     }
 
-    return { key: '', iframe: null };
+    return { key: '', iframe: null, source: null };
   }
 
   function renderPip(snapshot: LiveSnapshot): void {
@@ -124,10 +176,11 @@
     }
 
     const doc = pipWindow.document;
-    const { key, iframe } = buildEmbed(doc, snapshot);
+    const { key, iframe, source } = buildEmbed(doc, snapshot, chooseSource(snapshot));
     if (!iframe || !key) return;
     const state = getState();
     if (state.activeEmbedKey === key) {
+      state.selectedSource = source;
       publishPipState(true);
       return;
     }
@@ -155,11 +208,17 @@
     doc.head.append(style);
     doc.body.replaceChildren(iframe);
     state.activeEmbedKey = key;
+    state.selectedSource = source;
     publishPipState(true);
   }
 
-  async function openNativePip(): Promise<boolean> {
+  async function openNativePip(source?: LiveSource): Promise<boolean> {
     if (!current.isLive || !nativePipAvailable()) return false;
+
+    const selectedSource = chooseSource(current, source ?? null);
+    if (!selectedSource) return false;
+    const state = getState();
+    state.selectedSource = selectedSource;
 
     const existingPipWindow = getPipWindow();
     if (existingPipWindow) {
@@ -173,7 +232,6 @@
       width: 480,
       height: 270,
     });
-    const state = getState();
     state.pipWindow = pipWindow;
     state.activeEmbedKey = '';
     pipWindow.addEventListener(
@@ -187,6 +245,99 @@
     return true;
   }
 
+  function getSourcePicker(): HTMLElement | null {
+    return document.getElementById(SOURCE_PICKER_ID);
+  }
+
+  function closeSourcePicker(): void {
+    const picker = getSourcePicker();
+    if (picker) {
+      picker.hidden = true;
+    }
+    document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function syncSourcePickerControls(): void {
+    const picker = getSourcePicker();
+    if (!picker) return;
+    picker.querySelectorAll<HTMLButtonElement>('[data-live-source-choice]').forEach((button) => {
+      const source = button.dataset.liveSourceChoice as LiveSource | undefined;
+      const live = sourceIsLive(current, source ?? null);
+      button.hidden = !live;
+      button.disabled = !live;
+    });
+    if (getLiveSources(current).length < 2) {
+      closeSourcePicker();
+    }
+  }
+
+  function positionSourcePicker(anchor: HTMLElement, picker: HTMLElement): void {
+    const rect = anchor.getBoundingClientRect();
+    const margin = 8;
+    const width = picker.offsetWidth || 180;
+    const left = Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - margin);
+    picker.style.top = `${rect.bottom + margin}px`;
+    picker.style.left = `${left}px`;
+  }
+
+  function openSourcePicker(anchor: HTMLElement): void {
+    const picker = getSourcePicker();
+    if (!picker) return;
+    syncSourcePickerControls();
+    picker.hidden = false;
+    positionSourcePicker(anchor, picker);
+    document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
+      btn.setAttribute('aria-expanded', String(btn === anchor));
+    });
+    picker.querySelector<HTMLButtonElement>('[data-live-source-choice]:not([hidden]):not(:disabled)')?.focus();
+  }
+
+  function bindSourcePicker(): void {
+    const picker = getSourcePicker();
+    if (!picker || picker.dataset.bound === 'true') return;
+    picker.dataset.bound = 'true';
+    picker.querySelectorAll<HTMLButtonElement>('[data-live-source-choice]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const source = button.dataset.liveSourceChoice as LiveSource | undefined;
+        if (!source) return;
+        closeSourcePicker();
+        void openNativePip(source).catch((err) => {
+          console.warn('[live-status] native Picture-in-Picture failed, navigating to videos page', err);
+          window.location.assign(VIDEOS_PATH);
+        });
+      });
+    });
+    document.addEventListener('click', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof Node)) return;
+      if (picker.contains(target) || (target instanceof Element && target.closest('.live-btn'))) return;
+      closeSourcePicker();
+    });
+    document.addEventListener('keydown', (evt) => {
+      if (evt.key === 'Escape') {
+        closeSourcePicker();
+      }
+    });
+  }
+
+  function syncHeaderMenuState(): void {
+    const hasChoices = current.isLive && nativePipAvailable() && getLiveSources(current).length > 1;
+    document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
+      if (hasChoices) {
+        btn.setAttribute('aria-haspopup', 'menu');
+        btn.setAttribute('aria-controls', SOURCE_PICKER_ID);
+        btn.setAttribute('aria-expanded', String(!getSourcePicker()?.hidden && btn.getAttribute('aria-expanded') === 'true'));
+      } else {
+        btn.removeAttribute('aria-haspopup');
+        btn.removeAttribute('aria-controls');
+        btn.removeAttribute('aria-expanded');
+      }
+    });
+    syncSourcePickerControls();
+  }
+
   function bindHeaderButtons(): void {
     document.querySelectorAll<HTMLAnchorElement>('.live-btn').forEach((btn) => {
       if (btn.dataset.nativePipBound === 'true') return;
@@ -197,7 +348,13 @@
         }
 
         evt.preventDefault();
-        void openNativePip().catch((err) => {
+        const liveSources = getLiveSources(current);
+        if (liveSources.length > 1) {
+          openSourcePicker(btn);
+          return;
+        }
+
+        void openNativePip(liveSources[0]).catch((err) => {
           console.warn('[live-status] native Picture-in-Picture failed, navigating to videos page', err);
           window.location.assign(btn.href);
         });
@@ -206,12 +363,15 @@
   }
 
   function init(): void {
+    bindSourcePicker();
     bindHeaderButtons();
+    syncHeaderMenuState();
     publishPipState(Boolean(getPipWindow()));
   }
 
   subscribe((snapshot) => {
     current = snapshot;
+    syncHeaderMenuState();
     renderPip(snapshot);
   });
 
@@ -224,3 +384,60 @@
     document.addEventListener('astro:after-swap', init);
   }
 </script>
+
+<style>
+  .live-source-menu {
+    position: fixed;
+    z-index: 1000;
+    min-width: 11rem;
+    padding: 0.5rem;
+    color: var(--sl-color-white);
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    box-shadow: var(--sl-shadow-lg);
+  }
+
+  .live-source-menu[hidden] {
+    display: none;
+  }
+
+  .live-source-menu__label {
+    margin: 0 0 0.35rem;
+    padding: 0 0.5rem;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .live-source-menu__item {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.5rem;
+    color: inherit;
+    text-align: start;
+    background: transparent;
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .live-source-menu__item:hover,
+  .live-source-menu__item:focus-visible {
+    background: var(--sl-color-gray-5);
+    outline: none;
+  }
+
+  .live-source-menu__name {
+    font-weight: 700;
+  }
+
+  .live-source-menu__meta {
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+  }
+</style>
