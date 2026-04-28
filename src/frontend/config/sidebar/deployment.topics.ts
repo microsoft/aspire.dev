@@ -127,6 +127,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
       ],
     },
     {
+      label: 'Kubernetes Ingress and Gateway API',
+      slug: 'deployment/kubernetes-ingress-gateway',
+    },
+    {
       label: 'Custom deployment pipelines',
       translations: {
         da: 'Brugerdefinerede implementeringspipelines',

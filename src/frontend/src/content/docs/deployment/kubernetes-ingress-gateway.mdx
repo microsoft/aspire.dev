@@ -1,0 +1,233 @@
+---
+title: Kubernetes Ingress and Gateway API
+description: Learn how to configure HTTP routing for your Aspire application deployed to Kubernetes using Ingress or Gateway API resources.
+sidebar:
+  badge: Preview
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+When you deploy an Aspire application to Kubernetes, you typically need to expose services to external traffic. Aspire provides first-class support for defining HTTP routing rules through two Kubernetes mechanisms:
+
+- **Ingress** (`networking.k8s.io/v1`) — the traditional Kubernetes API, supported by controllers such as NGINX, Traefik, and Azure Application Gateway for Containers (AGC).
+- **Gateway API** (`gateway.networking.k8s.io/v1`) — the modern successor, supported by controllers such as Istio, Envoy Gateway, and Azure ALB.
+
+Both are configured in your AppHost using a fluent builder API and are emitted as standalone Helm chart templates when you run `aspire publish`.
+
+<LearnMore>
+  For general Kubernetes deployment setup, see [Deploy to Kubernetes](/deployment/kubernetes/).
+</LearnMore>
+
+## Ingress
+
+### Add an Ingress resource
+
+Call `AddIngress` on your `KubernetesEnvironmentResource` to declare a Kubernetes Ingress:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+var web = builder.AddProject<Projects.MyWeb>("web");
+
+var ingress = k8s.AddIngress("public")
+    .WithIngressClass("nginx")
+    .WithRoute("/api", api.GetEndpoint("http"))
+    .WithRoute("/", web.GetEndpoint("http"));
+
+builder.Build().Run();
+```
+
+This generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output. The ingress resolves each endpoint reference to the corresponding Kubernetes Service name and port.
+
+### Configure routing rules
+
+`WithRoute` accepts a path, an endpoint reference, and an optional `IngressPathType`:
+
+```csharp title="AppHost.cs"
+ingress
+    .WithRoute("/api", api.GetEndpoint("http"), IngressPathType.Prefix)
+    .WithRoute("/exact-match", api.GetEndpoint("http"), IngressPathType.Exact);
+```
+
+The `IngressPathType` enum maps directly to the Kubernetes `pathType` field:
+
+| Value | Kubernetes `pathType` |
+|---|---|
+| `Prefix` (default) | `Prefix` |
+| `Exact` | `Exact` |
+| `ImplementationSpecific` | `ImplementationSpecific` |
+
+To route a specific hostname, provide the host as the first argument:
+
+```csharp title="AppHost.cs"
+ingress.WithRoute("api.example.com", "/", api.GetEndpoint("http"));
+```
+
+### Configure TLS
+
+Use `WithTls` to associate a TLS secret with one or more hostnames:
+
+```csharp title="AppHost.cs"
+ingress
+    .WithTls("api.example.com", "api-tls-secret")
+    .WithRoute("api.example.com", "/", api.GetEndpoint("http"));
+```
+
+At publish time, Aspire generates a Helm post-install hook that creates a self-signed placeholder TLS Secret if one does not already exist. This lets the chart deploy successfully before you configure a real certificate. Replace it with a certificate issued by cert-manager or another provider as a follow-up step.
+
+:::note
+For Azure Application Gateway for Containers (AGC) with TLS, rules for TLS hosts with a `defaultBackend` are auto-generated because AGC requires them.
+:::
+
+### Set the default backend
+
+Use `WithDefaultBackend` to specify a fallback service for unmatched requests:
+
+```csharp title="AppHost.cs"
+ingress.WithDefaultBackend(api.GetEndpoint("http"));
+```
+
+### Add annotations
+
+Use `WithIngressAnnotation` to attach arbitrary annotations to the Ingress resource:
+
+```csharp title="AppHost.cs"
+ingress
+    .WithIngressAnnotation("nginx.ingress.kubernetes.io/rewrite-target", "/")
+    .WithIngressAnnotation("nginx.ingress.kubernetes.io/ssl-redirect", "true");
+```
+
+### Full Ingress example (AKS + AGC)
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+var ingress = k8s.AddIngress("public")
+    .WithIngressClass("azure-alb-external")
+    .WithIngressAnnotation("alb.networking.azure.io/alb-name", "my-alb")
+    .WithIngressAnnotation("alb.networking.azure.io/alb-namespace", "alb-ns")
+    .WithTls("api.example.com", "api-tls-secret")
+    .WithRoute("api.example.com", "/", api.GetEndpoint("https"));
+
+builder.Build().Run();
+```
+
+## Gateway API
+
+The Gateway API is the Kubernetes-recommended successor to Ingress. Aspire generates a `Gateway` resource plus one or more `HTTPRoute` resources.
+
+### Add a Gateway resource
+
+Call `AddGateway` on your `KubernetesEnvironmentResource`:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+var gateway = k8s.AddGateway("public")
+    .WithGatewayClass("istio")
+    .WithRoute("/api", api.GetEndpoint("http"));
+
+builder.Build().Run();
+```
+
+Aspire auto-infers the listeners:
+- An HTTP listener on port 80 is added whenever any HTTP routes are configured.
+- An HTTPS listener on port 443 per hostname is added whenever `WithTls` is called for that hostname.
+
+### Configure TLS
+
+```csharp title="AppHost.cs"
+gateway
+    .WithGatewayClass("azure-alb-external")
+    .WithTls("api.example.com", "api-tls-secret")
+    .WithRoute("api.example.com", "/", api.GetEndpoint("https"));
+```
+
+TLS configures a listener on the `Gateway` resource rather than a separate route. The Helm post-install hook that creates placeholder TLS secrets applies to Gateway API resources as well.
+
+### Add annotations
+
+```csharp title="AppHost.cs"
+gateway
+    .WithGatewayAnnotation("alb.networking.azure.io/alb-name", "my-alb")
+    .WithGatewayAnnotation("alb.networking.azure.io/alb-namespace", "alb-ns");
+```
+
+### Full Gateway API example (AKS + Azure ALB)
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+var gateway = k8s.AddGateway("public")
+    .WithGatewayClass("azure-alb-external")
+    .WithGatewayAnnotation("alb.networking.azure.io/alb-name", "my-alb")
+    .WithGatewayAnnotation("alb.networking.azure.io/alb-namespace", "alb-ns")
+    .WithTls("api.example.com", "api-tls-secret")
+    .WithRoute("api.example.com", "/", api.GetEndpoint("https"));
+
+builder.Build().Run();
+```
+
+## Azure Kubernetes environments
+
+If you use `AddAzureKubernetesEnvironment`, the same `AddIngress` and `AddGateway` extension methods are available:
+
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+var ingress = aks.AddIngress("public").WithIngressClass("azure-alb-external");
+var gateway = aks.AddGateway("public").WithGatewayClass("azure-alb-external");
+```
+
+## Generated Helm chart output
+
+At publish time, each `AddIngress` or `AddGateway` call generates a standalone Helm chart template file:
+
+```
+templates/
+  public-ingress/
+    ingress.yaml       ← networking.k8s.io/v1 Ingress
+  public-gateway/
+    gateway.yaml       ← gateway.networking.k8s.io/v1 Gateway
+    httproute.yaml     ← gateway.networking.k8s.io/v1 HTTPRoute
+```
+
+TLS secrets are created by a Helm post-install hook (`tls-bootstrap-job`) if they do not already exist. This job uses .NET's `System.Security.Cryptography` to generate a self-signed certificate and is idempotent — it skips creation if the secret already exists.
+
+:::tip
+Replace the self-signed placeholder certificates with real certificates from cert-manager or your preferred PKI before going to production.
+:::
+
+## Choosing between Ingress and Gateway API
+
+| Consideration | Ingress | Gateway API |
+|---|---|---|
+| Kubernetes API version | `networking.k8s.io/v1` | `gateway.networking.k8s.io/v1` |
+| Maturity | Stable (GA) | Stable (GA since K8s 1.28) |
+| Controller support | Broad (NGINX, Traefik, HAProxy, AGC…) | Growing (Istio, Envoy, Cilium, AGC…) |
+| HTTP routing flexibility | Limited (path + host) | Rich (headers, methods, weights…) |
+| TLS configuration | `spec.tls[]` on Ingress | Listener on Gateway |
+| Recommendation | Existing workloads or controllers that lack Gateway API support | New workloads on modern clusters |
+
+## See also
+
+- [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Kubernetes integration](/integrations/compute/kubernetes/)
+- [Kubernetes Ingress documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+- [Kubernetes Gateway API documentation](https://gateway-api.sigs.k8s.io/)
