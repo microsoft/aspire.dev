@@ -51,7 +51,7 @@ is provided.
 "Live": {
   "PublicBaseUrl": "https://aspire.dev",
   "CoalesceWindowMs": 750,
-  "EnableDevEndpoint": true,
+  "EnableDevEndpoint": false,
   "Twitch": {
     "ClientId": "",
     "ClientSecret": "",
@@ -72,7 +72,8 @@ is provided.
 ```
 
 In development, prefer `dotnet user-secrets`. In production, env vars
-or Key Vault.
+or Key Vault. `EnableDevEndpoint` defaults to `false`; the AppHost turns
+it on only for local dashboard-command testing.
 
 ## Endpoints
 
@@ -82,8 +83,8 @@ or Key Vault.
 | GET    | `/api/live/stream`              | Server-Sent Events: `state` and `meta` events, 15s heartbeat        |
 | POST   | `/api/live/twitch/webhook`      | Twitch EventSub callback. HMAC-SHA256 verified.                      |
 | GET    | `/api/live/youtube/webhook`     | WebSub verification (`hub.challenge`)                                |
-| POST   | `/api/live/youtube/webhook`     | WebSub notification. HMAC-SHA1 verified, then confirming poll.       |
-| POST   | `/api/live/_dev/set`            | **Dev-only** override for local testing/Playwright fallback.         |
+| POST   | `/api/live/youtube/webhook`     | WebSub notification. HMAC-SHA1 verified, then confirming poll. In AppHost dev mode without a YouTube API key, signed local notifications update from the Atom payload. |
+| POST   | `/api/live/_dev/set`            | **Dev-only** override for local dashboard commands/Playwright fallback. |
 
 In Development the API is browseable via Scalar at `/scalar/v1`. The
 custom theme lives in `wwwroot/scalar/aspire-theme.css` and matches the
@@ -107,18 +108,41 @@ live" announcement happens. The broadcaster:
 
 ## Local testing
 
+Start the site from the AppHost to enter live-status dev mode:
+
+```powershell
+aspire start --isolated --apphost .\src\apphost\Aspire.Dev.AppHost\Aspire.Dev.AppHost.csproj
+```
+
+When the AppHost is running locally, the `aspiredev` resource has dashboard
+commands that fake live-status events without any real Twitch or YouTube
+credentials:
+
+- **Live: all offline** - clears both sources via `/api/live/_dev/set`.
+- **Fake Twitch online webhook** - invokes the real `/api/live/twitch/webhook` endpoint with a locally signed `stream.online` EventSub notification.
+- **Fake Twitch offline webhook** - invokes the real `/api/live/twitch/webhook` endpoint with a locally signed `stream.offline` EventSub notification.
+- **Fake YouTube WebSub webhook** - invokes the real `/api/live/youtube/webhook` endpoint with a locally signed Atom notification. If no YouTube API key is configured, dev mode trusts the Atom `yt:videoId` so the UI can still light up.
+- **Live: YouTube offline** - turns off only YouTube via `/api/live/_dev/set`.
+- **Live: both online** - turns on both sources directly via `/api/live/_dev/set`.
+
+The provider workers remain idle when their API credentials are missing, so
+the feature is effectively off until a dashboard command (or manual HTTP call)
+pushes local state.
+
 ```powershell
 # Manually push a live state without provisioning real webhooks:
 curl -Method POST http://localhost:5000/api/live/_dev/set `
   -ContentType 'application/json' `
-  -Body '{ "twitch": true, "youtube": false, "twitchChannel": "aspiredotdev" }'
+  -Body '{ "twitch": { "live": true, "channel": "aspiredotdev", "title": "Local test" }, "youtube": { "live": false, "videoId": null } }'
 
 # Inspect the SSE stream:
 curl -N http://localhost:5000/api/live/stream
 ```
 
 The dev endpoint is gated on `IsDevelopment` AND
-`Live:EnableDevEndpoint=true` — never enabled in production.
+`Live:EnableDevEndpoint=true` — never enabled in production. The AppHost
+sets `Live__EnableDevEndpoint=true` and local-only webhook signing secrets
+for the dashboard commands; standalone StaticHost runs must opt in explicitly.
 
 ## Testing strategy
 

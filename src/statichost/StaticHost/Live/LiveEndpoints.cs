@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -64,7 +65,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         group.MapPost("_dev/set", DevSet)
             .WithName("LiveStatusDevSet")
-            .WithSummary("Development-only state override. Returns 404 outside Development.");
+            .WithSummary("Development-only state override. Enabled by AppHost for local dashboard commands.");
 
         return endpoints;
     }
@@ -207,6 +208,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         IOptions<LiveStatusOptions> options,
         LiveStatusBroadcaster broadcaster,
         IYouTubeClient ytClient,
+        IHostEnvironment env,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("StaticHost.Live.YouTube.Webhook");
@@ -228,6 +230,14 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         {
             logger.LogWarning("YouTube WebSub signature mismatch.");
             return Results.Unauthorized();
+        }
+
+        if (env.IsDevelopment() && options.Value.EnableDevEndpoint && !youtube.IsConfigured)
+        {
+            var videoId = YouTubeWebhookHandler.ExtractVideoId(bodyBytes);
+            broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(videoId is not null, videoId) });
+            logger.LogInformation("YouTube dev webhook accepted without API key; videoId={VideoId}", videoId);
+            return Results.Ok();
         }
 
         // Run the confirming poll out of band; we don't want to block the hub.
@@ -275,7 +285,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     }
 
     /// <summary>Body of the dev-only set endpoint.</summary>
-    public sealed record DevSetBody(DevTwitch? Twitch, DevYouTube? YouTube);
+    public sealed record DevSetBody(DevTwitch? Twitch, [property: JsonPropertyName("youtube")] DevYouTube? YouTube);
     /// <summary>Twitch override.</summary>
     public sealed record DevTwitch(bool Live, string? Channel, string? Title);
     /// <summary>YouTube override.</summary>

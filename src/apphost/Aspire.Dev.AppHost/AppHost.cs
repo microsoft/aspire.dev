@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using Aspire.Hosting.ApplicationModel;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
@@ -6,6 +10,12 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
 if (builder.ExecutionContext.IsRunMode)
 {
     staticHostWebsite
+        // Local AppHost runs are the explicit live-status dev mode: external providers stay idle
+        // when no API credentials are configured, but dashboard commands can still exercise the
+        // UI and webhook paths with deterministic local-only signing secrets.
+        .WithEnvironment("Live__EnableDevEndpoint", "true")
+        .WithEnvironment("Live__Twitch__WebhookSecret", LiveDevCommands.TwitchWebhookSecret)
+        .WithEnvironment("Live__YouTube__WebhookSecret", LiveDevCommands.YouTubeWebhookSecret)
         .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (StaticHost)")
         .WithUrls(ctx =>
         {
@@ -22,8 +32,75 @@ if (builder.ExecutionContext.IsRunMode)
             ctx.Urls.Add(new() { Url = "/api/live/stream",           DisplayText = "Live status (SSE stream)", Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/twitch/webhook",   DisplayText = "Twitch EventSub webhook",  Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/youtube/webhook",  DisplayText = "YouTube WebSub webhook",   Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/_dev/set",         DisplayText = "Live dev override",        Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/scalar/v1",                 DisplayText = "API reference (Scalar)",   Endpoint = endpoint });
-        });
+        })
+        .WithHttpCommand(
+            path: "/api/live/_dev/set",
+            displayName: "Live: all offline",
+            endpointName: "http",
+            commandName: "live-dev-all-offline",
+            commandOptions: LiveDevCommands.SetStatus(
+                "Turns off both local live-status sources.",
+                """
+                {
+                  "twitch": { "live": false, "channel": null, "title": null },
+                  "youtube": { "live": false, "videoId": null }
+                }
+                """,
+                iconName: "DismissCircle24Regular"))
+        .WithHttpCommand(
+            path: "/api/live/twitch/webhook",
+            displayName: "Fake Twitch online webhook",
+            endpointName: "http",
+            commandName: "live-dev-twitch-online-webhook",
+            commandOptions: LiveDevCommands.TwitchWebhook(
+                "Invokes the real Twitch EventSub webhook with a signed stream.online notification.",
+                "stream.online"))
+        .WithHttpCommand(
+            path: "/api/live/twitch/webhook",
+            displayName: "Fake Twitch offline webhook",
+            endpointName: "http",
+            commandName: "live-dev-twitch-offline-webhook",
+            commandOptions: LiveDevCommands.TwitchWebhook(
+                "Invokes the real Twitch EventSub webhook with a signed stream.offline notification.",
+                "stream.offline"))
+        .WithHttpCommand(
+            path: "/api/live/youtube/webhook",
+            displayName: "Fake YouTube WebSub webhook",
+            endpointName: "http",
+            commandName: "live-dev-youtube-websub-webhook",
+            commandOptions: LiveDevCommands.YouTubeWebhook(
+                "Invokes the real YouTube WebSub webhook with a signed Atom notification. In dev mode without a YouTube API key, the webhook payload directly sets YouTube live.",
+                videoId: "dev-live-video"))
+        .WithHttpCommand(
+            path: "/api/live/_dev/set",
+            displayName: "Live: YouTube offline",
+            endpointName: "http",
+            commandName: "live-dev-youtube-offline",
+            commandOptions: LiveDevCommands.SetStatus(
+                "Turns off only the local YouTube live-status source.",
+                """
+                {
+                  "youtube": { "live": false, "videoId": null }
+                }
+                """,
+                iconName: "VideoOff24Regular"))
+        .WithHttpCommand(
+            path: "/api/live/_dev/set",
+            displayName: "Live: both online",
+            endpointName: "http",
+            commandName: "live-dev-both-online",
+            commandOptions: LiveDevCommands.SetStatus(
+                "Turns on both local live-status sources without going through provider webhook validation.",
+                """
+                {
+                  "twitch": { "live": true, "channel": "aspiredotdev", "title": "Local dashboard test" },
+                  "youtube": { "live": true, "videoId": "dev-live-video" }
+                }
+                """,
+                iconName: "Live24Regular",
+                isHighlighted: true));
 
     // For local development: Use ViteApp for hot reload and development experience
     builder.AddViteApp("frontend", "../../frontend")
@@ -40,3 +117,104 @@ else
 }
 
 builder.Build().Run();
+
+internal static class LiveDevCommands
+{
+    public const string TwitchWebhookSecret = "aspire-dev-twitch-webhook-secret";
+    public const string YouTubeWebhookSecret = "aspire-dev-youtube-webhook-secret";
+
+    public static HttpCommandOptions SetStatus(string description, string body, string iconName, bool isHighlighted = false) =>
+        new()
+        {
+            Method = HttpMethod.Post,
+            Description = description,
+            IconName = iconName,
+            IsHighlighted = isHighlighted,
+            PrepareRequest = context =>
+            {
+                context.Request.Content = Json(body, "application/json");
+                return Task.CompletedTask;
+            },
+        };
+
+    public static HttpCommandOptions TwitchWebhook(string description, string subscriptionType) =>
+        new()
+        {
+            Method = HttpMethod.Post,
+            Description = description,
+            IconName = subscriptionType == "stream.online" ? "Live24Regular" : "DismissCircle24Regular",
+            PrepareRequest = context =>
+            {
+                var body = $$"""
+                {
+                  "subscription": { "type": "{{subscriptionType}}" },
+                  "event": {
+                    "broadcaster_user_id": "dev-aspire",
+                    "broadcaster_user_login": "aspiredotdev",
+                    "broadcaster_user_name": "Aspire",
+                    "started_at": "{{DateTimeOffset.UtcNow:O}}"
+                  }
+                }
+                """;
+
+                var messageId = Guid.NewGuid().ToString("N");
+                var timestamp = DateTimeOffset.UtcNow.ToString("O");
+                var bodyBytes = Encoding.UTF8.GetBytes(body);
+                var signature = SignTwitch(TwitchWebhookSecret, messageId, timestamp, bodyBytes);
+
+                context.Request.Headers.Add("Twitch-Eventsub-Message-Id", messageId);
+                context.Request.Headers.Add("Twitch-Eventsub-Message-Timestamp", timestamp);
+                context.Request.Headers.Add("Twitch-Eventsub-Message-Type", "notification");
+                context.Request.Headers.Add("Twitch-Eventsub-Message-Signature", $"sha256={signature}");
+                context.Request.Content = Json(body, "application/json");
+                return Task.CompletedTask;
+            },
+        };
+
+    public static HttpCommandOptions YouTubeWebhook(string description, string videoId) =>
+        new()
+        {
+            Method = HttpMethod.Post,
+            Description = description,
+            IconName = "Video24Regular",
+            PrepareRequest = context =>
+            {
+                var body = $$"""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+                  <entry>
+                    <yt:videoId>{{videoId}}</yt:videoId>
+                    <title>Local Aspire live-status test</title>
+                    <link rel="alternate" href="https://www.youtube.com/watch?v={{videoId}}" />
+                  </entry>
+                </feed>
+                """;
+
+                var bodyBytes = Encoding.UTF8.GetBytes(body);
+                var signature = SignYouTube(YouTubeWebhookSecret, bodyBytes);
+                context.Request.Headers.Add("X-Hub-Signature", $"sha1={signature}");
+                context.Request.Content = Json(body, "application/atom+xml");
+                return Task.CompletedTask;
+            },
+        };
+
+    private static StringContent Json(string body, string mediaType) =>
+        new(body, Encoding.UTF8, mediaType);
+
+    private static string SignTwitch(string secret, string messageId, string timestamp, byte[] body)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var messageBytes = Encoding.UTF8.GetBytes(messageId);
+        hmac.TransformBlock(messageBytes, 0, messageBytes.Length, null, 0);
+        var timestampBytes = Encoding.UTF8.GetBytes(timestamp);
+        hmac.TransformBlock(timestampBytes, 0, timestampBytes.Length, null, 0);
+        hmac.TransformFinalBlock(body, 0, body.Length);
+        return Convert.ToHexStringLower(hmac.Hash!);
+    }
+
+    private static string SignYouTube(string secret, byte[] body)
+    {
+        using var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(secret));
+        return Convert.ToHexStringLower(hmac.ComputeHash(body));
+    }
+}
