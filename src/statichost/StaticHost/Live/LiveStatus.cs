@@ -19,6 +19,7 @@ public sealed record LiveStatus(
     bool IsLive,
     string? PrimarySource,
     TwitchStatus Twitch,
+    [property: JsonPropertyName("youtube")]
     YouTubeStatus YouTube,
     DateTimeOffset UpdatedAt)
 {

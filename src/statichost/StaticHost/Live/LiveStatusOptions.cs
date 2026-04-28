@@ -42,9 +42,10 @@ public sealed class LiveStatusOptions
     /// When <c>true</c>, expose the dev-only <c>POST /api/live/_dev/set</c>
     /// endpoint that lets local devs (and Playwright) flip live state without
     /// provisioning real webhooks. Only honored when the host environment is
-    /// Development.
+    /// Development. The AppHost enables this automatically for local dashboard
+    /// command testing; it defaults off for standalone runs.
     /// </summary>
-    public bool EnableDevEndpoint { get; set; } = true;
+    public bool EnableDevEndpoint { get; set; }
 }
 
 /// <summary>Twitch credentials and channel configuration.</summary>
