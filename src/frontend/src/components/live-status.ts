@@ -85,7 +85,7 @@ function syncDom(): void {
     btn.dataset.source = sourceAttr;
     btn.setAttribute(
       'aria-label',
-      current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire videos',
+      current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire live streams',
     );
   });
 }
