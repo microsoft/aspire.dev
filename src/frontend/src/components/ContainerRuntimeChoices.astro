@@ -1,0 +1,189 @@
+---
+import { Code, TabItem, Tabs } from '@astrojs/starlight/components';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
+interface RuntimeChoice {
+  id: string;
+  title: string;
+  href: string;
+  linkLabel: string;
+  statusLabel: string;
+  description: string;
+}
+
+interface PodmanSetup {
+  heading: string;
+  body: string;
+  bashTitle: string;
+  powershellTitle: string;
+}
+
+interface Props {
+  heading?: string;
+  intro: string;
+  ariaLabel: string;
+  choices: RuntimeChoice[];
+  podmanSetup: PodmanSetup;
+}
+
+const { heading, intro, ariaLabel, choices, podmanSetup } = Astro.props;
+const podmanRuntimeVariable = 'ASPIRE_CONTAINER_RUNTIME';
+const podmanBodyParts = podmanSetup.body.split(podmanRuntimeVariable);
+---
+
+<section class="runtime-choices" aria-label={ariaLabel}>
+  {heading && <h3 class="runtime-heading">{heading}</h3>}
+  <p class="runtime-intro">{intro}</p>
+  <div class="runtime-tabs">
+    <Tabs>
+      {
+        choices.map((choice) => (
+          <TabItem label={choice.title} icon={choice.id === 'docker' ? 'seti:docker' : undefined}>
+            <div class:list={['runtime-panel', `runtime-${choice.id}`]}>
+              <div class="runtime-panel-actions">
+                <span class="runtime-status">{choice.statusLabel}</span>
+                <a class="runtime-link" href={choice.href} target="_blank" rel="noopener noreferrer">
+                  {choice.linkLabel}
+                </a>
+              </div>
+              <p class="runtime-description">{choice.description}</p>
+              {
+                choice.id === 'podman' && (
+                  <div class="podman-setup">
+                    <div class="podman-setup-copy">
+                      <h5>{podmanSetup.heading}</h5>
+                      <p class="podman-copy">
+                        {
+                          podmanBodyParts.map((part, index) => (
+                            <>
+                              {part}
+                              {index < podmanBodyParts.length - 1 && (
+                                <code>{podmanRuntimeVariable}</code>
+                              )}
+                            </>
+                          ))
+                        }
+                      </p>
+                    </div>
+                    <OsAwareTabs syncKey="terminal">
+                      <Code
+                        slot="unix"
+                        title={podmanSetup.bashTitle}
+                        code="export ASPIRE_CONTAINER_RUNTIME=podman"
+                        lang="bash"
+                      />
+                      <Code
+                        slot="windows"
+                        title={podmanSetup.powershellTitle}
+                        code={[
+                          '[System.Environment]::SetEnvironmentVariable(',
+                          '    "ASPIRE_CONTAINER_RUNTIME",',
+                          '    "podman",',
+                          '    "User"',
+                          ')',
+                        ].join('\n')}
+                        lang="powershell"
+                      />
+                    </OsAwareTabs>
+                  </div>
+                )
+              }
+            </div>
+          </TabItem>
+        ))
+      }
+    </Tabs>
+  </div>
+</section>
+
+<style>
+  .runtime-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-base);
+  }
+
+  .runtime-heading {
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-lg);
+    line-height: 1.3;
+  }
+
+  .runtime-intro {
+    margin: 0;
+    color: inherit;
+    font-size: inherit;
+    line-height: 1.6;
+  }
+
+  .runtime-tabs :global(starlight-tabs) {
+    margin: 0;
+  }
+
+  .runtime-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-top: 0.1rem;
+  }
+
+  .runtime-panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.8rem;
+  }
+
+  .runtime-status {
+    color: var(--sl-color-text-accent);
+    font-size: inherit;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+
+  .runtime-link {
+    color: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    line-height: 1.6;
+    text-underline-offset: 0.18em;
+  }
+
+  .runtime-description,
+  .podman-copy {
+    margin: 0;
+    color: inherit;
+    font-size: inherit;
+    line-height: 1.6;
+  }
+
+  .podman-setup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.1rem;
+  }
+
+  .podman-setup-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .podman-setup-copy h5 {
+    margin: 0;
+  }
+
+  .podman-setup :global(starlight-tabs) {
+    margin: 0;
+  }
+
+  .podman-setup :global(figure.frame) {
+    margin: 0;
+  }
+
+</style>

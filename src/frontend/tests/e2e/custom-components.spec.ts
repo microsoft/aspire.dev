@@ -39,11 +39,46 @@ test('accessible code enhancements label code regions and remove disabled copy b
   await expect(labelledRegion).toBeVisible();
   await expect(labelledRegion).toHaveAttribute('aria-label', /install/i);
   await expect(copyButton).toHaveAttribute('aria-label', /(copy|copied)/i);
+  await expect(copyButton).toHaveCSS('opacity', '1');
+  await expect(copyButton).toHaveCSS('visibility', 'visible');
 
   await page.goto('/');
   await dismissCookieConsentIfVisible(page);
 
   await expect(page.locator('.code-display[data-disable-copy] .copy')).toHaveCount(0);
+});
+
+test('prerequisites presents container runtimes as one choice with Podman setup inline', async ({
+  page,
+}) => {
+  await page.goto('/get-started/prerequisites/');
+  await dismissCookieConsentIfVisible(page);
+
+  const main = page.locator('main');
+  const runtimeChoices = page.locator('.runtime-choices');
+  const podmanChoice = runtimeChoices.locator('.runtime-podman');
+
+  await expect(main).toContainText('Install an OCI-compliant container runtime');
+  await expect(main).toContainText('Install one option from the tabs above.');
+  await expect(main).toContainText('Podman or Rancher Desktop unless you specifically want');
+  await expect(runtimeChoices).toBeVisible();
+  await expect(runtimeChoices).toContainText('Docker Desktop');
+  await expect(runtimeChoices).toContainText('Podman');
+  await expect(runtimeChoices).toContainText('Rancher Desktop');
+
+  await expect(runtimeChoices.getByRole('tab', { name: 'Docker Desktop' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  await expect(podmanChoice).toBeHidden();
+
+  await runtimeChoices.getByRole('tab', { name: 'Podman' }).click();
+
+  await expect(podmanChoice).toBeVisible();
+  await expect(podmanChoice).toContainText('Use Podman with Aspire');
+  await expect(podmanChoice).toContainText('ASPIRE_CONTAINER_RUNTIME');
+  await expect(podmanChoice).toContainText('podman');
+  await expect(podmanChoice.locator('starlight-tabs[data-sync-key="terminal"]')).toBeVisible();
 });
 
 test('testimonial carousel advances cards and enables the previous control', async ({ page }) => {
