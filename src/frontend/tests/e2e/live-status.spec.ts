@@ -239,6 +239,116 @@ test.describe('live status', () => {
       .toBe(iframeSrcBeforeNavigation);
   });
 
+  test('live header offers a provider choice when both streams are live', async ({ page }) => {
+    const liveSnapshot: LiveSnapshot = {
+      isLive: true,
+      primarySource: 'twitch',
+      twitch: { live: true, channel: 'aspiredotdev' },
+      youtube: { live: true, videoId: 'abc123' },
+      updatedAt: new Date().toISOString(),
+    };
+
+    await page.addInitScript(() => {
+      const pipDocument = document.implementation.createHTMLDocument('Aspire live stream');
+      const fakePipWindow = {
+        document: pipDocument,
+        closed: false,
+        focus() {
+          /* no-op */
+        },
+        close() {
+          this.closed = true;
+        },
+        addEventListener() {
+          /* no-op */
+        },
+      };
+      Object.defineProperty(window, '__aspirePipRequested', {
+        configurable: true,
+        value: 0,
+        writable: true,
+      });
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: {
+          window: null,
+          async requestWindow() {
+            (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested =
+              ((window as Window & { __aspirePipRequested?: number }).__aspirePipRequested ?? 0) + 1;
+            this.window = fakePipWindow;
+            return fakePipWindow;
+          },
+        },
+      });
+    });
+
+    await page.route('**/api/live', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(liveSnapshot) }),
+    );
+
+    await page.route('**/api/live/stream', async (route) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`));
+        },
+      });
+      await route.fulfill({
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-store',
+          connection: 'keep-alive',
+        },
+        body: body as unknown as Buffer,
+      });
+    });
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const liveBtn = page.locator('.live-btn').first();
+    await expect(liveBtn).toHaveAttribute('data-source', 'both');
+    await liveBtn.click();
+
+    const sourceMenu = page.getByRole('menu', { name: 'Choose live stream' });
+    await expect(sourceMenu).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .toBe(0);
+
+    await sourceMenu.getByRole('menuitem', { name: /YouTube/ }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const pipState = (window as Window & {
+            __aspireLivePipState?: { pipWindow?: { document?: Document } };
+          }).__aspireLivePipState;
+          return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
+        }),
+      )
+      .toContain('youtube-nocookie.com/embed/abc123');
+
+    await liveBtn.click();
+    await expect(sourceMenu).toBeVisible();
+    await sourceMenu.getByRole('menuitem', { name: /Twitch/ }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const pipState = (window as Window & {
+            __aspireLivePipState?: { pipWindow?: { document?: Document } };
+          }).__aspireLivePipState;
+          return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
+        }),
+      )
+      .toContain('player.twitch.tv/?channel=aspiredotdev');
+  });
+
   test('videos page loads channel embeds while idle', async ({ page }) => {
     await page.route('**/api/live', (r) =>
       r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(idleSnapshot) }),
@@ -268,5 +378,9 @@ test.describe('live status', () => {
     const twitchFrame = page.locator('.live-embed-wrapper[data-source="twitch"] iframe');
     await expect(youtubeFrame).toHaveAttribute('src', /\/embed\/live_stream\?.*channel=UC8Hyt2P1u3KKnBgRf-Iv6_Q/);
     await expect(twitchFrame).toHaveAttribute('src', /player\.twitch\.tv\/\?channel=aspiredotdev/);
+    await expect(youtubeFrame).not.toHaveAttribute('title');
+    await expect(twitchFrame).not.toHaveAttribute('title');
+    await expect(youtubeFrame).toHaveAttribute('aria-label', 'Aspire on YouTube');
+    await expect(twitchFrame).toHaveAttribute('aria-label', 'Aspire on Twitch');
   });
 });
