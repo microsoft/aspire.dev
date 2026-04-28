@@ -30,49 +30,45 @@ test.describe('live status', () => {
   };
 
   test('header icon strobes when an SSE state event flips to live', async ({ page }) => {
-    let resolveLive!: () => void;
-    const liveGate = new Promise<void>((res) => (resolveLive = res));
+    await page.addInitScript(() => {
+      type StateListener = (evt: MessageEvent<string>) => void;
+      const listeners = new Set<StateListener>();
+
+      class MockEventSource {
+        onopen: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        constructor() {
+          setTimeout(() => this.onopen?.(), 0);
+        }
+
+        addEventListener(type: string, listener: StateListener): void {
+          if (type === 'state') listeners.add(listener);
+        }
+
+        close(): void {
+          listeners.clear();
+        }
+      }
+
+      Object.defineProperty(window, 'EventSource', {
+        configurable: true,
+        value: MockEventSource,
+      });
+      Object.defineProperty(window, '__aspireLiveSseEmit', {
+        configurable: true,
+        value(snapshot: LiveSnapshot) {
+          const evt = new MessageEvent('state', { data: JSON.stringify(snapshot) });
+          listeners.forEach((listener) => listener(evt));
+        },
+      });
+    });
 
     await page.route('**/api/live', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(idleSnapshot),
-      });
-    });
-
-    await page.route('**/api/live/stream', async (route) => {
-      const chunks: string[] = [
-        `event: state\ndata: ${JSON.stringify(idleSnapshot)}\n\n`,
-      ];
-      const liveSnapshot: LiveSnapshot = {
-        isLive: true,
-        primarySource: 'twitch',
-        twitch: { live: true, channel: 'aspiredotdev' },
-        youtube: { live: false, videoId: null },
-        updatedAt: new Date().toISOString(),
-      };
-      chunks.push(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`);
-
-      // Stream the idle event immediately, then hold until the test asks
-      // us to flush the live event.
-      const body = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          controller.enqueue(new TextEncoder().encode(chunks[0]!));
-          await liveGate;
-          controller.enqueue(new TextEncoder().encode(chunks[1]!));
-          // Keep the stream open — close would trigger client reconnect.
-        },
-      });
-
-      await route.fulfill({
-        status: 200,
-        headers: {
-          'content-type': 'text/event-stream',
-          'cache-control': 'no-store',
-          connection: 'keep-alive',
-        },
-        body: body as unknown as Buffer,
       });
     });
 
@@ -83,7 +79,16 @@ test.describe('live status', () => {
     await expect(liveBtn).toBeVisible();
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
 
-    resolveLive();
+    const liveSnapshot: LiveSnapshot = {
+      isLive: true,
+      primarySource: 'twitch',
+      twitch: { live: true, channel: 'aspiredotdev' },
+      youtube: { live: false, videoId: null },
+      updatedAt: new Date().toISOString(),
+    };
+    await page.evaluate((snapshot) => {
+      (window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }).__aspireLiveSseEmit?.(snapshot);
+    }, liveSnapshot);
 
     await expect(liveBtn).toHaveAttribute('data-live', 'true', { timeout: 10_000 });
     await expect(liveBtn).toHaveAttribute('data-source', 'twitch');
@@ -128,7 +133,7 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
   });
 
-  test('live header click opens native picture-in-picture instead of redirecting', async ({ page }) => {
+  test('live header click opens site-global native picture-in-picture and suppresses strobe', async ({ page }) => {
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
       primarySource: 'twitch',
@@ -142,6 +147,9 @@ test.describe('live status', () => {
       const fakePipWindow = {
         document: pipDocument,
         closed: false,
+        focus() {
+          /* no-op */
+        },
         close() {
           this.closed = true;
         },
@@ -151,14 +159,17 @@ test.describe('live status', () => {
       };
       Object.defineProperty(window, '__aspirePipRequested', {
         configurable: true,
-        value: false,
+        value: 0,
         writable: true,
       });
       Object.defineProperty(window, 'documentPictureInPicture', {
         configurable: true,
         value: {
+          window: null,
           async requestWindow() {
-            (window as Window & { __aspirePipRequested?: boolean }).__aspirePipRequested = true;
+            (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested =
+              ((window as Window & { __aspirePipRequested?: number }).__aspirePipRequested ?? 0) + 1;
+            this.window = fakePipWindow;
             return fakePipWindow;
           },
         },
@@ -194,8 +205,69 @@ test.describe('live status', () => {
     await liveBtn.click();
 
     await expect
-      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: boolean }).__aspirePipRequested))
-      .toBe(true);
+      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .toBe(1);
+    await expect(liveBtn).toHaveAttribute('data-live', 'false');
+    await expect(liveBtn).toHaveAttribute('data-pip-open', 'true');
     expect(new URL(page.url()).pathname).not.toBe('/community/videos/');
+
+    const iframeSrcBeforeNavigation = await page.evaluate(() => {
+      const pipState = (window as Window & {
+        __aspireLivePipState?: { pipWindow?: { document?: Document } };
+      }).__aspireLivePipState;
+      return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
+    });
+
+    await page.evaluate(() => {
+      history.pushState({}, '', '/docs/');
+      document.dispatchEvent(new Event('astro:after-swap'));
+    });
+
+    await expect
+      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .toBe(1);
+    await expect(liveBtn).toHaveAttribute('data-live', 'false');
+    await expect(liveBtn).toHaveAttribute('data-pip-open', 'true');
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const pipState = (window as Window & {
+            __aspireLivePipState?: { pipWindow?: { document?: Document } };
+          }).__aspireLivePipState;
+          return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
+        }),
+      )
+      .toBe(iframeSrcBeforeNavigation);
+  });
+
+  test('videos page loads channel embeds while idle', async ({ page }) => {
+    await page.route('**/api/live', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(idleSnapshot) }),
+    );
+
+    await page.route('**/api/live/stream', async (route) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(idleSnapshot)}\n\n`));
+        },
+      });
+      await route.fulfill({
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-store',
+          connection: 'keep-alive',
+        },
+        body: body as unknown as Buffer,
+      });
+    });
+
+    await page.goto('/community/videos/');
+    await dismissCookieConsentIfVisible(page);
+
+    const youtubeFrame = page.locator('.live-embed-wrapper[data-source="youtube"] iframe');
+    const twitchFrame = page.locator('.live-embed-wrapper[data-source="twitch"] iframe');
+    await expect(youtubeFrame).toHaveAttribute('src', /\/embed\/live_stream\?.*channel=UC8Hyt2P1u3KKnBgRf-Iv6_Q/);
+    await expect(twitchFrame).toHaveAttribute('src', /player\.twitch\.tv\/\?channel=aspiredotdev/);
   });
 });
