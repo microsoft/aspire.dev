@@ -124,6 +124,18 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           label: 'Azure Kubernetes Service (AKS)',
           slug: 'deployment/kubernetes/aks',
         },
+        {
+          label: 'Ingress & Gateway API',
+          slug: 'deployment/kubernetes-ingress',
+        },
+        {
+          label: 'Ingress on AKS',
+          slug: 'deployment/kubernetes-ingress-aks',
+        },
+        {
+          label: 'Gateway API on AKS',
+          slug: 'deployment/kubernetes-gateway-aks',
+        },
       ],
     },
     {
