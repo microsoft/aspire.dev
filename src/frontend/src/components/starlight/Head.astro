@@ -42,28 +42,112 @@ function computeSourceUrl() {
 <!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
 <script is:inline>
   (function () {
+    var appHostLangLabels = {
+      csharp: 'C#',
+      typescript: 'TypeScript',
+    };
+    var appHostLangStorageKey = 'starlight-synced-tabs__aspire-lang';
+
     function normalizeAppHostLang(value) {
-      var normalized = (value || '').toLowerCase();
+      var normalized = (value || '').toLowerCase().replace(/\s+/g, '');
       if (normalized.indexOf('typescript') !== -1) {
         return 'typescript';
       }
-      if (normalized.indexOf('c#') !== -1 || normalized.indexOf('csharp') !== -1) {
+      if (
+        normalized.indexOf('c#') !== -1 ||
+        normalized.indexOf('csharp') !== -1 ||
+        normalized.indexOf('c-sharp') !== -1
+      ) {
         return 'csharp';
       }
       return '';
     }
 
+    function updateAppHostLangUrl(value) {
+      var normalized = normalizeAppHostLang(value);
+      if (!normalized) return;
+
+      var url = new URL(window.location);
+      url.searchParams.set('aspire-lang', normalized);
+      window.history.replaceState({}, '', url);
+    }
+
+    function persistAppHostLang(value) {
+      var normalized = normalizeAppHostLang(value);
+      if (!normalized) return '';
+
+      document.documentElement.setAttribute('data-apphost-lang', normalized);
+      try {
+        localStorage.setItem('aspire-lang', normalized);
+        localStorage.setItem(appHostLangStorageKey, appHostLangLabels[normalized]);
+      } catch (e) {}
+      return normalized;
+    }
+
+    function syncAppHostLangFromTab(value) {
+      var normalized = persistAppHostLang(value);
+      if (!normalized) return;
+      updateAppHostLangUrl(normalized);
+    }
+
+    function initAppHostLangSync() {
+      if (window.__aspireAppHostLangSyncInitialized) return;
+      window.__aspireAppHostLangSyncInitialized = true;
+
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        if (!(target instanceof Element)) return;
+
+        var tab = target.closest('starlight-tabs[data-sync-key="aspire-lang"] [role="tab"]');
+        if (tab) {
+          var tabValue = normalizeAppHostLang(tab.textContent);
+          if (tabValue) {
+            window.requestAnimationFrame(function () {
+              syncAppHostLangFromTab(tabValue);
+            });
+          }
+        }
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        var target = event.target;
+        if (!(target instanceof Element)) return;
+        var starlightTabs = target.closest('starlight-tabs[data-sync-key="aspire-lang"]');
+        if (!starlightTabs) return;
+
+        window.requestAnimationFrame(function () {
+          var selectedTab = starlightTabs.querySelector('[role="tab"][aria-selected="true"]');
+          var selectedValue = normalizeAppHostLang(selectedTab && selectedTab.textContent);
+          if (selectedValue) {
+            syncAppHostLangFromTab(selectedValue);
+          }
+        });
+      });
+    }
+
+    var qsAppHostLang = persistAppHostLang(
+      new URLSearchParams(window.location.search).get('aspire-lang')
+    );
+    var rawAppHostLang = qsAppHostLang || 'csharp';
+
     try {
-      var rawAppHostLang =
+      rawAppHostLang =
+        qsAppHostLang ||
         localStorage.getItem('aspire-lang') ||
         localStorage.getItem('aspire-apphost-lang') ||
-        localStorage.getItem('starlight-synced-tabs__aspire-lang') ||
+        localStorage.getItem(appHostLangStorageKey) ||
         localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
         localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
         'csharp';
-      var appHostLang = normalizeAppHostLang(rawAppHostLang) || 'csharp';
-      document.documentElement.setAttribute('data-apphost-lang', appHostLang);
+    } catch (e) {}
 
+    document.documentElement.setAttribute(
+      'data-apphost-lang',
+      normalizeAppHostLang(rawAppHostLang) || 'csharp'
+    );
+
+    try {
       var path = window.location.pathname.replace(/\/$/, '');
       if (
         localStorage.getItem('api-sidebar-collapsed') === '1' &&
@@ -79,6 +163,12 @@ function computeSourceUrl() {
         document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
       }
     } catch (e) {}
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAppHostLangSync);
+    } else {
+      initAppHostLangSync();
+    }
   })();
 </script>
 
