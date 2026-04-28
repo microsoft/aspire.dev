@@ -1,0 +1,150 @@
+---
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import YouTubeEmbed from '@components/YouTubeEmbed.astro';
+import TwitchEmbed from '@components/TwitchEmbed.astro';
+
+export interface Props {
+  youtubeChannelId: string;
+  twitchChannel: string;
+}
+
+const { youtubeChannelId, twitchChannel } = Astro.props;
+---
+
+<div id="aspire-live-tabs" data-active-source="none">
+  <Tabs syncKey="stream-source">
+    <TabItem label="YouTube">
+      <div class="live-embed-wrapper" data-source="youtube" data-live="false">
+        <span class="live-badge" aria-hidden="true">LIVE</span>
+        <YouTubeEmbed videoId={`live_stream?channel=${youtubeChannelId}`} title="Aspire on YouTube" />
+      </div>
+      <p class="muted">When we&rsquo;re not live, this shows the channel placeholder. Browse all past streams on <a href="https://youtube.com/@aspiredotdev">youtube.com/@aspiredotdev</a>.</p>
+    </TabItem>
+    <TabItem label="Twitch">
+      <div class="live-embed-wrapper" data-source="twitch" data-live="false">
+        <span class="live-badge" aria-hidden="true">LIVE</span>
+        <TwitchEmbed channel={twitchChannel} title="Aspire on Twitch" />
+      </div>
+      <p class="muted">When we&rsquo;re not live, the Twitch player shows the offline screen. Follow <a href={`https://twitch.tv/${twitchChannel}`}>twitch.tv/{twitchChannel}</a> to get notified.</p>
+    </TabItem>
+  </Tabs>
+</div>
+
+<script>
+  import { subscribe, type LiveSnapshot } from '@components/live-status.ts';
+
+  const PAGE_SELECTOR = '#aspire-live-tabs';
+  let userSticky = false;
+
+  function findTabRoot(): HTMLElement | null {
+    return document.querySelector<HTMLElement>(PAGE_SELECTOR);
+  }
+
+  function activateTab(label: 'YouTube' | 'Twitch'): void {
+    const root = findTabRoot();
+    if (!root) return;
+    const tabBtn = Array.from(
+      root.querySelectorAll<HTMLElement>('[role="tab"]'),
+    ).find((b) => b.textContent?.trim() === label);
+    tabBtn?.click();
+  }
+
+  function setEmbedLive(source: 'youtube' | 'twitch', live: boolean): void {
+    const root = findTabRoot();
+    if (!root) return;
+    const wrapper = root.querySelector<HTMLElement>(
+      `.live-embed-wrapper[data-source="${source}"]`,
+    );
+    if (!wrapper) return;
+    if (wrapper.dataset.live === (live ? 'true' : 'false')) return;
+    wrapper.dataset.live = live ? 'true' : 'false';
+  }
+
+  function applySnapshot(snap: LiveSnapshot): void {
+    setEmbedLive('youtube', snap.youtube.live);
+    setEmbedLive('twitch', snap.twitch.live);
+    const root = findTabRoot();
+    if (root) root.dataset.activeSource = snap.primarySource ?? 'none';
+
+    if (userSticky) return;
+    if (snap.primarySource === 'twitch') activateTab('Twitch');
+    else if (snap.primarySource === 'youtube') activateTab('YouTube');
+  }
+
+  function init(): void {
+    const root = findTabRoot();
+    if (!root || root.dataset.bound === '1') return;
+    root.dataset.bound = '1';
+    userSticky = false;
+    root.querySelectorAll<HTMLElement>('[role="tab"]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        userSticky = true;
+      });
+    });
+    subscribe(applySnapshot);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+  document.addEventListener('astro:after-swap', init);
+</script>
+
+<style>
+  #aspire-live-tabs .live-embed-wrapper {
+    position: relative;
+    border-radius: 0.75rem;
+    transition:
+      box-shadow 0.3s ease,
+      transform 0.3s ease;
+  }
+
+  #aspire-live-tabs .live-badge {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    z-index: 2;
+    background: #ff3b3b;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  #aspire-live-tabs .live-embed-wrapper[data-live='true'] .live-badge {
+    opacity: 1;
+    animation: aspire-live-blink 1.4s ease-in-out infinite;
+  }
+
+  #aspire-live-tabs .live-embed-wrapper[data-live='true'] {
+    box-shadow:
+      0 0 0 2px rgba(255, 59, 59, 0.55),
+      0 12px 32px rgba(255, 59, 59, 0.18);
+  }
+
+  #aspire-live-tabs .muted {
+    margin-top: 0.75rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.9rem;
+  }
+
+  @keyframes aspire-live-blink {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #aspire-live-tabs .live-embed-wrapper[data-live='true'] .live-badge {
+      animation: none;
+    }
+    #aspire-live-tabs .live-embed-wrapper {
+      transition: none;
+    }
+  }
+</style>
