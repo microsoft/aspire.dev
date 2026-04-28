@@ -1,0 +1,254 @@
+---
+/**
+ * Floating live-stream "PiP" panel. Rendered once globally from the
+ * site Header. Hidden until `aspire:live-change` reports `isLive: true`.
+ *
+ * This is a custom in-page floating panel rather than the Document
+ * Picture-in-Picture API: cross-origin iframes (YouTube/Twitch) don't
+ * survive the document transfer, and the panel needs to be styleable +
+ * testable.
+ */
+---
+
+<aside
+  id="aspire-live-pip"
+  class="live-pip"
+  role="complementary"
+  aria-label="Aspire live stream"
+  hidden
+>
+  <header class="live-pip-head">
+    <span class="live-pip-badge" aria-hidden="true">LIVE</span>
+    <span class="live-pip-title">Aspire is live</span>
+    <a class="live-pip-fullscreen" href="/community/videos/" aria-label="Watch full screen on the videos page">↗</a>
+    <button type="button" class="live-pip-close" aria-label="Close live preview">✕</button>
+  </header>
+  <div class="live-pip-body" data-embed-host></div>
+</aside>
+
+<script>
+  import { subscribe, type LiveSnapshot } from '@components/live-status.ts';
+
+  const VIDEOS_PATH = '/community/videos/';
+  const DISMISS_KEY = 'aspire-live-pip-dismissed';
+
+  type EmbedKind = 'twitch' | 'youtube' | null;
+
+  const state = {
+    activeEmbed: null as EmbedKind,
+    activeEmbedKey: '' as string,
+  };
+
+  function isOnVideosPage(): boolean {
+    return window.location.pathname.replace(/\/+$/, '/') === VIDEOS_PATH;
+  }
+
+  function parentHost(): string {
+    return window.location.hostname || 'localhost';
+  }
+
+  function buildEmbed(snapshot: LiveSnapshot): { kind: EmbedKind; key: string; iframe: HTMLIFrameElement | null } {
+    if (snapshot.primarySource === 'twitch' && snapshot.twitch.live && snapshot.twitch.channel) {
+      const channel = snapshot.twitch.channel;
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(parentHost())}&autoplay=true&muted=true`;
+      iframe.allow = 'autoplay; fullscreen';
+      iframe.title = `Twitch live stream from ${channel}`;
+      iframe.loading = 'lazy';
+      return { kind: 'twitch', key: `twitch:${channel}`, iframe };
+    }
+    if (snapshot.primarySource === 'youtube' && snapshot.youtube.live && snapshot.youtube.videoId) {
+      const id = snapshot.youtube.videoId;
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1`;
+      iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+      iframe.title = 'YouTube live stream';
+      iframe.loading = 'lazy';
+      return { kind: 'youtube', key: `youtube:${id}`, iframe };
+    }
+    return { kind: null, key: '', iframe: null };
+  }
+
+  function tearDownEmbed(host: HTMLElement): void {
+    while (host.firstChild) host.removeChild(host.firstChild);
+    state.activeEmbed = null;
+    state.activeEmbedKey = '';
+  }
+
+  function show(panel: HTMLElement): void {
+    panel.hidden = false;
+    panel.dataset.visible = 'true';
+  }
+
+  function hide(panel: HTMLElement): void {
+    panel.hidden = true;
+    panel.dataset.visible = 'false';
+    const host = panel.querySelector<HTMLElement>('[data-embed-host]');
+    if (host) tearDownEmbed(host);
+  }
+
+  function dismiss(panel: HTMLElement): void {
+    try {
+      sessionStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+    hide(panel);
+    if (!isOnVideosPage()) {
+      window.location.assign(VIDEOS_PATH);
+    }
+  }
+
+  function rearmIfOffline(snapshot: LiveSnapshot): void {
+    if (!snapshot.isLive) {
+      try {
+        sessionStorage.removeItem(DISMISS_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  function dismissed(): boolean {
+    try {
+      return sessionStorage.getItem(DISMISS_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function bind(): void {
+    const panel = document.getElementById('aspire-live-pip');
+    if (!panel) return;
+    if (panel.dataset.bound === '1') {
+      // Re-render embed if needed for the current snapshot after view transition.
+      return;
+    }
+    panel.dataset.bound = '1';
+
+    const closeBtn = panel.querySelector<HTMLButtonElement>('.live-pip-close');
+    closeBtn?.addEventListener('click', () => dismiss(panel));
+
+    subscribe((snapshot) => {
+      rearmIfOffline(snapshot);
+
+      const host = panel.querySelector<HTMLElement>('[data-embed-host]');
+      if (!host) return;
+
+      if (!snapshot.isLive || isOnVideosPage() || dismissed()) {
+        hide(panel);
+        return;
+      }
+
+      const { kind, key, iframe } = buildEmbed(snapshot);
+      if (!iframe || !kind) {
+        hide(panel);
+        return;
+      }
+
+      if (state.activeEmbedKey !== key) {
+        tearDownEmbed(host);
+        host.appendChild(iframe);
+        state.activeEmbed = kind;
+        state.activeEmbedKey = key;
+      }
+      show(panel);
+    });
+  }
+
+  if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bind, { once: true });
+    } else {
+      bind();
+    }
+    document.addEventListener('astro:after-swap', bind);
+  }
+</script>
+
+<style>
+  .live-pip {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    width: min(22rem, calc(100vw - 2rem));
+    aspect-ratio: 16 / 10;
+    background: var(--sl-color-bg-nav, #1f1e33);
+    border: 1px solid rgba(116, 85, 221, 0.4);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 12px 32px rgba(31, 30, 51, 0.32),
+      0 0 0 1px rgba(255, 59, 59, 0.18);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: aspire-pip-in 0.25s ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .live-pip { animation: none; }
+  }
+
+  @keyframes aspire-pip-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  .live-pip[hidden] { display: none; }
+
+  .live-pip-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(116, 85, 221, 0.12);
+    border-bottom: 1px solid rgba(116, 85, 221, 0.2);
+    color: var(--sl-color-white, #fff);
+    font-size: 0.8rem;
+  }
+
+  .live-pip-badge {
+    background: #ff3b3b;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.25rem;
+  }
+
+  .live-pip-title { flex: 1 1 auto; min-width: 0; }
+
+  .live-pip-fullscreen,
+  .live-pip-close {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    text-decoration: none;
+    line-height: 1;
+  }
+
+  .live-pip-fullscreen:hover,
+  .live-pip-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .live-pip-body {
+    flex: 1 1 auto;
+    background: #000;
+    position: relative;
+  }
+
+  .live-pip-body :global(iframe) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+</style>
