@@ -26,7 +26,80 @@ and automatic TLS certificate provisioning via **cert-manager** DNS-01 challenge
 
 The following steps create all the Azure infrastructure needed for this walkthrough. If you already have an AKS cluster with ALB and cert-manager configured, skip to [Configure the AppHost](#configure-the-apphost).
 
+### Register resource providers and features
+
+Application Gateway for Containers requires several resource providers and preview features to be registered in your Azure subscription:
+
+<Tabs syncKey="shell-lang">
+<TabItem label="bash">
+
+```bash
+# Register required resource providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.NetworkFunction
+az provider register --namespace Microsoft.ServiceNetworking
+
+# Register preview features for ALB controller and Gateway API
+az feature register --namespace Microsoft.ContainerService \
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview
+
+# Wait for registration to complete (may take a few minutes)
+az feature show --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+
+# Re-register the provider after feature registration
+az provider register --namespace Microsoft.ContainerService
+
+# Install required CLI extensions
+az extension add --name alb
+az extension add --name aks-preview
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# Register required resource providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.NetworkFunction
+az provider register --namespace Microsoft.ServiceNetworking
+
+# Register preview features for ALB controller and Gateway API
+az feature register --namespace Microsoft.ContainerService `
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview
+
+# Wait for registration to complete (may take a few minutes)
+az feature show --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+
+# Re-register the provider after feature registration
+az provider register --namespace Microsoft.ContainerService
+
+# Install required CLI extensions
+az extension add --name alb
+az extension add --name aks-preview
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  Feature registration can take several minutes. Use `az feature show` to check
+  the status. For the latest prerequisites and supported regions, see the
+  [Application Gateway for Containers
+  documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/).
+</Aside>
+
 ### Create the resource group and cluster
+
+<Tabs syncKey="shell-lang">
+<TabItem label="bash">
 
 ```bash
 # Variables — customize these for your environment
@@ -60,7 +133,48 @@ az aks get-credentials \
   --name $CLUSTER_NAME
 ```
 
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# Variables — customize these for your environment
+$RESOURCE_GROUP = "my-aspire-aks"
+$LOCATION = "westus3"
+$CLUSTER_NAME = "my-aspire-aks"
+$ACR_NAME = "myaspireacr"
+$DNS_ZONE = "myapp.example.com"
+
+# Create resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Create AKS cluster with ALB controller, OIDC issuer, and workload identity
+az aks create `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --location $LOCATION `
+  --enable-oidc-issuer `
+  --enable-workload-identity `
+  --generate-ssh-keys
+
+# Enable the ALB controller addon
+az aks update `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --enable-alb
+
+# Get cluster credentials
+az aks get-credentials `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME
+```
+
+</TabItem>
+</Tabs>
+
 ### Create and attach a container registry
+
+<Tabs syncKey="shell-lang">
+<TabItem label="bash">
 
 ```bash
 # Create Azure Container Registry
@@ -76,9 +190,32 @@ az aks update \
   --attach-acr $ACR_NAME
 ```
 
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# Create Azure Container Registry
+az acr create `
+  --resource-group $RESOURCE_GROUP `
+  --name $ACR_NAME `
+  --sku Basic
+
+# Attach ACR to AKS (grants AcrPull access)
+az aks update `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --attach-acr $ACR_NAME
+```
+
+</TabItem>
+</Tabs>
+
 ### Create the ApplicationLoadBalancer
 
 Create a dedicated subnet for AGC in the cluster's VNet, then deploy the `ApplicationLoadBalancer` custom resource:
+
+<Tabs syncKey="shell-lang">
+<TabItem label="bash">
 
 ```bash
 # Get the managed cluster resource group and VNet
@@ -117,7 +254,53 @@ EOF
 kubectl get applicationloadbalancer alb-aspire --watch
 ```
 
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# Get the managed cluster resource group and VNet
+$MC_RG = $(az aks show --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME `
+  --query nodeResourceGroup -o tsv)
+$VNET_NAME = $(az network vnet list --resource-group $MC_RG --query "[0].name" -o tsv)
+
+# Create a subnet for the ALB (delegated to ServiceNetworking)
+az network vnet subnet create `
+  --resource-group $MC_RG `
+  --vnet-name $VNET_NAME `
+  --name subnet-alb `
+  --address-prefix 10.237.0.0/24 `
+  --delegations Microsoft.ServiceNetworking/trafficControllers
+
+# Get the full subnet ID
+$SUBNET_ID = $(az network vnet subnet show `
+  --resource-group $MC_RG `
+  --vnet-name $VNET_NAME `
+  --name subnet-alb `
+  --query id -o tsv)
+
+# Deploy the ApplicationLoadBalancer CRD
+@"
+apiVersion: alb.networking.azure.io/v1
+kind: ApplicationLoadBalancer
+metadata:
+  name: alb-aspire
+  namespace: default
+spec:
+  associations:
+  - $SUBNET_ID
+"@ | kubectl apply -f -
+
+# Wait for it to become ready
+kubectl get applicationloadbalancer alb-aspire --watch
+```
+
+</TabItem>
+</Tabs>
+
 ### Create an Azure DNS zone
+
+<Tabs syncKey="shell-lang">
+<TabItem label="bash">
 
 ```bash
 # Create the DNS zone
@@ -132,6 +315,25 @@ az network dns zone show \
   --query nameServers -o tsv
 ```
 
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# Create the DNS zone
+az network dns zone create `
+  --resource-group $RESOURCE_GROUP `
+  --name $DNS_ZONE
+
+# List the name servers — delegate these in your domain registrar
+az network dns zone show `
+  --resource-group $RESOURCE_GROUP `
+  --name $DNS_ZONE `
+  --query nameServers -o tsv
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="note">
   You need to add NS records for `$DNS_ZONE` at your domain registrar pointing
   to the name servers listed above. DNS delegation may take up to 48 hours to
@@ -139,6 +341,9 @@ az network dns zone show \
 </Aside>
 
 ### Install cert-manager with Azure DNS support
+
+<Tabs syncKey="shell-lang">
+<TabItem label="bash">
 
 ```bash
 # Install cert-manager with Gateway API support
@@ -239,6 +444,112 @@ EOF
 # Verify the issuer is ready
 kubectl get clusterissuer letsencrypt-prod
 ```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# Install cert-manager with Gateway API support
+helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager `
+  --namespace cert-manager `
+  --create-namespace `
+  --set crds.enabled=true `
+  --set config.enableGatewayAPI=true `
+  --wait
+
+# Create a managed identity for cert-manager
+az identity create `
+  --name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP
+
+$IDENTITY_CLIENT_ID = $(az identity show `
+  --name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP `
+  --query clientId -o tsv)
+
+$IDENTITY_PRINCIPAL_ID = $(az identity show `
+  --name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP `
+  --query principalId -o tsv)
+
+# Grant DNS Zone Contributor role on the DNS zone
+$DNS_ZONE_ID = $(az network dns zone show `
+  --resource-group $RESOURCE_GROUP `
+  --name $DNS_ZONE `
+  --query id -o tsv)
+
+az role assignment create `
+  --assignee-object-id $IDENTITY_PRINCIPAL_ID `
+  --assignee-principal-type ServicePrincipal `
+  --role "DNS Zone Contributor" `
+  --scope $DNS_ZONE_ID
+
+# Create a federated credential for cert-manager's service account
+$OIDC_ISSUER = $(az aks show `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLUSTER_NAME `
+  --query oidcIssuerProfile.issuerUrl -o tsv)
+
+az identity federated-credential create `
+  --name cert-manager-fedcred `
+  --identity-name cert-manager-identity `
+  --resource-group $RESOURCE_GROUP `
+  --issuer $OIDC_ISSUER `
+  --subject "system:serviceaccount:cert-manager:cert-manager" `
+  --audiences "api://AzureADTokenExchange"
+
+# Annotate and label the cert-manager service account for workload identity
+kubectl annotate serviceaccount cert-manager `
+  --namespace cert-manager `
+  azure.workload.identity/client-id=$IDENTITY_CLIENT_ID `
+  --overwrite
+
+kubectl label serviceaccount cert-manager `
+  --namespace cert-manager `
+  azure.workload.identity/use=true `
+  --overwrite
+
+# Patch the deployment to inject workload identity env vars
+kubectl patch deployment cert-manager `
+  --namespace cert-manager `
+  --type=json `
+  -p='[{"op":"add","path":"/spec/template/metadata/labels/azure.workload.identity~1use","value":"true"}]'
+
+# Wait for rollout
+kubectl rollout status deployment cert-manager --namespace cert-manager
+
+# Get the subscription ID for the ClusterIssuer
+$SUBSCRIPTION_ID = $(az account show --query id -o tsv)
+
+# Create a ClusterIssuer using Azure DNS for DNS-01 challenges
+@"
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: your-email@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - dns01:
+        azureDNS:
+          hostedZoneName: $DNS_ZONE
+          resourceGroupName: $RESOURCE_GROUP
+          subscriptionID: $SUBSCRIPTION_ID
+          environment: AzurePublicCloud
+          managedIdentity:
+            clientID: $IDENTITY_CLIENT_ID
+"@ | kubectl apply -f -
+
+# Verify the issuer is ready
+kubectl get clusterissuer letsencrypt-prod
+```
+
+</TabItem>
+</Tabs>
 
 ## Configure the AppHost
 
@@ -593,7 +904,10 @@ To work around this during development:
 - Deploy with TLS enabled to avoid the issue entirely.
 
 <LearnMore>
-- [Application Gateway for Containers documentation](/azure/application-gateway/for-containers/overview)
+- [Application Gateway for Containers documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/)
+- [Quickstart: Deploy ALB Controller (AKS add-on)](https://learn.microsoft.com/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller-addon)
 - [cert-manager documentation](https://cert-manager.io/docs/)
-- [.NET Aspire deployment overview](/dotnet/aspire/deployment/overview)
+- [cert-manager with Let's Encrypt on AKS (Ingress API)](https://learn.microsoft.com/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api)
+- [.NET Aspire deployment overview](/deployment/overview/)
+- [Deploy to AKS with Aspire](/deployment/kubernetes/aks/)
 </LearnMore>
