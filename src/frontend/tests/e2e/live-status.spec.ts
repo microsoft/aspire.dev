@@ -197,7 +197,7 @@ test.describe('live status', () => {
       });
     });
 
-    await page.goto('/get-started/');
+    await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
     const liveBtn = page.locator('.live-btn').first();
@@ -218,16 +218,15 @@ test.describe('live status', () => {
       return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
     });
 
-    await page.evaluate(() => {
-      history.pushState({}, '', '/docs/');
-      document.dispatchEvent(new Event('astro:after-swap'));
-    });
+    await page.locator('a.docs-btn').click();
+    await expect(page).toHaveURL(/\/docs\/$/);
 
     await expect
       .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
       .toBe(1);
-    await expect(liveBtn).toHaveAttribute('data-live', 'false');
-    await expect(liveBtn).toHaveAttribute('data-pip-open', 'true');
+    const liveBtnAfterNavigation = page.locator('.live-btn').first();
+    await expect(liveBtnAfterNavigation).toHaveAttribute('data-live', 'false');
+    await expect(liveBtnAfterNavigation).toHaveAttribute('data-pip-open', 'true');
     await expect
       .poll(() =>
         page.evaluate(() => {
