@@ -17,15 +17,62 @@
     window?: Window | null;
   };
 
+  type LivePipState = {
+    pipWindow: Window | null;
+    activeEmbedKey: string;
+    open: boolean;
+  };
+
   declare global {
     interface Window {
       documentPictureInPicture?: DocumentPictureInPictureApi;
+      __aspireLivePipState?: LivePipState;
+    }
+    interface DocumentEventMap {
+      'aspire:live-pip-change': CustomEvent<{ open: boolean }>;
     }
   }
 
+  const DEFAULT_TWITCH_CHANNEL = 'aspiredotdev';
+  const DEFAULT_YOUTUBE_CHANNEL_ID = 'UC8Hyt2P1u3KKnBgRf-Iv6_Q';
+
   let current = getCurrent();
-  let pipWindow: Window | null = null;
-  let activeEmbedKey = '';
+
+  function getState(): LivePipState {
+    return (window.__aspireLivePipState ??= {
+      pipWindow: null,
+      activeEmbedKey: '',
+      open: false,
+    });
+  }
+
+  function getPipWindow(): Window | null {
+    const state = getState();
+    const nativeWindow = window.documentPictureInPicture?.window;
+    if (nativeWindow && !nativeWindow.closed && state.pipWindow !== nativeWindow) {
+      state.pipWindow = nativeWindow;
+    }
+    if (state.pipWindow?.closed) {
+      state.pipWindow = null;
+      state.activeEmbedKey = '';
+      state.open = false;
+    }
+    return state.pipWindow;
+  }
+
+  function publishPipState(open: boolean): void {
+    const state = getState();
+    if (state.open === open) return;
+    state.open = open;
+    document.dispatchEvent(new CustomEvent('aspire:live-pip-change', { detail: { open } }));
+  }
+
+  function clearPipState(): void {
+    const state = getState();
+    state.pipWindow = null;
+    state.activeEmbedKey = '';
+    publishPipState(false);
+  }
 
   function isModifiedClick(evt: MouseEvent): boolean {
     return evt.defaultPrevented || evt.button !== 0 || evt.altKey || evt.ctrlKey || evt.metaKey || evt.shiftKey;
@@ -40,8 +87,8 @@
   }
 
   function buildEmbed(doc: Document, snapshot: LiveSnapshot): { key: string; iframe: HTMLIFrameElement | null } {
-    if (snapshot.primarySource === 'twitch' && snapshot.twitch.live && snapshot.twitch.channel) {
-      const channel = snapshot.twitch.channel;
+    if (snapshot.primarySource === 'twitch' && snapshot.twitch.live) {
+      const channel = snapshot.twitch.channel ?? DEFAULT_TWITCH_CHANNEL;
       const iframe = doc.createElement('iframe');
       iframe.src = `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(parentHost())}&autoplay=true&muted=true`;
       iframe.allow = 'autoplay; fullscreen';
@@ -49,36 +96,41 @@
       return { key: `twitch:${channel}`, iframe };
     }
 
-    if (snapshot.primarySource === 'youtube' && snapshot.youtube.live && snapshot.youtube.videoId) {
+    if (snapshot.primarySource === 'youtube' && snapshot.youtube.live) {
       const id = snapshot.youtube.videoId;
       const iframe = doc.createElement('iframe');
-      iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1`;
+      iframe.src = id
+        ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&mute=1`
+        : `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(DEFAULT_YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1`;
       iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
       iframe.title = 'YouTube live stream';
-      return { key: `youtube:${id}`, iframe };
+      return { key: id ? `youtube:${id}` : `youtube-channel:${DEFAULT_YOUTUBE_CHANNEL_ID}`, iframe };
     }
 
     return { key: '', iframe: null };
   }
 
   function renderPip(snapshot: LiveSnapshot): void {
-    if (!pipWindow || pipWindow.closed) {
-      pipWindow = null;
-      activeEmbedKey = '';
+    const pipWindow = getPipWindow();
+    if (!pipWindow) {
+      publishPipState(false);
       return;
     }
 
     if (!snapshot.isLive) {
       pipWindow.close();
-      pipWindow = null;
-      activeEmbedKey = '';
+      clearPipState();
       return;
     }
 
     const doc = pipWindow.document;
     const { key, iframe } = buildEmbed(doc, snapshot);
     if (!iframe || !key) return;
-    if (activeEmbedKey === key) return;
+    const state = getState();
+    if (state.activeEmbedKey === key) {
+      publishPipState(true);
+      return;
+    }
 
     doc.title = 'Aspire live stream';
     doc.head.replaceChildren();
@@ -102,22 +154,32 @@
     `;
     doc.head.append(style);
     doc.body.replaceChildren(iframe);
-    activeEmbedKey = key;
+    state.activeEmbedKey = key;
+    publishPipState(true);
   }
 
   async function openNativePip(): Promise<boolean> {
     if (!current.isLive || !nativePipAvailable()) return false;
 
-    pipWindow = await window.documentPictureInPicture!.requestWindow({
+    const existingPipWindow = getPipWindow();
+    if (existingPipWindow) {
+      existingPipWindow.focus();
+      renderPip(current);
+      publishPipState(true);
+      return true;
+    }
+
+    const pipWindow = await window.documentPictureInPicture!.requestWindow({
       width: 480,
       height: 270,
     });
-    activeEmbedKey = '';
+    const state = getState();
+    state.pipWindow = pipWindow;
+    state.activeEmbedKey = '';
     pipWindow.addEventListener(
       'pagehide',
       () => {
-        pipWindow = null;
-        activeEmbedKey = '';
+        clearPipState();
       },
       { once: true },
     );
@@ -145,6 +207,7 @@
 
   function init(): void {
     bindHeaderButtons();
+    publishPipState(Boolean(getPipWindow()));
   }
 
   subscribe((snapshot) => {
