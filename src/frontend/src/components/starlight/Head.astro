@@ -83,47 +83,71 @@ function computeSourceUrl() {
 </script>
 
 <!-- Auto-detect language for first-time visitors -->
-<script is:inline>
+<script>
+  import { isApiReferencePath } from '@utils/api-reference-routes';
+  import { getStoredPreference, setStoredPreference } from '@utils/browser-storage';
+  import {
+    DEFAULT_LOCALE,
+    PREFERRED_LOCALE_STORAGE_KEY,
+    VISITED_STORAGE_KEY,
+    addLocaleToPath,
+    appendSearchAndHash,
+    getLocaleFromPath,
+    normalizeLocale,
+  } from '@utils/locale-routes';
+
   (function () {
-    // Only run on first visit (check if user has a language preference stored)
-    const hasVisited = localStorage.getItem('aspire-visited');
-    if (hasVisited) return;
+    function getBrowserLocale() {
+      const candidates = navigator.languages && navigator.languages.length > 0
+        ? navigator.languages
+        : [navigator.language || DEFAULT_LOCALE];
 
-    // Mark as visited
-    localStorage.setItem('aspire-visited', 'true');
+      for (const candidate of candidates) {
+        const locale = normalizeLocale(candidate);
+        if (locale) return locale;
+      }
 
-    // Get browser language
-    const browserLang = navigator.language || navigator.languages?.[0] || 'en';
-    const langCode = browserLang.split('-')[0].toLowerCase();
+      return DEFAULT_LOCALE;
+    }
 
-    // Supported languages (matching the site's locales)
-    const supportedLangs = [
-      'en',
-      'de',
-      'es',
-      'ja',
-      'fr',
-      'it',
-      'id',
-      'zh',
-      'pt',
-      'ko',
-      'tr',
-      'ru',
-      'hi',
-      'da',
-      'uk',
-    ];
+    function storePreferredLocale(locale: string | undefined) {
+      const normalizedLocale = normalizeLocale(locale) || DEFAULT_LOCALE;
+      setStoredPreference(PREFERRED_LOCALE_STORAGE_KEY, normalizedLocale);
+      return normalizedLocale;
+    }
+
+    function getStoredPreferredLocale() {
+      return normalizeLocale(getStoredPreference(PREFERRED_LOCALE_STORAGE_KEY));
+    }
 
     // Check if current path already has a language prefix
     const currentPath = window.location.pathname;
-    const hasLangPrefix = /^\/[a-z]{2}(?:-[A-Z]{2})?\//.test(currentPath);
+    const currentLocale = getLocaleFromPath(currentPath);
+    const isApiReference = isApiReferencePath(currentPath);
 
-    // If user is on English version (no prefix) and their browser prefers another supported language
-    if (!hasLangPrefix && langCode !== 'en' && supportedLangs.includes(langCode)) {
-      // Redirect to their preferred language
-      const newPath = '/' + langCode + currentPath;
-      window.location.href = newPath;
+    if (currentLocale) {
+      storePreferredLocale(currentLocale);
+      setStoredPreference(VISITED_STORAGE_KEY, 'true');
+      return;
+    }
+
+    let preferredLocale = getStoredPreferredLocale();
+
+    if (!preferredLocale) {
+      const hasVisited = getStoredPreference(VISITED_STORAGE_KEY);
+      if (!hasVisited) {
+        preferredLocale = storePreferredLocale(getBrowserLocale());
+        setStoredPreference(VISITED_STORAGE_KEY, 'true');
+      }
+    }
+
+    if (!isApiReference && preferredLocale && preferredLocale !== DEFAULT_LOCALE) {
+      const localizedPath = addLocaleToPath(currentPath, preferredLocale);
+      window.location.href = appendSearchAndHash(
+        localizedPath,
+        window.location.search,
+        window.location.hash
+      );
     }
   })();
 </script>
