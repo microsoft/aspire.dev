@@ -23,6 +23,8 @@ namespace StaticHost.Live;
 /// </summary>
 public static class LiveStatusEndpointRouteBuilderExtensions
 {
+    private const string DevCommandSecretHeaderName = "X-Aspire-Live-Dev-Command-Key";
+
     /// <summary>
     /// Maps:
     /// <list type="bullet">
@@ -50,6 +52,10 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         group.MapGet("stream", StreamSse)
             .WithName("LiveStatusStream")
             .WithSummary("Server-Sent Events stream of live-status changes.");
+
+        group.MapGet("twitch/webhook", TwitchWebhookInfo)
+            .WithName("TwitchEventSubWebhookInfo")
+            .WithSummary("Describes the Twitch EventSub webhook endpoint. EventSub notifications use POST.");
 
         group.MapPost("twitch/webhook", TwitchWebhook)
             .WithName("TwitchEventSubWebhook")
@@ -132,14 +138,19 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     // Tiny thread-safe LRU for replay defense (Twitch-Eventsub-Message-Id).
     private static readonly TwitchMessageDedup s_twitchDedup = new(capacity: 1024);
 
+    private static IResult TwitchWebhookInfo() =>
+        Results.Text("Twitch EventSub webhook endpoint. Twitch sends signed notifications with POST.", "text/plain");
+
     private static async Task<IResult> TwitchWebhook(
         HttpContext context,
+        IHostEnvironment env,
         IOptions<LiveStatusOptions> options,
         LiveStatusBroadcaster broadcaster,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("StaticHost.Live.Twitch.Webhook");
-        var twitch = options.Value.Twitch;
+        var liveOptions = options.Value;
+        var twitch = liveOptions.Twitch;
 
         if (string.IsNullOrEmpty(twitch.WebhookSecret))
         {
@@ -171,6 +182,13 @@ public static class LiveStatusEndpointRouteBuilderExtensions
             return Results.Unauthorized();
         }
 
+        if (RequiresDevCommandSecret(env, liveOptions, twitch.IsConfigured) &&
+            !HasValidDevCommandSecret(context, liveOptions))
+        {
+            logger.LogWarning("Twitch dev webhook command rejected because the dev command secret header was missing or invalid.");
+            return Results.Unauthorized();
+        }
+
         if (!s_twitchDedup.TryRegister(messageId))
         {
             logger.LogDebug("Twitch webhook replay ignored for {MessageId}.", messageId);
@@ -186,6 +204,11 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     private static IResult YouTubeVerify(HttpContext context, IOptions<LiveStatusOptions> options)
     {
         var query = context.Request.Query;
+        if (!query.ContainsKey("hub.mode"))
+        {
+            return Results.Text("YouTube WebSub webhook endpoint. The hub verifies with GET + hub.* query parameters and sends signed notifications with POST.", "text/plain");
+        }
+
         if (query["hub.mode"] != "subscribe" && query["hub.mode"] != "unsubscribe")
         {
             return Results.BadRequest("Unexpected hub.mode.");
@@ -234,6 +257,12 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         if (env.IsDevelopment() && options.Value.EnableDevEndpoint && !youtube.IsConfigured)
         {
+            if (!HasValidDevCommandSecret(context, options.Value))
+            {
+                logger.LogWarning("YouTube dev webhook command rejected because the dev command secret header was missing or invalid.");
+                return Results.Unauthorized();
+            }
+
             var videoId = YouTubeWebhookHandler.ExtractVideoId(bodyBytes);
             broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(videoId is not null, videoId) });
             logger.LogInformation("YouTube dev webhook accepted without API key; videoId={VideoId}", videoId);
@@ -260,6 +289,7 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     // --- Dev-only -----------------------------------------------------------
 
     private static IResult DevSet(
+        HttpContext context,
         [FromBody] DevSetBody body,
         IHostEnvironment env,
         IOptions<LiveStatusOptions> options,
@@ -268,6 +298,11 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         if (!env.IsDevelopment() || !options.Value.EnableDevEndpoint)
         {
             return Results.NotFound();
+        }
+
+        if (!HasValidDevCommandSecret(context, options.Value))
+        {
+            return Results.Unauthorized();
         }
 
         var update = new LiveStatusUpdate();
@@ -290,6 +325,28 @@ public static class LiveStatusEndpointRouteBuilderExtensions
     public sealed record DevTwitch(bool Live, string? Channel, string? Title);
     /// <summary>YouTube override.</summary>
     public sealed record DevYouTube(bool Live, string? VideoId);
+
+    private static bool RequiresDevCommandSecret(IHostEnvironment env, LiveStatusOptions options, bool providerConfigured) =>
+        env.IsDevelopment() && options.EnableDevEndpoint && !providerConfigured;
+
+    private static bool HasValidDevCommandSecret(HttpContext context, LiveStatusOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.DevCommandSecret))
+        {
+            return false;
+        }
+
+        var header = context.Request.Headers[DevCommandSecretHeaderName].ToString();
+        const string prefix = "Key: ";
+        if (!header.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(header[prefix.Length..]),
+            Encoding.UTF8.GetBytes(options.DevCommandSecret));
+    }
 
     // --- Tiny LRU for Twitch dedup ------------------------------------------
 

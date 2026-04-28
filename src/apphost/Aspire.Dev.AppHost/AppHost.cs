@@ -9,13 +9,18 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
 
 if (builder.ExecutionContext.IsRunMode)
 {
+    var liveDevCommandSecret = builder.AddParameter("live-dev-command-secret", LiveDevCommands.NewSecret, secret: true);
+    var liveDevTwitchWebhookSecret = builder.AddParameter("live-dev-twitch-webhook-secret", LiveDevCommands.NewSecret, secret: true);
+    var liveDevYouTubeWebhookSecret = builder.AddParameter("live-dev-youtube-webhook-secret", LiveDevCommands.NewSecret, secret: true);
+
     staticHostWebsite
         // Local AppHost runs are the explicit live-status dev mode: external providers stay idle
         // when no API credentials are configured, but dashboard commands can still exercise the
-        // UI and webhook paths with deterministic local-only signing secrets.
+        // UI and webhook paths with per-run local-only signing secrets.
         .WithEnvironment("Live__EnableDevEndpoint", "true")
-        .WithEnvironment("Live__Twitch__WebhookSecret", LiveDevCommands.TwitchWebhookSecret)
-        .WithEnvironment("Live__YouTube__WebhookSecret", LiveDevCommands.YouTubeWebhookSecret)
+        .WithEnvironment("Live__DevCommandSecret", liveDevCommandSecret)
+        .WithEnvironment("Live__Twitch__WebhookSecret", liveDevTwitchWebhookSecret)
+        .WithEnvironment("Live__YouTube__WebhookSecret", liveDevYouTubeWebhookSecret)
         .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (StaticHost)")
         .WithUrls(ctx =>
         {
@@ -30,8 +35,8 @@ if (builder.ExecutionContext.IsRunMode)
             }
             ctx.Urls.Add(new() { Url = "/api/live",                  DisplayText = "Live status (JSON)",       Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/stream",           DisplayText = "Live status (SSE stream)", Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/twitch/webhook",   DisplayText = "Twitch EventSub webhook",  Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/youtube/webhook",  DisplayText = "YouTube WebSub webhook",   Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/twitch/webhook",   DisplayText = "Twitch EventSub webhook (POST)",  Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/youtube/webhook",  DisplayText = "YouTube WebSub webhook (GET/POST)",   Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/api/live/_dev/set",         DisplayText = "Live dev override",        Endpoint = endpoint });
             ctx.Urls.Add(new() { Url = "/scalar/v1",                 DisplayText = "API reference (Scalar)",   Endpoint = endpoint });
         })
@@ -41,6 +46,7 @@ if (builder.ExecutionContext.IsRunMode)
             endpointName: "http",
             commandName: "live-dev-all-offline",
             commandOptions: LiveDevCommands.SetStatus(
+                liveDevCommandSecret,
                 "Turns off both local live-status sources.",
                 """
                 {
@@ -55,6 +61,8 @@ if (builder.ExecutionContext.IsRunMode)
             endpointName: "http",
             commandName: "live-dev-twitch-online-webhook",
             commandOptions: LiveDevCommands.TwitchWebhook(
+                liveDevCommandSecret,
+                liveDevTwitchWebhookSecret,
                 "Invokes the real Twitch EventSub webhook with a signed stream.online notification.",
                 "stream.online"))
         .WithHttpCommand(
@@ -63,6 +71,8 @@ if (builder.ExecutionContext.IsRunMode)
             endpointName: "http",
             commandName: "live-dev-twitch-offline-webhook",
             commandOptions: LiveDevCommands.TwitchWebhook(
+                liveDevCommandSecret,
+                liveDevTwitchWebhookSecret,
                 "Invokes the real Twitch EventSub webhook with a signed stream.offline notification.",
                 "stream.offline"))
         .WithHttpCommand(
@@ -71,6 +81,8 @@ if (builder.ExecutionContext.IsRunMode)
             endpointName: "http",
             commandName: "live-dev-youtube-websub-webhook",
             commandOptions: LiveDevCommands.YouTubeWebhook(
+                liveDevCommandSecret,
+                liveDevYouTubeWebhookSecret,
                 "Invokes the real YouTube WebSub webhook with a signed Atom notification. In dev mode without a YouTube API key, the webhook payload directly sets YouTube live.",
                 videoId: "dev-live-video"))
         .WithHttpCommand(
@@ -79,6 +91,7 @@ if (builder.ExecutionContext.IsRunMode)
             endpointName: "http",
             commandName: "live-dev-youtube-offline",
             commandOptions: LiveDevCommands.SetStatus(
+                liveDevCommandSecret,
                 "Turns off only the local YouTube live-status source.",
                 """
                 {
@@ -92,6 +105,7 @@ if (builder.ExecutionContext.IsRunMode)
             endpointName: "http",
             commandName: "live-dev-both-online",
             commandOptions: LiveDevCommands.SetStatus(
+                liveDevCommandSecret,
                 "Turns on both local live-status sources without going through provider webhook validation.",
                 """
                 {
@@ -99,8 +113,7 @@ if (builder.ExecutionContext.IsRunMode)
                   "youtube": { "live": true, "videoId": "dev-live-video" }
                 }
                 """,
-                iconName: "Live24Regular",
-                isHighlighted: true));
+                iconName: "Live24Regular"));
 
     // For local development: Use ViteApp for hot reload and development experience
     builder.AddViteApp("frontend", "../../frontend")
@@ -120,30 +133,40 @@ builder.Build().Run();
 
 internal static class LiveDevCommands
 {
-    public const string TwitchWebhookSecret = "aspire-dev-twitch-webhook-secret";
-    public const string YouTubeWebhookSecret = "aspire-dev-youtube-webhook-secret";
+    public const string CommandSecretHeaderName = "X-Aspire-Live-Dev-Command-Key";
 
-    public static HttpCommandOptions SetStatus(string description, string body, string iconName, bool isHighlighted = false) =>
+    public static string NewSecret() => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+
+    public static HttpCommandOptions SetStatus(
+        IResourceBuilder<ParameterResource> commandSecret,
+        string description,
+        string body,
+        string iconName,
+        bool isHighlighted = false) =>
         new()
         {
             Method = HttpMethod.Post,
             Description = description,
             IconName = iconName,
             IsHighlighted = isHighlighted,
-            PrepareRequest = context =>
+            PrepareRequest = async context =>
             {
+                await AddCommandSecretAsync(context, commandSecret).ConfigureAwait(false);
                 context.Request.Content = Json(body, "application/json");
-                return Task.CompletedTask;
             },
         };
 
-    public static HttpCommandOptions TwitchWebhook(string description, string subscriptionType) =>
+    public static HttpCommandOptions TwitchWebhook(
+        IResourceBuilder<ParameterResource> commandSecret,
+        IResourceBuilder<ParameterResource> webhookSecret,
+        string description,
+        string subscriptionType) =>
         new()
         {
             Method = HttpMethod.Post,
             Description = description,
             IconName = subscriptionType == "stream.online" ? "Live24Regular" : "DismissCircle24Regular",
-            PrepareRequest = context =>
+            PrepareRequest = async context =>
             {
                 var body = $$"""
                 {
@@ -160,24 +183,29 @@ internal static class LiveDevCommands
                 var messageId = Guid.NewGuid().ToString("N");
                 var timestamp = DateTimeOffset.UtcNow.ToString("O");
                 var bodyBytes = Encoding.UTF8.GetBytes(body);
-                var signature = SignTwitch(TwitchWebhookSecret, messageId, timestamp, bodyBytes);
+                var secret = await GetRequiredSecretAsync(webhookSecret, context.CancellationToken).ConfigureAwait(false);
+                var signature = SignTwitch(secret, messageId, timestamp, bodyBytes);
 
+                await AddCommandSecretAsync(context, commandSecret).ConfigureAwait(false);
                 context.Request.Headers.Add("Twitch-Eventsub-Message-Id", messageId);
                 context.Request.Headers.Add("Twitch-Eventsub-Message-Timestamp", timestamp);
                 context.Request.Headers.Add("Twitch-Eventsub-Message-Type", "notification");
                 context.Request.Headers.Add("Twitch-Eventsub-Message-Signature", $"sha256={signature}");
                 context.Request.Content = Json(body, "application/json");
-                return Task.CompletedTask;
             },
         };
 
-    public static HttpCommandOptions YouTubeWebhook(string description, string videoId) =>
+    public static HttpCommandOptions YouTubeWebhook(
+        IResourceBuilder<ParameterResource> commandSecret,
+        IResourceBuilder<ParameterResource> webhookSecret,
+        string description,
+        string videoId) =>
         new()
         {
             Method = HttpMethod.Post,
             Description = description,
             IconName = "Video24Regular",
-            PrepareRequest = context =>
+            PrepareRequest = async context =>
             {
                 var body = $$"""
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -191,12 +219,31 @@ internal static class LiveDevCommands
                 """;
 
                 var bodyBytes = Encoding.UTF8.GetBytes(body);
-                var signature = SignYouTube(YouTubeWebhookSecret, bodyBytes);
+                var secret = await GetRequiredSecretAsync(webhookSecret, context.CancellationToken).ConfigureAwait(false);
+                var signature = SignYouTube(secret, bodyBytes);
+                await AddCommandSecretAsync(context, commandSecret).ConfigureAwait(false);
                 context.Request.Headers.Add("X-Hub-Signature", $"sha1={signature}");
                 context.Request.Content = Json(body, "application/atom+xml");
-                return Task.CompletedTask;
             },
         };
+
+    private static async Task AddCommandSecretAsync(
+        HttpCommandRequestContext context,
+        IResourceBuilder<ParameterResource> commandSecret)
+    {
+        var secret = await GetRequiredSecretAsync(commandSecret, context.CancellationToken).ConfigureAwait(false);
+        context.Request.Headers.Add(CommandSecretHeaderName, $"Key: {secret}");
+    }
+
+    private static async ValueTask<string> GetRequiredSecretAsync(
+        IResourceBuilder<ParameterResource> parameter,
+        CancellationToken cancellationToken)
+    {
+        var value = await parameter.Resource.GetValueAsync(cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrEmpty(value)
+            ? throw new InvalidOperationException($"Required parameter '{parameter.Resource.Name}' did not produce a value.")
+            : value;
+    }
 
     private static StringContent Json(string body, string mediaType) =>
         new(body, Encoding.UTF8, mediaType);
