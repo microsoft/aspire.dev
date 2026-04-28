@@ -128,6 +128,54 @@ const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 
 <script>
   import '@components/live-status.ts';
+  import { showPreferences } from 'vanilla-cookieconsent';
+
+  declare global {
+    interface Window {
+      __aspireCookiePreferencesBound?: boolean;
+    }
+  }
+
+  function bindCookiePreferences(): void {
+    if (window.__aspireCookiePreferencesBound) return;
+    window.__aspireCookiePreferencesBound = true;
+
+    document.addEventListener('astro:before-swap', (event) => {
+      const cookieRoot = document.getElementById('cc-main');
+      const newDocument = (event as Event & { newDocument?: Document }).newDocument;
+      if (!cookieRoot || !newDocument) return;
+
+      // CookieConsent injects this root outside Astro markup, so preserve it when the client router swaps bodies.
+      const persistKey = 'cookie-consent';
+      cookieRoot.setAttribute('data-astro-transition-persist', persistKey);
+
+      const placeholder = newDocument.createElement('div');
+      placeholder.setAttribute('data-astro-transition-persist', persistKey);
+      newDocument.body.append(placeholder);
+    });
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const trigger = target.closest<HTMLElement>('[data-cc="show-preferencesModal"]');
+        if (!trigger) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        showPreferences();
+      },
+      { capture: true },
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindCookiePreferences, { once: true });
+  } else {
+    bindCookiePreferences();
+  }
 </script>
 
 <style>
