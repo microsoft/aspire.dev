@@ -18,6 +18,7 @@ export interface LiveSnapshot {
 declare global {
   interface DocumentEventMap {
     'aspire:live-change': CustomEvent<LiveSnapshot>;
+    'aspire:live-pip-change': CustomEvent<{ open: boolean }>;
   }
 }
 
@@ -36,6 +37,7 @@ let current: LiveSnapshot = EMPTY;
 let source: EventSource | null = null;
 let backoffIndex = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let pipOpen = false;
 const listeners = new Set<(s: LiveSnapshot) => void>();
 
 function snapshotsEqual(a: LiveSnapshot, b: LiveSnapshot): boolean {
@@ -69,8 +71,9 @@ function applySnapshot(next: LiveSnapshot, force = false): void {
 }
 
 function syncDom(): void {
+  pipOpen = isLivePipOpen();
   const buttons = document.querySelectorAll<HTMLElement>('.live-btn');
-  const shouldStrobe = current.isLive && !isVideosPage();
+  const shouldStrobe = current.isLive && !isVideosPage() && !pipOpen;
   const sourceAttr = shouldStrobe
     ? current.twitch.live && current.youtube.live
       ? 'both'
@@ -78,6 +81,7 @@ function syncDom(): void {
     : 'none';
   buttons.forEach((btn) => {
     btn.dataset.live = shouldStrobe ? 'true' : 'false';
+    btn.dataset.pipOpen = pipOpen ? 'true' : 'false';
     btn.dataset.source = sourceAttr;
     btn.setAttribute(
       'aria-label',
@@ -88,6 +92,17 @@ function syncDom(): void {
 
 function isVideosPage(): boolean {
   return window.location.pathname.replace(/\/+$/, '/') === '/community/videos/';
+}
+
+function isLivePipOpen(): boolean {
+  return Boolean(
+    (window as Window & { __aspireLivePipState?: { open?: boolean } }).__aspireLivePipState?.open,
+  );
+}
+
+function onLivePipChange(evt: CustomEvent<{ open: boolean }>): void {
+  pipOpen = evt.detail.open;
+  syncDom();
 }
 
 async function seed(): Promise<void> {
@@ -196,6 +211,7 @@ export function init(): void {
   void seed();
   connect();
   document.addEventListener('visibilitychange', onVisibilityChange);
+  document.addEventListener('aspire:live-pip-change', onLivePipChange);
 }
 
 if (typeof window !== 'undefined') {
