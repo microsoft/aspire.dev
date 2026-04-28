@@ -166,6 +166,40 @@ builder.AddProject("api", "../Api/Api.csproj")
        .WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPush);
 ```
 
+## Use private endpoints
+
+[Private endpoints](https://learn.microsoft.com/azure/private-link/) disable public network access to the container registry and route all traffic through your virtual network. To add a private endpoint to an Azure Container Registry, call `AddPrivateEndpoint` on a subnet in your virtual network and pass the registry resource:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/24");
+
+var acr = builder.AddAzureContainerRegistry("my-acr");
+peSubnet.AddPrivateEndpoint(acr);
+
+builder.AddAzureContainerAppEnvironment("env")
+       .WithAzureContainerRegistry(acr);
+
+builder.Build().Run();
+```
+
+When you add a private endpoint to a container registry, Aspire:
+
+- Automatically upgrades the registry SKU to **Premium** (required for private endpoint support).
+- Disables public network access on the registry.
+- Creates the private DNS zone `privatelink.azurecr.io` and links it to the virtual network.
+
+<Aside type="caution">
+  With public network access disabled, `aspire deploy` cannot push container
+  images to the registry unless it runs from within the virtual network. Use a
+  self-hosted Azure DevOps or GitHub Actions runner that is connected to the same
+  VNet, or re-enable public network access on the registry for your deployment
+  pipeline. For more information, see [Azure Virtual Network: private
+  endpoints](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints).
+</Aside>
+
 ## Provisioning-generated Bicep
 
 If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Container Registry resource, the following Bicep is generated:
