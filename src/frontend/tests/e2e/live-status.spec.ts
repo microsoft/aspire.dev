@@ -312,6 +312,8 @@ test.describe('live status', () => {
 
     const sourceMenu = page.getByRole('menu', { name: 'Choose live stream' });
     await expect(sourceMenu).toBeVisible();
+    await expect(sourceMenu.locator('svg')).toHaveCount(2);
+    await expect(sourceMenu.getByText('aspiredotdev')).toHaveCount(0);
     await expect
       .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
       .toBe(0);
