@@ -1,0 +1,388 @@
+---
+title: Configure Ingress on AKS
+description: Learn how to configure Kubernetes Ingress on AKS with Application Gateway for Containers and automatic TLS via cert-manager.
+sidebar:
+  badge:
+    text: Preview
+    variant: caution
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+This walkthrough shows how to use `AddIngress` to expose .NET Aspire services on
+Azure Kubernetes Service (AKS) with **Application Gateway for Containers (AGC)**
+and automatic TLS certificate provisioning via **cert-manager** DNS-01 challenges.
+
+## Prerequisites
+
+Before you begin, ensure you have the following:
+
+- An **AKS cluster** with the [ALB controller addon](/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller) enabled.
+- An **ApplicationLoadBalancer** custom resource deployed in your cluster.
+- An **Azure Container Registry (ACR)** [attached to the cluster](/azure/aks/cluster-container-registry-integration).
+- An **Azure DNS zone** for your domain.
+- **cert-manager** installed in the cluster with Gateway API support enabled:
+
+  ```bash
+  helm install cert-manager jetstack/cert-manager \
+    --namespace cert-manager \
+    --create-namespace \
+    --set crds.enabled=true \
+    --set config.enableGatewayAPI=true
+  ```
+
+- A **managed identity** for cert-manager with the **DNS Zone Contributor** role
+  on your Azure DNS zone, and a **federated credential** bound to the
+  cert-manager service account.
+
+## Configure the AppHost
+
+Define your Kubernetes environment, container registry, and ingress in the
+AppHost project. The example below uses parameters so that environment-specific
+values are supplied at deploy time.
+
+<Tabs syncKey="aspire-lang">
+<TabItem label="C#">
+
+```csharp
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Parameters
+var registryEndpoint = builder.AddParameter("registryEndpoint");
+var helmNamespace = builder.AddParameter("helmNamespace");
+var helmChartVersion = builder.AddParameter("helmChartVersion");
+var helmChartReleaseName = builder.AddParameter("helmChartReleaseName");
+var ingressClassName = builder.AddParameter("ingressClassName");
+var loadBalancerName = builder.AddParameter("loadBalancerName");
+var loadBalancerNamespace = builder.AddParameter("loadBalancerNamespace");
+var clusterIssuer = builder.AddParameter("clusterIssuer");
+var externalFqdn = builder.AddParameter("externalFqdn");
+
+// Kubernetes environment
+var k8s = builder.AddKubernetesEnvironment("k8s")
+    .WithHelm(helm =>
+    {
+        helm.Namespace = helmNamespace;
+        helm.ChartVersion = helmChartVersion;
+        helm.ReleaseName = helmChartReleaseName;
+    });
+
+// Container registry
+var acr = builder.AddContainerRegistry("acr", registryEndpoint);
+
+// Application services
+var api = builder.AddProject<Projects.ApiService>("api");
+
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+    .WithReference(api);
+
+// Ingress
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClassName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .WithIngressAnnotation(
+        "cert-manager.io/cluster-issuer", clusterIssuer)
+    .WithDefaultBackend(frontend.GetEndpoint("http"))
+    .WithHostname(externalFqdn)
+    .WithTls();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript
+import { DistributedApplication } from "@aspire/apphost";
+
+const builder = DistributedApplication.createBuilder();
+
+// Parameters
+const registryEndpoint = builder.addParameter("registryEndpoint");
+const helmNamespace = builder.addParameter("helmNamespace");
+const helmChartVersion = builder.addParameter("helmChartVersion");
+const helmChartReleaseName = builder.addParameter("helmChartReleaseName");
+const ingressClassName = builder.addParameter("ingressClassName");
+const loadBalancerName = builder.addParameter("loadBalancerName");
+const loadBalancerNamespace = builder.addParameter("loadBalancerNamespace");
+const clusterIssuer = builder.addParameter("clusterIssuer");
+const externalFqdn = builder.addParameter("externalFqdn");
+
+// Kubernetes environment
+const k8s = builder.addKubernetesEnvironment("k8s")
+    .withHelm((helm) => {
+        helm.namespace = helmNamespace;
+        helm.chartVersion = helmChartVersion;
+        helm.releaseName = helmChartReleaseName;
+    });
+
+// Container registry
+const acr = builder.addContainerRegistry("acr", registryEndpoint);
+
+// Application services
+const api = builder.addProject("api");
+
+const frontend = builder.addProject("frontend")
+    .withReference(api);
+
+// Ingress
+const ingress = k8s.addIngress("ingress")
+    .withIngressClass(ingressClassName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .withIngressAnnotation(
+        "cert-manager.io/cluster-issuer", clusterIssuer)
+    .withDefaultBackend(frontend.getEndpoint("http"))
+    .withHostname(externalFqdn)
+    .withTls();
+
+builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Deploy
+
+Run `aspire deploy` from the AppHost project directory and supply the parameter
+values for your environment:
+
+```bash
+aspire deploy \
+  --parameter registryEndpoint=myregistry.azurecr.io \
+  --parameter helmNamespace=my-app \
+  --parameter helmChartVersion=0.1.0 \
+  --parameter helmChartReleaseName=my-app \
+  --parameter ingressClassName=azure-alb-external \
+  --parameter loadBalancerName=my-alb \
+  --parameter loadBalancerNamespace=alb-infra \
+  --parameter clusterIssuer=letsencrypt-dns \
+  --parameter externalFqdn=myapp.example.com
+```
+
+## Verify
+
+After the deployment completes, verify the ingress is working:
+
+<Steps>
+
+1. **Check the ingress address.** Wait for AGC to assign an IP or FQDN to the
+   ingress:
+
+   ```bash
+   kubectl get ingress -n my-app
+   ```
+
+   The `ADDRESS` column should show the AGC frontend address.
+
+2. **Check the certificate status.** Verify that cert-manager has issued a
+   certificate for your domain:
+
+   ```bash
+   kubectl get certificate -n my-app
+   ```
+
+   The `READY` column should show `True` once the certificate is issued.
+
+3. **Access the application.** Open `https://myapp.example.com` in your browser
+   and confirm you see a valid TLS certificate.
+
+</Steps>
+
+## How TLS works with Ingress on AGC
+
+When you deploy an ingress with the `cert-manager.io/cluster-issuer` annotation
+and `WithTls`, the following sequence occurs:
+
+<Steps>
+
+1. **Self-signed bootstrap certificate.** On the first deploy, cert-manager
+   creates a temporary self-signed certificate so AGC can start serving traffic
+   immediately.
+
+2. **Annotation detection.** cert-manager detects the
+   `cert-manager.io/cluster-issuer` annotation on the ingress resource and
+   creates a `Certificate` resource targeting the configured `ClusterIssuer`.
+
+3. **DNS-01 challenge.** The `ClusterIssuer` uses the DNS-01 solver to validate
+   domain ownership. cert-manager creates a `TXT` record in your Azure DNS zone,
+   the ACME server validates it, and a real certificate is issued.
+
+4. **Certificate rotation.** cert-manager stores the issued certificate in a
+   Kubernetes secret referenced by the ingress TLS configuration and
+   automatically renews it before expiry.
+
+</Steps>
+
+<Aside type="note">
+HTTP-01 challenges don't work with AGC Ingress because AGC creates a separate
+frontend for each Ingress resource. The ACME HTTP-01 validation request is
+routed to the AGC frontend, which may not reach the cert-manager solver pod.
+Use DNS-01 challenges instead.
+</Aside>
+
+## Deploy without TLS
+
+<details>
+<summary>Deploy without TLS (not recommended for production)</summary>
+
+<Aside type="danger">
+Deploying without TLS exposes your application over plain HTTP. This is not
+recommended for production workloads. Only use this approach for development or
+testing scenarios.
+</Aside>
+
+Remove the `WithTls` call and the `cert-manager.io/cluster-issuer` annotation:
+
+<Tabs syncKey="aspire-lang">
+<TabItem label="C#">
+
+```csharp
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClassName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .WithDefaultBackend(frontend.GetEndpoint("http"))
+    .WithHostname(externalFqdn);
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript
+const ingress = k8s.addIngress("ingress")
+    .withIngressClass(ingressClassName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .withDefaultBackend(frontend.getEndpoint("http"))
+    .withHostname(externalFqdn);
+```
+
+</TabItem>
+</Tabs>
+
+</details>
+
+## Deploy without hostname
+
+<details>
+<summary>Deploy without a custom hostname</summary>
+
+<Aside type="caution">
+When you omit `WithHostname`, AGC automatically assigns a generated FQDN to the
+ingress. You won't be able to use cert-manager for TLS because you don't control
+the domain. The AGC-assigned FQDN uses a wildcard certificate managed by Azure.
+</Aside>
+
+Remove the `WithHostname`, `WithTls`, and cert-manager annotation calls:
+
+<Tabs syncKey="aspire-lang">
+<TabItem label="C#">
+
+```csharp
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClassName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .WithIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .WithDefaultBackend(frontend.GetEndpoint("http"));
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript
+const ingress = k8s.addIngress("ingress")
+    .withIngressClass(ingressClassName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-name", loadBalancerName)
+    .withIngressAnnotation(
+        "alb.networking.azure.io/alb-namespace", loadBalancerNamespace)
+    .withDefaultBackend(frontend.getEndpoint("http"));
+```
+
+</TabItem>
+</Tabs>
+
+</details>
+
+## Troubleshooting
+
+### AGC frontend limit
+
+AGC has a limit of **5 frontends** per Application Gateway for Containers
+instance. Each Ingress resource creates its own frontend. If you exceed this
+limit, new ingress resources remain in a pending state.
+
+To check your current frontend count:
+
+```bash
+kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.loadBalancer.ingress[0].hostname}{"\n"}{end}'
+```
+
+Consider consolidating multiple services behind a single ingress with path-based
+routing, or request a quota increase from Azure support.
+
+### Certificate not issuing
+
+If the certificate `READY` status remains `False`, check the following:
+
+<Steps>
+
+1. **cert-manager logs.** Look for errors related to DNS-01 challenge creation:
+
+   ```bash
+   kubectl logs -n cert-manager deploy/cert-manager -f
+   ```
+
+2. **Challenge status.** Check if the ACME challenge is progressing:
+
+   ```bash
+   kubectl get challenges -n my-app
+   ```
+
+3. **Workload identity.** Verify that the cert-manager service account has the
+   correct federated credential and that the managed identity has
+   **DNS Zone Contributor** permissions on the Azure DNS zone:
+
+   ```bash
+   kubectl describe serviceaccount cert-manager -n cert-manager
+   ```
+
+4. **ClusterIssuer status.** Confirm the issuer is ready:
+
+   ```bash
+   kubectl get clusterissuer letsencrypt-dns -o yaml
+   ```
+
+</Steps>
+
+### Browser showing HSTS redirect to HTTPS
+
+If your browser automatically redirects HTTP URLs to HTTPS even when you haven't
+configured TLS, this is due to **HTTP Strict Transport Security (HSTS)**. Modern
+browsers cache HSTS policies for domains, including subdomains of `.com` and
+other top-level domains.
+
+To work around this during development:
+
+- Clear your browser's HSTS cache for the domain.
+- Use a private/incognito browser window.
+- Deploy with TLS enabled to avoid the issue entirely.
+
+<LearnMore>
+- [Application Gateway for Containers documentation](/azure/application-gateway/for-containers/overview)
+- [cert-manager documentation](https://cert-manager.io/docs/)
+- [.NET Aspire deployment overview](/dotnet/aspire/deployment/overview)
+</LearnMore>
