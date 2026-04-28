@@ -1,18 +1,41 @@
 ---
 title: Deploy to Docker Compose
-description: Learn how to publish and deploy your Aspire application using Docker Compose.
+description: Learn how to publish and deploy your Aspire application using Docker Compose with Docker or Podman.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Docker Compose is a deployment target for Aspire applications. When you add a Docker Compose environment to your AppHost, Aspire generates Docker Compose files, environment variable configurations, and container images from your app model. You can then deploy these artifacts to any machine running Docker.
+Docker Compose is a deployment target for Aspire applications. When you add a Docker Compose environment to your AppHost, Aspire generates Docker Compose files, environment variable configurations, and container images from your app model. You can then deploy these artifacts to any machine running Docker or Podman.
 
 <Aside type="note">
   This page covers the **deployment workflow** for Docker Compose. For hosting
   integration setup, resource configuration, and local development details, see
   the [Docker integration](/integrations/compute/docker/) page.
 </Aside>
+
+## Container runtime support
+
+Aspire supports both **Docker** and **Podman** as container runtimes for Docker Compose deployments. Podman is popular in security-conscious, daemonless, and rootless environments. Aspire automatically detects and uses the best available runtime — no additional configuration is required.
+
+### Auto-detection
+
+At deploy time, Aspire probes Docker and Podman in parallel and selects the active runtime using the following priority:
+
+1. A runtime that is **running** (daemon active) is preferred over one that is merely installed.
+2. If both runtimes are running, **Docker is preferred** as the tiebreaker.
+3. The detected runtime is cached for the lifetime of the operation.
+
+This matches the detection logic used by DCP (the local orchestration layer), so the same runtime is used for both local development and deployment.
+
+<Aside type="tip">
+  To see which runtime Aspire detected and why, run `aspire doctor`. It reports
+  all available runtimes with their status, version, and which one is active.
+</Aside>
+
+### Podman-specific behavior
+
+When Podman is the active runtime, Aspire uses `podman-compose` (or the Docker Compose v2 provider for Podman) for `compose up` / `compose down` operations. Service discovery uses `podman ps --filter label=...`, which is compatible with both `podman-compose` (Python) and Docker Compose v2 providers.
 
 ## Prerequisites
 
@@ -537,11 +560,31 @@ jobs:
 
 This workflow checks out your code, sets up .NET and installs the Aspire CLI, authenticates to GHCR using the built-in `GITHUB_TOKEN`, and builds and pushes container images using `aspire do push`.
 
+## Breaking change: IContainerRuntime → IContainerRuntimeResolver
+
+In Aspire 13.3, the container runtime abstraction was updated to support async auto-detection. If you have custom hosting extensions or internal code that directly resolved `IContainerRuntime` from the DI container, you must now resolve `IContainerRuntimeResolver` instead and call `ResolveAsync()` to obtain the active `IContainerRuntime`:
+
+```csharp
+// Before (no longer works)
+var runtime = services.GetRequiredService<IContainerRuntime>();
+
+// After
+var resolver = services.GetRequiredService<IContainerRuntimeResolver>();
+var runtime = await resolver.ResolveAsync();
+```
+
+<Aside type="caution">
+  This is a **breaking change** for any code that resolved `IContainerRuntime`
+  directly. The `IContainerRuntime` interface itself is unchanged; only the DI
+  registration and resolution pattern changed.
+</Aside>
+
 ## See also
 
 - [Docker integration](/integrations/compute/docker/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
+- [aspire doctor command](/reference/cli/commands/aspire-doctor/)
 - [`Aspire.Hosting.Docker` C# API reference](https://aspire.dev/reference/api/csharp/aspire.hosting.docker/)
 - [`Aspire.Hosting.Docker` TypeScript API reference](https://aspire.dev/reference/api/typescript/aspire.hosting.docker/)
 - [Working with GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
