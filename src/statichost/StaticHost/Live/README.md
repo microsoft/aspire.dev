@@ -52,6 +52,7 @@ is provided.
   "PublicBaseUrl": "https://aspire.dev",
   "CoalesceWindowMs": 750,
   "EnableDevEndpoint": false,
+  "DevCommandSecret": "",
   "Twitch": {
     "ClientId": "",
     "ClientSecret": "",
@@ -73,7 +74,8 @@ is provided.
 
 In development, prefer `dotnet user-secrets`. In production, env vars
 or Key Vault. `EnableDevEndpoint` defaults to `false`; the AppHost turns
-it on only for local dashboard-command testing.
+it on only for local dashboard-command testing and also injects
+`DevCommandSecret`.
 
 ## Endpoints
 
@@ -129,9 +131,19 @@ The provider workers remain idle when their API credentials are missing, so
 the feature is effectively off until a dashboard command (or manual HTTP call)
 pushes local state.
 
+The dashboard commands follow the documented Aspire custom HTTP command
+security pattern: the AppHost creates a per-run secret parameter, passes it to
+StaticHost as `Live__DevCommandSecret`, and sends it on command requests as
+`X-Aspire-Live-Dev-Command-Key: Key: <secret>`. StaticHost validates the header
+before accepting `/api/live/_dev/set` and before trusting local fake webhook
+commands in no-provider-credential dev mode.
+
 ```powershell
-# Manually push a live state without provisioning real webhooks:
+# Manually push a live state without provisioning real webhooks.
+# Requires the same X-Aspire-Live-Dev-Command-Key header that the AppHost
+# dashboard commands send.
 curl -Method POST http://localhost:5000/api/live/_dev/set `
+  -Headers @{ 'X-Aspire-Live-Dev-Command-Key' = 'Key: <Live__DevCommandSecret value>' } `
   -ContentType 'application/json' `
   -Body '{ "twitch": { "live": true, "channel": "aspiredotdev", "title": "Local test" }, "youtube": { "live": false, "videoId": null } }'
 
@@ -141,8 +153,9 @@ curl -N http://localhost:5000/api/live/stream
 
 The dev endpoint is gated on `IsDevelopment` AND
 `Live:EnableDevEndpoint=true` — never enabled in production. The AppHost
-sets `Live__EnableDevEndpoint=true` and local-only webhook signing secrets
-for the dashboard commands; standalone StaticHost runs must opt in explicitly.
+sets `Live__EnableDevEndpoint=true`, `Live__DevCommandSecret`, and local-only
+webhook signing secrets for the dashboard commands; standalone StaticHost runs
+must opt in explicitly.
 
 ## Testing strategy
 
