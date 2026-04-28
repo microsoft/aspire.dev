@@ -1,6 +1,6 @@
 ---
 title: Deploy to Kubernetes
-description: Learn how to publish and deploy your Aspire application to Kubernetes using Helm charts.
+description: Learn how to publish and deploy your Aspire application to Kubernetes using Helm charts, including end-to-end deployment with aspire deploy.
 sidebar:
   badge: Preview
 ---
@@ -8,13 +8,10 @@ sidebar:
 import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
+Kubernetes is a supported deployment target for Aspire applications. By adding the Kubernetes hosting integration to your AppHost, you can:
 
-<Aside type="note">
-  Kubernetes uses `aspire publish` to generate Helm charts. It does not support
-  `aspire deploy` — you deploy the generated artifacts using `helm`, `kubectl`,
-  or your existing GitOps workflow.
-</Aside>
+- Use `aspire publish` to generate a complete set of Helm chart artifacts ready for deployment to any Kubernetes cluster.
+- Use `aspire deploy` for end-to-end automated deployment directly to a Kubernetes cluster via the built-in Helm engine.
 
 <LearnMore>
   For hosting integration setup and configuration, see [Kubernetes
@@ -80,9 +77,57 @@ The publisher generates the following Kubernetes resources from your application
 - **Secrets** for sensitive data such as passwords and connection strings
 - **Dockerfiles** copied into the output directory for container build contexts
 
-## Deploy with Helm
+## Deploy with aspire deploy
 
-After generating artifacts, use Helm to deploy your application to a Kubernetes cluster:
+`aspire deploy` provides an end-to-end deployment experience that builds your container images, pushes them to a registry, and deploys your application to a Kubernetes cluster — all in a single command. The built-in Helm engine orchestrates these steps automatically.
+
+```bash title="Deploy to Kubernetes"
+aspire deploy
+```
+
+### How it works
+
+The Helm deployment engine executes the following pipeline for each resource in your application:
+
+1. **Build** — Builds container images for your projects
+2. **Push** — Pushes images to the configured container registry
+3. **Prepare** — Resolves Helm chart values and updates `Chart.yaml` with the chart version
+4. **Helm deploy** — Runs `helm upgrade --install` to perform an idempotent install or upgrade
+5. **Print summary** — Retrieves and displays service endpoints via `kubectl`
+
+A teardown step (`helm uninstall`) is also wired up for clean removal when needed.
+
+### Configure Helm deployment options
+
+You can configure the Helm release name, target namespace, and chart version using `WithHelm`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddKubernetesEnvironment("k8s")
+    .WithHelm(helm =>
+    {
+        helm.WithNamespace("production");
+        helm.WithReleaseName("my-app");
+        helm.WithChartVersion("1.0.0");
+    });
+```
+</TabItem>
+</Tabs>
+
+All `WithHelm` options accept either literal strings or [external parameters](/fundamentals/external-parameters/) for environment-specific configuration.
+
+<Aside type="note">
+  `aspire deploy` requires `helm` and `kubectl` to be installed and configured
+  to target your cluster. Ensure your `kubectl` context points to the desired
+  cluster before running the command.
+</Aside>
+
+## Deploy with Helm manually
+
+If you prefer to manage the Helm lifecycle yourself, generate the Helm chart artifacts first with `aspire publish` and then use the `helm` CLI:
 
 <Steps>
 
@@ -239,5 +284,6 @@ In Kubernetes, services discover each other using the cluster's built-in DNS. A 
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Publishing and deployment overview](/deployment/overview/)
+- [External parameters](/fundamentals/external-parameters/)
 - [Kubernetes documentation](https://kubernetes.io/docs/)
 - [Helm documentation](https://helm.sh/docs/)
