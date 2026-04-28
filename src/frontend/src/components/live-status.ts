@@ -70,19 +70,24 @@ function applySnapshot(next: LiveSnapshot, force = false): void {
 
 function syncDom(): void {
   const buttons = document.querySelectorAll<HTMLElement>('.live-btn');
-  const sourceAttr = current.isLive
+  const shouldStrobe = current.isLive && !isVideosPage();
+  const sourceAttr = shouldStrobe
     ? current.twitch.live && current.youtube.live
       ? 'both'
       : (current.primarySource ?? 'none')
     : 'none';
   buttons.forEach((btn) => {
-    btn.dataset.live = current.isLive ? 'true' : 'false';
+    btn.dataset.live = shouldStrobe ? 'true' : 'false';
     btn.dataset.source = sourceAttr;
     btn.setAttribute(
       'aria-label',
       current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire videos',
     );
   });
+}
+
+function isVideosPage(): boolean {
+  return window.location.pathname.replace(/\/+$/, '/') === '/community/videos/';
 }
 
 async function seed(): Promise<void> {

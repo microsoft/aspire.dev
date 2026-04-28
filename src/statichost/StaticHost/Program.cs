@@ -36,6 +36,7 @@ app.UseCanonicalPathRedirects();
 app.UseAgentReadiness();
 
 app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // add routing after default files, so the default file middleware can modify the path first
 app.UseRouting();
@@ -114,6 +115,16 @@ app.MapGet("/install.sh", (HttpContext context, OneDSTelemetryService telemetry)
     return Results.Redirect("https://aka.ms/aspire/get/install.sh");
 });
 
-app.MapStaticAssets();
+var staticAssetsManifest = Path.Combine(AppContext.BaseDirectory, $"{app.Environment.ApplicationName}.staticwebassets.endpoints.json");
+if (File.Exists(staticAssetsManifest))
+{
+    app.MapStaticAssets();
+}
+else
+{
+    app.Logger.LogInformation(
+        "Static web assets manifest '{StaticAssetsManifest}' was not found; serving physical wwwroot files only.",
+        staticAssetsManifest);
+}
 
 await app.RunAsync();

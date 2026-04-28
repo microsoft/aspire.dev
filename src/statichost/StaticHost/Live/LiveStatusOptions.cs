@@ -46,6 +46,13 @@ public sealed class LiveStatusOptions
     /// command testing; it defaults off for standalone runs.
     /// </summary>
     public bool EnableDevEndpoint { get; set; }
+
+    /// <summary>
+    /// Shared secret required by local AppHost dashboard HTTP commands. The AppHost
+    /// injects this at run time and sends it via the
+    /// <c>X-Aspire-Live-Dev-Command-Key</c> header. Empty disables command traffic.
+    /// </summary>
+    public string DevCommandSecret { get; set; } = "";
 }
 
 /// <summary>Twitch credentials and channel configuration.</summary>
