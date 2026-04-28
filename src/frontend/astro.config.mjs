@@ -27,6 +27,7 @@ import Icons from 'starlight-plugin-icons';
 
 const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
+const outDir = process.env.ASTRO_OUT_DIR;
 const isBuildTimingEnabled = process.env.BUILD_TIMING === '1';
 
 // Astro renders pages mostly on the main JS thread. Default `build.concurrency`
@@ -44,6 +45,7 @@ const buildConcurrency = Number(process.env.ASPIRE_BUILD_CONCURRENCY) || 4;
 
 // https://astro.build/config
 export default defineConfig({
+  ...(outDir ? { outDir } : {}),
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',
