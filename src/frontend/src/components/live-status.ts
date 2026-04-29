@@ -20,6 +20,9 @@ declare global {
     'aspire:live-change': CustomEvent<LiveSnapshot>;
     'aspire:live-pip-change': CustomEvent<{ open: boolean }>;
   }
+  interface Window {
+    __aspireLiveNotificationDismissedKey?: string;
+  }
 }
 
 const EMPTY: LiveSnapshot = {
@@ -57,6 +60,9 @@ function applySnapshot(next: LiveSnapshot, force = false): void {
     return;
   }
   current = next;
+  if (!current.isLive) {
+    clearLiveNotificationDismissal();
+  }
   syncDom();
   for (const fn of listeners) {
     try {
@@ -65,15 +71,14 @@ function applySnapshot(next: LiveSnapshot, force = false): void {
       console.error('[live-status] listener threw', err);
     }
   }
-  document.dispatchEvent(
-    new CustomEvent<LiveSnapshot>('aspire:live-change', { detail: current }),
-  );
+  document.dispatchEvent(new CustomEvent<LiveSnapshot>('aspire:live-change', { detail: current }));
 }
 
 function syncDom(): void {
   pipOpen = isLivePipOpen();
   const buttons = document.querySelectorAll<HTMLElement>('.live-btn');
-  const shouldStrobe = current.isLive && !isVideosPage() && !pipOpen;
+  const notificationDismissed = isLiveNotificationDismissed(current);
+  const shouldStrobe = current.isLive && !isVideosPage() && !pipOpen && !notificationDismissed;
   const sourceAttr = shouldStrobe
     ? current.twitch.live && current.youtube.live
       ? 'both'
@@ -82,10 +87,11 @@ function syncDom(): void {
   buttons.forEach((btn) => {
     btn.dataset.live = shouldStrobe ? 'true' : 'false';
     btn.dataset.pipOpen = pipOpen ? 'true' : 'false';
+    btn.dataset.liveDismissed = notificationDismissed ? 'true' : 'false';
     btn.dataset.source = sourceAttr;
     btn.setAttribute(
       'aria-label',
-      current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire live streams',
+      current.isLive ? 'Aspire is live — watch now' : 'Watch Aspire live streams'
     );
   });
 }
@@ -96,7 +102,7 @@ function isVideosPage(): boolean {
 
 function isLivePipOpen(): boolean {
   return Boolean(
-    (window as Window & { __aspireLivePipState?: { open?: boolean } }).__aspireLivePipState?.open,
+    (window as Window & { __aspireLivePipState?: { open?: boolean } }).__aspireLivePipState?.open
   );
 }
 
@@ -190,6 +196,31 @@ function onVisibilityChange(): void {
 
 export function getCurrent(): LiveSnapshot {
   return current;
+}
+
+function liveNotificationKey(snapshot: LiveSnapshot): string {
+  if (!snapshot.isLive) return '';
+  const sources = [
+    snapshot.youtube.live ? `youtube:${snapshot.youtube.videoId ?? 'live'}` : '',
+    snapshot.twitch.live ? `twitch:${snapshot.twitch.channel ?? 'live'}` : '',
+  ].filter(Boolean);
+  return sources.join('|');
+}
+
+function clearLiveNotificationDismissal(): void {
+  delete window.__aspireLiveNotificationDismissedKey;
+}
+
+export function isLiveNotificationDismissed(snapshot = current): boolean {
+  const key = liveNotificationKey(snapshot);
+  return key.length > 0 && window.__aspireLiveNotificationDismissedKey === key;
+}
+
+export function dismissLiveNotification(snapshot = current): void {
+  const key = liveNotificationKey(snapshot);
+  if (!key) return;
+  window.__aspireLiveNotificationDismissedKey = key;
+  syncDom();
 }
 
 export function subscribe(listener: (s: LiveSnapshot) => void): () => void {
