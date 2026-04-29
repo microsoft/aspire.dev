@@ -99,16 +99,19 @@ test.describe('live status', () => {
     await expect(liveDialog.getByRole('button', { name: /Open Twitch Picture-in-Picture/ }))
       .toBeVisible();
     await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
+    await expect(liveDialog.getByRole('button', { name: 'Dismiss live notification' }))
+      .toBeVisible();
 
     const box = await liveDialog.boundingBox();
+    const headerBox = await page.getByRole('banner').boundingBox();
     const viewport = page.viewportSize();
-    if (!box || !viewport) {
-      throw new Error('Unable to measure the live dialog and viewport.');
+    if (!box || !headerBox || !viewport) {
+      throw new Error('Unable to measure the live dialog, header, and viewport.');
     }
 
     expect(Math.round(box.x)).toBe(0);
     expect(Math.round(box.width)).toBe(viewport.width);
-    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(box.y - (headerBox.y + headerBox.height))).toBeLessThanOrEqual(1);
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
 
@@ -127,6 +130,10 @@ test.describe('live status', () => {
     expect(Math.abs(reopenedBox.y - box.y)).toBeLessThanOrEqual(1);
     expect(Math.abs(reopenedBox.height - box.height)).toBeLessThanOrEqual(1);
     await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
+
+    await liveDialog.getByRole('button', { name: 'Dismiss live notification' }).click();
+    await expect(liveDialog).toBeHidden();
+    await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
   });
 
   test('live action dialog toggles and keeps desktop labels on one line', async ({ page }) => {
@@ -577,7 +584,9 @@ test.describe('live status', () => {
 
     const sourceMenu = page.getByRole('dialog', { name: 'Watch Aspire live' });
     await expect(sourceMenu).toBeVisible();
-    await expect(sourceMenu.locator('svg')).toHaveCount(5);
+    await expect(sourceMenu.locator('.live-source-menu__item svg')).toHaveCount(5);
+    await expect(sourceMenu.getByRole('button', { name: 'Dismiss live notification' }))
+      .toBeVisible();
     await expect(sourceMenu.getByText('aspiredotdev')).toHaveCount(0);
     await expect(sourceMenu.getByRole('link', { name: /Watch on aspire\.dev/ })).toHaveAttribute(
       'href',
