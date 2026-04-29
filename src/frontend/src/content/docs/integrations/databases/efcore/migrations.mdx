@@ -1,6 +1,6 @@
 ---
 title: Apply EF Core migrations in Aspire
-description: Learn about how to to apply Entity Framework Core migrations in Aspire.
+description: Learn about how to apply Entity Framework Core migrations in Aspire, including running migrations at startup and publishing migration bundles as container images for deployment.
 ---
 
 import { Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
@@ -526,3 +526,148 @@ You can find the [completed sample app on GitHub](https://github.com/MicrosoftDo
 ## More sample code
 
 The [Aspire Shop](https://learn.microsoft.com/samples/microsoft/aspire-samples/aspire-shop/) sample app uses this approach to apply migrations. See the `AspireShop.CatalogDbManager` project for the migration service implementation.
+
+## Automated EF migrations with `AddEFMigrations`
+
+In addition to creating a dedicated worker service as described above, Aspire provides a first-class AppHost API for managing EF Core migrations: `AddEFMigrations`. This API integrates migration execution directly into the AppHost orchestration and the Aspire publishing pipeline, without requiring a separate migration service project.
+
+### Add the package
+
+Add the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) NuGet package to your AppHost project:
+
+```bash title=".NET CLI"
+dotnet add package Aspire.Hosting.EntityFrameworkCore
+```
+
+### Configure migrations in the AppHost
+
+Call `AddEFMigrations` on any project resource that hosts an EF Core `DbContext`:
+
+```csharp title="C# — AppHost.cs"
+var db = builder.AddPostgres("pg").AddDatabase("appdb");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);
+
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext");
+```
+
+The first argument is a resource name for the migration resource; the second is the fully qualified name of the `DbContext` type.
+
+### Run migrations on startup
+
+To apply migrations automatically when running locally with `aspire run`, chain `RunDatabaseUpdateOnStart()`:
+
+```csharp title="C# — AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .RunDatabaseUpdateOnStart();
+
+// Other resources can wait for migrations to complete before starting
+builder.AddProject<Projects.Worker>("worker")
+    .WaitForCompletion(apiMigrations);
+```
+
+:::note
+`RunDatabaseUpdateOnStart` only affects local run mode. The migration resource is not deployed with the app, so this call has no effect during `aspire publish` or deployment.
+:::
+
+When `RunDatabaseUpdateOnStart()` is called, a health check is registered for the migration resource. The resource transitions through the following states:
+
+| State | Description |
+|---|---|
+| **Pending** | Waiting for database resource to become healthy |
+| **Running** | Executing the `dotnet ef database update` command |
+| **Finished** | Migrations applied successfully |
+| **FailedToStart** | An error occurred during migration |
+
+### Publish migration artifacts
+
+To generate migration artifacts during `aspire publish`, use `PublishAsMigrationScript` or `PublishAsMigrationBundle`:
+
+```csharp title="C# — AppHost.cs"
+// Generate a SQL migration script during publish
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .PublishAsMigrationScript();
+
+// Generate a self-contained migration bundle executable during publish
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .PublishAsMigrationBundle();
+```
+
+Both methods add pipeline steps that run during `aspire publish` and write their artifacts into the publish output directory under `efmigrations/`.
+
+### Publish the migration bundle as a container image
+
+Pass `publishContainer: true` to `PublishAsMigrationBundle` to wrap the generated bundle in a container image. The migration resource becomes a compute resource that each compute environment (Docker Compose, Azure Container Apps, Kubernetes, and so on) deploys like any other container:
+
+```csharp title="C# — AppHost.cs"
+var db  = builder.AddPostgres("pg").AddDatabase("appdb");
+var api = builder.AddProject<Projects.Api>("api").WithReference(db);
+
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .WaitFor(db)
+    .PublishAsMigrationBundle(publishContainer: true);
+```
+
+:::note
+`.WaitFor(database)` is required when using `publishContainer: true`. The connection string for the database is wired up automatically via that reference, exactly as it is for any other compute resource.
+:::
+
+Key behaviors:
+
+- The generated `Dockerfile` uses `mcr.microsoft.com/dotnet/runtime:10.0` (or `mcr.microsoft.com/dotnet/runtime-deps:10.0` when `selfContained: true`).
+- The `targetRuntime` argument defaults to `linux-x64` when `publishContainer: true`; set it explicitly for other architectures (for example, `linux-arm64`).
+- Local run mode (`aspire run`) is unaffected — no container image is built, and the migration resource still appears in the dashboard with its tool commands.
+
+#### Preventing container restarts per environment
+
+A migration bundle is idempotent (running it twice is safe), but different compute environments need explicit configuration to avoid restarting the container after it exits.
+
+<Tabs syncKey="deploy-target">
+<TabItem label="Azure Container Apps">
+
+Publish the migration resource as an [Azure Container App Job](https://learn.microsoft.com/azure/container-apps/jobs) so it runs once and stops:
+
+```csharp title="C# — AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .WaitFor(db)
+    .PublishAsMigrationBundle(publishContainer: true)
+    .PublishAsAzureContainerAppJob(); // requires Aspire.Hosting.Azure.AppContainers
+```
+
+</TabItem>
+<TabItem label="Docker Compose">
+
+Tell Compose not to restart the container after it exits:
+
+```csharp title="C# — AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .WaitFor(db)
+    .PublishAsMigrationBundle(publishContainer: true)
+    .PublishAsDockerComposeService((_, service) => service.Restart = "no"); // requires Aspire.Hosting.Docker
+```
+
+</TabItem>
+<TabItem label="Kubernetes">
+
+Customize the generated manifest to use a `Job` workload or set `restartPolicy: OnFailure` using your Kubernetes publisher customization hook.
+
+</TabItem>
+</Tabs>
+
+#### Generate the bundle artifact only
+
+If you want `aspire publish` to produce the bundle executable without wrapping it in a container image (for example, to run it from a deployment pipeline or CI job), omit `publishContainer: true`:
+
+```csharp title="C# — AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+    .PublishAsMigrationBundle(); // artifact only, no Dockerfile
+```
+
+This writes the platform-native executable to `<publish-output>/efmigrations/<name>[.exe]` without adding any compute resource to the deployment manifest. You can then execute the bundle as appropriate for your deployment flow:
+
+```bash title="Bash"
+./<publish-output>/efmigrations/api-migrations --connection "$CONNECTION_STRING"
+```
+
+You can also combine both `PublishAsMigrationScript` and `PublishAsMigrationBundle` on the same resource to produce both artifacts.
