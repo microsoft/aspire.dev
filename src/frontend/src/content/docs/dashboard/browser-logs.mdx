@@ -1,0 +1,111 @@
+---
+title: Browser logs
+description: Learn how to capture and configure browser console logs in .NET Aspire using the BrowserLogs resource.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+The browser logs feature in .NET Aspire lets you attach a tracked Chromium browser session to any HTTP/HTTPS resource in your AppHost. When the session is active, browser console output (logs, errors, exceptions, and network events) flows into the resource's console log stream in the Aspire dashboard, and you can capture screenshots as command artifacts — all without leaving the dashboard.
+
+:::caution[Experimental API]
+`WithBrowserLogs` is an experimental API gated behind the `ASPIREBROWSERLOGS001` diagnostic ID. You must suppress this warning to use the API.
+:::
+
+## Prerequisites
+
+A Chromium-based browser (Microsoft Edge or Google Chrome) must be installed on the development machine. The tracked browser uses an Aspire-managed user data directory and never touches the user's normal browser profile.
+
+## Add browser logs to a resource
+
+Call `WithBrowserLogs()` on any resource that exposes an HTTP or HTTPS endpoint:
+
+```csharp title="AppHost/Program.cs"
+#pragma warning disable ASPIREBROWSERLOGS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.WebFrontend>("web")
+    .WithExternalHttpEndpoints()
+    .WithBrowserLogs();
+
+builder.Build().Run();
+```
+
+This registers a child `BrowserLogs` resource (named `web-browser-logs`) beneath the parent resource. The child resource appears in the Aspire dashboard and exposes three commands:
+
+| Command | Description |
+|---|---|
+| **Open tracked browser** | Launches a Chromium browser attached to the resource's primary URL. Console output streams to the resource's log view. |
+| **Configure tracked browser** | Opens a settings dialog to change the browser, scope, user data mode, and profile at runtime (see [Configure browser logs](#configure-browser-logs)). |
+| **Capture screenshot** | Captures a screenshot of the active browser session and attaches it as a command artifact. |
+
+## Optional parameters
+
+`WithBrowserLogs` accepts optional parameters to pin the browser, profile, or user data mode at design time:
+
+```csharp
+builder.AddProject<Projects.WebFrontend>("web")
+    .WithExternalHttpEndpoints()
+    .WithBrowserLogs(
+        browser: "msedge",
+        userDataMode: BrowserUserDataMode.Isolated);
+```
+
+| Parameter | Description |
+|---|---|
+| `browser` | Logical browser name (`"msedge"`, `"chrome"`) or an explicit executable path. Defaults to an installed Edge in shared mode, Chrome in isolated mode, or `"chrome"` as a final fallback. |
+| `profile` | Chromium profile name or directory name. Only applies in `Shared` user data mode. |
+| `userDataMode` | `BrowserUserDataMode.Shared` (default) — a persistent user data directory shared across all AppHosts on the machine. `BrowserUserDataMode.Isolated` — a per-AppHost persistent user data directory. Both modes use Aspire-managed paths; the user's normal browser profile is never modified. |
+
+## Configure via app settings
+
+Browser, profile, and user data mode can be supplied from configuration instead of code. Use these keys in _appsettings.json_ or environment variables:
+
+| Scope | Configuration key |
+|---|---|
+| Global (all resources) | `Aspire:Hosting:BrowserLogs:Browser` |
+| Global | `Aspire:Hosting:BrowserLogs:Profile` |
+| Global | `Aspire:Hosting:BrowserLogs:UserDataMode` |
+| Per-resource | `Aspire:Hosting:BrowserLogs:{ResourceName}:Browser` |
+| Per-resource | `Aspire:Hosting:BrowserLogs:{ResourceName}:Profile` |
+| Per-resource | `Aspire:Hosting:BrowserLogs:{ResourceName}:UserDataMode` |
+
+Explicit method arguments to `WithBrowserLogs` take precedence over configuration.
+
+## Configure browser logs
+
+The **Configure tracked browser** command opens an interactive settings dialog directly in the Aspire dashboard. Use it to adjust the browser session at runtime without restarting the AppHost.
+
+The dialog presents the following options:
+
+- **Scope** — Apply changes to the current resource only, or globally to all browser log resources in the AppHost.
+- **Browser** — Choose a detected Chromium browser (Edge or Chrome) or specify a custom executable path.
+- **User data mode** — `Shared` (cross-AppHost persistent data directory) or `Isolated` (per-AppHost persistent data directory).
+- **Profile** — Select a discovered Chromium profile from the Aspire-managed browser hive (available in `Shared` mode only).
+- **Save to user secrets** — Persist the selected settings to the AppHost's user secrets so they are restored on the next run. This option is only shown when the AppHost project has a user secrets ID configured.
+
+:::note
+The **Configure tracked browser** command is only available when the Aspire dashboard's interaction service is active (that is, when the dashboard is connected to the AppHost). It is disabled in standalone dashboard mode.
+:::
+
+After confirming the dialog, the new configuration takes effect immediately: the current browser session restarts with the updated settings.
+
+## How browser logs are captured
+
+The tracked browser connects to the Aspire AppHost over the [Chrome DevTools Protocol (CDP)](https://chromedevtools.github.io/devtools-protocol/). Aspire subscribes to the following CDP domains and forwards events to the resource's console log stream:
+
+- **Runtime** — JavaScript console messages
+- **Log** — browser-level log entries
+- **Page** — page lifecycle events
+- **Network** — network requests and failures
+
+:::tip
+Browser logs are a complement to [browser telemetry](/dashboard/enable-browser-telemetry/), which uses the OpenTelemetry JavaScript SDK to send traces and metrics from within the browser app itself. The two features can be used together.
+:::
+
+## See also
+
+- [Enable browser telemetry](/dashboard/enable-browser-telemetry/)
+- [Explore Aspire dashboard features](/dashboard/explore/)
+- [AppHost configuration](/app-host/configuration/)

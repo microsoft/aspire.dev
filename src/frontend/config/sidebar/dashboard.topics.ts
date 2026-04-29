@@ -268,6 +268,27 @@ export const dashboardTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'dashboard/enable-browser-telemetry',
         },
         {
+          label: 'Browser logs',
+          translations: {
+            da: 'Browserlogfiler',
+            de: 'Browserprotokolle',
+            en: 'Browser logs',
+            es: 'Registros del navegador',
+            fr: 'Journaux du navigateur',
+            hi: 'ब्राउज़र लॉग',
+            id: 'Log browser',
+            it: 'Log del browser',
+            ja: 'ブラウザーログ',
+            ko: '브라우저 로그',
+            'pt-BR': 'Logs do navegador',
+            ru: 'Журналы браузера',
+            tr: 'Tarayıcı günlükleri',
+            uk: 'Журнали браузера',
+            'zh-CN': '浏览器日志',
+          },
+          slug: 'dashboard/browser-logs',
+        },
+        {
           label: 'Microsoft telemetry',
           translations: {
             da: 'Microsoft telemetri',
