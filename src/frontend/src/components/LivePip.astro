@@ -125,6 +125,7 @@ import LiveSvg from '@assets/icons/live.svg';
   const DEFAULT_YOUTUBE_CHANNEL_ID = 'UC8Hyt2P1u3KKnBgRf-Iv6_Q';
   const SOURCE_PICKER_ID = 'aspire-live-source-menu';
   const VIDEOS_PATH = '/community/videos/';
+  const NARROW_VIEWPORT_QUERY = '(max-width: 799px)';
 
   let current = getCurrent();
 
@@ -403,6 +404,29 @@ import LiveSvg from '@assets/icons/live.svg';
   }
 
   function positionSourcePicker(anchor: HTMLElement, picker: HTMLElement): void {
+    if (window.matchMedia(NARROW_VIEWPORT_QUERY).matches) {
+      const visualViewport = window.visualViewport;
+      const viewportLeft = visualViewport?.offsetLeft ?? 0;
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportWidth =
+        visualViewport?.width ?? document.documentElement.clientWidth ?? window.innerWidth;
+      const viewportHeight =
+        visualViewport?.height ?? document.documentElement.clientHeight ?? window.innerHeight;
+      const bottomInset = document.querySelector('astro-dev-toolbar') ? 64 : 0;
+      const maxHeight = Math.max(0, viewportHeight - bottomInset - 12);
+
+      picker.style.top = 'auto';
+      picker.style.right = 'auto';
+      picker.style.bottom = 'auto';
+      picker.style.left = `${viewportLeft}px`;
+      picker.style.width = `${viewportWidth}px`;
+      picker.style.maxHeight = `${maxHeight}px`;
+
+      const height = Math.min(picker.offsetHeight || maxHeight, maxHeight);
+      picker.style.top = `${viewportTop + Math.max(0, viewportHeight - bottomInset - height)}px`;
+      return;
+    }
+
     const rect = anchor.getBoundingClientRect();
     const margin = 12;
     const availableWidth = Math.max(0, window.innerWidth - margin * 2);
@@ -410,6 +434,8 @@ import LiveSvg from '@assets/icons/live.svg';
 
     picker.style.maxHeight = `${availableHeight}px`;
     picker.style.right = 'auto';
+    picker.style.bottom = 'auto';
+    picker.style.width = '';
 
     const width = Math.min(picker.offsetWidth || availableWidth, availableWidth);
     const height = Math.min(picker.offsetHeight || availableHeight, availableHeight);
@@ -425,17 +451,25 @@ import LiveSvg from '@assets/icons/live.svg';
   function openSourcePicker(anchor: HTMLElement): void {
     const picker = getSourcePicker();
     if (!picker) return;
+
+    if (!picker.hidden && anchor.getAttribute('aria-expanded') === 'true') {
+      closeSourcePicker();
+      return;
+    }
+
     syncSourcePickerControls();
     picker.hidden = false;
     positionSourcePicker(anchor, picker);
     document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
       btn.setAttribute('aria-expanded', String(btn === anchor));
     });
-    picker
-      .querySelector<HTMLElement>(
-        '[data-live-pip-choice]:not([hidden]):not(:disabled), [data-live-action="embeds"], [data-live-source-link]:not([hidden])'
-      )
-      ?.focus();
+    if (!window.matchMedia(NARROW_VIEWPORT_QUERY).matches) {
+      picker
+        .querySelector<HTMLElement>(
+          '[data-live-pip-choice]:not([hidden]):not(:disabled), [data-live-action="embeds"], [data-live-source-link]:not([hidden])'
+        )
+        ?.focus();
+    }
   }
 
   function bindSourcePicker(): void {
@@ -483,6 +517,12 @@ import LiveSvg from '@assets/icons/live.svg';
     document.addEventListener('keydown', (evt) => {
       if (evt.key === 'Escape') {
         closeSourcePicker();
+      }
+    });
+    window.addEventListener('resize', () => {
+      const expandedButton = document.querySelector<HTMLElement>('.live-btn[aria-expanded="true"]');
+      if (!picker.hidden && expandedButton) {
+        positionSourcePicker(expandedButton, picker);
       }
     });
   }
@@ -547,13 +587,14 @@ import LiveSvg from '@assets/icons/live.svg';
 <style>
   .live-source-menu {
     position: fixed;
-    z-index: 1000;
+    z-index: 2147483647;
     box-sizing: border-box;
     display: flex;
-    width: min(22rem, calc(100vw - 1.5rem));
+    width: max-content;
+    max-width: min(32rem, calc(100vw - 1.5rem));
     max-height: calc(100dvh - 1.5rem);
     flex-direction: column;
-    min-width: min(18rem, calc(100vw - 1.5rem));
+    min-width: 18rem;
     padding: 0;
     color: var(--sl-color-text);
     background: var(--sl-color-bg);
@@ -650,7 +691,7 @@ import LiveSvg from '@assets/icons/live.svg';
   .live-source-menu__name {
     display: block;
     font-weight: 700;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
 
   .live-source-menu__description {
@@ -658,7 +699,7 @@ import LiveSvg from '@assets/icons/live.svg';
     color: var(--sl-color-gray-3);
     font-size: var(--sl-text-xs);
     line-height: 1.25;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
 
   .live-source-menu__item :global(svg) {
@@ -693,5 +734,24 @@ import LiveSvg from '@assets/icons/live.svg';
   .live-source-menu__dismiss:disabled {
     cursor: default;
     opacity: 0.7;
+  }
+
+  @media (max-width: 799px) {
+    .live-source-menu {
+      width: 100vw;
+      max-width: none;
+      min-width: 0;
+      max-height: min(90dvh, calc(100dvh - 1rem));
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: 0.75rem 0.75rem 0 0;
+    }
+
+    .live-source-menu__name,
+    .live-source-menu__description {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
   }
 </style>

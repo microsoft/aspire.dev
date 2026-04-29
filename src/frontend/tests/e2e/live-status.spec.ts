@@ -106,10 +106,128 @@ test.describe('live status', () => {
       throw new Error('Unable to measure the live dialog and viewport.');
     }
 
-    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(Math.round(box.x)).toBe(0);
+    expect(Math.round(box.width)).toBe(viewport.width);
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
+
+    await liveBtn.click();
+    await expect(liveDialog).toBeHidden();
+
+    await liveBtn.click();
+    await expect(liveDialog).toBeVisible();
+    const reopenedBox = await liveDialog.boundingBox();
+    if (!reopenedBox) {
+      throw new Error('Unable to measure the reopened live dialog.');
+    }
+
+    expect(Math.round(reopenedBox.x)).toBe(0);
+    expect(Math.round(reopenedBox.width)).toBe(viewport.width);
+    expect(Math.abs(reopenedBox.y - box.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenedBox.height - box.height)).toBeLessThanOrEqual(1);
+    await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
+  });
+
+  test('live action dialog toggles and keeps desktop labels on one line', async ({ page }) => {
+    test.skip(isNarrowViewport(page), 'Desktop layout is covered by the desktop project.');
+
+    const liveSnapshot: LiveSnapshot = {
+      isLive: true,
+      primarySource: 'twitch',
+      twitch: { live: true, channel: 'aspiredotdev' },
+      youtube: { live: true, videoId: 'abc123' },
+      updatedAt: new Date().toISOString(),
+    };
+
+    await page.addInitScript(() => {
+      class MockEventSource {
+        onopen: (() => void) | null = null;
+
+        constructor() {
+          setTimeout(() => this.onopen?.(), 0);
+        }
+
+        addEventListener(): void {
+          /* no-op: this layout test is seeded by the mocked JSON endpoint. */
+        }
+
+        close(): void {
+          /* no-op */
+        }
+      }
+
+      Object.defineProperty(window, 'EventSource', {
+        configurable: true,
+        value: MockEventSource,
+      });
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: {
+          window: null,
+          async requestWindow() {
+            throw new Error('Picture-in-Picture should not be opened in this layout test.');
+          },
+        },
+      });
+    });
+
+    await page.route('**/api/live', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(liveSnapshot),
+      })
+    );
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const liveBtn = visibleLiveButton(page);
+    await expect(liveBtn).toHaveAttribute('data-source', 'both');
+    await liveBtn.click();
+
+    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    await expect(liveDialog).toBeVisible();
+
+    const firstBox = await liveDialog.boundingBox();
+    const viewport = page.viewportSize();
+    if (!firstBox || !viewport) {
+      throw new Error('Unable to measure the live dialog and viewport.');
+    }
+
+    expect(firstBox.x).toBeGreaterThanOrEqual(0);
+    expect(firstBox.y).toBeGreaterThanOrEqual(0);
+    expect(firstBox.x + firstBox.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(firstBox.y + firstBox.height).toBeLessThanOrEqual(viewport.height + 1);
+
+    await expect(liveDialog.getByText('Open YouTube Picture-in-Picture')).toBeVisible();
+    await expect
+      .poll(() =>
+        liveDialog.getByText('Open YouTube Picture-in-Picture').evaluate((el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const lineCount = range.getClientRects().length;
+          range.detach();
+          return lineCount;
+        })
+      )
+      .toBe(1);
+
+    await liveBtn.click();
+    await expect(liveDialog).toBeHidden();
+
+    await liveBtn.click();
+    await expect(liveDialog).toBeVisible();
+    const reopenedBox = await liveDialog.boundingBox();
+    if (!reopenedBox) {
+      throw new Error('Unable to measure the reopened live dialog.');
+    }
+
+    expect(Math.abs(reopenedBox.x - firstBox.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenedBox.y - firstBox.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenedBox.width - firstBox.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reopenedBox.height - firstBox.height)).toBeLessThanOrEqual(1);
   });
 
   test('header icon strobes when an SSE state event flips to live', async ({ page }) => {
