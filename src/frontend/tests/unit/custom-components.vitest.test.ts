@@ -9,6 +9,7 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import CTABanner from '@components/CTABanner.astro';
 import CapabilityGrid from '@components/CapabilityGrid.astro';
 import CodespacesButton from '@components/CodespacesButton.astro';
+import ContainerRuntimeChoices from '@components/ContainerRuntimeChoices.astro';
 import Expand from '@components/Expand.astro';
 import FooterLinks from '@components/FooterLinks.astro';
 import FeatureShowcase from '@components/FeatureShowcase.astro';
@@ -156,6 +157,47 @@ const basicRenderCases: BasicRenderCase[] = [
     Component: CodespacesButton,
     props: { owner: 'dotnet', repo: 'aspire' },
     includes: ['https://codespaces.new/dotnet/aspire', 'github.com/codespaces/badge.svg'],
+  },
+  {
+    name: 'ContainerRuntimeChoices renders localized runtime options and Podman setup',
+    Component: ContainerRuntimeChoices,
+    props: {
+      ariaLabel: 'コンテナーランタイムの選択肢',
+      intro: 'ランタイムを 1 つ選択してください。',
+      choices: [
+        {
+          id: 'docker',
+          title: 'Docker Desktop',
+          href: 'https://www.docker.com/products/docker-desktop',
+          linkLabel: 'Docker Desktop をインストール',
+          statusLabel: '推奨',
+          description: 'Supported container runtime.',
+        },
+        {
+          id: 'podman',
+          title: 'Podman',
+          href: 'https://podman.io/',
+          linkLabel: 'Podman をインストール',
+          statusLabel: '代替手段',
+          description: 'Daemonless OCI runtime.',
+        },
+      ],
+      podmanSetup: {
+        heading: 'Aspire で Podman を使用する',
+        body: 'ASPIRE_CONTAINER_RUNTIME を podman に設定します。',
+        bashTitle: 'Bash で設定',
+        powershellTitle: 'PowerShell で設定',
+      },
+    },
+    includes: [
+      'コンテナーランタイムの選択肢',
+      'ランタイムを 1 つ選択してください。',
+      'Docker Desktop',
+      'Docker Desktop をインストール',
+      'Podman',
+      'ASPIRE_CONTAINER_RUNTIME=podman',
+      'PowerShell で設定',
+    ],
   },
   {
     name: 'FluidGrid renders slot content',
