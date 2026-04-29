@@ -936,6 +936,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Entity Framework Core',
+          collapsed: true,
           items: [
             {
               label: 'Overview',
@@ -1182,7 +1183,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/postgres/postgres-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up PostgreSQL in the AppHost',
               slug: 'integrations/databases/postgres/postgres-host',
             },
             {
@@ -1190,7 +1191,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/postgres/postgres-connect',
             },
             {
-              label: 'Community extensions',
+              label: 'Use community extensions',
               slug: 'integrations/databases/postgres/postgresql-extensions',
             },
           ],

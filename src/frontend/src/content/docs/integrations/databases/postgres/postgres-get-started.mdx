@@ -36,16 +36,23 @@ The PostgreSQL integration has two sides: a **hosting integration** that you use
 ```mermaid
 architecture-beta
 
-  group apphost[AppHost]
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
+  service hosting(server)[Hosting integration] in apphost
   service postgres(logos:postgresql)[PostgreSQL server] in apphost
   service db(database)[postgresdb] in apphost
 
-  service app(server)[Consuming app]
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
+  hosting:R --> L:postgres
   postgres:R --> L:db
-  db:R --> L:app
+  db:R --> L:client
+  client:R --> L:app
 ```
+
+The **hosting integration** lives in your AppHost project and models the PostgreSQL server and databases as resources. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to the database.
 
 Getting there is a two-step process: model the PostgreSQL resources in your AppHost, then connect to the database from each app that needs it.
 
@@ -60,7 +67,7 @@ Getting there is a two-step process: model the PostgreSQL resources in your AppH
         iconPlacement='end'
         icon='right-arrow'
         href='/integrations/databases/postgres/postgres-host/'>
-        Add PostgreSQL hosting integration
+        Set up PostgreSQL in the AppHost
     </LinkButton>
 
 2. ### Connect from your consuming app
