@@ -1,34 +1,100 @@
 ---
 import { Icon } from '@astrojs/starlight/components';
+import LiveSvg from '@assets/icons/live.svg';
 
 /**
  * Site-global native Document Picture-in-Picture controller.
  *
  * The header live icon remains a normal link when we're offline. When we're
- * live and the browser supports Document PiP, clicking the icon opens a
- * resizable native PiP window with the active embed instead of navigating.
+ * live, clicking the icon opens a compact action dialog so visitors can choose
+ * native PiP, the aspire.dev embeds, a provider site, or silence the strobe.
  * Closing the native PiP window never redirects.
  */
 ---
 
-<div id="aspire-live-source-menu" class="live-source-menu not-content" role="menu" aria-label="Choose live stream" hidden>
+<div
+  id="aspire-live-source-menu"
+  class="live-source-menu not-content"
+  role="dialog"
+  aria-label="Watch Aspire live"
+  hidden
+>
   <div class="live-source-menu__header">
-    <p class="live-source-menu__label">Watch live on</p>
+    <p class="live-source-menu__eyebrow">Aspire is live</p>
+    <p class="live-source-menu__label">Choose how to watch</p>
   </div>
   <div class="live-source-menu__body">
-    <button type="button" class="live-source-menu__item" role="menuitem" data-live-source-choice="youtube">
-      <Icon name="youtube" />
-      <span class="live-source-menu__name">YouTube</span>
-    </button>
-    <button type="button" class="live-source-menu__item" role="menuitem" data-live-source-choice="twitch">
-      <Icon name="twitch" />
-      <span class="live-source-menu__name">Twitch</span>
+    <div class="live-source-menu__group" data-live-pip-group>
+      <p class="live-source-menu__group-label">Picture-in-picture</p>
+      <button type="button" class="live-source-menu__item" data-live-pip-choice="youtube">
+        <Icon name="youtube" />
+        <span>
+          <span class="live-source-menu__name">Open YouTube Picture-in-Picture</span>
+          <span class="live-source-menu__description">Keep watching while browsing docs.</span>
+        </span>
+      </button>
+      <button type="button" class="live-source-menu__item" data-live-pip-choice="twitch">
+        <Icon name="twitch" />
+        <span>
+          <span class="live-source-menu__name">Open Twitch Picture-in-Picture</span>
+          <span class="live-source-menu__description">Keep watching while browsing docs.</span>
+        </span>
+      </button>
+    </div>
+
+    <a href="/community/videos/" class="live-source-menu__item" data-live-action="embeds">
+      <LiveSvg />
+      <span>
+        <span class="live-source-menu__name">Watch on aspire.dev</span>
+        <span class="live-source-menu__description"
+          >Use the embedded players on the live streams page.</span
+        >
+      </span>
+    </a>
+
+    <div class="live-source-menu__group" data-live-external-group>
+      <p class="live-source-menu__group-label">Open on platform</p>
+      <a
+        class="live-source-menu__item"
+        data-live-source-link="youtube"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon name="youtube" />
+        <span>
+          <span class="live-source-menu__name">Watch on YouTube</span>
+          <span class="live-source-menu__description">Open the stream in a new tab.</span>
+        </span>
+      </a>
+      <a
+        class="live-source-menu__item"
+        data-live-source-link="twitch"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon name="twitch" />
+        <span>
+          <span class="live-source-menu__name">Watch on Twitch</span>
+          <span class="live-source-menu__description">Open the stream in a new tab.</span>
+        </span>
+      </a>
+    </div>
+  </div>
+  <div class="live-source-menu__footer">
+    <button type="button" class="live-source-menu__dismiss" data-live-action="dismiss">
+      Dismiss notification
     </button>
   </div>
 </div>
 
 <script>
-  import { getCurrent, subscribe, type LiveSnapshot } from '@components/live-status.ts';
+  import {
+    dismissLiveNotification,
+    getCurrent,
+    isLiveNotificationDismissed,
+    subscribe,
+    type LiveSnapshot,
+  } from '@components/live-status.ts';
 
   type DocumentPictureInPictureApi = {
     requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
@@ -55,6 +121,7 @@ import { Icon } from '@astrojs/starlight/components';
   }
 
   const DEFAULT_TWITCH_CHANNEL = 'aspiredotdev';
+  const DEFAULT_YOUTUBE_HANDLE = 'aspiredotdev';
   const DEFAULT_YOUTUBE_CHANNEL_ID = 'UC8Hyt2P1u3KKnBgRf-Iv6_Q';
   const SOURCE_PICKER_ID = 'aspire-live-source-menu';
   const VIDEOS_PATH = '/community/videos/';
@@ -101,7 +168,14 @@ import { Icon } from '@astrojs/starlight/components';
   }
 
   function isModifiedClick(evt: MouseEvent): boolean {
-    return evt.defaultPrevented || evt.button !== 0 || evt.altKey || evt.ctrlKey || evt.metaKey || evt.shiftKey;
+    return (
+      evt.defaultPrevented ||
+      evt.button !== 0 ||
+      evt.altKey ||
+      evt.ctrlKey ||
+      evt.metaKey ||
+      evt.shiftKey
+    );
   }
 
   function parentHost(): string {
@@ -120,10 +194,17 @@ import { Icon } from '@astrojs/starlight/components';
   }
 
   function sourceIsLive(snapshot: LiveSnapshot, source: LiveSource | null): source is LiveSource {
-    return source === 'youtube' ? snapshot.youtube.live : source === 'twitch' ? snapshot.twitch.live : false;
+    return source === 'youtube'
+      ? snapshot.youtube.live
+      : source === 'twitch'
+        ? snapshot.twitch.live
+        : false;
   }
 
-  function chooseSource(snapshot: LiveSnapshot, requestedSource = getState().selectedSource): LiveSource | null {
+  function chooseSource(
+    snapshot: LiveSnapshot,
+    requestedSource = getState().selectedSource
+  ): LiveSource | null {
     if (sourceIsLive(snapshot, requestedSource)) {
       return requestedSource;
     }
@@ -140,10 +221,20 @@ import { Icon } from '@astrojs/starlight/components';
     return liveSources[0] ?? null;
   }
 
+  function sourceUrl(snapshot: LiveSnapshot, source: LiveSource): string {
+    if (source === 'youtube') {
+      return snapshot.youtube.videoId
+        ? `https://www.youtube.com/watch?v=${encodeURIComponent(snapshot.youtube.videoId)}`
+        : `https://www.youtube.com/@${DEFAULT_YOUTUBE_HANDLE}/live`;
+    }
+
+    return `https://www.twitch.tv/${encodeURIComponent(snapshot.twitch.channel ?? DEFAULT_TWITCH_CHANNEL)}`;
+  }
+
   function buildEmbed(
     doc: Document,
     snapshot: LiveSnapshot,
-    source: LiveSource | null,
+    source: LiveSource | null
   ): { key: string; iframe: HTMLIFrameElement | null; source: LiveSource | null } {
     if (source === 'twitch' && snapshot.twitch.live) {
       const channel = snapshot.twitch.channel ?? DEFAULT_TWITCH_CHANNEL;
@@ -162,7 +253,11 @@ import { Icon } from '@astrojs/starlight/components';
         : `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(DEFAULT_YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1`;
       iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
       iframe.setAttribute('aria-label', 'YouTube live stream');
-      return { key: id ? `youtube:${id}` : `youtube-channel:${DEFAULT_YOUTUBE_CHANNEL_ID}`, iframe, source };
+      return {
+        key: id ? `youtube:${id}` : `youtube-channel:${DEFAULT_YOUTUBE_CHANNEL_ID}`,
+        iframe,
+        source,
+      };
     }
 
     return { key: '', iframe: null, source: null };
@@ -245,7 +340,7 @@ import { Icon } from '@astrojs/starlight/components';
       () => {
         clearPipState();
       },
-      { once: true },
+      { once: true }
     );
     renderPip(current);
     return true;
@@ -268,14 +363,42 @@ import { Icon } from '@astrojs/starlight/components';
   function syncSourcePickerControls(): void {
     const picker = getSourcePicker();
     if (!picker) return;
-    picker.querySelectorAll<HTMLButtonElement>('[data-live-source-choice]').forEach((button) => {
-      const source = button.dataset.liveSourceChoice as LiveSource | undefined;
-      const live = sourceIsLive(current, source ?? null);
-      button.hidden = !live;
-      button.disabled = !live;
-    });
-    if (getLiveSources(current).length < 2) {
+
+    if (!current.isLive) {
       closeSourcePicker();
+      return;
+    }
+
+    const liveSources = getLiveSources(current);
+    const pipGroup = picker.querySelector<HTMLElement>('[data-live-pip-group]');
+    const showPipChoices = nativePipAvailable() && liveSources.length > 0;
+    if (pipGroup) {
+      pipGroup.hidden = !showPipChoices;
+    }
+
+    picker.querySelectorAll<HTMLButtonElement>('[data-live-pip-choice]').forEach((button) => {
+      const source = button.dataset.livePipChoice as LiveSource | undefined;
+      const live = sourceIsLive(current, source ?? null);
+      button.hidden = !showPipChoices || !live;
+      button.disabled = !showPipChoices || !live;
+    });
+
+    picker.querySelectorAll<HTMLAnchorElement>('[data-live-source-link]').forEach((link) => {
+      const source = link.dataset.liveSourceLink as LiveSource | undefined;
+      const live = sourceIsLive(current, source ?? null);
+      link.hidden = !live;
+      if (live && source) {
+        link.href = sourceUrl(current, source);
+      } else {
+        link.removeAttribute('href');
+      }
+    });
+
+    const dismissButton = picker.querySelector<HTMLButtonElement>('[data-live-action="dismiss"]');
+    if (dismissButton) {
+      const dismissed = isLiveNotificationDismissed(current);
+      dismissButton.textContent = dismissed ? 'Notification dismissed' : 'Dismiss notification';
+      dismissButton.disabled = dismissed;
     }
   }
 
@@ -283,7 +406,10 @@ import { Icon } from '@astrojs/starlight/components';
     const rect = anchor.getBoundingClientRect();
     const margin = 8;
     const width = picker.offsetWidth || 180;
-    const left = Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - margin);
+    const left = Math.min(
+      Math.max(margin, rect.left + rect.width / 2 - width / 2),
+      window.innerWidth - width - margin
+    );
     picker.style.top = `${rect.bottom + margin}px`;
     picker.style.left = `${left}px`;
   }
@@ -297,28 +423,53 @@ import { Icon } from '@astrojs/starlight/components';
     document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
       btn.setAttribute('aria-expanded', String(btn === anchor));
     });
-    picker.querySelector<HTMLButtonElement>('[data-live-source-choice]:not([hidden]):not(:disabled)')?.focus();
+    picker
+      .querySelector<HTMLElement>(
+        '[data-live-pip-choice]:not([hidden]):not(:disabled), [data-live-action="embeds"], [data-live-source-link]:not([hidden])'
+      )
+      ?.focus();
   }
 
   function bindSourcePicker(): void {
     const picker = getSourcePicker();
     if (!picker || picker.dataset.bound === 'true') return;
     picker.dataset.bound = 'true';
-    picker.querySelectorAll<HTMLButtonElement>('[data-live-source-choice]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const source = button.dataset.liveSourceChoice as LiveSource | undefined;
+    picker.addEventListener('click', (evt) => {
+      const target = evt.target;
+      if (!(target instanceof Element)) return;
+
+      const pipButton = target.closest<HTMLButtonElement>('[data-live-pip-choice]');
+      if (pipButton && picker.contains(pipButton)) {
+        const source = pipButton.dataset.livePipChoice as LiveSource | undefined;
         if (!source) return;
         closeSourcePicker();
         void openNativePip(source).catch((err) => {
-          console.warn('[live-status] native Picture-in-Picture failed, navigating to videos page', err);
+          console.warn(
+            '[live-status] native Picture-in-Picture failed, navigating to videos page',
+            err
+          );
           window.location.assign(VIDEOS_PATH);
         });
-      });
+        return;
+      }
+
+      const dismissButton = target.closest<HTMLButtonElement>('[data-live-action="dismiss"]');
+      if (dismissButton && picker.contains(dismissButton)) {
+        dismissLiveNotification(current);
+        syncSourcePickerControls();
+        closeSourcePicker();
+        return;
+      }
+
+      if (target.closest<HTMLAnchorElement>('a')) {
+        closeSourcePicker();
+      }
     });
     document.addEventListener('click', (evt) => {
       const target = evt.target;
       if (!(target instanceof Node)) return;
-      if (picker.contains(target) || (target instanceof Element && target.closest('.live-btn'))) return;
+      if (picker.contains(target) || (target instanceof Element && target.closest('.live-btn')))
+        return;
       closeSourcePicker();
     });
     document.addEventListener('keydown', (evt) => {
@@ -329,12 +480,15 @@ import { Icon } from '@astrojs/starlight/components';
   }
 
   function syncHeaderMenuState(): void {
-    const hasChoices = current.isLive && nativePipAvailable() && getLiveSources(current).length > 1;
+    const hasChoices = current.isLive;
     document.querySelectorAll<HTMLElement>('.live-btn').forEach((btn) => {
       if (hasChoices) {
-        btn.setAttribute('aria-haspopup', 'menu');
+        btn.setAttribute('aria-haspopup', 'dialog');
         btn.setAttribute('aria-controls', SOURCE_PICKER_ID);
-        btn.setAttribute('aria-expanded', String(!getSourcePicker()?.hidden && btn.getAttribute('aria-expanded') === 'true'));
+        btn.setAttribute(
+          'aria-expanded',
+          String(!getSourcePicker()?.hidden && btn.getAttribute('aria-expanded') === 'true')
+        );
       } else {
         btn.removeAttribute('aria-haspopup');
         btn.removeAttribute('aria-controls');
@@ -349,21 +503,12 @@ import { Icon } from '@astrojs/starlight/components';
       if (btn.dataset.nativePipBound === 'true') return;
       btn.dataset.nativePipBound = 'true';
       btn.addEventListener('click', (evt) => {
-        if (isModifiedClick(evt) || !current.isLive || !nativePipAvailable()) {
+        if (isModifiedClick(evt) || !current.isLive) {
           return;
         }
 
         evt.preventDefault();
-        const liveSources = getLiveSources(current);
-        if (liveSources.length > 1) {
-          openSourcePicker(btn);
-          return;
-        }
-
-        void openNativePip(liveSources[0]).catch((err) => {
-          console.warn('[live-status] native Picture-in-Picture failed, navigating to videos page', err);
-          window.location.assign(btn.href);
-        });
+        openSourcePicker(btn);
       });
     });
   }
@@ -395,7 +540,7 @@ import { Icon } from '@astrojs/starlight/components';
   .live-source-menu {
     position: fixed;
     z-index: 1000;
-    min-width: 13rem;
+    min-width: 18rem;
     padding: 0;
     color: var(--sl-color-text);
     background: var(--sl-color-bg);
@@ -415,6 +560,15 @@ import { Icon } from '@astrojs/starlight/components';
     border-bottom: 1px solid var(--sl-color-gray-5);
   }
 
+  .live-source-menu__eyebrow {
+    margin: 0 0 0.25rem;
+    color: var(--sl-color-red);
+    font-size: var(--sl-text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   .live-source-menu__label {
     margin: 0;
     color: var(--sl-color-text);
@@ -425,15 +579,32 @@ import { Icon } from '@astrojs/starlight/components';
   .live-source-menu__body {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
     padding: 0.75rem;
+  }
+
+  .live-source-menu__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .live-source-menu__group[hidden] {
+    display: none;
+  }
+
+  .live-source-menu__group-label {
+    margin: 0;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
   }
 
   .live-source-menu__item {
     display: flex;
     width: 100%;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.65rem;
     padding: 0.65rem 0.75rem;
     color: inherit;
     text-align: start;
@@ -441,6 +612,11 @@ import { Icon } from '@astrojs/starlight/components';
     border: 0;
     border-radius: 0.5rem;
     cursor: pointer;
+    text-decoration: none;
+  }
+
+  .live-source-menu__item[hidden] {
+    display: none;
   }
 
   .live-source-menu__item:hover,
@@ -450,12 +626,47 @@ import { Icon } from '@astrojs/starlight/components';
   }
 
   .live-source-menu__name {
+    display: block;
     font-weight: 700;
+  }
+
+  .live-source-menu__description {
+    display: block;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-xs);
+    line-height: 1.25;
   }
 
   .live-source-menu__item :global(svg) {
     flex: 0 0 auto;
     width: 1.15rem;
     height: 1.15rem;
+  }
+
+  .live-source-menu__footer {
+    padding: 0.75rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .live-source-menu__dismiss {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    color: var(--sl-color-gray-2);
+    background: transparent;
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .live-source-menu__dismiss:not(:disabled):hover,
+  .live-source-menu__dismiss:not(:disabled):focus-visible {
+    color: var(--sl-color-text);
+    background: var(--sl-color-gray-5);
+    outline: none;
+  }
+
+  .live-source-menu__dismiss:disabled {
+    cursor: default;
+    opacity: 0.7;
   }
 </style>
