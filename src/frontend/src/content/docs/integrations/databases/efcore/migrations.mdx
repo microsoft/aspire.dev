@@ -549,22 +549,28 @@ var db = builder.AddPostgres("pg").AddDatabase("appdb");
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db);
 
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext");
+var apiMigrations = api.AddEFMigrations("api-migrations");
 ```
 
-The first argument is a resource name for the migration resource; the second is the fully qualified name of the `DbContext` type.
+The first argument is a resource name for the migration resource. The optional second argument is the fully qualified name of the `DbContext` type; it's only required when the target assembly contains more than one `DbContext`.
+
+If your migrations live in a separate project (for example, `Projects.Data`), reference that project from your AppHost and point to it using `.WithMigrationsProject<Projects.Data>()`:
+
+```csharp title="C# — AppHost.cs"
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithMigrationsProject<Projects.Data>();
+```
 
 ### Run migrations on startup
 
 To apply migrations automatically when running locally with `aspire run`, chain `RunDatabaseUpdateOnStart()`:
 
 ```csharp title="C# — AppHost.cs"
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+var apiMigrations = api.AddEFMigrations("api-migrations")
     .RunDatabaseUpdateOnStart();
 
-// Other resources can wait for migrations to complete before starting
-builder.AddProject<Projects.Worker>("worker")
-    .WaitForCompletion(apiMigrations);
+// The api project waits for migrations to complete before starting
+api.WaitForCompletion(apiMigrations);
 ```
 
 :::note
@@ -585,12 +591,9 @@ When `RunDatabaseUpdateOnStart()` is called, a health check is registered for th
 To generate migration artifacts during `aspire publish`, use `PublishAsMigrationScript` or `PublishAsMigrationBundle`:
 
 ```csharp title="C# — AppHost.cs"
-// Generate a SQL migration script during publish
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
-    .PublishAsMigrationScript();
-
-// Generate a self-contained migration bundle executable during publish
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+// Generate both a SQL script and a self-contained bundle during publish
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .PublishAsMigrationScript()
     .PublishAsMigrationBundle();
 ```
 
@@ -604,18 +607,19 @@ Pass `publishContainer: true` to `PublishAsMigrationBundle` to wrap the generate
 var db  = builder.AddPostgres("pg").AddDatabase("appdb");
 var api = builder.AddProject<Projects.Api>("api").WithReference(db);
 
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithReference(db)
     .WaitFor(db)
     .PublishAsMigrationBundle(publishContainer: true);
 ```
 
 :::note
-`.WaitFor(database)` is required when using `publishContainer: true`. The connection string for the database is wired up automatically via that reference, exactly as it is for any other compute resource.
+Both `.WithReference(db)` and `.WaitFor(db)` are required when using `publishContainer: true`. `.WithReference(db)` wires up the connection string so the migration container can reach the database, and `.WaitFor(db)` ensures the database is healthy before the container starts.
 :::
 
 Key behaviors:
 
-- The generated `Dockerfile` uses `mcr.microsoft.com/dotnet/runtime:10.0` (or `mcr.microsoft.com/dotnet/runtime-deps:10.0` when `selfContained: true`).
+- Use the `baseImage` argument to specify a custom base image for the generated container.
 - The `targetRuntime` argument defaults to `linux-x64` when `publishContainer: true`; set it explicitly for other architectures (for example, `linux-arm64`).
 - Local run mode (`aspire run`) is unaffected — no container image is built, and the migration resource still appears in the dashboard with its tool commands.
 
@@ -629,7 +633,8 @@ A migration bundle is idempotent (running it twice is safe), but different compu
 Publish the migration resource as an [Azure Container App Job](https://learn.microsoft.com/azure/container-apps/jobs) so it runs once and stops:
 
 ```csharp title="C# — AppHost.cs"
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithReference(db)
     .WaitFor(db)
     .PublishAsMigrationBundle(publishContainer: true)
     .PublishAsAzureContainerAppJob(); // requires Aspire.Hosting.Azure.AppContainers
@@ -641,7 +646,8 @@ var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContex
 Tell Compose not to restart the container after it exits:
 
 ```csharp title="C# — AppHost.cs"
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
+var apiMigrations = api.AddEFMigrations("api-migrations")
+    .WithReference(db)
     .WaitFor(db)
     .PublishAsMigrationBundle(publishContainer: true)
     .PublishAsDockerComposeService((_, service) => service.Restart = "no"); // requires Aspire.Hosting.Docker
@@ -654,20 +660,3 @@ Customize the generated manifest to use a `Job` workload or set `restartPolicy: 
 
 </TabItem>
 </Tabs>
-
-#### Generate the bundle artifact only
-
-If you want `aspire publish` to produce the bundle executable without wrapping it in a container image (for example, to run it from a deployment pipeline or CI job), omit `publishContainer: true`:
-
-```csharp title="C# — AppHost.cs"
-var apiMigrations = api.AddEFMigrations("api-migrations", "MyApp.Data.MyDbContext")
-    .PublishAsMigrationBundle(); // artifact only, no Dockerfile
-```
-
-This writes the platform-native executable to `<publish-output>/efmigrations/<name>[.exe]` without adding any compute resource to the deployment manifest. You can then execute the bundle as appropriate for your deployment flow:
-
-```bash title="Bash"
-./<publish-output>/efmigrations/api-migrations --connection "$CONNECTION_STRING"
-```
-
-You can also combine both `PublishAsMigrationScript` and `PublishAsMigrationBundle` on the same resource to produce both artifacts.
