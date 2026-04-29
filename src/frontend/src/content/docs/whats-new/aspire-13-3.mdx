@@ -1,6 +1,6 @@
 ---
 title: What's new in Aspire 13.3
-description: Aspire 13.3 introduces Azure Network Security Perimeter support and more.
+description: Aspire 13.3 introduces Azure Network Security Perimeter support, enables the container tunnel by default, and more.
 sidebar:
   label: Aspire 13.3
   order: 0
@@ -9,7 +9,7 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Steps } from '@astrojs/starlight/components';
+import { Steps, Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
@@ -97,4 +97,42 @@ NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Le
 
 <LearnMore>
   For more details, see [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/#add-a-network-security-perimeter).
+</LearnMore>
+
+## 🔗 Container tunnel enabled by default
+
+Aspire 13.3 enables the **Aspire container tunnel** by default, providing uniform container-to-host connectivity regardless of your container orchestrator.
+
+Previously introduced as an opt-in experimental feature in Aspire 13.0, the container tunnel allows containers to reliably communicate with host-based services (such as the Aspire dashboard, OTEL collector, and other projects). Before this change, Docker Desktop users benefited from built-in host connectivity (`host.docker.internal`), while other container runtimes such as Docker Engine on Linux or Podman required manual workarounds.
+
+With the tunnel enabled by default, all supported container orchestrators now behave consistently without any additional configuration.
+
+<Aside type="note" title="Startup delay">
+Containers that reference host-based endpoints will start slightly later (~3–4 seconds) than before, because the tunnel proxy container must start and allocate endpoints first. This is a one-time cost per application run and will improve in a future release when persistent tunnel support lands.
+</Aside>
+
+### Disabling the container tunnel
+
+If you need to opt out, set the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `false` before starting your AppHost:
+
+```bash title="Shell — Disable container tunnel"
+ASPIRE_ENABLE_CONTAINER_TUNNEL=false dotnet run --project MyApp.AppHost
+```
+
+You can also disable it in `launchSettings.json`:
+
+```json title="launchSettings.json"
+{
+  "profiles": {
+    "MyApp.AppHost": {
+      "environmentVariables": {
+        "ASPIRE_ENABLE_CONTAINER_TUNNEL": "false"
+      }
+    }
+  }
+}
+```
+
+<LearnMore>
+  For more details on container networking, see [Inner-loop networking overview](/fundamentals/networking-overview/).
 </LearnMore>
