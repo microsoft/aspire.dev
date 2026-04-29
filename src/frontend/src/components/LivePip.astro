@@ -20,8 +20,18 @@ import LiveSvg from '@assets/icons/live.svg';
   hidden
 >
   <div class="live-source-menu__header">
-    <p class="live-source-menu__eyebrow">Aspire is live</p>
-    <p class="live-source-menu__label">Choose how to watch</p>
+    <div>
+      <p class="live-source-menu__eyebrow">Aspire is live</p>
+      <p class="live-source-menu__label">Choose how to watch</p>
+    </div>
+    <button
+      type="button"
+      class="live-source-menu__close"
+      aria-label="Dismiss live notification"
+      data-live-action="dismiss-close"
+    >
+      <Icon name="close" />
+    </button>
   </div>
   <div class="live-source-menu__body">
     <div class="live-source-menu__group" data-live-pip-group>
@@ -407,23 +417,28 @@ import LiveSvg from '@assets/icons/live.svg';
     if (window.matchMedia(NARROW_VIEWPORT_QUERY).matches) {
       const visualViewport = window.visualViewport;
       const viewportLeft = visualViewport?.offsetLeft ?? 0;
-      const viewportTop = visualViewport?.offsetTop ?? 0;
       const viewportWidth =
         visualViewport?.width ?? document.documentElement.clientWidth ?? window.innerWidth;
       const viewportHeight =
         visualViewport?.height ?? document.documentElement.clientHeight ?? window.innerHeight;
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportRightInset = Math.max(
+        0,
+        window.innerWidth - viewportLeft - viewportWidth
+      );
+      const headerBottom =
+        document.querySelector<HTMLElement>('.header')?.getBoundingClientRect().bottom ??
+        viewportTop;
       const bottomInset = document.querySelector('astro-dev-toolbar') ? 64 : 0;
-      const maxHeight = Math.max(0, viewportHeight - bottomInset - 12);
+      const top = Math.max(viewportTop, headerBottom);
+      const maxHeight = Math.max(0, viewportTop + viewportHeight - top - bottomInset);
 
-      picker.style.top = 'auto';
-      picker.style.right = 'auto';
+      picker.style.top = `${top}px`;
+      picker.style.right = `${viewportRightInset}px`;
       picker.style.bottom = 'auto';
       picker.style.left = `${viewportLeft}px`;
-      picker.style.width = `${viewportWidth}px`;
+      picker.style.width = 'auto';
       picker.style.maxHeight = `${maxHeight}px`;
-
-      const height = Math.min(picker.offsetHeight || maxHeight, maxHeight);
-      picker.style.top = `${viewportTop + Math.max(0, viewportHeight - bottomInset - height)}px`;
       return;
     }
 
@@ -495,7 +510,9 @@ import LiveSvg from '@assets/icons/live.svg';
         return;
       }
 
-      const dismissButton = target.closest<HTMLButtonElement>('[data-live-action="dismiss"]');
+      const dismissButton = target.closest<HTMLButtonElement>(
+        '[data-live-action="dismiss"], [data-live-action="dismiss-close"]'
+      );
       if (dismissButton && picker.contains(dismissButton)) {
         dismissLiveNotification(current);
         syncSourcePickerControls();
@@ -609,7 +626,11 @@ import LiveSvg from '@assets/icons/live.svg';
   }
 
   .live-source-menu__header {
+    display: flex;
     flex: 0 0 auto;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
     padding: 0.85rem 1rem;
     background: var(--sl-color-bg);
     border-bottom: 1px solid var(--sl-color-gray-5);
@@ -629,6 +650,34 @@ import LiveSvg from '@assets/icons/live.svg';
     color: var(--sl-color-text);
     font-size: var(--sl-text-sm);
     font-weight: 600;
+  }
+
+  .live-source-menu__close {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem;
+    color: var(--sl-color-text);
+    background: none;
+    border: 0;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      opacity 0.2s;
+  }
+
+  .live-source-menu__close:hover,
+  .live-source-menu__close:focus-visible {
+    background-color: var(--sl-color-gray-5);
+    opacity: 0.8;
+    outline: none;
+  }
+
+  .live-source-menu__close :global(svg) {
+    width: 1rem;
+    height: 1rem;
   }
 
   .live-source-menu__body {
@@ -738,14 +787,13 @@ import LiveSvg from '@assets/icons/live.svg';
 
   @media (max-width: 799px) {
     .live-source-menu {
-      width: 100vw;
       max-width: none;
       min-width: 0;
-      max-height: min(90dvh, calc(100dvh - 1rem));
+      max-height: calc(100dvh - var(--sl-nav-height, 0px));
+      border-top: 0;
       border-right: 0;
-      border-bottom: 0;
       border-left: 0;
-      border-radius: 0.75rem 0.75rem 0 0;
+      border-radius: 0 0 0.75rem 0.75rem;
     }
 
     .live-source-menu__name,
