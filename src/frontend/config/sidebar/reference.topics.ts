@@ -601,6 +601,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspiredotnettool',
             },
             {
+              label: 'ASPIREDURABLETASK001',
+              link: '/diagnostics/aspiredurabletask001',
+            },
+            {
               label: 'ASPIREEXTENSION001',
               link: '/diagnostics/aspireextension001',
             },
