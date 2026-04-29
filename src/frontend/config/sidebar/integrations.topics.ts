@@ -1564,6 +1564,27 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '开发工具和扩展',
       },
       items: [
+        {
+          label: 'Browser logs',
+          translations: {
+            da: 'Browserlogfiler',
+            de: 'Browserprotokolle',
+            en: 'Browser logs',
+            es: 'Registros del navegador',
+            fr: 'Journaux du navigateur',
+            hi: 'ब्राउज़र लॉग',
+            id: 'Log browser',
+            it: 'Log del browser',
+            ja: 'ブラウザーログ',
+            ko: '브라우저 로그',
+            'pt-BR': 'Logs do navegador',
+            ru: 'Журналы браузера',
+            tr: 'Tarayıcı günlükleri',
+            uk: 'Журнали браузера',
+            'zh-CN': '浏览器日志',
+          },
+          slug: 'integrations/devtools/browser-logs',
+        },
         { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {
