@@ -129,12 +129,12 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'deployment/kubernetes-ingress',
         },
         {
-          label: 'Ingress on AKS',
-          slug: 'deployment/kubernetes-ingress-aks',
-        },
-        {
           label: 'Gateway API on AKS',
           slug: 'deployment/kubernetes-gateway-aks',
+        },
+        {
+          label: 'Ingress on AKS',
+          slug: 'deployment/kubernetes-ingress-aks',
         },
       ],
     },
