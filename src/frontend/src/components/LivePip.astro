@@ -404,14 +404,22 @@ import LiveSvg from '@assets/icons/live.svg';
 
   function positionSourcePicker(anchor: HTMLElement, picker: HTMLElement): void {
     const rect = anchor.getBoundingClientRect();
-    const margin = 8;
-    const width = picker.offsetWidth || 180;
-    const left = Math.min(
-      Math.max(margin, rect.left + rect.width / 2 - width / 2),
-      window.innerWidth - width - margin
-    );
-    picker.style.top = `${rect.bottom + margin}px`;
+    const margin = 12;
+    const availableWidth = Math.max(0, window.innerWidth - margin * 2);
+    const availableHeight = Math.max(0, window.innerHeight - margin * 2);
+
+    picker.style.maxHeight = `${availableHeight}px`;
+    picker.style.right = 'auto';
+
+    const width = Math.min(picker.offsetWidth || availableWidth, availableWidth);
+    const height = Math.min(picker.offsetHeight || availableHeight, availableHeight);
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+    const left = Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), maxLeft);
+    const top = Math.min(Math.max(margin, rect.bottom + margin), maxTop);
+
     picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
   }
 
   function openSourcePicker(anchor: HTMLElement): void {
@@ -540,7 +548,12 @@ import LiveSvg from '@assets/icons/live.svg';
   .live-source-menu {
     position: fixed;
     z-index: 1000;
-    min-width: 18rem;
+    box-sizing: border-box;
+    display: flex;
+    width: min(22rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    flex-direction: column;
+    min-width: min(18rem, calc(100vw - 1.5rem));
     padding: 0;
     color: var(--sl-color-text);
     background: var(--sl-color-bg);
@@ -555,6 +568,7 @@ import LiveSvg from '@assets/icons/live.svg';
   }
 
   .live-source-menu__header {
+    flex: 0 0 auto;
     padding: 0.85rem 1rem;
     background: var(--sl-color-bg);
     border-bottom: 1px solid var(--sl-color-gray-5);
@@ -578,9 +592,13 @@ import LiveSvg from '@assets/icons/live.svg';
 
   .live-source-menu__body {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 0.75rem;
+    min-height: 0;
     padding: 0.75rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .live-source-menu__group {
@@ -615,6 +633,10 @@ import LiveSvg from '@assets/icons/live.svg';
     text-decoration: none;
   }
 
+  .live-source-menu__item > span {
+    min-width: 0;
+  }
+
   .live-source-menu__item[hidden] {
     display: none;
   }
@@ -628,6 +650,7 @@ import LiveSvg from '@assets/icons/live.svg';
   .live-source-menu__name {
     display: block;
     font-weight: 700;
+    overflow-wrap: anywhere;
   }
 
   .live-source-menu__description {
@@ -635,6 +658,7 @@ import LiveSvg from '@assets/icons/live.svg';
     color: var(--sl-color-gray-3);
     font-size: var(--sl-text-xs);
     line-height: 1.25;
+    overflow-wrap: anywhere;
   }
 
   .live-source-menu__item :global(svg) {
@@ -644,6 +668,7 @@ import LiveSvg from '@assets/icons/live.svg';
   }
 
   .live-source-menu__footer {
+    flex: 0 0 auto;
     padding: 0.75rem;
     border-top: 1px solid var(--sl-color-gray-5);
   }

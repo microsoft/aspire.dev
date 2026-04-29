@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
+import { dismissCookieConsentIfVisible, isNarrowViewport } from '@tests/e2e/helpers';
 
 /**
  * E2E coverage for the live-status feature.
@@ -28,6 +28,89 @@ test.describe('live status', () => {
     youtube: { live: false, videoId: null },
     updatedAt: new Date(0).toISOString(),
   };
+
+  function visibleLiveButton(page: Page) {
+    return page.locator('.live-btn:visible').first();
+  }
+
+  test('live action dialog stays within the mobile viewport when live', async ({ page }) => {
+    test.skip(!isNarrowViewport(page), 'This regression only applies to narrow/mobile viewports.');
+
+    const liveSnapshot: LiveSnapshot = {
+      isLive: true,
+      primarySource: 'twitch',
+      twitch: { live: true, channel: 'aspiredotdev' },
+      youtube: { live: true, videoId: 'abc123' },
+      updatedAt: new Date().toISOString(),
+    };
+
+    await page.addInitScript(() => {
+      class MockEventSource {
+        onopen: (() => void) | null = null;
+
+        constructor() {
+          setTimeout(() => this.onopen?.(), 0);
+        }
+
+        addEventListener(): void {
+          /* no-op: this layout test is seeded by the mocked JSON endpoint. */
+        }
+
+        close(): void {
+          /* no-op */
+        }
+      }
+
+      Object.defineProperty(window, 'EventSource', {
+        configurable: true,
+        value: MockEventSource,
+      });
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: {
+          window: null,
+          async requestWindow() {
+            throw new Error('Picture-in-Picture should not be opened in this layout test.');
+          },
+        },
+      });
+    });
+
+    await page.route('**/api/live', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(liveSnapshot),
+      })
+    );
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const liveBtn = visibleLiveButton(page);
+    await expect(liveBtn).toHaveAttribute('data-source', 'both');
+    await liveBtn.click();
+
+    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    await expect(liveDialog).toBeVisible();
+    await expect(liveDialog.getByText('Choose how to watch')).toBeVisible();
+    await expect(liveDialog.getByRole('button', { name: /Open YouTube Picture-in-Picture/ }))
+      .toBeVisible();
+    await expect(liveDialog.getByRole('button', { name: /Open Twitch Picture-in-Picture/ }))
+      .toBeVisible();
+    await expect(liveDialog.getByRole('button', { name: 'Dismiss notification' })).toBeInViewport();
+
+    const box = await liveDialog.boundingBox();
+    const viewport = page.viewportSize();
+    if (!box || !viewport) {
+      throw new Error('Unable to measure the live dialog and viewport.');
+    }
+
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
+  });
 
   test('header icon strobes when an SSE state event flips to live', async ({ page }) => {
     await page.addInitScript(() => {
@@ -75,7 +158,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = page.locator('.live-btn').first();
+    const liveBtn = visibleLiveButton(page);
     await expect(liveBtn).toBeVisible();
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
 
@@ -143,7 +226,7 @@ test.describe('live status', () => {
     await page.goto('/community/videos/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = page.locator('.live-btn').first();
+    const liveBtn = visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
   });
@@ -224,7 +307,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = page.locator('.live-btn').first();
+    const liveBtn = visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
     await liveBtn.click();
 
@@ -267,7 +350,7 @@ test.describe('live status', () => {
       return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
     });
 
-    await page.locator('a.docs-btn').click();
+    await page.locator('a.docs-btn:visible, a.docs-btn-mobile:visible').first().click();
     await expect(page).toHaveURL(/\/docs\/$/);
 
     await expect
@@ -277,7 +360,7 @@ test.describe('live status', () => {
         )
       )
       .toBe(1);
-    const liveBtnAfterNavigation = page.locator('.live-btn').first();
+    const liveBtnAfterNavigation = visibleLiveButton(page);
     await expect(liveBtnAfterNavigation).toHaveAttribute('data-live', 'false');
     await expect(liveBtnAfterNavigation).toHaveAttribute('data-pip-open', 'true');
     await expect
@@ -370,7 +453,7 @@ test.describe('live status', () => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
-    const liveBtn = page.locator('.live-btn').first();
+    const liveBtn = visibleLiveButton(page);
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
