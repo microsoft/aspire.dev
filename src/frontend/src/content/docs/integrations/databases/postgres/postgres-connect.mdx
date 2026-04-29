@@ -1,10 +1,11 @@
 ---
 title: Connect to PostgreSQL
-description: Learn how to connect to PostgreSQL from any language when using Aspire to host your PostgreSQL resources.
+description: Learn how to connect to PostgreSQL from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
 ---
 
 import { Image } from 'astro:assets';
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
 <Image
@@ -16,11 +17,9 @@ import postgresIcon from '@assets/icons/postgresql-icon.png';
   data-zoom-off
 />
 
-When you reference a PostgreSQL resource from the AppHost with `WithReference` (C#) or `withReference` (TypeScript), Aspire automatically injects connection information into the consuming application as environment variables. This page shows how to read those variables and connect to PostgreSQL from any language.
+This page describes how consuming apps connect to a PostgreSQL resource that's already modeled in your AppHost. For the AppHost API surface — adding a PostgreSQL server, databases, pgAdmin, pgWeb, volumes, and more — see [PostgreSQL Hosting integration](../postgres-host/).
 
-<Aside type="tip">
-    For .NET applications, you can use environment variables directly or use the [Client integration (.NET)](../postgres-client/) for automatic dependency injection, health checks, and telemetry.
-</Aside>
+When you reference a PostgreSQL resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire PostgreSQL client integration for automatic dependency injection, health checks, and telemetry.
 
 ## Connection properties
 
@@ -63,83 +62,174 @@ Uri: postgresql://postgres:p%40ssw0rd1@localhost:5432/catalog
 JdbcConnectionString: jdbc:postgresql://localhost:5432/catalog
 ```
 
-## Connect from your application
+## Connect from your app
 
-The following examples show how to connect to PostgreSQL from different languages. Each example assumes you have a PostgreSQL database resource named `postgresdb` referenced from your AppHost.
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a PostgreSQL database resource named `postgresdb` and references it from the consuming app.
 
-<Tabs syncKey="postgres-connect-lang">
-<TabItem label="JavaScript">
+<Tabs syncKey="postgres-consuming-lang">
+<TabItem label="C#">
 
-Install the PostgreSQL client library:
+For C# apps, the recommended approach is the Aspire PostgreSQL client integration. It registers an [`NpgsqlDataSource`](https://www.npgsql.org/doc/api/Npgsql.NpgsqlDataSource.html) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
 
-```bash title="Terminal"
-npm install pg
+#### Install the client integration
+
+Install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+#### Add the Npgsql data source
+
+In _Program.cs_, call `AddNpgsqlDataSource` on your `IHostApplicationBuilder` to register an `NpgsqlDataSource`. The `connectionName` must match the PostgreSQL database resource name from the AppHost:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
 ```
 
-Read the injected environment variables and connect:
+Resolve the data source through dependency injection:
 
-```javascript title="JavaScript — index.js"
-import pg from 'pg';
-
-// Read Aspire-injected connection properties
-const client = new pg.Client({
-    user: process.env.POSTGRESDB_USERNAME,
-    host: process.env.POSTGRESDB_HOST,
-    database: process.env.POSTGRESDB_DATABASENAME,
-    password: process.env.POSTGRESDB_PASSWORD,
-    port: process.env.POSTGRESDB_PORT,
-});
-
-await client.connect();
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource...
+}
 ```
 
-Or use the connection URI directly:
+#### Add keyed Npgsql clients
 
-```javascript title="JavaScript — Connect with URI"
-const client = new pg.Client({
-    connectionString: process.env.POSTGRESDB_URI,
-});
+To register multiple `NpgsqlDataSource` instances with different connection names, use `AddKeyedNpgsqlDataSource`:
 
-await client.connect();
+```csharp title="C# — Program.cs"
+builder.AddKeyedNpgsqlDataSource(name: "chat");
+builder.AddKeyedNpgsqlDataSource(name: "queue");
 ```
 
-</TabItem>
-<TabItem label="Python">
+Then resolve each instance by key:
 
-Install a PostgreSQL driver. This example uses `psycopg`:
-
-```bash title="Terminal"
-pip install psycopg[binary]
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] NpgsqlDataSource chatDataSource,
+    [FromKeyedServices("queue")] NpgsqlDataSource queueDataSource)
+{
+    // Use data sources...
+}
 ```
 
-Read the injected environment variables and connect:
+#### Configuration
 
-```python title="Python — app.py"
-import os
-import psycopg
+The Aspire PostgreSQL client integration offers multiple ways to provide configuration.
 
-# Read the Aspire-injected connection URI
-postgres_uri = os.getenv("POSTGRESDB_URI")
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNpgsqlDataSource`:
 
-async with await psycopg.AsyncConnection.connect(
-    postgres_uri, autocommit=True
-) as conn:
-    # Use conn to query the database...
-    pass
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource("postgresdb");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "postgresdb": "Host=myserver;Database=postgresdb"
+  }
+}
+```
+
+For more information, see [Npgsql connection string parameters](https://www.npgsql.org/doc/connection-string-parameters.html).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NpgsqlSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Npgsql` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Npgsql": {
+      "ConnectionString": "Host=myserver;Database=postgresdb",
+      "DisableHealthChecks": false,
+      "DisableTracing": true,
+      "DisableMetrics": false
+    }
+  }
+}
+```
+
+For the complete PostgreSQL client integration JSON schema, see [Aspire.Npgsql/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/v9.1.0/src/Components/Aspire.Npgsql/ConfigurationSchema.json).
+
+**Inline delegates.** Pass an `Action<NpgsqlSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(
+    "postgresdb",
+     static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The PostgreSQL client integration adds:
+
+- The [`NpgSqlHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which verifies that commands can be successfully executed against the underlying PostgreSQL database.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire PostgreSQL client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Npgsql.Connection`
+- `Npgsql.Command`
+- `Npgsql.Transaction`
+- `Npgsql.Copy`
+- `Npgsql.Replication`
+- `Npgsql.Exception`
+
+**Tracing** activities:
+
+- `Npgsql`
+
+**Metrics**:
+
+- `ec_Npgsql_bytes_written_per_second`
+- `ec_Npgsql_bytes_read_per_second`
+- `ec_Npgsql_commands_per_second`
+- `ec_Npgsql_total_commands`
+- `ec_Npgsql_current_commands`
+- `ec_Npgsql_failed_commands`
+- `ec_Npgsql_prepared_commands_ratio`
+- `ec_Npgsql_connection_pools`
+- `ec_Npgsql_multiplexing_average_commands_per_batch`
+- `ec_Npgsql_multiplexing_average_write_time_per_batch`
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Npgsql](https://www.nuget.org/packages/Npgsql/) NuGet package to create an `NpgsqlDataSource` and open a connection:
+
+```csharp title="C# — Program.cs"
+using Npgsql;
+
+var connectionString = Environment.GetEnvironmentVariable(
+    "POSTGRESDB_URI");
+
+await using var dataSource = NpgsqlDataSource.Create(connectionString!);
+await using var conn = await dataSource.OpenConnectionAsync();
+
+// Use conn to query the database...
 ```
 
 </TabItem>
 <TabItem label="Go">
 
-Use the `pgx` driver, the most actively maintained and feature-rich PostgreSQL driver for Go:
+Use the `pgx` driver, the most actively maintained PostgreSQL driver for Go:
 
 ```bash title="Terminal"
 go get github.com/jackc/pgx/v5
 ```
 
-> **Note:** [`lib/pq`](https://github.com/lib/pq) is another popular Go PostgreSQL driver, but `pgx` is recommended for new projects because it offers better performance, native PostgreSQL protocol support, and active maintenance.
+<Aside type="note">
+    [`lib/pq`](https://github.com/lib/pq) is another popular Go PostgreSQL driver, but `pgx` is recommended for new projects because it offers better performance, native PostgreSQL protocol support, and active maintenance.
+</Aside>
 
-Read the injected environment variables and connect:
+Read the injected environment variable and connect:
 
 ```go title="Go — main.go"
 package main
@@ -163,65 +253,70 @@ func main() {
 ```
 
 </TabItem>
-<TabItem label=".NET">
+<TabItem label="Python">
 
-For .NET applications, the recommended approach is to use the [Client integration (.NET)](../postgres-client/), which provides automatic dependency injection, health checks, and telemetry.
+Install a PostgreSQL driver. This example uses `psycopg`:
 
-If you prefer to connect using environment variables directly:
-
-```csharp title="C# — Program.cs"
-var connectionString = Environment.GetEnvironmentVariable(
-    "POSTGRESDB_URI");
-
-await using var dataSource = NpgsqlDataSource.Create(connectionString!);
-await using var conn = await dataSource.OpenConnectionAsync();
+```bash title="Terminal"
+pip install psycopg[binary]
 ```
 
-</TabItem>
-</Tabs>
+Read the injected environment variable and connect:
 
-## Passing custom environment variables from the AppHost
+```python title="Python — app.py"
+import os
+import psycopg
 
-If your application expects specific environment variable names, you can pass individual connection properties from the AppHost:
+# Read the Aspire-injected connection URI
+postgres_uri = os.getenv("POSTGRESDB_URI")
 
-<Tabs syncKey="postgres-apphost-lang">
-<TabItem label="C#">
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var postgres = builder.AddPostgres("postgres");
-var database = postgres.AddDatabase("myDatabase");
-
-var app = builder.AddExecutable("my-app", "node", "app.js", ".")
-    .WithReference(database)
-    .WithEnvironment(context =>
-    {
-        context.EnvironmentVariables["POSTGRES_HOST"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
-        context.EnvironmentVariables["POSTGRES_PORT"] = postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
-        context.EnvironmentVariables["POSTGRES_USER"] = postgres.Resource.UserNameParameter;
-        context.EnvironmentVariables["POSTGRES_PASSWORD"] = postgres.Resource.PasswordParameter;
-        context.EnvironmentVariables["POSTGRES_DATABASE"] = database.Resource.DatabaseName;
-    });
-
-builder.Build().Run();
+async with await psycopg.AsyncConnection.connect(
+    postgres_uri, autocommit=True
+) as conn:
+    # Use conn to query the database...
+    pass
 ```
+
 </TabItem>
 <TabItem label="TypeScript">
-```typescript title="TypeScript — apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
 
-const builder = await createBuilder();
+Install the PostgreSQL client library:
 
-const postgres = await builder.addPostgres("postgres");
-const database = await postgres.addDatabase("myDatabase");
-
-await builder.addNodeApp("my-app", "./app", "index.js")
-    .withReference(database)
-    .withEnvironment("POSTGRES_USER", postgres.userNameParameter)
-    .withEnvironment("POSTGRES_PASSWORD", postgres.passwordParameter)
-    .withEnvironment("POSTGRES_DATABASE", "myDatabase");
-
-await builder.build().run();
+```bash title="Terminal"
+npm install pg
+npm install --save-dev @types/pg
 ```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { Client } from 'pg';
+
+// Read Aspire-injected connection properties
+const client = new Client({
+    user: process.env.POSTGRESDB_USERNAME,
+    host: process.env.POSTGRESDB_HOST,
+    database: process.env.POSTGRESDB_DATABASENAME,
+    password: process.env.POSTGRESDB_PASSWORD,
+    port: Number(process.env.POSTGRESDB_PORT),
+});
+
+await client.connect();
+```
+
+Or use the connection URI directly:
+
+```typescript title="TypeScript — Connect with URI"
+const client = new Client({
+    connectionString: process.env.POSTGRESDB_URI,
+});
+
+await client.connect();
+```
+
 </TabItem>
 </Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Pass custom environment variables](../postgres-host/#pass-custom-environment-variables) in the Hosting integration reference.
+</Aside>
