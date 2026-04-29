@@ -87,12 +87,21 @@ test.describe('live status', () => {
       updatedAt: new Date().toISOString(),
     };
     await page.evaluate((snapshot) => {
-      (window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }).__aspireLiveSseEmit?.(snapshot);
+      (
+        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveSseEmit?.(snapshot);
     }, liveSnapshot);
 
     await expect(liveBtn).toHaveAttribute('data-live', 'true', { timeout: 10_000 });
     await expect(liveBtn).toHaveAttribute('data-source', 'twitch');
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
+
+    await liveBtn.click();
+    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    await expect(liveDialog).toBeVisible();
+    await liveDialog.getByRole('button', { name: 'Dismiss notification' }).click();
+    await expect(liveBtn).toHaveAttribute('data-live', 'false');
+    await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
   });
 
   test('header icon does not strobe on the videos page', async ({ page }) => {
@@ -105,13 +114,19 @@ test.describe('live status', () => {
     };
 
     await page.route('**/api/live', (r) =>
-      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(liveSnapshot) }),
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(liveSnapshot),
+      })
     );
 
     await page.route('**/api/live/stream', async (route) => {
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`));
+          controller.enqueue(
+            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`)
+          );
         },
       });
       await route.fulfill({
@@ -133,7 +148,9 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('aria-label', /live/i);
   });
 
-  test('live header click opens site-global native picture-in-picture and suppresses strobe', async ({ page }) => {
+  test('live header dialog opens site-global native picture-in-picture and suppresses strobe', async ({
+    page,
+  }) => {
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
       primarySource: 'twitch',
@@ -168,7 +185,8 @@ test.describe('live status', () => {
           window: null,
           async requestWindow() {
             (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested =
-              ((window as Window & { __aspirePipRequested?: number }).__aspirePipRequested ?? 0) + 1;
+              ((window as Window & { __aspirePipRequested?: number }).__aspirePipRequested ?? 0) +
+              1;
             this.window = fakePipWindow;
             return fakePipWindow;
           },
@@ -177,13 +195,19 @@ test.describe('live status', () => {
     });
 
     await page.route('**/api/live', (r) =>
-      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(liveSnapshot) }),
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(liveSnapshot),
+      })
     );
 
     await page.route('**/api/live/stream', async (route) => {
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`));
+          controller.enqueue(
+            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`)
+          );
         },
       });
       await route.fulfill({
@@ -204,17 +228,42 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-live', 'true');
     await liveBtn.click();
 
+    const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
+    await expect(liveDialog).toBeVisible();
+    await expect(liveDialog.getByRole('link', { name: /Watch on aspire\.dev/ })).toHaveAttribute(
+      'href',
+      /\/community\/videos\/$/
+    );
+    await expect(liveDialog.getByRole('link', { name: /Watch on Twitch/ })).toHaveAttribute(
+      'href',
+      'https://www.twitch.tv/aspiredotdev'
+    );
     await expect
-      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+        )
+      )
+      .toBe(0);
+
+    await liveDialog.getByRole('button', { name: /Open Twitch Picture-in-Picture/ }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+        )
+      )
       .toBe(1);
     await expect(liveBtn).toHaveAttribute('data-live', 'false');
     await expect(liveBtn).toHaveAttribute('data-pip-open', 'true');
     expect(new URL(page.url()).pathname).not.toBe('/community/videos/');
 
     const iframeSrcBeforeNavigation = await page.evaluate(() => {
-      const pipState = (window as Window & {
-        __aspireLivePipState?: { pipWindow?: { document?: Document } };
-      }).__aspireLivePipState;
+      const pipState = (
+        window as Window & {
+          __aspireLivePipState?: { pipWindow?: { document?: Document } };
+        }
+      ).__aspireLivePipState;
       return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
     });
 
@@ -222,7 +271,11 @@ test.describe('live status', () => {
     await expect(page).toHaveURL(/\/docs\/$/);
 
     await expect
-      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+        )
+      )
       .toBe(1);
     const liveBtnAfterNavigation = page.locator('.live-btn').first();
     await expect(liveBtnAfterNavigation).toHaveAttribute('data-live', 'false');
@@ -230,11 +283,15 @@ test.describe('live status', () => {
     await expect
       .poll(() =>
         page.evaluate(() => {
-          const pipState = (window as Window & {
-            __aspireLivePipState?: { pipWindow?: { document?: Document } };
-          }).__aspireLivePipState;
-          return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
-        }),
+          const pipState = (
+            window as Window & {
+              __aspireLivePipState?: { pipWindow?: { document?: Document } };
+            }
+          ).__aspireLivePipState;
+          return (
+            pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null
+          );
+        })
       )
       .toBe(iframeSrcBeforeNavigation);
   });
@@ -274,7 +331,8 @@ test.describe('live status', () => {
           window: null,
           async requestWindow() {
             (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested =
-              ((window as Window & { __aspirePipRequested?: number }).__aspirePipRequested ?? 0) + 1;
+              ((window as Window & { __aspirePipRequested?: number }).__aspirePipRequested ?? 0) +
+              1;
             this.window = fakePipWindow;
             return fakePipWindow;
           },
@@ -283,13 +341,19 @@ test.describe('live status', () => {
     });
 
     await page.route('**/api/live', (r) =>
-      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(liveSnapshot) }),
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(liveSnapshot),
+      })
     );
 
     await page.route('**/api/live/stream', async (route) => {
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`));
+          controller.enqueue(
+            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(liveSnapshot)}\n\n`)
+          );
         },
       });
       await route.fulfill({
@@ -310,56 +374,94 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-source', 'both');
     await liveBtn.click();
 
-    const sourceMenu = page.getByRole('menu', { name: 'Choose live stream' });
+    const sourceMenu = page.getByRole('dialog', { name: 'Watch Aspire live' });
     await expect(sourceMenu).toBeVisible();
-    await expect(sourceMenu.locator('svg')).toHaveCount(2);
+    await expect(sourceMenu.locator('svg')).toHaveCount(5);
     await expect(sourceMenu.getByText('aspiredotdev')).toHaveCount(0);
+    await expect(sourceMenu.getByRole('link', { name: /Watch on aspire\.dev/ })).toHaveAttribute(
+      'href',
+      /\/community\/videos\/$/
+    );
+    await expect(sourceMenu.getByRole('link', { name: /Watch on YouTube/ })).toHaveAttribute(
+      'href',
+      'https://www.youtube.com/watch?v=abc123'
+    );
+    await expect(sourceMenu.getByRole('link', { name: /Watch on Twitch/ })).toHaveAttribute(
+      'href',
+      'https://www.twitch.tv/aspiredotdev'
+    );
     await expect
-      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+        )
+      )
       .toBe(0);
 
-    await sourceMenu.getByRole('menuitem', { name: /YouTube/ }).click();
+    await sourceMenu.getByRole('button', { name: /Open YouTube Picture-in-Picture/ }).click();
     await expect
-      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+        )
+      )
       .toBe(1);
     await expect
       .poll(() =>
         page.evaluate(() => {
-          const pipState = (window as Window & {
-            __aspireLivePipState?: { pipWindow?: { document?: Document } };
-          }).__aspireLivePipState;
-          return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
-        }),
+          const pipState = (
+            window as Window & {
+              __aspireLivePipState?: { pipWindow?: { document?: Document } };
+            }
+          ).__aspireLivePipState;
+          return (
+            pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null
+          );
+        })
       )
       .toContain('youtube-nocookie.com/embed/abc123');
 
     await liveBtn.click();
     await expect(sourceMenu).toBeVisible();
-    await sourceMenu.getByRole('menuitem', { name: /Twitch/ }).click();
+    await sourceMenu.getByRole('button', { name: /Open Twitch Picture-in-Picture/ }).click();
     await expect
-      .poll(() => page.evaluate(() => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested))
+      .poll(() =>
+        page.evaluate(
+          () => (window as Window & { __aspirePipRequested?: number }).__aspirePipRequested
+        )
+      )
       .toBe(1);
     await expect
       .poll(() =>
         page.evaluate(() => {
-          const pipState = (window as Window & {
-            __aspireLivePipState?: { pipWindow?: { document?: Document } };
-          }).__aspireLivePipState;
-          return pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null;
-        }),
+          const pipState = (
+            window as Window & {
+              __aspireLivePipState?: { pipWindow?: { document?: Document } };
+            }
+          ).__aspireLivePipState;
+          return (
+            pipState?.pipWindow?.document?.querySelector('iframe')?.getAttribute('src') ?? null
+          );
+        })
       )
       .toContain('player.twitch.tv/?channel=aspiredotdev');
   });
 
   test('videos page loads channel embeds while idle', async ({ page }) => {
     await page.route('**/api/live', (r) =>
-      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(idleSnapshot) }),
+      r.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(idleSnapshot),
+      })
     );
 
     await page.route('**/api/live/stream', async (route) => {
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(idleSnapshot)}\n\n`));
+          controller.enqueue(
+            new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(idleSnapshot)}\n\n`)
+          );
         },
       });
       await route.fulfill({
@@ -378,7 +480,10 @@ test.describe('live status', () => {
 
     const youtubeFrame = page.locator('.live-embed-wrapper[data-source="youtube"] iframe');
     const twitchFrame = page.locator('.live-embed-wrapper[data-source="twitch"] iframe');
-    await expect(youtubeFrame).toHaveAttribute('src', /\/embed\/live_stream\?.*channel=UC8Hyt2P1u3KKnBgRf-Iv6_Q/);
+    await expect(youtubeFrame).toHaveAttribute(
+      'src',
+      /\/embed\/live_stream\?.*channel=UC8Hyt2P1u3KKnBgRf-Iv6_Q/
+    );
     await expect(twitchFrame).toHaveAttribute('src', /player\.twitch\.tv\/\?channel=aspiredotdev/);
     await expect(youtubeFrame).not.toHaveAttribute('title');
     await expect(twitchFrame).not.toHaveAttribute('title');
