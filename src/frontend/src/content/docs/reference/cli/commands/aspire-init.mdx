@@ -1,10 +1,10 @@
 ---
 title: aspire init command
-description: Learn about the aspire init command and how it scaffolds a C# or TypeScript AppHost in an existing codebase.
+description: Learn about the aspire init command and how it uses the aspireify agent skill to wire up Aspire support in an existing codebase.
 ---
 
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
-
+import { Aside } from '@astrojs/starlight/components';
 import Include from '@components/Include.astro';
 
 ## Name
@@ -21,28 +21,24 @@ aspire init [options]
 
 ## Description
 
-The `aspire init` command initializes Aspire support in an existing repo or workspace. It can scaffold a single-file **C# AppHost** or a **TypeScript AppHost**, then wire up the initial configuration you need to start modeling a distributed application without creating an entirely new solution structure.
+The `aspire init` command initializes Aspire support in an existing repo or workspace. It scaffolds a minimal **C# AppHost** or **TypeScript AppHost** skeleton together with an `aspire.config.json`, then hands off all further wiring to the **`aspireify` agent skill**.
 
-This command defaults to **interactive** mode. When executed without any options, the command prompts you for the necessary information, including the AppHost language when more than one path is available. When the `--version` and `--source` options are provided, the command runs **non-interactive** mode.
+The `aspireify` skill is a one-time setup skill that an AI coding agent (such as GitHub Copilot or Claude Code) runs immediately after the skeleton is dropped. The skill handles the heavy lifting that previously happened inside `aspire init` itself:
 
-The command performs the following actions:
+- Scanning the repo and discovering existing projects, services, and containers
+- Wiring resources into the AppHost with `WithReference`, `WaitFor`, endpoints, and volumes
+- Adding ServiceDefaults and configuring OpenTelemetry for each service
+- Validating the wiring with a smoke-test `aspire start` before removing itself
 
-1. Analyze your existing repo or workspace structure
-2. Create the necessary C# or TypeScript AppHost
-3. Install required Aspire packages
-4. Set up the initial configuration for orchestration
+This command defaults to **interactive** mode. When executed without any options, the command prompts you for the AppHost language when more than one path is available.
+
+<Aside type="note">
+The `--source` and `--version` options are deprecated and no longer affect `aspire init`. They are accepted for backward compatibility but will be removed in a future release.
+</Aside>
 
 ## Options
 
 The following options are available:
-
-- **`-s, --source`**
-
-  The NuGet source to use for the project templates.
-
-- **`-v, --version`**
-
-  The version of the project templates to use.
 
 - **`--channel`**
 
@@ -64,6 +60,24 @@ The following options are available:
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
+## The aspireify skill
+
+After `aspire init` drops the skeleton files, it installs the `aspireify` skill into your AI agent's skill directory (the same directory used by `aspire agent init`). The skill is a Markdown file with instructions that guide your AI coding agent through completing the Aspire wiring for your specific codebase.
+
+The skill covers both **C# AppHosts** and **TypeScript AppHosts** and includes built-in guidance for:
+
+| Scenario | Covered by skill |
+|---|---|
+| Multi-project .NET solutions (`.slnx`) | ✓ |
+| Docker Compose migration | ✓ |
+| JavaScript/TypeScript frontends (Vite, Node.js, monorepos) | ✓ |
+| Python and Go services | ✓ |
+| OpenTelemetry / ServiceDefaults setup | ✓ |
+| Persistent containers and volumes | ✓ |
+| Secrets and parameterized configuration | ✓ |
+
+The skill self-deletes from the skill directory after a successful `aspire start`, leaving your repo clean.
+
 ## Examples
 
 - Initialize Aspire support in the current repo interactively:
@@ -72,20 +86,14 @@ The following options are available:
   aspire init
   ```
 
-- Initialize Aspire support using a specific template version:
-
-  ```bash title="Aspire CLI"
-  aspire init --version 13.2.0
-  ```
-
-- Initialize Aspire support from a custom NuGet source:
-
-  ```bash title="Aspire CLI"
-  aspire init --source https://api.nuget.org/v3/index.json --version 13.2.0
-  ```
-
 - Initialize Aspire support with a TypeScript AppHost:
 
   ```bash title="Aspire CLI"
   aspire init --language typescript
+  ```
+
+- Initialize Aspire support using the `daily` channel templates:
+
+  ```bash title="Aspire CLI"
+  aspire init --channel daily
   ```
