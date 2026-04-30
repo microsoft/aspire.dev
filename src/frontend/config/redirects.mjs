@@ -91,4 +91,6 @@ export const redirects = {
   '/deployment/azure/aca-deployment-aspire-cli/': '/deployment/azure/container-apps/',
   '/deployment/azure/customize-container-apps/': '/deployment/azure/container-apps/',
   '/fundamentals/app-lifecycle/': '/deployment/app-lifecycle/',
+  '/dashboard/copilot/': '/dashboard/ai-coding-agents/',
+  '/dashboard/mcp-server/': '/get-started/aspire-mcp-server/',
 };
