@@ -1,0 +1,88 @@
+---
+title: APIs and data access
+description: Reference for the Aspire dashboard write and read APIs, including OTLP endpoints, HTTP telemetry API, and Aspire CLI commands.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The Aspire dashboard exposes APIs for both receiving and querying telemetry data. Applications write data to the dashboard using OpenTelemetry Protocol (OTLP) endpoints, and developers and tools read data back through the Aspire CLI, the Aspire MCP server, or the HTTP telemetry API.
+
+## Write APIs
+
+The dashboard receives telemetry from applications using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/) endpoints. Any application instrumented with an OpenTelemetry SDK can send traces, logs, and metrics to the dashboard.
+
+The dashboard supports all OTLP transports:
+
+| Transport | Protocol |
+|-----------|----------|
+| gRPC | [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) — Protobuf over gRPC |
+| HTTP | [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) — Protobuf or JSON over HTTP |
+
+When the dashboard is started by an Aspire AppHost, ports are automatically configured and mapped to standard OTLP ports (`4317` for gRPC, `4318` for HTTP) on resource containers. In standalone mode, you configure the port mappings yourself — see [Standalone Aspire dashboard](/dashboard/standalone/) for examples.
+
+To configure applications to send telemetry, set the standard OpenTelemetry environment variables:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — the dashboard's OTLP endpoint (e.g. `http://localhost:4317` for gRPC or `http://localhost:4318` for HTTP)
+- `OTEL_EXPORTER_OTLP_PROTOCOL` — `grpc`, `http/protobuf`, or `http/json`
+
+The OTLP endpoints can be secured with API key or client certificate authentication. For configuration details, see [OTLP authentication](/dashboard/configuration/#otlp).
+
+## Read APIs
+
+There are several ways to read telemetry and resource data from the dashboard.
+
+### Aspire CLI
+
+The [Aspire CLI](/reference/cli/overview/) provides commands for reading telemetry from the dashboard directly in the terminal:
+
+| Command | Description |
+|---------|-------------|
+| [`aspire otel logs`](/reference/cli/commands/aspire-otel-logs/) | Query structured logs collected by the dashboard. |
+| [`aspire otel traces`](/reference/cli/commands/aspire-otel-traces/) | List distributed traces collected by the dashboard. |
+| [`aspire otel spans`](/reference/cli/commands/aspire-otel-spans/) | Query trace spans collected by the dashboard. |
+
+All commands support `--format Json` for structured output suitable for scripting and automation. To use these commands with a [standalone dashboard](/dashboard/standalone/), specify `--dashboard-url` to point at the dashboard instance.
+
+### Export to zip file
+
+The [`aspire export`](/reference/cli/commands/aspire-export/) command packages telemetry and resource data from a running AppHost into a zip file. Use it to collect diagnostics for troubleshooting, share runtime state with a teammate, or preserve data for later analysis:
+
+```bash title="Aspire CLI"
+aspire export --output ./diagnostics.zip
+```
+
+You can also scope the export to a single resource:
+
+```bash title="Aspire CLI"
+aspire export webfrontend
+```
+
+The exported zip file can be imported back into the dashboard using the import feature UI.
+
+To export with a [standalone dashboard](/dashboard/standalone/), specify `--dashboard-url` to point at the dashboard instance.
+
+### Aspire MCP server
+
+The [Aspire MCP server](/get-started/aspire-mcp-server/) exposes dashboard data to AI coding agents through the Model Context Protocol. MCP tools like `list_structured_logs`, `list_traces`, and `list_console_logs` provide the same data available through the HTTP API and CLI commands, allowing agents to query telemetry programmatically.
+
+For more information on using AI coding agents with the dashboard, see [Dashboard and AI coding agents](/dashboard/ai-coding-agents/).
+
+### HTTP telemetry API
+
+The dashboard exposes HTTP endpoints under `/api/telemetry/` that return data in OTLP JSON format. Available endpoints:
+
+- `GET /api/telemetry/resources` — List resources that have telemetry data
+- `GET /api/telemetry/logs` — Query logs with optional filters. Returns [OTLP `ResourceLogs`](https://opentelemetry.io/docs/specs/otlp/) JSON.
+- `GET /api/telemetry/spans` — Query spans with optional filters. Returns [OTLP `ResourceSpans`](https://opentelemetry.io/docs/specs/otlp/) JSON.
+- `GET /api/telemetry/traces` — Get all spans for traces that match optional filters. Returns [OTLP `ResourceSpans`](https://opentelemetry.io/docs/specs/otlp/) JSON.
+- `GET /api/telemetry/traces/{traceId}` — Get all spans for a specific trace. Returns [OTLP `ResourceSpans`](https://opentelemetry.io/docs/specs/otlp/) JSON.
+
+The spans and logs endpoints support real-time streaming via `?follow=true`, which returns NDJSON (newline-delimited JSON) as new telemetry arrives. Multiple resource names can be specified by repeating the `resource` query parameter (e.g. `?resource=api&resource=worker`).
+
+The API is protected by configurable authentication. See [API configuration](/dashboard/configuration/#api) for authentication options and settings.
+
+## See also
+
+- [Dashboard configuration](/dashboard/configuration/) — OTLP, API, and authentication settings
+- [Dashboard security considerations](/dashboard/security-considerations/)
+- [Aspire CLI reference](/reference/cli/overview/)
