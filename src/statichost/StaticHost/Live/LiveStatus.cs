@@ -14,6 +14,11 @@ namespace StaticHost.Live;
 /// </param>
 /// <param name="Twitch">Twitch sub-status.</param>
 /// <param name="YouTube">YouTube sub-status.</param>
+/// <param name="LiveSessionId">
+/// Stable identifier for the current live session. Set when the first source
+/// goes live and preserved while any source remains live, so clients can
+/// suppress one notification across near-simultaneous provider webhooks.
+/// </param>
 /// <param name="UpdatedAt">Server timestamp of the last change.</param>
 public sealed record LiveStatus(
     bool IsLive,
@@ -21,6 +26,7 @@ public sealed record LiveStatus(
     TwitchStatus Twitch,
     [property: JsonPropertyName("youtube")]
     YouTubeStatus YouTube,
+    string? LiveSessionId,
     DateTimeOffset UpdatedAt)
 {
     /// <summary>The default (idle) snapshot.</summary>
@@ -29,6 +35,7 @@ public sealed record LiveStatus(
         PrimarySource: null,
         Twitch: new TwitchStatus(false, null, null),
         YouTube: new YouTubeStatus(false, null),
+        LiveSessionId: null,
         UpdatedAt: DateTimeOffset.UnixEpoch);
 }
 

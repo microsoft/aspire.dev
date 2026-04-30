@@ -30,6 +30,9 @@ public sealed class LiveStatusUpdate
 /// primary it stays primary until it goes offline. This prevents the videos-
 /// page tab and the floating PiP from yanking around when the second source's
 /// webhook lands seconds after the first.</item>
+/// <item><c>LiveSessionId</c> starts when the first source goes live and stays
+/// stable while any source remains live. This lets clients treat Twitch and
+/// YouTube webhooks that arrive moments apart as one user notification.</item>
 /// </list>
 /// </para>
 /// <para>
@@ -107,13 +110,17 @@ public sealed class LiveStatusBroadcaster : IDisposable
             // Sticky primary: keep the previous primary if it's still live;
             // otherwise pick whichever source is live.
             var primary = ResolvePrimary(_current.PrimarySource, twitch, youtube);
+            var isLive = twitch.Live || youtube.Live;
+            var now = _time.GetUtcNow();
+            var liveSessionId = ResolveLiveSessionId(basis, isLive, now);
 
             var next = new LiveStatus(
-                IsLive: twitch.Live || youtube.Live,
+                IsLive: isLive,
                 PrimarySource: primary,
                 Twitch: twitch,
                 YouTube: youtube,
-                UpdatedAt: _time.GetUtcNow());
+                LiveSessionId: liveSessionId,
+                UpdatedAt: now);
 
             if (next == _current && _pending is null)
             {
@@ -143,6 +150,13 @@ public sealed class LiveStatusBroadcaster : IDisposable
         if (twitch.Live) return "twitch";
         if (youtube.Live) return "youtube";
         return null;
+    }
+
+    private static string? ResolveLiveSessionId(LiveStatus basis, bool isLive, DateTimeOffset now)
+    {
+        if (!isLive) return null;
+        if (basis.IsLive && !string.IsNullOrEmpty(basis.LiveSessionId)) return basis.LiveSessionId;
+        return $"live-{now.ToUnixTimeMilliseconds():x}";
     }
 
     private void Flush()

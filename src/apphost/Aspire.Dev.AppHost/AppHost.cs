@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -24,21 +23,23 @@ if (builder.ExecutionContext.IsRunMode)
         .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (StaticHost)")
         .WithUrls(ctx =>
         {
-            if (ctx.Resource is not Aspire.Hosting.ApplicationModel.IResourceWithEndpoints withEndpoints)
+            if (ctx.Resource is not IResourceWithEndpoints withEndpoints)
             {
                 return;
             }
+
             var endpoint = withEndpoints.GetEndpoint("http");
             if (endpoint is null)
             {
                 return;
             }
-            ctx.Urls.Add(new() { Url = "/api/live",                  DisplayText = "Live status (JSON)",       Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/stream",           DisplayText = "Live status (SSE stream)", Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/twitch/webhook",   DisplayText = "Twitch EventSub webhook (POST)",  Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/youtube/webhook",  DisplayText = "YouTube WebSub webhook (GET/POST)",   Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/api/live/_dev/set",         DisplayText = "Live dev override",        Endpoint = endpoint });
-            ctx.Urls.Add(new() { Url = "/scalar/v1",                 DisplayText = "API reference (Scalar)",   Endpoint = endpoint });
+
+            ctx.Urls.Add(new() { Url = "/api/live", DisplayText = "Live status (JSON)", Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/stream", DisplayText = "Live status (SSE stream)", Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/twitch/webhook", DisplayText = "Twitch EventSub webhook (POST)", Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/youtube/webhook", DisplayText = "YouTube WebSub webhook (GET/POST)", Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/api/live/_dev/set", DisplayText = "Live dev override", Endpoint = endpoint });
+            ctx.Urls.Add(new() { Url = "/scalar/v1", DisplayText = "API reference (Scalar)", Endpoint = endpoint });
         })
         .WithHttpCommand(
             path: "/api/live/_dev/set",
@@ -54,36 +55,36 @@ if (builder.ExecutionContext.IsRunMode)
                   "youtube": { "live": false, "videoId": null }
                 }
                 """,
-                iconName: "DismissCircle24Regular"))
+                iconName: "LiveOff"))
         .WithHttpCommand(
             path: "/api/live/twitch/webhook",
-            displayName: "Fake Twitch online webhook",
+            displayName: "Simulate Twitch online webhook",
             endpointName: "http",
             commandName: "live-dev-twitch-online-webhook",
             commandOptions: LiveDevCommands.TwitchWebhook(
                 liveDevCommandSecret,
                 liveDevTwitchWebhookSecret,
-                "Invokes the real Twitch EventSub webhook with a signed stream.online notification.",
+                "Sends a signed stream.online notification to the local Twitch EventSub endpoint.",
                 "stream.online"))
         .WithHttpCommand(
             path: "/api/live/twitch/webhook",
-            displayName: "Fake Twitch offline webhook",
+            displayName: "Simulate Twitch offline webhook",
             endpointName: "http",
             commandName: "live-dev-twitch-offline-webhook",
             commandOptions: LiveDevCommands.TwitchWebhook(
                 liveDevCommandSecret,
                 liveDevTwitchWebhookSecret,
-                "Invokes the real Twitch EventSub webhook with a signed stream.offline notification.",
+                "Sends a signed stream.offline notification to the local Twitch EventSub endpoint.",
                 "stream.offline"))
         .WithHttpCommand(
             path: "/api/live/youtube/webhook",
-            displayName: "Fake YouTube WebSub webhook",
+            displayName: "Simulate YouTube WebSub webhook",
             endpointName: "http",
             commandName: "live-dev-youtube-websub-webhook",
             commandOptions: LiveDevCommands.YouTubeWebhook(
                 liveDevCommandSecret,
                 liveDevYouTubeWebhookSecret,
-                "Invokes the real YouTube WebSub webhook with a signed Atom notification. In dev mode without a YouTube API key, the webhook payload directly sets YouTube live.",
+                "Sends a signed Atom notification to the local YouTube WebSub endpoint. In dev mode without a YouTube API key, the payload directly sets YouTube live.",
                 videoId: "dev-live-video"))
         .WithHttpCommand(
             path: "/api/live/_dev/set",
@@ -98,7 +99,7 @@ if (builder.ExecutionContext.IsRunMode)
                   "youtube": { "live": false, "videoId": null }
                 }
                 """,
-                iconName: "VideoOff24Regular"))
+                iconName: "VideoOff"))
         .WithHttpCommand(
             path: "/api/live/_dev/set",
             displayName: "Live: both online",
@@ -113,7 +114,7 @@ if (builder.ExecutionContext.IsRunMode)
                   "youtube": { "live": true, "videoId": "dev-live-video" }
                 }
                 """,
-                iconName: "Live24Regular"));
+                iconName: "Live"));
 
     // For local development: Use ViteApp for hot reload and development experience
     builder.AddViteApp("frontend", "../../frontend")
@@ -148,6 +149,7 @@ internal static class LiveDevCommands
             Method = HttpMethod.Post,
             Description = description,
             IconName = iconName,
+            IconVariant = IconVariant.Regular,
             IsHighlighted = isHighlighted,
             PrepareRequest = async context =>
             {
@@ -165,7 +167,8 @@ internal static class LiveDevCommands
         {
             Method = HttpMethod.Post,
             Description = description,
-            IconName = subscriptionType == "stream.online" ? "Live24Regular" : "DismissCircle24Regular",
+            IconName = subscriptionType == "stream.online" ? "PlugConnected" : "PlugDisconnected",
+            IconVariant = IconVariant.Regular,
             PrepareRequest = async context =>
             {
                 var body = $$"""
@@ -204,7 +207,8 @@ internal static class LiveDevCommands
         {
             Method = HttpMethod.Post,
             Description = description,
-            IconName = "Video24Regular",
+            IconName = "ArrowSync",
+            IconVariant = IconVariant.Regular,
             PrepareRequest = async context =>
             {
                 var body = $$"""
