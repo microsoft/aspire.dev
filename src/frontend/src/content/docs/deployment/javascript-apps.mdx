@@ -622,6 +622,43 @@ The same production decision applies to `AddJavaScriptApp`:
 
 The difference is that `AddJavaScriptApp` does not assume a particular development server. You choose the run script and the build script, but production still depends on deciding which deployed resource owns the final HTTP surface.
 
+## Build-only container validation
+
+When you publish or deploy an Aspire app, Aspire validates that every build-only container resource (such as one added with `AddViteApp` or `AddJavaScriptApp`) is consumed by another resource via `PublishWithContainerFiles` or `PublishWithStaticFiles`. If Aspire finds an unconsumed build-only container, it stops the pipeline with an error similar to:
+
+```
+Resource 'frontend' is a build-only container that is not consumed by any other resource.
+Wire it through PublishWithContainerFiles or PublishWithStaticFiles, or call
+builder.Pipeline.DisableBuildOnlyContainerValidation() to suppress this check.
+```
+
+This validation catches the common mistake of adding a Vite or JavaScript app and forgetting to connect it to a resource that serves the built files in production.
+
+### Disable the validation
+
+If you have a scenario where the validation is too restrictive — for example, the container is consumed by infrastructure that Aspire cannot inspect — you can disable the check for the whole app by calling `DisableBuildOnlyContainerValidation` on the pipeline:
+
+```csharp
+#pragma warning disable ASPIREPIPELINES001
+using Aspire.Hosting.Pipelines;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// ...add resources...
+
+builder.Pipeline.DisableBuildOnlyContainerValidation();
+
+await builder.Build().RunAsync();
+```
+
+<Aside type="caution">
+  `DisableBuildOnlyContainerValidation` is an application-wide escape hatch. Prefer wiring
+  build-only containers through `PublishWithContainerFiles` or `PublishWithStaticFiles` when
+  possible, because those patterns make the production deployment model explicit.
+</Aside>
+
+The `DisableBuildOnlyContainerValidation` method is part of the `Aspire.Hosting.Pipelines` namespace and is currently marked experimental (`ASPIREPIPELINES001`). Suppress the diagnostic or set `<NoWarn>ASPIREPIPELINES001</NoWarn>` in your project file when using it.
+
 ## Common mistakes
 
 - Expecting `AddViteApp` to be the deployed production web server.
@@ -630,6 +667,7 @@ The difference is that `AddJavaScriptApp` does not assume a particular developme
 - Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA.
 - Calling `.WithHttpEndpoint()` on `AddViteApp`.
 - Using `VITE_*` variables for values that must be resolved at runtime in an already-built SPA.
+- Adding a Vite or JavaScript app without calling `PublishWithContainerFiles` or `PublishWithStaticFiles`, which causes a publish-time validation error.
 
 <LearnMore>
   For runtime configuration guidance, see [JavaScript
