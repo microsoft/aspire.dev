@@ -467,9 +467,128 @@ If this is the model you want, plan for explicit runtime configuration and CORS
 management. Otherwise, the backend-serves-frontend or reverse-proxy-serves-frontend
 models are usually easier to reason about in Aspire.
 
-## How to choose
+## New publish methods (Aspire 13.3+)
 
-Choose **backend serves frontend** when the backend already owns the app surface and should also own static file hosting.
+Aspire 13.3 introduces three dedicated publish extension methods on JavaScript resources. These are marked `[Experimental]` and require suppressing the `ASPIREEXTENSION001` diagnostic.
+
+### `PublishAsStaticWebsite`
+
+Use `PublishAsStaticWebsite` to deploy a built static frontend via a YARP reverse proxy container. This is the recommended method for static-output frameworks such as Vite, React, Vue, and Astro (static mode).
+
+YARP serves the built static files directly and can optionally proxy API requests to a backend service using [service discovery](/fundamentals/service-discovery/overview/).
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREEXTENSION001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+var frontend = builder.AddViteApp("frontend", "./frontend")
+    .WithReference(api);
+
+// Serve built frontend files + proxy /api/* to the API
+frontend.PublishAsStaticWebsite(options =>
+{
+    options.OutputPath = "dist";
+    options.StripPrefix = false;
+    options.TargetEndpointName = "https";
+}, apiPath: "/api/{**catch-all}", apiTarget: api);
+
+builder.Build().Run();
+```
+
+#### `PublishAsStaticWebsiteOptions`
+
+| Option | Default | Description |
+|---|---|---|
+| `OutputPath` | `dist` | The build output directory that contains the static files to serve. |
+| `StripPrefix` | `false` | Whether to strip the path prefix before forwarding to the API backend. Set to `true` if the API does not expect the route prefix in the request path. |
+| `TargetEndpointName` | `https` | The endpoint name on the API resource to use for proxying. YARP uses service discovery to resolve the backend address. |
+
+The two overloads are:
+
+- **Without proxy**: `PublishAsStaticWebsite(options?)` — serves only the built static files, no API proxying.
+- **With proxy**: `PublishAsStaticWebsite(options?, apiPath, apiTarget)` — adds a YARP route to forward matching requests to the API resource.
+
+:::note
+`StripPrefix` defaults to `false`, which means the full request path (including the prefix) is forwarded to the backend. Set `StripPrefix = true` if the backend API does not expect the path prefix.
+:::
+
+### `PublishAsNodeServer`
+
+Use `PublishAsNodeServer` for SSR frameworks that produce a self-contained Node.js server artifact, such as SvelteKit and TanStack Start.
+
+Aspire generates a container that runs the built artifact directly using the Node.js runtime.
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREEXTENSION001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var svelteApp = builder.AddJavaScriptApp("svelte-app", "./svelte-app")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+svelteApp.PublishAsNodeServer();
+
+builder.Build().Run();
+```
+
+The generated container automatically sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the Node.js server binds to all interfaces and is reachable inside the container network.
+
+Use this method for frameworks where:
+
+- The build output is a Node.js entrypoint file (for example, `build/index.js` for SvelteKit).
+- The server is started by running `node <entrypoint>` directly.
+
+### `PublishAsNpmScript`
+
+Use `PublishAsNpmScript` for SSR frameworks that start using an npm (or compatible) script as the entrypoint — Nuxt, Astro SSR, and Remix are typical examples.
+
+Aspire generates a multi-stage Dockerfile that installs production `node_modules` and uses the package manager run script as the container entrypoint with `exec` for proper `SIGTERM` signal handling.
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREEXTENSION001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var nuxtApp = builder.AddJavaScriptApp("nuxt-app", "./nuxt-app")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
+
+nuxtApp.PublishAsNpmScript();
+
+builder.Build().Run();
+```
+
+The generated container automatically sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
+
+Use this method for frameworks where:
+
+- Production start is defined as an npm script (for example, `"start": "node .output/server/index.mjs"`).
+- The framework uses `node_modules` from a production install, not a bundled standalone artifact.
+
+### Framework reference
+
+The following table summarizes which publish method fits each common framework:
+
+| Framework | Recommended method |
+|---|---|
+| Vite | `PublishAsStaticWebsite` |
+| React (CRA / Vite) | `PublishAsStaticWebsite` |
+| Vue | `PublishAsStaticWebsite` |
+| Astro (static output) | `PublishAsStaticWebsite` |
+| SvelteKit | `PublishAsNodeServer` |
+| TanStack Start | `PublishAsNodeServer` |
+| Next.js | `AddNextJsApp` (uses standalone output) |
+| Nuxt | `PublishAsNpmScript` |
+| Astro SSR | `PublishAsNpmScript` |
+| Remix | `PublishAsNpmScript` |
+
+<LearnMore>
+  For setting up `AddNextJsApp` with its deploy-time `output: "standalone"` validation, see [JavaScript integration — Add Next.js application](/integrations/frameworks/javascript/#add-nextjs-application).
+</LearnMore>
+
+## How to choose
 
 Choose **reverse proxy serves frontend** when you want a gateway or BFF to stay in front of everything and route both frontend and backend traffic.
 
