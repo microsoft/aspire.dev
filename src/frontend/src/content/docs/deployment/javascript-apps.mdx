@@ -517,13 +517,17 @@ The two overloads are:
 
 #### Dev-mode API proxying
 
-`PublishAsStaticWebsite` only takes effect at publish time. In **run mode**, each framework still uses its own dev server, and the browser hits the dev server's origin — not YARP. To keep the same `/api/*` shape working in development, Aspire injects an `API_HTTP` environment variable on the frontend resource that points at the backend. Each framework needs a small dev-server proxy config that reads that variable:
+`PublishAsStaticWebsite` only takes effect at publish time. In **run mode**, each framework still uses its own dev server, and the browser hits the dev server's origin — not YARP. To keep the same `/api/*` shape working in development, the dev server itself needs a small proxy config that forwards `/api/*` to the backend resource.
+
+When the frontend references a backend resource — either explicitly via `WithReference` or implicitly when you pass `apiTarget` to `PublishAsStaticWebsite` — Aspire exposes the backend's URL through service-discovery environment variables. The variable name follows the pattern `<RESOURCENAME>_<SCHEME>` in upper case. For a backend resource named `api` with an `http` endpoint, that's `API_HTTP`. If you rename the resource (for example `weather`) or use `https`, the variable becomes `WEATHER_HTTP` or `API_HTTPS`. `apiTarget` adds the reference for you, so no extra `WithReference` call is required when you use `PublishAsStaticWebsite(apiPath, apiTarget)`.
+
+Each framework reads that variable from its own dev-server config:
 
 - **Vite, React, Vue**: add `server.proxy` in `vite.config.ts` and read `process.env.API_HTTP`.
 - **Astro**: add `vite.server.proxy` in `astro.config.mjs` and read `process.env.API_HTTP`.
 - **Angular**: add a `proxy.conf.js` (not `.json`) that reads `process.env.API_HTTP`, then reference it from `angular.json` under `serve.options.proxyConfig`.
 
-Once that's in place, `/api/*` resolves to the backend in both dev (via the framework's dev proxy) and production (via YARP) — no `VITE_*` build-time variables, no CORS configuration.
+Once that's in place, `/api/*` resolves to the backend in both dev (via the framework's dev proxy) and production (via YARP) — no `VITE_*` build-time variables, no CORS configuration. Substitute the actual variable name your resource produces (`<RESOURCENAME>_<SCHEME>`) if you don't name your backend `api`.
 
 ### `PublishAsNodeServer`
 
@@ -597,6 +601,8 @@ The following table summarizes which publish method fits each common framework, 
 ### Framework-specific gotchas
 
 These are issues that aren't always called out in framework deployment docs but matter for the corresponding publish method to actually work.
+
+For SSR frameworks that fetch from the backend at request time, the examples below assume an explicit `WithEnvironment("API_URL", api.GetEndpoint("http"))` on the frontend resource. `API_URL` is not a built-in Aspire convention — it's a custom variable name that the framework code reads. If you'd rather use the service-discovery variable described in [Dev-mode API proxying](#dev-mode-api-proxying) above, read `<RESOURCENAME>_<SCHEME>` (for example `API_HTTP`) instead.
 
 #### Nuxt
 
