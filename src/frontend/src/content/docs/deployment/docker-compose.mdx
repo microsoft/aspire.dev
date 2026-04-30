@@ -560,25 +560,6 @@ jobs:
 
 This workflow checks out your code, sets up .NET and installs the Aspire CLI, authenticates to GHCR using the built-in `GITHUB_TOKEN`, and builds and pushes container images using `aspire do push`.
 
-## Breaking change: IContainerRuntime → IContainerRuntimeResolver
-
-In Aspire 13.3, the container runtime abstraction was updated to support async auto-detection. If you have custom hosting extensions or internal code that directly resolved `IContainerRuntime` from the DI container, you must now resolve `IContainerRuntimeResolver` instead and call `ResolveAsync()` to obtain the active `IContainerRuntime`:
-
-```csharp
-// Before (no longer works)
-var runtime = services.GetRequiredService<IContainerRuntime>();
-
-// After
-var resolver = services.GetRequiredService<IContainerRuntimeResolver>();
-var runtime = await resolver.ResolveAsync();
-```
-
-<Aside type="caution">
-  This is a **breaking change** for any code that resolved `IContainerRuntime`
-  directly. The `IContainerRuntime` interface itself is unchanged; only the DI
-  registration and resolution pattern changed.
-</Aside>
-
 ## See also
 
 - [Docker integration](/integrations/compute/docker/)
