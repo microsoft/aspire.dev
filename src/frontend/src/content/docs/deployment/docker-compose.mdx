@@ -31,9 +31,28 @@ At deploy time, Aspire probes Docker and Podman in parallel and selects the acti
   all available runtimes with their status, version, and which one is active.
 </Aside>
 
+### Override the active runtime
+
+To bypass auto-detection and force a specific runtime, set the `ASPIRE_CONTAINER_RUNTIME` environment variable to `docker` or `podman` before invoking the Aspire CLI:
+
+```bash title="Terminal"
+ASPIRE_CONTAINER_RUNTIME=podman aspire deploy
+```
+
+When this variable is set, the chosen runtime is shown by `aspire doctor` with the reason `(explicit configuration)` and is honored even when both runtimes are running.
+
 ### Podman-specific behavior
 
 When Podman is the active runtime, Aspire uses `podman-compose` (or the Docker Compose v2 provider for Podman) for `compose up` / `compose down` operations. Service discovery uses `podman ps --filter label=...`, which is compatible with both `podman-compose` (Python) and Docker Compose v2 providers.
+
+<Aside type="caution">
+  Aspire requires **Podman 5.0.0 or later**. Older Podman versions (such as the
+  4.9.x series shipped with Ubuntu 24.04) are reported by `aspire doctor` with a
+  warning that the client version is below the minimum, and they are not used
+  even when Podman is the only installed runtime. On distributions that don't
+  package Podman 5+ natively, install it from a vendor channel (for example,
+  Fedora 42+ ships Podman 5 in the default repositories) before deploying.
+</Aside>
 
 ## Prerequisites
 

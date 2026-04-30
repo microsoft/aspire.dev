@@ -34,14 +34,14 @@ The `aspire doctor` command runs a series of diagnostic checks to verify that yo
 This command is useful for troubleshooting when you encounter issues with Aspire or when setting up a new development environment. The checks are grouped by category:
 
 - **SDK checks**: Verifies .NET SDK installation and version requirements
-- **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or only runtime running)
+- **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
 - **Environment checks**: Validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
 
 The command displays results with clear status indicators:
 
-- ✓ (green) - Check passed
-- ⚠ (yellow) - Warning (non-blocking issue)
-- ✗ (red) - Check failed (blocking issue)
+- ✅ (green) - Check passed
+- ⚠️ (yellow) - Warning (non-blocking issue)
+- ❌ (red) - Check failed (blocking issue)
 
 If any checks fail, the command provides suggestions for how to fix the issues and links to relevant documentation.
 
@@ -84,30 +84,39 @@ The following options are available:
 When you run `aspire doctor`, you see output similar to the following:
 
 ```bash title="Aspire CLI"
-Environment Check
-=================
+Aspire Environment Check
+========================
 
-SDK
-✓  .NET SDK 10.0.100 or later is installed
-✓  Aspire templates are available
+.NET SDK
+✅ .NET SDK 10.0.100 or later is installed
 
 Container Runtime
-✓  Docker 27.3.1 is installed and running  [active — preferred when both runtimes are available]
-✓  Podman 5.3.0 is installed (not running)
+  ✅ Docker v27.3.1: running (auto-detected (default)) ← active
+  ✅ Podman v5.3.0: installed (available)
 
 Environment
-✓  ASPNETCORE_ENVIRONMENT is set correctly
-
-Summary: 5 passed, 0 warnings, 0 failed
+✅ HTTPS development certificate is trusted
 ```
 
-When only Podman is available:
+When only Podman is running:
 
 ```bash title="Aspire CLI"
 Container Runtime
-✓  Podman 5.3.0 is installed and running  [active — only runtime running]
-✗  Docker is not installed
+  ✅ Podman v5.3.0: running (auto-detected (only runtime running)) ← active
+  ❌ Docker is not installed
 ```
+
+When you set `ASPIRE_CONTAINER_RUNTIME=podman`, Aspire honors the explicit
+configuration and Podman becomes active even when Docker is also running:
+
+```bash title="Aspire CLI"
+Container Runtime
+  ✅ Podman v5.3.0: running (explicit configuration) ← active
+  ✅ Docker v27.3.1: running (available)
+```
+
+The active runtime is annotated with `← active`. Other detected runtimes are
+shown with `(available)`.
 
 ## Exit codes
 
