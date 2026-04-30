@@ -182,6 +182,151 @@ await k8s.withProperties(async (k8s) => {
 </TabItem>
 </Tabs>
 
+## Configure Gateway API and TLS
+
+The Kubernetes integration supports the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) for HTTP ingress routing and TLS termination. Use `AddGateway` on the Kubernetes environment resource to define a Gateway and attach routes to your services.
+
+### Basic Gateway with routes
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var gateway = k8s.AddGateway("public")
+    .WithGatewayClass("azure-alb-external");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+gateway.WithRoute("/api", api.GetEndpoint("http"));
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const gateway = await k8s.addGateway('public');
+await gateway.withGatewayClass('azure-alb-external');
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+const apiEndpoint = api.getEndpoint('http');
+await gateway.withRoute('/api', apiEndpoint);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### TLS with a known hostname
+
+When you know the hostname in advance, configure TLS by calling `WithHostname` followed by `WithTls`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var gateway = k8s.AddGateway("public")
+    .WithGatewayClass("azure-alb-external")
+    .WithHostname("myapp.example.com")
+    .WithTls();
+
+var api = builder.AddProject<Projects.MyApi>("api");
+gateway.WithRoute("/", api.GetEndpoint("http"));
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const gateway = await k8s.addGateway('public');
+await gateway.withGatewayClass('azure-alb-external');
+await gateway.withHostname('myapp.example.com');
+await gateway.withTls();
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+await gateway.withRoute('/', api.getEndpoint('http'));
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+When `WithTls()` is called after `WithHostname(...)`, the integration creates an HTTPS listener with that hostname restriction. cert-manager detects the hostname on the listener and issues a certificate.
+
+### TLS with FQDN auto-discovery
+
+Some gateway controllers — such as [Azure Application Gateway for Containers (AGC)](https://learn.microsoft.com/azure/application-gateway/for-containers/overview) — assign a fully-qualified domain name (FQDN) to the Gateway dynamically after deployment. In these scenarios the hostname is not known at publish time.
+
+Call `WithTls()` **without** calling `WithHostname()` to enable FQDN auto-discovery:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var gateway = k8s.AddGateway("public")
+    .WithGatewayClass("azure-alb-external")
+    .WithAnnotation("alb.networking.azure.io/alb-name", "my-alb")
+    .WithAnnotation("alb.networking.azure.io/alb-namespace", "alb-infra")
+    .WithTls();  // no WithHostname — FQDN is discovered automatically
+
+var api = builder.AddProject<Projects.MyApi>("api");
+gateway.WithRoute("/", api.GetEndpoint("http"));
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const gateway = await k8s.addGateway('public');
+await gateway.withGatewayClass('azure-alb-external');
+await gateway.withAnnotation('alb.networking.azure.io/alb-name', 'my-alb');
+await gateway.withAnnotation('alb.networking.azure.io/alb-namespace', 'alb-infra');
+await gateway.withTls();  // no withHostname — FQDN is discovered automatically
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+await gateway.withRoute('/', api.getEndpoint('http'));
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+When no hostname is set, `aspire deploy` adds an extra `tls-fqdn-discovery` pipeline step that runs automatically after the Helm deployment:
+
+1. Polls `kubectl get gateway` for up to 5 minutes until the controller assigns a `Hostname`-type address.
+2. Patches the Gateway listener with the discovered FQDN.
+3. Creates a bootstrap self-signed TLS Secret with the correct Subject Alternative Name (SAN).
+4. cert-manager detects the hostname on the listener and issues a real certificate.
+
+:::note
+FQDN auto-discovery requires `kubectl` to be available and configured for the target cluster during `aspire deploy`. If the controller does not assign a hostname within 5 minutes, the step logs a warning and deployment continues. You can then redeploy with an explicit hostname using `WithHostname(...)`.
+:::
+
 ## Customize Kubernetes services
 
 Use the `PublishAsKubernetesService` callback to modify the generated Kubernetes resources for individual services. This provides fully typed access to the Kubernetes object model:
