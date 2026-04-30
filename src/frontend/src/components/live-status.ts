@@ -12,6 +12,7 @@ export interface LiveSnapshot {
   primarySource: 'twitch' | 'youtube' | null;
   twitch: { live: boolean; channel: string | null };
   youtube: { live: boolean; videoId: string | null };
+  liveSessionId?: string | null;
   updatedAt: string;
 }
 
@@ -30,6 +31,7 @@ const EMPTY: LiveSnapshot = {
   primarySource: null,
   twitch: { live: false, channel: null },
   youtube: { live: false, videoId: null },
+  liveSessionId: null,
   updatedAt: new Date(0).toISOString(),
 };
 
@@ -50,7 +52,8 @@ function snapshotsEqual(a: LiveSnapshot, b: LiveSnapshot): boolean {
     a.twitch.live === b.twitch.live &&
     a.twitch.channel === b.twitch.channel &&
     a.youtube.live === b.youtube.live &&
-    a.youtube.videoId === b.youtube.videoId
+    a.youtube.videoId === b.youtube.videoId &&
+    (a.liveSessionId ?? null) === (b.liveSessionId ?? null)
   );
 }
 
@@ -200,11 +203,16 @@ export function getCurrent(): LiveSnapshot {
 
 function liveNotificationKey(snapshot: LiveSnapshot): string {
   if (!snapshot.isLive) return '';
-  const sources = [
-    snapshot.youtube.live ? `youtube:${snapshot.youtube.videoId ?? 'live'}` : '',
-    snapshot.twitch.live ? `twitch:${snapshot.twitch.channel ?? 'live'}` : '',
-  ].filter(Boolean);
-  return sources.join('|');
+  if (snapshot.liveSessionId) return `session:${snapshot.liveSessionId}`;
+  if (snapshot.primarySource === 'twitch' && snapshot.twitch.live) {
+    return `twitch:${snapshot.twitch.channel ?? 'live'}`;
+  }
+  if (snapshot.primarySource === 'youtube' && snapshot.youtube.live) {
+    return `youtube:${snapshot.youtube.videoId ?? 'live'}`;
+  }
+  if (snapshot.twitch.live) return `twitch:${snapshot.twitch.channel ?? 'live'}`;
+  if (snapshot.youtube.live) return `youtube:${snapshot.youtube.videoId ?? 'live'}`;
+  return '';
 }
 
 function clearLiveNotificationDismissal(): void {

@@ -14,6 +14,7 @@ public class LiveStatusJsonTests
             LiveStatusJsonContext.Default.LiveStatus);
 
         Assert.Contains("\"youtube\":", json, StringComparison.Ordinal);
+        Assert.Contains("\"liveSessionId\":", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"youTube\":", json, StringComparison.Ordinal);
     }
 }

@@ -18,6 +18,7 @@ test.describe('live status', () => {
     primarySource: 'twitch' | 'youtube' | null;
     twitch: { live: boolean; channel: string | null };
     youtube: { live: boolean; videoId: string | null };
+    liveSessionId?: string | null;
     updatedAt: string;
   };
 
@@ -26,6 +27,7 @@ test.describe('live status', () => {
     primarySource: null,
     twitch: { live: false, channel: null },
     youtube: { live: false, videoId: null },
+    liveSessionId: null,
     updatedAt: new Date(0).toISOString(),
   };
 
@@ -312,6 +314,105 @@ test.describe('live status', () => {
     await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
   });
 
+  test('dismissed live session stays dismissed when a second provider joins', async ({ page }) => {
+    await page.addInitScript(() => {
+      type StateListener = (evt: MessageEvent<string>) => void;
+      const listeners = new Set<StateListener>();
+
+      class MockEventSource {
+        onopen: (() => void) | null = null;
+
+        constructor() {
+          setTimeout(() => this.onopen?.(), 0);
+        }
+
+        addEventListener(type: string, listener: StateListener): void {
+          if (type === 'state') listeners.add(listener);
+        }
+
+        close(): void {
+          listeners.clear();
+        }
+      }
+
+      Object.defineProperty(window, 'EventSource', {
+        configurable: true,
+        value: MockEventSource,
+      });
+      Object.defineProperty(window, '__aspireLiveSseEmit', {
+        configurable: true,
+        value(snapshot: LiveSnapshot) {
+          const evt = new MessageEvent('state', { data: JSON.stringify(snapshot) });
+          listeners.forEach((listener) => listener(evt));
+        },
+      });
+    });
+
+    await page.route('**/api/live', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(idleSnapshot),
+      })
+    );
+
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const liveBtn = visibleLiveButton(page);
+    await expect(liveBtn).toHaveAttribute('data-live', 'false');
+
+    const firstProviderLive: LiveSnapshot = {
+      isLive: true,
+      primarySource: 'twitch',
+      twitch: { live: true, channel: 'aspiredotdev' },
+      youtube: { live: false, videoId: null },
+      liveSessionId: 'live-session-1',
+      updatedAt: new Date().toISOString(),
+    };
+    await page.evaluate((snapshot) => {
+      (
+        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveSseEmit?.(snapshot);
+    }, firstProviderLive);
+
+    await expect(liveBtn).toHaveAttribute('data-live', 'true');
+    await liveBtn.click();
+    await page
+      .getByRole('dialog', { name: 'Watch Aspire live' })
+      .getByRole('button', { name: 'Dismiss notification' })
+      .click();
+    await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
+
+    const secondProviderJoined: LiveSnapshot = {
+      ...firstProviderLive,
+      youtube: { live: true, videoId: 'abc123' },
+      updatedAt: new Date(Date.now() + 30_000).toISOString(),
+    };
+    await page.evaluate((snapshot) => {
+      (
+        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveSseEmit?.(snapshot);
+    }, secondProviderJoined);
+
+    await expect(liveBtn).toHaveAttribute('data-live', 'false');
+    await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'true');
+
+    await page.evaluate((snapshot) => {
+      (
+        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveSseEmit?.(snapshot);
+    }, idleSnapshot);
+    await expect(liveBtn).toHaveAttribute('data-live-dismissed', 'false');
+
+    await page.evaluate((snapshot) => {
+      (
+        window as Window & { __aspireLiveSseEmit?: (s: LiveSnapshot) => void }
+      ).__aspireLiveSseEmit?.(snapshot);
+    }, { ...firstProviderLive, liveSessionId: 'live-session-2' });
+    await expect(liveBtn).toHaveAttribute('data-live', 'true');
+  });
+
   test('header icon does not strobe on the videos page', async ({ page }) => {
     const liveSnapshot: LiveSnapshot = {
       isLive: true,
@@ -438,7 +539,7 @@ test.describe('live status', () => {
 
     const liveDialog = page.getByRole('dialog', { name: 'Watch Aspire live' });
     await expect(liveDialog).toBeVisible();
-    await expect(liveDialog.getByRole('link', { name: /Watch on aspire\.dev/ })).toHaveAttribute(
+    await expect(liveDialog.getByRole('link', { name: /Open live streams page/ })).toHaveAttribute(
       'href',
       /\/community\/videos\/$/
     );
@@ -584,11 +685,12 @@ test.describe('live status', () => {
 
     const sourceMenu = page.getByRole('dialog', { name: 'Watch Aspire live' });
     await expect(sourceMenu).toBeVisible();
-    await expect(sourceMenu.locator('.live-source-menu__item svg')).toHaveCount(5);
+    await expect(sourceMenu.getByText('Embedded players')).toBeVisible();
+    await expect(sourceMenu.locator('.live-source-menu__external-icon')).toHaveCount(2);
     await expect(sourceMenu.getByRole('button', { name: 'Dismiss live notification' }))
       .toBeVisible();
     await expect(sourceMenu.getByText('aspiredotdev')).toHaveCount(0);
-    await expect(sourceMenu.getByRole('link', { name: /Watch on aspire\.dev/ })).toHaveAttribute(
+    await expect(sourceMenu.getByRole('link', { name: /Open live streams page/ })).toHaveAttribute(
       'href',
       /\/community\/videos\/$/
     );
