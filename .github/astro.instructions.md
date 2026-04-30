@@ -233,6 +233,32 @@ Bad:
 - **integration**: A NuGet package that configures a service or client for use with .NET Aspire
 ```
 
+### Parentheses
+
+- The contents of parentheses must not be syntactically necessary to the surrounding sentence. The surrounding sentence must be meaningful without the parenthetical content.
+- Only use parentheses when the contents is less important than the rest of the sentence. If the parenthetical content is equally important, use commas or other punctuation instead.
+
+#### Examples
+
+Good — parenthetical content is optional supplementary information:
+
+```md
+The AppHost project (defined in _AppHost.cs_) orchestrates all resources.
+```
+
+Bad — parenthetical content is syntactically necessary:
+
+```md
+<!-- DON'T: sentence is incomplete without the parenthetical -->
+Add the Redis integration (which provides caching) to your project.
+```
+
+Rewrite as:
+
+```md
+Add the Redis integration, which provides caching, to your project.
+```
+
 ### Starlight Components in MDX
 
 Import from `@astrojs/starlight/components`:
