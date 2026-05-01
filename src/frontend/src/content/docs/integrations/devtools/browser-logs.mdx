@@ -68,7 +68,7 @@ This updates your `aspire.config.json` with the browser logs hosting integration
 
 ## Add browser logs to a resource
 
-Add browser logs to any resource that exposes an HTTP or HTTPS endpoint:
+Browser logs work with **any resource that exposes an HTTP or HTTPS endpoint that can be rendered in a browser** — projects, containers, executables, or custom resources. The examples below use [Vite](https://vite.dev/) (from the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) package) for illustration, but the same `WithBrowserLogs()` call applies to any browseable resource:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -77,6 +77,7 @@ Add browser logs to any resource that exposes an HTTP or HTTPS endpoint:
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// "../web" points at a sibling directory containing a Vite app.
 builder.AddViteApp("web", "../web")
     .WithBrowserLogs();
 
@@ -89,8 +90,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const web = await builder.addViteApp("web", "../web");
-await web.withBrowserLogs();
+// "../web" points at a sibling directory containing a Vite app.
+builder.addViteApp("web", "../web")
+    .withBrowserLogs();
 
 await builder.build().run();
 ```
@@ -124,10 +126,11 @@ builder.AddViteApp("web", "../web")
 ```typescript title="TypeScript — apphost.ts"
 import { BrowserUserDataMode } from './.modules/aspire.js';
 
-await web.withBrowserLogs({
-    browser: "msedge",
-    userDataMode: BrowserUserDataMode.Isolated,
-});
+builder.addViteApp("web", "../web")
+    .withBrowserLogs({
+        browser: "msedge",
+        userDataMode: BrowserUserDataMode.Isolated,
+    });
 ```
 </TabItem>
 </Tabs>
@@ -163,7 +166,7 @@ The dialog presents the following options:
 - **Browser** — Choose a detected Chromium browser (Edge or Chrome) or specify a custom executable path.
 - **User data mode** — `Shared` (cross-AppHost persistent data directory) or `Isolated` (per-AppHost persistent data directory).
 - **Profile** — Select a discovered Chromium profile from the Aspire-managed browser hive (available in `Shared` mode only).
-- **Save to user secrets** — Persist the selected settings to the AppHost's user secrets so they are restored on the next run. This option is only shown when the AppHost project has a user secrets ID configured (run `aspire secret set` once in the AppHost project to initialize and store a secret).
+- **Save to user secrets** — Persist the selected settings to the AppHost's user secrets so they're restored on the next run. This option is only shown when the AppHost project has a user secrets ID configured. Run [`aspire secret set`](/reference/cli/commands/aspire-secret-set/) once in the AppHost project to initialize a user secrets store; subsequent **Save to user secrets** clicks then write the browser configuration into it.
 
 :::note
 The **Configure tracked browser** command is only available when the Aspire dashboard's interaction service is active (that is, when the dashboard is connected to the AppHost). It is disabled in standalone dashboard mode.
