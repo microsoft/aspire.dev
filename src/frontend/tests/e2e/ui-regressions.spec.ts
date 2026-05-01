@@ -97,6 +97,7 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
   const expectedCompactHeaderOrder = [
     'Aspire',
     'Search',
+    'Watch Aspire live streams',
     'Open cookie preferences dialog',
     'Open install Aspire CLI dialog',
     'Docs',
@@ -148,6 +149,10 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
               const tourTarget = element.dataset.tourTarget;
               if (tourTarget === 'tour-help') {
                 return 'Start site tour';
+              }
+
+              if (tourTarget === 'live-status') {
+                return 'Watch Aspire live streams';
               }
 
               if (tourTarget === 'cookie-preferences') {
@@ -234,6 +239,31 @@ test('cookie preferences and accept-all enable analytics tracking consent', asyn
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, true);
   await waitForConsentCategories(page, ['necessary', 'analytics', 'advertising']);
+});
+
+test('cookie preferences button opens after client-side navigation', async ({ page }) => {
+  await resetCookieConsentState(page);
+  await page.goto('/');
+  await dismissCookieConsentIfVisible(page);
+
+  await page.evaluate(() => {
+    (window as Window & { __aspireClientNavigationMarker?: boolean }).__aspireClientNavigationMarker =
+      true;
+  });
+
+  await page.getByRole('link', { name: 'Docs', exact: true }).click();
+  await expect(page).toHaveURL(/\/docs\/$/);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __aspireClientNavigationMarker?: boolean })
+            .__aspireClientNavigationMarker ?? false
+      )
+    )
+    .toBe(true);
+
+  await openCookiePreferences(page);
 });
 
 test('footer preferences persist theme and keyboard style selections', async ({ page }) => {
