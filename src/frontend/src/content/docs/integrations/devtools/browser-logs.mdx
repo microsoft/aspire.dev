@@ -1,0 +1,138 @@
+---
+title: Browser logs integration
+description: Learn how to use the Aspire BrowserLogs hosting integration to stream browser console, runtime, and network diagnostics from tracked Chromium sessions into the Aspire dashboard.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+
+The Aspire BrowserLogs hosting integration attaches a child **BrowserLogs** resource to any browser-based Aspire resource. When the app host starts, the integration launches an AppHost-owned Chromium session through a private Chrome DevTools Protocol (CDP) pipe and streams browser console messages, runtime errors, and network diagnostics back as structured log entries in the Aspire dashboard. Screenshots can also be captured on demand.
+
+:::danger[Experimental]
+The BrowserLogs integration is experimental and is subject to change in future releases. Suppress diagnostic `ASPIREBROWSERLOGS001` to opt in.
+:::
+
+## Prerequisites
+
+A Chromium-based browser (Google Chrome, Microsoft Edge, or Chromium) must be installed on the machine running the app host.
+
+## Hosting integration
+
+### Install the package
+
+Install the [📦 Aspire.Hosting.Browsers](https://www.nuget.org/packages/Aspire.Hosting.Browsers) NuGet package in the app host project.
+
+<InstallDotNetPackage packageName="Aspire.Hosting.Browsers" />
+
+### Add BrowserLogs to a resource
+
+Call `.WithBrowserLogs(...)` on any resource builder whose resource exposes an HTTP or HTTPS endpoint. The method is defined on `BrowserLogsBuilderExtensions` in the `Aspire.Hosting` namespace.
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREBROWSERLOGS001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var web = builder.AddProject<Projects.MyWeb>("web");
+
+web.WithBrowserLogs();
+
+await builder.Build().RunAsync();
+```
+
+The preceding code adds a `BrowserLogs` child resource named `web-browser-logs` to the `web` resource. When the app host runs and the `web` resource reaches the **Running** state, the integration launches Chromium, navigates to the resource URL, and begins streaming diagnostic information.
+
+### Configure user data mode
+
+Pass a `BrowserUserDataMode` value to control where Chromium stores its profile data.
+
+| Mode | Behavior |
+|---|---|
+| `Shared` (default) | All app hosts share a single user data directory. Useful for preserving login state across restarts. |
+| `Isolated` | Each app host project gets its own user data directory (keyed by a hash of the project path). Useful when multiple app hosts run concurrently. |
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREBROWSERLOGS001
+
+web.WithBrowserLogs(userDataMode: BrowserUserDataMode.Isolated);
+```
+
+### Specify a browser or profile
+
+By default, the integration searches for a Chromium-compatible browser on the system `PATH` and common install locations. You can override the browser executable path and the browser profile name:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREBROWSERLOGS001
+
+web.WithBrowserLogs(
+    browser: "/usr/bin/google-chrome",
+    profile: "AspireProfile",
+    userDataMode: BrowserUserDataMode.Isolated);
+```
+
+### Configure from app settings
+
+Browser, profile, and user data mode can also be supplied from configuration, which is convenient for environment-specific overrides:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Hosting": {
+      "BrowserLogs": {
+        "Browser": "msedge",
+        "UserDataMode": "Isolated"
+      }
+    }
+  }
+}
+```
+
+To scope settings to a specific resource, use the resource name as a key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Hosting": {
+      "BrowserLogs": {
+        "web": {
+          "Profile": "WebProfile"
+        }
+      }
+    }
+  }
+}
+```
+
+Explicit arguments passed to `.WithBrowserLogs(...)` take precedence over configuration values.
+
+## Dashboard commands
+
+When a BrowserLogs resource is attached, the parent resource gains three dashboard commands:
+
+| Command | Description |
+|---|---|
+| **Open Tracked Browser** | Opens the tracked Chromium session and navigates it to the resource URL. Available when the parent resource is running. |
+| **Configure Tracked Browser** | Opens a dialog to adjust browser settings for the current session. |
+| **Capture Screenshot** | Captures a screenshot of the current browser page and adds it to the resource's log artifacts. |
+
+## Health reports
+
+The BrowserLogs resource publishes health reports to the dashboard that reflect the current session state:
+
+- **Pending** — The integration is waiting for the parent resource to start.
+- **Active session** — A Chromium session is running and streaming diagnostics.
+- **Last error** — The most recent error from the browser session, if any.
+
+## Streaming diagnostics
+
+The following browser diagnostic channels are streamed into the Aspire dashboard as structured log entries under the BrowserLogs resource:
+
+- **Console messages** — `console.log`, `console.warn`, `console.error`, and similar calls from page scripts.
+- **Runtime exceptions** — Unhandled JavaScript exceptions and promise rejections.
+- **Network events** — HTTP request and response details, including status codes and timing.
+
+## See also
+
+- [Enable browser telemetry](/dashboard/enable-browser-telemetry/)
+- [Aspire dashboard overview](/dashboard/overview/)
+- [Custom resource commands](/app-host/eventing/)

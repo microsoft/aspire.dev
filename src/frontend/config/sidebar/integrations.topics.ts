@@ -1553,6 +1553,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '开发工具和扩展',
       },
       items: [
+        { label: 'Browser logs', slug: 'integrations/devtools/browser-logs' },
         { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {
