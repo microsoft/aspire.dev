@@ -107,7 +107,13 @@ test('homepage header matches the compact mobile action geometry at reflow width
   // compact header hides it rather than relying on WCP to do so.
   await page.route(/wcpstatic\.microsoft\.com/, (route) => route.abort());
 
-  const expectedCompactHeaderOrder = ['Aspire', 'Search', 'Docs', 'Try'];
+  const expectedCompactHeaderOrder = [
+    'Aspire',
+    'Search',
+    'Watch Aspire live streams',
+    'Docs',
+    'Try',
+  ];
 
   for (const width of [640, 440, 320]) {
     await page.setViewportSize({ width, height: 900 });
@@ -150,6 +156,10 @@ test('homepage header matches the compact mobile action geometry at reflow width
               const tourTarget = element.dataset.tourTarget;
               if (tourTarget === 'tour-help') {
                 return 'Start site tour';
+              }
+
+              if (tourTarget === 'live-status') {
+                return 'Watch Aspire live streams';
               }
 
               if (tourTarget === 'cookie-preferences') {
