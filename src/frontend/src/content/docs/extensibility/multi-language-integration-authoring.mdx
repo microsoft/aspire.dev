@@ -114,7 +114,7 @@ The export ID becomes the method name in generated SDKs. Use camelCase (e.g., `a
 
 ## Export resource types
 
-Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make the resource's properties accessible as get/set capabilities — most resources should include this:
+Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make all public properties accessible as capabilities, or annotate individual properties with `[AspireExport]` for fine-grained control:
 
 ```csharp title="C# — MyDatabaseResource.cs"
 [AspireExport(ExposeProperties = true)]
@@ -139,24 +139,142 @@ public sealed class MyDatabaseDatabaseResource(string name, MyDatabaseResource p
 {
     // Your existing implementation...
 }
-````
+```
 
 When `ExposeProperties = true`, each public property becomes a capability in the generated SDK. Use `[AspireExportIgnore]` on properties that shouldn't be exposed.
 
-You can also set `ExposeMethods = true` to export public instance methods as capabilities:
+You can also set `ExposeMethods = true` to export public instance methods as capabilities alongside properties.
 
-```csharp title="C# — Context type with exposed methods"
-[AspireExport(ExposeProperties = true, ExposeMethods = true)]
-public class EnvironmentCallbackContext
+### How getter-only properties appear in TypeScript
+
+The code generator distinguishes between read-only (getter-only) properties and read-write or mutable-collection properties:
+
+- **Getter-only properties** (no setter, and not a mutable collection type) are generated as async methods in TypeScript: `property(): Promise<T>`.
+- **Read-write properties** and **mutable-collection properties** (such as `AspireList<T>` or `AspireDict<K,V>`) are generated as `readonly` getter properties.
+
+For example, a C# class with both kinds of property:
+
+```csharp title="C# — Mixed property kinds"
+[AspireExport(ExposeProperties = true)]
+public class MyCallbackContext
 {
-    public Dictionary<string, object> EnvironmentVariables { get; }
+    /// <summary>Getter-only — becomes an async method in TypeScript.</summary>
+    public IResource Resource => _resource;
 
-    public void AddEnvironmentVariable(string key, string value)
+    /// <summary>Mutable collection — stays a readonly getter in TypeScript.</summary>
+    public AspireList<string> Tags { get; } = new();
+}
+```
+
+Generates the following TypeScript interface:
+
+```typescript title="TypeScript — Generated interface"
+export interface MyCallbackContext {
+    toJSON(): MarshalledHandle;
+    resource(): Promise<IResourceHandle>;   // getter-only → async method
+    readonly tags: AspireList<string>;       // mutable collection → readonly getter
+}
+```
+
+TypeScript AppHost authors call getter-only properties as functions:
+
+```typescript title="TypeScript — Consuming the generated API"
+const resource = await context.resource();
+const tags = context.tags; // no await needed for mutable collections
+```
+
+:::tip
+Prefer getter-only properties (`=> value;` or `{ get; }` without a setter) when the TypeScript side should treat the value as a read-once async operation. Use `AspireList<T>` and `AspireDict<K,V>` when TypeScript code needs to add, remove, or iterate values directly.
+:::
+
+## Callback context types and the ATS-first editor pattern
+
+When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or `withUrls`), the callback receives a *context* object. For TypeScript compatibility, context types should follow the ATS-first design:
+
+1. Use `[AspireExport]` (not `ExposeProperties = true`) on the context class.
+2. Annotate only the properties that TypeScript callers need with individual `[AspireExport]` attributes.
+3. For mutable state (environment variables, command-line arguments, URL lists), expose a small *editor* class rather than the raw collection.
+
+### Defining an editor class
+
+An editor wraps a mutable collection and exposes specific operations — typically `add`, `set`, or `remove` — instead of handing the raw collection to TypeScript:
+
+```csharp title="C# — EnvironmentEditor.cs"
+/// <summary>
+/// Provides an ATS-first editor for environment variables within polyglot callbacks.
+/// </summary>
+[AspireExport]
+internal sealed class EnvironmentEditor(Dictionary<string, object> environmentVariables)
+{
+    /// <summary>Sets an environment variable.</summary>
+    [AspireExport(Description = "Sets an environment variable")]
+    public void Set(
+        string name,
+        [AspireUnion(
+            typeof(string),
+            typeof(ReferenceExpression),
+            typeof(EndpointReference),
+            typeof(IResourceBuilder<ParameterResource>),
+            typeof(IResourceBuilder<IResourceWithConnectionString>))]
+        object value)
     {
-        EnvironmentVariables[key] = value;
+        environmentVariables[name] = value;
     }
 }
-````
+```
+
+### Defining the callback context
+
+Use individual `[AspireExport]` attributes on each property the TypeScript caller needs. Pass the editor as a getter-only property so TypeScript callers receive it as an async method:
+
+```csharp title="C# — MyCallbackContext.cs"
+[AspireExport]
+public sealed class MyCallbackContext(
+    DistributedApplicationExecutionContext executionContext,
+    IResource resource,
+    Dictionary<string, object> environmentVariables)
+{
+    /// <summary>Gets the resource associated with this callback.</summary>
+    [AspireExport(Description = "Gets the resource associated with this callback")]
+    public IResource Resource => resource;
+
+    /// <summary>Gets the execution context.</summary>
+    [AspireExport(Description = "Gets the execution context")]
+    public DistributedApplicationExecutionContext ExecutionContext => executionContext;
+
+    /// <summary>Gets the environment variable editor.</summary>
+    [AspireExport(Description = "Gets the environment variable editor")]
+    internal EnvironmentEditor Environment => new(environmentVariables);
+}
+```
+
+### Exporting the callback method
+
+Export the extension method that accepts the callback, using `Action<MyCallbackContext>` as the parameter type:
+
+```csharp title="C# — MyResourceBuilderExtensions.cs"
+[AspireExport("withMyCallback", Description = "Configures the resource using a callback")]
+public static IResourceBuilder<MyResource> WithMyCallback(
+    this IResourceBuilder<MyResource> builder,
+    Action<MyCallbackContext> configure)
+{
+    return builder.WithAnnotation(new MyCallbackAnnotation(configure));
+}
+```
+
+The generated TypeScript API accepts an async arrow function:
+
+```typescript title="TypeScript — Consuming the callback API"
+await myResource.withMyCallback(async (context) => {
+    const resource = await context.resource();
+    const env = await context.environment();
+    await env.set("MY_KEY", "my-value");
+});
+```
+
+:::note
+The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function; the Aspire runtime bridges the async TypeScript call to the synchronous C# delegate on a background thread.
+:::
 
 ## Export configuration DTOs
 
