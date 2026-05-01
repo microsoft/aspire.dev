@@ -6,7 +6,9 @@ lastUpdated: false
 editUrl: false
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 Aspire integrations are a curated suite of packages that make it easy to connect your cloud-native applications with popular services like Redis and PostgreSQL. Each integration provides essential cloud-native capabilities through automatic setup or standardized configuration.
 
@@ -42,6 +44,113 @@ These packages configure existing client libraries to connect to hosting integra
 ### Relationship between hosting and client integrations
 
 Hosting and client integrations work together but are **not** coupled and can be used independently. Configuration via environment variables connects client integrations to their corresponding hosting integrations, with the AppHost project managing this connection.
+
+## Wiring resources to consuming projects with references
+
+Once you've created resources, such as databases or messaging systems, by setting up hosting integrations in the AppHost, you can pass those resources to consuming projects, such as APIs or web apps, by calling the `WithReference` method, or its equivalent for your preferred language. These methods express an explicit dependency between a resource and a consuming project. When Aspire starts, it injects connection information as environment variables into the consuming project so it can locate and connect to that resource.
+
+<PivotSelector
+  title="Select your AppHost language"
+  key="aspire-lang"
+  options={[
+    { id: 'csharp', title: 'C#' },
+    { id: 'typescript', title: 'TypeScript' },
+  ]}
+/>
+
+<Pivot id="csharp">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+var db = builder.AddPostgres("postgres").AddDatabase("appdb");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithReference(db);
+
+builder.Build().Run();
+```
+
+</Pivot>
+
+<Pivot id="typescript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+const db = (await builder.addPostgres("postgres")).addDatabase("appdb");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+await api.withReference(db);
+
+await builder.build().run();
+```
+
+</Pivot>
+
+### Environment variables injected with references
+
+The environment variables Aspire injects depend on the type of resource being referenced. For example:
+
+- **Connection string resources**: Aspire sets a `ConnectionStrings__{name}` environment variable, where `{name}` matches the resource name. For example, `.WithReference(cache)` on a resource named `"cache"` injects `ConnectionStrings__cache=localhost:6379`.
+- **Service endpoint resources**: Aspire sets `services__{name}__{scheme}__{index}` variables used for service discovery. For example, referencing a project named `api` injects `services__api__https__0=https://localhost:7001`.
+
+Other environment variables often include credentials, port numbers, and other connection details.
+
+### Consuming the injected variables
+
+Any application can read these environment variables to connect to its dependencies. A Python, Node.js, or other app can read variables directly, without any Aspire-specific libraries.
+
+If your consuming project is written in .NET C#, you have an additional option: [**Aspire client integrations**](#client-integrations):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — Program.cs (consuming .NET project)"
+var builder = WebApplication.CreateBuilder(args);
+
+// Client integration reads ConnectionStrings__cache injected by WithReference
+builder.AddRedisClient(connectionName: "cache");
+
+var app = builder.Build();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+// Read the injected environment variable directly
+const redisUrl = process.env["ConnectionStrings__cache"];
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="Go — main.go"
+import "os"
+
+// Read the injected environment variable directly
+redisURL := os.Getenv("ConnectionStrings__cache")
+```
+
+</TabItem>
+<TabItem id="python" label="Python">
+
+```python title="Python — app.py"
+import os
+
+# Read the injected environment variable directly
+redis_url = os.getenv("ConnectionStrings__cache")
+```
+
+</TabItem>
+</Tabs>
 
 ## Integration features
 
