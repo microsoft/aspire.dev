@@ -106,7 +106,7 @@ Alternatively, these same values could be configured using a JSON configuration 
 | `ASPNETCORE_URLS`<br/>Default: `http://localhost:18888` | One or more HTTP endpoints through which the dashboard frontend is served. The frontend endpoint is used to view the dashboard in a browser. When the dashboard is launched by the Aspire AppHost this address is secured with HTTPS. Securing the dashboard with HTTPS is recommended. |
 | `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL`<br/>Default: `http://localhost:18889` | The [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) endpoint. This endpoint hosts an OTLP service and receives telemetry using gRPC. When the dashboard is launched by the Aspire AppHost this address is secured with HTTPS. Securing the dashboard with HTTPS is recommended. |
 | `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL`<br/>Default: `http://localhost:18890` | The [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) endpoint. This endpoint hosts an OTLP service and receives telemetry using Protobuf over HTTP. When the dashboard is launched by the Aspire AppHost the OTLP/HTTP endpoint isn't configured by default. To configure an OTLP/HTTP endpoint with the AppHost, set an `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL` env var value in _launchSettings.json_. Securing the dashboard with HTTPS is recommended. |
-| `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL`<br/>Default: `http://localhost:18891` | The [Aspire MCP](/dashboard/mcp-server/) endpoint. When this value isn't specified then the <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server is hosted with an `ASPNETCORE_URLS` endpoint. The MCP server can be disabled by configuring `Dashboard:Mcp:Disabled` to `true`. When the dashboard is launched by the Aspire AppHost this address is secured with HTTPS. Securing the dashboard with HTTPS is recommended. |
+| `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL`<br/>Default: `http://localhost:18891` | The [Aspire MCP](/get-started/aspire-mcp-server/) endpoint. When this value isn't specified then the <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server is hosted with an `ASPNETCORE_URLS` endpoint. The MCP server can be disabled by configuring `Dashboard:Mcp:Disabled` to `true`. When the dashboard is launched by the Aspire AppHost this address is secured with HTTPS. Securing the dashboard with HTTPS is recommended. |
 | `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS`<br/>Default: `false` | Configures the dashboard to not use authentication and accepts anonymous access. This setting is a shortcut to configuring `Dashboard:Frontend:AuthMode`, `Dashboard:Otlp:AuthMode`, `Dashboard:Mcp:AuthMode` and `Dashboard:Api:AuthMode` to `Unsecured`. |
 | `ASPIRE_DASHBOARD_CONFIG_FILE_PATH`<br/>Default: `null` | The path for a JSON configuration file. If the dashboard is being run in a Docker container, then this is the path to the configuration file in a mounted volume. This value is optional. |
 | `ASPIRE_DASHBOARD_FILE_CONFIG_DIRECTORY`<br/>Default: `null` | The directory where the dashboard looks for key-per-file configuration. This value is optional. |
@@ -243,13 +243,14 @@ API key authentication works by requiring each MCP request to have a valid `x-mc
 
 ## API
 
-The API section configures authentication for the dashboard's HTTP API endpoints.
+The API section configures the dashboard's Telemetry HTTP API (`/api/telemetry/*`) endpoints. The API is enabled by default and secured with API key authentication. The API key is auto-generated if one isn't provided.
 
 | Option | Description |
 |--------|-------------|
-| `Dashboard:Api:Enabled`<br/>Default: `false` | Enables the Telemetry HTTP API (`/api/telemetry/*`) endpoints. When `false`, the endpoints are not registered. |
-| `Dashboard:Api:AuthMode`<br/>Default: `Unsecured` | Can be set to `ApiKey` or `Unsecured`. `Unsecured` should only be used during local development. If an API key is configured and no auth mode is specified, defaults to `ApiKey`. |
-| `Dashboard:Api:PrimaryApiKey`<br/>Default: `null` | Specifies the primary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is required if auth mode is API key. |
+| `Dashboard:Api:Disabled`<br/>Default: `false` | Disables the Telemetry HTTP API (`/api/telemetry/*`) endpoints. When `true`, the endpoints are not registered. Set `ASPIRE_DASHBOARD_API_DISABLED=true` to disable the API via environment variable. |
+| `Dashboard:Api:Enabled`<br/>Default: `true` | **Deprecated.** Use `Dashboard:Api:Disabled` instead. When `false`, disables the Telemetry HTTP API endpoints. |
+| `Dashboard:Api:AuthMode`<br/>Default: `ApiKey` | Can be set to `ApiKey` or `Unsecured`. `Unsecured` should only be used during local development. |
+| `Dashboard:Api:PrimaryApiKey`<br/>Default: Auto-generated | Specifies the primary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. When auth mode is `ApiKey` and no key is provided, a 128-bit key is auto-generated at startup. |
 | `Dashboard:Api:SecondaryApiKey`<br/>Default: `null` | Specifies the secondary API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended. This value is optional. |
 
 ## Resources
@@ -293,7 +294,7 @@ Telemetry limits have different scopes depending upon the telemetry type:
 | Option | Description |
 |--------|-------------|
 | `Dashboard:ApplicationName`<br/>Default: `Aspire` | The application name to be displayed in the UI. This applies only when no resource service URL is specified. When a resource service exists, the service specifies the application name. |
-| `Dashboard:AI:Disabled`<br/>Default: `false` | Disables AI features in the dashboard. |
+| `Dashboard:AI:Disabled`<br/>Default: `true` | Disables the GitHub Copilot UI in the dashboard. This only affects the in-dashboard Copilot UI — AI coding agents can still access telemetry data via the [Aspire CLI and MCP server](/dashboard/ai-coding-agents/). |
 | `Dashboard:UI:DisableResourceGraph`<br/>Default: `false` | Disables displaying the resource graph UI in the dashboard. |
 | `Dashboard:UI:DisableImport`<br/>Default: `false` | Disables the telemetry import UI in the dashboard. |
 
