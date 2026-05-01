@@ -220,6 +220,130 @@ await service.publishAsKubernetesService(async (resource) => {
   customization.
 </Aside>
 
+## Configure Gateway TLS
+
+The Kubernetes integration supports the [Gateway API](https://gateway-api.sigs.k8s.io/) for exposing services with TLS termination. Use `AddGateway` on the Kubernetes environment, then `WithRoute` to attach service routes, and `WithTls` to enable HTTPS.
+
+### TLS with a known hostname
+
+When you know the hostname in advance, configure both `WithHostname` and `WithTls`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+k8s.AddGateway("public")
+   .WithGatewayClass("azure-alb-external")
+   .WithHostname("api.example.com")
+   .WithRoute("/", api.GetEndpoint("http"))
+   .WithTls("my-tls-secret");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+
+const gateway = await k8s.addGateway('public');
+await gateway.withGatewayClass('azure-alb-external');
+await gateway.withHostname('api.example.com');
+await gateway.withRoute('/', await api.getEndpoint('http'));
+await gateway.withTls('my-tls-secret');
+```
+</TabItem>
+</Tabs>
+
+When `WithTls` is called after `WithHostname`, the TLS configuration applies to the specified hostname. During `aspire deploy`, the integration bootstraps the TLS secret (for example, by creating a cert-manager `Certificate` resource) and patches the Gateway listener.
+
+### TLS with FQDN auto-discovery
+
+In some Kubernetes environments — such as AKS clusters using Azure Application Load Balancer with cert-manager — the ingress controller allocates a hostname dynamically after the Gateway is created. You can omit `WithHostname` and let Aspire discover the hostname automatically:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+// No WithHostname — the gateway controller assigns the hostname (e.g., *.alb.azure.com)
+k8s.AddGateway("public")
+   .WithGatewayClass("azure-alb-external")
+   .WithRoute("/", api.GetEndpoint("http"))
+   .WithTls("my-tls-secret");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+
+// No withHostname — the gateway controller assigns the hostname
+const gateway = await k8s.addGateway('public');
+await gateway.withGatewayClass('azure-alb-external');
+await gateway.withRoute('/', await api.getEndpoint('http'));
+await gateway.withTls('my-tls-secret');
+```
+</TabItem>
+</Tabs>
+
+When no hostname is specified, `aspire deploy` performs FQDN discovery automatically after the Helm chart is deployed:
+
+1. The Helm chart is deployed with an HTTPS listener that has no hostname restriction.
+2. Aspire waits for the Gateway's load balancer to be assigned a public address.
+3. The discovered hostname is patched onto the Gateway listener and any associated HTTPRoutes.
+4. cert-manager reacts to the updated hostname and issues the TLS certificate using the HTTP-01 solver.
+
+:::note
+FQDN auto-discovery requires a Gateway controller that allocates an external address (such as Azure Application Gateway for Containers) and cert-manager configured with an HTTP-01 ACME solver. The `aspire deploy` command polls the Gateway resource until an address appears, so the first deployment may take several minutes while the certificate is issued.
+:::
+
+### Auto-generated TLS secret name
+
+Call `WithTls()` with no arguments to derive the secret name from the gateway name (for example, a gateway named `public` uses a secret named `public-tls`):
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+k8s.AddGateway("public")
+   .WithGatewayClass("azure-alb-external")
+   .WithRoute("/", api.GetEndpoint("http"))
+   .WithTls(); // secret name defaults to "public-tls"
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+const k8s = await builder.addKubernetesEnvironment('k8s');
+const api = await builder.addProject('api', '../MyApi/MyApi.csproj', 'http');
+
+const gateway = await k8s.addGateway('public');
+await gateway.withGatewayClass('azure-alb-external');
+await gateway.withRoute('/', await api.getEndpoint('http'));
+await gateway.withTls(); // secret name defaults to "public-tls"
+```
+</TabItem>
+</Tabs>
+
 ## Troubleshooting
 
 ### Connection strings empty in Kubernetes
