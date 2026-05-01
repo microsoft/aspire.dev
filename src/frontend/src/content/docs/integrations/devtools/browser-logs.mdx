@@ -3,6 +3,8 @@ title: Browser logs
 description: Learn how to capture and configure browser console logs in Aspire using the BrowserLogs resource.
 ---
 
+import InstallPackage from '@components/InstallPackage.astro';
+
 The browser logs feature in Aspire lets you attach a tracked Chromium browser session to any HTTP/HTTPS resource in your AppHost. When the session is active, browser console output (logs, errors, exceptions, and network events) flows into the resource's console log stream in the Aspire dashboard, and you can capture screenshots as command artifacts — all without leaving the dashboard.
 
 :::caution[Experimental API]
@@ -14,11 +16,17 @@ The browser logs feature in Aspire lets you attach a tracked Chromium browser se
 - A Chromium-based browser (Microsoft Edge or Google Chrome) installed on the development machine. The tracked browser uses an Aspire-managed user data directory and never touches the user's normal browser profile.
 - A parent resource that exposes at least one HTTP or HTTPS endpoint. Any resource with endpoints is supported — projects, containers, executables, or any custom resource — not just projects. HTTPS endpoints are preferred over HTTP when selecting the target URL.
 
+## Install the package
+
+The browser logs feature ships in the [📦 Aspire.Hosting.Browsers](https://www.nuget.org/packages/Aspire.Hosting.Browsers) hosting package. Install it in your AppHost project:
+
+<InstallPackage package="Aspire.Hosting.Browsers" />
+
 ## Add browser logs to a resource
 
 Call `WithBrowserLogs()` on any resource that exposes an HTTP or HTTPS endpoint:
 
-```csharp title="AppHost/Program.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREBROWSERLOGS001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -43,7 +51,7 @@ The display names are the labels shown on the dashboard; the command IDs are the
 
 `WithBrowserLogs` accepts optional parameters to pin the browser, profile, or user data mode at design time:
 
-```csharp
+```csharp title="AppHost.cs"
 builder.AddProject<Projects.WebFrontend>("web")
     .WithBrowserLogs(
         browser: "msedge",
