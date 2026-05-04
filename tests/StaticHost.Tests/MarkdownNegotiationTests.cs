@@ -2,24 +2,13 @@ namespace StaticHost.Tests;
 
 public sealed class MarkdownNegotiationTests
 {
-    private const string SamplePageHtml = "<!doctype html><html><body>Hello</body></html>";
-    private const string SamplePageMarkdown = "# Hello\n\nMarkdown body.";
-
-    private static void SeedSamplePage(TempWebRoot root, string slug)
-    {
-        // Mirrors what starlight emits: /foo/index.html + /foo.md
-        root.WriteFile($"{slug}/index.html", SamplePageHtml);
-        root.WriteFile($"{slug}.md", SamplePageMarkdown);
-    }
-
     [Fact]
     public async Task Get_with_markdown_accept_returns_md_companion()
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root =>
         {
-            root.WriteFile("index.html", SamplePageHtml);
-            root.WriteFile("index.md", SamplePageMarkdown);
-            SeedSamplePage(root, "get-started");
+            SamplePages.SeedRoot(root);
+            SamplePages.SeedFolderPage(root, "get-started");
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/get-started/");
@@ -37,10 +26,8 @@ public sealed class MarkdownNegotiationTests
     [Fact]
     public async Task Markdown_response_uses_private_no_cache_for_front_door()
     {
-        await using var server = await AgentReadinessTestServer.StartAsync(root =>
-        {
-            SeedSamplePage(root, "get-started");
-        });
+        await using var server = await AgentReadinessTestServer.StartAsync(
+            root => SamplePages.SeedFolderPage(root, "get-started"));
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/get-started/");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/markdown"));
@@ -56,10 +43,8 @@ public sealed class MarkdownNegotiationTests
     [Fact]
     public async Task Head_with_markdown_accept_returns_headers_only()
     {
-        await using var server = await AgentReadinessTestServer.StartAsync(root =>
-        {
-            SeedSamplePage(root, "get-started");
-        });
+        await using var server = await AgentReadinessTestServer.StartAsync(
+            root => SamplePages.SeedFolderPage(root, "get-started"));
 
         using var request = new HttpRequestMessage(HttpMethod.Head, "/get-started/");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/markdown"));
@@ -75,10 +60,8 @@ public sealed class MarkdownNegotiationTests
     [Fact]
     public async Task Browser_request_unaffected_by_negotiation_middleware()
     {
-        await using var server = await AgentReadinessTestServer.StartAsync(root =>
-        {
-            SeedSamplePage(root, "get-started");
-        });
+        await using var server = await AgentReadinessTestServer.StartAsync(
+            root => SamplePages.SeedFolderPage(root, "get-started"));
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/get-started/");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
@@ -97,7 +80,7 @@ public sealed class MarkdownNegotiationTests
         await using var server = await AgentReadinessTestServer.StartAsync(root =>
         {
             // Page exists but has no .md companion (e.g. /reference/api/csharp/...)
-            root.WriteFile("reference/api/csharp/index.html", SamplePageHtml);
+            root.WriteFile("reference/api/csharp/index.html", SamplePages.Html);
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/reference/api/csharp/");
@@ -114,7 +97,7 @@ public sealed class MarkdownNegotiationTests
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root =>
         {
-            root.WriteFile("reference/api/csharp/index.html", SamplePageHtml);
+            root.WriteFile("reference/api/csharp/index.html", SamplePages.Html);
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/reference/api/csharp/");
@@ -123,6 +106,25 @@ public sealed class MarkdownNegotiationTests
         using var response = await server.Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotAcceptable, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Stray_md_without_html_sibling_does_not_get_served_as_markdown()
+    {
+        // Mirrors the LinkHeader stray-md test: a .md without a corresponding
+        // HTML page must NOT be served as a "companion" of the URL.
+        await using var server = await AgentReadinessTestServer.StartAsync(root =>
+        {
+            root.WriteFile("stray.md", "# stray\n");
+        });
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/stray/");
+        request.Headers.Accept.Clear();
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/markdown"));
+        using var response = await server.Client.SendAsync(request);
+
+        // No HTML companion means no markdown either: must NOT 200 with the .md body.
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

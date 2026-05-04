@@ -48,16 +48,16 @@ public sealed class MarkdownPathMapperTests
     }
 
     [Theory]
-    [InlineData("/", "/index.md")]
-    [InlineData("/get-started/", "/get-started.md")]
-    [InlineData("/get-started", "/get-started.md")]
-    [InlineData("/get-started/quickstart/", "/get-started/quickstart.md")]
-    [InlineData("/get-started.html", "/get-started.md")]
-    public void Maps_to_expected_companion_when_exists(string requestPath, string expected)
+    [InlineData("/", "/index.html", "/index.md")]
+    [InlineData("/get-started/", "/get-started/index.html", "/get-started.md")]
+    [InlineData("/get-started", "/get-started/index.html", "/get-started.md")]
+    [InlineData("/get-started/quickstart/", "/get-started/quickstart/index.html", "/get-started/quickstart.md")]
+    [InlineData("/get-started.html", "/get-started.html", "/get-started.md")]
+    public void Maps_to_expected_companion_when_html_and_md_both_exist(string requestPath, string htmlSibling, string expectedMd)
     {
-        var provider = new StubFileProvider([expected]);
+        var provider = new StubFileProvider([htmlSibling, expectedMd]);
         var actual = MarkdownPathMapper.TryGetMarkdownCompanion(new PathString(requestPath), provider);
-        Assert.Equal(expected, actual);
+        Assert.Equal(expectedMd, actual);
     }
 
     [Theory]
@@ -70,7 +70,7 @@ public sealed class MarkdownPathMapperTests
     public void Skips_infrastructure_paths(string requestPath)
     {
         // Even if the file system lies and a .md exists, infra paths must skip.
-        var provider = new StubFileProvider([$"{requestPath}.md", "/index.md"]);
+        var provider = new StubFileProvider([$"{requestPath}.md", "/index.md", "/index.html"]);
         var actual = MarkdownPathMapper.TryGetMarkdownCompanion(new PathString(requestPath), provider);
         Assert.Null(actual);
     }
@@ -78,15 +78,30 @@ public sealed class MarkdownPathMapperTests
     [Fact]
     public void Returns_null_when_no_companion_exists()
     {
-        var provider = new StubFileProvider([]);
+        var provider = new StubFileProvider(["/get-started/index.html"]);
         var actual = MarkdownPathMapper.TryGetMarkdownCompanion(new PathString("/get-started/"), provider);
+        Assert.Null(actual);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/stray/")]
+    [InlineData("/stray")]
+    [InlineData("/stray.html")]
+    public void Returns_null_when_md_exists_but_html_sibling_does_not(string requestPath)
+    {
+        // A stray .md without a real HTML page MUST NOT be advertised or served as
+        // a companion. Not all pages on the site emit a .md; only those that also
+        // have a Starlight-generated HTML page are eligible.
+        var provider = new StubFileProvider(["/index.md", "/stray.md"]);
+        var actual = MarkdownPathMapper.TryGetMarkdownCompanion(new PathString(requestPath), provider);
         Assert.Null(actual);
     }
 
     [Fact]
     public void Skips_paths_with_unhandled_extensions()
     {
-        var provider = new StubFileProvider(["/data.json.md"]);
+        var provider = new StubFileProvider(["/data.json.md", "/data.json"]);
         var actual = MarkdownPathMapper.TryGetMarkdownCompanion(new PathString("/data.json"), provider);
         Assert.Null(actual);
     }
