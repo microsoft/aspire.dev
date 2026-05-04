@@ -106,7 +106,7 @@ public sealed class WellKnownArtifactTests
     }
 
     [Fact]
-    public void Agent_skills_files_are_LF_only()
+    public void AgentSkills_files_are_LF_only()
     {
         // Digests are byte-stable only when the working tree honors `eol=lf`.
         // Anyone editing the file with CRLF in their editor would invalidate
