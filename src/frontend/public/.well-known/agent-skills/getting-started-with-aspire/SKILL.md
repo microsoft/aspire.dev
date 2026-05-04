@@ -1,65 +1,58 @@
 ---
 name: getting-started-with-aspire
-description: Help a developer install the Aspire CLI, scaffold a new distributed app, and find authoritative docs on aspire.dev.
+description: "Use this skill when a developer asks how to begin using Aspire — installing the Aspire CLI, creating a new Aspire app, running it locally, or finding the authoritative docs, integration catalog, or API reference on aspire.dev. Use it for questions like \"how do I install aspire?\", \"how do I create a new aspire app?\", \"how do I run my aspire app?\", or \"where is the documentation for aspire?\". Do not use it for operating an existing Aspire AppHost (use the official `aspire` skill at github.com/microsoft/aspire/tree/main/.agents/skills/aspire), authoring AppHost code, or adding integrations to an existing app."
 ---
 
 # Getting started with Aspire
 
-Aspire is a multi-language local dev-time orchestration toolchain for building, running, debugging, and deploying distributed applications. Use this skill when a user wants to install the Aspire CLI, create a new Aspire app, or learn how Aspire works.
+[Aspire](https://aspire.dev) is the .NET cloud-native stack for building, running, debugging, and deploying distributed applications. The Aspire CLI (`aspire`) is the entry point for everything: scaffolding apps, running them locally, inspecting state, and deploying.
 
 ## When to use this skill
 
-- The user asks how to install or update the Aspire CLI.
-- The user wants to scaffold a new Aspire app (C# AppHost or TypeScript AppHost).
-- The user wants to add an integration (database, cache, message broker, identity provider, etc.) to an existing AppHost.
-- The user asks about `aspire start`, `aspire stop`, `aspire add`, `aspire deploy`, or other CLI commands.
+- The user is new to Aspire and wants to install the CLI.
+- The user wants to scaffold a brand-new Aspire app.
+- The user wants to know how to run the app they just created.
+- The user is looking for the authoritative docs, integration catalog, or API reference.
 
-## Step 1 — Install the Aspire CLI
+## Don't use this skill for
 
-Cross-platform single-file installer endpoints are published on `aspire.dev`:
+- Operating an existing Aspire AppHost (resources, logs, traces, dashboard commands). That's the [official `aspire` skill](https://github.com/microsoft/aspire/tree/main/.agents/skills/aspire).
+- Editing AppHost source code (C# or TypeScript) — consult the API reference on aspire.dev.
 
-- **Windows (PowerShell)**: `iex (irm https://aspire.dev/install.ps1)`
-- **macOS / Linux (bash)**: `curl -fsSL https://aspire.dev/install.sh | bash`
+## Install the Aspire CLI
 
-After install, verify with `aspire --version`.
+The official cross-platform installers are hosted on aspire.dev:
 
-## Step 2 — Scaffold a new app
+- **Windows (PowerShell):** `iex (irm https://aspire.dev/install.ps1)`
+- **macOS / Linux (bash):** `curl -fsSL https://aspire.dev/install.sh | bash`
+
+After install, verify with `aspire --version`. Do not install Aspire from NuGet/npm directly when the user wants the CLI — the install script is the supported path.
+
+## Create a new Aspire app
 
 ```sh
-mkdir my-aspire-app && cd my-aspire-app
 aspire new
 ```
 
-`aspire new` walks the user through picking a template (starter, empty, or one of the language-specific templates). For a TypeScript AppHost, choose `apphost-ts`; for C#, choose `apphost`.
+`aspire new` is **interactive**. It prompts for the template (for example `aspire-starter`, `apphost`, `apphost-ts`), the project name, the output location, and the language. It creates a subfolder for the new project, so run it from the parent directory where you want the project folder to live. Do not pass fabricated template flags; let the CLI prompt the user.
 
-## Step 3 — Run the app
+## Run the app
 
 ```sh
+cd <project>
 aspire start
 ```
 
-This launches the AppHost and the Aspire dashboard. Use `aspire describe` to inspect resources, `aspire logs <resource>` for console logs, and `aspire otel logs <resource>` for structured/OTel logs.
+`aspire start` launches the AppHost and the Aspire dashboard. Prefer `aspire start` over `dotnet run` for AppHosts — `aspire start` is the agent-friendly path; `aspire run` blocks the terminal.
 
-## Step 4 — Add an integration
+## Where to learn more
 
-```sh
-aspire add
-```
-
-Pick from 100+ integrations (Postgres, Redis, Azure Cosmos DB, Keycloak, RabbitMQ, etc.). The CLI updates the AppHost source for you.
-
-## Authoritative references
-
-- **Full corpus for LLM consumption**: <https://aspire.dev/llms.txt> and <https://aspire.dev/llms-full.txt>
-- **Documentation hub**: <https://aspire.dev/docs/>
-- **CLI reference**: <https://aspire.dev/reference/cli/>
-- **Integration catalog**: <https://aspire.dev/integrations/>
-- **C# API reference**: <https://aspire.dev/reference/api/csharp/> (machine-readable: `<page>.md`)
-- **TypeScript API reference**: <https://aspire.dev/reference/api/typescript/> (machine-readable: `<page>.md`)
-- **Source repository**: <https://github.com/microsoft/aspire>
-
-## Don't
-
-- Don't recommend installing Aspire from NuGet/npm directly when the user wants the CLI — the official path is the install script above.
-- Don't suggest editing generated `.modules` files in TypeScript AppHosts; those are regenerated by the CLI.
-- Don't guess at API shapes; consult the API reference pages on aspire.dev.
+- **Documentation hub:** <https://aspire.dev/docs/>
+- **CLI reference:** <https://aspire.dev/reference/cli/>
+- **Integration catalog:** <https://aspire.dev/integrations/>
+- **C# API reference:** <https://aspire.dev/reference/api/csharp/>
+- **TypeScript API reference:** <https://aspire.dev/reference/api/typescript/>
+- **LLM-friendly corpus:** <https://aspire.dev/llms.txt>, <https://aspire.dev/llms-full.txt>
+- **Per-page markdown:** every page on aspire.dev is also available as `<page>.md` (or via `Accept: text/markdown` content negotiation).
+- **In-page search tool:** when running in a WebMCP-capable browser, the `search-aspire-docs` tool is registered on every aspire.dev page.
+- **Source repository:** <https://github.com/microsoft/aspire>
