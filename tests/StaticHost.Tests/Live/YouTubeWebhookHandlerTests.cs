@@ -1,16 +1,11 @@
-using System.Security.Cryptography;
-using System.Text;
-using StaticHost.Live.YouTube;
-using Xunit;
-
 namespace StaticHost.Tests.Live;
 
-public class YouTubeWebhookHandlerTests
+public sealed class YouTubeWebhookHandlerTests
 {
     private const string Secret = "yt-secret-xyz";
 
     [Fact]
-    public void IsValidSignature_round_trips()
+    public void IsValidSignature_RoundTrips()
     {
         var body = Encoding.UTF8.GetBytes("hello youtube");
         var sig = ComputeSha1(Secret, body);
@@ -18,7 +13,7 @@ public class YouTubeWebhookHandlerTests
     }
 
     [Fact]
-    public void IsValidSignature_rejects_modified_body()
+    public void IsValidSignature_RejectsModifiedBody()
     {
         var body = Encoding.UTF8.GetBytes("hello youtube");
         var sig = ComputeSha1(Secret, body);
@@ -30,13 +25,13 @@ public class YouTubeWebhookHandlerTests
     [InlineData("")]
     [InlineData("sha256=abc")]
     [InlineData("garbage")]
-    public void IsValidSignature_rejects_unsupported_or_empty_headers(string header)
+    public void IsValidSignature_RejectsUnsupportedOrEmptyHeaders(string header)
     {
         Assert.False(YouTubeWebhookHandler.IsValidSignature(Secret, [1, 2, 3], header));
     }
 
     [Fact]
-    public void ExtractVideoId_returns_id_from_atom_payload()
+    public void ExtractVideoId_ReturnsIdFromAtomPayload()
     {
         var body = Encoding.UTF8.GetBytes("""
             <?xml version="1.0" encoding="UTF-8"?>
@@ -50,13 +45,13 @@ public class YouTubeWebhookHandlerTests
     }
 
     [Fact]
-    public void ExtractVideoId_returns_null_for_non_atom_payload()
+    public void ExtractVideoId_ReturnsNullForNonAtomPayload()
     {
         Assert.Null(YouTubeWebhookHandler.ExtractVideoId(Encoding.UTF8.GetBytes("not xml at all")));
     }
 
     [Fact]
-    public void ExtractVideoId_returns_null_when_videoId_missing()
+    public void ExtractVideoId_ReturnsNullWhenVideoIdMissing()
     {
         var body = Encoding.UTF8.GetBytes("""<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry/></feed>""");
         Assert.Null(YouTubeWebhookHandler.ExtractVideoId(body));
