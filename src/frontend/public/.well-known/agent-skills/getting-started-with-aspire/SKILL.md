@@ -5,7 +5,7 @@ description: "Use this skill when a developer asks how to begin using Aspire —
 
 # Getting started with Aspire
 
-[Aspire](https://aspire.dev) is the .NET cloud-native stack for building, running, debugging, and deploying distributed applications. The Aspire CLI (`aspire`) is the entry point for everything: scaffolding apps, running them locally, inspecting state, and deploying.
+[Aspire](https://aspire.dev) is a polyglot stack for building, running, debugging, and deploying distributed applications. The AppHost can be authored in C# or TypeScript today, with additional languages (Java, Go, Python, Rust, …) on the roadmap. The Aspire CLI (`aspire`) is the entry point for everything: scaffolding apps, running them locally, inspecting state, and deploying.
 
 ## When to use this skill
 
