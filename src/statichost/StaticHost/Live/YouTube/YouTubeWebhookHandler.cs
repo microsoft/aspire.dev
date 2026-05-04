@@ -22,8 +22,10 @@ public static class YouTubeWebhookHandler
         var expectedHex = signatureHeader[prefix.Length..];
 
         using var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(secret));
+
         var actual = hmac.ComputeHash(body);
         var actualHex = Convert.ToHexStringLower(actual);
+
         return CryptographicOperations.FixedTimeEquals(
             Encoding.ASCII.GetBytes(actualHex),
             Encoding.ASCII.GetBytes(expectedHex));
@@ -41,6 +43,7 @@ public static class YouTubeWebhookHandler
             var doc = XDocument.Load(ms);
             XNamespace yt = "http://www.youtube.com/xml/schemas/2015";
             var videoId = doc.Descendants(yt + "videoId").FirstOrDefault()?.Value;
+
             return string.IsNullOrEmpty(videoId) ? null : videoId;
         }
         catch

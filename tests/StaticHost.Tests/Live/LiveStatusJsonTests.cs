@@ -1,13 +1,9 @@
-using System.Text.Json;
-using StaticHost.Live;
-using Xunit;
-
 namespace StaticHost.Tests.Live;
 
-public class LiveStatusJsonTests
+public sealed class LiveStatusJsonTests
 {
     [Fact]
-    public void Snapshot_uses_lowercase_youtube_property_name()
+    public void Serialize_UsesLowercaseYouTubePropertyName()
     {
         var json = JsonSerializer.Serialize(
             LiveStatus.Idle,
