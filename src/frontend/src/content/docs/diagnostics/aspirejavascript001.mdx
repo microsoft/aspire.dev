@@ -1,6 +1,6 @@
 ---
 title: Compiler Warning ASPIREJAVASCRIPT001
-description: Learn more about compiler Warning ASPIREJAVASCRIPT001. JavaScript hosting APIs are for evaluation purposes only and are subject to change or removal in future updates.
+description: Learn more about compiler warning ASPIREJAVASCRIPT001. JavaScript hosting APIs are for evaluation purposes only and are subject to change or removal in future updates.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -14,13 +14,15 @@ import { Badge } from '@astrojs/starlight/components';
 
 > JavaScript hosting APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-This diagnostic warning is reported when using experimental JavaScript hosting APIs in Aspire, including:
+This diagnostic warning is reported when using experimental JavaScript hosting and publishing APIs in Aspire, including:
 
-- `PublishAsStaticWebsite<TResource>` extension method
-- `NextJsAppResource` class
-- `PublishAsStaticWebsiteOptions` class
+- `PublishAsStaticWebsite<TResource>`
+- `PublishAsNodeServer<TResource>`
+- `PublishAsNpmScript<TResource>`
+- `AddNextJsApp`
+- `DisableBuildValidation`
 
-These APIs allow you to configure JavaScript and Next.js applications as static websites during publishing.
+These APIs enable you to configure how JavaScript applications (Vite, Node.js, Next.js) are published and deployed via Aspire's pipeline infrastructure.
 
 ## Example
 
@@ -29,13 +31,8 @@ The following code generates `ASPIREJAVASCRIPT001`:
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var frontend = builder.AddNextJsApp("frontend", "../frontend")
-    .PublishAsStaticWebsite(options =>
-    {
-        options.OutputPath = "out";
-    });
-
-builder.Build().Run();
+var frontend = builder.AddViteApp("frontend", "../MyViteApp")
+    .PublishAsStaticWebsite();
 ```
 
 ## To correct this warning
@@ -59,6 +56,8 @@ Suppress the warning with either of the following methods:
   </PropertyGroup>
   ```
 
+- Suppress in code with the `#pragma warning disable ASPIREJAVASCRIPT001` directive.
+
 ## See also
 
-- [Deploy JavaScript apps](/deployment/javascript-apps/) - Learn about deploying JavaScript applications with Aspire
+- [JavaScript apps deployment](/deployment/javascript-apps/) - Learn about deploying JavaScript applications with Aspire
