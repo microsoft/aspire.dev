@@ -95,12 +95,10 @@ internal sealed class LinkHeaderMiddleware
             return true;
         }
 
-        var path = request.Path.HasValue ? request.Path.Value! : "/";
-        return path.StartsWith("/_astro/", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/.well-known/", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/healthz", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/install.", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/pagefind/", StringComparison.OrdinalIgnoreCase);
+        // Infrastructure paths (/_astro, /.well-known, /healthz, /install.*, /pagefind)
+        // never need a Link header. The path list lives on MarkdownPathMapper so
+        // both middlewares stay in lock-step.
+        return MarkdownPathMapper.IsInfrastructurePath(request.Path);
     }
 
     private sealed record LinkHeaderState(HttpContext HttpContext, string? CompanionPath);

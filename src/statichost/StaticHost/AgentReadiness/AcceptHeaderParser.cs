@@ -106,55 +106,40 @@ internal static class AcceptHeaderParser
             return false;
         }
 
-        // Find the most specific match for text/markdown. Wildcards cannot
-        // express markdown preference (a request with only "*/*" should get HTML).
-        double markdownQ = 0.0;
-        foreach (var entry in ranked)
-        {
-            if (string.Equals(entry.Type, "text", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(entry.Subtype, "markdown", StringComparison.OrdinalIgnoreCase))
-            {
-                if (entry.Quality > markdownQ)
-                {
-                    markdownQ = entry.Quality;
-                }
-            }
-        }
-
+        // Wildcards cannot express markdown preference (a request with only "*/*"
+        // should get HTML), so we look only at explicit text/markdown entries.
+        var markdownQ = HighestExplicitQuality(ranked, "text", "markdown");
         if (markdownQ <= 0.0)
         {
             return false;
         }
 
-        var htmlQ = HighestExplicitQuality(ranked, "text", "html");
+        // For HTML we count any acceptable representation, including wildcards
+        // like "*/*" or "text/*", because those make HTML a viable response.
         var anyHtmlQ = QualityFor(ranked, "text", "html");
 
         // Strictly prefer markdown when it beats any acceptable HTML representation,
         // OR when HTML is not acceptable at all (markdownQ > 0 and htmlQ == 0).
-        if (anyHtmlQ <= 0.0)
-        {
-            return markdownQ > 0.0;
-        }
+        return anyHtmlQ <= 0.0 || markdownQ > anyHtmlQ;
+    }
 
-        // When HTML is acceptable via wildcards (e.g. */*), markdown must strictly
-        // exceed that wildcard q. When HTML is acceptable explicitly, markdown
-        // must strictly exceed the explicit q.
-        return markdownQ > anyHtmlQ;
-
-        static double HighestExplicitQuality(IReadOnlyList<MediaTypeWithQ> ranked, string type, string subtype)
+    /// <summary>
+    /// Highest q-value across entries that match <paramref name="type"/>/<paramref name="subtype"/>
+    /// exactly (no wildcards). Returns 0.0 when no explicit entry matches.
+    /// </summary>
+    private static double HighestExplicitQuality(IReadOnlyList<MediaTypeWithQ> ranked, string type, string subtype)
+    {
+        var best = 0.0;
+        foreach (var entry in ranked)
         {
-            var best = 0.0;
-            foreach (var entry in ranked)
+            if (string.Equals(entry.Type, type, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(entry.Subtype, subtype, StringComparison.OrdinalIgnoreCase) &&
+                entry.Quality > best)
             {
-                if (string.Equals(entry.Type, type, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(entry.Subtype, subtype, StringComparison.OrdinalIgnoreCase) &&
-                    entry.Quality > best)
-                {
-                    best = entry.Quality;
-                }
+                best = entry.Quality;
             }
-            return best;
         }
+        return best;
     }
 
     /// <summary>

@@ -2,9 +2,6 @@ namespace StaticHost.Tests;
 
 public sealed class LinkHeaderTests
 {
-    private const string SamplePageHtml = "<!doctype html><html><body>Hello</body></html>";
-    private const string SamplePageMarkdown = "# Hello\n";
-
     private static string? GetLinkHeader(HttpResponseMessage response) =>
         response.Headers.TryGetValues("Link", out var values) ? string.Join(", ", values) : null;
 
@@ -13,8 +10,7 @@ public sealed class LinkHeaderTests
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root =>
         {
-            root.WriteFile("index.html", SamplePageHtml);
-            root.WriteFile("index.md", SamplePageMarkdown);
+            SamplePages.SeedRoot(root);
             root.WriteFile("llms.txt", "# llms\n");
             root.WriteFile(".well-known/agent-skills/index.json", "{\"skills\":[]}");
             root.WriteFile("sitemap-index.xml", "<sitemapindex/>");
@@ -38,7 +34,7 @@ public sealed class LinkHeaderTests
     {
         await using var server = await AgentReadinessTestServer.StartAsync(root =>
         {
-            root.WriteFile("reference/api/csharp/index.html", SamplePageHtml);
+            root.WriteFile("reference/api/csharp/index.html", SamplePages.Html);
             // no .md companion
         });
 
@@ -48,6 +44,24 @@ public sealed class LinkHeaderTests
         Assert.NotNull(link);
         Assert.DoesNotContain("rel=\"alternate\"", link);
         Assert.Contains("rel=\"llms\"", link);
+    }
+
+    [Fact]
+    public async Task Stray_md_without_html_sibling_does_not_get_advertised()
+    {
+        // A naked .md sitting in wwwroot with no Starlight HTML page must not be
+        // exposed as a companion. The request below 404s in the static pipeline,
+        // but even before that the OnStarting predicate already won't attach the
+        // header on a 404 — this test pins the LinkHeader path mapping so it
+        // would refuse to advertise the .md even on a 200 collision.
+        await using var server = await AgentReadinessTestServer.StartAsync(root =>
+        {
+            root.WriteFile("stray.md", "# stray\n");
+        });
+
+        using var response = await server.Client.GetAsync("/stray/");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(GetLinkHeader(response));
     }
 
     [Fact]
@@ -92,11 +106,7 @@ public sealed class LinkHeaderTests
         // The markdown middleware short-circuits before the Link middleware
         // attaches headers; even if it didn't, the response Content-Type is
         // text/markdown, so the OnStarting predicate would skip it.
-        await using var server = await AgentReadinessTestServer.StartAsync(root =>
-        {
-            root.WriteFile("index.html", SamplePageHtml);
-            root.WriteFile("index.md", SamplePageMarkdown);
-        });
+        await using var server = await AgentReadinessTestServer.StartAsync(SamplePages.SeedRoot);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/markdown"));
@@ -114,7 +124,7 @@ public sealed class LinkHeaderTests
         {
             // healthz is a MapGet endpoint in production; here we just simulate
             // a static text response to exercise the path-skip guard.
-            root.WriteFile("healthz/index.html", SamplePageHtml);
+            root.WriteFile("healthz/index.html", SamplePages.Html);
         });
 
         using var response = await server.Client.GetAsync("/healthz/");
