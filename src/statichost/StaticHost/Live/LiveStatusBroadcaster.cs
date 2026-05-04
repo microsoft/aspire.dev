@@ -43,28 +43,20 @@ public sealed class LiveStatusUpdate
 /// </para>
 /// <para>Subscriber list is copy-on-write (lock-free reads).</para>
 /// </remarks>
-public sealed class LiveStatusBroadcaster : IDisposable
+/// <remarks>Creates the broadcaster.</remarks>
+public sealed class LiveStatusBroadcaster(
+    IOptions<LiveStatusOptions> options,
+    ILogger<LiveStatusBroadcaster> logger,
+    TimeProvider? timeProvider = null) : IDisposable
 {
-    private readonly ILogger<LiveStatusBroadcaster> _logger;
-    private readonly TimeProvider _time;
-    private readonly TimeSpan _coalesceWindow;
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly TimeSpan _coalesceWindow = TimeSpan.FromMilliseconds(options.Value.CoalesceWindowMs);
 
     private readonly Lock _gate = new();
     private LiveStatus _current = LiveStatus.Idle;
     private LiveStatus? _pending;
     private ITimer? _flushTimer;
     private ImmutableArray<ChannelWriter<LiveStatus>> _subscribers = [];
-
-    /// <summary>Creates the broadcaster.</summary>
-    public LiveStatusBroadcaster(
-        IOptions<LiveStatusOptions> options,
-        ILogger<LiveStatusBroadcaster> logger,
-        TimeProvider? timeProvider = null)
-    {
-        _logger = logger;
-        _time = timeProvider ?? TimeProvider.System;
-        _coalesceWindow = TimeSpan.FromMilliseconds(options.Value.CoalesceWindowMs);
-    }
 
     /// <summary>Returns the current snapshot. Lock-free.</summary>
     public LiveStatus Current => Volatile.Read(ref _current);
@@ -175,7 +167,7 @@ public sealed class LiveStatusBroadcaster : IDisposable
         Volatile.Write(ref _current, next);
         _pending = null;
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Live status updated: isLive={IsLive} primary={Primary} twitch={Twitch} youtube={YouTube}",
             next.IsLive, next.PrimarySource, next.Twitch.Live, next.YouTube.Live);
 

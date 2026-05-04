@@ -1,13 +1,6 @@
-using System.Threading.Channels;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Time.Testing;
-using StaticHost.Live;
-using Xunit;
-
 namespace StaticHost.Tests.Live;
 
-public class LiveStatusBroadcasterTests
+public sealed class LiveStatusBroadcasterTests
 {
     private static (LiveStatusBroadcaster Broadcaster, FakeTimeProvider Time) Create(int coalesceMs = 750)
     {
@@ -18,7 +11,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public void Update_sets_primary_to_first_live_source()
+    public void Update_SetsPrimaryToFirstLiveSource()
     {
         var (b, time) = Create();
         b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, "aspiredotdev", null) });
@@ -29,7 +22,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public void Primary_and_live_session_are_sticky_when_second_source_joins()
+    public void Update_KeepsPrimaryAndLiveSessionWhenSecondSourceJoins()
     {
         var (b, time) = Create();
 
@@ -48,12 +41,14 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public void Primary_swaps_to_remaining_source_when_original_goes_offline()
+    public void Update_SwapsPrimaryToRemainingSourceWhenOriginalGoesOffline()
     {
         var (b, time) = Create();
 
         b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, "x", null) });
         time.Advance(TimeSpan.FromSeconds(1));
+        var firstSessionId = b.Current.LiveSessionId;
+
         b.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(true, "v") });
         time.Advance(TimeSpan.FromSeconds(1));
 
@@ -62,11 +57,11 @@ public class LiveStatusBroadcasterTests
 
         Assert.Equal("youtube", b.Current.PrimarySource);
         Assert.True(b.Current.IsLive);
-        Assert.False(string.IsNullOrEmpty(b.Current.LiveSessionId));
+        Assert.Equal(firstSessionId, b.Current.LiveSessionId);
     }
 
     [Fact]
-    public void PrimarySource_is_null_when_nothing_is_live()
+    public void Current_HasNoPrimarySourceWhenNothingIsLive()
     {
         var (b, _) = Create();
         Assert.Null(b.Current.PrimarySource);
@@ -75,7 +70,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public void LiveSessionId_rotates_after_all_sources_go_offline()
+    public void Update_RotatesLiveSessionIdAfterAllSourcesGoOffline()
     {
         var (b, time) = Create();
 
@@ -95,7 +90,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public async Task Coalesce_window_collapses_burst_into_single_event()
+    public async Task Update_CoalescesBurstIntoSingleEvent()
     {
         var (b, time) = Create(coalesceMs: 750);
         var (reader, sub) = b.Subscribe();
@@ -122,7 +117,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public void No_op_update_does_not_schedule_broadcast()
+    public void Update_DoesNotScheduleBroadcastForNoOp()
     {
         var (b, time) = Create(coalesceMs: 100);
         b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(false, null, null) });
@@ -132,7 +127,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public async Task Subscribe_seeds_with_current_snapshot()
+    public async Task Subscribe_SeedsWithCurrentSnapshot()
     {
         var (b, _) = Create();
         b.Update(new LiveStatusUpdate { Twitch = new TwitchStatus(true, "x", null) });
@@ -145,7 +140,7 @@ public class LiveStatusBroadcasterTests
     }
 
     [Fact]
-    public async Task Unsubscribe_stops_delivering_events()
+    public async Task Unsubscribe_StopsDeliveringEvents()
     {
         var (b, time) = Create(coalesceMs: 1);
         var (reader, sub) = b.Subscribe();

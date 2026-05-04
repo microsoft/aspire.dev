@@ -1,6 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Http.Resilience;
 using StaticHost.Live.Twitch;
 using StaticHost.Live.YouTube;
 
