@@ -617,6 +617,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireinteraction001',
             },
             {
+              label: 'ASPIREJAVASCRIPT001',
+              link: '/diagnostics/aspirejavascript001',
+            },
+            {
               label: 'ASPIREMCP001',
               link: '/diagnostics/aspiremcp001',
             },
