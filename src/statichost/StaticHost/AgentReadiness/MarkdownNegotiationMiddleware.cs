@@ -98,8 +98,8 @@ internal sealed class MarkdownNegotiationMiddleware
         var fileInfo = _fileProvider.GetFileInfo(companionPath);
         if (!fileInfo.Exists || fileInfo.IsDirectory)
         {
-            // Race / inconsistency between HasMarkdownCompanion and live file system.
-            // Fall through to default pipeline rather than 500.
+            // Race / inconsistency between MarkdownPathMapper.TryGetMarkdownCompanion
+            // and the live file system. Fall through to default pipeline rather than 500.
             _logger.LogDebug(
                 "Markdown companion {CompanionPath} reported but missing on disk; falling through.",
                 companionPath);

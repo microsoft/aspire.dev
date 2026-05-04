@@ -38,13 +38,21 @@ async function digestFile(filePath) {
 
 /**
  * Resolve a public URL like `/.well-known/foo/bar.md` to its on-disk path.
+ * Validates that the resolved path stays under `publicRoot` so a malicious or
+ * malformed `url` (e.g. containing `..` segments) cannot escape the public
+ * directory in dev/CI environments.
  * @param {string} url
  */
 function resolvePublicPath(url) {
   if (!url.startsWith('/')) {
     throw new Error(`Skill url must be absolute: ${url}`);
   }
-  return path.join(publicRoot, url.slice(1));
+  const resolved = path.resolve(publicRoot, url.slice(1));
+  const publicRootWithSep = publicRoot.endsWith(path.sep) ? publicRoot : publicRoot + path.sep;
+  if (resolved !== publicRoot && !resolved.startsWith(publicRootWithSep)) {
+    throw new Error(`Skill url escapes publicRoot: ${url}`);
+  }
+  return resolved;
 }
 
 const raw = await readFile(indexPath, 'utf8');
