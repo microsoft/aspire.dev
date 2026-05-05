@@ -106,6 +106,9 @@ Or install the CLI from scratch:
 
 Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C# AppHost'>
+
 ```csharp title="C# — AppHost.cs"
 // Two backend projects exposed as external HTTP endpoints.
 var api = builder.AddProject<Projects.Api>("api")
@@ -121,7 +124,34 @@ builder.AddAzureFrontDoor("frontdoor")
     .WithOrigin(web);
 ```
 
-Each `WithOrigin` call provisions its own Front Door endpoint, origin group, origin, and route, so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use `ConfigureInfrastructure` to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
+</TabItem>
+<TabItem id='typescript' label='TypeScript AppHost'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Two backend projects exposed as external HTTP endpoints.
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withExternalHttpEndpoints();
+
+const web = await builder.addProject('web', '../Web/Web.csproj');
+await web.withExternalHttpEndpoints();
+
+// Provision an Azure Front Door profile and attach each backend as an origin.
+// Each withOrigin call creates its own endpoint, origin group, origin, and route.
+const frontDoor = await builder.addAzureFrontDoor('frontdoor');
+await frontDoor.withOrigin(api);
+await frontDoor.withOrigin(web);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Each `withOrigin` call provisions its own Front Door endpoint, origin group, origin, and route,so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use `ConfigureInfrastructure` to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
 
 <LearnMore>
   For more details, see [Azure Front Door integration](/integrations/cloud/azure/azure-front-door/).
@@ -132,6 +162,9 @@ Each `WithOrigin` call provisions its own Front Door endpoint, origin group, ori
 Aspire 13.3 adds support for [Azure Network Security Perimeters (NSPs)](https://learn.microsoft.com/azure/private-link/network-security-perimeter-concepts), which provide a logical security boundary for Azure PaaS services. NSPs complement the existing virtual network and private endpoint support by operating at the PaaS layer — grouping resources like Storage, Key Vault, Cosmos DB, and SQL so they can communicate with each other while restricting public access via access rules.
 
 #### Create a perimeter and associate resources
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C# AppHost'>
 
 ```csharp title="C# — AppHost.cs"
 // Declare a Network Security Perimeter and add an inbound access rule.
@@ -151,6 +184,36 @@ var keyVault = builder.AddAzureKeyVault("kv")
     .WithNetworkSecurityPerimeter(nsp);
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript AppHost'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import { NetworkSecurityPerimeterAccessRuleDirection } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Declare a Network Security Perimeter and add an inbound access rule.
+const nsp = await builder.addNetworkSecurityPerimeter('my-nsp');
+await nsp.withAccessRule({
+    name: 'allow-my-ip',
+    direction: NetworkSecurityPerimeterAccessRuleDirection.Inbound,
+    addressPrefixes: ['203.0.113.0/24'],
+});
+
+// Associate Azure resources with the perimeter — they remain reachable from each
+// other but become subject to the perimeter's access rules for outside traffic.
+const storage = await builder.addAzureStorage('storage');
+await storage.withNetworkSecurityPerimeter(nsp);
+const keyVault = await builder.addAzureKeyVault('kv');
+await keyVault.withNetworkSecurityPerimeter(nsp);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Learning** mode (logs violations without blocking), making it easy to audit traffic before locking down access.
 
 <LearnMore>
@@ -165,6 +228,9 @@ The AKS hosting integration is in **preview** and may evolve before it's marked 
 
 Aspire 13.3 adds first-class support for **provisioning and deploying to Azure Kubernetes Service**. Use `AddAzureContainerAppEnvironment`'s sibling, `AddAzureKubernetesEnvironment`, to declare an AKS environment, customize node pools, and have your AppHost generate a Bicep + Helm-based deployment pipeline.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C# AppHost'>
+
 ```csharp title="C# — AppHost.cs"
 // Declare an AKS environment and customize its system node pool.
 var aks = builder.AddAzureKubernetesEnvironment("aks")
@@ -174,6 +240,28 @@ var aks = builder.AddAzureKubernetesEnvironment("aks")
 builder.AddProject<Projects.Api>("api")
     .WithComputeEnvironment(aks);
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript AppHost'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Declare an AKS environment and customize its system node pool.
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSystemNodePool('Standard_D2s_v5', { minCount: 1, maxCount: 3 });
+
+// Bind a project to the AKS environment so it deploys there.
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withComputeEnvironment(aks);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 `WithSystemNodePool` lets you customize the system node pool's VM size and autoscaling bounds. By default the AKS cluster uses the **Free** control-plane SKU; the `AksSkuTier` enum is no longer part of the public API.
 
@@ -376,6 +464,9 @@ The Docker Compose deployment engine now supports **Podman** as a container runt
 
 You can now publish containers with the `privileged` flag enabled when targeting Docker Compose, which is required by some workloads (e.g., low-level networking utilities, nested containers).
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C# AppHost'>
+
 ```csharp title="C# — Privileged Docker Compose service"
 // Add a netshoot diagnostics container and publish it to Docker Compose
 // with privileged mode enabled (required for low-level network tooling).
@@ -385,6 +476,27 @@ builder.AddContainer("netshoot", "nicolaka/netshoot")
         service.Privileged = true;
     });
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript AppHost'>
+
+```typescript title="TypeScript — Privileged Docker Compose service"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a netshoot diagnostics container and publish it to Docker Compose
+// with privileged mode enabled (required for low-level network tooling).
+const netshoot = await builder.addContainer('netshoot', 'nicolaka/netshoot');
+await netshoot.publishAsDockerComposeService(async (resource, service) => {
+    await service.privileged.set(true);
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### Dockerfile builder APIs for polyglot AppHosts
 
@@ -542,12 +654,34 @@ When you launch your Aspire app from VS Code, the dashboard now opens in **VS Co
 
 The new `WithBrowserLogs()` extension method captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry.
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C# AppHost'>
+
 ```csharp title="C# — AppHost.cs"
 // Capture browser console logs, network requests, and screenshots from
 // this Vite frontend; they show up in the dashboard alongside server telemetry.
 builder.AddViteApp("frontend")
     .WithBrowserLogs();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript AppHost'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Capture browser console logs, network requests, and screenshots from
+// this Vite frontend; they show up in the dashboard alongside server telemetry.
+const frontend = await builder.addViteApp('frontend', './frontend');
+await frontend.withBrowserLogs();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="caution">
 This API is experimental in 13.3. Use diagnostic code [`ASPIREBROWSERLOGS001`](/diagnostics/aspirebrowserlogs001/) to suppress the experimental warning.
