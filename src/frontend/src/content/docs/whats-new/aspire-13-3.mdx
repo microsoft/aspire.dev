@@ -9,7 +9,7 @@ tableOfContents:
   maxHeadingLevel: 2
 ---
 
-import { Steps, Aside, Icon } from '@astrojs/starlight/components';
+import { Steps, Aside, Icon, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
@@ -38,6 +38,12 @@ This release introduces:
 
 <Aside type="caution">
 Aspire 13.3 includes several breaking changes — most notably the rename of `--log-level` to `--pipeline-log-level`, the removal of the dashboard MCP server, and renames in Azure Network resources and AKS SKU APIs. Please review the [Breaking changes](#breaking-changes) section before upgrading.
+</Aside>
+
+<Aside type="note">
+If you are on a version of the Aspire CLI less than 13, please use the
+[installation instructions](/get-started/install-cli/) to install the latest
+stable version.
 </Aside>
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
@@ -76,12 +82,15 @@ The easiest way to upgrade to Aspire 13.3 is using the [`aspire update` command]
 Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
 
 ```csharp title="C# — AppHost.cs"
+// Two backend projects exposed as external HTTP endpoints.
 var api = builder.AddProject<Projects.Api>("api")
     .WithExternalHttpEndpoints();
 
 var web = builder.AddProject<Projects.Web>("web")
     .WithExternalHttpEndpoints();
 
+// Provision an Azure Front Door profile and attach each backend as an origin.
+// Each WithOrigin call creates its own endpoint, origin group, origin, and route.
 builder.AddAzureFrontDoor("frontdoor")
     .WithOrigin(api)
     .WithOrigin(web);
@@ -100,6 +109,7 @@ Aspire 13.3 adds support for [Azure Network Security Perimeters (NSPs)](https://
 #### Create a perimeter and associate resources
 
 ```csharp title="C# — AppHost.cs"
+// Declare a Network Security Perimeter and add an inbound access rule.
 var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
     .WithAccessRule(new AzureNspAccessRule
     {
@@ -108,6 +118,8 @@ var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
         AddressPrefixes = { "203.0.113.0/24" }
     });
 
+// Associate Azure resources with the perimeter — they remain reachable from each
+// other but become subject to the perimeter's access rules for outside traffic.
 var storage = builder.AddAzureStorage("storage")
     .WithNetworkSecurityPerimeter(nsp);
 var keyVault = builder.AddAzureKeyVault("kv")
@@ -129,9 +141,11 @@ The AKS hosting integration is in **preview** and may evolve before it's marked 
 Aspire 13.3 adds first-class support for **provisioning and deploying to Azure Kubernetes Service**. Use `AddAzureContainerAppEnvironment`'s sibling, `AddAzureKubernetesEnvironment`, to declare an AKS environment, customize node pools, and have your AppHost generate a Bicep + Helm-based deployment pipeline.
 
 ```csharp title="C# — AppHost.cs"
+// Declare an AKS environment and customize its system node pool.
 var aks = builder.AddAzureKubernetesEnvironment("aks")
     .WithSystemNodePool("Standard_D2s_v5", minCount: 1, maxCount: 3);
 
+// Bind a project to the AKS environment so it deploys there.
 builder.AddProject<Projects.Api>("api")
     .WithComputeEnvironment(aks);
 ```
@@ -226,12 +240,38 @@ Native Kubernetes deployment (and the new Ingress / Gateway routing resources be
 
 Aspire 13.3 ships a Helm-based Kubernetes deployment engine. Declare a Kubernetes environment in your AppHost and Aspire will generate a complete Helm chart and deployment pipeline for your services.
 
+<Tabs syncKey="apphost-language">
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — AppHost.cs"
+// Declare a Kubernetes environment. Aspire generates a Helm chart for it.
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
+// Bind a project to the Kubernetes environment so it deploys there.
 builder.AddProject<Projects.Api>("api")
     .WithComputeEnvironment(k8s);
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Declare a Kubernetes environment. Aspire generates a Helm chart for it.
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+// Bind a project to the Kubernetes environment so it deploys there.
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withComputeEnvironment(k8s);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For more details, see [Deploy to Kubernetes](/deployment/kubernetes/kubernetes/).
@@ -241,19 +281,48 @@ builder.AddProject<Projects.Api>("api")
 
 New first-class **Ingress** and **Gateway API** routing resources let you declare how traffic enters your Kubernetes cluster directly from the AppHost. Aspire generates the corresponding Ingress, IngressClass, Gateway, HTTPRoute, and (where applicable) cert-manager `Certificate` resources.
 
+<Tabs syncKey="apphost-language">
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — Ingress with cert-manager"
+// Declare a Kubernetes environment.
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
+// Project that will be served behind the ingress.
 var api = builder.AddProject<Projects.Api>("api")
     .WithComputeEnvironment(k8s);
 
+// Add an ingress fronted by the nginx ingress class with a TLS cert.
 var ingress = k8s.AddIngress("public")
     .WithIngressClass("nginx")
     .WithHostname("api.example.com")
     .WithTls("api-cert");
 
+// Route requests at "/" to the project's HTTP endpoint.
 ingress.WithRoute("/", api.GetEndpoint("http"));
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — Ingress with cert-manager"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Declare a Kubernetes environment.
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+// Add an ingress with a TLS cert.
+const ingress = await k8s.addIngress('public');
+await ingress.withHostname('api.example.com');
+await ingress.withTls('api-cert');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <LearnMore>
   For more details, see [Kubernetes Ingress routing](/deployment/kubernetes-ingress/) and [AKS Gateway API routing](/deployment/kubernetes-gateway-aks/).
@@ -268,6 +337,8 @@ The Docker Compose deployment engine now supports **Podman** as a container runt
 You can now publish containers with the `privileged` flag enabled when targeting Docker Compose, which is required by some workloads (e.g., low-level networking utilities, nested containers).
 
 ```csharp title="C# — Privileged Docker Compose service"
+// Add a netshoot diagnostics container and publish it to Docker Compose
+// with privileged mode enabled (required for low-level network tooling).
 builder.AddContainer("netshoot", "nicolaka/netshoot")
     .PublishAsDockerComposeService((resource, service) =>
     {
@@ -432,6 +503,8 @@ When you launch your Aspire app from VS Code, the dashboard now opens in **VS Co
 The new `WithBrowserLogs()` extension method captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry.
 
 ```csharp title="C# — AppHost.cs"
+// Capture browser console logs, network requests, and screenshots from
+// this Vite frontend; they show up in the dashboard alongside server telemetry.
 builder.AddViteApp("frontend")
     .WithBrowserLogs();
 ```
@@ -450,13 +523,37 @@ This API is experimental in 13.3. Use diagnostic code [`ASPIREBROWSERLOGS001`](/
 
 `HttpCommand` now supports a **result mode** that returns the response body to the dashboard's notification center, so HTTP-triggered commands can return structured payloads instead of just success/failure:
 
+<Tabs syncKey="apphost-language">
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — HTTP command with result body"
+// Expose POST /admin/sync as a dashboard command. ResultMode = Auto sends the
+// HTTP response body back to the dashboard's notification center.
 builder.AddProject<Projects.Api>("api")
     .WithHttpCommand("/admin/sync", "Sync now", commandOptions: new()
     {
         ResultMode = HttpCommandResultMode.Auto
     });
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — HTTP command with result body"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Expose POST /admin/sync as a dashboard command. resultMode "Auto" sends
+// the HTTP response body back to the dashboard's notification center.
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withHttpCommand('/admin/sync', 'Sync now', { resultMode: 'Auto' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 `HttpCommandResultMode` accepts `None`, `Auto` (infer from the response content type), `Json`, or `Text`.
 
@@ -480,10 +577,34 @@ A new **BeforeStart** pipeline phase replaces the bespoke eventing-subscriber cl
 
 Two new convenience extension methods on `IDistributedApplicationBuilder` make it easier to wire up lifecycle event handlers without `.Eventing.Subscribe(...)` plumbing:
 
+<Tabs syncKey="apphost-language">
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — Subscribe to lifecycle events"
+// Run a callback right before the AppHost begins starting resources.
 builder.SubscribeBeforeStart(async e => { /* ... */ });
+// Run a callback once all resources have been created.
 builder.SubscribeAfterResourcesCreated(async e => { /* ... */ });
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — Subscribe to lifecycle events"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Run a callback right before the AppHost begins starting resources.
+await builder.subscribeBeforeStart(async (e) => { /* ... */ });
+// Run a callback once all resources have been created.
+await builder.subscribeAfterResourcesCreated(async (e) => { /* ... */ });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Thanks to community contributor [@afscrome](https://github.com/afscrome) for this addition.
 
@@ -500,6 +621,7 @@ Thanks to community contributor [@afscrome](https://github.com/afscrome) for thi
 Endpoint annotations now have an `ExcludeReferenceEndpoint` flag. Setting it to `true` excludes the endpoint (e.g. management or health endpoints) from the default `WithReference()` injection, so consumers don't accidentally receive admin URLs:
 
 ```csharp title="C# — Exclude an endpoint from WithReference"
+// Mark the "admin" endpoint so it isn't injected into consumers via WithReference().
 builder.AddProject<Projects.Api>("api")
     .WithEndpoint("admin", e => e.ExcludeReferenceEndpoint = true);
 ```
