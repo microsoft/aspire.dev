@@ -249,6 +249,24 @@ The `aspire doctor` command checks that the required JavaScript toolchain execut
 aspire doctor
 ```
 
+## TypeScript validation before startup
+
+Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit` to check for type errors. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
+
+```text
+apphost.ts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
+```
+
+This prevents the dashboard and resources from starting in a partially broken state.
+
+:::note
+TypeScript validation adds approximately **0.8–1.0 seconds** to startup time on a typical AppHost.
+:::
+
+### Watch mode behavior
+
+When you use `aspire run` in watch mode, the TypeScript validation is embedded in the nodemon restart command. The watcher **can still start** even if there are initial type errors — it will recover automatically as you edit and save files that fix the errors.
+
 ## See also
 
 - [Build your first app](/get-started/first-app/?lang=typescript)
