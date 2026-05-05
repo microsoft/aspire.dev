@@ -941,6 +941,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/efcore/migrations',
             },
             {
+              label: 'EF migrations hosting integration',
+              slug: 'integrations/databases/efcore/ef-migrations-hosting',
+            },
+            {
               label: 'Seed data',
               slug: 'integrations/databases/efcore/seed-database',
             },
