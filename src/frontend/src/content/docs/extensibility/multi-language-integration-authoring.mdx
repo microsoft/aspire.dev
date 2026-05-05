@@ -315,7 +315,13 @@ When a parameter accepts multiple types, use `[AspireUnion]` to declare the vali
 public static IResourceBuilder<T> WithEnvironment<T>(
     this IResourceBuilder<T> builder,
     string name,
-    [AspireUnion(typeof(string), typeof(ReferenceExpression), typeof(EndpointReference))]
+    [AspireUnion(
+        typeof(string),
+        typeof(ReferenceExpression),
+        typeof(EndpointReference),
+        typeof(IResourceBuilder<ParameterResource>),
+        typeof(IResourceBuilder<IResourceWithConnectionString>),
+        typeof(IExpressionValue))]
     object value)
     where T : IResourceWithEnvironment
 {
@@ -324,6 +330,82 @@ public static IResourceBuilder<T> WithEnvironment<T>(
 ```
 
 All types in the union must be ATS-compatible. The analyzer (ASPIREEXPORT005, ASPIREEXPORT006) validates union declarations at build time.
+
+## IExpressionValue — unified environment values
+
+`IExpressionValue` is a new public interface in `Aspire.Hosting.ApplicationModel` that represents a value with both a runtime value and a publish-time manifest expression. Any type that implements both `IValueProvider` and `IManifestExpressionProvider` can also implement `IExpressionValue` to make it usable anywhere an environment variable value is expected.
+
+```csharp title="C# — IExpressionValue interface"
+public interface IExpressionValue : IValueProvider, IManifestExpressionProvider
+{
+}
+```
+
+### Why it matters for multi-language apphosts
+
+The built-in `WithEnvironment` export accepts `IExpressionValue` as one of its union type options, in addition to `string`, `ReferenceExpression`, `EndpointReference`, parameter builders, and connection string resource builders. This gives polyglot apphosts a single, consistent `withEnvironment(name, value)` call that works with all of these value types.
+
+In generated TypeScript, the union collapses to the concrete wrapper types for all exported resource types that implement `IExpressionValue`:
+
+```typescript title="TypeScript — generated withEnvironment signature"
+withEnvironment(
+  name: string,
+  value: string | ReferenceExpressionHandle | EndpointReferenceHandle | ParameterResourceHandle | /* ... IExpressionValue implementors */
+): this;
+```
+
+### Implementing IExpressionValue in a custom type
+
+If you build a custom value type that provides both a runtime value and a manifest expression, implement `IExpressionValue` to make it passable directly to `WithEnvironment`:
+
+```csharp title="C# — Custom IExpressionValue implementation"
+[AspireExport(ExposeProperties = true)]
+public sealed class MySecretReference(string secretName) : IExpressionValue
+{
+    public string SecretName { get; } = secretName;
+
+    // IManifestExpressionProvider — used when publishing
+    public string ValueExpression => $"{{{{myVault.secrets.{SecretName}}}}}";
+
+    // IValueProvider — used at runtime
+    public async ValueTask<string?> GetValueAsync(CancellationToken cancellationToken)
+    {
+        // Fetch the secret value at runtime
+        return await FetchSecretAsync(SecretName, cancellationToken);
+    }
+}
+```
+
+Because `MySecretReference` is exported with `[AspireExport]`, the code generator recognizes it as an `IExpressionValue` implementor and includes it in the generated union type for `withEnvironment`.
+
+### Migrating from the old withEnvironment* aliases
+
+Earlier versions of the ATS TypeScript SDK generated separate methods for each value kind:
+
+| Old method (deprecated) | Replacement |
+|---|---|
+| `withEnvironmentExpression(name, expr)` | `withEnvironment(name, expr)` |
+| `withEnvironmentEndpoint(name, endpoint)` | `withEnvironment(name, endpoint)` |
+| `withEnvironmentParameter(name, param)` | `withEnvironment(name, param)` |
+| `withEnvironmentConnectionString(name, resource)` | `withEnvironment(name, resource)` |
+| `withEnvironmentFromOutput(name, output)` | `withEnvironment(name, output)` |
+| `withEnvironmentFromKeyVaultSecret(name, secret)` | `withEnvironment(name, secret)` |
+
+These aliases remain available as deprecated shims in the generated SDK. Update your TypeScript apphost code to use the single `withEnvironment(name, value)` call instead:
+
+```typescript title="TypeScript — before (deprecated aliases)"
+const api = await builder.addApi("api")
+    .withEnvironmentEndpoint("SERVICE_URL", cache.primaryEndpoint)
+    .withEnvironmentParameter("API_KEY", apiKeyParam)
+    .withEnvironmentConnectionString("DB", database);
+```
+
+```typescript title="TypeScript — after (unified API)"
+const api = await builder.addApi("api")
+    .withEnvironment("SERVICE_URL", cache.primaryEndpoint)
+    .withEnvironment("API_KEY", apiKeyParam)
+    .withEnvironment("DB", database);
+```
 
 ## Analyzer diagnostics
 
@@ -429,7 +511,7 @@ The following types are ATS-compatible and can be used in exported method signat
 | **Collections** | `List<T>`, `Dictionary<string, T>`, arrays — where `T` is ATS-compatible                             |
 | **Delegates**   | `Action<T>`, `Func<T>`, and other delegate types (use `RunSyncOnBackgroundThread = true` for synchronous delegates invoked inline) |
 | **Services**    | `ILogger`, `IServiceProvider`, `IConfiguration` (already exported by the core framework)             |
-| **Special**     | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `CancellationToken`                 |
+| **Special**     | `ParameterResource`, `ReferenceExpression`, `EndpointReference`, `IExpressionValue`, `CancellationToken` |
 | **Nullable**    | Any of the above as nullable (`T?`)                                                                  |
 
 Types that are **not** ATS-compatible include: interpolated string handlers and custom complex types without `[AspireExport]` or `[AspireDto]`.

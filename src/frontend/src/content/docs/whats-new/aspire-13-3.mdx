@@ -1,6 +1,6 @@
 ---
 title: What's new in Aspire 13.3
-description: Aspire 13.3 introduces Azure Network Security Perimeter support, enables the container tunnel by default, and more.
+description: Aspire 13.3 introduces Azure Network Security Perimeter support, enables the container tunnel by default, unified multi-language withEnvironment API, and more.
 sidebar:
   label: Aspire 13.3
   order: 0
@@ -135,4 +135,34 @@ You can also disable it in `launchSettings.json`:
 
 <LearnMore>
   For more details on container networking, see [Inner-loop networking overview](/fundamentals/networking-overview/).
+</LearnMore>
+
+## 🔀 Unified withEnvironment API for multi-language AppHosts
+
+Aspire 13.3 introduces a unified `withEnvironment(name, value)` API for polyglot AppHosts (TypeScript, Java, Python, Go, Rust). Previously, environment variable injection required separate methods for each value kind (`withEnvironmentEndpoint`, `withEnvironmentParameter`, `withEnvironmentConnectionString`, and so on). Now, a single call handles all value types:
+
+```typescript title="TypeScript — apphost.ts"
+const api = await builder.addApi("api")
+    .withEnvironment("SERVICE_URL", cache.primaryEndpoint)
+    .withEnvironment("API_KEY", apiKeyParam)
+    .withEnvironment("DB", database);
+```
+
+The `value` argument accepts any of: a plain `string`, a `ReferenceExpression`, an `EndpointReference`, a parameter builder, a connection string resource builder, or an `IExpressionValue` — a new public interface that any type implementing both `IValueProvider` and `IManifestExpressionProvider` can implement to plug into this unified path.
+
+### Deprecation of old withEnvironment* aliases
+
+The previous per-kind aliases are still generated for backward compatibility but are marked `@deprecated` in the SDK. Migrate to `withEnvironment(name, value)` at your convenience:
+
+| Deprecated | Replacement |
+|---|---|
+| `withEnvironmentExpression` | `withEnvironment` |
+| `withEnvironmentEndpoint` | `withEnvironment` |
+| `withEnvironmentParameter` | `withEnvironment` |
+| `withEnvironmentConnectionString` | `withEnvironment` |
+| `withEnvironmentFromOutput` | `withEnvironment` |
+| `withEnvironmentFromKeyVaultSecret` | `withEnvironment` |
+
+<LearnMore>
+  For integration authors, see [Multi-language integrations](/extensibility/multi-language-integration-authoring/#iexpressionvalue--unified-environment-values) for details on `IExpressionValue` and how to annotate union-type parameters.
 </LearnMore>
