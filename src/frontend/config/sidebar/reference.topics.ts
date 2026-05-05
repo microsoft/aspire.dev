@@ -705,6 +705,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
             { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
             { label: 'ASPIREAZURE003', link: '/diagnostics/aspireazure003' },
+            {
+              label: 'ASPIREBROWSERLOGS001',
+              link: '/diagnostics/aspirebrowserlogs001',
+            },
           ],
         },
       ],
