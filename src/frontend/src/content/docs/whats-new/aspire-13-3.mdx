@@ -275,7 +275,7 @@ await builder.build().run();
 
 ### Azure AI Foundry Prompt Agent
 
-Aspire 13.3 ships a new working implementation of **Azure AI Foundry Prompt Agent** support via `AddPromptAgent`. The previous `AddAndPublishPromptAgent` and `AzurePromptAgentResource` APIs (which never functioned end-to-end) have been removed in favor of this new implementation.
+Aspire 13.3 ships a new working implementation of **Azure AI Foundry Prompt Agent** support via `AddPromptAgent`. The previous `AddAndPublishPromptAgent` API and the original shape of `AzurePromptAgentResource` (which never functioned end-to-end) have been replaced — `AddPromptAgent` now returns a working `AzurePromptAgentResource`.
 
 The Foundry model catalog also gained two new models: **GPT-5.4** and **Qwen3 VL**.
 
@@ -508,9 +508,9 @@ Polyglot AppHosts (TypeScript, Python, Java) can now build Dockerfiles programma
 
 ## 🛠️ CLI enhancements
 
-### Aspire CLI as a dotnet tool
+### Aspire CLI as a NativeAOT dotnet tool
 
-Aspire 13.3 publishes the Aspire CLI as a **.NET global tool**. If you already have .NET 10 installed, you can now install the CLI without using the curl/PowerShell installer:
+Aspire 13.3 publishes the Aspire CLI as a **NativeAOT .NET global tool**. The CLI has always shipped as a `dotnet tool`, but in 13.3 it takes advantage of new .NET 10 support for distributing NativeAOT-compiled tools — meaning instant startup with no JIT or runtime warmup, and no managed runtime dependency in the tool package. If you already have .NET 10 installed, you can install the CLI without using the curl/PowerShell installer:
 
 ```bash title="Bash — Install via dotnet tool"
 dotnet tool install -g Aspire.Cli
@@ -560,10 +560,14 @@ aspire docs api get Aspire.Hosting.AzureFrontDoorBuilderExtensions
 
 ### Connect the CLI and MCP to a standalone dashboard
 
-`--dashboard-url` and `--api-key` options on `aspire run` and the MCP server let the CLI and AI tooling connect to a standalone Aspire dashboard rather than launching a per-AppHost instance:
+`--dashboard-url` and `--api-key` options on `aspire agent mcp` and the `aspire otel` telemetry subcommands let the CLI and AI tooling consume telemetry from a standalone Aspire dashboard rather than launching a per-AppHost instance. First start the dashboard with `aspire dashboard run`, then point the CLI or MCP server at it:
 
 ```bash title="Aspire CLI — Connect to a standalone dashboard"
-aspire run --dashboard-url https://dashboard.local --api-key $ASPIRE_DASHBOARD_KEY
+# Query telemetry from a standalone dashboard
+aspire otel logs --dashboard-url https://dashboard.local --api-key $ASPIRE_DASHBOARD_KEY
+
+# Or start the MCP server in dashboard-only mode (only telemetry tools are exposed)
+aspire agent mcp --dashboard-url https://dashboard.local --api-key $ASPIRE_DASHBOARD_KEY
 ```
 
 ### `aspire init` delegates wiring to the `aspireify` agent skill
@@ -827,7 +831,7 @@ The AppHost now honors a top-level `ASPIRE_ENVIRONMENT` environment variable tha
 
 ### DCP use of the Aspire trusted developer certificate
 
-The Microsoft Developer Control Plane (DCP) server can now use the existing Aspire trusted developer certificate on Windows if you are experiencing issues with the ephemeral certificate that DCP uses by default. This behavior is controlled by the `ASPIRE_DCP_DEVELOPER_CERTIFICATE` environment variable.
+The Microsoft Developer Control Plane (DCP) server can now use the existing Aspire trusted developer certificate on Windows if you are experiencing issues with the ephemeral certificate that DCP uses by default. This behavior is controlled by the `ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE` environment variable.
 
 ### Other AppHost improvements
 
