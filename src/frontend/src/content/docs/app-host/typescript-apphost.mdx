@@ -3,7 +3,7 @@ title: TypeScript AppHost project structure
 description: Learn about the files and configuration that make up a TypeScript AppHost project.
 ---
 
-import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
 When you create a TypeScript AppHost with `aspire new` or `aspire init --language typescript`, the CLI scaffolds a project with the following structure:
@@ -156,10 +156,102 @@ The scaffolded `package.json` includes convenience scripts and the required Node
 }
 ```
 
-The `dev` script means you can also start your AppHost with `npm run dev`.
+The `dev` script means you can also start your AppHost with `npm run dev` (or the equivalent for your toolchain, for example `bun run dev` or `pnpm run dev`).
+
+## Package manager toolchain
+
+The Aspire CLI automatically detects which Node-compatible package manager your project uses and adjusts install and run commands accordingly. The following toolchains are supported: **npm** (default), **Bun**, **Yarn**, and **pnpm**.
+
+### Toolchain detection
+
+The CLI resolves the toolchain by inspecting the AppHost directory and its parent directories (up to eight levels). It checks, in order:
+
+<Steps>
+
+1. The `packageManager` field in `package.json` — for example, `"packageManager": "pnpm@9.0.0"`.
+2. Lockfiles: `bun.lock` or `bun.lockb` → Bun; `pnpm-lock.yaml` → pnpm; `yarn.lock`, `.yarnrc.yml`, or a `.yarn/` directory → Yarn.
+3. If nothing is found, npm is used as the default.
+
+</Steps>
+
+The search walks up parent directories, so a workspace-level `packageManager` setting or lockfile is picked up automatically by nested AppHosts.
+
+### Declaring your toolchain
+
+The recommended way to pin the toolchain is with the `packageManager` field in `package.json`, which Aspire uses for toolchain detection. This field is also used by [Node.js Corepack](https://nodejs.org/api/corepack.html) for package managers such as Yarn and pnpm:
+
+<Tabs syncKey="toolchain">
+<TabItem label="npm (default)" icon="npm">
+
+No extra configuration is required — npm is the default.
+
+</TabItem>
+<TabItem label="pnpm" icon="pnpm">
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "pnpm@9.0.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
+
+</TabItem>
+<TabItem label="Yarn" icon="seti:yarn">
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "yarn@4.0.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
+
+</TabItem>
+<TabItem label="Bun"  icon="bun">
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "bun@1.1.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
+
+</TabItem>
+</Tabs>
+
+Alternatively, committing a toolchain-specific lockfile (`pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, etc.) is sufficient for detection.
+
+### Install and run commands by toolchain
+
+When a non-npm toolchain is detected, the CLI substitutes the matching commands:
+
+| Toolchain | Install command | Execute command | Watch command |
+|-----------|----------------|-----------------|---------------|
+| npm | `npm install` | `npx tsx ...` | `npx nodemon ...` |
+| pnpm | `pnpm install` | `pnpm exec tsx ...` | `pnpm exec nodemon ...` |
+| Yarn | `yarn install` | `yarn exec tsx ...` | `yarn exec nodemon ...` |
+| Bun | `bun install` | `bun run {appHostFile}` | `bun --watch run {appHostFile}` |
+
+:::note
+Bun has built-in TypeScript support, so it runs `apphost.ts` directly without `tsx`.
+:::
+
+### aspire doctor checks
+
+The `aspire doctor` command checks that the required JavaScript toolchain executable is available. If Bun, Yarn, or pnpm is detected but not installed, the command reports an error with install guidance.
+
+```bash title="Aspire CLI"
+aspire doctor
+```
 
 ## See also
 
 - [Build your first app](/get-started/first-app/?lang=typescript)
 - [AppHost overview](/get-started/app-host/)
 - [Multi-language architecture](/architecture/multi-language-architecture/)
+- [aspire doctor command](/reference/cli/commands/aspire-doctor/)

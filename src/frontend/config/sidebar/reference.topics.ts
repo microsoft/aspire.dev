@@ -333,6 +333,20 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               ],
             },
             {
+              label: 'aspire dashboard',
+              collapsed: true,
+              items: [
+                {
+                  label: 'aspire dashboard',
+                  slug: 'reference/cli/commands/aspire-dashboard',
+                },
+                {
+                  label: 'aspire dashboard run',
+                  slug: 'reference/cli/commands/aspire-dashboard-run',
+                },
+              ],
+            },
+            {
               label: 'aspire deploy',
               slug: 'reference/cli/commands/aspire-deploy',
             },
@@ -360,6 +374,28 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
                 {
                   label: 'aspire docs search',
                   slug: 'reference/cli/commands/aspire-docs-search',
+                },
+                {
+                  label: 'aspire docs api',
+                  collapsed: true,
+                  items: [
+                    {
+                      label: 'aspire docs api',
+                      slug: 'reference/cli/commands/aspire-docs-api',
+                    },
+                    {
+                      label: 'aspire docs api get',
+                      slug: 'reference/cli/commands/aspire-docs-api-get',
+                    },
+                    {
+                      label: 'aspire docs api list',
+                      slug: 'reference/cli/commands/aspire-docs-api-list',
+                    },
+                    {
+                      label: 'aspire docs api search',
+                      slug: 'reference/cli/commands/aspire-docs-api-search',
+                    },
+                  ],
                 },
               ],
             },
@@ -565,6 +601,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspiredotnettool',
             },
             {
+              label: 'ASPIREDURABLETASK001',
+              link: '/diagnostics/aspiredurabletask001',
+            },
+            {
               label: 'ASPIREEXTENSION001',
               link: '/diagnostics/aspireextension001',
             },
@@ -575,6 +615,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREINTERACTION001',
               link: '/diagnostics/aspireinteraction001',
+            },
+            {
+              label: 'ASPIREJAVASCRIPT001',
+              link: '/diagnostics/aspirejavascript001',
             },
             {
               label: 'ASPIREMCP001',

@@ -474,6 +474,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               ],
             },
             {
+              label: 'Azure Kubernetes Service (AKS)',
+              slug: 'integrations/cloud/azure/aks',
+            },
+            {
               label: 'Azure Cosmos DB',
               collapsed: true,
               items: [
@@ -512,6 +516,10 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client',
                 },
               ],
+            },
+            {
+              label: 'Azure Front Door',
+              slug: 'integrations/cloud/azure/azure-front-door',
             },
             {
               label: 'Azure Functions',
@@ -1553,6 +1561,27 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '开发工具和扩展',
       },
       items: [
+        {
+          label: 'Browser logs',
+          translations: {
+            da: 'Browserlogfiler',
+            de: 'Browserprotokolle',
+            en: 'Browser logs',
+            es: 'Registros del navegador',
+            fr: 'Journaux du navigateur',
+            hi: 'ब्राउज़र लॉग',
+            id: 'Log browser',
+            it: 'Log del browser',
+            ja: 'ブラウザーログ',
+            ko: '브라우저 로그',
+            'pt-BR': 'Logs do navegador',
+            ru: 'Журналы браузера',
+            tr: 'Tarayıcı günlükleri',
+            uk: 'Журнали браузера',
+            'zh-CN': '浏览器日志',
+          },
+          slug: 'integrations/devtools/browser-logs',
+        },
         { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {

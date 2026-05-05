@@ -1,0 +1,125 @@
+---
+title: Expose services with Ingress and Gateway API
+description: Learn how to expose your Aspire application services to external traffic using Kubernetes Ingress or Gateway API resources.
+sidebar:
+  badge: Preview
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+When you deploy an Aspire application to Kubernetes, your services are accessible only within the cluster by default. To expose services to external traffic — such as a web frontend that users access from the internet — you need to configure an **Ingress** or **Gateway** resource that routes traffic from outside the cluster to your services.
+
+Aspire provides first-class APIs for defining Ingress and Gateway API resources directly in your AppHost, generating the appropriate Kubernetes YAML as part of the Helm chart output.
+
+<Aside type="note">
+  This guide covers exposing services to external traffic. For the basics of
+  deploying to Kubernetes with Aspire, see [Deploy to
+  Kubernetes](/deployment/kubernetes/).
+</Aside>
+
+## Ingress vs. Gateway API
+
+Kubernetes offers two approaches for routing external traffic to your services:
+
+| | **Ingress** | **Gateway API** |
+|---|---|---|
+| **Maturity** | Legacy (stable since K8S 1.19) | Modern (GA since K8S 1.27) |
+| **Resource model** | Single `Ingress` resource | Three-tier: `GatewayClass` → `Gateway` → `HTTPRoute` |
+| **Protocol support** | HTTP/HTTPS only | HTTP, HTTPS, TCP, UDP, gRPC |
+| **Routing features** | Host and path matching | Host, path, header, query, method matching |
+| **Extensibility** | Controller-specific annotations | Standardized filters and policies |
+| **Traffic splitting** | Not standardized | First-class weighted backends |
+| **Aspire API** | `AddIngress()` | `AddGateway()` |
+
+**Recommendation:** Use **Gateway API** for new deployments. It's the future direction of Kubernetes traffic management and offers richer routing capabilities with better portability across providers. Use **Ingress** when your cluster or ingress controller doesn't support the Gateway API yet.
+
+
+
+## What Aspire generates
+
+When you use `AddIngress()` or `AddGateway()`, Aspire generates additional Kubernetes resources in the Helm chart output:
+
+**For Ingress (`AddIngress`):**
+- A `networking.k8s.io/v1 Ingress` resource with rules, TLS configuration, and controller annotations
+
+**For Gateway API (`AddGateway`):**
+- A `gateway.networking.k8s.io/v1 Gateway` resource with listeners (HTTP on port 80, HTTPS on port 443 if TLS is configured)
+- One or more `HTTPRoute` resources attached to the Gateway, grouped by hostname
+
+## TLS and certificates
+
+When you configure TLS with `WithTls()`, Aspire handles the initial bootstrapping:
+
+<Steps>
+1. **First deploy**: Aspire generates a self-signed placeholder TLS certificate and creates the Kubernetes Secret. This makes the Ingress/Gateway valid immediately so the load balancer can start routing traffic.
+
+2. **Certificate replacement**: You then configure a certificate management solution (such as [cert-manager](https://cert-manager.io/)) to replace the self-signed certificate with a real one from a trusted CA like Let's Encrypt or ZeroSSL.
+
+3. **Subsequent deploys**: The existing Secret (with the real certificate) is preserved — the bootstrap step only creates the Secret if it doesn't already exist.
+</Steps>
+
+<Aside type="caution">
+  The self-signed bootstrap certificate is a placeholder only. Browsers will
+  show security warnings when accessing your site with this certificate.
+  Configure cert-manager or provide your own certificate for production use.
+</Aside>
+
+## Using parameters for deployment configuration
+
+Aspire's Ingress and Gateway APIs accept parameters, allowing you to reuse the same AppHost across multiple deployment environments (development, staging, production) with different hostnames, TLS secrets, and controller configurations:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var hostname = builder.AddParameter("hostname");
+var ingressClass = builder.AddParameter("ingressclass");
+
+var ingress = k8s.AddIngress("ingress")
+    .WithIngressClass(ingressClass)
+    .WithHostname(hostname)
+    .WithTls();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const hostname = builder.addParameter('hostname');
+const ingressClass = builder.addParameter('ingressclass');
+
+const ingress = await k8s.addIngress('ingress');
+ingress.withIngressClass(ingressClass);
+ingress.withHostname(hostname);
+ingress.withTls();
+```
+</TabItem>
+</Tabs>
+
+Parameter values are provided at deploy time via the Aspire CLI or configuration files, keeping environment-specific details out of your source code.
+
+## Deploying without TLS
+
+<Aside type="danger">
+  Deploying without TLS exposes all traffic in plaintext, including
+  authentication tokens, session cookies, and user data. Only use this for
+  development clusters or internal services that are not accessible from the
+  internet.
+</Aside>
+
+You can omit `WithTls()` to deploy without TLS. The Ingress/Gateway will serve traffic over HTTP only. This is useful for quick testing but should never be used in production.
+
+## Next steps
+
+Choose the walkthrough that matches your deployment approach:
+
+- **[Configure Gateway API on AKS](/deployment/kubernetes-gateway-aks/) (Recommended)** — Use the Kubernetes Gateway API with Application Gateway for Containers on AKS. Supports cert-manager HTTP-01 for automatic TLS with **no DNS API or DNS zone required**.
+
+- **[Configure Ingress on AKS](/deployment/kubernetes-ingress-aks/)** — Use the Kubernetes Ingress API with Application Gateway for Containers on AKS. Requires cert-manager with DNS-01 for automatic TLS.
+
+<Aside type="note">
+  These walkthroughs use AKS with Application Gateway for Containers as the
+  reference implementation. The Aspire APIs (`AddIngress`, `AddGateway`) work
+  with any Kubernetes cluster that has an ingress controller or Gateway API
+  implementation. Controller-specific annotations (such as
+  `alb.networking.azure.io/alb-name`) will differ for other providers (NGINX,
+  Traefik, Istio, etc.).
+</Aside>
