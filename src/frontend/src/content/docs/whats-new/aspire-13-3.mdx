@@ -1,6 +1,6 @@
 ---
 title: What's new in Aspire 13.3
-description: Aspire 13.3 brings Azure Front Door, Network Security Perimeter, AKS hosting, Kubernetes Ingress and Gateway routing, container tunnel by default, polyglot AppHost parity, and a dashboard notification center.
+description: Aspire 13.3 brings Azure Front Door, Network Security Perimeter, AKS hosting (preview), Kubernetes Ingress and Gateway routing (preview), container tunnel by default, polyglot AppHost parity, and a dashboard notification center.
 sidebar:
   label: Aspire 13.3
   order: 0
@@ -14,25 +14,30 @@ import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
 
-Aspire 13.3 is here, and it's a packed release. This is one of the largest Aspire releases yet — bringing **Azure Front Door** and **AKS** as first-class hosting targets, **Network Security Perimeter** support for Azure resources, **Kubernetes Ingress and Gateway routing** with Helm-based deployment, the **container tunnel** enabled by default, deeper **polyglot AppHost** parity for TypeScript, Python, and Java, and a brand-new **`aspire destroy`** command for tearing down deployments.
+Aspire 13.3 is here, and it's a packed release — bringing **Azure Front Door**, **Network Security Perimeter** support, **Azure Kubernetes Service (AKS)** hosting (preview), **Kubernetes Ingress and Gateway routing** (preview) with Helm-based deployment, the **container tunnel** enabled by default, deeper **polyglot AppHost** parity for TypeScript, Python, and Java, and a brand-new **`aspire destroy`** command for tearing down deployments.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
 This release introduces:
 
-- **Azure Front Door**, **Network Security Perimeter**, and **Azure Kubernetes Service (AKS)** hosting integrations.
-- **Kubernetes Ingress and Gateway API routing** resources, plus first-class Helm-based Kubernetes deployment.
+- **Azure Front Door** and **Network Security Perimeter** hosting integrations.
+- **Azure Kubernetes Service (AKS)** hosting integration (preview).
+- **Kubernetes Ingress and Gateway API routing** resources (preview), plus first-class Helm-based Kubernetes deployment.
 - The **container tunnel** is now enabled by default, providing uniform host connectivity across Docker Desktop, Docker Engine, and Podman.
 - A new **`aspire destroy`** command and the **`aspire dashboard`** CLI, plus the Aspire CLI is now available as a `dotnet tool`.
 - Major **polyglot AppHost** parity work for TypeScript, Python, and Java (experimental).
-- New **EF Core migration management** integration, **`WithBrowserLogs()`** for capturing browser console logs and screenshots, and **Foundry Prompt Agent** support.
+- **`aspire init`** (preview) — bootstrap an AppHost into an existing repository with the new `aspireify` agent skill.
+- **JavaScript publish methods** (preview) — a unified set of `PublishAs*` APIs for Next.js, Vite, Bun, and other JS frameworks.
+- **`WithBrowserLogs()`** — capture browser console logs, network requests, and screenshots from your frontend resources.
+- **Foundry Prompt Agent** support.
+- …and much more.
 
 ## 🆙 Upgrade to Aspire 13.3
 
 <span id="upgrade-to-aspire-13-3"></span>
 
 <Aside type="caution">
-Aspire 13.3 includes several breaking changes — most notably the rename of `--log-level` to `--pipeline-log-level`, the removal of the dashboard MCP server, and renames in Azure Network resources, AKS SKU APIs, and EF Core hosting. Please review the [Breaking changes](#breaking-changes) section before upgrading.
+Aspire 13.3 includes several breaking changes — most notably the rename of `--log-level` to `--pipeline-log-level`, the removal of the dashboard MCP server, and renames in Azure Network resources and AKS SKU APIs. Please review the [Breaking changes](#breaking-changes) section before upgrading.
 </Aside>
 
 For general purpose upgrade guidance, see [Upgrade Aspire](/whats-new/upgrade-aspire/).
@@ -116,6 +121,10 @@ NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Le
 </LearnMore>
 
 ### Azure Kubernetes Service (AKS) hosting integration
+
+<Aside type="note">
+The AKS hosting integration is in **preview** and may evolve before it's marked stable.
+</Aside>
 
 Aspire 13.3 adds first-class support for **provisioning and deploying to Azure Kubernetes Service**. Use `AddAzureContainerAppEnvironment`'s sibling, `AddAzureKubernetesEnvironment`, to declare an AKS environment, customize node pools, and have your AppHost generate a Bicep + Helm-based deployment pipeline.
 
@@ -210,6 +219,10 @@ You can also disable it in `launchSettings.json`:
 </LearnMore>
 
 ### Kubernetes deployment with Helm engine
+
+<Aside type="note">
+Native Kubernetes deployment (and the new Ingress / Gateway routing resources below) is in **preview** in 13.3.
+</Aside>
 
 Aspire 13.3 ships a Helm-based Kubernetes deployment engine. Declare a Kubernetes environment in your AppHost and Aspire will generate a complete Helm chart and deployment pipeline for your services.
 
@@ -332,6 +345,10 @@ aspire run --dashboard-url https://dashboard.local --api-key $ASPIRE_DASHBOARD_K
 
 ### `aspire init` delegates wiring to the `aspireify` agent skill
 
+<Aside type="note">
+The new `aspire init` flow is in **preview** in 13.3.
+</Aside>
+
 `aspire init` now drops a minimal AppHost skeleton and an `aspire.config.json` file, then hands off to the **aspireify** agent skill (available in GitHub Copilot CLI and other supported tooling) to complete the wiring of resources, projects, and integrations.
 
 <Aside type="caution">
@@ -425,26 +442,6 @@ This API is experimental in 13.3. Use diagnostic code [`ASPIREBROWSERLOGS001`](/
 
 <LearnMore>
   For more details, see [Browser logs](/integrations/devtools/browser-logs/).
-</LearnMore>
-
-## 🗄️ EF Core migration management
-
-Aspire 13.3 ships a new **EF Core migration management** integration in the [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore) package. Declaratively bind a `DbContext` to a database resource and Aspire will run migrations as part of the application lifecycle:
-
-```csharp title="C# — AppHost.cs"
-var db = builder.AddPostgres("pg").AddDatabase("appdb");
-
-var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(db);
-
-api.AddEFMigrations("api-migrations", "MyApp.Data.AppDbContext")
-   .RunDatabaseUpdateOnStart();
-```
-
-`AddEFMigrations` accepts the migration resource name and the fully-qualified `DbContext` type name (or, if your project has a single `DbContext`, you can omit the type and Aspire will auto-detect it).
-
-<LearnMore>
-  For more details, see [EF Core migrations](/integrations/databases/efcore/migrations/).
 </LearnMore>
 
 ## 🧩 App model and AppHost
@@ -547,6 +544,10 @@ Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and 
 </LearnMore>
 
 ### JavaScript and TypeScript
+
+<Aside type="note">
+The new JavaScript publish methods are in **preview** in 13.3 and may evolve before they're marked stable.
+</Aside>
 
 - **`AddNextJsApp`** and a unified set of **`PublishAs*` JavaScript publish methods** make it easier to wire up Next.js, Vite, Bun, and other JS frameworks consistently.
 - **Bun, Yarn, and pnpm** are first-class JavaScript toolchains for TypeScript AppHosts in addition to npm. The TypeScript AppHost SDK detects the active package manager and uses it for installs and runs.
@@ -654,7 +655,6 @@ Thank you to all community contributors who helped make Aspire 13.3 possible —
 | `OtlpEndpointEnvironmentVariableName` property removed | Remove references; the OTLP endpoint env var is now managed automatically. |
 | **Dashboard MCP server removed** (along with `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL`) | Use the AppHost-level MCP server with `aspire agent init`. |
 | `AksSkuTier` enum is no longer part of the public AKS API | The AKS control-plane SKU tier now defaults to **Free**; remove any references to `AksSkuTier`. |
-| EF Core hosting `ContextTypeName` renamed | Use `DbContextTypeName`. |
 | `ASPIREEXTENSION001` JavaScript diagnostic ID renamed | Use [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/). |
 | Docker Swarm `UpdateConfig` property types changed | Update generated/hand-written Compose overrides accordingly. |
 | The non-functional `AddAndPublishPromptAgent` API and the original `AzurePromptAgentResource` shape were removed | Use the new `AddPromptAgent` API (which returns a working `AzurePromptAgentResource`). |
@@ -670,7 +670,7 @@ Thank you to all community contributors who helped make Aspire 13.3 possible —
 1. **Update the CLI** — run `aspire update --self`.
 2. **Update your projects** — run `aspire update` from the root of your repository.
 3. **Audit `--log-level` usage** in CI/CD pipelines and rename to `--pipeline-log-level`.
-4. **Search for `NameOutput`, `ContextTypeName`, `AddAndPublishPromptAgent`, and `AksSkuTier`** in your AppHost code and update them per the table above.
+4. **Search for `NameOutput`, `AddAndPublishPromptAgent`, and `AksSkuTier`** in your AppHost code and update them per the table above.
 5. **Replace `dotnet new aspire-py-starter`** with `aspire new aspire-py-starter` for any new Python starter projects.
 6. **Rerun `aspire agent init`** if you previously relied on the dashboard MCP server.
 7. **Re-pin Node versions** in your Dockerfiles if you were relying on `package.json` `engines.node` for image selection.
