@@ -1,4 +1,6 @@
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { fetchWithProxy as fetch } from './fetch-with-proxy';
 import {
@@ -22,6 +24,8 @@ const EXCLUDED_PACKAGES = [
   'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';
+export const DEFAULT_NUGET_ICON_URL =
+  'https://www.nuget.org/Content/gallery/img/default-package-icon.svg';
 
 const TAKE = 1000;
 const MAX_SKIP = 3000;
@@ -57,7 +61,7 @@ interface RegistrationIndexResponse {
   items?: RegistrationPage[];
 }
 
-interface PackageRecord {
+export interface PackageRecord {
   id: string;
   version?: string;
   description?: string;
@@ -93,7 +97,7 @@ interface PackageSource {
   queries: string[];
 }
 
-interface IntegrationOutput {
+export interface IntegrationOutput {
   title: string;
   description?: string;
   icon: string;
@@ -235,21 +239,30 @@ function buildNuGetFlatContainerIconUrl(
   return `https://api.nuget.org/v3-flatcontainer/${encodeURIComponent(normalizedPackageId)}/${encodeURIComponent(normalizedVersion)}/icon`;
 }
 
-function resolveIconUrl(pkg: PackageRecord): string {
+export function resolveIconUrl(pkg: PackageRecord): string {
+  const iconVersion = pkg.__iconVersion ?? pkg.version;
+
   if (isOfficialAspirePackage(pkg.id)) {
     return (
-      buildNuGetFlatContainerIconUrl(pkg.id, pkg.__iconVersion) ||
-      buildNuGetIconUrl(pkg.id, pkg.__iconVersion) ||
-      'https://www.nuget.org/Content/gallery/img/default-package-icon.svg'
+      buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
+      buildNuGetIconUrl(pkg.id, iconVersion) ||
+      (pkg.iconUrl === DEFAULT_NUGET_ICON_URL ? undefined : pkg.iconUrl) ||
+      DEFAULT_NUGET_ICON_URL
     );
   }
 
   return (
     pkg.iconUrl ||
-    buildNuGetFlatContainerIconUrl(pkg.id, pkg.__iconVersion ?? pkg.version) ||
-    buildNuGetIconUrl(pkg.id, pkg.__iconVersion ?? pkg.version) ||
-    'https://www.nuget.org/Content/gallery/img/default-package-icon.svg'
+    buildNuGetFlatContainerIconUrl(pkg.id, iconVersion) ||
+    buildNuGetIconUrl(pkg.id, iconVersion) ||
+    DEFAULT_NUGET_ICON_URL
   );
+}
+
+export function getOfficialAspireDefaultIconPackages(output: IntegrationOutput[]): string[] {
+  return output
+    .filter((pkg) => isOfficialAspirePackage(pkg.title) && pkg.icon === DEFAULT_NUGET_ICON_URL)
+    .map((pkg) => `${pkg.title}@${pkg.version ?? 'unknown'}`);
 }
 
 function filterAndTransform(pkgs: PackageRecord[]): IntegrationOutput[] {
@@ -562,61 +575,73 @@ function mergeFallbackPackageMetadata(
   });
 }
 
-void (async () => {
-  try {
-    const officialSource = resolveOfficialAspirePackageSource();
-    if (officialSource.isReleaseBranch) {
-      console.log(
-        `🌿 Release branch detected (${officialSource.branchName}). Official Aspire packages will resolve from ${officialSource.displayName}.`
-      );
+export async function updateIntegrations(): Promise<void> {
+  const officialSource = resolveOfficialAspirePackageSource();
+  if (officialSource.isReleaseBranch) {
+    console.log(
+      `🌿 Release branch detected (${officialSource.branchName}). Official Aspire packages will resolve from ${officialSource.displayName}.`
+    );
+  }
+
+  const sources: PackageSource[] = [
+    {
+      label: officialSource.isReleaseBranch
+        ? 'official Aspire release feed'
+        : 'official Aspire (nuget.org)',
+      priority: officialSource.isReleaseBranch ? 2 : 1,
+      trusted: officialSource.isReleaseBranch,
+      serviceIndex: officialSource.serviceIndex,
+      queries: officialSource.isReleaseBranch
+        ? OFFICIAL_RELEASE_FEED_QUERIES
+        : OFFICIAL_NUGET_ORG_QUERIES,
+    },
+    {
+      label: 'Community Toolkit (nuget.org)',
+      priority: 0,
+      trusted: false,
+      serviceIndex: NUGET_ORG_SERVICE_INDEX,
+      queries: COMMUNITY_TOOLKIT_QUERIES,
+    },
+  ];
+
+  const results = await Promise.all(sources.map((source) => fetchPackagesFromSource(source)));
+  const merged = results.flat();
+  const uniqueById = merged.reduce<Record<string, PackageRecord>>((acc, pkg) => {
+    const existing = acc[pkg.id];
+    if (!existing || (pkg.__sourcePriority ?? 0) >= (existing.__sourcePriority ?? 0)) {
+      acc[pkg.id] = pkg;
     }
+    return acc;
+  }, {});
 
-    const sources: PackageSource[] = [
-      {
-        label: officialSource.isReleaseBranch
-          ? 'official Aspire release feed'
-          : 'official Aspire (nuget.org)',
-        priority: officialSource.isReleaseBranch ? 2 : 1,
-        trusted: officialSource.isReleaseBranch,
-        serviceIndex: officialSource.serviceIndex,
-        queries: officialSource.isReleaseBranch
-          ? OFFICIAL_RELEASE_FEED_QUERIES
-          : OFFICIAL_NUGET_ORG_QUERIES,
-      },
-      {
-        label: 'Community Toolkit (nuget.org)',
-        priority: 0,
-        trusted: false,
-        serviceIndex: NUGET_ORG_SERVICE_INDEX,
-        queries: COMMUNITY_TOOLKIT_QUERIES,
-      },
-    ];
+  let unique = Object.values(uniqueById).sort((a, b) => a.id.localeCompare(b.id));
 
-    const results = await Promise.all(sources.map((source) => fetchPackagesFromSource(source)));
-    const merged = results.flat();
-    const uniqueById = merged.reduce<Record<string, PackageRecord>>((acc, pkg) => {
-      const existing = acc[pkg.id];
-      if (!existing || (pkg.__sourcePriority ?? 0) >= (existing.__sourcePriority ?? 0)) {
-        acc[pkg.id] = pkg;
-      }
-      return acc;
-    }, {});
+  if (officialSource.isReleaseBranch) {
+    const nugetOrgMetadata = await fetchNuGetOrgMetadata(
+      unique.filter((pkg) => isOfficialAspirePackage(pkg.id)).map((pkg) => pkg.id)
+    );
+    unique = mergeFallbackPackageMetadata(unique, nugetOrgMetadata);
+  }
 
-    let unique = Object.values(uniqueById).sort((a, b) => a.id.localeCompare(b.id));
+  const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
+  const output = filterAndTransform(nonDeprecated);
+  const defaultIconPackages = getOfficialAspireDefaultIconPackages(output);
+  if (defaultIconPackages.length > 0) {
+    console.warn(
+      `⚠️ Official Aspire packages resolved to the default NuGet icon: ${defaultIconPackages.join(', ')}`
+    );
+  }
+  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
+  console.log(`✅ Saved ${output.length} packages to ${OUTPUT_PATH}`);
+}
 
-    if (officialSource.isReleaseBranch) {
-      const nugetOrgMetadata = await fetchNuGetOrgMetadata(
-        unique.filter((pkg) => isOfficialAspirePackage(pkg.id)).map((pkg) => pkg.id)
-      );
-      unique = mergeFallbackPackageMetadata(unique, nugetOrgMetadata);
-    }
+const isMainModule = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false;
 
-    const nonDeprecated = await filterOutDeprecatedWithRegistration(unique);
-    const output = filterAndTransform(nonDeprecated);
-    fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
-    console.log(`✅ Saved ${output.length} packages to ${OUTPUT_PATH}`);
-  } catch (error: unknown) {
+if (isMainModule) {
+  void updateIntegrations().catch((error: unknown) => {
     console.error('❌ Error:', getErrorMessage(error));
     process.exitCode = 1;
-  }
-})();
+  });
+}
