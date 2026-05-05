@@ -69,9 +69,18 @@ When an AppHost is running, the extension paints live state directly into your e
 
 {/* TODO: <ThemeImage dark={...} light={...} alt="An AppHost source file with CodeLens above each resource definition showing state and Start/Stop/Restart/View Logs actions, and colored gutter dots in the margin." /> — file: src/frontend/src/assets/get-started/code-extension-codelens{,-light}.png */}
 
-**CodeLens** appears above each resource definition in C# (`DistributedApplication.CreateBuilder`) and TypeScript (`createBuilder()`) AppHost files. The CodeLens shows the resource's current state and health (Running, Starting, Stopped, Error) and exposes one-click actions: Start, Stop, Restart, and View Logs, plus any custom commands the resource publishes from the runtime.
+**CodeLens** appears above each resource definition in C# (`DistributedApplication.CreateBuilder`) and TypeScript (`createBuilder()`) AppHost files. The CodeLens shows the resource's current state and health — for example, `Running`, `Starting`, `Stopped (Exit code: 0)`, or `Running - (Unhealthy 0/1)` when health checks are configured — and hovering the CodeLens reveals per-check status as a tooltip. It also exposes one-click actions: Start, Stop, Restart, and View Logs, plus any custom commands the resource publishes from the runtime.
 
-**Gutter decorations** color-code each resource definition in the gutter — green for running, blue for starting, red for errors, gray for stopped — so you get an at-a-glance health view of the whole AppHost without leaving the source.
+**Gutter decorations** mark each resource definition with a distinct shape (so they don't clash with breakpoint indicators) that updates as state changes:
+
+| Icon | Meaning |
+|------|---------|
+| ✓ (green checkmark) | Running and healthy, or completed successfully (exit code 0) |
+| ✓ (pale green checkmark) | Completed — resource exited cleanly |
+| ⚠ (yellow triangle) | Running but unhealthy (health checks failing) |
+| ✕ (red X) | Error — failed, exited with non-zero exit code, or unknown |
+| ⌛ (hourglass) | Starting, stopping, or waiting |
+| ○ (hollow circle) | Not yet started |
 
 ## The Aspire view
 
@@ -79,7 +88,7 @@ The extension adds an **Aspire** view to the Side Bar — click the Aspire icon 
 
 {/* TODO: <ThemeImage dark={...} light={...} alt="The Aspire view showing a tree of resources with health-aware icons and a hover tooltip listing endpoint URLs." /> — file: src/frontend/src/assets/get-started/code-extension-sidebar{,-light}.png */}
 
-Each resource shows a health-aware icon (green for healthy, red for errors, amber for degraded, spinner for starting) and a rich markdown tooltip with its type, state, and clickable endpoint URLs. Right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, or open the dashboard. Right-click an endpoint URL to open it in your browser, copy it, and so on.
+Each resource shows a health-aware icon (green for healthy, red for errors, amber for degraded, spinner for starting) and a rich markdown tooltip with its type, state, and clickable endpoint URLs. Resources display their type, state, health summary, and exit code inline (for example, `Project · Running · Health: 1/2`); resources with health checks expose an expandable **Health Checks** group with per-check pass/warning/error icons and tooltip descriptions. Use the **Expand all** button on the AppHost item to reveal every resource at once. Right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, or open the dashboard. Right-click an endpoint URL to open it in your browser, copy it, and so on.
 
 ## Run, debug, and deploy
 
@@ -173,11 +182,28 @@ Configure the extension under **Settings > Aspire**, or jump there with **Aspire
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `aspire.aspireCliExecutablePath` | `""` | Path to the Aspire CLI. Leave empty to let the extension auto-detect (PATH first, then default install location). |
-| `aspire.dashboardBrowser` | `openExternalBrowser` | Which browser opens the dashboard — system default, or Chrome/Edge/Firefox as a debug session. |
+| `aspire.dashboardBrowser` | `integratedBrowser` | Which browser opens the dashboard. See [Dashboard browser options](#dashboard-browser-options) below. |
 | `aspire.enableAspireDashboardAutoLaunch` | `true` | Open the dashboard automatically when you start debugging. |
+| `aspire.enableAutoRestore` | `true` | Automatically run `aspire restore` when the workspace opens and whenever `aspire.config.json` changes (for example, after switching git branches). Keeps integration packages in sync and prevents editor errors. |
 | `aspire.registerMcpServerInWorkspace` | `false` | Register the Aspire MCP server (see [MCP server integration](#mcp-server-integration)). |
 
 There are more settings for verbose logging, startup prompts, and polling intervals — open **Aspire: Extension settings** to see them all. The extension also provides IntelliSense and validation when editing `.aspire/settings.json` (workspace-level) and `~/.aspire/globalsettings.json` (user-level).
+
+#### Dashboard browser options
+
+The `aspire.dashboardBrowser` setting controls how the Aspire Dashboard opens when you start debugging:
+
+| Value | Description |
+|-------|-------------|
+| `integratedBrowser` **(default)** | Opens the dashboard in VS Code's built-in Simple Browser tab, keeping you in the IDE. Note: the tab does not auto-close when the debug session ends. |
+| `openExternalBrowser` | Opens the dashboard in your system default browser. |
+| `debugChrome` | Launches Chrome as a debug session (auto-closes when debugging ends). |
+| `debugEdge` | Launches Microsoft Edge as a debug session (auto-closes when debugging ends). |
+| `debugFirefox` | Launches Firefox as a debug session (requires the [Firefox Debugger](https://marketplace.visualstudio.com/items?itemName=firefox-devtools.vscode-firefox-debug) extension). |
+
+:::note
+The `integratedBrowser` option became the default in Aspire 9.3. If you prefer the dashboard to open in your system browser, change the setting to `openExternalBrowser`.
+:::
 
 ### Commands
 
@@ -187,7 +213,7 @@ There are more settings for verbose logging, startup prompts, and polling interv
 
 **Run, debug, and deploy.** **Configure launch.json file** drops the Aspire debug entry into your workspace. **Publish deployment artifacts**, **Deploy app**, and **Execute pipeline step** map directly to `aspire publish`, `aspire deploy`, and `aspire do` — handy when you want to invoke a single step without setting up a launch config.
 
-**Settings and CLI management.** **Extension settings** opens the Aspire section of VS Code settings. **Open local Aspire settings** edits `.aspire/settings.json` for the current workspace; **Open global Aspire settings** edits `~/.aspire/globalsettings.json`. **Open Aspire terminal** spawns a terminal with the Aspire CLI on PATH. **Install Aspire CLI (stable)**, **Install Aspire CLI (daily)**, **Update Aspire CLI**, and **Verify Aspire CLI installation** cover installing and maintaining the CLI without leaving the editor.
+**Settings and CLI management.** **Extension settings** opens the Aspire section of VS Code settings. **Open local Aspire settings** edits `.aspire/settings.json` for the current workspace; **Open global Aspire settings** edits `~/.aspire/globalsettings.json`. **Restore** runs `aspire restore` to sync integration packages with `aspire.config.json` (this also runs automatically when [`aspire.enableAutoRestore`](#settings) is enabled). **Open Aspire terminal** spawns a terminal with the Aspire CLI on PATH. **Install Aspire CLI (stable)**, **Install Aspire CLI (daily)**, **Update Aspire CLI**, and **Verify Aspire CLI installation** cover installing and maintaining the CLI without leaving the editor.
 
 </Expand>
 
