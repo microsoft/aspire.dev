@@ -12,6 +12,7 @@ tableOfContents:
 import { Steps, Aside, Icon, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
 
 Aspire 13.3 is here, and it's a packed release — bringing **Azure Front Door**, **Network Security Perimeter** support, **Azure Kubernetes Service (AKS)** hosting (preview), **Kubernetes Ingress and Gateway routing** (preview) with Helm-based deployment, the **container tunnel** enabled by default, deeper **polyglot AppHost** parity for TypeScript, Python, and Java, and a brand-new **`aspire destroy`** command for tearing down deployments.
@@ -65,6 +66,30 @@ The easiest way to upgrade to Aspire 13.3 is using the [`aspire update` command]
    ```
 
 </Steps>
+
+Or install the CLI from scratch:
+
+<OsAwareTabs>
+  <Fragment slot="unix">
+
+    ```bash title="Aspire CLI — Install Aspire CLI"
+    curl -sSL https://aspire.dev/install.sh | bash
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+
+    ```powershell title="Aspire CLI — Install Aspire CLI"
+    irm https://aspire.dev/install.ps1 | iex
+    ```
+
+  </Fragment>
+</OsAwareTabs>
+
+<LearnMore>
+  For more details on installing the Aspire CLI, see [Install the
+  CLI](/get-started/install-cli/).
+</LearnMore>
 
 ## ☁️ Azure improvements
 
@@ -210,9 +235,24 @@ Containers that reference host-based endpoints will start slightly later (~3–4
 
 If you need to opt out, set the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `false` before starting your AppHost:
 
-```bash title="Shell — Disable container tunnel"
-ASPIRE_ENABLE_CONTAINER_TUNNEL=false aspire run
-```
+<OsAwareTabs>
+  <Fragment slot="unix">
+
+    ```bash title="Bash — Disable container tunnel"
+    # Set the env var only for this aspire run invocation, then start the AppHost.
+    ASPIRE_ENABLE_CONTAINER_TUNNEL=false aspire run
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+
+    ```powershell title="PowerShell — Disable container tunnel"
+    # Set the env var only for this aspire run invocation, then start the AppHost.
+    $env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "false"; aspire run
+    ```
+
+  </Fragment>
+</OsAwareTabs>
 
 You can also disable it in `launchSettings.json`:
 
@@ -620,11 +660,32 @@ Thanks to community contributor [@afscrome](https://github.com/afscrome) for thi
 
 Endpoint annotations now have an `ExcludeReferenceEndpoint` flag. Setting it to `true` excludes the endpoint (e.g. management or health endpoints) from the default `WithReference()` injection, so consumers don't accidentally receive admin URLs:
 
+<Tabs>
+<TabItem label="C# AppHost">
+
 ```csharp title="C# — Exclude an endpoint from WithReference"
 // Mark the "admin" endpoint so it isn't injected into consumers via WithReference().
 builder.AddProject<Projects.Api>("api")
     .WithEndpoint("admin", e => e.ExcludeReferenceEndpoint = true);
 ```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — Exclude an endpoint from withReference"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Mark the "admin" endpoint so it isn't injected into consumers via withReference().
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEndpoint('admin', { excludeReferenceEndpoint: true });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ### `ASPIRE_ENVIRONMENT` variable
 
