@@ -3,7 +3,7 @@ title: Custom resource commands
 description: Learn how to create custom resource commands in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import customClearCacheCommand from '@assets/fundamentals/custom-clear-cache-command.png';
 import customClearCacheCommandSucceeded from '@assets/fundamentals/custom-clear-cache-command-succeeded.png';
@@ -298,7 +298,7 @@ else if (result.Canceled)
 }
 else
 {
-    logger.LogError("Command failed: {ErrorMessage}", result.ErrorMessage);
+    logger.LogError("Command failed: {Message}", result.Message);
 }
 ```
 
@@ -326,36 +326,54 @@ The behavior when executing on multiple replicas:
 
 ### Handle command execution results
 
-The `ExecuteCommandResult` class provides information about the command execution:
+The `ExecuteCommandResult` type carries the outcome of a command:
 
-- **`Success`**: A boolean indicating whether the command was successful.
-- **`ErrorMessage`**: An optional string property with an error message if the command was unsuccessful.
-- **`Canceled`**: A boolean indicating whether the command was canceled by the user.
-- **`Result`**: An optional string containing structured output data returned by the command.
-- **`ResultFormat`**: A `CommandResultFormat` value indicating how to interpret `Result` (`None`, `Text`, or `Json`).
+- **`Success`** _(boolean)_ — Whether the command completed successfully.
+- **`Canceled`** _(boolean)_ — Whether the command was canceled by the user.
+- **`Message`** _(string?)_ — A human-readable message that surfaces in the dashboard notification toast and CLI output. Used for both success messages and error messages.
+- **`Data`** _(`CommandResultData?`)_ — Optional structured output (plain text, JSON, or Markdown). See [Return structured output from a command](#return-structured-output-from-a-command).
 
-You can use these properties to handle different execution outcomes in your application logic. The `CommandResults` helper class provides factory methods to create result instances:
+<Aside type="note">
+The previously-named `ErrorMessage` property is now `[Obsolete]`. Use `Message` instead — it covers both successful and unsuccessful outcomes.
+</Aside>
+
+The `CommandResults` helper class provides factory methods for the common shapes:
 
 ```csharp
-// In your command implementation
+// Success with no payload
 return CommandResults.Success();
-// or
+
+// Failure with a status message
 return CommandResults.Failure("Error occurred during execution");
-// or
+
+// Cancellation (typically when the user backs out of a confirmation prompt)
 return CommandResults.Canceled();
+
+// Failure derived from an exception (uses Exception.Message)
+return CommandResults.Failure(ex);
 ```
 
 ## Return structured output from a command
 
-Resource commands can return structured output data (plain text or JSON) back to the caller. When a command returns a result, it flows automatically through the entire Aspire pipeline:
+Resource commands can return a structured payload — plain text, JSON, or Markdown — alongside the success/failure signal. The payload flows automatically through the entire Aspire pipeline:
 
-- **Dashboard**: Opens a text visualizer dialog with optional syntax highlighting. JSON results are locked to JSON mode.
-- **CLI**: The result is written to `stdout`. Status messages are written to `stderr`, enabling clean output piping (for example, `aspire resource myResource generate-token | jq .token`).
-- **MCP tools**: The result is returned as an additional `TextContentBlock` in the tool response.
+- **Dashboard**: The success notification gains a **View response** action that opens a text visualizer dialog with the payload. `Json` results lock the visualizer to JSON syntax highlighting; `Markdown` results lock it to Markdown rendering. Set `DisplayImmediately` to open the dialog as soon as the command completes (no click required).
+- **CLI**: Status messages route to `stderr` and the payload routes to `stdout`, so the output is safe to pipe to tools such as `jq`:
 
-Use the `CommandResults.Success(result, format)` overload to include output data:
+  ```bash title="Terminal"
+  aspire resource myservice generate-token | jq .token
+  ```
 
-```csharp title="AppHost.cs"
+- **MCP tools**: The payload is appended to the tool response as a second `TextContentBlock` after the status message.
+
+### Return text or JSON
+
+Use the `CommandResults.Success(message, result, resultFormat)` overload to attach a payload to a successful result. The `message` is the toast/CLI status; `result` is the payload string; `resultFormat` controls how the dashboard visualizer interprets it.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
 using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -368,16 +386,18 @@ builder.AddProject<Projects.MyService>("myservice")
         {
             var connectionString = await GetConnectionStringAsync(context.CancellationToken);
 
-            // Return plain-text output
-            return CommandResults.Success(connectionString, CommandResultFormat.Text);
+            return CommandResults.Success(
+                message: "Connection string retrieved.",
+                result: connectionString,
+                resultFormat: CommandResultFormat.Text);
         });
 
 builder.Build().Run();
 ```
 
-To return JSON output, use `CommandResultFormat.Json`:
+To return JSON, switch the format to `CommandResultFormat.Json`:
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 using System.Text.Json;
 using Aspire.Hosting.ApplicationModel;
 
@@ -390,32 +410,165 @@ builder.AddProject<Projects.MyService>("myservice")
         executeCommand: async context =>
         {
             var token = await GenerateTokenAsync(context.CancellationToken);
-
             var json = JsonSerializer.Serialize(new { token });
 
-            // Return JSON output — the dashboard viewer locks to JSON mode
-            return CommandResults.Success(json, CommandResultFormat.Json);
+            return CommandResults.Success(
+                message: "Token generated.",
+                result: json,
+                resultFormat: CommandResultFormat.Json);
         });
 
 builder.Build().Run();
 ```
 
-The `CommandResultFormat` enum has three values:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-| Value  | Description |
-|--------|-------------|
-| `None` | No structured output (default, equivalent to `CommandResults.Success()`). |
-| `Text` | Plain-text output. Displayed as-is in the dashboard text visualizer and written to `stdout` by the CLI. |
-| `Json` | JSON output. The dashboard visualizer locks to JSON mode for syntax highlighting. The CLI writes the JSON to `stdout`. |
+In TypeScript, return an `ExecuteCommandResult` object literal with a `data` property of type `CommandResultData`:
 
-:::tip
-Because status messages are routed to `stderr` and result data is routed to `stdout`, JSON results are safe to pipe directly to tools like `jq`:
+```typescript title="TypeScript — apphost.ts"
+import {
+    createBuilder,
+    CommandResultFormat,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
 
-```bash
-aspire resource myservice generate-token | jq .token
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand("get-connection-string", "Get Connection String",
+        async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const connectionString = await getConnectionString();
+
+            return {
+                success: true,
+                message: "Connection string retrieved.",
+                data: {
+                    value: connectionString,
+                    format: CommandResultFormat.Text,
+                },
+            };
+        });
+
+await builder.build().run();
 ```
-:::
+
+To return JSON, switch the format to `CommandResultFormat.Json`:
+
+```typescript title="TypeScript — apphost.ts"
+import {
+    createBuilder,
+    CommandResultFormat,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand("generate-token", "Generate Token",
+        async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const token = await generateToken();
+            const json = JSON.stringify({ token });
+
+            return {
+                success: true,
+                message: "Token generated.",
+                data: {
+                    value: json,
+                    format: CommandResultFormat.Json,
+                },
+            };
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Choose a result format
+
+`CommandResultFormat` has three values:
+
+| Value      | Dashboard behavior |
+|------------|--------------------|
+| `Text`     | Plain text. Opens in the text visualizer dialog with no fixed format — the user can switch to a different syntax for inspection. |
+| `Json`     | JSON. The visualizer locks to JSON mode for syntax highlighting and pretty-printing. |
+| `Markdown` | Markdown. The visualizer locks to Markdown rendering. |
+
+Omit `Data` (return `CommandResults.Success()` or `{ success: true }`) when the command has no payload to display.
+
+### Return data on a failure
+
+The matching `CommandResults.Failure(errorMessage, result, resultFormat)` overload attaches the same payload shape to a failed result, which is useful for surfacing diagnostic detail that the user (or a downstream tool) can inspect:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+return CommandResults.Failure(
+    errorMessage: "Migration failed.",
+    result: errorJson,
+    resultFormat: CommandResultFormat.Json);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+return {
+    success: false,
+    message: "Migration failed.",
+    data: {
+        value: errorJson,
+        format: CommandResultFormat.Json,
+    },
+};
+```
+
+</TabItem>
+</Tabs>
+
+### Auto-open the result dialog in the dashboard
+
+By default, the dashboard surfaces the payload as a **View response** action on the notification toast. Set `DisplayImmediately` on `CommandResultData` to open the visualizer the moment the command completes — useful for short commands where the response _is_ the point:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+return CommandResults.Success(
+    message: "Token generated.",
+    value: new CommandResultData
+    {
+        Value = json,
+        Format = CommandResultFormat.Json,
+        DisplayImmediately = true,
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+return {
+    success: true,
+    message: "Token generated.",
+    data: {
+        value: json,
+        format: CommandResultFormat.Json,
+        displayImmediately: true,
+    },
+};
+```
+
+</TabItem>
+</Tabs>
 
 ### Replica aggregation
 
-When a resource has multiple replicas, commands are executed on all instances in parallel. If more than one replica returns result data, only the first successful result is used.
+When a resource has multiple replicas, the command runs on all instances in parallel. If more than one replica returns a payload, only the first successful payload is propagated to the caller; the others are discarded.
