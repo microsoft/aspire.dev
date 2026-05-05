@@ -361,12 +361,14 @@ Resource commands can return a structured payload — plain text, JSON, or Markd
 - **CLI**: Status messages route to `stderr` and the payload routes to `stdout`, so the output is safe to pipe to tools such as `jq`:
 
   ```bash title="Terminal"
-  aspire resource myservice generate-token | jq .token
+  aspire resource cache issue-access-token | jq -r .token
   ```
 
 - **MCP tools**: The payload is appended to the tool response as a second `TextContentBlock` after the status message.
 
 ### Return text or JSON
+
+A common scenario is issuing an **access token** from a custom command — developers can copy it straight from the dashboard or pipe it into a `Bearer` header from the CLI. In `Text` mode, the result is just the token; in `Json` mode, the result includes the expiry and scopes.
 
 Use the `CommandResults.Success(message, result, resultFormat)` overload to attach a payload to a successful result. The `message` is the toast/CLI status; `result` is the payload string; `resultFormat` controls how the dashboard visualizer interprets it.
 
@@ -374,30 +376,32 @@ Use the `CommandResults.Success(message, result, resultFormat)` overload to atta
 <TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
 using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.MyService>("myservice")
     .WithCommand(
-        name: "get-connection-string",
-        displayName: "Get Connection String",
-        executeCommand: async context =>
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
         {
-            var connectionString = await GetConnectionStringAsync(context.CancellationToken);
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
-            return CommandResults.Success(
-                message: "Connection string retrieved.",
-                result: connectionString,
-                resultFormat: CommandResultFormat.Text);
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: token,
+                resultFormat: CommandResultFormat.Text));
         });
 
 builder.Build().Run();
 ```
 
-To return JSON, switch the format to `CommandResultFormat.Json`:
+To return JSON with the expiry and scopes, switch the format to `CommandResultFormat.Json`:
 
 ```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
 using System.Text.Json;
 using Aspire.Hosting.ApplicationModel;
 
@@ -405,17 +409,22 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.MyService>("myservice")
     .WithCommand(
-        name: "generate-token",
-        displayName: "Generate Token",
-        executeCommand: async context =>
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
         {
-            var token = await GenerateTokenAsync(context.CancellationToken);
-            var json = JsonSerializer.Serialize(new { token });
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var json = JsonSerializer.Serialize(new
+            {
+                token,
+                expiresAt = DateTimeOffset.UtcNow.AddHours(1),
+                scopes = new[] { "read", "write" },
+            });
 
-            return CommandResults.Success(
-                message: "Token generated.",
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
                 result: json,
-                resultFormat: CommandResultFormat.Json);
+                resultFormat: CommandResultFormat.Json));
         });
 
 builder.Build().Run();
@@ -438,15 +447,15 @@ const builder = await createBuilder();
 
 await builder
     .addNodeApp("myservice", "./myservice", "src/server.ts")
-    .withCommand("get-connection-string", "Get Connection String",
+    .withCommand("issue-access-token", "Issue Access Token",
         async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
-            const connectionString = await getConnectionString();
+            const token = crypto.randomUUID().replace(/-/g, "");
 
             return {
                 success: true,
-                message: "Connection string retrieved.",
+                message: "Access token issued.",
                 data: {
-                    value: connectionString,
+                    value: token,
                     format: CommandResultFormat.Text,
                 },
             };
@@ -455,7 +464,7 @@ await builder
 await builder.build().run();
 ```
 
-To return JSON, switch the format to `CommandResultFormat.Json`:
+To return JSON with the expiry and scopes, switch the format to `CommandResultFormat.Json`:
 
 ```typescript title="TypeScript — apphost.ts"
 import {
@@ -469,14 +478,18 @@ const builder = await createBuilder();
 
 await builder
     .addNodeApp("myservice", "./myservice", "src/server.ts")
-    .withCommand("generate-token", "Generate Token",
+    .withCommand("issue-access-token", "Issue Access Token",
         async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
-            const token = await generateToken();
-            const json = JSON.stringify({ token });
+            const token = crypto.randomUUID().replace(/-/g, "");
+            const json = JSON.stringify({
+                token,
+                expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+                scopes: ["read", "write"],
+            });
 
             return {
                 success: true,
-                message: "Token generated.",
+                message: "Access token issued.",
                 data: {
                     value: json,
                     format: CommandResultFormat.Json,
@@ -542,7 +555,7 @@ By default, the dashboard surfaces the payload as a **View response** action on 
 
 ```csharp title="C# — AppHost.cs"
 return CommandResults.Success(
-    message: "Token generated.",
+    message: "Access token issued.",
     value: new CommandResultData
     {
         Value = json,
@@ -557,7 +570,7 @@ return CommandResults.Success(
 ```typescript title="TypeScript — apphost.ts"
 return {
     success: true,
-    message: "Token generated.",
+    message: "Access token issued.",
     data: {
         value: json,
         format: CommandResultFormat.Json,
@@ -572,3 +585,35 @@ return {
 ### Replica aggregation
 
 When a resource has multiple replicas, the command runs on all instances in parallel. If more than one replica returns a payload, only the first successful payload is propagated to the caller; the others are discarded.
+
+### Invoke commands from the CLI
+
+Any command registered with `WithCommand` can be invoked from the terminal — including the built-in `start`, `stop`, and `restart` commands — using the `aspire resource` command:
+
+```bash title="Terminal"
+aspire resource <resource-name> <command-name> [--apphost <path>]
+```
+
+The CLI splits status output from payload output so the result is friendly to scripting:
+
+- The `Message` and any progress text is written to **stderr**.
+- The `Data.Value` (when present) is written to **stdout** verbatim. `Json` and `Text` payloads are emitted as-is; `Markdown` is rendered with terminal-styled headings, lists, and code blocks.
+- The exit code is `0` on success and non-zero on failure or cancellation.
+
+Combined, this means you can pipe the structured payload directly into `jq`, redirect it to a file, or branch on the exit code:
+
+```bash title="Terminal — Pipe a JSON payload through jq"
+$ aspire resource cache issue-access-token | jq -r .token
+ey7WqGxk2vL...
+```
+
+The status message `Access token issued.` was written to stderr, so stdout stays clean for the pipe.
+
+```bash title="Terminal — Use the exit code in a script"
+if aspire resource db migrate > migrations.json; then
+    echo "Applied $(jq length migrations.json) migrations."
+else
+    echo "Migration failed — see error above."
+    exit 1
+fi
+```
