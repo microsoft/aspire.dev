@@ -8,8 +8,6 @@ sidebar:
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
 
 import Include from '@components/Include.astro';
-import LearnMore from '@components/LearnMore.astro';
-import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -44,6 +42,31 @@ The command performs the following steps to run an Aspire AppHost:
 - Builds the AppHost project and its resources.
 - Starts the AppHost and its resources.
 - Executes all publishing pipeline steps registered in the app model.
+
+## Pipeline summary output
+
+After the pipeline finishes, `aspire publish` prints a result summary and a step-by-step breakdown. The summary shows how many steps succeeded, the total pipeline duration, and a `Steps Summary:` table.
+
+The `Steps Summary:` table lists pipeline steps in their execution hierarchy. Top-level steps appear at the left edge of the step-name column, and child steps are indented under their parent steps. Each row includes the step duration, final status, step name, and, when the terminal is wide enough, a timeline bar that shows when the step started and finished relative to the whole pipeline.
+
+```text title="Output"
+------------------------------------------------------------
+✅ 5/5 steps succeeded • Total time: 0.43s
+
+Steps Summary:
+                Step timeline:                 0s                       0.41s
+                                               │───────┬──────┬─────┬───────│
+      0.57ms  ✓ validate-compute-environments  │╴                           │
+      0.16ms  ✓   before-start                 │╴                           │
+       0.41s  ✓ pipeline-execution             │╶──────────────────────────╴│
+       0.41s  ✓ custom-publish-prereq          │╶──────────────────────────╴│
+      0.55ms  ✓   publish                      │                           ╴│
+
+✅ Pipeline succeeded
+------------------------------------------------------------
+```
+
+The `Step timeline:` header shows the start and end of the overall pipeline duration. The ruler divides that duration into equal intervals, and each step row uses a bar to show the step's relative start and end times. Very short steps can appear as a single point marker (`╴`). If the terminal isn't wide enough to preserve readable step names, Aspire omits the timeline columns and keeps the hierarchical step list.
 
 ## Options
 
