@@ -72,6 +72,37 @@ aspire certs trust
   You may need to reload your profile or start a new terminal session for the change to take effect.
 </Aside>
 
+### Developer certificate for DCP communication (Windows)
+
+By default, Aspire's internal Developer Control Plane (DCP) server uses an ephemeral certificate it generates itself for TLS. On Windows, you can opt in to using your trusted ASP.NET Core developer certificate for DCP communication instead, which avoids trust issues caused by the ephemeral certificate not being in the system trust store.
+
+Set the `ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE` environment variable to `true` in your AppHost's `launchSettings.json` or as a system/user environment variable:
+
+```json title="Properties/launchSettings.json"
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE": "true"
+      }
+    }
+  }
+}
+```
+
+When this setting is enabled:
+
+- Aspire checks for a trusted ASP.NET Core developer certificate.
+- If a trusted certificate is found, it is used to secure the DCP server.
+- If no trusted certificate is found, Aspire falls back to the DCP-generated ephemeral certificate.
+- This setting is only supported on Windows. On other platforms, a warning is logged and DCP falls back to its default ephemeral certificate.
+
+<Aside type="note">
+  This setting is only needed if you experience certificate trust errors related to
+  DCP. Most users do not need to change this from the default (`false`).
+</Aside>
+
 ## HTTPS endpoint configuration
 
 HTTPS endpoint configuration determines which certificate a resource presents when serving HTTPS traffic. This is server-side certificate configuration for resources that host HTTPS/TLS endpoints.
