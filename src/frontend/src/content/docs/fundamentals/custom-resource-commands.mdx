@@ -331,6 +331,8 @@ The `ExecuteCommandResult` class provides information about the command executio
 - **`Success`**: A boolean indicating whether the command was successful.
 - **`ErrorMessage`**: An optional string property with an error message if the command was unsuccessful.
 - **`Canceled`**: A boolean indicating whether the command was canceled by the user.
+- **`Result`**: An optional string containing structured output data returned by the command.
+- **`ResultFormat`**: A `CommandResultFormat` value indicating how to interpret `Result` (`None`, `Text`, or `Json`).
 
 You can use these properties to handle different execution outcomes in your application logic. The `CommandResults` helper class provides factory methods to create result instances:
 
@@ -342,3 +344,78 @@ return CommandResults.Failure("Error occurred during execution");
 // or
 return CommandResults.Canceled();
 ```
+
+## Return structured output from a command
+
+Resource commands can return structured output data (plain text or JSON) back to the caller. When a command returns a result, it flows automatically through the entire Aspire pipeline:
+
+- **Dashboard**: Opens a text visualizer dialog with optional syntax highlighting. JSON results are locked to JSON mode.
+- **CLI**: The result is written to `stdout`. Status messages are written to `stderr`, enabling clean output piping (for example, `aspire resource myResource generate-token | jq .token`).
+- **MCP tools**: The result is returned as an additional `TextContentBlock` in the tool response.
+
+Use the `CommandResults.Success(result, format)` overload to include output data:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "get-connection-string",
+        displayName: "Get Connection String",
+        executeCommand: async context =>
+        {
+            var connectionString = await GetConnectionStringAsync(context.CancellationToken);
+
+            // Return plain-text output
+            return CommandResults.Success(connectionString, CommandResultFormat.Text);
+        });
+
+builder.Build().Run();
+```
+
+To return JSON output, use `CommandResultFormat.Json`:
+
+```csharp title="AppHost.cs"
+using System.Text.Json;
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "generate-token",
+        displayName: "Generate Token",
+        executeCommand: async context =>
+        {
+            var token = await GenerateTokenAsync(context.CancellationToken);
+
+            var json = JsonSerializer.Serialize(new { token });
+
+            // Return JSON output — the dashboard viewer locks to JSON mode
+            return CommandResults.Success(json, CommandResultFormat.Json);
+        });
+
+builder.Build().Run();
+```
+
+The `CommandResultFormat` enum has three values:
+
+| Value  | Description |
+|--------|-------------|
+| `None` | No structured output (default, equivalent to `CommandResults.Success()`). |
+| `Text` | Plain-text output. Displayed as-is in the dashboard text visualizer and written to `stdout` by the CLI. |
+| `Json` | JSON output. The dashboard visualizer locks to JSON mode for syntax highlighting. The CLI writes the JSON to `stdout`. |
+
+:::tip
+Because status messages are routed to `stderr` and result data is routed to `stdout`, JSON results are safe to pipe directly to tools like `jq`:
+
+```bash
+aspire resource myservice generate-token | jq .token
+```
+:::
+
+### Replica aggregation
+
+When a resource has multiple replicas, commands are executed on all instances in parallel. If more than one replica returns result data, only the first successful result is used.
