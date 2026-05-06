@@ -62,7 +62,7 @@ This updates your `aspire.config.json` with the PostgreSQL hosting integration p
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.PostgreSQL": "13.2.0"
+    "Aspire.Hosting.PostgreSQL": "13.3.0"
   }
 }
 ```
@@ -89,7 +89,7 @@ var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
 ```
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.ts" twoslash
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -565,15 +565,20 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const postgres = await builder.addPostgres("postgres");
 const database = await postgres.addDatabase("myDatabase");
+const postgresEndpoint = await postgres.getEndpoint("tcp");
+const postgresHost = await postgresEndpoint.property(EndpointProperty.Host);
+const postgresPort = await postgresEndpoint.property(EndpointProperty.Port);
 
 await builder.addNodeApp("my-app", "./app", "index.js")
     .withReference(database)
+    .withEnvironment("POSTGRES_HOST", postgresHost)
+    .withEnvironment("POSTGRES_PORT", postgresPort)
     .withEnvironment("POSTGRES_USER", postgres.userNameParameter)
     .withEnvironment("POSTGRES_PASSWORD", postgres.passwordParameter)
     .withEnvironment("POSTGRES_DATABASE", "myDatabase");

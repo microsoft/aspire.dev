@@ -440,7 +440,26 @@ Before executing pipeline steps, you can discover what steps would run for a giv
 aspire deploy --list-steps
 ```
 
-This lists the pipeline steps that would be executed by the chosen command, in execution order, without running them. Pair `--list-steps` with the command you intend to run (for example, `aspire publish --list-steps` or `aspire do build --list-steps`) to see exactly which steps a given invocation would trigger.
+Example output:
+
+```text title="Output"
+1. parameter-prompt
+   └─ No dependencies
+
+2. provision-redis-infra
+   ├─ Depends on: parameter-prompt
+   └─ Tags: provision-infra
+
+3. build-webapi
+   ├─ Depends on: parameter-prompt
+   └─ Tags: build-compute
+
+4. deploy-webapi
+   ├─ Depends on: provision-redis-infra, build-webapi
+   └─ Tags: deploy-compute
+```
+
+This lists the pipeline steps that would be executed by the chosen command, in execution order, without running them. Each entry shows the step's position, the steps it depends on, and any tags it carries. Pair `--list-steps` with the command you intend to run (for example, `aspire publish --list-steps` or `aspire do build --list-steps`) to see exactly which steps a given invocation would trigger.
 
 ## Custom pipeline steps
 

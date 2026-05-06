@@ -6,7 +6,9 @@ lastUpdated: false
 editUrl: false
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import PivotSelector from '@components/PivotSelector.astro';
+import Pivot from '@components/Pivot.astro';
 
 Aspire integrations are a curated suite of packages that make it easy to connect your cloud-native applications with popular services like Redis and PostgreSQL. Each integration provides essential cloud-native capabilities through automatic setup or standardized configuration.
 
@@ -42,6 +44,149 @@ These packages configure existing client libraries to connect to hosting integra
 ### Relationship between hosting and client integrations
 
 Hosting and client integrations work together but are **not** coupled and can be used independently. Configuration via environment variables connects client integrations to their corresponding hosting integrations, with the AppHost project managing this connection.
+
+## Wiring resources to consuming projects with references
+
+Once you've created resources, such as databases or messaging systems, by setting up hosting integrations in the AppHost, you can pass those resources to consuming projects, such as APIs or web apps, by calling the "with reference" APIs. These methods express an explicit dependency between a resource and a consuming project. When Aspire starts, it injects connection information as environment variables into the consuming project so it can locate and connect to that resource.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service pghosting(server)[PostgreSQL hosting integration] in apphost
+  service postgres(logos:postgresql)[PostgreSQL server] in apphost
+  service redishosting(server)[Redis hosting integration] in apphost
+  service redis(logos:redis)[Redis cache] in apphost
+
+  service pgclient(iconoir:server-connection)[PostgreSQL client integration] in consumer
+  service app(server)[App] in consumer
+  service redisclient(iconoir:server-connection)[Redis client integration] in consumer
+
+  pghosting:R --> L:postgres
+  postgres:R --> L:pgclient
+  pgclient:R --> L:app
+
+  redishosting:R --> L:redis
+  redis:R --> L:redisclient
+  redisclient:R --> T:app
+```
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+var db = builder.AddPostgres("postgres").AddDatabase("appdb");
+
+builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithReference(db);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```mermaid
+architecture-beta
+
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
+
+  service pghosting(server)[PostgreSQL hosting integration] in apphost
+  service postgres(logos:postgresql)[PostgreSQL server] in apphost
+  service redishosting(server)[Redis hosting integration] in apphost
+  service redis(logos:redis)[Redis cache] in apphost
+
+  service app(server)[App] in consumer
+
+  pghosting:R --> L:postgres
+  postgres:R --> L:app
+
+  redishosting:R --> L:redis
+  redis:R --> T:app
+```
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+const db = (await builder.addPostgres("postgres")).addDatabase("appdb");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+await api.withReference(db);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Environment variables injected with references
+
+The environment variables Aspire injects depend on the type of resource being referenced. For example:
+
+- **Connection string resources**: Aspire sets a `{NAME}_{PROPERTY}` environment variables, where `{NAME}` matches the resource name. For example, referencing a resource named `"cache"`, that is available on port 6379, and has the password "Passw0rd", injects `CACHE_URI=redis://:Passw0rd@localhost:6379`.
+- **Service endpoint resources**: Aspire sets `{NAME}_{SCHEME}` variables used for service discovery. For example, referencing a project named `apiservice`, that is available on port 7001, injects `APISERVICE_HTTPS=https://localhost:7001`.
+
+Other environment variables often include credentials, port numbers, and other connection details.
+
+### Consuming the injected variables
+
+Any application can read these environment variables to connect to its dependencies directly, without any Aspire-specific libraries.
+
+<Tabs syncKey="consuming-project-lang">
+<TabItem id="csharp" label="C#">
+
+If your consuming project is written in C#, you have an additional option: [**Aspire client integrations**](#client-integrations):
+
+```csharp title="C# — Program.cs (consuming .NET project)"
+var builder = WebApplication.CreateBuilder(args);
+
+// Client integration reads connection string injected by WithReference
+builder.AddRedisClient(connectionName: "cache");
+
+var app = builder.Build();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+// Read the injected environment variable directly
+const redisUrl = process.env["ConnectionStrings__cache"];
+```
+
+</TabItem>
+<TabItem id="go" label="Go">
+
+```go title="Go — main.go"
+import "os"
+
+// Read the injected environment variable directly
+redisURL := os.Getenv("ConnectionStrings__cache")
+```
+
+</TabItem>
+<TabItem id="python" label="Python">
+
+```python title="Python — app.py"
+import os
+
+# Read the injected environment variable directly
+redis_url = os.getenv("ConnectionStrings__cache")
+```
+
+</TabItem>
+</Tabs>
 
 ## Integration features
 

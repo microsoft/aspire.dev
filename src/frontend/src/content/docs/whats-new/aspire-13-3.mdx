@@ -188,7 +188,7 @@ This is a behavior change from prior releases — `aspire init` no longer fully 
 - **AppHost path guardrails** — the CLI's global config now validates AppHost paths to prevent accidentally pointing at the wrong project.
 - **Container runtime health check** runs before `aspire deploy` to catch missing/broken Docker or Podman setups early.
 - **`aspire ps`** displays the dashboard URL alongside running AppHosts.
-- **Non-interactive CLI mode** has been improved with the new `PromptBinding` that surfaces required values up front.
+- **Non-interactive CLI mode** has been improved. Many CLI commands have new options to support using them with `--non-interactive`.
 
 ### Improved AI agent init
 
@@ -285,7 +285,7 @@ Native Kubernetes deployment (and the new Ingress / Gateway routing resources be
 Aspire 13.3 ships a Helm-based Kubernetes deployment engine. Declare a Kubernetes environment in your AppHost, run `aspire deploy`, and Aspire generates a complete Helm chart and applies it end-to-end against your cluster — no separate `helm install`, `kustomize`, or hand-rolled manifests required. `aspire destroy` removes the Helm release and namespace cleanly.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 // Declare a Kubernetes environment. Aspire generates a Helm chart for it.
@@ -297,7 +297,7 @@ builder.AddProject<Projects.Api>("api")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -326,7 +326,7 @@ await builder.build().run();
 New first-class **Ingress** and **Gateway API** routing resources let you declare how traffic enters your Kubernetes cluster directly from the AppHost. Aspire generates the corresponding Ingress, IngressClass, Gateway, HTTPRoute, and (where applicable) cert-manager `Certificate` resources.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — Ingress with cert-manager"
 // Declare a Kubernetes environment.
@@ -347,7 +347,7 @@ ingress.WithRoute("/", api.GetEndpoint("http"));
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — Ingress with cert-manager"
 import { createBuilder } from './.modules/aspire.js';
@@ -381,7 +381,7 @@ The Docker Compose deployment engine now supports **Podman** as a container runt
 You can now publish containers with the `privileged` flag enabled when targeting Docker Compose, which is required by some workloads (e.g., low-level networking utilities, nested containers).
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — Privileged Docker Compose service"
 // Add a netshoot diagnostics container and publish it to Docker Compose
@@ -394,7 +394,7 @@ builder.AddContainer("netshoot", "nicolaka/netshoot")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — Privileged Docker Compose service"
 import { createBuilder } from './.modules/aspire.js';
@@ -430,7 +430,7 @@ TypeScript AppHosts can now build Dockerfiles programmatically with `WithDockerf
 `HttpCommand` now supports a **result mode** that returns the response body to the dashboard's notification center, so HTTP-triggered commands can return structured payloads instead of just success/failure:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — HTTP command with result body"
 // Expose POST /admin/sync as a dashboard command. ResultMode = Auto sends the
@@ -443,7 +443,7 @@ builder.AddProject<Projects.Api>("api")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — HTTP command with result body"
 import { createBuilder } from './.modules/aspire.js';
@@ -472,7 +472,7 @@ await builder.build().run();
 Custom resource commands can now return an `ExecuteCommandResult` with a structured `Message` payload that the dashboard renders in the notification center. The new `Logger` property on `ExecuteCommandContext` lets command implementations log directly to the resource's log stream.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — Issue an access token from a resource command"
 using System.Security.Cryptography;
@@ -494,7 +494,7 @@ builder.AddProject<Projects.MyService>("myservice")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — Issue an access token from a resource command"
 import {
@@ -543,7 +543,7 @@ A new **BeforeStart** pipeline phase replaces the bespoke eventing-subscriber cl
 Two new convenience extension methods on `IDistributedApplicationBuilder` make it easier to wire up lifecycle event handlers without `.Eventing.Subscribe(...)` plumbing:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — Subscribe to lifecycle events"
 // Run a callback right before the AppHost begins starting resources.
@@ -553,7 +553,7 @@ builder.SubscribeAfterResourcesCreated(async e => { /* ... */ });
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — Subscribe to lifecycle events"
 import { createBuilder } from './.modules/aspire.js';
@@ -586,7 +586,7 @@ Thanks to community contributor [@afscrome](https://github.com/afscrome) for thi
 Endpoint annotations now have an `ExcludeReferenceEndpoint` flag. Setting it to `true` excludes the endpoint (e.g. management or health endpoints) from the default `WithReference()` injection, so consumers don't accidentally receive admin URLs:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — Exclude an endpoint from WithReference"
 // Mark the "admin" endpoint so it isn't injected into consumers via WithReference().
@@ -595,7 +595,7 @@ builder.AddProject<Projects.Api>("api")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — Exclude an endpoint from withReference"
 import { createBuilder } from './.modules/aspire.js';
@@ -624,7 +624,7 @@ The Aspire trusted developer certificate is now used in more places — includin
 
 Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and the TypeScript AppHost SDK:
 
-- **Unified `withEnvironment` API** so all SDKs configure environment variables the same way.
+- **Unified `withEnvironment` API** — a single method now handles all environment variable value kinds (endpoints, parameters, connection strings, expressions), replacing several per-kind helpers that are now deprecated.
 - **Endpoint property expressions** (`endpoint.url`, `endpoint.host`, `endpoint.port`) are now usable inside TypeScript AppHost expressions.
 - **Docker Compose API parity**: `PublishAsDockerComposeService`-equivalent hooks and post-processing are exposed in TypeScript.
 - **Custom domain configuration** for Azure Container Apps is now exposed in the TypeScript AppHost SDK.
@@ -633,6 +633,22 @@ Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and 
 - **Image push options**, **endpoint mutation callbacks**, **`ConfigureEnvFile`**, and **builder pipeline** APIs all reach TypeScript parity.
 - **Predefined value catalogs** — the new `[AspireValue]` attribute and predefined catalogs (e.g., `FoundryModels.OpenAI.Gpt41Mini`) make it easier to reference well-known values from TypeScript AppHosts.
 - **Build-time duplicate capability ID detection** — diagnostic [`ASPIREEXPORT013`](/diagnostics/aspireexport013/) catches duplicate exported capability IDs at compile time.
+
+### Unified `withEnvironment` API
+
+Aspire 13.3 introduces a unified `withEnvironment(name, value)` API for polyglot AppHosts (TypeScript, Java, Python, Go, Rust). Previously, environment variable injection required separate methods for each value kind (`withEnvironmentEndpoint`, `withEnvironmentParameter`, `withEnvironmentConnectionString`, and so on). Now, a single call handles all value types:
+
+```typescript title="TypeScript — apphost.ts"
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api
+    .withEnvironment('SERVICE_URL', cache.primaryEndpoint)
+    .withEnvironment('API_KEY', apiKeyParam)
+    .withEnvironment('DB', database);
+```
+
+The `value` argument accepts any of: a plain `string`, a `ReferenceExpression`, an `EndpointReference`, a parameter builder, a connection string resource builder, or an `IExpressionValue`.
+
+The previous per-kind helpers are still generated for backward compatibility but are marked `@deprecated` in the SDK. See the [Breaking changes](#breaking-changes) section for migration details.
 
 <LearnMore>
   For more details, see [Authoring multi-language integrations](/extensibility/multi-language-integration-authoring/).
@@ -657,7 +673,7 @@ The `PublishAsStaticWebsite` method is experimental in 13.3. Use diagnostic code
 `AddNextJsApp` runs Next.js in development and automatically configures Next.js *standalone* publishing — no explicit `PublishAs*` call is needed. Make sure your `next.config.js` sets `output: "standalone"` so the build emits the standalone server.
 
 <Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C# AppHost">
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -668,7 +684,7 @@ builder.Build().Run();
 ```
 
 </TabItem>
-<TabItem id="typescript" label="TypeScript AppHost">
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -688,7 +704,7 @@ await builder.build().run();
 `AddViteApp` runs Vite in development; `PublishAsStaticWebsite` ships the production build as a YARP-served static site, with an optional API reverse-proxy to a backend resource so the same `/api` path works in dev and production.
 
 <Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C# AppHost">
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
@@ -705,7 +721,7 @@ builder.Build().Run();
 ```
 
 </TabItem>
-<TabItem id="typescript" label="TypeScript AppHost">
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -730,7 +746,7 @@ await builder.build().run();
 For SSR frameworks like [TanStack Start](https://tanstack.com/start) and SvelteKit that bundle to a Node entry-point, pair `AddViteApp` (for development) with `PublishAsNodeServer` to ship the built `.output/server/index.mjs` as a slim runtime container without copying `node_modules`.
 
 <Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C# AppHost">
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -743,7 +759,7 @@ builder.Build().Run();
 ```
 
 </TabItem>
-<TabItem id="typescript" label="TypeScript AppHost">
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -790,23 +806,19 @@ Selecting the bell icon opens the **Notifications** dialog, which lists all noti
   alt="The Aspire dashboard notification panel open, showing a 'Rebuild succeeded' notification with a View response button"
 />
 
-### Telemetry API enabled by default
+### Rebuild resource command
 
-The dashboard's telemetry API is now **enabled by default**, with an automatic token exchange between the CLI/extension and the dashboard. AI tools and other consumers can subscribe to live telemetry without any extra configuration.
-
-<Aside type="note">
-You can disable the API via dashboard configuration if you don't want it exposed.
-</Aside>
+The dashboard now has a built-in **Rebuild** command available on container and project resources. When triggered, it rebuilds the resource image and restarts the resource, making it faster to pick up code or Dockerfile changes without stopping and restarting the whole AppHost. The result (success or failure) appears in the notification center.
 
 ### AI features disabled by default
 
 The dashboard's AI features are **disabled by default** in 13.3 (`Dashboard:AI:Disabled` defaults to `true`). The dashboard's AI surface is being phased out in favor of the Aspire CLI and the `aspire` agent skill, which provide a richer terminal-based and editor-integrated experience. Future releases will remove these dashboard features entirely.
 
+## 🧰 VS Code extension
+
 ### Open dashboard in VS Code Simple Browser
 
 When you launch your Aspire app from VS Code, the dashboard now opens in **VS Code's Simple Browser** by default rather than spawning an external browser window. The behavior is controlled by the `aspire.dashboardBrowser` setting.
-
-## 🧰 VS Code extension
 
 - **AppHost CodeLens and gutter decorations** — the extension renders inline run/stop affordances and resource state right in the editor.
 - **Auto-restore** — set `aspire.enableAutoRestore` to have the extension automatically run `aspire restore` when a workspace opens or its config changes.
@@ -828,7 +840,7 @@ When you launch your Aspire app from VS Code, the dashboard now opens in **VS Co
 The new **Aspire.Hosting.Browsers** integration captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry. Add `WithBrowserLogs()` to any frontend resource to enable it.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 // Capture browser console logs, network requests, and screenshots from
@@ -838,7 +850,7 @@ builder.AddViteApp("frontend")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -900,7 +912,7 @@ The Npgsql client integration emits OpenTelemetry metrics that align with the .N
 You no longer need to stitch together ARM templates or click through portal blades to get a CDN in front of your app. Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 // Two backend projects exposed as external HTTP endpoints.
@@ -918,7 +930,7 @@ builder.AddAzureFrontDoor("frontdoor")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -957,7 +969,7 @@ Aspire 13.3 adds support for [Azure Network Security Perimeters (NSPs)](https://
 #### Create a perimeter and associate resources
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 // Declare a Network Security Perimeter and add an inbound access rule.
@@ -978,7 +990,7 @@ var keyVault = builder.AddAzureKeyVault("kv")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -1022,7 +1034,7 @@ The AKS hosting integration is in **preview** and may evolve before it's marked 
 If you've ever wanted to deploy to Kubernetes but dreaded writing manifests by hand, this one's for you. Aspire 13.3 adds first-class support for **provisioning and deploying to Azure Kubernetes Service**. Use `AddAzureKubernetesEnvironment` to declare an AKS environment, customize node pools, and have your AppHost generate a Bicep + Helm-based deployment pipeline — all type-safe, all from code.
 
 <Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C# AppHost'>
+<TabItem id='csharp' label='AppHost.cs'>
 
 ```csharp title="C# — AppHost.cs"
 // Declare an AKS environment and customize its system node pool.
@@ -1035,7 +1047,7 @@ builder.AddProject<Projects.Api>("api")
 ```
 
 </TabItem>
-<TabItem id='typescript' label='TypeScript AppHost'>
+<TabItem id='typescript' label='apphost.ts'>
 
 ```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -1151,6 +1163,22 @@ Aspire is built in the open, and this release wouldn't be what it is without you
 | `aspire init` no longer fully wires up your AppHost on its own | Run the `aspireify` agent skill (e.g. via Copilot CLI) to complete wiring after `aspire init`. |
 | Kubernetes Ingress and Gateway routing types moved namespaces | Update `using` directives if you reference them directly. |
 | `dotnet new aspire-py-starter` removed | Use `aspire new aspire-py-starter` from the Aspire CLI. |
+| TypeScript AppHost `withEnvironment*` helper methods deprecated | Replace per-kind helpers with the unified `withEnvironment(name, value)` API — see the table below. |
+
+#### TypeScript `withEnvironment` migration
+
+The following per-kind `withEnvironment*` helpers are deprecated in favor of the unified `withEnvironment(name, value)` API:
+
+| Old method (deprecated) | Replacement |
+|---|---|
+| `withEnvironmentExpression(name, expr)` | `withEnvironment(name, expr)` |
+| `withEnvironmentEndpoint(name, endpoint)` | `withEnvironment(name, endpoint)` |
+| `withEnvironmentParameter(name, param)` | `withEnvironment(name, param)` |
+| `withEnvironmentConnectionString(name, resource)` | `withEnvironment(name, resource)` |
+| `withEnvironmentFromOutput(name, output)` | `withEnvironment(name, output)` |
+| `withEnvironmentFromKeyVaultSecret(name, secret)` | `withEnvironment(name, secret)` |
+
+The old methods are still present and marked `@deprecated` — they will be removed in a future release.
 
 ### Migration from Aspire 13.2 to 13.3
 

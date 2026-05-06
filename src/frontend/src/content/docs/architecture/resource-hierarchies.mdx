@@ -4,6 +4,7 @@ description: Learn how Aspire manages resources and their dependencies in your a
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 
 Aspire supports modeling **parent-child relationships** between resources to express ownership, containment, and grouping.
 
@@ -407,14 +408,17 @@ builder.Build().Run();
 ## `EndpointReferenceExpression` — Accessing Endpoint Parts
 
 `EndpointReferenceExpression` represents **one field** of an endpoint (`Host`, `Port`, `Scheme`, etc.).
-Call `endpoint.Property(...)` to get that field; the result is still a structured value and stays deferred until publish/run time.
+In C#, call `endpoint.Property(...)` to get that field. In TypeScript AppHosts, call `await endpoint.property(...)`. The result is still a structured value and stays deferred until publish/run time.
 
 | Need                                    | Pattern                                                |
 | --------------------------------------- | ------------------------------------------------------ |
-| Only one part (e.g., host)              | `endpoint.Property(EndpointProperty.Host)`             |
+| Only one part (e.g., host)              | C#: `endpoint.Property(EndpointProperty.Host)`<br />TypeScript: `await endpoint.property(EndpointProperty.Host)` |
 | Compose multiple parts into one setting | Build a `ReferenceExpression` (see dedicated section). |
 
-```csharp title="Example — Expose Redis Host and Port"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="C# — AppHost.cs"
 var redis = builder.AddContainer("redis", "redis")
                    .WithEndpoint("tcp", 6379);
 
@@ -427,7 +431,32 @@ builder.AddProject("worker")
        });
 ```
 
-In this pattern, `ep.Property(...)` returns an `EndpointReferenceExpression`, which is a structured value that will be resolved at runtime.
+  </div>
+  <div slot="typescript">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addContainer("redis", "redis");
+await redis.withEndpoint({ name: "tcp", targetPort: 6379 });
+
+const ep = await redis.getEndpoint("tcp");
+const redisHost = await ep.property(EndpointProperty.Host);
+const redisPort = await ep.property(EndpointProperty.Port);
+
+await builder.addProject("worker", "../Worker/Worker.csproj")
+    .withEnvironment("REDIS_HOST", redisHost)
+    .withEnvironment("REDIS_PORT", redisPort);
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
+
+In this pattern, the endpoint property call returns an `EndpointReferenceExpression`, which is a structured value that will be resolved at runtime.
 
 ```csharp title="Example — Build a Full Redis URL"
 var ep = redis.GetEndpoint("tcp");

@@ -354,6 +354,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               label: 'aspire describe',
               slug: 'reference/cli/commands/aspire-describe',
             },
+            {
+              label: 'aspire destroy',
+              slug: 'reference/cli/commands/aspire-destroy',
+            },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
             {
               label: 'aspire docs',
@@ -571,6 +575,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREEXPORT010',
               link: '/diagnostics/aspireexport010',
+            },
+            {
+              label: 'ASPIREEXPORT013',
+              link: '/diagnostics/aspireexport013',
             },
             {
               label: 'ASPIRECERTIFICATES001',

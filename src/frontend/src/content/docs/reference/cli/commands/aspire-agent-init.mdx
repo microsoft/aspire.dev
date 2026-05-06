@@ -1,6 +1,6 @@
 ---
 title: aspire agent init command
-description: Learn about the aspire agent init command and its usage. This command initializes MCP server configuration for detected agent environments.
+description: Learn about the aspire agent init command and its usage. This command initializes AI agent configuration for detected agent environments.
 ---
 
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
@@ -9,7 +9,7 @@ import Include from '@components/Include.astro';
 
 ## Name
 
-`aspire agent init` - Initialize <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> server configuration for detected agent environments.
+`aspire agent init` - Initialize AI agent configuration for detected agent environments.
 
 ## Synopsis
 
@@ -21,17 +21,29 @@ aspire agent init [options]
 
 ## Description
 
-The `aspire agent init` command initializes the MCP (Model Context Protocol) server configuration for your development environment. It detects agent environments (such as VS Code with GitHub Copilot, or other MCP-compatible tools) and creates the necessary configuration files to enable MCP integration.
+The `aspire agent init` command initializes skill files and MCP (Model Context Protocol) server configuration for your development environment. It presents an interactive multi-step flow to configure AI coding agent support:
 
-The command performs the following:
+1. **Select skill locations** — choose where skill files are installed (Standard `.agents/skills/`, Claude Code `.claude/skills/`, GitHub Skills `.github/skills/`, OpenCode `.opencode/skill/`). The **Standard** location is the only option that defaults as pre-selected.
+2. **Select skills and tools** — choose which skills to install (Aspire skill, Playwright CLI, dotnet-inspect skill). All options are pre-selected by default.
+3. **Apply selections** — installs the chosen skills into each selected location and sets up the MCP server connection.
 
-- Detects supported agent environments in the current workspace
-- Creates or updates MCP configuration files for each detected environment
-- Sets up the connection between the agent and the Aspire MCP server
+The command also removes skill files from any locations that were deselected, keeping your workspace clean.
 
 ## Options
 
 The following options are available:
+
+- **`--workspace-root <workspace-root>`**
+
+  Path to the workspace root directory. When not specified, the current directory is used as the workspace root.
+
+- **`--skill-locations <skill-locations>`**
+
+  Comma-separated list of skill locations to configure, such as `standard`, `claudecode`, `github`, or `opencode`. Use `all` to configure all supported locations or `none` to skip skill location configuration. When not specified, the command prompts interactively.
+
+- **`--skills <skills>`**
+
+  Comma-separated list of skills to enable, such as `aspire`, `aspireify`, `playwright-cli`, or `dotnet-inspect`. Use `all` to enable all available skills or `none` to skip skill installation. When not specified, the command prompts interactively.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -47,10 +59,22 @@ The following options are available:
 
 ## Examples
 
-- Initialize MCP configuration for detected agent environments:
+- Initialize AI agent configuration for detected agent environments:
 
   ```bash title="Aspire CLI"
   aspire agent init
+  ```
+
+- Install all supported Aspire skills in all supported skill locations:
+
+  ```bash title="Aspire CLI"
+  aspire agent init --skills all --skill-locations all
+  ```
+
+- Initialize agent configuration from a specific workspace root:
+
+  ```bash title="Aspire CLI"
+  aspire agent init --workspace-root ./src
   ```
 
 ## See also
