@@ -53,20 +53,32 @@ The destroy command requires --yes when the --non-interactive option is specifie
 
 ## Output
 
-Before running the destroy pipeline, `aspire destroy` displays contextual information about the deployed resources or deployment state that the selected compute environment plans to remove, unless `--yes` is specified. After the pipeline finishes, the command prints a result summary and a step-by-step breakdown. The exact step names depend on the selected compute environment.
+Before running the destroy pipeline, `aspire destroy` displays contextual information about the deployed resources or deployment state that the selected compute environment plans to remove, unless `--yes` is specified. For example, Docker Compose environments prompt before running `docker compose down`:
 
 ```text title="Output"
+Shut down Docker Compose environment 'compose'? This will stop and remove all containers, networks, and volumes.
+Confirm:  [y/N]:
+```
+
+After confirmation, the command runs the destroy pipeline and prints a result summary. The exact step names depend on the selected compute environment.
+
+```text title="Output"
+12:51:48 (destroy-compose-compose) → Running compose down for compose using Docker
+12:51:49 (destroy-compose-compose) ✓ Compose shutdown complete for compose (Docker) (1.3s)
+12:51:49 (destroy) i [INF] Deployment state cleared: <deployment-state-path>\production.json
+
 ------------------------------------------------------------
-✅ 3/3 steps succeeded • Total time: 12.34s
+✅ 8/8 steps succeeded • Total time: 1.64s
 
 Steps Summary:
-                Step timeline:                 0s                       12.34s
+                Step timeline:                 0s                       1.61s
                                                │───────┬──────┬─────┬───────│
       2.10ms  ✓ validate-compute-environments  │╴                           │
-       12.34s ✓ pipeline-execution             │╶──────────────────────────╴│
-       12.30s ✓   destroy                      │╶──────────────────────────╴│
+       1.60s  ✓ pipeline-execution             │╶──────────────────────────╴│
+       1.60s  ✓   destroy-compose-compose      │╶──────────────────────────╴│
+       2.07ms ✓     destroy                    │                           ╴│
 
-✅ Pipeline succeeded
+✅ Pipeline succeeded  🗑️ Compose: compose
 ------------------------------------------------------------
 ```
 
