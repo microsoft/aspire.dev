@@ -4,6 +4,7 @@ description: Learn the main production deployment models for Vite and JavaScript
 ---
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 For Vite and other JavaScript frontends, there are three common production deployment models:
@@ -361,7 +362,7 @@ The following example looks reasonable, but it is a trap in publish/deploy:
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
-    .AddProject<Projects.Api>("api")
+    .AddProject("api", "../Api/Api.csproj")
     .WithExternalHttpEndpoints();
 
 builder
@@ -385,7 +386,7 @@ await api.withExternalHttpEndpoints();
 await builder
   .addViteApp('frontend', './frontend')
   .withReference(api)
-  .withEnvironment('VITE_API_BASE_URL', api.getEndpoint('https'))
+  .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('https'))
   .publishAsDockerFile();
 
 await builder.build().run();
@@ -469,7 +470,7 @@ models are usually easier to reason about in Aspire.
 
 ## New publish methods (Aspire 13.3+)
 
-Aspire 13.3 introduces three dedicated publish extension methods on JavaScript resources. These are marked `[Experimental]` and require suppressing the `ASPIREEXTENSION001` diagnostic.
+Aspire 13.3 introduces three dedicated publish extension methods on JavaScript resources. These are marked `[Experimental]`. In C# AppHosts, suppress the `ASPIREEXTENSION001` diagnostic when you use these APIs.
 
 ### `PublishAsStaticWebsite`
 
@@ -477,26 +478,54 @@ Use `PublishAsStaticWebsite` to deploy a built static frontend via a YARP revers
 
 YARP serves the built static files directly and can optionally proxy API requests to a backend service using [service discovery](/fundamentals/service-discovery/).
 
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject<Projects.Api>("api");
+var api = builder.AddProject("api", "../Api/Api.csproj");
 
-var frontend = builder.AddViteApp("frontend", "./frontend")
-    .WithReference(api);
+var frontend = builder.AddViteApp("frontend", "./frontend");
 
 // Serve built frontend files + proxy /api/* to the API
-frontend.PublishAsStaticWebsite(options =>
-{
-    options.OutputPath = "dist";
-    options.StripPrefix = false;
-    options.TargetEndpointName = "https";
-}, apiPath: "/api/{**catch-all}", apiTarget: api);
+frontend.PublishAsStaticWebsite(
+    apiPath: "/api",
+    apiTarget: api,
+    configure: options =>
+    {
+        options.OutputPath = "dist";
+        options.StripPrefix = false;
+    });
 
 builder.Build().Run();
 ```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+
+// Serve built frontend files + proxy /api/* to the API
+await builder.addViteApp('frontend', './frontend').publishAsStaticWebsite({
+  apiPath: '/api',
+  apiTarget: api,
+  outputPath: 'dist',
+  stripPrefix: false,
+});
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
 
 #### `PublishAsStaticWebsiteOptions`
 
@@ -504,12 +533,12 @@ builder.Build().Run();
 |---|---|---|
 | `OutputPath` | `dist` | The build output directory that contains the static files to serve. |
 | `StripPrefix` | `false` | Whether to strip the path prefix before forwarding to the API backend. Set to `true` if the API does not expect the route prefix in the request path. |
-| `TargetEndpointName` | `https` | The endpoint name on the API resource to use for proxying. YARP uses service discovery to resolve the backend address. |
+| `TargetEndpointName` | Service discovery | The endpoint name on the API resource to use for proxying. When unset, YARP uses service discovery and prefers HTTPS when available. |
 
-The two overloads are:
+The API has two forms:
 
-- **Without proxy**: `PublishAsStaticWebsite(options?)` — serves only the built static files, no API proxying.
-- **With proxy**: `PublishAsStaticWebsite(options?, apiPath, apiTarget)` — adds a YARP route to forward matching requests to the API resource.
+- **Without proxy**: In C#, call `PublishAsStaticWebsite(configure?)`. In TypeScript, call `publishAsStaticWebsite({ ... })` without `apiPath` or `apiTarget`. This serves only the built static files.
+- **With proxy**: In C#, call `PublishAsStaticWebsite(apiPath, apiTarget, configure?)`. In TypeScript, call `publishAsStaticWebsite({ apiPath, apiTarget, ... })`. This adds a YARP route to forward matching requests to the API resource.
 
 :::note
 `StripPrefix` defaults to `false`, which means the full request path (including the prefix) is forwarded to the backend. Set `StripPrefix = true` if the backend API does not expect the path prefix.
@@ -535,6 +564,9 @@ Use `PublishAsNodeServer` for SSR frameworks that produce a self-contained Node.
 
 Aspire generates a container that runs the built artifact directly using the Node.js runtime.
 
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
 
@@ -543,10 +575,29 @@ var builder = DistributedApplication.CreateBuilder(args);
 var svelteApp = builder.AddJavaScriptApp("svelte-app", "./svelte-app")
     .WithHttpEndpoint(port: 3000, env: "PORT");
 
-svelteApp.PublishAsNodeServer();
+svelteApp.PublishAsNodeServer("build/index.js", outputPath: "build");
 
 builder.Build().Run();
 ```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+  .addJavaScriptApp('svelte-app', './svelte-app')
+  .withHttpEndpoint({ port: 3000, env: 'PORT' })
+  .publishAsNodeServer('build/index.js', { outputPath: 'build' });
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
 
 The generated container automatically sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the Node.js server binds to all interfaces and is reachable inside the container network.
 
@@ -561,6 +612,9 @@ Use `PublishAsNpmScript` for SSR frameworks that start using an npm (or compatib
 
 Aspire generates a multi-stage Dockerfile that installs production `node_modules` and uses the package manager run script as the container entrypoint with `exec` for proper `SIGTERM` signal handling.
 
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
 
@@ -573,6 +627,25 @@ nuxtApp.PublishAsNpmScript();
 
 builder.Build().Run();
 ```
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+  .addJavaScriptApp('nuxt-app', './nuxt-app')
+  .withHttpEndpoint({ port: 3000, env: 'PORT' })
+  .publishAsNpmScript({ startScriptName: 'start' });
+
+await builder.build().run();
+```
+
+  </div>
+</AppHostLangPivot>
 
 The generated container automatically sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
 
