@@ -221,8 +221,26 @@ The `ConfigureCustomDomain` API is experimental and may change or be removed in 
 :::
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `ConfigureCustomDomain` API is not yet available in the TypeScript AppHost SDK.
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const customDomain = await builder.addParameter("customDomain");
+const certificateName = await builder.addParameter("certificateName");
+
+await builder.addAzureContainerAppEnvironment("env");
+
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsAzureContainerApp(async (_infrastructure, app) => {
+    await app.configureCustomDomain(customDomain, certificateName);
+});
+
+await builder.build().run();
+```
+
+:::caution
+The `configureCustomDomain` API is experimental and may change or be removed in future updates. For more information, see [ASPIREACADOMAINS001](/diagnostics/aspireacadomains001/).
 :::
 </TabItem>
 </Tabs>
