@@ -114,7 +114,45 @@ Azure Container Apps uses an Envoy-based HTTP edge proxy for HTTP ingress:
 
 - public HTTP-style ingress is exposed through the platform HTTPS endpoint by default
 - HTTP requests sent to the app are redirected to HTTPS
-- you can turn off that default upgrade behavior on the environment if you need to keep HTTP behavior
+
+To match the deployed serving scheme, Aspire upgrades external HTTP endpoints in an Azure Container Apps environment to HTTPS when it generates endpoint URLs and service discovery connection strings for dependent resources. If you intentionally need generated endpoint URLs and connection strings to preserve `http://`, disable the upgrade on the environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithHttpsUpgrade(false);
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addAzureContainerAppEnvironment("aca-env")
+    .withHttpsUpgrade(false);
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+Disabling the upgrade primarily affects generated endpoint configuration for dependent resources. Azure Container Apps can still redirect HTTP requests to HTTPS after deployment.
 
 ### Constraints and edge cases
 
