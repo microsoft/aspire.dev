@@ -351,12 +351,12 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               slug: 'reference/cli/commands/aspire-deploy',
             },
             {
-              label: 'aspire describe',
-              slug: 'reference/cli/commands/aspire-describe',
-            },
-            {
               label: 'aspire destroy',
               slug: 'reference/cli/commands/aspire-destroy',
+            },
+            {
+              label: 'aspire describe',
+              slug: 'reference/cli/commands/aspire-describe',
             },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
             {
