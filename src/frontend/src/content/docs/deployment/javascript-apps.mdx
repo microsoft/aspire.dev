@@ -3,21 +3,11 @@ title: Deploy JavaScript apps
 description: Learn the main production deployment models for JavaScript app resources in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
+import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
-import PivotSelector from '@components/PivotSelector.astro';
 
 JavaScript app resources can represent static browser frontends, Node.js servers, SSR frameworks, and specialized resources such as Next.js apps. The deployment decision is less about which AppHost API you started with and more about **which resource owns the public HTTP surface in production**.
 
-<PivotSelector
-  title="Select your programming language"
-  key="aspire-lang"
-  options={[
-    { id: 'csharp', title: 'C#' },
-    { id: 'typescript', title: 'TypeScript' },
-  ]}
-/>
 
 Use this table as the starting point:
 
@@ -69,8 +59,8 @@ flowchart LR
     App --> Frontend["Vite build output"]
 ```
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -90,8 +80,8 @@ app.PublishWithContainerFiles(frontend, "./static");
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
@@ -113,8 +103,9 @@ await app.publishWithContainerFiles(frontend, './static');
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 ### How it works
 
@@ -147,8 +138,8 @@ flowchart LR
     YARP --> Frontend["Frontend routes"]
 ```
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -172,8 +163,8 @@ builder
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
@@ -200,8 +191,9 @@ await builder
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 `AddViteApp` is still fine in this shape, but the Vite development server endpoint is not used at publish time.
 
@@ -209,8 +201,8 @@ await builder.build().run();
 
 If your gateway or BFF needs to know about the frontend dev server during local development, gate that wiring to run mode only:
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var frontend = builder
@@ -228,8 +220,8 @@ if (builder.ExecutionContext.IsRunMode)
 }
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
 const frontend = await builder.addViteApp('frontend', './frontend');
@@ -246,8 +238,9 @@ if (await builder.executionContext.isRunMode()) {
 }
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 <Aside type="caution">
   Dev-only waits, references, and environment variables that point at the
@@ -282,8 +275,8 @@ Use `PublishAsStaticWebsite` when the framework produces static files and you wa
 
 Choose this shape instead of `PublishWithStaticFiles(...)` when you do not already have a gateway or BFF resource that should own the public route table. If you already have an explicit YARP resource for gateway or BFF behavior, keep using `PublishWithStaticFiles(...)` on that resource.
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -306,8 +299,8 @@ frontend.PublishAsStaticWebsite(
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -329,8 +322,9 @@ await frontend
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 ### Static website options
 
@@ -371,8 +365,8 @@ Use `PublishAsNodeServer` for frameworks that produce a self-contained Node.js s
 
 Choose this method instead of `PublishAsNpmScript` when the build output does not need a production `node_modules` install at runtime. The resulting image can be smaller because it copies the server artifact rather than the full application with production dependencies.
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -390,8 +384,8 @@ svelteApp
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -409,8 +403,9 @@ await svelteApp
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the Node.js server binds to all interfaces and is reachable inside the container network.
 
@@ -420,8 +415,8 @@ Use `PublishAsNpmScript` for SSR frameworks that start production by running an 
 
 Choose this method instead of `PublishAsNodeServer` when the production server imports packages from `node_modules` at runtime or the framework's recommended production command is an npm script.
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -439,8 +434,8 @@ nuxtApp
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -458,8 +453,9 @@ await nuxtApp
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
 
@@ -469,8 +465,8 @@ Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.
 
 Choose this method instead of `AddJavaScriptApp(...).PublishAsNpmScript(...)` for Next.js standalone deployments. Use the more general npm-script publish method for frameworks where the production server should be started through the package manager and the framework does not have a dedicated Aspire resource.
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
@@ -487,8 +483,8 @@ builder
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
@@ -505,8 +501,9 @@ await builder
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 Set `output: "standalone"` in your Next.js configuration so the generated Dockerfile has the server files it needs:
 
@@ -540,8 +537,8 @@ flowchart TD
 
 This is a natural model for many SPA teams, especially when they already think in terms of "static site + API". It can work, but it is not the primary Aspire deployment story for `AddViteApp` and `AddJavaScriptApp`.
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -559,8 +556,8 @@ builder
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
@@ -580,8 +577,9 @@ await builder
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 ### Why this shape gets harder
 
@@ -594,8 +592,8 @@ This shape pushes more work onto the browser/frontend boundary:
 
 The following example looks reasonable, but it is a trap in publish/deploy:
 
-<AppHostLangPivot>
-  <div slot="csharp">
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -614,8 +612,8 @@ builder
 builder.Build().Run();
 ```
 
-  </div>
-  <div slot="typescript">
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
@@ -636,8 +634,9 @@ await builder
 await builder.build().run();
 ```
 
-  </div>
-</AppHostLangPivot>
+</TabItem>
+
+</Tabs>
 
 ### Pitfalls
 
