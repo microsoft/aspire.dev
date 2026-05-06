@@ -170,6 +170,7 @@ In C# the parameter is typed as `Func<ExecuteCommandContext, Task<ExecuteCommand
 - `ServiceProvider` _(`IServiceProvider`)_ — used to resolve services such as loggers or `ResourceCommandService`.
 - `ResourceName` _(`string`)_ — the name of the resource instance that the command is being executed on.
 - `CancellationToken` _(`CancellationToken`)_ — used to cancel command execution.
+- `Logger` _(`ILogger`)_ — used to write log messages directly to the resource's logs. These logs can be viewed in the [Aspire dashboard](/dashboard/explore/#console-logs-page) or with the `aspire logs <resource>` command.
 
 The earlier example delegates to a private static method named `OnRunClearCacheCommandAsync` to clear the cache:
 
@@ -429,7 +430,6 @@ The following example shows how to create a custom command that executes other c
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -448,10 +448,9 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
         var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
         
-        logger.LogInformation("Starting full system reset...");
+        context.Logger.LogInformation("Starting full system reset...");
         
         var clearResult = await commandService.ExecuteCommandAsync(
             resource: cache.Resource,
@@ -468,7 +467,7 @@ var api = builder.AddProject<Projects.Api>("api")
             return CommandResults.Failure("System reset failed");
         }
         
-        logger.LogInformation("System reset completed successfully");
+        context.Logger.LogInformation("System reset completed successfully");
         return CommandResults.Success();
     });
 
@@ -477,7 +476,8 @@ builder.Build().Run();
 
 In this example:
 
-- The `context` parameter provides access to `ServiceProvider`
+- The `context` parameter provides access to `ServiceProvider` and `Logger`
+- `context.Logger` writes log messages directly to the resource's log stream in the Aspire dashboard — no need to resolve a logger from the service provider
 - The `ResourceCommandService` is retrieved from the service provider
 - Commands are executed on resource instances using `cache.Resource` and `database.Resource`
 - Each command result is checked for success before proceeding
