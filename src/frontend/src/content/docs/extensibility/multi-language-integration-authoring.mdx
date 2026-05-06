@@ -44,13 +44,13 @@ Your C# code runs as-is — the TypeScript SDK is a thin client that calls into 
 The [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) package provides build-time validation that catches common export mistakes. Add it to your integration project:
 
 ```xml title="XML — MyIntegration.csproj"
-<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.2.0">
+<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.3.0">
     <PrivateAssets>all</PrivateAssets>
     <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 </PackageReference>
 ```
 
-The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
+The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export or capability IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
 
 ## Export extension methods
 
@@ -109,8 +109,54 @@ await app.run();
 ```
 
 <Aside type="tip" title="Naming convention">
-The export ID becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`). The full capability ID is computed as `{AssemblyName}/{methodName}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
+The export ID usually becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`), or set `MethodName` when the runtime capability ID and SDK method name need to differ. For static exports, the full capability ID is computed as `{AssemblyName}/{exportId}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
 </Aside>
+
+### Keep capability IDs unique
+
+The runtime dispatches multi-language calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
+
+For static exports, the generated capability ID uses the assembly name and effective export ID. The following methods collide even though they target different C# types:
+
+```csharp title="C# — Duplicate capability ID"
+[AspireExport("configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+Use distinct export IDs for the runtime capability, and use `MethodName` when you want the generated SDK method name to stay concise on different target types:
+
+```csharp title="C# — Unique capability IDs with SDK method names"
+[AspireExport("configureBuilder", MethodName = "configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configureDatabase", MethodName = "configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+When you set `ExposeMethods = true` or `ExposeProperties = true` on a context type, the analyzer also checks the capabilities generated for public instance members. Overloaded instance methods with the same name generate the same default capability ID, so either expose a single ATS-friendly overload, mark unsupported overloads with `[AspireExportIgnore]`, or give each exported member a unique `[AspireExport]` ID and generated `MethodName`.
 
 ## Export resource types
 
@@ -341,6 +387,9 @@ The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 | ASPIREEXPORT008 | Warning  | Public extension method on exported type missing `[AspireExport]` or `[AspireExportIgnore]` |
 | ASPIREEXPORT009 | Warning  | Export name may collide with other integrations                                             |
 | ASPIREEXPORT010 | Warning  | Synchronous callback invoked inline — may deadlock in multi-language app hosts              |
+| ASPIREEXPORT011 | Warning  | Explicit export ID matches the convention-derived name                                      |
+| ASPIREEXPORT012 | Warning  | Callback context type missing `[AspireExport]`                                              |
+| ASPIREEXPORT013 | Warning  | Duplicate polyglot capability ID across exports in the same assembly                        |
 
 A clean build with zero analyzer warnings means your integration is ready for multi-language use.
 
