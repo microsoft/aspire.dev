@@ -65,9 +65,9 @@ await builder.build().run();
   that define more than one. Otherwise, the `k8s` variable isn't required.
 </Aside>
 
-## Configure Helm settings
+## Configure Helm chart options
 
-Use `WithHelm` to customize Helm chart settings such as namespace, release name, and chart version:
+You can configure the generated Helm chart using the `WithHelm` method, which provides a fluent `HelmChartOptions` builder:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -75,9 +75,11 @@ Use `WithHelm` to customize Helm chart settings such as namespace, release name,
 builder.AddKubernetesEnvironment("k8s")
     .WithHelm(helm =>
     {
-        helm.WithNamespace("my-namespace");
-        helm.WithReleaseName("my-release");
-        helm.WithChartVersion("1.0.0");
+        helm.WithChartName("my-aspire-app")
+            .WithChartVersion("1.0.0")
+            .WithChartDescription("My Aspire application deployed to Kubernetes")
+            .WithReleaseName("my-release")
+            .WithNamespace("my-namespace");
     });
 ```
 </TabItem>
@@ -87,13 +89,25 @@ const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withHelm(async (helm) => {
   await helm.withNamespace('my-namespace');
   await helm.withReleaseName('my-release');
+  await helm.withChartName('my-aspire-app');
   await helm.withChartVersion('1.0.0');
+  await helm.withChartDescription('My Aspire application deployed to Kubernetes');
 });
 ```
 </TabItem>
 </Tabs>
 
 Helm is the default deployment engine. Call `WithHelm` only when you need to customize the defaults.
+
+The `WithHelm` method is the single configuration entry point for Helm chart settings. The available options are:
+
+| Method | Description |
+|---|---|
+| `WithChartName(string)` | Sets the Helm chart name (defaults to the application name). |
+| `WithChartVersion(string)` | Sets the Helm chart version. Accepts a literal string or an Aspire parameter. |
+| `WithChartDescription(string)` | Sets the description written into `Chart.yaml`. |
+| `WithReleaseName(string)` | Sets the Helm release name used during deployment. |
+| `WithNamespace(string)` | Sets the Kubernetes namespace for the deployment. |
 
 ## Configure a container registry
 
