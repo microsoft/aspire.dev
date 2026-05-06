@@ -15,7 +15,7 @@ import DocContent from '@components/api-reference/DocContent.astro';
 import AnchorHeading from '@components/api-reference/AnchorHeading.astro';
 import InpageSearch from '@components/api-reference/InpageSearch.astro';
 import PolyglotAttributePanel from '@components/api-reference/PolyglotAttributePanel.astro';
-import { findAttribute } from '@utils/api-attributes';
+import { findAttribute, hasAttribute } from '@utils/api-attributes';
 import {
   slugify,
   genericArity,
@@ -87,6 +87,21 @@ const hasSeeAlso = type.docs?.seeAlso?.length > 0;
 const hasExamples = type.docs?.examples?.length > 0;
 const hasFlags = !!findAttribute(type.attributes, 'Flags');
 
+// Resolve nested types (full names) to type metadata in this package.
+// Roslyn merges partial declarations, so this picks up nested types from
+// every partial source file (e.g. FoundryModel + FoundryModel.Generated.cs).
+const nestedTypeEntries: { type: any; href: string }[] = ((type.nestedTypes ?? []) as string[])
+  .map((fullName) => {
+    const target = allTypes.find((t: any) => t.fullName === fullName);
+    if (!target) return null;
+    return {
+      type: target,
+      href: typeHref(base, pkg.package.name, target.name, genericArity(target)),
+    };
+  })
+  .filter((entry): entry is { type: any; href: string } => entry !== null);
+const hasNestedTypes = nestedTypeEntries.length > 0;
+
 const summaryText = flattenToText(type.docs?.summary) || `${type.kind} ${type.name}`;
 
 const modifierBadges: string[] = [];
@@ -139,6 +154,7 @@ if (hasMembers) {
     }
   }
 }
+if (hasNestedTypes) headings.push({ depth: 2, slug: 'nested-types', text: 'Nested Types' });
 if (hasExamples) headings.push({ depth: 2, slug: 'examples', text: 'Examples' });
 if (hasPermissions) headings.push({ depth: 2, slug: 'permissions', text: 'Permissions' });
 if (hasSeeAlso) headings.push({ depth: 2, slug: 'see-also', text: 'See Also' });
@@ -437,6 +453,36 @@ const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
       allTypes={allTypes}
       packageName={pkg.package.name}
     />
+  )}
+
+  {/* Nested types ΓÇö links to nested type detail pages */}
+  {hasNestedTypes && (
+    <>
+      <AnchorHeading id="nested-types" text="Nested Types">
+        <span class="api-count-badge">{nestedTypeEntries.length}</span>
+      </AnchorHeading>
+      <div class="api-list not-content">
+        {nestedTypeEntries.map(({ type: nested, href }) => (
+          <a href={href} class="api-list-item">
+            <div class="api-list-header">
+              <span class={`api-kind-pill kind-${nested.kind.replace(/\s+/g, '-')}`}>{nested.kind}</span>
+              <code class="api-type-link" title={typeDisplayName(nested)}>{typeDisplayName(nested)}</code>
+              {nested.isAbstract && <span class="api-mini-badge">abstract</span>}
+              {nested.isStatic && <span class="api-mini-badge">static</span>}
+              {nested.isSealed && !['enum', 'delegate', 'struct', 'record struct'].includes(nested.kind) && <span class="api-mini-badge">sealed</span>}
+              {nested.isReadOnly && <span class="api-mini-badge">readonly</span>}
+              {hasAttribute(nested.attributes, 'Obsolete') && <span class="api-mini-badge obsolete">obsolete</span>}
+              {hasAttribute(nested.attributes, 'Experimental') && <span class="api-mini-badge">experimental</span>}
+            </div>
+            {nested.docs?.summary && (
+              <div class="api-list-desc">
+                <DocContent content={nested.docs.summary} allTypes={allTypes} packageName={pkg.package.name} tag="span" />
+              </div>
+            )}
+          </a>
+        ))}
+      </div>
+    </>
   )}
 
   {/* Examples */}

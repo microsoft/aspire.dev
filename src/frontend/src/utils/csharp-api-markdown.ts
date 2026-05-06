@@ -512,7 +512,9 @@ function renderEnumMembersMarkdown(enumMembers: any[], hasFlags: boolean): strin
 
 function renderTypeMemberOverview(type: any, packageName: string, allTypes: any[], base: string): string {
   const groups = groupMembersByKind(type.members ?? []);
-  if (groups.size === 0) {
+  const nestedTypes: string[] = Array.isArray(type.nestedTypes) ? type.nestedTypes : [];
+
+  if (groups.size === 0 && nestedTypes.length === 0) {
     return '';
   }
 
@@ -550,6 +552,25 @@ function renderTypeMemberOverview(type: any, packageName: string, allTypes: any[
 
     return section(memberKindLabels[kind] ?? kind, bulletList(lines));
   });
+
+  if (nestedTypes.length > 0) {
+    const nestedLines = nestedTypes
+      .map((fullName: string) => {
+        const match = allTypes.find((candidate: any) => candidate.fullName === fullName);
+        if (!match) {
+          return null;
+        }
+
+        const href = csharpTypeMdHref(base, packageName, match.name, genericArity(match));
+        const summary = renderCompactDocMarkdown(match.docs?.summary, context);
+        return `- ${link(typeDisplayName(match), href)}${summary ? ` — ${summary}` : ''}`;
+      })
+      .filter((entry): entry is string => Boolean(entry));
+
+    if (nestedLines.length > 0) {
+      sections.push(section('Nested Types', bulletList(nestedLines)));
+    }
+  }
 
   return sections.join('\n\n');
 }

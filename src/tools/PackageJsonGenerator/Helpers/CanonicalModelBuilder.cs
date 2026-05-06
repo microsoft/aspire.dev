@@ -95,7 +95,28 @@ internal sealed class CanonicalModelBuilder(Compilation compilation)
         // Attributes
         type.Attributes = ExtractRelevantAttributes(symbol);
 
+        // Nested types — Roslyn merges partial declarations, so GetTypeMembers()
+        // returns nested types contributed by every partial source file (e.g.
+        // FoundryModel + FoundryModel.Generated.cs).
+        var nestedNames = symbol.GetTypeMembers()
+            .Where(IsPublicNestedType)
+            .Select(t => t.ToDisplayString())
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+        if (nestedNames.Count > 0)
+        {
+            type.NestedTypes = nestedNames;
+        }
+
         return type;
+    }
+
+    private static bool IsPublicNestedType(INamedTypeSymbol type)
+    {
+        return type.DeclaredAccessibility == Accessibility.Public
+            && !string.IsNullOrEmpty(type.Name)
+            && !type.Name.StartsWith('<')
+            && !type.GetAttributes().Any(a => a.AttributeClass?.Name == "CompilerGeneratedAttribute");
     }
 
     private List<CanonicalMember> BuildMembers(INamedTypeSymbol type)
