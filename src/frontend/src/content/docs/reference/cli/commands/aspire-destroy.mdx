@@ -6,7 +6,6 @@ sidebar:
 ---
 
 import Include from '@components/Include.astro';
-import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -30,19 +29,58 @@ Each compute environment implements its own destroy step with contextual confirm
 - **Docker Compose**: Confirms, then runs `docker compose down` using persisted deployment state.
 - **Kubernetes (Helm)**: Confirms, then runs `helm uninstall` using the persisted release name and namespace.
 
-<Aside type="caution">
-  The `aspire destroy` command permanently removes deployed resources. For Azure
-  environments, this deletes the entire resource group and all resources within
-  it. This action cannot be undone.
-</Aside>
+:::caution
+The `aspire destroy` command permanently removes deployed resources. For Azure environments, this deletes the entire resource group and all resources within it. This action cannot be undone.
+:::
+
+The AppHost and selected compute environment must provide a `destroy` pipeline step. If no destroy step is registered, the command fails without deleting resources.
 
 Before performing the destroy operation, the command displays contextual information about what will be removed and prompts for confirmation. Use the `--yes` flag to skip the confirmation prompt in automated or non-interactive scenarios.
 
-<Aside type="note">
-  In non-interactive mode, you must provide the `--yes` flag. Running `aspire
-  destroy` without `--yes` in a non-interactive environment causes the command
-  to fail immediately rather than proceeding silently.
-</Aside>
+### Non-interactive usage
+
+When you use `--non-interactive`, also pass `--yes` to explicitly confirm the destructive operation. Omitting `--yes` when using `--non-interactive` is an error:
+
+```bash title="Aspire CLI"
+aspire destroy --non-interactive --yes
+```
+
+If you specify `--non-interactive` without `--yes`, the command exits with an error:
+
+```text title="Output"
+The destroy command requires --yes when the --non-interactive option is specified.
+```
+
+## Output
+
+Before running the destroy pipeline, `aspire destroy` displays contextual information about the deployed resources or deployment state that the selected compute environment plans to remove, unless `--yes` is specified. For example, Docker Compose environments prompt before running `docker compose down`:
+
+```text title="Output"
+Shut down Docker Compose environment 'compose'? This will stop and remove all containers, networks, and volumes.
+Confirm:  [y/N]:
+```
+
+After confirmation, the command runs the destroy pipeline and prints a result summary. The exact step names depend on the selected compute environment.
+
+```text title="Output"
+12:51:48 (destroy-compose-compose) → Running compose down for compose using Docker
+12:51:49 (destroy-compose-compose) ✓ Compose shutdown complete for compose (Docker) (1.3s)
+12:51:49 (destroy) i [INF] Deployment state cleared: <deployment-state-path>\production.json
+
+------------------------------------------------------------
+✅ 8/8 steps succeeded • Total time: 1.64s
+
+Steps Summary:
+                Step timeline:                 0s                       1.61s
+                                               │───────┬──────┬─────┬───────│
+      2.10ms  ✓ validate-compute-environments  │╴                           │
+       1.60s  ✓ pipeline-execution             │╶──────────────────────────╴│
+       1.60s  ✓   destroy-compose-compose      │╶──────────────────────────╴│
+       2.07ms ✓     destroy                    │                           ╴│
+
+✅ Pipeline succeeded  🗑️ Compose: compose
+------------------------------------------------------------
+```
 
 ## Options
 
@@ -60,7 +98,7 @@ The following options are available:
 
 - **`-o, --output-path`**
 
-  The optional output path for deployment artifacts. Defaults to the `aspire-output` folder relative to the AppHost.
+  The output path containing deployment artifacts to destroy. Defaults to the `aspire-output` folder relative to the AppHost.
 
 - **`--pipeline-log-level`**
 
@@ -98,7 +136,7 @@ The following options are available:
   aspire destroy
   ```
 
-- Destroy a specific AppHost's deployed environment without prompting for confirmation:
+- Destroy the deployed environment without prompting for confirmation:
 
   ```bash title="Aspire CLI"
   aspire destroy --yes
@@ -115,3 +153,20 @@ The following options are available:
   ```bash title="Aspire CLI"
   aspire destroy --environment Staging --yes
   ```
+
+- Destroy in a CI/CD pipeline or automation script (non-interactive, requires `--yes`):
+
+  ```bash title="Aspire CLI"
+  aspire destroy --non-interactive --yes
+  ```
+
+- Destroy using a specific output path:
+
+  ```bash title="Aspire CLI"
+  aspire destroy --output-path './aspire-output'
+  ```
+
+## See also
+
+- [aspire deploy](/reference/cli/commands/aspire-deploy/)
+- [aspire publish](/reference/cli/commands/aspire-publish/)
