@@ -176,7 +176,7 @@ If a heading should appear in the **On this page** table of contents, keep that 
 
 #### Pivot/PivotSelector
 
-Use for programming language selection that persists across a page. For Aspire AppHost C# and TypeScript content, use `AppHostLangPivot` instead; see [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
+Use for programming language selection that persists across page navigations (for example, site-wide via query string and local storage). For Aspire AppHost C# and TypeScript content, use `AppHostLangPivot` instead; see [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
 
 ```mdx
 <PivotSelector
