@@ -87,6 +87,7 @@ Additional commonly used imports:
 ```tsx
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -175,7 +176,7 @@ If a heading should appear in the **On this page** table of contents, keep that 
 
 #### Pivot/PivotSelector
 
-Use for programming language selection that persists across page:
+Use for programming language selection that persists across a page. For Aspire AppHost C# and TypeScript content, use `AppHostLangPivot` instead; see [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
 
 ```mdx
 <PivotSelector
@@ -203,20 +204,6 @@ If a heading needs to appear in the **On this page** table of contents, keep the
 When a page shows the **On this page** table of contents (the default behavior unless `tableOfContents: false` is set), do **not** add an `Overview` heading at any level (`##`, `###`, etc.). The docs site already provides an implicit overview link to the top of the page, so an explicit `Overview` heading becomes redundant.
 
 If your opening section is truly introductory, keep it as body copy without an `Overview` heading. If that section has a more specific purpose, use a descriptive heading such as `Key concepts`, `Prerequisites`, or another topic-specific label.
-
-For Aspire AppHost docs, use a single page-level `PivotSelector` with `key="aspire-lang"` when the surrounding section flow should switch as one unit. If a page would otherwise need multiple `aspire-lang` selectors, keep the page-level selector for the main flow and use synced `Tabs`/`TabItem` with `syncKey='aspire-lang'` for repeated language-specific examples later on the page.
-
-```mdx
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-C# example content here.
-</TabItem>
-
-<TabItem id='typescript' label='TypeScript'>
-TypeScript example content here.
-</TabItem>
-</Tabs>
-```
 
 #### CardGrid and LinkCard
 
