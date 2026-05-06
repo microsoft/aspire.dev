@@ -362,13 +362,14 @@ The following example looks reasonable, but it is a trap in publish/deploy:
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
-    .AddProject("api", "../Api/Api.csproj")
+    .AddNodeApp("api", "./api", "src/index.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
     .WithExternalHttpEndpoints();
 
 builder
     .AddViteApp("frontend", "./frontend")
     .WithReference(api)
-    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("https"))
+    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("http"))
     .PublishAsDockerFile();
 
 builder.Build().Run();
@@ -380,13 +381,15 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
-await api.withExternalHttpEndpoints();
+const api = await builder
+  .addNodeApp('api', './api', 'src/index.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
 
 await builder
   .addViteApp('frontend', './frontend')
   .withReference(api)
-  .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('https'))
+  .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('http'))
   .publishAsDockerFile();
 
 await builder.build().run();
@@ -486,7 +489,9 @@ YARP serves the built static files directly and can optionally proxy API request
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../Api/Api.csproj");
+var api = builder
+    .AddNodeApp("api", "./api", "src/index.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT");
 
 var frontend = builder.AddViteApp("frontend", "./frontend");
 
@@ -511,7 +516,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder
+  .addNodeApp('api', './api', 'src/index.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 // Serve built frontend files + proxy /api/* to the API
 await builder.addViteApp('frontend', './frontend').publishAsStaticWebsite({

@@ -51,7 +51,9 @@ The `AddJavaScriptApp` method is the foundational method for adding JavaScript a
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../Api/Api.csproj");
+var api = builder
+    .AddNodeApp("api", "./api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT");
 
 var frontend = builder.AddJavaScriptApp("frontend", "./frontend")
     .WithHttpEndpoint(port: 3000, env: "PORT")
@@ -68,10 +70,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject(
-  'api',
-  '../ExampleProject/ExampleProject.csproj',
-);
+const api = await builder
+  .addNodeApp('api', './api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const frontend = await builder
   .addJavaScriptApp('frontend', './frontend')
@@ -107,11 +108,9 @@ For Node.js applications that don't use a package.json script runner, you can di
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../Api/Api.csproj");
-
-var nodeApp = builder.AddNodeApp("node-app", "./node-app", "server.js")
-    .WithHttpEndpoint(port: 3000, env: "PORT")
-    .WithReference(api);
+var api = builder
+    .AddNodeApp("api", "./api", "server.js")
+    .WithHttpEndpoint(port: 3000, env: "PORT");
 
 // After adding all resources, run the app...
 ```
@@ -124,15 +123,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject(
-  'api',
-  '../ExampleProject/ExampleProject.csproj',
-);
-
-const nodeApp = await builder
-  .addNodeApp('node-app', './node-app', 'server.js')
-  .withHttpEndpoint({ port: 3000, env: 'PORT' })
-  .withReference(api);
+const api = await builder
+  .addNodeApp('api', './api', 'server.js')
+  .withHttpEndpoint({ port: 3000, env: 'PORT' });
 
 // After adding all resources, run the app...
 ```
@@ -162,7 +155,9 @@ For [Next.js](https://nextjs.org/) applications, use the `AddNextJsApp` extensio
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../Api/Api.csproj");
+var api = builder
+    .AddNodeApp("api", "./api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT");
 
 var nextApp = builder.AddNextJsApp("next-app", "./next-app")
     .WithReference(api);
@@ -178,7 +173,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject('api', '../Api/Api.csproj');
+const api = await builder
+  .addNodeApp('api', './api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const nextApp = await builder
   .addNextJsApp('next-app', './next-app')
@@ -245,11 +242,11 @@ For Vite applications, you can use the `AddViteApp` extension method which provi
   <div slot="csharp">
 
 ```csharp title="C# — AppHost.cs"
-#pragma warning disable ASPIREDOCKERFILEBUILDER001
-
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../Api/Api.csproj");
+var api = builder
+    .AddNodeApp("api", "./api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT");
 
 var viteApp = builder.AddViteApp("vite-app", "./vite-app")
     .WithReference(api);
@@ -265,10 +262,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject(
-  'api',
-  '../ExampleProject/ExampleProject.csproj',
-);
+const api = await builder
+  .addNodeApp('api', './api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const viteApp = await builder
   .addViteApp('vite-app', './vite-app')
@@ -500,7 +496,7 @@ When publishing to a container, `WithBun` / `withBun` automatically configures a
   <div slot="csharp">
 
 ```csharp title="C# — AppHost.cs"
-#pragma warning disable ASPIRECERTIFICATES001
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -741,6 +737,8 @@ Aspire automatically augments existing Vite configurations to enable HTTPS endpo
   <div slot="csharp">
 
 ```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIRECERTIFICATES001
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var viteApp = builder.AddViteApp("vite-app", "./vite-app")
@@ -783,12 +781,14 @@ In your AppHost, expose the API URL to the Vite app using `WithEnvironment` / `w
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../ApiService/ApiService.csproj")
+var api = builder
+    .AddNodeApp("api", "./api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT")
     .WithExternalHttpEndpoints();
 
 var viteApp = builder.AddViteApp("vite-app", "./vite-app")
     .WithReference(api)
-    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("https"));
+    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("http"));
 
 // After adding all resources, run the app...
 ```
@@ -802,13 +802,14 @@ import { createBuilder } from './.modules/aspire.js';
 const builder = await createBuilder();
 
 const api = await builder
-  .addProject('api', '../ApiService/ApiService.csproj')
+  .addNodeApp('api', './api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
   .withExternalHttpEndpoints();
 
 const viteApp = await builder
   .addViteApp('vite-app', './vite-app')
   .withReference(api)
-  .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('https'));
+  .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('http'));
 
 // After adding all resources, run the app...
 ```
@@ -838,13 +839,13 @@ export async function fetchData() {
 
 Vite and other SPA build tools bake environment variables (such as `VITE_*`) into the JavaScript bundle at **build time** (for example, when building the client for production). However, Aspire sets environment variables at **runtime**. This means calling `WithEnvironment("VITE_GOOGLE_CLIENT_ID", parameter)` / `withEnvironment('VITE_GOOGLE_CLIENT_ID', parameter)` on a Vite resource won't change values that were already baked into a previously built production bundle.
 
-To bridge this gap, pass the parameter to your API project as a standard environment variable and expose it through a configuration endpoint that the SPA fetches at startup.
+To bridge this gap, pass the parameter to your API app as a standard environment variable and expose it through a configuration endpoint that the SPA fetches at startup.
 
 <Steps>
 
 1. **Pass the parameter to the API in the AppHost**
 
-   Define the parameter in the AppHost and pass it to the API project using `WithEnvironment` / `withEnvironment`. Then reference the API from the frontend so it can call the endpoint:
+   Define the parameter in the AppHost and pass it to the API app using `WithEnvironment` / `withEnvironment`. Then reference the API from the frontend so it can call the endpoint:
 
    <AppHostLangPivot>
      <div slot="csharp">
@@ -854,7 +855,9 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 
    var googleClientId = builder.AddParameter("google-client-id");
 
-   var api = builder.AddProject("api", "../Api/Api.csproj")
+   var api = builder
+       .AddNodeApp("api", "./api", "server.js")
+       .WithHttpEndpoint(port: 3001, env: "PORT")
        .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
 
    var frontend = builder.AddViteApp("frontend", "./frontend")
@@ -875,7 +878,8 @@ To bridge this gap, pass the parameter to your API project as a standard environ
    const googleClientId = await builder.addParameter('google-client-id');
 
    const api = await builder
-     .addProject('api', '../Api/Api.csproj')
+     .addNodeApp('api', './api', 'server.js')
+     .withHttpEndpoint({ port: 3001, env: 'PORT' })
      .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
 
    const frontend = await builder
@@ -891,17 +895,30 @@ To bridge this gap, pass the parameter to your API project as a standard environ
 
 2. **Expose a config endpoint in the API**
 
-   Create an endpoint in your API project that reads the environment variable from configuration and returns it to the frontend:
+   Create an endpoint in your API app that reads the environment variable from `process.env` and returns it to the frontend:
 
-   ```csharp title="C# — Program.cs"
-   app.MapGet("/api/config/google-client-id", (IConfiguration config) =>
-   {
-       var clientId = config["GOOGLE_CLIENT_ID"];
+   ```javascript title="JavaScript — api/server.js"
+   import http from 'node:http';
 
-       return string.IsNullOrEmpty(clientId)
-           ? Results.NotFound()
-           : Results.Ok(new { clientId });
+   const port = process.env.PORT ?? 3000;
+   const clientId = process.env.GOOGLE_CLIENT_ID;
+
+   const server = http.createServer((request, response) => {
+     if (request.url !== '/api/config/google-client-id') {
+       response.writeHead(404).end();
+       return;
+     }
+
+     if (!clientId) {
+       response.writeHead(404).end();
+       return;
+     }
+
+     response.setHeader('content-type', 'application/json');
+     response.end(JSON.stringify({ clientId }));
    });
+
+   server.listen(port);
    ```
 
    <Aside type="caution" title="Only expose public configuration">
@@ -953,7 +970,9 @@ For a **pnpm** monorepo, install dependencies from the workspace root and refere
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../ApiService/ApiService.csproj");
+var api = builder
+    .AddNodeApp("api", "./apps/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT");
 
 // Each app lives in its own subdirectory with its own package.json
 var frontend = builder.AddViteApp("frontend", "./apps/frontend")
@@ -975,10 +994,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject(
-  'api',
-  '../ApiService/ApiService.csproj',
-);
+const api = await builder
+  .addNodeApp('api', './apps/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 // Each app lives in its own subdirectory with its own package.json
 const frontend = await builder
@@ -1021,7 +1039,9 @@ const dashboard = await builder
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../ApiService/ApiService.csproj");
+var api = builder
+    .AddNodeApp("api", "./apps/api", "server.js")
+    .WithHttpEndpoint(port: 3001, env: "PORT");
 
 var frontend = builder.AddJavaScriptApp("frontend", "./apps/frontend")
     .WithPnpm()
@@ -1039,10 +1059,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject(
-  'api',
-  '../ApiService/ApiService.csproj',
-);
+const api = await builder
+  .addNodeApp('api', './apps/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const frontend = await builder
   .addJavaScriptApp('frontend', './apps/frontend')
