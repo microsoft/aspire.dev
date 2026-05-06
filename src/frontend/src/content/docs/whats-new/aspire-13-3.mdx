@@ -810,15 +810,17 @@ Selecting the bell icon opens the **Notifications** dialog, which lists all noti
 
 The dashboard now has a built-in **Rebuild** command available on container and project resources. When triggered, it rebuilds the resource image and restarts the resource, making it faster to pick up code or Dockerfile changes without stopping and restarting the whole AppHost. The result (success or failure) appears in the notification center.
 
-### AI features disabled by default
-
-The dashboard's AI features are **disabled by default** in 13.3 (`Dashboard:AI:Disabled` defaults to `true`). The dashboard's AI surface is being phased out in favor of the Aspire CLI and the `aspire` agent skill, which provide a richer terminal-based and editor-integrated experience. Future releases will remove these dashboard features entirely.
+<Aside type="caution">
+Aspire 13.3 removes the in-dashboard GitHub Copilot UI. Please review the [Breaking changes](#breaking-changes) section before upgrading.
+</Aside>
 
 ## 🧰 VS Code extension
 
 ### Open dashboard in VS Code Simple Browser
 
 When you launch your Aspire app from VS Code, the dashboard now opens in **VS Code's Simple Browser** by default rather than spawning an external browser window. The behavior is controlled by the `aspire.dashboardBrowser` setting.
+
+### Other extension changes
 
 - **AppHost CodeLens and gutter decorations** — the extension renders inline run/stop affordances and resource state right in the editor.
 - **Auto-restore** — set `aspire.enableAutoRestore` to have the extension automatically run `aspire restore` when a workspace opens or its config changes.
@@ -1179,6 +1181,25 @@ The following per-kind `withEnvironment*` helpers are deprecated in favor of the
 | `withEnvironmentFromKeyVaultSecret(name, secret)` | `withEnvironment(name, secret)` |
 
 The old methods are still present and marked `@deprecated` — they will be removed in a future release.
+
+#### In-dashboard GitHub Copilot UI replaced by agentic development
+
+<span id="dashboard-ghcp-replacement"></span>
+<br/>
+
+The GitHub Copilot chat UI previously built into the Aspire dashboard has been replaced by a an agentic development model. The Copilot chat inside the dashboard has been disabled and instead AI coding agents now connect to your entire Aspire app through the CLI and MCP tools. This gives agents full context across structured logs, distributed traces, resource status, console output, and your source code.
+
+Agents can now diagnose issues end-to-end, suggest fixes in your actual codebase, and act on telemetry rather than just display it. The old dashboard UI only supported GitHub Copilot in Visual Studio and VS Code; the new approach works with **GitHub Copilot, Claude, Cursor**, and any other AI coding agent that supports skills or MCP.
+
+Set up agentic development with a single command:
+
+```bash title="Aspire CLI — Initialize AI agent configuration"
+aspire agent init
+```
+
+The `aspire agent init` command detects your development environment and configures skills and MCP tools for supported AI coding agents. Agents connect to the dashboard through the CLI regardless of how you launched your app — so you get the same AI-powered debugging whether you started with `aspire run`, VS Code, or Visual Studio.
+
+For full setup instructions, see [Use AI coding agents](/get-started/ai-coding-agents/) and [Dashboard and AI coding agents](/dashboard/ai-coding-agents/). If you relied on a specific Copilot dashboard scenario that isn't covered by the new approach, please [file an issue on GitHub](https://github.com/dotnet/aspire/issues) so the team can prioritize it.
 
 ### Migration from Aspire 13.2 to 13.3
 
