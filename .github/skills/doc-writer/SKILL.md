@@ -492,7 +492,7 @@ Brief description of the technology and what the integration enables.
 
 ## Hosting integration
 
-<InstallPackage package="Aspire.Hosting.Technology" />
+<InstallPackage packageName="Aspire.Hosting.Technology" />
 
 ### Add [Technology] resource
 
@@ -541,7 +541,7 @@ Include both hosting and client sections:
 ````mdx
 ## Hosting integration
 
-<InstallPackage package="Aspire.Hosting.Technology" />
+<InstallPackage packageName="Aspire.Hosting.Technology" />
 
 ### Add [Technology] resource
 
@@ -584,7 +584,7 @@ await builder.build().run();
 
 ## Client integration
 
-<InstallDotNetPackage package="Aspire.Technology" />
+<InstallDotNetPackage packageName="Aspire.Technology" />
 
 ### Add [Technology] client
 
