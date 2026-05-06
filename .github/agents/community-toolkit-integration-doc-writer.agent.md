@@ -88,6 +88,7 @@ This step ensures that the documentation you've created is properly indexed and 
 ### Required components and imports
 * Import `Badge` from '@astrojs/starlight/components' and add `<Badge text="⭐ Community Toolkit" variant="tip" size="large" />` at the top
 * Import and use the `Aside` component for notes, tips, cautions, and warnings
+* Import and use `AppHostLangPivot` for AppHost examples when both C# and TypeScript AppHost APIs are available
 * Import and use `InstallPackage` for hosting packages
 * Import and use `InstallDotNetPackage` for client packages
 * Import `Image` from 'astro:assets' for icons
@@ -137,6 +138,13 @@ This step ensures that the documentation you've created is properly indexed and 
 * For C# code in AppHost, always end with `// After adding all resources, run the app...` comment
 * Show complete, runnable examples
 * Use proper formatting and indentation
+
+### AppHost language parity
+* Follow the `doc-writer` skill's AppHost language parity guidance for all AppHost and hosting-integration examples.
+* Always show both C# AppHost (`AppHost.cs`) and TypeScript AppHost (`apphost.ts`) variants inside `AppHostLangPivot` unless the feature is genuinely language-specific or TypeScript AppHost support does not exist yet.
+* Before writing a TypeScript AppHost example, verify the API exists in the TypeScript AppHost SDK. Do not invent TypeScript samples.
+* If TypeScript AppHost support is not available, show only the C# example without `AppHostLangPivot` and add a note that TypeScript AppHost support for the integration is not yet available.
+* Use language-neutral prose around AppHost examples, such as "Add a resource to your AppHost" instead of C#-specific method instructions.
 
 ### Writing style
 * Use imperative mood for instructions ("call the method", not "you call the method")
