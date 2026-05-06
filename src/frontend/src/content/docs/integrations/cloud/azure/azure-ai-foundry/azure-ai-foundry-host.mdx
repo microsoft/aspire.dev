@@ -3,7 +3,7 @@ title: Microsoft Foundry hosting integration
 description: Learn how to use the Aspire Microsoft Foundry hosting integration to create Microsoft Foundry resources.
 ---
 
-import { Aside, Badge } from '@astrojs/starlight/components';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import ThemeAwareImage from '@components/ThemeImage.astro';
 import { Image } from 'astro:assets';
@@ -42,6 +42,9 @@ For an introduction to working with the Microsoft Foundry hosting integration, s
 
 To add a Microsoft Foundry resource to your AppHost project, call the `AddFoundry` method providing a name:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -53,6 +56,26 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+
+await builder
+  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .withReference(foundry);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code adds a Microsoft Foundry resource named `foundry` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
 
 > [!IMPORTANT]
@@ -62,7 +85,10 @@ The preceding code adds a Microsoft Foundry resource named `foundry` to the AppH
 
 To add a Microsoft Foundry deployment resource, call the `AddDeployment` method with one of the generated `FoundryModel` entries:
 
-```csharp
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var foundry = builder.AddFoundry("foundry");
@@ -76,6 +102,33 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+
+const chat = await foundry.addDeploymentFromModel('chat', {
+  name: 'gpt-5-mini',
+  version: '2025-06-01',
+  format: 'OpenAI',
+});
+
+await builder
+  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .withReference(chat)
+  .waitFor(chat);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code:
 
 - Adds a Microsoft Foundry resource named `foundry`.
@@ -84,6 +137,9 @@ The preceding code:
 For more information about the generated model descriptors, see the [FoundryModel API reference](https://learn.microsoft.com/dotnet/api/aspire.hosting.foundrymodel).
 
 If you need a different generated model descriptor, use the corresponding nested type, such as `FoundryModel.Microsoft.Phi4Reasoning`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -98,6 +154,33 @@ builder.AddProject<Projects.ExampleProject>()
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+
+const chat = await foundry.addDeploymentFromModel('chat', {
+  name: 'Phi-4-reasoning',
+  version: '1',
+  format: 'Microsoft',
+});
+
+await builder
+  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .withReference(chat)
+  .waitFor(chat);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Configure deployment properties
 
@@ -118,6 +201,9 @@ The preceding code sets the SKU name to `Standard` and capacity to `10` for the 
 
 Use the `AddProject` method to create a Microsoft Foundry project for agents, project-scoped connections, and related Azure resources:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -134,11 +220,43 @@ builder.AddProject<Projects.ExampleProject>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('my-project');
+
+const chat = await project.addModelDeploymentFromModel('chat', {
+  name: 'gpt-5-mini',
+  version: '2025-06-01',
+  format: 'OpenAI',
+});
+
+await builder
+  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .withReference(project)
+  .withReference(chat)
+  .waitFor(chat);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code creates a Foundry project and adds a deployment through `AddModelDeployment`. When you call `WithReference(project)`, Aspire injects the standard connection string and project-specific connection properties such as the project endpoint and Application Insights connection string into the consuming resource.
 
 ### Configure a Foundry project
 
 You can customize the Azure resources associated with a Foundry project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -154,11 +272,37 @@ var project = foundry.AddProject("my-project")
     .WithContainerRegistry(registry);
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+const appInsights = await builder.addAzureApplicationInsights('appinsights');
+const keyVault = await builder.addAzureKeyVault('keyvault');
+const registry = await builder.addAzureContainerRegistry('agents');
+
+await foundry
+  .addProject('my-project')
+  .withAppInsights(appInsights)
+  .withKeyVault(keyVault)
+  .withContainerRegistry(registry);
+```
+
+</TabItem>
+</Tabs>
+
 `AddProject` creates a default Azure Container Registry for hosted agents. Use `WithContainerRegistry` when you want to point the project at a different registry.
 
 ## Publish a hosted agent to Microsoft Foundry
 
 Use `PublishAsHostedAgent` to publish an executable or containerized app as a hosted agent in a Foundry project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -167,12 +311,12 @@ var foundry = builder.AddFoundry("foundry");
 var project = foundry.AddProject("my-project");
 var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
-builder.AddPythonApp("agent", "..\\agent", "main:app")
+builder.AddPythonApp("agent-python", "..\\agent", "main:app")
     .WithReference(project)
     .WithReference(chat)
     .PublishAsHostedAgent(project);
 
-var dotnetWeatherAgent = builder.AddProject<Projects.Agent>("agent")
+builder.AddProject<Projects.Agent>("agent-dotnet")
     .WithHttpEndpoint(targetPort: 9000)
     .WithReference(project)
     .WithReference(chat)
@@ -180,6 +324,41 @@ var dotnetWeatherAgent = builder.AddProject<Projects.Agent>("agent")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('my-project');
+const chat = await project.addModelDeploymentFromModel('chat', {
+  name: 'gpt-5-mini',
+  version: '2025-06-01',
+  format: 'OpenAI',
+});
+
+await builder
+  .addPythonApp('agent-python', '../agent', 'main:app')
+  .withReference(project)
+  .withReference(chat)
+  .publishAsHostedAgent({ project });
+
+await builder
+  .addProject('agent-dotnet', '../Agent/Agent.csproj')
+  .withHttpEndpoint({ targetPort: 9000 })
+  .withReference(project)
+  .withReference(chat)
+  .publishAsHostedAgent({ project });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 In run mode, `PublishAsHostedAgent(...)` configures a local `http` endpoint for the agent. Aspire first checks whether the resource already has an endpoint named `http`. If that endpoint has a target port, Aspire preserves it. If there is no existing `http` target port, Aspire defaults to `8088`.
 
@@ -203,16 +382,18 @@ dotnetWeatherAgent.PublishAsHostedAgent(project);
 
 In run mode, Aspire also adds dashboard URLs for `/responses`, `/liveness`, and `/readiness`, configures `/liveness` as an HTTP health check, adds a dashboard command for sending a message to `/responses`, and enables OpenTelemetry environment variables for agent instrumentation.
 
-For .NET hosted agents, add your Service Defaults project reference and call `builder.AddServiceDefaults()` in the hosted-agent app so logs, metrics, traces, HTTP instrumentation, and OTLP export flow into the Aspire dashboard. Then enable telemetry on the Foundry Responses chat client that backs the MAF agent
+For .NET hosted agents, add your Service Defaults project reference and call `builder.AddServiceDefaults()` in the hosted-agent app so logs, metrics, traces, HTTP instrumentation, and OTLP export flow into the Aspire dashboard. Then enable telemetry on the Foundry Responses chat client that backs the Microsoft Agent Framework (MAF) agent.
 
 In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the container to the project-associated registry.
 
 If you omit the `project` argument, Aspire uses an existing Foundry project from the app model or creates one automatically.
 
-
 ### Add and publish a prompt agent
 
-For prompt-only scenarios, use `AddAndPublishPromptAgent` on a Foundry project:
+For prompt-only scenarios, use `AddPromptAgent` on a Foundry project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -233,14 +414,49 @@ var webResearcher = project.AddPromptAgent(chat, name: "web-researcher",
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry');
+const project = await foundry.addProject('my-project');
+const chat = await project.addModelDeploymentFromModel('chat', {
+  name: 'gpt-5-mini',
+  version: '2025-06-01',
+  format: 'OpenAI',
+});
+
+const webSearch = await project.addWebSearchTool('web-search');
+
+await project
+  .addPromptAgent(
+    chat,
+    'web-researcher',
+    `
+    You are the Web Researcher. Use web search for current information,
+    cite sources, summarize tradeoffs, and keep answers concise and practical.
+  `
+  )
+  .withTool(webSearch);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 Parameter details:
 
-| API | Parameter | Description |
-| --- | --- | --- |
-| `AddPromptAgent(...)` | `model` | The Foundry model deployment resource the prompt agent uses, such as `chat` from `project.AddModelDeployment(...)`. |
-| `AddPromptAgent(...)` | `name` | The Aspire resource name and Foundry agent name. This also drives generated environment variable prefixes, for example `web-researcher` becomes `WEB_RESEARCHER`. |
-| `AddPromptAgent(...)` | `instructions` | Optional system instructions for the prompt agent. Use this to define behavior, tool-use guidance, and response style. |
-| `WithTool(...)` | `tool` | A Foundry tool resource created on the same Foundry project, such as `AddWebSearchTool(...)`, `AddCodeInterpreterTool(...)`, or `AddAISearchTool(...)`. |
+| API                   | Parameter      | Description                                                                                                                                                       |
+| --------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AddPromptAgent(...)` | `model`        | The Foundry model deployment resource the prompt agent uses, such as `chat` from `project.AddModelDeployment(...)`.                                               |
+| `AddPromptAgent(...)` | `name`         | The Aspire resource name and Foundry agent name. This also drives generated environment variable prefixes, for example `web-researcher` becomes `WEB_RESEARCHER`. |
+| `AddPromptAgent(...)` | `instructions` | Optional system instructions for the prompt agent. Use this to define behavior, tool-use guidance, and response style.                                            |
+| `WithTool(...)`       | `tool`         | A Foundry tool resource created on the same Foundry project, such as `AddWebSearchTool(...)`, `AddCodeInterpreterTool(...)`, or `AddAISearchTool(...)`.           |
 
 Prompt agents are deployed to Azure AI Foundry even during local development. Local apps call the cloud-provisioned agent through the injected project endpoint and agent name.
 
@@ -264,7 +480,10 @@ Aspire also makes the declared agents easy to try from the dashboard. Prompt age
 
 You might have an existing Microsoft Foundry service that you want to connect to. You can chain a call to annotate that your `FoundryResource` is an existing resource:
 
-```csharp
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var existingFoundryName = builder.AddParameter("existingFoundryName");
@@ -279,12 +498,42 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const existingFoundryName = await builder.addParameter('existingFoundryName');
+const existingFoundryResourceGroup = await builder.addParameter(
+  'existingFoundryResourceGroup'
+);
+
+const foundry = await builder
+  .addFoundry('foundry')
+  .asExisting(existingFoundryName, existingFoundryResourceGroup);
+
+await builder
+  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .withReference(foundry);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 > [!IMPORTANT]
 > When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` methods to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost to ensure that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
 ## Use Foundry Local for development
 
 Aspire supports the usage of Foundry Local for local development. Add the following to your AppHost project:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -301,6 +550,33 @@ builder.AddProject<Projects.ExampleProject>()
 // After adding all resources, run the app...
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('foundry').runAsFoundryLocal();
+
+const chat = await foundry.addDeploymentFromModel('chat', {
+  name: 'Phi-4',
+  version: '1',
+  format: 'Microsoft',
+});
+
+await builder
+  .addProject('api', '../ExampleProject/ExampleProject.csproj')
+  .withReference(chat)
+  .waitFor(chat);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 When the AppHost starts up, the local foundry service is also started. This requires the local machine to have [Foundry Local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started) installed and running.
 
 The `RunAsFoundryLocal` method configures the resource to run as an emulator. It downloads and loads the specified models locally. The method provides health checks for the local service and automatically manages the Foundry Local lifecycle.
@@ -315,13 +591,41 @@ The `RunAsFoundryLocal` method configures the resource to run as an emulator. It
 
 You can assign specific roles to resources that need to access the Microsoft Foundry service. Use the `WithRoleAssignments` method:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var foundry = builder.AddFoundry("chat");
 
 builder.AddProject<Projects.Api>("api")
   .WithRoleAssignments(foundry, CognitiveServicesBuiltInRole.CognitiveServicesUser)
   .WithReference(foundry);
+
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder, FoundryRole } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry('chat');
+
+await builder
+  .addProject('api', '../Api/Api.csproj')
+  .withRoleAssignments(foundry, [FoundryRole.CognitiveServicesUser])
+  .withReference(foundry);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code assigns the `CognitiveServicesUser` role to the `api` project, granting it the necessary permissions to access the Microsoft Foundry resource.
 
