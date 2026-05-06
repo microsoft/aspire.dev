@@ -172,6 +172,24 @@ var frontend = builder.AddYarp("frontend")
                       .WithDockerfile("../npmapp");
 ```
 
+When using `WithStaticFiles` together with `WithDockerfile`, the YARP container expects static files to be placed at the `/wwwroot` directory inside the container. Your Dockerfile must use the YARP base image (`mcr.microsoft.com/dotnet/nightly/yarp`) as its final stage so the YARP server can start and serve the files. The following example shows a multi-stage Dockerfile that builds a Node.js frontend app and copies the output to `/app/wwwroot`:
+
+```dockerfile title="Dockerfile"
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM mcr.microsoft.com/dotnet/nightly/yarp
+COPY --from=build /app/dist /wwwroot
+```
+
+<Aside type="caution">
+If the built assets aren't copied to `/app/wwwroot`, the container starts successfully but returns 404 for all static file requests. Look for the log message `The WebRootPath was not found: /wwwroot. Static files may be unavailable.` as an indicator that the path is misconfigured.
+</Aside>
+
 #### Combining static files with routing
 
 You can combine static file serving with dynamic routing:
