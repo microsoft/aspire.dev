@@ -6,7 +6,6 @@ sidebar:
 ---
 
 import Include from '@components/Include.astro';
-import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -30,23 +29,17 @@ Each compute environment implements its own destroy step with contextual confirm
 - **Docker Compose**: Confirms, then runs `docker compose down` using persisted deployment state.
 - **Kubernetes (Helm)**: Confirms, then runs `helm uninstall` using the persisted release name and namespace.
 
-<Aside type="caution">
-  The `aspire destroy` command permanently removes deployed resources. For Azure
-  environments, this deletes the entire resource group and all resources within
-  it. This action cannot be undone.
-</Aside>
+:::caution
+The `aspire destroy` command permanently removes deployed resources. For Azure environments, this deletes the entire resource group and all resources within it. This action cannot be undone.
+:::
+
+The AppHost and selected compute environment must provide a `destroy` pipeline step. If no destroy step is registered, the command fails without deleting resources.
 
 Before performing the destroy operation, the command displays contextual information about what will be removed and prompts for confirmation. Use the `--yes` flag to skip the confirmation prompt in automated or non-interactive scenarios.
 
-<Aside type="note">
-  In non-interactive mode, you must provide the `--yes` flag. Running `aspire
-  destroy` without `--yes` in a non-interactive environment causes the command
-  to fail immediately rather than proceeding silently.
-</Aside>
-
 ### Non-interactive usage
 
-When running `aspire destroy` in a non-interactive context (for example, in CI/CD pipelines or automation scripts), you must pass **both** `--non-interactive` and `--yes` together. Omitting `--yes` when using `--non-interactive` is an error:
+When you use `--non-interactive`, also pass `--yes` to explicitly confirm the destructive operation. Omitting `--yes` when using `--non-interactive` is an error:
 
 ```bash title="Aspire CLI"
 aspire destroy --non-interactive --yes
@@ -54,8 +47,27 @@ aspire destroy --non-interactive --yes
 
 If you specify `--non-interactive` without `--yes`, the command exits with an error:
 
-```
+```text title="Output"
 The destroy command requires --yes when the --non-interactive option is specified.
+```
+
+## Output
+
+Before running the destroy pipeline, `aspire destroy` displays contextual information about the deployed resources or deployment state that the selected compute environment plans to remove, unless `--yes` is specified. After the pipeline finishes, the command prints a result summary and a step-by-step breakdown. The exact step names depend on the selected compute environment.
+
+```text title="Output"
+------------------------------------------------------------
+✅ 3/3 steps succeeded • Total time: 12.34s
+
+Steps Summary:
+                Step timeline:                 0s                       12.34s
+                                               │───────┬──────┬─────┬───────│
+      2.10ms  ✓ validate-compute-environments  │╴                           │
+       12.34s ✓ pipeline-execution             │╶──────────────────────────╴│
+       12.30s ✓   destroy                      │╶──────────────────────────╴│
+
+✅ Pipeline succeeded
+------------------------------------------------------------
 ```
 
 ## Options
@@ -74,7 +86,7 @@ The following options are available:
 
 - **`-o, --output-path`**
 
-  The optional path to the deployment artifacts to destroy. Defaults to the `aspire-output` folder relative to the AppHost.
+  The output path containing deployment artifacts to destroy. Defaults to the `aspire-output` folder relative to the AppHost.
 
 - **`--pipeline-log-level`**
 
@@ -112,7 +124,7 @@ The following options are available:
   aspire destroy
   ```
 
-- Destroy a specific AppHost's deployed environment without prompting for confirmation:
+- Destroy the deployed environment without prompting for confirmation:
 
   ```bash title="Aspire CLI"
   aspire destroy --yes
