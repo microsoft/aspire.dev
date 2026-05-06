@@ -33,7 +33,7 @@ The `aspire.config.json` file is the central configuration for your AppHost. It 
     "language": "typescript/nodejs"
   },
   "packages": {
-    "Aspire.Hosting.JavaScript": "13.2.0"
+    "Aspire.Hosting.JavaScript": "13.3.0"
   },
   "profiles": {
     "https": {
@@ -69,8 +69,8 @@ This updates `aspire.config.json`:
 ```json title="aspire.config.json" ins={4}
 {
   "packages": {
-    "Aspire.Hosting.JavaScript": "13.2.0",
-    "Aspire.Hosting.Redis": "13.2.0"
+    "Aspire.Hosting.JavaScript": "13.3.0",
+    "Aspire.Hosting.Redis": "13.3.0"
   }
 }
 ```
@@ -135,6 +135,28 @@ const api = await builder
 
 await builder.build().run();
 ```
+
+## Package managers
+
+The Aspire CLI automatically detects which package manager your TypeScript AppHost uses by inspecting lock files and the `packageManager` field in `package.json`. The following package managers are supported:
+
+| Package manager | Lock file detected | Notes |
+|---|---|---|
+| npm | `package-lock.json` | Default; no extra setup required |
+| pnpm | `pnpm-lock.yaml` | |
+| Yarn (v4+) | `yarn.lock` | Must be Yarn 4 or later (Berry) |
+| Bun | `bun.lock` / `bun.lockb` | |
+
+<Aside type="caution">
+**Yarn Classic (v1) is not supported.** If the Aspire CLI detects a Yarn Classic lock file (`# yarn lockfile v1`) or a `packageManager` field such as `"yarn@1.x"` in `package.json`, it throws an error and stops. Upgrade to Yarn 4 or later, or switch to npm, pnpm, or Bun.
+
+To upgrade to Yarn 4, run:
+
+```bash
+corepack enable yarn
+corepack use yarn@stable
+```
+</Aside>
 
 ## package.json
 
@@ -248,6 +270,18 @@ The `aspire doctor` command checks that the required JavaScript toolchain execut
 ```bash title="Aspire CLI"
 aspire doctor
 ```
+
+## TypeScript validation before startup
+
+Before starting a TypeScript AppHost, the Aspire CLI runs `tsc --noEmit` to check for type errors to prevent the dashboard and resources from starting in a partially broken state. If your AppHost has TypeScript compile errors, `aspire run` and `aspire publish` stop before the AppHost launches and display the diagnostic output:
+
+```text
+apphost.ts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
+```
+
+### Watch mode behavior
+
+When you use `aspire run` in watch mode, the TypeScript validation is embedded in the nodemon restart command. The watcher **can still start** even if there are initial type errors — it will recover automatically as you edit and save files that fix the errors.
 
 ## See also
 

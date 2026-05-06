@@ -354,6 +354,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               label: 'aspire describe',
               slug: 'reference/cli/commands/aspire-describe',
             },
+            {
+              label: 'aspire destroy',
+              slug: 'reference/cli/commands/aspire-destroy',
+            },
             { label: 'aspire do', slug: 'reference/cli/commands/aspire-do' },
             {
               label: 'aspire docs',
@@ -573,6 +577,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireexport010',
             },
             {
+              label: 'ASPIREEXPORT013',
+              link: '/diagnostics/aspireexport013',
+            },
+            {
               label: 'ASPIRECERTIFICATES001',
               link: '/diagnostics/aspirecertificates001',
             },
@@ -615,6 +623,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             {
               label: 'ASPIREINTERACTION001',
               link: '/diagnostics/aspireinteraction001',
+            },
+            {
+              label: 'ASPIREJAVASCRIPT001',
+              link: '/diagnostics/aspirejavascript001',
             },
             {
               label: 'ASPIREMCP001',
@@ -701,6 +713,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
             { label: 'ASPIREAZURE001', link: '/diagnostics/aspireazure001' },
             { label: 'ASPIREAZURE002', link: '/diagnostics/aspireazure002' },
             { label: 'ASPIREAZURE003', link: '/diagnostics/aspireazure003' },
+            {
+              label: 'ASPIREBROWSERLOGS001',
+              link: '/diagnostics/aspirebrowserlogs001',
+            },
           ],
         },
       ],

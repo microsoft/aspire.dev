@@ -44,13 +44,13 @@ Your C# code runs as-is — the TypeScript SDK is a thin client that calls into 
 The [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) package provides build-time validation that catches common export mistakes. Add it to your integration project:
 
 ```xml title="XML — MyIntegration.csproj"
-<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.2.0">
+<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.3.0">
     <PrivateAssets>all</PrivateAssets>
     <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 </PackageReference>
 ```
 
-The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
+The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export or capability IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
 
 ## Export extension methods
 
@@ -109,12 +109,58 @@ await app.run();
 ```
 
 <Aside type="tip" title="Naming convention">
-The export ID becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`). The full capability ID is computed as `{AssemblyName}/{methodName}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
+The export ID usually becomes the method name in generated SDKs. Use camelCase (e.g., `addMyDatabase`, `withDataVolume`), or set `MethodName` when the runtime capability ID and SDK method name need to differ. For static exports, the full capability ID is computed as `{AssemblyName}/{exportId}` — for example, `MyCompany.Hosting.MyDatabase/addMyDatabase`.
 </Aside>
+
+### Keep capability IDs unique
+
+The runtime dispatches multi-language calls by **capability ID**. A capability ID is more restrictive than a C# method signature: it doesn't include the C# receiver type, parameter list, or overload signature. Starting in Aspire 13.3, the analyzer reports `ASPIREEXPORT013` when two exports in the same assembly generate the same capability ID.
+
+For static exports, the generated capability ID uses the assembly name and effective export ID. The following methods collide even though they target different C# types:
+
+```csharp title="C# — Duplicate capability ID"
+[AspireExport("configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+Use distinct export IDs for the runtime capability, and use `MethodName` when you want the generated SDK method name to stay concise on different target types:
+
+```csharp title="C# — Unique capability IDs with SDK method names"
+[AspireExport("configureBuilder", MethodName = "configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configureDatabase", MethodName = "configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+When you set `ExposeMethods = true` or `ExposeProperties = true` on a context type, the analyzer also checks the capabilities generated for public instance members. Overloaded instance methods with the same name generate the same default capability ID, so either expose a single ATS-friendly overload, mark unsupported overloads with `[AspireExportIgnore]`, or give each exported member a unique `[AspireExport]` ID and generated `MethodName`.
 
 ## Export resource types
 
-Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make the resource's properties accessible as get/set capabilities — most resources should include this:
+Mark your resource types with `[AspireExport]` so the TypeScript SDK can reference them as typed handles. Set `ExposeProperties = true` to make all public properties accessible as capabilities, or annotate individual properties with `[AspireExport]` for fine-grained control:
 
 ```csharp title="C# — MyDatabaseResource.cs"
 [AspireExport(ExposeProperties = true)]
@@ -139,24 +185,142 @@ public sealed class MyDatabaseDatabaseResource(string name, MyDatabaseResource p
 {
     // Your existing implementation...
 }
-````
+```
 
 When `ExposeProperties = true`, each public property becomes a capability in the generated SDK. Use `[AspireExportIgnore]` on properties that shouldn't be exposed.
 
-You can also set `ExposeMethods = true` to export public instance methods as capabilities:
+You can also set `ExposeMethods = true` to export public instance methods as capabilities alongside properties.
 
-```csharp title="C# — Context type with exposed methods"
-[AspireExport(ExposeProperties = true, ExposeMethods = true)]
-public class EnvironmentCallbackContext
+### How getter-only properties appear in TypeScript
+
+The code generator distinguishes between read-only (getter-only) properties and read-write or mutable-collection properties:
+
+- **Getter-only properties** (no setter, and not a mutable collection type) are generated as async methods in TypeScript: `property(): Promise<T>`.
+- **Read-write properties** and **mutable-collection properties** (such as `AspireList<T>` or `AspireDict<K,V>`) are generated as `readonly` getter properties.
+
+For example, a C# class with both kinds of property:
+
+```csharp title="C# — Mixed property kinds"
+[AspireExport(ExposeProperties = true)]
+public class MyCallbackContext
 {
-    public Dictionary<string, object> EnvironmentVariables { get; }
+    /// <summary>Getter-only — becomes an async method in TypeScript.</summary>
+    public IResource Resource => _resource;
 
-    public void AddEnvironmentVariable(string key, string value)
+    /// <summary>Mutable collection — stays a readonly getter in TypeScript.</summary>
+    public AspireList<string> Tags { get; } = new();
+}
+```
+
+Generates the following TypeScript interface:
+
+```typescript title="TypeScript — Generated interface"
+export interface MyCallbackContext {
+    toJSON(): MarshalledHandle;
+    resource(): Promise<IResourceHandle>;   // getter-only → async method
+    readonly tags: AspireList<string>;       // mutable collection → readonly getter
+}
+```
+
+TypeScript AppHost authors call getter-only properties as functions:
+
+```typescript title="TypeScript — Consuming the generated API"
+const resource = await context.resource();
+const tags = context.tags; // no await needed for mutable collections
+```
+
+:::tip
+Prefer getter-only properties (`=> value;` or `{ get; }` without a setter) when the TypeScript side should treat the value as a read-once async operation. Use `AspireList<T>` and `AspireDict<K,V>` when TypeScript code needs to add, remove, or iterate values directly.
+:::
+
+## Callback context types and the ATS-first editor pattern
+
+When you export a method that accepts a callback (such as `withEnvironmentCallback`, `withArgsCallback`, or `withUrls`), the callback receives a *context* object. For TypeScript compatibility, context types should follow the ATS-first design:
+
+1. Use `[AspireExport]` (not `ExposeProperties = true`) on the context class.
+2. Annotate only the properties that TypeScript callers need with individual `[AspireExport]` attributes.
+3. For mutable state (environment variables, command-line arguments, URL lists), expose a small *editor* class rather than the raw collection.
+
+### Defining an editor class
+
+An editor wraps a mutable collection and exposes specific operations — typically `add`, `set`, or `remove` — instead of handing the raw collection to TypeScript:
+
+```csharp title="C# — EnvironmentEditor.cs"
+/// <summary>
+/// Provides an ATS-first editor for environment variables within polyglot callbacks.
+/// </summary>
+[AspireExport]
+internal sealed class EnvironmentEditor(Dictionary<string, object> environmentVariables)
+{
+    /// <summary>Sets an environment variable.</summary>
+    [AspireExport(Description = "Sets an environment variable")]
+    public void Set(
+        string name,
+        [AspireUnion(
+            typeof(string),
+            typeof(ReferenceExpression),
+            typeof(EndpointReference),
+            typeof(IResourceBuilder<ParameterResource>),
+            typeof(IResourceBuilder<IResourceWithConnectionString>))]
+        object value)
     {
-        EnvironmentVariables[key] = value;
+        environmentVariables[name] = value;
     }
 }
-````
+```
+
+### Defining the callback context
+
+Use individual `[AspireExport]` attributes on each property the TypeScript caller needs. Pass the editor as a getter-only property so TypeScript callers receive it as an async method:
+
+```csharp title="C# — MyCallbackContext.cs"
+[AspireExport]
+public sealed class MyCallbackContext(
+    DistributedApplicationExecutionContext executionContext,
+    IResource resource,
+    Dictionary<string, object> environmentVariables)
+{
+    /// <summary>Gets the resource associated with this callback.</summary>
+    [AspireExport(Description = "Gets the resource associated with this callback")]
+    public IResource Resource => resource;
+
+    /// <summary>Gets the execution context.</summary>
+    [AspireExport(Description = "Gets the execution context")]
+    public DistributedApplicationExecutionContext ExecutionContext => executionContext;
+
+    /// <summary>Gets the environment variable editor.</summary>
+    [AspireExport(Description = "Gets the environment variable editor")]
+    internal EnvironmentEditor Environment => new(environmentVariables);
+}
+```
+
+### Exporting the callback method
+
+Export the extension method that accepts the callback, using `Action<MyCallbackContext>` as the parameter type:
+
+```csharp title="C# — MyResourceBuilderExtensions.cs"
+[AspireExport("withMyCallback", Description = "Configures the resource using a callback")]
+public static IResourceBuilder<MyResource> WithMyCallback(
+    this IResourceBuilder<MyResource> builder,
+    Action<MyCallbackContext> configure)
+{
+    return builder.WithAnnotation(new MyCallbackAnnotation(configure));
+}
+```
+
+The generated TypeScript API accepts an async arrow function:
+
+```typescript title="TypeScript — Consuming the callback API"
+await myResource.withMyCallback(async (context) => {
+    const resource = await context.resource();
+    const env = await context.environment();
+    await env.set("MY_KEY", "my-value");
+});
+```
+
+:::note
+The `Action<T>` delegate type is ATS-compatible. The TypeScript side receives an async function; the Aspire runtime bridges the async TypeScript call to the synchronous C# delegate on a background thread.
+:::
 
 ## Export configuration DTOs
 
@@ -347,6 +511,9 @@ The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
 | ASPIREEXPORT008 | Warning  | Public extension method on exported type missing `[AspireExport]` or `[AspireExportIgnore]` |
 | ASPIREEXPORT009 | Warning  | Export name may collide with other integrations                                             |
 | ASPIREEXPORT010 | Warning  | Synchronous callback invoked inline — may deadlock in multi-language app hosts              |
+| ASPIREEXPORT011 | Warning  | Explicit export ID matches the convention-derived name                                      |
+| ASPIREEXPORT012 | Warning  | Callback context type missing `[AspireExport]`                                              |
+| ASPIREEXPORT013 | Warning  | Duplicate polyglot capability ID across exports in the same assembly                        |
 
 A clean build with zero analyzer warnings means your integration is ready for multi-language use.
 
@@ -361,7 +528,7 @@ You can test your integration locally without publishing to a NuGet feed. In you
     "language": "typescript/nodejs"
   },
   "packages": {
-    "Aspire.Hosting.Redis": "13.2.0",
+    "Aspire.Hosting.Redis": "13.3.0",
     "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
   }
 }

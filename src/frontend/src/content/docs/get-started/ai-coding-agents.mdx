@@ -34,11 +34,20 @@ When you create a new Aspire project with `aspire new` or `aspire init`, you're 
    aspire agent init
    ```
 
-1. Select the components you want to configure:
+1. Select the **skill locations** where you want files installed. The **Standard** location is pre-selected by default:
 
-   - **Aspire skill file** (recommended) — teaches your AI agent how to use Aspire CLI commands
+   | Location | Directory | Notes |
+   |---|---|---|
+   | **Standard** | `.agents/skills/` | Supported by VS Code, GitHub Copilot, and OpenCode |
+   | **Claude Code** | `.claude/skills/` | Claude Code specific |
+   | **GitHub Skills** | `.github/skills/` | VS Code / GitHub Copilot specific |
+   | **OpenCode** | `.opencode/skill/` | OpenCode specific |
+
+1. Select the **skills and tools** to install into those locations. All options are pre-selected by default:
+
+   - **Aspire skill** — teaches your AI agent how to use Aspire CLI commands
    - **Playwright CLI** — enables browser automation for testing web resources
-   - **Aspire MCP server** — gives your AI agent runtime access to resources, logs, and traces
+   - **dotnet-inspect skill** — teaches your AI agent to query .NET API surfaces
 
 </Steps>
 
@@ -55,14 +64,18 @@ The `aspire agent init` command detects your AI development environment and crea
 
 ### Aspire skill file
 
-The skill file teaches your AI coding agent how to work with Aspire. It includes a CLI command reference, key workflows (starting apps, debugging issues, adding integrations), and important rules to follow. The file is created in the format your agent expects:
+The skill file teaches your AI coding agent how to work with Aspire. It includes a CLI command reference, key workflows (starting apps, debugging issues, adding integrations), and important rules to follow. The file is installed into each selected skill location:
 
 <FileTree>
 
+- .agents/skills/aspire/
+  - SKILL.md  Standard (VS Code, GitHub Copilot, OpenCode)
 - .github/skills/aspire/
-  - SKILL.md  GitHub Copilot
+  - SKILL.md  GitHub Copilot (legacy location)
 - .claude/skills/aspire/
   - SKILL.md  Claude Code
+- .opencode/skill/aspire/
+  - SKILL.md  OpenCode
 
 </FileTree>
 
@@ -72,6 +85,29 @@ The skill file guides your agent on how to:
 - Debug issues using structured logs and distributed traces
 - Add integrations with `aspire add` and search documentation with `aspire docs`
 - Use resource MCP tools for database queries and other resource-specific operations
+
+### dotnet-inspect skill
+
+The `dotnet-inspect` skill teaches your AI agent to query .NET API surfaces using the [`dotnet-inspect`](https://github.com/richlander/dotnet-inspect) tool. It's installed alongside the Aspire skill in each selected location:
+
+<FileTree>
+
+- .agents/skills/dotnet-inspect/
+  - SKILL.md
+- .github/skills/dotnet-inspect/
+  - SKILL.md
+- .claude/skills/dotnet-inspect/
+  - SKILL.md
+- .opencode/skill/dotnet-inspect/
+  - SKILL.md
+
+</FileTree>
+
+The skill enables your agent to inspect NuGet package API surfaces, compare API changes between package versions, and explore .NET types and members.
+
+:::note[Skill conflict]
+The `dotnet-inspect` skill should not be installed alongside the Aspire skill. The Aspire skill already includes support for `aspire docs api` subcommands, providing a powerful way to query Aspire APIs across both C# and TypeScript.
+:::
 
 ### Aspire MCP server
 

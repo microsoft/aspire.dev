@@ -58,7 +58,7 @@ function getReleaseFeedNameFromCommit(commit: string | undefined | null): string
     return null;
   }
 
-  return `darc-pub-dotnet-aspire-${normalizedCommit.slice(0, 8)}`;
+  return `darc-pub-microsoft-aspire-${normalizedCommit.slice(0, 8)}`;
 }
 
 function buildReleaseFeedServiceIndex(feedName: string): string {

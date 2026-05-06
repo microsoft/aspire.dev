@@ -27,6 +27,19 @@ The `aspire new` command is the driver for creating Aspire projects, apps, or so
 
 This command defaults to **interactive** mode. When executed without any options, the command prompts you for the project template and version, name, and output folder. When the `--name`, `--output`, and `--version` options are provided, the command runs **non-interactive** and generates files based on the command template.
 
+### Default output directory
+
+When you don't provide `--output`, the default output directory is derived from the **template name**. For example, running `aspire new aspire-starter` without `--output` creates a directory named `./aspire-starter` in the current working directory.
+
+If that directory already exists and is non-empty, the command automatically appends a numeric suffix to find a unique name (for example, `./aspire-starter-2`, `./aspire-starter-3`, and so on).
+
+### Output path validation
+
+The `--output` option validates the provided path before creating the project:
+
+- Paths that contain **invalid characters** (such as null bytes) are rejected with an error.
+- Paths that point to an **existing non-empty directory** are rejected with a clear error message. Use a different output path or an empty directory.
+
 <Aside type="note">
   The `aspire new` command currently requires an interactive terminal even when
   all options are provided. The `--non-interactive` flag is not fully supported.
@@ -104,6 +117,10 @@ The following options are available:
 
   Channel to use for templates (`stable`, `staging`, `daily`).
 
+- **`--suppress-agent-init`**
+
+  Suppress the prompt to initialize MCP server configuration for agent environments after project creation.
+
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
 - <Include relativePath="reference/cli/includes/option-log-level.md" />
@@ -124,10 +141,22 @@ Each command represents a template. Pass the `--help` parameter to the template 
 | ---------------------- | --------------------------------- |
 | `aspire-starter`       | Starter App (ASP.NET Core/Blazor) |
 | `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)  |
-| `aspire-py-starter`    | Starter App (FastAPI/React)       |
+| `aspire-py-starter`    | Starter App (FastAPI/React) |
 | `aspire-ts-starter`    | Starter App (Express/React)       |
 | `aspire-empty`         | Empty (C# AppHost)                |
 | `aspire-ts-empty`      | Empty (TypeScript AppHost)        |
+
+### aspire-py-starter options
+
+The `aspire-py-starter` template accepts the following additional options:
+
+- **`--use-redis-cache`**
+
+  Scaffold the template with an optional Redis cache resource in the TypeScript AppHost. Accepts `true` or `false`. Defaults to prompting interactively.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-py-starter --use-redis-cache true
+  ```
 
 ## Examples
 
@@ -137,10 +166,10 @@ Each command represents a template. Pass the `--help` parameter to the template 
   aspire new aspire-starter
   ```
 
-- Create an AppHost project named `aspireapp` from the **13.2.0** templates and place the output in a folder named `dev`.
+- Create an AppHost project named `aspireapp` from the **13.3.0** templates and place the output in a folder named `dev`.
 
   ```bash title="Aspire CLI"
-  aspire new aspire-empty --version 13.2.0 --name aspireapp --output ./dev
+  aspire new aspire-empty --version 13.3.0 --name aspireapp --output ./dev
   ```
 
 - Create an Aspire starter app using templates from the `daily` channel to get the latest pre-release templates.
