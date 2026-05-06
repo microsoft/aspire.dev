@@ -755,7 +755,54 @@ The SSR examples below assume a backend resource named `api` referenced from the
 - In publish mode, they produce static frontend assets, Node.js server output, or both.
 - Another resource can serve those artifacts in production, or a JavaScript publish method can make the JavaScript resource publish as its own static website or Node.js server.
 
-If a build-only JavaScript resource is not consumed by another resource, publish/deploy validation fails because that resource would not participate in the deployed app. Prefer fixing the app model by choosing one of the deployment shapes in this article. The app-wide `builder.Pipeline.DisableBuildOnlyContainerValidation()` escape hatch exists for exceptional cases, but it should not be the normal way to deploy JavaScript frontends.
+### Build-only container validation
+
+If a build-only JavaScript resource is not consumed by another resource, publish/deploy validation fails because that resource would not participate in the deployed app. The error looks similar to:
+
+```text
+Build-only container resource(s) 'frontend' are not consumed by another resource and won't participate in publish or deploy. Reference them from another resource, for example using 'PublishWithContainerFiles' or 'PublishWithStaticFiles', or suppress this validation for the app by calling 'builder.Pipeline.DisableBuildOnlyContainerValidation()'.
+```
+
+Prefer fixing the app model by choosing one of the deployment shapes in this article. The app-wide `DisableBuildOnlyContainerValidation()` escape hatch exists for exceptional cases, but it should not be the normal way to deploy JavaScript frontends.
+
+To disable the validation for the whole app, call `DisableBuildOnlyContainerValidation` on the pipeline:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPIPELINES001
+
+using Aspire.Hosting.Pipelines;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Add resources...
+
+builder.Pipeline.DisableBuildOnlyContainerValidation();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add resources...
+
+builder.pipeline.disableBuildOnlyContainerValidation();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The `DisableBuildOnlyContainerValidation` method is marked experimental with the `ASPIREPIPELINES001` diagnostic.
 
 `AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic npm-script publish method.
 
@@ -768,6 +815,7 @@ If a build-only JavaScript resource is not consumed by another resource, publish
 - Using `.WithEnvironment(...)` on `AddViteApp` to pass the API URL to the deployed SPA.
 - Calling `.WithHttpEndpoint()` on `AddViteApp`.
 - Using `VITE_*` variables for values that must be resolved at runtime in an already-built SPA.
+- Adding a Vite or JavaScript app without choosing a production serving model, which causes a publish/deploy validation error for an unconsumed build-only container.
 
 <LearnMore>
   For runtime configuration guidance, see [JavaScript
