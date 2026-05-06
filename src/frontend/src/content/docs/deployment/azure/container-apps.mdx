@@ -3,7 +3,7 @@ title: Deploy to Azure Container Apps
 description: Learn how to deploy Aspire applications to Azure Container Apps with the aspire deploy command.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 Use `aspire deploy` to deploy Aspire applications to Azure Container Apps. Aspire provisions the Container Apps environment, Azure Container Registry, managed identity, and the Container Apps resources needed for the compute resources in your AppHost.
@@ -41,8 +41,9 @@ Learn more about the `aspire add` command in the [reference docs](/reference/cli
 
 Then add the Azure Container Apps environment in your AppHost and a web app you want to place in that environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -54,8 +55,10 @@ builder.AddDockerfile("web", "./web")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -70,8 +73,9 @@ await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 For a standard Azure Container Apps deployment, you only need the environment and the app resource. Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource.
 
@@ -117,8 +121,9 @@ Azure Container Apps uses an Envoy-based HTTP edge proxy for HTTP ingress:
 
 To match the deployed serving scheme, Aspire upgrades external HTTP endpoints in an Azure Container Apps environment to HTTPS when it generates endpoint URLs and service discovery connection strings for dependent resources. If you intentionally need generated endpoint URLs and connection strings to preserve `http://`, disable the upgrade on the environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -131,8 +136,10 @@ builder.AddDockerfile("web", "./web")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -149,8 +156,9 @@ await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 Disabling the upgrade primarily affects generated endpoint configuration for dependent resources. Azure Container Apps can still redirect HTTP requests to HTTPS after deployment.
 
@@ -194,8 +202,9 @@ Probe traffic stays on the internal container network. If a probe is associated 
 
 Use `PublishAsAzureContainerApp` when you want to customize the generated Container App resource for a project, container, or executable. It isn't required for a standard Container Apps deployment.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -210,8 +219,10 @@ builder.AddProject<Projects.Api>("api")
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -226,15 +237,17 @@ await api.publishAsAzureContainerApp(async (_infrastructure, _app) => {
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ### Custom domains
 
 Use `ConfigureCustomDomain` when you want Aspire to configure a custom domain and managed certificate on the generated Container App.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -257,8 +270,9 @@ builder.Build().Run();
 :::caution
 The `ConfigureCustomDomain` API is experimental and may change or be removed in future updates. For more information, see [ASPIREACADOMAINS001](/diagnostics/aspireacadomains001/).
 :::
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -280,27 +294,31 @@ await builder.build().run();
 :::caution
 The `configureCustomDomain` API is experimental and may change or be removed in future updates. For more information, see [ASPIREACADOMAINS001](/diagnostics/aspireacadomains001/).
 :::
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ### Internal service discovery
 
 Services deployed to Azure Container Apps use internal DNS for service discovery. Use `WithExternalHttpEndpoints()` only for endpoints you want reachable outside the Container Apps environment.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.Api>("api")
     .WithExternalHttpEndpoints();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 const api = await builder.addProject("api", "../Api/Api.csproj", "http");
 await api.withExternalHttpEndpoints();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ## Optional environment settings
 
@@ -308,8 +326,9 @@ await api.withExternalHttpEndpoints();
 
 By default, Aspire provisions an Azure Container Registry for the environment. If you want to use a shared or explicitly named registry instead, add an Azure Container Registry resource and attach it to the environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -318,8 +337,10 @@ var acr = builder.AddAzureContainerRegistry("shared-acr");
 builder.AddAzureContainerAppEnvironment("aspire-env")
     .WithAzureContainerRegistry(acr);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -329,8 +350,9 @@ const acr = await builder.addAzureContainerRegistry("shared-acr");
 const env = await builder.addAzureContainerAppEnvironment("aspire-env");
 await env.withAzureContainerRegistry(acr);
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 <LearnMore>
 For more information, see [Azure Container Registry integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/).
@@ -340,16 +362,19 @@ For more information, see [Azure Container Registry integration](/integrations/c
 
 The Azure Container Apps environment includes the Aspire Dashboard by default. It helps you inspect the compute resources deployed into that environment. Managed Azure backing services aren't shown as dashboard resources there. If you don't want to deploy it, disable it on the environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureContainerAppEnvironment("aspire-env")
     .WithDashboard(false);
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -358,8 +383,9 @@ const builder = await createBuilder();
 const env = await builder.addAzureContainerAppEnvironment("aspire-env");
 await env.withDashboard(false);
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ## Deploy with aspire deploy
 

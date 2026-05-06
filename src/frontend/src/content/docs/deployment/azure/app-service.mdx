@@ -3,7 +3,8 @@ title: Deploy to Azure App Service
 description: Learn how to deploy Aspire applications to Azure App Service with the aspire deploy command.
 ---
 
-import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import LearnMore from '@components/LearnMore.astro';
 
 <Badge text="🧪 Preview" variant="note" size="large" class="mb-1" />
@@ -40,8 +41,9 @@ The Aspire CLI adds the [📦 Aspire.Hosting.Azure.AppService](https://www.nuget
 
 Then add the App Service environment in your AppHost and a supported web app or API resource. App Service environments automatically target supported project resources and Dockerfile-backed web containers:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -54,8 +56,10 @@ builder.AddDockerfile("web", "./web")
 builder.Build().Run();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -71,8 +75,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 For a standard App Service deployment, you only need the environment and a supported app resource. Use `PublishAsAzureAppServiceWebsite` only when you want to customize the generated website or deployment slot.
 
@@ -105,8 +109,9 @@ Azure App Service redirects HTTP traffic to HTTPS at the platform level. To matc
 
 This behavior is enabled by default. If you intentionally need generated endpoint URLs and connection strings to preserve `http://`, disable the upgrade on the App Service environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -120,8 +125,10 @@ builder.AddDockerfile("web", "./web")
 builder.Build().Run();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -139,8 +146,8 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 Disabling the upgrade primarily affects generated endpoint configuration for dependent resources. Azure App Service can still redirect HTTP requests to HTTPS after deployment.
 
@@ -172,8 +179,9 @@ App Service exposes one health check path per website. If you configure multiple
 
 Use `PublishAsAzureAppServiceWebsite` when you want to customize the generated website or deployment slot. It isn't required for a standard App Service deployment.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -194,8 +202,10 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -214,15 +224,16 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ### Customize deployment slots separately
 
 When you use deployment slots, production website customizations and slot customizations are configured separately.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -243,8 +254,10 @@ builder.AddProject<Projects.Api>("api")
 builder.Build().Run();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -264,30 +277,34 @@ await builder
 await builder.build().run();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ### Environment-variable name validation
 
 Azure App Service application settings accept only letters, numbers, and underscores. If a connection name contains dashes and you intentionally want to bypass App Service name validation for that website, call `SkipEnvironmentVariableNameChecks()` after `PublishAsAzureAppServiceWebsite`.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 builder.AddProject<Projects.Api>("api")
     .PublishAsAzureAppServiceWebsite()
     .SkipEnvironmentVariableNameChecks();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts"
 await builder
     .addProject("api", "../Api/Api.csproj", "https")
     .publishAsAzureAppServiceWebsite()
     .skipEnvironmentVariableNameChecks();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 <LearnMore>
   For general Azure resource customization such as naming, existing resources,
@@ -317,8 +334,9 @@ For Azure authentication, shared Azure settings, and `Parameters__*` inputs, see
 
 The Azure App Service environment includes the Aspire Dashboard by default, so you can inspect logs, traces, metrics, and topology for the deployed compute resources after deployment. Managed Azure backing services aren't shown as dashboard resources there. If you don't want to deploy it, disable it on the environment:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -326,8 +344,10 @@ builder.AddAzureAppServiceEnvironment("app-service-env")
     .WithDashboard(false);
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -337,15 +357,16 @@ const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-e
 await appServiceEnv.withDashboard(false);
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 ### Application Insights
 
 Enable Azure Application Insights on the App Service environment when you want Aspire to provision monitoring resources and flow the connection string into your deployed websites:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -353,8 +374,10 @@ builder.AddAzureAppServiceEnvironment("app-service-env")
     .WithAzureApplicationInsights();
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -364,8 +387,8 @@ const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-e
 await appServiceEnv.withAzureApplicationInsights();
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 <LearnMore>
   For existing Application Insights resources and advanced configuration, see
@@ -377,8 +400,9 @@ await appServiceEnv.withAzureApplicationInsights();
 
 Use deployment slots when you want to deploy the websites in your environment into a staging slot before swapping into production:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
+<AppHostLangPivot>
+  <div slot="csharp">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -386,8 +410,10 @@ builder.AddAzureAppServiceEnvironment("app-service-env")
     .WithDeploymentSlot("staging");
 
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
+
+  </div>
+  <div slot="typescript">
+
 ```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
@@ -397,8 +423,8 @@ const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-e
 await appServiceEnv.withDeploymentSlot("staging");
 ```
 
-</TabItem>
-</Tabs>
+  </div>
+</AppHostLangPivot>
 
 <LearnMore>
   For existing plans, advanced customization, and deployment slot behavior, see
