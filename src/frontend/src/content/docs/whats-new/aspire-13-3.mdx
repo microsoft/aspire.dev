@@ -15,23 +15,23 @@ import LearnMore from '@components/LearnMore.astro';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
 
-Aspire 13.3 is here, and it's a packed release — bringing **Azure Front Door**, **Network Security Perimeter** support, **Azure Kubernetes Service (AKS)** hosting (preview), **Kubernetes Ingress and Gateway routing** (preview) with Helm-based deployment, the **container tunnel** enabled by default, deeper **polyglot AppHost** parity for TypeScript, Python, and Java, and a brand-new **`aspire destroy`** command for tearing down deployments.
+Aspire 13.3 is our biggest release yet. Deploy to **Azure Kubernetes Service** with a single line of code. Put **Azure Front Door** in front of your backends in seconds. Write your AppHost in **Java**. Capture **browser console logs** right in your dashboard. Tear everything down with `aspire destroy` when you're done. This release makes the path from local dev to production shorter, safer, and more powerful than ever — no matter what language you work in.
 
 We'd love to hear what you think. Drop by [<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) to chat with the team and the community, or file feedback and issues on [<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues).
 
 This release introduces:
 
-- **Azure Front Door** and **Network Security Perimeter** hosting integrations.
-- **Azure Kubernetes Service (AKS)** hosting integration (preview).
-- **Kubernetes Ingress and Gateway API routing** resources (preview), plus first-class Helm-based Kubernetes deployment.
-- The **container tunnel** is now enabled by default, providing uniform host connectivity across Docker Desktop, Docker Engine, and Podman.
-- A new **`aspire destroy`** command and the **`aspire dashboard`** CLI, plus the Aspire CLI is now available as a `dotnet tool`.
-- Major **polyglot AppHost** parity work for TypeScript, Python, and Java (experimental).
-- **`aspire init`** (preview) — bootstrap an AppHost into an existing repository with the new `aspireify` agent skill.
-- **JavaScript publish methods** (preview) — a unified set of `PublishAs*` APIs for Next.js, Vite, Bun, and other JS frameworks.
-- **`WithBrowserLogs()`** — capture browser console logs, network requests, and screenshots from your frontend resources.
-- **Foundry Prompt Agent** support.
-- …and much more.
+- **Azure Front Door** and **Network Security Perimeter** — edge networking and PaaS security boundaries, declared in your AppHost.
+- **Azure Kubernetes Service (AKS)** hosting (preview) — provision clusters, configure node pools, and deploy with Helm, all from code.
+- **Kubernetes Ingress and Gateway API routing** (preview) — define how traffic enters your cluster without leaving the AppHost.
+- **Container tunnel enabled by default** — every container runtime now Just Works, no `host.docker.internal` hacks needed.
+- **`aspire destroy`**, **`aspire dashboard`**, and the CLI as a **NativeAOT dotnet tool** — instant startup, standalone observability, and clean teardowns.
+- **Polyglot AppHost parity** for TypeScript, Python, and Java (experimental) — write your AppHost in the language your team already knows.
+- **`aspire init`** (preview) — drop an AppHost into any repo and let the `aspireify` agent skill wire everything up.
+- **JavaScript publish methods** (preview) — `PublishAs*` APIs for Next.js, Vite, Bun, and more.
+- **`WithBrowserLogs()`** — see browser console output, network waterfall, and screenshots right in the dashboard.
+- **Foundry Prompt Agent** — declare and deploy AI agents alongside your services.
+- …and dozens more improvements across the dashboard, integrations, and tooling.
 
 ## 🆙 Upgrade to Aspire 13.3
 
@@ -93,7 +93,7 @@ Or install the CLI from scratch:
 
 ## ☁️ Azure improvements
 
-### Azure Front Door integration
+### Azure Front Door integration — global edge in one API call
 
 <Image
   src={azureFrontDoorIcon}
@@ -104,7 +104,7 @@ Or install the CLI from scratch:
   data-zoom-off
 />
 
-Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
+You no longer need to stitch together ARM templates or click through portal blades to get a CDN in front of your app. Aspire 13.3 adds a new hosting integration for [Azure Front Door](https://learn.microsoft.com/azure/frontdoor/), Microsoft's global edge network for fast, secure, and highly available web apps. Add a Front Door profile in front of your backends with `AddAzureFrontDoor` and attach origins with `WithOrigin`:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C# AppHost'>
@@ -220,13 +220,13 @@ NSPs support **Enforced** mode (blocks traffic that violates the rules) and **Le
   For more details, see [Azure Virtual Network integration](/integrations/cloud/azure/azure-virtual-network/#add-a-network-security-perimeter).
 </LearnMore>
 
-### Azure Kubernetes Service (AKS) hosting integration
+### Azure Kubernetes Service (AKS) hosting integration — Kubernetes without the YAML
 
 <Aside type="note">
 The AKS hosting integration is in **preview** and may evolve before it's marked stable.
 </Aside>
 
-Aspire 13.3 adds first-class support for **provisioning and deploying to Azure Kubernetes Service**. Use `AddAzureContainerAppEnvironment`'s sibling, `AddAzureKubernetesEnvironment`, to declare an AKS environment, customize node pools, and have your AppHost generate a Bicep + Helm-based deployment pipeline.
+If you've ever wanted to deploy to Kubernetes but dreaded writing manifests by hand, this one's for you. Aspire 13.3 adds first-class support for **provisioning and deploying to Azure Kubernetes Service**. Use `AddAzureKubernetesEnvironment` to declare an AKS environment, customize node pools, and have your AppHost generate a Bicep + Helm-based deployment pipeline — all type-safe, all from code.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C# AppHost'>
@@ -307,9 +307,9 @@ The new `Azure:CredentialProcessTimeoutSeconds` configuration value lets you tun
 
 ## 🐳 Container, Kubernetes, and Compose
 
-### 🔗 Container tunnel enabled by default
+### 🔗 Container tunnel enabled by default — it just works now
 
-Aspire 13.3 enables the **Aspire container tunnel** by default, providing uniform container-to-host connectivity regardless of your container orchestrator.
+Aspire 13.3 enables the **Aspire container tunnel** by default, providing uniform container-to-host connectivity regardless of your container orchestrator. No more "it works on Docker Desktop but breaks on Linux" surprises.
 
 Previously introduced as an opt-in experimental feature in Aspire 13.0, the container tunnel allows containers to reliably communicate with host-based services (such as the Aspire dashboard, OTEL collector, and other projects). Before this change, Docker Desktop users benefited from built-in host connectivity (`host.docker.internal`), while other container runtimes such as Docker Engine on Linux or Podman required manual workarounds.
 
@@ -360,13 +360,13 @@ You can also disable it in `launchSettings.json`:
   For more details on container networking, see [Inner-loop networking overview](/fundamentals/networking-overview/).
 </LearnMore>
 
-### Kubernetes deployment with Helm engine
+### Kubernetes deployment with Helm engine — from AppHost to cluster in one command
 
 <Aside type="note">
 Native Kubernetes deployment (and the new Ingress / Gateway routing resources below) is in **preview** in 13.3.
 </Aside>
 
-Aspire 13.3 ships a Helm-based Kubernetes deployment engine. Declare a Kubernetes environment in your AppHost and Aspire will generate a complete Helm chart and deployment pipeline for your services.
+Aspire 13.3 ships a Helm-based Kubernetes deployment engine. Declare a Kubernetes environment in your AppHost and Aspire generates a complete Helm chart and deployment pipeline — you focus on your app, Aspire handles the manifests.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C# AppHost'>
@@ -508,9 +508,9 @@ Polyglot AppHosts (TypeScript, Python, Java) can now build Dockerfiles programma
 
 ## 🛠️ CLI enhancements
 
-### Aspire CLI as a NativeAOT dotnet tool
+### Aspire CLI as a NativeAOT dotnet tool — zero warmup, instant feedback
 
-Aspire 13.3 publishes the Aspire CLI as a **NativeAOT .NET global tool**. The CLI has always shipped as a `dotnet tool`, but in 13.3 it takes advantage of new .NET 10 support for distributing NativeAOT-compiled tools — meaning instant startup with no JIT or runtime warmup, and no managed runtime dependency in the tool package. If you already have .NET 10 installed, you can install the CLI without using the curl/PowerShell installer:
+The Aspire CLI is faster than ever thanks to **NativeAOT compilation**. Expect instant startup with no JIT delay, no runtime warmup, and no managed runtime dependency in the tool package. In 13.3, the CLI ships as a NativeAOT .NET global tool, taking advantage of new .NET 10 support for distributing ahead-of-time compiled tools. If you already have .NET 10 installed, you can install it without using the curl/PowerShell installer:
 
 ```bash title="Bash — Install via dotnet tool"
 dotnet tool install -g Aspire.Cli
@@ -520,9 +520,9 @@ dotnet tool install -g Aspire.Cli
   For more details, see [Install the Aspire CLI](/get-started/install-cli/).
 </LearnMore>
 
-### New `aspire destroy` command
+### New `aspire destroy` command — clean up in one shot
 
-`aspire destroy` is the inverse of `aspire deploy`: it tears down a previously deployed environment, including provisioned Azure resources, Kubernetes namespaces, and Compose stacks.
+`aspire destroy` is the inverse of `aspire deploy`: it tears down a previously deployed environment — Azure resources, Kubernetes namespaces, Compose stacks — in a single command. No more orphaned resources cluttering your subscription.
 
 ```bash title="Aspire CLI — Tear down a deployment"
 aspire destroy
@@ -610,9 +610,9 @@ This is a behavior change from prior releases — `aspire init` no longer fully 
 
 `aspire agent init` gained a **location selection** step and now supports the standard Aspire skill family for one-shot scaffolding.
 
-### Java polyglot AppHost (experimental)
+### Java polyglot AppHost (experimental) — welcome to the family, Java developers
 
-Aspire 13.3 introduces **experimental** support for Java AppHosts, joining TypeScript and Python in the polyglot family. The Aspire CLI scaffolds, builds, and runs Java AppHosts that consume a generated Java Aspire SDK (the same `.modules`-style code-generation model used for the TypeScript AppHost). Java 17+ is required.
+Aspire 13.3 introduces **experimental** support for Java AppHosts, joining TypeScript and Python in the polyglot family. If your team lives in IntelliJ and thinks in Spring Boot, you can now orchestrate your distributed app without switching to a C# project. The Aspire CLI scaffolds, builds, and runs Java AppHosts that consume a generated Java Aspire SDK (the same `.modules`-style code-generation model used for the TypeScript AppHost). Java 17+ is required.
 
 The feature is gated behind a feature flag — enable it with:
 
@@ -629,7 +629,7 @@ The Java polyglot AppHost is experimental in 13.3 and APIs may change in future 
 
 ### Notification center for command results
 
-The dashboard now has a **notification center** that surfaces results of resource commands and lifecycle events without requiring you to scrape the logs panel. Commands return [structured results](#resource-commands-return-structured-results) which the dashboard renders inline.
+No more digging through logs to find out what happened. The dashboard now has a **notification center** that surfaces results of resource commands and lifecycle events front and center. Commands return [structured results](#resource-commands-return-structured-results) which the dashboard renders inline — you'll see exactly what succeeded, what failed, and why.
 
 ### Telemetry API enabled by default
 
@@ -645,7 +645,7 @@ The dashboard's AI features are now **disabled by default** (`Dashboard:AI:Disab
 
 ### Other dashboard polish
 
-- **Resource state column** now shows an interactive popover with extra context.
+- **Resource state details** now appear in resource details.
 - **Parameters page** refinements make secret values clearer to manage.
 - **Short trace IDs** (8 hex characters) are accepted by the telemetry API for cross-tool linking.
 - Resource names and lifecycle notifications are now stable across reloads.
@@ -654,9 +654,11 @@ The dashboard's AI features are now **disabled by default** (`Dashboard:AI:Disab
 
 When you launch your Aspire app from VS Code, the dashboard now opens in **VS Code's Simple Browser** by default rather than spawning an external browser window. The behavior is controlled by the `aspire.dashboardBrowser` setting.
 
-## 🔍 Browser logs and screenshots
+## 🧩 App model and AppHost
 
-The new `WithBrowserLogs()` extension method captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry.
+### 🔍 Browser logs and screenshots — full-stack observability, finally
+
+Ever wished you could see your frontend's console errors right next to your backend traces? Now you can. The new `WithBrowserLogs()` extension method captures browser console logs, network requests, and screenshots from your frontend resources during development, surfacing them in the dashboard alongside server-side telemetry.
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C# AppHost'>
@@ -695,11 +697,45 @@ This API is experimental in 13.3. Use diagnostic code [`ASPIREBROWSERLOGS001`](/
   For more details, see [Browser logs](/integrations/devtools/browser-logs/).
 </LearnMore>
 
-## 🧩 App model and AppHost
+### Resource commands return structured results
+
+Custom resource commands can now return an `ExecuteCommandResult` with a structured `Message` payload that the dashboard renders in the notification center.
+
+Use the `CommandResults.Success(message, result, resultFormat)` overload to attach a payload to a successful result. The `message` is the toast/CLI status; `result` is the payload string; `resultFormat` controls how the dashboard visualizer interprets it.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
+        {
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: token,
+                resultFormat: CommandResultFormat.Text));
+        });
+
+builder.Build().Run();
+```
+
+<LearnMore>
+  For more details, see [Custom resource commands](/fundamentals/custom-resource-commands/).
+</LearnMore>
 
 ### HTTP command result mode
 
-`HttpCommand` now supports a **result mode** that returns the response body to the dashboard's notification center, so HTTP-triggered commands can return structured payloads instead of just success/failure:
+Building on the new structured return values from resource commands, `HttpCommand` now supports a **result mode** that sends the HTTP response body back to the dashboard's notification center — so HTTP-triggered commands can surface rich payloads instead of just success/failure:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C# AppHost'>
@@ -737,14 +773,6 @@ await builder.build().run();
 
 <LearnMore>
   For more details, see [HTTP commands](/fundamentals/http-commands/).
-</LearnMore>
-
-### Resource commands return structured results
-
-Custom resource commands can now return an `ExecuteCommandResult` with a structured `Message` payload that the dashboard renders in the notification center. The new `Logger` property on `ExecuteCommandContext` lets command implementations log directly to the resource's log stream.
-
-<LearnMore>
-  For more details, see [Custom resource commands](/fundamentals/custom-resource-commands/).
 </LearnMore>
 
 ### BeforeStart pipeline steps
@@ -835,6 +863,7 @@ The Microsoft Developer Control Plane (DCP) server can now use the existing Aspi
 
 ### Other AppHost improvements
 
+- New `Logger` property on `ExecuteCommandContext` lets command implementations log directly to the resource's log stream.
 - New `IResourceCollection.TryGetByName(...)` for efficient resource lookup.
 - New `NameValidationPolicyAnnotation` allows integration authors to plug in custom name validators.
 - `AfterResourcesCreated` events now run with strict ordering relative to other startup events.
@@ -846,9 +875,9 @@ The Microsoft Developer Control Plane (DCP) server can now use the existing Aspi
 
 Service discovery now does a better job resolving endpoint names and schemes when a referenced resource has multiple endpoints — particularly for HTTPS endpoints and named-endpoint references injected via `WithReference`. ([#16210](https://github.com/microsoft/aspire/pull/16210))
 
-## 🌐 Polyglot AppHost parity
+## 🌐 Polyglot AppHost parity — your language, full power
 
-Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and the TypeScript/Python/Java polyglot SDKs:
+Aspire 13.3 closes most of the remaining functional gap between C# AppHosts and the TypeScript/Python/Java polyglot SDKs. If you prefer TypeScript, Python, or Java, you now get the same capabilities that C# users have enjoyed:
 
 - **Unified `withEnvironment` API** so all SDKs configure environment variables the same way.
 - **Endpoint property expressions** (`endpoint.url`, `endpoint.host`, `endpoint.port`) are now usable inside polyglot AppHost expressions.
@@ -964,7 +993,7 @@ A non-exhaustive selection of notable user-visible fixes in 13.3:
 
 ## 🙏 Community contributions
 
-Thank you to all community contributors who helped make Aspire 13.3 possible — including [@afscrome](https://github.com/afscrome) for the lifecycle Subscribe extension methods, [@spboyer](https://github.com/spboyer) for documentation and template polish, [@holystix04](https://github.com/holystix04), and [@tranhoangtu-it](https://github.com/tranhoangtu-it). We're always excited to [see community contributions](/community/contributors/)! If you'd like to get involved, check out our [contributing guide](/community/contributor-guide/).
+Aspire is built in the open, and this release wouldn't be what it is without you. A huge thank you to all community contributors who helped make Aspire 13.3 possible — including [@afscrome](https://github.com/afscrome) for the lifecycle Subscribe extension methods, [@spboyer](https://github.com/spboyer) for documentation and template polish, [@holystix04](https://github.com/holystix04), and [@tranhoangtu-it](https://github.com/tranhoangtu-it). We're always excited to [see community contributions](/community/contributors/)! If you'd like to get involved, check out our [contributing guide](/community/contributor-guide/).
 
 ## ⚠️ Breaking changes
 
@@ -998,4 +1027,4 @@ Thank you to all community contributors who helped make Aspire 13.3 possible —
 
 </Steps>
 
-**Feedback and contributions**: We'd love to hear about your experience with Aspire 13.3! Share feedback on [GitHub](https://github.com/microsoft/aspire/issues) or join the conversation on [Discord](https://aka.ms/aspire-discord).
+**Go build something amazing.** We'd love to hear about your experience with Aspire 13.3 — share what you're building on [GitHub](https://github.com/microsoft/aspire/issues) or come hang out with us on [Discord](https://aka.ms/aspire-discord).
