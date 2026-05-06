@@ -321,13 +321,71 @@ builder.AddDockerComposeEnvironment("env")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `ConfigureEnvFile` API is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addContainer('api', 'nginx:alpine');
+await api.withBindMount('/host/path/data', '/container/data');
+
+const compose = await builder.addDockerComposeEnvironment('env');
+await compose.configureEnvFile(async (envVars) => {
+  const bindMount = await envVars.get('API_BINDMOUNT_0');
+  await bindMount.description.set('Customized bind mount source');
+  await bindMount.defaultValue.set('./data');
+});
+
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
+
+## Customize the Docker Compose file
+
+Use `ConfigureComposeFile` to customize the generated `docker-compose.yml` model before Aspire writes it to disk:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env")
+    .ConfigureComposeFile(composeFile =>
+    {
+        composeFile.Name = "my-app";
+
+        var api = composeFile.Services["api"];
+        api.PullPolicy = "always";
+    });
+
+builder.AddProject<Projects.Api>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const compose = await builder.addDockerComposeEnvironment('env');
+await compose.configureComposeFile(async (composeFile) => {
+  await composeFile.name.set('my-app');
+
+  const api = await composeFile.services.get('api');
+  await api.pullPolicy.set('always');
+});
+
+await builder.addProject('api', '../Api/Api.csproj', 'http');
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ## Customize Docker Compose services
 
@@ -340,27 +398,37 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("env");
 
+var containerName = builder.AddParameter("container-name");
+
 builder.AddContainer("cache", "redis", "latest")
     .PublishAsDockerComposeService((resource, service) =>
     {
         // Customize the generated Docker Compose service
+        service.ContainerName =
+            containerName.AsEnvironmentPlaceholder(resource);
         service.Labels.Add("com.example.team", "backend");
+        service.Restart = "unless-stopped";
     });
 
 builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
+```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 await builder.addDockerComposeEnvironment('env');
 
+const containerName = await builder.addParameter('container-name');
 const cache = await builder.addContainer('cache', 'redis:latest');
-await cache.publishAsDockerComposeService(async (resource, service) => {
+await cache.publishAsDockerComposeService(async (composeService, service) => {
+  await service.containerName.set(
+    await containerName.asEnvironmentPlaceholder(composeService)
+  );
   await service.labels.set('com.example.team', 'backend');
+  await service.restart.set('unless-stopped');
 });
 
 await builder.build().run();
@@ -368,7 +436,42 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, or other Docker Compose service settings.
+The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, container name, or other Docker Compose service settings. Use `AsEnvironmentPlaceholder` for values that should be written as Compose environment variable placeholders in the generated YAML and `.env` files.
+
+## Resolve Docker Compose service host names
+
+Use `GetHostAddressExpression` when you need the host name that another Docker Compose service should use for an endpoint. In Docker Compose deployments, this expression resolves to the generated service name on the Compose network.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var compose = builder.AddDockerComposeEnvironment("env");
+
+var api = builder.AddContainer("api", "nginx", "alpine")
+    .WithHttpEndpoint(name: "http", targetPort: 80);
+
+var apiHost = compose.Resource.GetHostAddressExpression(
+    api.GetEndpoint("http"));
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const compose = await builder.addDockerComposeEnvironment('env');
+
+const api = await builder.addContainer('api', 'nginx:alpine');
+await api.withHttpEndpoint({ name: 'http', targetPort: 80 });
+
+const apiEndpoint = await api.getEndpoint('http');
+const apiHost = await compose.getHostAddressExpression(apiEndpoint);
+```
+</TabItem>
+</Tabs>
 
 ## Image pull policy
 
