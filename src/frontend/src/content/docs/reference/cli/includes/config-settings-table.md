@@ -4,7 +4,7 @@ title: Config Settings Table
 
 | Logical key                            | Stored in `aspire.config.json` as      | Description                                                                                                                                         |
 | -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `appHost.path`                         | `appHost.path`                         | Project-scoped path to the default AppHost project. This setting must be configured in the local `aspire.config.json` file.                         |
+| `appHost.path`                         | `appHost.path`                         | Project-scoped path to the default AppHost entry point. This setting must be configured in the local `aspire.config.json` file.                     |
 | `channel`                              | `channel`                              | Default Aspire channel used by channel-aware commands such as `aspire new`, `aspire init`, and `aspire update`.                                     |
 | `features.defaultWatchEnabled`         | `features.defaultWatchEnabled`         | Enable or disable watch mode by default when running Aspire applications for automatic restarts on file changes.                                    |
 | `features.execCommandEnabled`          | `features.execCommandEnabled`          | Enable or disable the legacy `aspire exec` command for executing commands inside running resources.                                                 |
