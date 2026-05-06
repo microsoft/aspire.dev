@@ -152,19 +152,23 @@ Resource names in Kubernetes must follow DNS naming conventions. The integration
 
 Use [external parameters](/fundamentals/external-parameters/) to configure values that differ between development and production environments.
 
-### Helm chart name
+### Helm chart metadata
 
-By default, the Helm chart name is derived from your AppHost project. Configure a custom chart name using `WithProperties`:
+By default, the Helm chart name is derived from your AppHost project. Use `WithHelm` to configure the chart name, version, and description:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
+var chartVersion = builder.AddParameter("chart-version");
+
 builder.AddKubernetesEnvironment("k8s")
-    .WithProperties(k8s =>
+    .WithHelm(helm =>
     {
-        k8s.HelmChartName = "my-aspire-app";
+        helm.WithChartName("my-aspire-app");
+        helm.WithChartVersion(chartVersion);
+        helm.WithChartDescription("My Aspire application Helm chart");
     });
 ```
 </TabItem>
@@ -175,12 +179,34 @@ import { createBuilder } from './.modules/aspire.js';
 const builder = await createBuilder();
 
 const k8s = await builder.addKubernetesEnvironment('k8s');
-await k8s.withProperties(async (k8s) => {
-  await k8s.helmChartName.set('my-aspire-app');
+await k8s.withHelm(async (helm) => {
+  await helm.withChartName('my-aspire-app');
+  await helm.withChartDescription('My Aspire application Helm chart');
 });
 ```
 </TabItem>
 </Tabs>
+
+The `WithChartVersion` method also accepts a string literal:
+
+```csharp title="AppHost.cs"
+builder.AddKubernetesEnvironment("k8s")
+    .WithHelm(helm =>
+    {
+        helm.WithChartName("my-aspire-app");
+        helm.WithChartVersion("1.2.3");
+        helm.WithChartDescription("My Aspire application Helm chart");
+    });
+```
+
+These values are written to the generated `Chart.yaml`:
+
+```yaml title="Chart.yaml"
+name: "my-aspire-app"
+version: "1.2.3"
+appVersion: "1.2.3"
+description: "My Aspire application Helm chart"
+```
 
 ## Customize Kubernetes services
 
@@ -215,8 +241,8 @@ await service.publishAsKubernetesService(async (resource) => {
 </Tabs>
 
 <Aside type="tip">
-  Use `WithProperties` on the Kubernetes environment for global settings, and
-  `PublishAsKubernetesService` on individual resources for per-resource
+  Use `WithHelm` on the Kubernetes environment for global Helm chart settings,
+  and `PublishAsKubernetesService` on individual resources for per-resource
   customization.
 </Aside>
 
@@ -236,6 +262,9 @@ In Kubernetes, services discover each other using the cluster's built-in DNS. A 
 
 ## See also
 
+- [Expose services with Ingress and Gateway API](/deployment/kubernetes-ingress/)
+- [Configure Ingress on AKS](/deployment/kubernetes-ingress-aks/)
+- [Configure Gateway API on AKS](/deployment/kubernetes-gateway-aks/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Publishing and deployment overview](/deployment/overview/)

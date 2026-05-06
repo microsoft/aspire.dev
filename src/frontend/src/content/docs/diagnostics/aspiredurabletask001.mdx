@@ -1,0 +1,83 @@
+---
+title: Compiler Warning ASPIREDURABLETASK001
+description: Learn more about compiler Warning ASPIREDURABLETASK001. Durable Task scheduler and task hub APIs are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.3"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Durable Task scheduler and task hub APIs are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental Durable Task scheduler and task hub APIs in the `Aspire.Hosting.Azure.Functions` package. The following APIs are affected:
+
+- `AddDurableTaskScheduler` extension method on `IDistributedApplicationBuilder`
+- `RunAsExisting` extension methods on `IResourceBuilder<DurableTaskSchedulerResource>`
+- `RunAsEmulator` extension method on `IResourceBuilder<DurableTaskSchedulerResource>`
+- `AddTaskHub` extension method on `IResourceBuilder<DurableTaskSchedulerResource>`
+- `WithTaskHubName` extension methods on `IResourceBuilder<DurableTaskHubResource>`
+- `DurableTaskSchedulerResource` class
+- `DurableTaskHubResource` class
+- `DurableTaskSchedulerEmulatorResource` class
+
+These APIs are brand new and may change shape before the feature becomes generally available (GA).
+
+## Example
+
+The following code generates `ASPIREDURABLETASK001`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsEmulator();
+
+var hub = scheduler.AddTaskHub("hub");
+
+builder.AddAzureFunctionsProject<Projects.MyFunctions>("functions")
+    .WithHostStorage(storage)
+    .WithReference(hub);
+
+builder.Build().Run();
+```
+
+## To correct this warning
+
+Suppress the warning with any of the following methods:
+
+- Add a `#pragma warning disable` directive in the source file where the API is used:
+
+  ```csharp title="C# — AppHost.cs"
+  #pragma warning disable ASPIREDURABLETASK001
+  var scheduler = builder.AddDurableTaskScheduler("scheduler")
+      .RunAsEmulator();
+  #pragma warning restore ASPIREDURABLETASK001
+  ```
+
+- Set the severity of the rule in the _.editorconfig_ file:
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREDURABLETASK001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREDURABLETASK001</NoWarn>
+  </PropertyGroup>
+  ```
+
+## See also
+
+- [Azure Functions Hosting integration](/integrations/cloud/azure/azure-functions/azure-functions-host/) — Learn about the Azure Functions hosting integration, including Durable Task support

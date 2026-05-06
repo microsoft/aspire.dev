@@ -215,7 +215,7 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
       items: [
         {
           label: 'Setup and tooling',
-          collapsed: true,
+          collapsed: false,
           translations: {
             da: 'Opsætning og værktøjer',
             de: 'Einrichtung und Werkzeuge',
@@ -296,14 +296,6 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
                 'zh-CN': 'VS Code 扩展',
               },
               slug: 'get-started/aspire-vscode-extension',
-            },
-            {
-              label: 'Dev Containers',
-              slug: 'get-started/dev-containers',
-            },
-            {
-              label: 'GitHub Codespaces',
-              slug: 'get-started/github-codespaces',
             },
           ],
         },
@@ -1340,6 +1332,37 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
             'zh-CN': '资源示例',
           },
           slug: 'architecture/resource-examples',
+        },
+      ],
+    },
+    {
+      label: 'Non-local dev environments',
+      translations: {
+        da: 'Ikke-lokale udviklingsmiljøer',
+        de: 'Nicht-lokale Entwicklungsumgebungen',
+        en: 'Non-local dev environments',
+        es: 'Entornos de desarrollo no locales',
+        fr: 'Environnements de développement non locaux',
+        hi: 'गैर-स्थानीय विकास वातावरण',
+        id: 'Lingkungan pengembangan non-lokal',
+        it: 'Ambienti di sviluppo non locali',
+        ja: '非ローカル開発環境',
+        ko: '비로컬 개발 환경',
+        'pt-BR': 'Ambientes de desenvolvimento não locais',
+        ru: 'Нелокальные среды разработки',
+        tr: 'Yerel olmayan geliştirme ortamları',
+        uk: 'Нелокальні середовища розробки',
+        'zh-CN': '非本地开发环境',
+      },
+      collapsed: true,
+      items: [
+        {
+          label: 'Dev Containers',
+          slug: 'get-started/dev-containers',
+        },
+        {
+          label: 'GitHub Codespaces',
+          slug: 'get-started/github-codespaces',
         },
       ],
     },

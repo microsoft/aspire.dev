@@ -221,8 +221,26 @@ The `ConfigureCustomDomain` API is experimental and may change or be removed in 
 :::
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `ConfigureCustomDomain` API is not yet available in the TypeScript AppHost SDK.
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const customDomain = await builder.addParameter("customDomain");
+const certificateName = await builder.addParameter("certificateName");
+
+await builder.addAzureContainerAppEnvironment("env");
+
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsAzureContainerApp(async (_infrastructure, app) => {
+    await app.configureCustomDomain(customDomain, certificateName);
+});
+
+await builder.build().run();
+```
+
+:::caution
+The `configureCustomDomain` API is experimental and may change or be removed in future updates. For more information, see [ASPIREACADOMAINS001](/diagnostics/aspireacadomains001/).
 :::
 </TabItem>
 </Tabs>
@@ -325,14 +343,14 @@ After deployment, use the dashboard URL in the CLI output, the Azure portal, or 
 
 ## Clean up resources
 
-To remove deployed resources, delete the resource group:
+To tear down deployed resources, use `aspire destroy`. The command discovers the deployment, lists the Azure resources it will remove, and prompts for confirmation before deleting the resource group:
 
-```bash title="Delete resource group"
-az group delete --name <resource-group-name>
+```bash title="Aspire CLI - Destroy the deployed environment"
+aspire destroy
 ```
 
 :::danger
-This command deletes all resources in the resource group, including any resources not created by the Aspire CLI.
+`aspire destroy` deletes the entire resource group, including any resources that weren't created by the Aspire CLI. Pass `--yes` only in automated or CI scenarios where you've already validated what will be removed. This action cannot be undone.
 :::
 
 ## See also

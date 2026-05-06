@@ -165,3 +165,73 @@ builder.Build().Run();
 ```
 
 The preceding code adds an Azure Storage resource to the AppHost and references it in the Azure Functions project. The `blobs` resource is added to the `storage` resource and then referenced by the `functions` resource. The connection information required to connect to the `blobs` resource is automatically injected into the Azure Functions project and enables the project to define a `BlobTrigger` that relies on `blobs` resource.
+
+## Durable Task scheduler integration
+
+:::caution[Experimental APIs]
+The Durable Task scheduler and task hub APIs are experimental in this release. They are marked with the `[Experimental("ASPIREDURABLETASK001")]` attribute and may change before becoming generally available (GA).
+
+To use these APIs without compiler warnings, suppress the `ASPIREDURABLETASK001` diagnostic. For suppression options, see [ASPIREDURABLETASK001](/diagnostics/aspiredurabletask001/).
+:::
+
+The `Aspire.Hosting.Azure.Functions` package includes support for [Azure Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler), which provides a managed backend for Durable Functions orchestrations. Use `AddDurableTaskScheduler` to add a scheduler resource and `AddTaskHub` to associate a task hub with it.
+
+### Add a Durable Task scheduler and task hub
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREDURABLETASK001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsEmulator();
+
+var hub = scheduler.AddTaskHub("hub");
+
+builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
+    .WithHostStorage(storage)
+    .WithReference(hub);
+
+builder.Build().Run();
+
+#pragma warning restore ASPIREDURABLETASK001
+```
+
+In the preceding example:
+
+- `AddDurableTaskScheduler` adds a `DurableTaskSchedulerResource` to the app model.
+- `RunAsEmulator` configures the scheduler to use the local Durable Task emulator for development and testing.
+- `AddTaskHub` creates a `DurableTaskHubResource` associated with the scheduler.
+- `WithReference(hub)` injects the task hub connection information into the Azure Functions project.
+
+### Use an existing scheduler
+
+To connect to an already-deployed Durable Task Scheduler instance instead of provisioning a new one, use `RunAsExisting`:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREDURABLETASK001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsExisting("<connection-string>");
+
+#pragma warning restore ASPIREDURABLETASK001
+```
+
+You can also pass an `IResourceBuilder<ParameterResource>` to supply the connection string from a parameter:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREDURABLETASK001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var connectionString = builder.AddParameter("schedulerConnectionString", secret: true);
+
+var scheduler = builder.AddDurableTaskScheduler("scheduler")
+    .RunAsExisting(connectionString);
+
+#pragma warning restore ASPIREDURABLETASK001
+```

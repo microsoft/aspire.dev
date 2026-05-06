@@ -930,6 +930,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         },
         {
           label: 'Entity Framework Core',
+          collapsed: true,
           items: [
             {
               label: 'Overview',
@@ -1176,7 +1177,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/postgres/postgres-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up PostgreSQL in the AppHost',
               slug: 'integrations/databases/postgres/postgres-host',
             },
             {
@@ -1184,11 +1185,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/databases/postgres/postgres-connect',
             },
             {
-              label: 'Client integration (.NET)',
-              slug: 'integrations/databases/postgres/postgres-client',
-            },
-            {
-              label: 'Community extensions',
+              label: 'Use community extensions',
               slug: 'integrations/databases/postgres/postgresql-extensions',
             },
           ],
@@ -1564,6 +1561,27 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
         'zh-CN': '开发工具和扩展',
       },
       items: [
+        {
+          label: 'Browser logs',
+          translations: {
+            da: 'Browserlogfiler',
+            de: 'Browserprotokolle',
+            en: 'Browser logs',
+            es: 'Registros del navegador',
+            fr: 'Journaux du navigateur',
+            hi: 'ब्राउज़र लॉग',
+            id: 'Log browser',
+            it: 'Log del browser',
+            ja: 'ブラウザーログ',
+            ko: '브라우저 로그',
+            'pt-BR': 'Logs do navegador',
+            ru: 'Журналы браузера',
+            tr: 'Tarayıcı günlükleri',
+            uk: 'Журнали браузера',
+            'zh-CN': '浏览器日志',
+          },
+          slug: 'integrations/devtools/browser-logs',
+        },
         { label: 'Data API Builder', slug: 'integrations/devtools/dab' },
         { label: 'Dev Tunnels', slug: 'integrations/devtools/dev-tunnels' },
         {

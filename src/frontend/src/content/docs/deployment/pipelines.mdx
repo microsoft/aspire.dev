@@ -422,7 +422,7 @@ aspire do publish --output-path ./artifacts
 aspire do deploy --environment Production
 
 # Verbose logging for troubleshooting
-aspire do deploy --log-level debug
+aspire do deploy --pipeline-log-level debug
 
 # Include exception details in logs
 aspire do deploy --include-exception-details
@@ -434,24 +434,32 @@ For complete command reference, see [aspire do command](/reference/cli/commands/
 
 ### Discovering available steps
 
-Before executing pipeline steps, you can discover what steps are available using the `diagnostics` step:
+Before executing pipeline steps, you can discover what steps would run for a given command using the `--list-steps` flag. Every pipeline command (`aspire deploy`, `aspire publish`, `aspire destroy`, and `aspire do`) accepts it:
 
 ```bash title="Aspire CLI — Discover pipeline steps"
-aspire do diagnostics
+aspire deploy --list-steps
 ```
 
-This command displays:
-- All available steps and their dependencies.
-- Execution order with parallelization indicators.
-- Step dependencies and target resources.
-- Configuration issues like orphaned steps or circular dependencies.
+Example output:
 
-The output includes several sections:
+```text title="Output"
+1. parameter-prompt
+   └─ No dependencies
 
-- **Execution order**: A numbered list showing the order in which steps would execute
-- **Detailed step analysis**: Each step's dependencies, associated resources, tags, and descriptions (✓ = dependency exists, ? = dependency missing)
-- **Potential issues**: Identifies problems like orphaned steps or circular dependencies
-- **Execution simulation**: "What if" analysis showing what steps would run for each possible target step, with concurrency indicators for steps that can run in parallel
+2. provision-redis-infra
+   ├─ Depends on: parameter-prompt
+   └─ Tags: provision-infra
+
+3. build-webapi
+   ├─ Depends on: parameter-prompt
+   └─ Tags: build-compute
+
+4. deploy-webapi
+   ├─ Depends on: provision-redis-infra, build-webapi
+   └─ Tags: deploy-compute
+```
+
+This lists the pipeline steps that would be executed by the chosen command, in execution order, without running them. Each entry shows the step's position, the steps it depends on, and any tags it carries. Pair `--list-steps` with the command you intend to run (for example, `aspire publish --list-steps` or `aspire do build --list-steps`) to see exactly which steps a given invocation would trigger.
 
 ## Custom pipeline steps
 
@@ -669,7 +677,7 @@ Follow these steps to replace your Aspire 9.x publishing code with Aspire 13.x p
 1. **Identify publishing callbacks** in your code that use `WithPublishingCallback`.
 2. **Convert callbacks to pipeline steps** using `WithPipelineStepFactory` or `builder.Pipeline.AddStep`.
 3. **Update dependencies** with parameters or properties. When using `builder.Pipeline.AddStep`, configure dependencies with the `dependsOn` / `requiredBy` parameters. When creating `PipelineStep` instances directly, use the `DependsOn` and `RequiredBySteps` properties.
-4. **Test the migration** using `aspire do diagnostics` and `aspire do deploy`.
+4. **Test the migration** using `aspire deploy --list-steps` and `aspire deploy`.
 
 </Steps>
 
@@ -793,7 +801,7 @@ builder.Pipeline.AddStep("smoke-tests", async (context) =>
 
 The pipeline system provides several advantages over publishing callbacks:
 
-- **Better visibility**: Use `aspire do diagnostics` to see all steps and their dependencies.
+- **Better visibility**: Use `aspire deploy --list-steps` to see all steps that would run for a deploy and the order they'd run in.
 - **Selective execution**: Run specific steps with `aspire do <step-name>`.
 - **Parallel execution**: Independent steps run concurrently automatically.
 - **Clearer dependencies**: Explicit dependency declaration with `DependsOn` and `RequiredBySteps`.
@@ -801,5 +809,5 @@ The pipeline system provides several advantages over publishing callbacks:
 - **Reusability**: Steps can be reused across different deployment scenarios.
 
 <Aside type="tip">
-After migrating, use `aspire do diagnostics` to verify that your pipeline steps are correctly configured and that dependencies are properly declared.
+After migrating, use `aspire deploy --list-steps` to verify that your pipeline steps are correctly configured and that dependencies are properly declared.
 </Aside>

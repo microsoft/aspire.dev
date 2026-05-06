@@ -3,7 +3,7 @@ title: Custom resource commands
 description: Learn how to create custom resource commands in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import customClearCacheCommand from '@assets/fundamentals/custom-clear-cache-command.png';
 import customClearCacheCommandSucceeded from '@assets/fundamentals/custom-clear-cache-command-succeeded.png';
@@ -18,7 +18,12 @@ Each resource in the Aspire app model is represented as an `IResource` and when 
 
 ## Add custom commands to a resource
 
-Start by creating a new Aspire Starter App from the available templates. After creating this solution, add a new class named _RedisResourceBuilderExtensions.cs_ to the AppHost project. Replace the contents of the file with the following code:
+Start with an Aspire AppHost project. The walkthrough below registers a `clear-cache` command on a Redis resource. The C# version uses an extension method that wraps the registration; the TypeScript version registers the command inline against a Node service that exposes an admin endpoint. Both flows produce the same dashboard/CLI experience.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+Add a new class named _RedisResourceBuilderExtensions.cs_ to the AppHost project and replace its contents with the following code:
 
 ```csharp title="RedisResourceBuilderExtensions.cs"
 using Microsoft.Extensions.DependencyInjection;
@@ -84,30 +89,90 @@ internal static class RedisResourceBuilderExtensions
 
 The preceding code:
 
-- Shares the `Aspire.Hosting` namespace so that it's visible to the AppHost project.
-- Is a `static class` so that it can contain extension methods.
-- It defines a single extension method named `WithClearCommand`, extending the `IResourceBuilder<RedisResource>` interface.
-- The `WithClearCommand` method registers a command named `clear-cache` that clears the cache of the Redis resource.
-- The `WithClearCommand` method returns the `IResourceBuilder<RedisResource>` instance to allow chaining.
+- Shares the `Aspire.Hosting` namespace so that the extension is visible from the AppHost.
+- Is a `static class` containing extension methods on `IResourceBuilder<RedisResource>`.
+- Defines a single extension method named `WithClearCommand` that registers a `clear-cache` command on the Redis resource, plus the `executeCommand` and `updateState` callbacks the dashboard uses to run the command and decide when it's enabled.
+- Returns the `IResourceBuilder<RedisResource>` to keep the call site chainable.
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+In a TypeScript AppHost, register the command inline on the resource builder. Because TypeScript doesn't have extension methods, the closure captures any state the command needs:
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder
+    .addNodeApp("cache", "./cache-service", "src/server.ts")
+    .withHttpEndpoint();
+
+await cache.withCommand(
+    "clear-cache",
+    "Clear Cache",
+    async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+        const endpoint = await cache.getEndpoint("http");
+        const url = await endpoint.url.get();
+        const res = await fetch(`${url}/admin/cache/clear`, { method: "POST" });
+
+        if (!res.ok) {
+            return {
+                success: false,
+                message: `Cache service returned ${res.status} ${res.statusText}.`,
+            };
+        }
+
+        return { success: true, message: "Cache cleared." };
+    },
+    {
+        commandOptions: {
+            description: "Drops all entries in the cache service.",
+            confirmationMessage: "Clear all cached entries?",
+            iconName: "AnimalRabbitOff",
+        },
+    });
+
+await builder.build().run();
+```
+
+The preceding code:
+
+- Adds a Node app named `cache` and registers a `clear-cache` command on it.
+- Implements the `executeCommand` callback as an async arrow that calls the resource's HTTP endpoint to perform the actual cache invalidation. The pattern works for any resource that exposes an admin operation over HTTP; for resources whose clients you'd rather use directly (databases, message brokers, &hellip;), call those clients from the same callback.
+- Passes a fourth argument with `{ commandOptions: { ... } }` to set the dashboard description, confirmation prompt, and icon.
+
+</TabItem>
+</Tabs>
 
 The `WithCommand` API adds the appropriate annotations to the resource, which are consumed in the [Aspire dashboard](/dashboard/overview/). The dashboard uses these annotations to render the command in the UI. Before getting too far into those details, let's ensure that you first understand the parameters of the `WithCommand` method:
 
 - `name`: The name of the command to invoke.
 - `displayName`: The name of the command to display in the dashboard.
-- `executeCommand`: The `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>` to run when the command is invoked, which is where the command logic is implemented.
-- `updateState`: The `Func<UpdateCommandStateContext, ResourceCommandState>` callback is invoked to determine the "enabled" state of the command, which is used to enable or disable the command in the dashboard.
+- `executeCommand`: The callback that runs when the command is invoked. In C# the type is `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`; in TypeScript it's `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>`.
+- `updateState`: A callback that decides the command's enabled state in the dashboard. In C# it's `Func<UpdateCommandStateContext, ResourceCommandState>` and supplied via `CommandOptions.UpdateState`; in TypeScript it's the `updateState` field on `CommandOptions` (currently typed as `any`).
 - `iconName`: The name of the icon to display in the dashboard. The icon is optional, but when you do provide it, it should be a valid [Fluent UI Blazor icon name](https://www.fluentui-blazor.net/Icon#explorer).
 - `iconVariant`: The variant of the icon to display in the dashboard, valid options are `Regular` (default) or `Filled`.
 
 ## Execute command logic
 
-The `executeCommand` delegate is where the command logic is implemented. This parameter is defined as a `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`. The `ExecuteCommandContext` provides the following properties:
+The `executeCommand` callback is where the command logic is implemented. The `ExecuteCommandContext` it receives gives you access to the service provider, the resource being acted on, and a cancellation token.
 
-- `ExecuteCommandContext.ServiceProvider`: The `IServiceProvider` instance that's used to resolve services.
-- `ExecuteCommandContext.ResourceName`: The name of the resource instance that the command is being executed on.
-- `ExecuteCommandContext.CancellationToken`: The `CancellationToken` that's used to cancel the command execution.
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-In the preceding example, the `executeCommand` delegate is implemented as an `async` method that clears the cache of the Redis resource. It delegates out to a private class-scoped function named `OnRunClearCacheCommandAsync` to perform the actual cache clearing. Consider the following code:
+In C# the parameter is typed as `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`. `ExecuteCommandContext` exposes:
+
+- `ServiceProvider` _(`IServiceProvider`)_ — used to resolve services such as loggers or `ResourceCommandService`.
+- `ResourceName` _(`string`)_ — the name of the resource instance that the command is being executed on.
+- `CancellationToken` _(`CancellationToken`)_ — used to cancel command execution.
+- `Logger` _(`ILogger`)_ — used to write log messages directly to the resource's logs. These logs can be viewed in the [Aspire dashboard](/dashboard/explore/#console-logs-page) or with the `aspire logs <resource>` command.
+
+The earlier example delegates to a private static method named `OnRunClearCacheCommandAsync` to clear the cache:
 
 ```csharp title="RedisResourceBuilderExtensions.cs"
 private static async Task<ExecuteCommandResult> OnRunClearCacheCommandAsync(
@@ -136,14 +201,62 @@ The preceding code:
 - Executes the `FLUSHALL` command to clear the cache.
 - Returns a `CommandResults.Success()` instance to indicate that the command was successful.
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+In TypeScript the callback signature is `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>`. `ExecuteCommandContext` exposes the same surface in camelCase, plus a `logger` accessor as a shortcut:
+
+- `serviceProvider` — async accessor for the dependency-injection container.
+- `resourceName` — async accessor for the resource instance name.
+- `cancellationToken` — async accessor returning a `CancellationToken` that you can `await` and forward to APIs that accept an `AbortSignal`.
+- `logger` — async accessor for the resource logger; equivalent to resolving a logger from `serviceProvider`.
+
+The TypeScript callback is typically defined inline as an async arrow function. The example below pulls the resource's HTTP endpoint and forwards the cancellation token to `fetch`:
+
+```typescript title="apphost.ts"
+async (context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+    const endpoint = await cache.getEndpoint("http");
+    const url = await endpoint.url.get();
+    const cancellation = await context.cancellationToken.get();
+
+    const res = await fetch(`${url}/admin/cache/clear`, {
+        method: "POST",
+        signal: cancellation as unknown as AbortSignal,
+    });
+
+    if (!res.ok) {
+        return {
+            success: false,
+            message: `Cache service returned ${res.status} ${res.statusText}.`,
+        };
+    }
+
+    return { success: true, message: "Cache cleared." };
+}
+```
+
+The preceding code:
+
+- Reads the resource's HTTP endpoint URL.
+- Calls the resource's admin endpoint with the cancellation token forwarded as an abort signal so the request stops when the dashboard or CLI cancels the command.
+- Returns `{ success: false, message: ... }` if the HTTP call fails, otherwise `{ success: true, message: "Cache cleared." }`.
+
+</TabItem>
+</Tabs>
+
 ## Update command state logic
 
-The `updateState` delegate is where the command state is determined. This parameter is defined as a `Func<UpdateCommandStateContext, ResourceCommandState>`. The `UpdateCommandStateContext` provides the following properties:
+The `updateState` callback decides whether a command is enabled in the dashboard. The dashboard invokes it whenever the resource's state changes — typical use cases are gating destructive commands behind a healthy resource, or only enabling a command after a startup probe has succeeded.
 
-- `UpdateCommandStateContext.ServiceProvider`: The `IServiceProvider` instance that's used to resolve services.
-- `UpdateCommandStateContext.ResourceSnapshot`: The snapshot of the resource instance that the command is being executed on.
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-The immutable snapshot is an instance of `CustomResourceSnapshot`, which exposes all sorts of valuable details about the resource instance. Consider the following code:
+In C# the parameter is typed as `Func<UpdateCommandStateContext, ResourceCommandState>`. `UpdateCommandStateContext` exposes:
+
+- `ServiceProvider` _(`IServiceProvider`)_ — used to resolve services.
+- `ResourceSnapshot` _(`CustomResourceSnapshot`)_ — an immutable snapshot of the resource instance, including health status, lifecycle state, properties, and URLs.
+
+The earlier example gates the `clear-cache` command on the Redis resource being healthy:
 
 ```csharp title="RedisResourceBuilderExtensions.cs"
 private static ResourceCommandState OnUpdateResourceState(
@@ -170,9 +283,38 @@ The preceding code:
 - Logs the resource snapshot details.
 - Returns `ResourceCommandState.Enabled` if the resource is healthy; otherwise, it returns `ResourceCommandState.Disabled`.
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="caution">
+The TypeScript `UpdateCommandStateContext` currently exposes only `serviceProvider` — it does **not** expose a `resourceSnapshot` property. The C# pattern of gating a command on `ResourceSnapshot.HealthStatus` therefore has no direct TypeScript equivalent today. TypeScript callbacks can still resolve services from the provider, but they cannot inspect the live resource snapshot.
+</Aside>
+
+In TypeScript the `updateState` field on `CommandOptions` is typed loosely (`any`), and the SDK does not yet export a `ResourceCommandState` enum. The simplest path for TypeScript AppHosts today is to omit `updateState` entirely — commands default to enabled — and only register the command after the resource is reachable:
+
+```typescript title="apphost.ts"
+await cache.withCommand(
+    "clear-cache",
+    "Clear Cache",
+    executeClearCache,
+    {
+        commandOptions: {
+            iconName: "AnimalRabbitOff",
+        },
+    });
+```
+
+When you need lifecycle-aware gating in a TypeScript AppHost, drive it from outside the callback by registering the command only after the resource exposes the data your command depends on (for example, after subscribing to a connection-string or endpoint event).
+
+</TabItem>
+</Tabs>
+
 ## Test the custom command
 
-To test the custom command, update your AppHost project's _AppHost.cs_ file to include the following code:
+To test the custom command, update your AppHost to wire up the resource and the command:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs" {4}
 var builder = DistributedApplication.CreateBuilder(args);
@@ -192,7 +334,66 @@ builder.AddProject<Projects.AspireApp_Web>("webfrontend")
 builder.Build().Run();
 ```
 
-The preceding code calls the `WithClearCommand` extension method to add the custom command to the Redis resource. Run the app and navigate to the Aspire dashboard. You should see the custom command listed under the Redis resource. On the **Resources** page of the dashboard, select the ellipsis button under the **Actions** column:
+The preceding code calls the `WithClearCommand` extension method to add the custom command to the Redis resource.
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" {5-15}
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addNodeApp("cache", "../cache/server.js");
+await cache.withHttpEndpoint();
+await cache.withCommand(
+    "clear-cache",
+    "Clear Cache",
+    async (context) => {
+        const endpoint = await cache.getEndpoint("http");
+        const url = await endpoint.url.get();
+        const cancellation = await context.cancellationToken.get();
+
+        const res = await fetch(`${url}/admin/cache/clear`, {
+            method: "POST",
+            signal: cancellation as unknown as AbortSignal,
+        });
+
+        if (!res.ok) {
+            return {
+                success: false,
+                message: `Cache service returned ${res.status} ${res.statusText}.`,
+            };
+        }
+
+        return { success: true, message: "Cache cleared." };
+    },
+    {
+        commandOptions: {
+            iconName: "AnimalRabbitOff",
+            description: "Clears the application cache.",
+            confirmationMessage: "Are you sure you want to clear the cache?",
+        },
+    });
+
+const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+
+const web = await builder.addProject("webfrontend", "../Web/Web.csproj");
+await web.withExternalHttpEndpoints();
+await web.withReference(cache);
+await web.waitFor(cache);
+await web.withReference(apiService);
+await web.waitFor(apiService);
+
+await builder.build().run();
+```
+
+The preceding code registers the cache service as a Node app with an HTTP endpoint and attaches the `clear-cache` command directly to it.
+
+</TabItem>
+</Tabs>
+
+Run the app and navigate to the Aspire dashboard. You should see the custom command listed under the cache resource. On the **Resources** page of the dashboard, select the ellipsis button under the **Actions** column:
 
 <Image
   src={customClearCacheCommand}
@@ -201,7 +402,7 @@ The preceding code calls the `WithClearCommand` extension method to add the cust
 
 The preceding image shows the **Clear cache** command that was added to the Redis resource. The icon displays as a rabbit crossed out to indicate that the speed of the dependent resource is being cleared.
 
-Select the **Clear cache** command to clear the cache of the Redis resource. The command should execute successfully, and the cache should be cleared:
+Select the **Clear cache** command to clear the cache of the Redis resource. The command should execute successfully, and the cache should be cleared. The result of the command is available in the [notification center](/dashboard/explore/#notification-center):
 
 <Image
   src={customClearCacheCommandSucceeded}
@@ -209,6 +410,10 @@ Select the **Clear cache** command to clear the cache of the Redis resource. The
 />
 
 ## Programmatically execute commands
+
+<Aside type="note">
+Programmatic command execution via `ResourceCommandService` is currently a **C# AppHost feature**. The TypeScript SDK can register custom commands but does not yet expose a service for invoking commands from inside other commands. The next three subsections — _Execute commands from a custom command_, _Execute a command by resource ID_, and _Execute commands on resources with replicas_ — are therefore C#-only. The [_Handle command execution results_](#handle-command-execution-results) subsection that follows applies to commands written in either language.
+</Aside>
 
 In addition to executing commands through the [Aspire dashboard](/dashboard/overview/), you can also execute commands programmatically using the `ResourceCommandService`. This service is useful when you need to:
 
@@ -225,7 +430,6 @@ The following example shows how to create a custom command that executes other c
 ```csharp title="AppHost.cs"
 using Aspire.Hosting.ApplicationModel;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -244,10 +448,9 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithReference(database)
     .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
     {
-        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
         var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
         
-        logger.LogInformation("Starting full system reset...");
+        context.Logger.LogInformation("Starting full system reset...");
         
         var clearResult = await commandService.ExecuteCommandAsync(
             resource: cache.Resource,
@@ -264,7 +467,7 @@ var api = builder.AddProject<Projects.Api>("api")
             return CommandResults.Failure("System reset failed");
         }
         
-        logger.LogInformation("System reset completed successfully");
+        context.Logger.LogInformation("System reset completed successfully");
         return CommandResults.Success();
     });
 
@@ -273,7 +476,8 @@ builder.Build().Run();
 
 In this example:
 
-- The `context` parameter provides access to `ServiceProvider`
+- The `context` parameter provides access to `ServiceProvider` and `Logger`
+- `context.Logger` writes log messages directly to the resource's log stream in the Aspire dashboard — no need to resolve a logger from the service provider
 - The `ResourceCommandService` is retrieved from the service provider
 - Commands are executed on resource instances using `cache.Resource` and `database.Resource`
 - Each command result is checked for success before proceeding
@@ -298,7 +502,7 @@ else if (result.Canceled)
 }
 else
 {
-    logger.LogError("Command failed: {ErrorMessage}", result.ErrorMessage);
+    logger.LogError("Command failed: {Message}", result.Message);
 }
 ```
 
@@ -326,19 +530,319 @@ The behavior when executing on multiple replicas:
 
 ### Handle command execution results
 
-The `ExecuteCommandResult` class provides information about the command execution:
+The `ExecuteCommandResult` type carries the outcome of a command. It exposes the same conceptual fields in both languages:
 
-- **`Success`**: A boolean indicating whether the command was successful.
-- **`ErrorMessage`**: An optional string property with an error message if the command was unsuccessful.
-- **`Canceled`**: A boolean indicating whether the command was canceled by the user.
+- **`Success` / `success`** _(boolean)_ — Whether the command completed successfully.
+- **`Canceled` / `canceled`** _(boolean)_ — Whether the command was canceled by the user.
+- **`Message` / `message`** _(string?)_ — A human-readable message that surfaces in the dashboard [notification center](/dashboard/explore/#notification-center) and CLI output. Used for both success messages and error messages.
+- **`Data` / `data`** _(`CommandResultData?`)_ — Optional structured output (plain text, JSON, or Markdown). See [Return structured output from a command](#return-structured-output-from-a-command).
 
-You can use these properties to handle different execution outcomes in your application logic. The `CommandResults` helper class provides factory methods to create result instances:
+<Aside type="note">
+A separate `ErrorMessage` property exists for backward compatibility but is deprecated. New code should set `Message` (`message` in TypeScript) — it covers both successful and unsuccessful outcomes.
+</Aside>
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+The `CommandResults` helper class provides factory methods for the common shapes:
 
 ```csharp
-// In your command implementation
+// Success with no payload
 return CommandResults.Success();
-// or
+
+// Failure with a status message
 return CommandResults.Failure("Error occurred during execution");
-// or
+
+// Cancellation (typically when the user backs out of a confirmation prompt)
 return CommandResults.Canceled();
+
+// Failure derived from an exception (uses Exception.Message)
+return CommandResults.Failure(ex);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+In TypeScript there is no helper class — return a plain object that conforms to `ExecuteCommandResult`:
+
+```typescript
+// Success with no payload
+return { success: true };
+
+// Failure with a status message
+return { success: false, message: "Error occurred during execution" };
+
+// Cancellation (typically when the user backs out of a confirmation prompt)
+return { canceled: true };
+
+// Failure derived from a caught exception
+return { success: false, message: err instanceof Error ? err.message : String(err) };
+```
+
+</TabItem>
+</Tabs>
+
+## Return structured output from a command
+
+Resource commands can return a structured payload — plain text, JSON, or Markdown — alongside the success/failure signal. The payload flows automatically through the entire Aspire pipeline:
+
+- **Dashboard**: The success notification gains a **View response** action that opens a text visualizer dialog with the payload. `Json` results lock the visualizer to JSON syntax highlighting; `Markdown` results lock it to Markdown rendering. Set `DisplayImmediately` to open the dialog as soon as the command completes (no click required).
+- **CLI**: Status messages route to `stderr` and the payload routes to `stdout`, so the output is safe to pipe to tools such as `jq`:
+
+  ```bash title="Terminal"
+  aspire resource cache issue-access-token | jq -r .token
+  ```
+
+- **MCP tools**: The payload is appended to the tool response as a second `TextContentBlock` after the status message.
+
+### Return text or JSON
+
+A common scenario is issuing an **access token** from a custom command — developers can copy it straight from the dashboard or pipe it into a `Bearer` header from the CLI. In `Text` mode, the result is just the token; in `Json` mode, the result includes the expiry and scopes.
+
+Use the `CommandResults.Success(message, result, resultFormat)` overload to attach a payload to a successful result. The `message` is the notification center/CLI status; `result` is the payload string; `resultFormat` controls how the dashboard visualizer interprets it.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
+        {
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: token,
+                resultFormat: CommandResultFormat.Text));
+        });
+
+builder.Build().Run();
+```
+
+To return JSON with the expiry and scopes, switch the format to `CommandResultFormat.Json`:
+
+```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
+using System.Text.Json;
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
+        {
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var json = JsonSerializer.Serialize(new
+            {
+                token,
+                expiresAt = DateTimeOffset.UtcNow.AddHours(1),
+                scopes = new[] { "read", "write" },
+            });
+
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: json,
+                resultFormat: CommandResultFormat.Json));
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+In TypeScript, return an `ExecuteCommandResult` object literal with a `data` property of type `CommandResultData`:
+
+```typescript title="TypeScript — apphost.ts"
+import {
+    createBuilder,
+    CommandResultFormat,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand("issue-access-token", "Issue Access Token",
+        async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const token = crypto.randomUUID().replace(/-/g, "");
+
+            return {
+                success: true,
+                message: "Access token issued.",
+                data: {
+                    value: token,
+                    format: CommandResultFormat.Text,
+                },
+            };
+        });
+
+await builder.build().run();
+```
+
+To return JSON with the expiry and scopes, switch the format to `CommandResultFormat.Json`:
+
+```typescript title="TypeScript — apphost.ts"
+import {
+    createBuilder,
+    CommandResultFormat,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand("issue-access-token", "Issue Access Token",
+        async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const token = crypto.randomUUID().replace(/-/g, "");
+            const json = JSON.stringify({
+                token,
+                expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+                scopes: ["read", "write"],
+            });
+
+            return {
+                success: true,
+                message: "Access token issued.",
+                data: {
+                    value: json,
+                    format: CommandResultFormat.Json,
+                },
+            };
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Choose a result format
+
+`CommandResultFormat` has three values:
+
+| Value      | Dashboard behavior |
+|------------|--------------------|
+| `Text`     | Plain text. Opens in the text visualizer dialog with no fixed format — the user can switch to a different syntax for inspection. |
+| `Json`     | JSON. The visualizer locks to JSON mode for syntax highlighting and pretty-printing. |
+| `Markdown` | Markdown. The visualizer locks to Markdown rendering. |
+
+Omit `Data` (return `CommandResults.Success()` or `{ success: true }`) when the command has no payload to display.
+
+### Return data on a failure
+
+The matching `CommandResults.Failure(errorMessage, result, resultFormat)` overload attaches the same payload shape to a failed result, which is useful for surfacing diagnostic detail that the user (or a downstream tool) can inspect:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+return CommandResults.Failure(
+    errorMessage: "Migration failed.",
+    result: errorJson,
+    resultFormat: CommandResultFormat.Json);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+return {
+    success: false,
+    message: "Migration failed.",
+    data: {
+        value: errorJson,
+        format: CommandResultFormat.Json,
+    },
+};
+```
+
+</TabItem>
+</Tabs>
+
+### Auto-open the result dialog in the dashboard
+
+By default, the dashboard surfaces the payload as a **View response** action on the notification in the [notification center](/dashboard/explore/#notification-center). Set `DisplayImmediately` on `CommandResultData` to open the visualizer the moment the command completes — useful for short commands where the response _is_ the point:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+return CommandResults.Success(
+    message: "Access token issued.",
+    value: new CommandResultData
+    {
+        Value = json,
+        Format = CommandResultFormat.Json,
+        DisplayImmediately = true,
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+return {
+    success: true,
+    message: "Access token issued.",
+    data: {
+        value: json,
+        format: CommandResultFormat.Json,
+        displayImmediately: true,
+    },
+};
+```
+
+</TabItem>
+</Tabs>
+
+### Replica aggregation
+
+When a resource has multiple replicas, the command runs on all instances in parallel. If more than one replica returns a payload, only the first successful payload is propagated to the caller; the others are discarded.
+
+### Invoke commands from the CLI
+
+Any command registered with `WithCommand` can be invoked from the terminal — including the built-in `start`, `stop`, and `restart` commands — using the `aspire resource` command:
+
+```bash title="Terminal"
+aspire resource <resource-name> <command-name> [--apphost <path>]
+```
+
+The CLI splits status output from payload output so the result is friendly to scripting:
+
+- The `Message` and any progress text is written to **stderr**.
+- The `Data.Value` (when present) is written to **stdout** verbatim. `Json` and `Text` payloads are emitted as-is; `Markdown` is rendered with terminal-styled headings, lists, and code blocks.
+- The exit code is `0` on success and non-zero on failure or cancellation.
+
+Combined, this means you can pipe the structured payload directly into `jq`, redirect it to a file, or branch on the exit code:
+
+```bash title="Terminal — Pipe a JSON payload through jq"
+$ aspire resource cache issue-access-token | jq -r .token
+ey7WqGxk2vL...
+```
+
+The status message `Access token issued.` was written to stderr, so stdout stays clean for the pipe.
+
+```bash title="Terminal — Use the exit code in a script"
+if aspire resource db migrate > migrations.json; then
+    echo "Applied $(jq length migrations.json) migrations."
+else
+    echo "Migration failed — see error above."
+    exit 1
+fi
 ```

@@ -225,6 +225,18 @@ storage.ConfigureInfrastructure(infra =>
 
 [Azure SQL Server](/integrations/cloud/azure/azure-sql-database/azure-sql-database-get-started/) uses a deployment script to grant your application's managed identity access to the SQL database. When you add a private endpoint for a SQL Server resource, the deployment script needs to run inside the virtual network via Azure Container Instances (ACI). Aspire automatically creates a delegated subnet and a storage account for the deployment script container. For details on customizing this behavior, see [Admin deployment script](/integrations/cloud/azure/azure-sql-database/azure-sql-database-host/#admin-deployment-script).
 
+##### Azure Container Registry
+
+[Azure Container Registry](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) requires the **Premium** SKU to support private endpoints. When you add a private endpoint for an Azure Container Registry resource, Aspire automatically upgrades the SKU to Premium.
+
+<Aside type="caution">
+  When public network access is disabled on the registry (the default when a private endpoint is added),
+  `aspire deploy` cannot push container images to the registry unless it runs from a machine that
+  has network access through the private endpoint (for example, an Azure DevOps or GitHub Actions
+  self-hosted runner inside the virtual network). Consider using self-hosted runners in the same
+  VNet, or re-enable public access on the registry for deployment scenarios.
+</Aside>
+
 ### Add a network security perimeter
 
 [Azure Network Security Perimeters (NSPs)](https://learn.microsoft.com/azure/private-link/network-security-perimeter-concepts) provide a logical security boundary for Azure PaaS services such as Storage, Key Vault, Cosmos DB, and SQL. Where virtual networks and private endpoints secure connectivity at the infrastructure layer, NSPs operate at the PaaS layer—grouping resources so they can communicate with each other while restricting public access via access rules.

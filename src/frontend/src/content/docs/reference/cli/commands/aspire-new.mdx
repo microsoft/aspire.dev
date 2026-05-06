@@ -27,7 +27,25 @@ The `aspire new` command is the driver for creating Aspire projects, apps, or so
 
 This command defaults to **interactive** mode. When executed without any options, the command prompts you for the project template and version, name, and output folder. When the `--name`, `--output`, and `--version` options are provided, the command runs **non-interactive** and generates files based on the command template.
 
-When run non-interactively without specifying a template subcommand, the command displays an error message listing the available templates.
+### Default output directory
+
+When you don't provide `--output`, the default output directory is derived from the **template name**. For example, running `aspire new aspire-starter` without `--output` creates a directory named `./aspire-starter` in the current working directory.
+
+If that directory already exists and is non-empty, the command automatically appends a numeric suffix to find a unique name (for example, `./aspire-starter-2`, `./aspire-starter-3`, and so on).
+
+### Output path validation
+
+The `--output` option validates the provided path before creating the project:
+
+- Paths that contain **invalid characters** (such as null bytes) are rejected with an error.
+- Paths that point to an **existing non-empty directory** are rejected with a clear error message. Use a different output path or an empty directory.
+
+<Aside type="note">
+  The `aspire new` command currently requires an interactive terminal even when
+  all options are provided. The `--non-interactive` flag is not fully supported.
+  In CI/CD pipelines or other non-interactive environments, use `dotnet new`
+  with Aspire templates as an alternative for project creation.
+</Aside>
 
 ## Interactive prompts
 
@@ -123,10 +141,22 @@ Each command represents a template. Pass the `--help` parameter to the template 
 | ---------------------- | --------------------------------- |
 | `aspire-starter`       | Starter App (ASP.NET Core/Blazor) |
 | `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)  |
-| `aspire-py-starter`    | Starter App (FastAPI/React)       |
+| `aspire-py-starter`    | Starter App (FastAPI/React) |
 | `aspire-ts-starter`    | Starter App (Express/React)       |
 | `aspire-empty`         | Empty (C# AppHost)                |
 | `aspire-ts-empty`      | Empty (TypeScript AppHost)        |
+
+### aspire-py-starter options
+
+The `aspire-py-starter` template accepts the following additional options:
+
+- **`--use-redis-cache`**
+
+  Scaffold the template with an optional Redis cache resource in the TypeScript AppHost. Accepts `true` or `false`. Defaults to prompting interactively.
+
+  ```bash title="Aspire CLI"
+  aspire new aspire-py-starter --use-redis-cache true
+  ```
 
 ## Examples
 

@@ -61,6 +61,9 @@ import removeTelemetryData from '@assets/dashboard/explore/remove-telemetry-data
 import manageDataDialog from '@assets/dashboard/explore/manage-data-dialog.png';
 import manageDataExpanded from '@assets/dashboard/explore/manage-data-expanded.png';
 import settingsManageTelemetry from '@assets/dashboard/explore/settings-manage-telemetry.png';
+import notificationCenterBell from '@assets/dashboard/explore/notification-center-bell.png';
+import notificationCenterOpen from '@assets/dashboard/explore/notification-center-open.png';
+import notificationCenterResponse from '@assets/dashboard/explore/notification-center-response.png';
 import themeSelection from '@assets/dashboard/explore/theme-selection.png';
 import themeSelectionLight from '@assets/dashboard/explore/theme-selection-light.png';
 import dashboardHelp from '@assets/dashboard/explore/dashboard-help.png';
@@ -71,8 +74,6 @@ In the upcoming sections, you discover how to create an Aspire project and embar
 - Delve into the features of the Aspire dashboard app.
 
 The screenshots featured in this article showcase the dark theme. For more information on theme selection, see [Theme selection](#theme-selection).
-
-The Aspire dashboard also includes **GitHub Copilot**, your AI debugging assistant, which can help you analyze resources, logs, traces, and telemetry data. Copilot is available when you launch your app from VS Code or Visual Studio with a GitHub account that has a Copilot subscription. For complete details, see [GitHub Copilot in the Aspire dashboard](copilot).
 
 ## Dashboard authentication
 
@@ -171,11 +172,11 @@ When you select **Stop**, the resource stops running, and the **State** column u
 For project resources, when the debugger is attached, it's reattached on restart.
 </Aside>
 
-The **Start** button is then enabled, allowing you to start the resource again. Additionally, the dashboard displays a toast notification of the result of the action:
+The **Start** button is then enabled, allowing you to start the resource again. Additionally, the dashboard displays a notification of the result of the action in the [notification center](#notification-center):
 
 <Image src={resourceStoppedAction} alt="Aspire dashboard resource stopped." />
 
-When a resource is in a non-running state, the **Start** button is enabled. Selecting **Start** starts the resource, and the **State** column updates to reflect the change. The **Stop** button is then enabled, allowing you to stop the resource again. The dashboard displays a toast notification of the result of the action:
+When a resource is in a non-running state, the **Start** button is enabled. Selecting **Start** starts the resource, and the **State** column updates to reflect the change. The **Stop** button is then enabled, allowing you to stop the resource again. The dashboard displays a notification of the result of the action in the [notification center](#notification-center):
 
 <Image src={resourceStartedAction} alt="Aspire dashboard started resource." />
 
@@ -202,8 +203,6 @@ The following submenu actions are available:
 There might be resources with disabled submenu actions. They're greyed out when they're disabled. For example, the following screenshot shows the submenu actions disabled:
 
 <Image src={resourceSubmenuActions} alt="Aspire dashboard disabled submenu actions." />
-
-When GitHub Copilot is available (when launching from VS Code or Visual Studio with a Copilot subscription), resource context menus also include an **Ask GitHub Copilot** option. This allows you to investigate resources using AI analysis.
 </Aside>
 
 #### Copy or Open in text visualizer
@@ -318,8 +317,6 @@ Consider the following screenshots showing the structured logs filter dialog:
 
 <Image src={structuredLogsFiltered} alt="A screenshot of the Aspire dashboard Structured logs page showing the filter dialog." />
 
-When GitHub Copilot is available and your app has structured logs with errors, an **Explain errors** button appears on the structured logs page. Selecting it makes all errors available to Copilot for AI-powered investigation. Additionally, structured log entries include an **Ask GitHub Copilot** option in their context menus.
-
 ### Traces page
 
 Navigate to the **Traces** page to view all of the traces for your app. Aspire automatically configures tracing for the different projects in your app. Distributed tracing is a diagnostic technique that helps engineers localize failures and performance issues within applications, especially those that might be distributed across multiple machines or processes. For more information, see [.NET distributed tracing](https://learn.microsoft.com/dotnet/core/diagnostics/distributed-tracing). This technique tracks requests through an application and correlates work done by different application integrations. Traces also help identify how long different stages of the request took to complete. The traces page displays the following information:
@@ -364,8 +361,6 @@ Each span is represented as a row in the table, and contains a **Name**. Spans a
 Within the trace details page, there's a **View Logs** button that takes you to the structured logs page with a filter applied to show only the logs relevant to the request. Consider an example screenshot depicting the structured logs page with a filter applied to show only the logs relevant to the trace:
 
 <Image src={structuredLogsTraceErrors} alt="A screenshot of the Aspire dashboard Structured logs page, showing a filter applied to show only the logs relevant to the trace." />
-
-When GitHub Copilot is available, the trace details page also includes an **Explain trace** button that provides a quick way to analyze the currently viewed trace using AI. Additionally, traces and individual spans include **Ask GitHub Copilot** options in their context menus for detailed investigation.
 
 The structured logs page is discussed in more detail in the [Structured logs page](#structured-logs-page) section.
 
@@ -565,6 +560,33 @@ To remove data for specific resources or data types, select the items you want t
 
 <Image src={manageDataDialog} alt="A screenshot of the Aspire dashboard Manage logs and telemetry dialog, showing resources with available data types and export, remove, and import buttons." />
 
+## Notification center
+
+The dashboard includes a notification center accessible via the bell icon in the top-right corner of the header. When there are unread notifications, a badge with the unread count appears on the icon.
+
+<Image src={notificationCenterBell} alt="Aspire dashboard header showing the notification center bell icon with an unread count badge." />
+
+Selecting the bell icon opens the **Notifications** dialog, which lists all notifications. Notifications are generated when:
+
+- A resource command starts, succeeds, or fails. Both success and failure messages appear as notifications.
+- System events occur that require user attention.
+
+Each notification shows its title, message body, and a relative timestamp. Success and error notifications that include a command result provide a **View response** action button to open the result in the text visualizer.
+
+<Image src={notificationCenterOpen} alt="Aspire dashboard Notifications dialog showing a list of command notifications with timestamps." />
+
+Selecting **View response** opens the text visualizer with the command's result content:
+
+<Image src={notificationCenterResponse} alt="Aspire dashboard text visualizer showing a command response opened from the notification center." />
+
+The unread count resets when you open the notification center. To clear all notifications, select the **Dismiss all** button in the dialog.
+
+<Aside type="tip">
+Notifications are capped at 100 entries. When the limit is reached, the oldest notifications are removed automatically.
+</Aside>
+
+For information on returning messages from custom commands, see [Custom resource commands](/fundamentals/custom-resource-commands/).
+
 ## Settings dialog
 
 <span id="theme-selection"></span>
@@ -623,24 +645,6 @@ In the dashboard, interaction prompts appear as:
 - Notification messages with details about resource status.
 
 These prompts appear directly in the dashboard interface, making it easy to provide the necessary information without switching to external tools or configuration files.
-
-## GitHub Copilot in the dashboard
-
-The Aspire dashboard includes GitHub Copilot as your AI debugging assistant when you launch your app from VS Code or Visual Studio with a GitHub account that has a Copilot subscription. Copilot can help you:
-
-- Review hundreds of log messages with a single click.
-- Investigate the root cause of errors across multiple apps.
-- Highlight performance issues in traces.
-- Explain obscure error codes using AI's vast knowledge repository.
-
-Copilot features appear throughout the dashboard interface:
-
-- **Copilot button**: This button is available in the top-right corner to open the Copilot chat interface.
-- **Context menus**: "Ask GitHub Copilot" options appear in resource, log, trace, and span context menus.
-- **Explain buttons**: "Explain errors" buttons appear on structured logs and "Explain trace" buttons appear on trace details pages.
-- **Suggested questions**: Contextual AI suggestions appear based on the current page.
-
-For comprehensive information about GitHub Copilot features, requirements, troubleshooting, and configuration options, see [GitHub Copilot in the Aspire dashboard](/dashboard/copilot/).
 
 ## Next steps
 

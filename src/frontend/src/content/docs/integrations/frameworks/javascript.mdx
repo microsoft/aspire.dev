@@ -92,6 +92,59 @@ The `AddNodeApp` method requires:
 - **appDirectory**: The path to the directory containing the node application.
 - **scriptPath** The path to the script relative to the app directory to run.
 
+## Add Next.js application
+
+:::caution[Experimental]
+`AddNextJsApp` is marked `[Experimental]` and requires suppressing the `ASPIREEXTENSION001` diagnostic in your project.
+:::
+
+For [Next.js](https://nextjs.org/) applications, use the `AddNextJsApp` extension method. It provides Next.js-specific defaults for both run mode and publish mode:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREEXTENSION001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.ExampleProject>("api");
+
+var nextApp = builder.AddNextJsApp("next-app", "./next-app")
+    .WithReference(api);
+
+// After adding all resources, run the app...
+```
+
+`AddNextJsApp` configures:
+
+- **Run mode**: Starts `next dev` with the correct port binding (`-p` flag).
+- **Publish mode**: Generates a multi-stage Dockerfile using Next.js [standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output).
+- **Deploy-time validation**: Checks `next.config.ts`, `next.config.js`, or `next.config.mjs` for `output: "standalone"` as a prerequisite step before building the container. Without standalone output, the generated Dockerfile will not work correctly.
+
+:::note
+You must set `output: "standalone"` in your Next.js configuration for `AddNextJsApp` publish mode to work correctly:
+
+```javascript title="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone",
+};
+
+module.exports = nextConfig;
+```
+:::
+
+To opt out of the configuration validation step, call `.DisableBuildValidation()`:
+
+```csharp title="C# — AppHost.cs"
+#pragma warning disable ASPIREEXTENSION001
+
+var nextApp = builder.AddNextJsApp("next-app", "./next-app")
+    .DisableBuildValidation();
+```
+
+<LearnMore>
+  For Next.js publish-method requirements (standalone output, copy shape, server components), see [Deploy JavaScript apps — Next.js gotchas](/deployment/javascript-apps/#nextjs).
+</LearnMore>
+
 ## Add Vite application
 
 For Vite applications, you can use the `AddViteApp` extension method which provides Vite-specific defaults and optimizations:
@@ -129,6 +182,10 @@ The method accepts the same parameters as `AddJavaScriptApp`:
 - **name**: The name of the resource in the Aspire dashboard
 - **appDirectory**: The path to the directory containing the Vite app.
 - **runScriptName** (optional): The name of the script that runs the Vite app. Defaults to "dev".
+
+<LearnMore>
+  For framework-specific publish guidance — Vite/React/Vue, Angular, Astro, SvelteKit, TanStack Start, Nuxt, Remix, and Qwik — see [Deploy JavaScript apps — Framework-specific gotchas](/deployment/javascript-apps/#framework-specific-gotchas).
+</LearnMore>
 
 ## Configure package managers
 
@@ -552,6 +609,7 @@ configuration, configure the production-serving resource separately.
 
 - [External parameters](/fundamentals/external-parameters/) - Learn how to use parameters in Aspire
 - [Node.js hosting extensions](/integrations/frameworks/nodejs-extensions/) - Community Toolkit extensions for Vite, Yarn, and pnpm
+- [Deploy JavaScript apps](/deployment/javascript-apps/) - Production deployment patterns including `PublishAsStaticWebsite`, `PublishAsNodeServer`, and `PublishAsNpmScript`
 - [What's new in Aspire 13](/whats-new/aspire-13/) - Learn about first-class JavaScript support
 - [Aspire integrations overview](/integrations/overview/)
 - [Aspire GitHub repo](https://github.com/microsoft/aspire)
