@@ -12,7 +12,7 @@ These two methods serve different purposes:
 - **`AddDockerfile`**: Creates a new container resource from an existing Dockerfile. Use this when you want to add a custom containerized service to your app model.
 - **`WithDockerfile`**: Customizes an existing container resource (like a database or cache) to use a different Dockerfile. Use this when you want to modify the default container image for an Aspire component.
 
-Both methods expect an existing Dockerfile in the specified context path—neither method creates a Dockerfile for you.
+Both methods expect an existing Dockerfile in the specified context path—neither method creates a Dockerfile for you. To generate a Dockerfile from AppHost code instead, use the [Dockerfile builder APIs](#generate-a-dockerfile-programmatically).
 
 ## When to use AddDockerfile vs WithDockerfile
 
@@ -113,14 +113,140 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
+const pgsql = await builder.addPostgres("pgsql");
+
 // This replaces the default PostgreSQL container image with a custom one
-// built from your Dockerfile, while keeping PostgreSQL-specific functionality
-const pgsql = await builder.addPostgres("pgsql")
-    .withDockerfile("path/to/context")
-    .withPgAdmin(); // Still works because it's still a PostgreSQL resource
+// built from your Dockerfile, while keeping PostgreSQL-specific functionality.
+await pgsql.withDockerfile("path/to/context");
+await pgsql.withPgAdmin(); // Still works because it's still a PostgreSQL resource.
 ```
 </TabItem>
 </Tabs>
+
+## Generate a Dockerfile programmatically
+
+Use `AddDockerfileBuilder` or `WithDockerfileBuilder` when you need Aspire to generate a Dockerfile from AppHost code. These APIs are useful when the Dockerfile depends on AppHost configuration, when you want to compose Dockerfile fragments, or when you want to keep multi-stage image build logic near the resource definition.
+
+<Aside type="caution">
+  The Dockerfile builder APIs are experimental and may change in future
+  releases. In C# AppHosts, suppress diagnostic
+  `ASPIREDOCKERFILEBUILDER001` when you choose to use them.
+</Aside>
+
+`AddDockerfileBuilder` creates a new container resource and configures the generated Dockerfile in one step:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("frontend", "../frontend", context =>
+{
+    var build = context.Builder.From("node:22-alpine", "build");
+    build.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci")
+        .Copy(".", ".")
+        .Run("npm run build");
+
+    var runtime = context.Builder.From("nginx:alpine", "runtime");
+    runtime.CopyFrom("build", "/app/dist", "/usr/share/nginx/html")
+        .Expose(80);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+
+  await dockerfile
+    .from("node:22-alpine", { stageName: "build" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci")
+    .copy(".", ".")
+    .run("npm run build");
+
+  await dockerfile
+    .from("nginx:alpine", { stageName: "runtime" })
+    .copyFrom("build", "/app/dist", "/usr/share/nginx/html")
+    .expose(80);
+};
+
+await builder.addDockerfileBuilder("frontend", "../frontend", configureDockerfile, {
+  stage: "runtime",
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithDockerfileBuilder` applies a generated Dockerfile to an existing container resource. The image name provided when the resource is created is replaced by the generated Dockerfile build during publish:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddContainer("frontend", "nginx:alpine")
+    .WithDockerfileBuilder("../frontend", context =>
+    {
+        var stage = context.Builder.From("nginx:alpine", "runtime");
+        stage.Copy(".", "/usr/share/nginx/html")
+            .Expose(80);
+
+        return Task.CompletedTask;
+    }, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("nginx:alpine", { stageName: "runtime" })
+    .copy(".", "/usr/share/nginx/html")
+    .expose(80);
+};
+
+await builder
+  .addContainer("frontend", "nginx:alpine")
+  .withDockerfileBuilder("../frontend", configureDockerfile, {
+    stage: "runtime",
+  });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The callback receives a `DockerfileBuilderCallbackContext`. In TypeScript, callback context values such as `builder`, `resource`, and `services` are accessed asynchronously as methods, for example `await context.builder()`. The generated Dockerfile can use stages, build arguments, `RUN`, `COPY`, `COPY --from`, `ENV`, `EXPOSE`, `CMD`, `ENTRYPOINT`, and related Dockerfile instructions.
 
 ## Pass build arguments
 
@@ -141,8 +267,8 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const container = await builder.addDockerfile("mygoapp", "relative/context/path")
-    .withBuildArg("GO_VERSION", "1.22");
+const container = await builder.addDockerfile("mygoapp", "relative/context/path");
+await container.withBuildArg("GO_VERSION", "1.22");
 ```
 </TabItem>
 </Tabs>
@@ -166,10 +292,10 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const goVersion = builder.addParameter("goversion");
+const goVersion = await builder.addParameter("goversion");
 
-const container = await builder.addDockerfile("mygoapp", "relative/context/path")
-    .withBuildArg("GO_VERSION", goVersion);
+const container = await builder.addDockerfile("mygoapp", "relative/context/path");
+await container.withBuildArg("GO_VERSION", goVersion);
 ```
 </TabItem>
 </Tabs>
@@ -218,10 +344,10 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const accessToken = builder.addParameter("accesstoken", { secret: true });
+const accessToken = await builder.addParameter("accesstoken", { secret: true });
 
-const container = await builder.addDockerfile("myapp", "relative/context/path")
-    .withBuildSecret("ACCESS_TOKEN", accessToken);
+const container = await builder.addDockerfile("myapp", "relative/context/path");
+await container.withBuildSecret("ACCESS_TOKEN", accessToken);
 ```
 </TabItem>
 </Tabs>
