@@ -3,8 +3,9 @@ title: Deploy JavaScript apps
 description: Learn the main production deployment models for Vite and JavaScript frontends in Aspire.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 
 For Vite and other JavaScript frontends, there are three common production deployment models:
 
@@ -79,9 +80,10 @@ flowchart LR
     App --> Frontend["Vite build output"]
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder
@@ -98,9 +100,11 @@ app.PublishWithContainerFiles(frontend, "./static");
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.ts" twoslash
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -119,8 +123,9 @@ await app.publishWithContainerFiles(frontend, './static');
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ### How it works
 
@@ -162,9 +167,10 @@ flowchart LR
     YARP --> Frontend["Frontend routes"]
 ```
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -185,9 +191,11 @@ builder
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.ts" twoslash
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -210,8 +218,9 @@ await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 <Aside type="note">
   `AddViteApp` is still fine in this model but it's important to
@@ -224,9 +233,10 @@ await builder.build().run();
 If your gateway or BFF needs to know about the frontend dev server during local
 development, gate that wiring to run mode only:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
 var frontend = builder
     .AddViteApp("frontend", "./frontend");
 
@@ -241,9 +251,11 @@ if (builder.ExecutionContext.IsRunMode)
     gateway.WithEnvironment("FRONTEND_DEV_URL", frontend.GetEndpoint("http"));
 }
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.ts"
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts"
 const frontend = await builder.addViteApp('frontend', './frontend');
 
 const gateway = await builder
@@ -257,8 +269,9 @@ if (await builder.executionContext.isRunMode()) {
   await gateway.withEnvironment('FRONTEND_DEV_URL', frontendDevEndpoint);
 }
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 <Aside type="caution">
   Dev-only waits, references, and environment variables that point at the
@@ -313,9 +326,10 @@ This is a natural model for many SPA teams, especially when they already think
 in terms of "static site + API". It can work, but it is not the primary Aspire
 deployment story for `AddViteApp` and `AddJavaScriptApp`.
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -330,9 +344,11 @@ builder
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.ts" twoslash
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -349,14 +365,16 @@ await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 The following example looks reasonable, but it is a trap in publish/deploy:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="C# — AppHost.cs"
+<AppHostLangPivot>
+  <div slot="csharp">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -371,9 +389,11 @@ builder
 
 builder.Build().Run();
 ```
-</TabItem>
-<TabItem id='typescript' label='TypeScript'>
-```typescript title="TypeScript — apphost.ts" twoslash
+
+  </div>
+  <div slot="typescript">
+
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -389,8 +409,9 @@ await builder
 
 await builder.build().run();
 ```
-</TabItem>
-</Tabs>
+
+  </div>
+</AppHostLangPivot>
 
 ### Pits of failure
 
@@ -476,7 +497,7 @@ Use `PublishAsStaticWebsite` to deploy a built static frontend via a YARP revers
 
 YARP serves the built static files directly and can optionally proxy API requests to a backend service using [service discovery](/fundamentals/service-discovery/).
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -534,7 +555,7 @@ Use `PublishAsNodeServer` for SSR frameworks that produce a self-contained Node.
 
 Aspire generates a container that runs the built artifact directly using the Node.js runtime.
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -560,7 +581,7 @@ Use `PublishAsNpmScript` for SSR frameworks that start using an npm (or compatib
 
 Aspire generates a multi-stage Dockerfile that installs production `node_modules` and uses the package manager run script as the container entrypoint with `exec` for proper `SIGTERM` signal handling.
 
-```csharp title="C# — AppHost.cs"
+```csharp title="AppHost.cs"
 #pragma warning disable ASPIREEXTENSION001
 
 var builder = DistributedApplication.CreateBuilder(args);
