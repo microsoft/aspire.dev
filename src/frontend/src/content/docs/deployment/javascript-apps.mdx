@@ -25,7 +25,7 @@ This article is deployment-target agnostic. It explains the JavaScript hosting m
 
 ## Choose the production entrypoint
 
-For deployment, most JavaScript app resources should be treated as build resources until you choose a production serving model. Different app resource APIs provide different defaults, such as Vite conventions, direct Node.js script execution, command-driven JavaScript apps, or Next.js standalone output.
+For deployment, most JavaScript app resources should be treated as build-only resources until you choose a production serving model. Different app resource APIs provide different defaults, such as Vite conventions, direct Node.js script execution, command-driven JavaScript apps, or Next.js standalone output.
 
 To deploy a JavaScript app, choose which resource owns the public HTTP surface in production:
 
@@ -38,7 +38,7 @@ To deploy a JavaScript app, choose which resource owns the public HTTP surface i
 The JavaScript app resource publish methods and `AddNextJsApp` are marked `[Experimental]` and require suppressing the `ASPIREJAVASCRIPT001` diagnostic.
 :::
 
-If you only add a Vite or JavaScript app and reference backend services, Aspire still needs one of these production hosting patterns to know who serves requests in deployment.
+If you only add a Vite or JavaScript app and reference backend services, Aspire still needs one of these production hosting patterns to know who serves requests in deployment. During publish or deploy, Aspire validates that build-only containers are either consumed by another resource through `PublishWithContainerFiles(...)` or `PublishWithStaticFiles(...)`, or converted into a deployable JavaScript resource with a JavaScript publish method. An unconsumed build-only container does not participate in deployment.
 
 <Aside type="note">
   The Vite dev server is a development concern. During publish, Aspire is no
@@ -754,6 +754,8 @@ The SSR examples below assume a backend resource named `api` referenced from the
 - In run mode, they start the configured development command, such as the Vite dev server with HMR.
 - In publish mode, they produce static frontend assets, Node.js server output, or both.
 - Another resource can serve those artifacts in production, or a JavaScript publish method can make the JavaScript resource publish as its own static website or Node.js server.
+
+If a build-only JavaScript resource is not consumed by another resource, publish/deploy validation fails because that resource would not participate in the deployed app. Prefer fixing the app model by choosing one of the deployment shapes in this article. The app-wide `builder.Pipeline.DisableBuildOnlyContainerValidation()` escape hatch exists for exceptional cases, but it should not be the normal way to deploy JavaScript frontends.
 
 `AddNextJsApp` is different because it represents the Next.js standalone-server publish model directly. Use it when the app is a Next.js app with `output: "standalone"` rather than modeling the app with `AddJavaScriptApp` and choosing a generic npm-script publish method.
 
