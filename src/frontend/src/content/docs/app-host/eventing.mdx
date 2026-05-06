@@ -22,7 +22,7 @@ The following events are available in the AppHost and occur in the following ord
 
 ### Subscribe to AppHost events
 
-To subscribe to built-in AppHost events, use the eventing API on the builder:
+To subscribe to built-in AppHost events, use the convenience extension methods directly on the builder. These methods return the same `IDistributedApplicationBuilder` instance so calls can be chained:
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -32,8 +32,27 @@ using Microsoft.Extensions.Logging;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var cache = builder.AddRedis("cache");
+builder.OnBeforeStart(static (@event, cancellationToken) =>
+{
+    var logger = @event.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("BeforeStartEvent");
+    return Task.CompletedTask;
+});
 
+builder.Build().Run();
+```
+
+The following builder-level extension methods are available for AppHost events:
+
+| Method | Event |
+|--------|-------|
+| `OnBeforeStart` | `BeforeStartEvent` — raised before the AppHost starts |
+| `OnBeforePublish` | `BeforePublishEvent` — raised before manifest publishing begins |
+| `OnAfterPublish` | `AfterPublishEvent` — raised after manifest publishing completes |
+
+If you need to subscribe via `IDistributedApplicationEventing` directly (for example, inside an `IDistributedApplicationEventingSubscriber`), you can use the lower-level `Eventing.Subscribe<T>()` API:
+
+```csharp title="AppHost.cs"
 builder.Eventing.Subscribe<BeforeStartEvent>(
     static (@event, cancellationToken) =>
     {
@@ -48,7 +67,6 @@ builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(
         var logger = @event.Services.GetRequiredService<ILogger<Program>>();
         logger.LogInformation("AfterResourcesCreatedEvent");
         return Task.CompletedTask;
-    });
 
 builder.Build().Run();
 ```
@@ -373,13 +391,13 @@ When publishing your application (generating deployment manifests), these events
 | `AfterPublishEvent` | After publishing completes | Perform cleanup or post-publish actions |
 
 ```csharp title="AppHost.cs"
-builder.Eventing.Subscribe<BeforePublishEvent>((@event, ct) =>
+builder.OnBeforePublish((@event, ct) =>
 {
     // Validate resources before publishing
     return Task.CompletedTask;
 });
 
-builder.Eventing.Subscribe<AfterPublishEvent>((@event, ct) =>
+builder.OnAfterPublish((@event, ct) =>
 {
     // Post-publish actions
     return Task.CompletedTask;
