@@ -10,9 +10,16 @@ import installExtension from '@assets/get-started/install-aspire-code-extension.
 import installExtensionLight from '@assets/get-started/install-aspire-code-extension-light.png';
 import createProject from '@assets/get-started/code-extension-create-aspire-project.png';
 import createProjectLight from '@assets/get-started/code-extension-create-aspire-project-light.png';
+import codeLensGutter from '@assets/get-started/code-extension-codelens.png';
+import codeLensGutterLight from '@assets/get-started/code-extension-codelens-light.png';
+import sidebarTree from '@assets/get-started/code-extension-sidebar.png';
+import sidebarTreeLight from '@assets/get-started/code-extension-sidebar-light.png';
+import debugSessions from '@assets/get-started/code-extension-debug.png';
+import debugSessionsLight from '@assets/get-started/code-extension-debug-light.png';
 import { Kbd } from 'starlight-kbd/components';
 
-The official Aspire extension for [Visual Studio Code](https://code.visualstudio.com/) makes debugging polyglot Aspire apps a one-keystroke affair. Press <Kbd windows='F5' /> and the extension builds your AppHost, starts every resource, attaches the right debugger to each language — C#, TypeScript, Python, browser apps, Azure Functions — and opens the dashboard. Live state surfaces inline as CodeLens and gutter icons, and the Aspire view in the Side Bar tracks every running AppHost in real time.
+The official Aspire extension for [Visual Studio Code](https://code.visualstudio.com/) makes creating, debugging, and publishing polyglot Aspire apps easy. 
+Press <Kbd windows='F5' /> and the extension builds your AppHost, starts every resource, attaches the right debugger to each language — C#, TypeScript, Python, browser apps, Azure Functions — and opens the dashboard. Live state surfaces inline as CodeLens and gutter icons, and the Aspire view in the Side Bar tracks every running AppHost in real time.
 
 :::note[Prerequisites]
 A recent version of [Visual Studio Code](https://code.visualstudio.com/) and the **Aspire CLI** — install the CLI via the **Aspire: Install Aspire CLI (stable)** command from the Command Palette, or follow the [installation guide](/get-started/install-cli/).
@@ -36,7 +43,9 @@ A recent version of [Visual Studio Code](https://code.visualstudio.com/) and the
 
 ## Getting started
 
-Open your Aspire project in VS Code, or create one with **Aspire: New Aspire project** from the Command Palette (<Kbd windows='Ctrl+Shift+P' mac='Cmd+Shift+P' />). Run **Aspire: Configure launch.json file** to set up the debug configuration, then press <Kbd windows='F5' />.
+1. Open an existing Aspire project in VS Code or create one using the Command Palette command **Aspire: New Aspire project** with (<Kbd windows='Ctrl+Shift+P' mac='Cmd+Shift+P' />).
+1. Run **Aspire: Configure launch.json file** to set up the debug configuration.
+1. Press <Kbd windows='F5' /> to start debugging your Aspire app.
 
 <ThemeImage
   dark={createProject}
@@ -50,15 +59,31 @@ The extension discovers your AppHost from `aspire.config.json`, so both project-
 **Help > Get Started > Get started with Aspire** opens a built-in walkthrough covering CLI install, project creation, running, and exploring the dashboard — all without leaving VS Code.
 :::
 
+## Scaffold and add integrations
+
+The Command Palette has commands for the most common tasks:
+
+- **Aspire: Add an integration** offers a selection between hosting integration (`Aspire.Hosting.*`) to add to your AppHost.
+- **Aspire: Initialize Aspire in an existing codebase** wires Aspire into a repo that has not yet been Aspirified.
+- **Aspire: Update integrations** updates hosting integrations and the Aspire SDK.
+- **Aspire: Open Aspire terminal** drops you into a terminal with the Aspire CLI already on `PATH` for anything the UI doesn't cover.
+- **Aspire: Update Aspire CLI** and **Aspire: Install Aspire CLI** let you manage CLI installation.
+
 ## Live editor integration
 
 When an AppHost is running, the extension paints live state directly into your editor.
 
-{/* TODO: <ThemeImage dark={...} light={...} alt="An AppHost source file with CodeLens above each resource definition showing state and Start/Stop/Restart/View Logs actions, and colored gutter dots in the margin." /> — file: src/frontend/src/assets/get-started/code-extension-codelens{,-light}.png */}
+<ThemeImage
+  dark={codeLensGutter}
+  light={codeLensGutterLight}
+  alt="An AppHost source file with CodeLens above each resource definition showing state and Start/Stop/Restart/View Logs actions, and colored gutter icons in the margin."
+/>
 
-**CodeLens** appears above each resource definition in C# (`DistributedApplication.CreateBuilder`) and TypeScript (`createBuilder()`) AppHosts. It shows the current state and health (for example, `Running`, `Stopped (Exit code: 0)`, or `Running - (Unhealthy 0/1)`) and exposes one-click Start, Stop, Restart, and View Logs actions — plus any custom commands the resource publishes. Hover for per-check health details.
+**CodeLens** appears above each resource definition in C# and TypeScript AppHosts. It shows the current state and health and exposes one-click `Start`, `Stop`, `Restart`, and `View Logs` actions in addition to any custom commands the resource publishes. 
 
-**Gutter decorations** mark each resource definition with a state-coded shape that won't clash with breakpoint indicators:
+**Editor title bar buttons** add **Run apphost** and **Debug apphost** actions next to the standard Run/Debug buttons whenever you have an AppHost file open.
+
+**Health-aware gutter decorations** provide an at-a-glance view of resource health and state without cluttering the editor with text using the following shapes and colors:
 
 | Icon | Meaning |
 |------|---------|
@@ -71,44 +96,67 @@ When an AppHost is running, the extension paints live state directly into your e
 
 ## The Aspire view
 
-The extension adds an **Aspire** view to the Side Bar. It lists every running AppHost and its resources, with state changes appearing in real time. **Workspace** mode shows the AppHost in your current workspace; toggle to **Global** in the view header to see every AppHost on your machine.
+Aspire registers an AppHost view to VS Code. **Workspace** mode shows the AppHost in your current workspace; toggle to **Global** in the view header to manage every running AppHost on your machine.
 
-{/* TODO: <ThemeImage dark={...} light={...} alt="The Aspire view showing a tree of resources with health-aware icons and a hover tooltip listing endpoint URLs." /> — file: src/frontend/src/assets/get-started/code-extension-sidebar{,-light}.png */}
+<ThemeImage
+  dark={sidebarTree}
+  light={sidebarTreeLight}
+  width={400}
+  alt="The Aspire view showing a tree of resources with health-aware icons and a hover tooltip listing endpoint URLs."
+/>
 
-Each resource shows its type, state, health summary, and exit code (for example, `Project · Running · Health: 1/2`), plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once.
-
-Right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, or open the dashboard. Right-click an endpoint URL to open or copy it.
+Each resource shows its type, state, health summary, and exit code, plus a health-aware icon and a markdown tooltip listing endpoint URLs. Resources with health checks expose an expandable **Health Checks** group; use **Expand all** on the AppHost item to open everything at once. You can right-click a resource to start, stop, or restart it, view its logs, run resource-specific commands, or open the dashboard.
 
 ## Run, debug, and deploy
 
-{/* TODO: <ThemeImage dark={...} light={...} alt="VS Code Run & Debug view with multiple debug sessions attached — AppHost, a .NET project, a Node service, and a browser app — alongside the dashboard." /> — file: src/frontend/src/assets/get-started/code-extension-debug{,-light}.png */}
+<ThemeImage
+  dark={debugSessions}
+  light={debugSessionsLight}
+  alt="VS Code Run & Debug view with multiple debug sessions attached — AppHost, a .NET project, a Node service, and a browser app — alongside the dashboard."
+/>
 
-The extension auto-detects your AppHost, so a minimal `.vscode/launch.json` works for any AppHost language:
+**Aspire: Configure launch.json file** adds a minimal launch configuration `.vscode/launch.json` that supports AppHosts written in any language. AppHosts are discovered automatically in the workspace. 
+
+<LearnMore>
+To launch a specific AppHost, configure an [aspire.config.json](/reference/cli/configuration/) with an `appHost.path` property.
+</LearnMore>
+
 
 ```json title=".vscode/launch.json — launch"
 {
   "type": "aspire",
   "request": "launch",
   "name": "Aspire: Launch AppHost",
-  "program": "${workspaceFolder}"
+  "program": "${workspaceFolder}",
+  "command": "deploy"
 }
 ```
 
-Or run **Aspire: Configure launch.json file** to generate one. With multiple AppHosts in the workspace, point `program` at a specific file — a `.csproj`, `apphost.cs` (file-based C#), or `apphost.ts` (TypeScript).
+Four launch commands are supported:
+- `run` runs the AppHost (default if command is omitted).
+- `deploy` pushes to deployment targets defined in your AppHost.
+- `publish` generates deployment artifacts like Kubernetes manifests or Bicep files without pushing to targets.
+- `do` runs a specific pipeline step defined in your AppHost's deployment pipeline — set `step` to the name of the step you want to run.
 
-Press <Kbd windows='F5' /> to build, start every resource in order, attach debuggers, and open the dashboard — AppHost exit messages surface in the debug console. You can also right-click an AppHost file in the Explorer and pick **Run Aspire apphost** or **Debug Aspire apphost**.
+All of these commands are debuggable; you can step into custom publishers and deployment steps just like application code.
 
-Set `command` to `deploy` (push to deployment targets), `publish` (generate manifests, Bicep, etc.), or `do` (run a specific pipeline step — set `step` to its name). All three are debuggable; you can step into custom publishers and deployment steps just like application code.
+The `debuggers` property forwards configuration to specific debuggers. Recognized keys are: `apphost`, `project` (C#/.NET), `node`, `python`, `browser`, and `azure-functions`.
 
-The `debuggers` property forwards configuration to specific debuggers. Recognized keys: `apphost`, `project` (C#/.NET), `node`, `python`, `browser`, and `azure-functions`. Anything you set under a key is merged into the corresponding VS Code debug configuration:
+Finally, you can specify `env` and `args` to set environment variables and command-line arguments for the AppHost process.
 
-```json title=".vscode/launch.json — deploy with debugger settings"
+```json title=".vscode/launch.json — deploy with debugger settings, env, and args"
 {
   "type": "aspire",
   "request": "launch",
   "name": "Aspire: Deploy AppHost",
   "program": "${workspaceFolder}",
   "command": "deploy",
+  "env": {
+    "MY_ENV_VAR": "value"
+  },
+  "args": [
+    "--hello", "world"
+  ],
   "debuggers": {
     "apphost": { "stopAtEntry": true },
     "project": { "console": "integratedTerminal" },
