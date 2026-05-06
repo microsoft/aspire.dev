@@ -167,12 +167,43 @@ builder.AddPythonApp("agent", "..\\agent", "main:app")
     .WithReference(chat)
     .PublishAsHostedAgent(project);
 
+var dotnetWeatherAgent = builder.AddProject<Projects.Agent>("agent")
+    .WithHttpEndpoint(targetPort: 9000)
+    .WithReference(project)
+    .WithReference(chat)
+    .PublishAsHostedAgent(project);
+
 builder.Build().Run();
 ```
 
-In run mode, `PublishAsHostedAgent` configures local HTTP, liveness, and readiness endpoints and enables OpenTelemetry output for the agent. In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the container to the project-associated registry.
+In run mode, `PublishAsHostedAgent(...)` configures a local `http` endpoint for the agent. Aspire first checks whether the resource already has an endpoint named `http`. If that endpoint has a target port, Aspire preserves it. If there is no existing `http` target port, Aspire defaults to `8088`.
+
+Aspire also injects the selected port as `DEFAULT_AD_PORT`, so hosted-agent apps can bind to the right port:
+
+```csharp
+var port = Environment.GetEnvironmentVariable("DEFAULT_AD_PORT") ?? "8088";
+builder.WebHost.UseUrls($"http://+:{port}");
+```
+
+If your hosted agent listens on a different port, declare the endpoint before calling `PublishAsHostedAgent(...)`:
+
+```csharp
+var dotnetWeatherAgent = builder.AddProject<Projects.WeatherAgent_Dotnet>("weather-agent-dotnet")
+    .WithHttpEndpoint(targetPort: 9000)
+    .WithReference(project).WaitFor(project)
+    .WithReference(chat).WaitFor(chat);
+
+dotnetWeatherAgent.PublishAsHostedAgent(project);
+```
+
+In run mode, Aspire also adds dashboard URLs for `/responses`, `/liveness`, and `/readiness`, configures `/liveness` as an HTTP health check, adds a dashboard command for sending a message to `/responses`, and enables OpenTelemetry environment variables for agent instrumentation.
+
+For .NET hosted agents, add your Service Defaults project reference and call `builder.AddServiceDefaults()` in the hosted-agent app so logs, metrics, traces, HTTP instrumentation, and OTLP export flow into the Aspire dashboard. Then enable telemetry on the Foundry Responses chat client that backs the MAF agent
+
+In publish mode, Aspire creates an `AzureHostedAgentResource` and publishes the container to the project-associated registry.
 
 If you omit the `project` argument, Aspire uses an existing Foundry project from the app model or creates one automatically.
+
 
 ### Add and publish a prompt agent
 
@@ -185,15 +216,36 @@ var foundry = builder.AddFoundry("foundry");
 var project = foundry.AddProject("my-project");
 var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
 
-project.AddAndPublishPromptAgent(
-    chat,
-    "support-agent",
-    instructions: "You are a helpful support assistant.");
+var webSearch = project.AddWebSearchTool("web-search");
+
+var webResearcher = project.AddPromptAgent(chat, name: "web-researcher",
+    instructions: """
+        You are the Web Researcher. Use web search for current information,
+        cite sources, summarize tradeoffs, and keep answers concise and practical.
+        """)
+    .WithTool(webSearch);
 
 builder.Build().Run();
 ```
 
-This creates an `AzurePromptAgentResource` that uses the specified model deployment in the target Foundry project.
+Parameter details:
+
+| API | Parameter | Description |
+| --- | --- | --- |
+| `AddPromptAgent(...)` | `model` | The Foundry model deployment resource the prompt agent uses, such as `chat` from `project.AddModelDeployment(...)`. |
+| `AddPromptAgent(...)` | `name` | The Aspire resource name and Foundry agent name. This also drives generated environment variable prefixes, for example `web-researcher` becomes `WEB_RESEARCHER`. |
+| `AddPromptAgent(...)` | `instructions` | Optional system instructions for the prompt agent. Use this to define behavior, tool-use guidance, and response style. |
+| `WithTool(...)` | `tool` | A Foundry tool resource created on the same Foundry project, such as `AddWebSearchTool(...)`, `AddCodeInterpreterTool(...)`, or `AddAISearchTool(...)`. |
+
+Prompt agents are deployed to Azure AI Foundry even during local development. Local apps call the cloud-provisioned agent through the injected project endpoint and agent name.
+
+## Invoke agents from the Aspire dashboard
+
+Aspire also makes the declared agents easy to try from the dashboard. Prompt agents get a **Send Message** command from `AddPromptAgent(...)`. Hosted agents published with `PublishAsHostedAgent(...)` get a highlighted **Send Message** command that posts to the local `/responses` endpoint, plus dashboard links for `/responses`, `/liveness`, and `/readiness`.
+
+![Aspire dashboard showing prompt and hosted agent resources with Send Message commands](../../../../../../assets/integrations/cloud/azure/azure-ai-foundry/agent-send-message.png)
+
+![Hosted agent responses invocation result in the Aspire dashboard](../../../../../../assets/integrations/cloud/azure/azure-ai-foundry/agent-responses-result.png)
 
 ## Connect to an existing Microsoft Foundry service
 
