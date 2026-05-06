@@ -446,23 +446,55 @@ Container resources support an `ImagePullPolicy` that controls when the containe
 
 Use the `WithImagePullPolicy` extension method to set the policy on a container resource:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddContainer("mycontainer", "myimage:latest")
     .WithImagePullPolicy(ImagePullPolicy.Always);
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const container = await builder.addContainer("mycontainer", "myimage:latest");
+await container.withImagePullPolicy(ImagePullPolicy.Always);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ### Use `Never` with locally-built images
 
 The `Never` policy is useful when working with locally-built images that shouldn't be pulled from a registry. For example, when using a Dockerfile-based resource that you build and tag locally:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddContainer("myapp", "my-local-image:dev")
     .WithImagePullPolicy(ImagePullPolicy.Never);
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const app = await builder.addContainer("myapp", "my-local-image:dev");
+await app.withImagePullPolicy(ImagePullPolicy.Never);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 <Aside type="tip">
   The `Never` policy was added in Aspire 13.2. If the image isn't available locally when using this policy, the container will fail to start.
@@ -491,6 +523,8 @@ When deploying containers, you can customize how container images are named and 
 
 Use `WithRemoteImageName` and `WithRemoteImageTag` to customize the image reference:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -503,11 +537,29 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsDockerComposeService(async (resource, service) => {
+  await service.name.set("api");
+});
+await api.withRemoteImageName("myorg/myapi");
+await api.withRemoteImageTag("v1.0.0");
+```
+</TabItem>
+</Tabs>
 
 ### Advanced customization with callbacks
 
 For more complex scenarios, use `WithImagePushOptions` to register a callback that can dynamically configure push options:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -529,9 +581,18 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+The `WithImagePushOptions` API is not yet available in the TypeScript AppHost SDK. Use `withRemoteImageName` and `withRemoteImageTag` for static image naming and tagging.
+:::
+</TabItem>
+</Tabs>
 
 For asynchronous operations (such as retrieving configuration from external sources), use the async overload:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -549,6 +610,13 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+The asynchronous `WithImagePushOptions` callback overload is not yet available in the TypeScript AppHost SDK.
+:::
+</TabItem>
+</Tabs>
 
 Multiple callbacks can be registered on the same resource, and they will be invoked in the order they were added.
 
@@ -564,6 +632,8 @@ You can configure your Aspire application to push container images to registries
 
 Use the `AddContainerRegistry` method to define a container registry and the `WithContainerRegistry` method to associate resources with that registry:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -581,6 +651,29 @@ var api = builder.AddProject<Projects.Api>("api")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a container registry
+const registry = await builder.addContainerRegistryFromString(
+  "ghcr",
+  "ghcr.io",
+  { repository: "your-github-username/your-repo" }
+);
+
+// Associate resources with the registry
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsDockerComposeService(async (resource, service) => {
+  await service.name.set("api");
+});
+await api.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
 
 For GitHub Container Registry, the registry endpoint is `ghcr.io` and the repository path typically follows the pattern `owner/repository`.
 
@@ -588,6 +681,8 @@ For GitHub Container Registry, the registry endpoint is `ghcr.io` and the reposi
 
 For more flexible configuration, especially in CI/CD pipelines, you can use parameters with environment variables:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -608,6 +703,38 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithContainerRegistry(registry);
 #pragma warning restore ASPIRECOMPUTE003
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Define parameters from configuration (reads from environment variables)
+const registryEndpoint = await builder.addParameterFromConfiguration(
+  "registryEndpoint",
+  "REGISTRY_ENDPOINT"
+);
+const registryRepository = await builder.addParameterFromConfiguration(
+  "registryRepository",
+  "REGISTRY_REPOSITORY"
+);
+
+// Add registry with parameters
+const registry = await builder.addContainerRegistry(
+  "my-registry",
+  registryEndpoint,
+  registryRepository
+);
+
+const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+await api.publishAsDockerComposeService(async (resource, service) => {
+  await service.name.set("api");
+});
+await api.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
 
 You can then provide parameter values via environment variables:
 
