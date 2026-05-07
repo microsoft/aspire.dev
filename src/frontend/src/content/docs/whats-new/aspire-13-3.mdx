@@ -148,14 +148,16 @@ aspire docs api get typescript/aspire.hosting/withreference
 
 ### Connect the CLI to a standalone dashboard
 
-The `aspire otel logs` and `aspire otel traces` commands now accept `--dashboard-url` and `--api-key` options, so you can query telemetry from a [standalone dashboard](/dashboard/standalone/) without launching an AppHost. Start the dashboard with `aspire dashboard run`, then point the CLI at it:
+The `aspire otel logs` and `aspire otel traces` commands now accept `--dashboard-url` and `--api-key` options, so you can query telemetry from a [standalone dashboard](/dashboard/standalone/) without launching an AppHost.
+
+Either start the dashboard with `aspire dashboard run` or run the dashboard from the dashboard's container image, then point the CLI at it:
 
 ```bash title="Aspire CLI — Query a standalone dashboard"
 # Stream structured logs from a standalone dashboard
-aspire otel logs --dashboard-url https://localhost:18888 --api-key $ASPIRE_DASHBOARD_KEY -f
+aspire otel logs --dashboard-url https://localhost:18888/login?t=TOKEN -f
 
 # Search recent traces in a standalone dashboard
-aspire otel traces --dashboard-url https://localhost:18888 --api-key $ASPIRE_DASHBOARD_KEY
+aspire otel traces --dashboard-url https://localhost:18888/login?t=TOKEN
 ```
 
 `--dashboard-url` accepts either the dashboard's base URL or a login URL — login URLs are normalized automatically.
@@ -176,19 +178,34 @@ This is a behavior change from prior releases — `aspire init` no longer fully 
 
 `aspire ps`, `aspire describe`, and other CLI commands now hide resources that are marked as hidden in the AppHost (such as proxies, helper containers, and migrations). Use `--include-hidden` to include them.
 
+### Pipeline step summary
+
+At the end of `aspire do`, `aspire publish`, `aspire deploy`, and `aspire destroy` runs, the CLI now prints a summary of pipeline execution steps, showing which steps ran, their duration, and whether they succeeded or failed.
+
+This makes it easy to identify bottlenecks, spot which step failed in a multi-step pipeline, and understand the overall execution flow at a glance — especially useful in CI/CD environments where you need to quickly triage deployment failures without digging through verbose logs.
+
+```text title="Output"
+------------------------------------------------------------
+✅ 5/5 steps succeeded • Total time: 0.43s
+
+Steps Summary:
+                Step timeline:                 0s                       0.41s
+                                               │───────┬──────┬─────┬───────│
+      0.73ms  ✓ validate-compute-environments  │╴                           │
+      0.21ms  ✓   before-start                 │╴                           │
+       0.41s  ✓ pipeline-execution             │╶──────────────────────────╴│
+       0.41s  ✓ custom-deploy-prereq           │╶──────────────────────────╴│
+      0.33ms  ✓   deploy                       │                           ╴│
+
+✅ Pipeline succeeded
+------------------------------------------------------------
+```
+
 ### `aspire do` improvements
 
 - **`--list-steps`** prints the list of pipeline steps that would run for `aspire do`, `aspire publish`, `aspire deploy`, or `aspire destroy` without actually executing them.
 - **`check-container-runtime`** is a built-in pipeline step that fails fast when no container runtime is available, preventing late-stage build/publish failures.
-- **Publish summary** now shows a hierarchical, timeline-style view of pipeline execution.
 - **Independent steps continue on sibling failure** — a single failed step no longer blocks unrelated work in the same pipeline run.
-
-### CLI quality-of-life
-
-- **AppHost path guardrails** — the CLI's global config now validates AppHost paths to prevent accidentally pointing at the wrong project.
-- **Container runtime health check** runs before `aspire deploy` to catch missing/broken Docker or Podman setups early.
-- **`aspire ps`** displays the dashboard URL alongside running AppHosts.
-- **Non-interactive CLI mode** has been improved. Many CLI commands have new options to support using them with `--non-interactive`.
 
 ### Improved AI agent init
 
@@ -199,6 +216,13 @@ This is a behavior change from prior releases — `aspire init` no longer fully 
 - Pair these with `playwright-cli` and `dotnet-inspect` for browser testing and .NET API discovery.
 
 Pick which skills to install with `--skills aspire,aspireify,...` or run `aspire agent init` interactively.
+
+### CLI quality-of-life
+
+- **AppHost path guardrails** — the CLI's global config now validates AppHost paths to prevent accidentally pointing at the wrong project.
+- **Container runtime health check** runs before `aspire deploy` to catch missing/broken Docker or Podman setups early.
+- **`aspire ps`** displays the dashboard URL alongside running AppHosts.
+- **Non-interactive CLI mode** has been improved. Many CLI commands have new options to support using them with `--non-interactive`.
 
 ## 🚢 Deployment improvements
 
@@ -665,7 +689,7 @@ Aspire 13.3 brings first-class **JavaScript publishing** to both C# and TypeScri
 Aspire 13.3 also adds **`AddNextJsApp`** as a first-class Next.js helper alongside the existing `AddViteApp` and `AddNodeApp`, plus first-class support for **Bun, Yarn, and pnpm** in TypeScript AppHosts (npm remains the default).
 
 <Aside type="caution">
-The `PublishAsStaticWebsite` method is experimental in 13.3. Use diagnostic code [`ASPIREEXTENSION001`](/diagnostics/aspireextension001/) to suppress the experimental warning. The Next.js, Vite, and Node app helpers themselves are stable.
+The `PublishAsStaticWebsite` method is experimental in 13.3. Use diagnostic code [`ASPIREJAVASCRIPT001`](/diagnostics/aspirejavascript001/) to suppress the experimental warning. The Next.js, Vite, and Node app helpers themselves are stable.
 </Aside>
 
 ### Next.js
@@ -892,7 +916,7 @@ The RabbitMQ client integration has been updated to support RabbitMQ.Client v7, 
 
 ### `Aspire.Microsoft.Azure.StackExchangeRedis` is stable
 
-The [📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) package is no longer in preview. Use it for entra-authenticated Azure Cache for Redis and Azure Managed Redis access.
+The [📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) package is no longer in preview. Use it for Entra-authenticated Azure Cache for Redis and Azure Managed Redis access.
 
 ### Npgsql metrics align with .NET 10
 
@@ -958,7 +982,7 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-Each `withOrigin` call provisions its own Front Door endpoint, origin group, origin, and route,so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use `ConfigureInfrastructure` to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
+Each `withOrigin` call provisions its own Front Door endpoint, origin group, origin, and route, so every backend is independently routable through its own `*.azurefd.net` hostname. The integration provisions Front Door in the Standard SKU by default; use `ConfigureInfrastructure` to customize the Front Door, for example to change SKUs, attach a Web Application Firewall (WAF) policy, enable caching, and more.
 
 <LearnMore>
   For more details, see [Azure Front Door integration](/integrations/cloud/azure/azure-front-door/).
@@ -1187,7 +1211,7 @@ The old methods are still present and marked `@deprecated` — they will be remo
 <span id="dashboard-ghcp-replacement"></span>
 <br/>
 
-The GitHub Copilot chat UI previously built into the Aspire dashboard has been replaced by a an agentic development model. The Copilot chat inside the dashboard has been disabled and instead AI coding agents now connect to your entire Aspire app through the CLI and MCP tools. This gives agents full context across structured logs, distributed traces, resource status, console output, and your source code.
+The GitHub Copilot chat UI previously built into the Aspire dashboard has been replaced by an agentic development model. The Copilot chat inside the dashboard has been disabled and instead AI coding agents now connect to your entire Aspire app through the CLI and MCP tools. This gives agents full context across structured logs, distributed traces, resource status, console output, and your source code.
 
 Agents can now diagnose issues end-to-end, suggest fixes in your actual codebase, and act on telemetry rather than just display it. The old dashboard UI only supported GitHub Copilot in Visual Studio and VS Code; the new approach works with **GitHub Copilot, Claude, Cursor**, and any other AI coding agent that supports skills or MCP.
 
