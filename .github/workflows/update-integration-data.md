@@ -24,7 +24,7 @@ network:
     - github
 safe-outputs:
   github-app:
-    app-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+    client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
     private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
   create-pull-request:
     title-prefix: "chore: "
