@@ -1,0 +1,941 @@
+---
+/**
+ * /reference/api/csharp/[package]/[type] ΓÇö Individual type detail page.
+ *
+ * Modern, flat layout optimized for API reference consumption.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getApiReferenceSidebar } from '@utils/api-sidebar';
+import Breadcrumb from '@components/Breadcrumb.astro';
+import TypeHero from '@components/api-reference/TypeHero.astro';
+import MemberOverviewList from '@components/api-reference/MemberOverviewList.astro';
+import EnumTable from '@components/api-reference/EnumTable.astro';
+import Examples from '@components/api-reference/Examples.astro';
+import DocContent from '@components/api-reference/DocContent.astro';
+import AnchorHeading from '@components/api-reference/AnchorHeading.astro';
+import InpageSearch from '@components/api-reference/InpageSearch.astro';
+import PolyglotAttributePanel from '@components/api-reference/PolyglotAttributePanel.astro';
+import { findAttribute } from '@utils/api-attributes';
+import {
+  slugify,
+  genericArity,
+  typeDisplayName,
+  typeHref,
+  resolveTypeLink,
+  parseSeeAlso,
+  shortTypeName,
+  memberKindLabels,
+  memberKindOrder,
+  groupMembersByKind,
+  packageSlug,
+  getPackages,
+} from '@utils/packages';
+
+export async function getStaticPaths() {
+  const packages = await getPackages();
+  const paths: any[] = [];
+  for (const pkg of packages) {
+    for (const t of pkg.data.types) {
+      const typeSlug = slugify(t.name, genericArity(t));
+      if (!typeSlug) continue;  // skip types with empty names (e.g. C# 14 extension types)
+      paths.push({
+        params: {
+          package: packageSlug(pkg.data.package.name),
+          type: typeSlug,
+        },
+        props: {
+          pkg: pkg.data,
+          type: t,
+          allTypes: pkg.data.types,
+        },
+      });
+    }
+  }
+  return paths;
+}
+
+const { pkg, type, allTypes } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const apiSidebar = await getApiReferenceSidebar({ packageName: pkg.package.name });
+
+/** Flatten doc nodes to a plain-text string (for meta description). */
+function flattenToText(nodes: any): string {
+  if (!nodes) return '';
+  if (typeof nodes === 'string') return nodes;
+  if (!Array.isArray(nodes)) return '';
+  return nodes.map((n: any) => {
+    if (typeof n === 'string') return n;
+    if (n.kind === 'text' || n.kind === 'code' || n.kind === 'codeblock') return n.text ?? '';
+    if (n.kind === 'langword') return n.value ?? '';
+    if (n.kind === 'cref') return shortTypeName(n.value ?? '');
+    if (n.kind === 'href') return n.text ?? n.value ?? '';
+    if (n.kind === 'paramref' || n.kind === 'typeparamref') return n.value ?? '';
+    if (n.kind === 'para' && n.children) return flattenToText(n.children);
+    return '';
+  }).join('');
+}
+
+const isEnum = type.kind === 'enum';
+const hasMembers = type.members?.length > 0;
+const hasEnumMembers = type.enumMembers?.length > 0;
+const hasBases = !!type.baseType || type.interfaces?.length > 0;
+const hasRemarks = type.docs?.remarks?.length > 0;
+const hasValue = type.docs?.value?.length > 0;
+const hasTypeParams = type.docs?.typeParameters && Object.keys(type.docs.typeParameters).length > 0;
+const hasPermissions = type.docs?.permissions?.length > 0;
+const hasSeeAlso = type.docs?.seeAlso?.length > 0;
+const hasExamples = type.docs?.examples?.length > 0;
+const hasFlags = !!findAttribute(type.attributes, 'Flags');
+
+const summaryText = flattenToText(type.docs?.summary) || `${type.kind} ${type.name}`;
+
+const modifierBadges: string[] = [];
+if (type.isAbstract) modifierBadges.push('abstract');
+if (type.isStatic) modifierBadges.push('static');
+if (type.isSealed && !['enum', 'delegate', 'struct', 'record struct'].includes(type.kind)) modifierBadges.push('sealed');
+if (type.isReadOnly) modifierBadges.push('readonly');
+if (type.accessibility && type.accessibility !== 'public') modifierBadges.push(type.accessibility);
+
+// Obsolete detection for type
+const typeObsoleteAttr = findAttribute(type.attributes, 'Obsolete');
+const isTypeObsolete = !!typeObsoleteAttr;
+const typeObsoleteMessage = typeObsoleteAttr?.constructorArguments?.[0] ?? null;
+
+// Experimental detection for type
+const typeExperimentalAttr = findAttribute(type.attributes, 'Experimental');
+const isTypeExperimental = !!typeExperimentalAttr;
+const typeExperimentalId = typeExperimentalAttr?.constructorArguments?.[0] ?? null;
+
+// Available diagnostics pages (for experimental API links)
+const diagnosticFiles = Object.keys(
+  import.meta.glob('/src/content/docs/diagnostics/*.mdx', { eager: false })
+);
+const diagnosticSlugs = new Set(
+  diagnosticFiles.map(p => {
+    const filename = p.split('/').pop();
+    return filename ? filename.replace('.mdx', '').toLowerCase() : '';
+  })
+);
+const typeExperimentalSlug = typeExperimentalId ? typeExperimentalId.toLowerCase() : null;
+const hasTypeDiagnosticsPage = typeExperimentalSlug ? diagnosticSlugs.has(typeExperimentalSlug) : false;
+
+// Delegate info
+const isDelegate = type.kind === 'delegate';
+const hasDelegateParams = type.delegateParameters?.length > 0;
+
+/* Build heading list for the right-side TOC. */
+const headings: { depth: 2 | 3; slug: string; text: string }[] = [];
+headings.push({ depth: 2, slug: 'definition', text: 'Definition' });
+if (isDelegate && hasDelegateParams) headings.push({ depth: 2, slug: 'delegate-parameters', text: 'Delegate Parameters' });
+if (hasTypeParams) headings.push({ depth: 2, slug: 'type-parameters', text: 'Type Parameters' });
+if (hasRemarks) headings.push({ depth: 2, slug: 'remarks', text: 'Remarks' });
+if (hasValue) headings.push({ depth: 2, slug: 'value', text: 'Value' });
+if (hasEnumMembers) headings.push({ depth: 2, slug: 'enum-members', text: 'Enum Members' });
+if (hasMembers) {
+  const groups = groupMembersByKind(type.members);
+  for (const kind of memberKindOrder) {
+    if (groups.has(kind)) {
+      headings.push({ depth: 2, slug: `members-${kind}`, text: memberKindLabels[kind] });
+    }
+  }
+}
+if (hasExamples) headings.push({ depth: 2, slug: 'examples', text: 'Examples' });
+if (hasPermissions) headings.push({ depth: 2, slug: 'permissions', text: 'Permissions' });
+if (hasSeeAlso) headings.push({ depth: 2, slug: 'see-also', text: 'See Also' });
+
+/* Resolve seeAlso references. */
+const seeAlsoLinks = (type.docs?.seeAlso ?? []).map((ref: string) => {
+  if (ref.startsWith('http://') || ref.startsWith('https://')) {
+    return { label: ref, href: ref, external: true, prefix: '' };
+  }
+  const { prefix, fullName, simpleName } = parseSeeAlso(ref);
+
+  const isMemberRef = ['P', 'M', 'F', 'E'].includes(prefix);
+
+  let target = allTypes.find((t: any) => t.fullName === fullName);
+  if (!target && /`\d+$/.test(fullName)) {
+    const baseName = fullName.replace(/`\d+$/, '');
+    target = allTypes.find((t: any) =>
+      t.fullName === baseName || t.fullName.startsWith(baseName + '<')
+    );
+  }
+
+  let memberAnchor = '';
+  if (!target && isMemberRef) {
+    const lastDot = fullName.lastIndexOf('.');
+    if (lastDot > 0) {
+      const ownerFullName = fullName.slice(0, lastDot);
+      const memberName = fullName.slice(lastDot + 1);
+      target = allTypes.find((t: any) => t.fullName === ownerFullName);
+      if (target) {
+        memberAnchor = '#' + memberName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      }
+    }
+  }
+
+  const label = target
+    ? (isMemberRef && memberAnchor ? shortTypeName(fullName) : target.name)
+    : simpleName.replace(/`\d+$/, '');
+  return {
+    label,
+    href: target ? typeHref(base, pkg.package.name, target.name, genericArity(target)) + memberAnchor : null,
+    external: false,
+    prefix,
+  };
+});
+
+const displayName = typeDisplayName(type);
+
+const kindLabel: Record<string, string> = {
+  class: 'Class',
+  struct: 'Struct',
+  interface: 'Interface',
+  enum: 'Enum',
+  delegate: 'Delegate',
+  record: 'Record',
+  'record struct': 'Record Struct',
+};
+
+const inheritChain: { name: string; href: string | null }[] = [];
+if (type.baseType && type.baseType !== 'System.Object') {
+  const baseTarget = allTypes.find((t: any) => t.fullName === type.baseType);
+  inheritChain.push({
+    name: shortTypeName(type.baseType),
+    href: baseTarget ? typeHref(base, pkg.package.name, baseTarget.name, genericArity(baseTarget)) : null,
+  });
+}
+inheritChain.push({ name: displayName, href: null });
+
+// Resolve interface links for the hero card
+const resolvedInterfaces: { name: string; href: string | null }[] = (type.interfaces ?? []).map((iface: string) => {
+  const ifaceTarget = allTypes.find((t: any) => t.fullName === iface);
+  return {
+    name: shortTypeName(iface),
+    href: ifaceTarget ? typeHref(base, pkg.package.name, ifaceTarget.name, genericArity(ifaceTarget)) : null,
+  };
+});
+
+/* ΓöÇΓöÇ Build type-scoped search index ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+interface TypeIndexEntry {
+  /** Short name */
+  n: string;
+  /** Kind (constructor, method, property, field, event, indexer, enum member) */
+  k: string;
+  /** Summary text (first ~160 chars) */
+  s: string;
+  /** Return type or property type (short) */
+  r?: string;
+}
+
+function extractSummary(summary: any): string {
+  if (!summary || !Array.isArray(summary)) return '';
+  return summary
+    .map((node: any) => {
+      if (node.kind === 'text') return node.text;
+      if (node.kind === 'cref') return node.value?.split('.').pop() ?? '';
+      if (node.kind === 'paramref' || node.kind === 'typeparamref') return node.value ?? '';
+      if (node.kind === 'langword') return node.value ?? '';
+      return '';
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
+}
+
+const typeIndex: TypeIndexEntry[] = [];
+let typeMemberCount = 0;
+
+// Regular members (methods, properties, constructors, etc.)
+if (type.members?.length) {
+  for (const m of type.members) {
+    typeMemberCount++;
+    const memberName = m.name === '.ctor' ? `${type.name} (constructor)` : m.name;
+    typeIndex.push({
+      n: memberName,
+      k: m.kind ?? 'method',
+      s: extractSummary(m.docs?.summary),
+      r: m.returnType ? shortTypeName(m.returnType) : (m.type ? shortTypeName(m.type) : undefined),
+    });
+  }
+}
+
+// Enum members
+if (type.enumMembers?.length) {
+  for (const em of type.enumMembers) {
+    typeMemberCount++;
+    typeIndex.push({
+      n: em.name,
+      k: 'enum member',
+      s: extractSummary(em.docs?.summary),
+    });
+  }
+}
+
+const typeSearchKinds = [...new Set(typeIndex.map(e => e.k))].sort();
+const typeIndexJson = JSON.stringify(typeIndex);
+const hasSearchableMembers = !isEnum && typeIndex.length >= 5;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: displayName,
+    description: summaryText,
+    prev: false,
+    next: false,
+    tableOfContents: false,
+    pagefind: false,
+    pageActions: true,
+  }}
+  sidebar={apiSidebar}
+  headings={headings}
+>
+  <div class={`type-page kind-tint-${type.kind.replace(/\s+/g, '-')}`}>
+  <Breadcrumb crumbs={[
+    { label: 'Docs', href: `${base}/docs/`, icon: 'docs' },
+    { label: 'Reference', href: `${base}/reference/overview/` },
+    { label: 'Search C# APIs', href: `${base}/reference/api/csharp/` },
+    { label: pkg.package.name, href: `${base}/reference/api/csharp/${packageSlug(pkg.package.name)}/` },
+    { label: type.name },
+  ]} />
+
+  {/* Hero */}
+  <TypeHero
+    type={type}
+    pkg={pkg}
+    allTypes={allTypes}
+    modifierBadges={modifierBadges}
+    kindLabel={kindLabel[type.kind] ?? type.kind}
+    obsolete={isTypeObsolete ? { message: typeObsoleteMessage } : undefined}
+    experimental={isTypeExperimental ? {
+      id: typeExperimentalId,
+      diagnosticsHref: hasTypeDiagnosticsPage ? `${base}/diagnostics/${typeExperimentalSlug}/` : null,
+    } : undefined}
+    inheritChain={inheritChain}
+    interfaces={resolvedInterfaces}
+  />
+
+  <PolyglotAttributePanel
+    attributes={type.attributes}
+    context="type"
+    entityName={type.name}
+    packageName={pkg.package.name}
+    allTypes={allTypes}
+  />
+
+  {/* Type-scoped search */}
+  {hasSearchableMembers && (
+    <div class="type-search-section not-content">
+      <InpageSearch
+        id="type"
+        placeholder={`Search members of ${type.name}...`}
+        kinds={typeSearchKinds}
+        defaultStatsText={`${typeMemberCount.toLocaleString()} member${typeMemberCount !== 1 ? 's' : ''}`}
+        size="sm"
+      />
+    </div>
+  )}
+
+  {/* Type content sections (hidden during search) */}
+  <div id="type-content-sections">
+
+  {/* Delegate Parameters */}
+  {isDelegate && hasDelegateParams && (
+    <>
+      <AnchorHeading id="delegate-parameters" text="Delegate Parameters" />
+      <div class="api-kv-grid not-content">
+        {type.delegateParameters.map((p: any) => {
+          const pLink = resolveTypeLink(p.type, allTypes, base, pkg.package.name);
+          return (
+            <div class="api-kv-item">
+              <div class="dp-header">
+                <code class="dp-name">{p.name}</code>
+                <span class="dp-type">
+                  {pLink ? (
+                    <a href={pLink.href} class="api-type-link">{shortTypeName(p.type)}</a>
+                  ) : (
+                    <code>{shortTypeName(p.type)}</code>
+                  )}
+                </span>
+                {p.isNullable && <span class="api-mod-badge">nullable</span>}
+                {p.isOptional && <span class="api-mod-badge">optional</span>}
+              </div>
+              {type.docs?.parameters?.[p.name] && (
+                <div class="dp-desc">
+                  <DocContent content={type.docs.parameters[p.name]} allTypes={allTypes} packageName={pkg.package.name} tag="span" />
+                </div>
+              )}
+              <PolyglotAttributePanel
+                attributes={p.attributes}
+                context="parameter"
+                entityName={p.name}
+                packageName={pkg.package.name}
+                allTypes={allTypes}
+              />
+            </div>
+          );
+        })}
+        {type.delegateReturnType && type.delegateReturnType !== 'void' && (
+          <div class="dp-returns">
+            <span class="api-meta-label">Returns</span>
+            <code>{shortTypeName(type.delegateReturnType)}</code>
+          </div>
+        )}
+      </div>
+    </>
+  )}
+
+  {/* Type Parameters */}
+  {hasTypeParams && (
+    <>
+      <AnchorHeading id="type-parameters" text="Type Parameters" />
+      <div class="api-kv-grid not-content">
+        {Object.entries(type.docs.typeParameters).map(([name, desc]: [string, any]) => (
+          <div class="api-kv-item">
+            <code class="tp-name">{name}</code>
+            <div class="tp-desc"><DocContent content={desc} allTypes={allTypes} packageName={pkg.package.name} /></div>
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+
+  {/* Remarks */}
+  {hasRemarks && (
+    <>
+      <AnchorHeading id="remarks" text="Remarks" />
+      <div class="api-remarks">
+        <DocContent content={type.docs.remarks} allTypes={allTypes} packageName={pkg.package.name} tag="div" />
+      </div>
+    </>
+  )}
+
+  {/* Value */}
+  {hasValue && (
+    <>
+      <AnchorHeading id="value" text="Value" />
+      <div class="api-prose">
+        <DocContent content={type.docs.value} allTypes={allTypes} packageName={pkg.package.name} />
+      </div>
+    </>
+  )}
+
+  {/* Enum members */}
+  {hasEnumMembers && (
+    <>
+      <AnchorHeading id="enum-members" text="Enum Members" />
+      <EnumTable enumMembers={type.enumMembers} hasFlags={hasFlags} />
+    </>
+  )}
+
+  {/* Members ΓÇö condensed overview with links to detail pages */}
+  {hasMembers && (
+    <MemberOverviewList
+      members={type.members}
+      typeName={type.name}
+      typeArity={genericArity(type)}
+      allTypes={allTypes}
+      packageName={pkg.package.name}
+    />
+  )}
+
+  {/* Examples */}
+  {hasExamples && (
+    <>
+      <AnchorHeading id="examples" text="Examples" />
+      <Examples examples={type.docs.examples} allTypes={allTypes} packageName={pkg.package.name} />
+    </>
+  )}
+
+  {/* Permissions */}
+  {hasPermissions && (
+    <>
+      <AnchorHeading id="permissions" text="Permissions" />
+      <div class="api-kv-grid not-content">
+        {type.docs.permissions.map((perm: any) => (
+          <div class="api-kv-item">
+            <code class="perm-type">{perm.type}</code>
+            <div class="perm-desc"><DocContent content={perm.description} allTypes={allTypes} packageName={pkg.package.name} /></div>
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+
+  {/* See Also */}
+  {hasSeeAlso && (
+    <>
+      <AnchorHeading id="see-also" text="See Also" />
+      <div class="see-also-grid not-content">
+        {seeAlsoLinks.map((link: any) => (
+          link.href ? (
+            <a href={link.href} class="api-chip" {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+              {link.label}
+              {link.external && <span class="ext-icon">Γåù</span>}
+            </a>
+          ) : (
+            <span class="api-chip muted"><code>{link.label}</code></span>
+          )
+        ))}
+      </div>
+    </>
+  )}
+  </div>{/* /#type-content-sections */}
+  </div>{/* /.type-page */}
+</StarlightPage>
+
+{/* Type search index + controller */}
+{hasSearchableMembers && (
+  <script is:inline define:vars={{ typeIndexJson, base, typeName: type.name, typeMemberCount }}>
+    window.__typeSearchIndex = JSON.parse(typeIndexJson);
+    window.__typeBase = base;
+    window.__typeName = typeName;
+    window.__typeMemberCount = typeMemberCount;
+  </script>
+)}
+
+<script>
+  import '@components/api-reference/inpage-search-sync';
+
+  interface TypeIndexEntry {
+    n: string;
+    k: string;
+    s: string;
+    r?: string;
+  }
+
+  const PAGE_SIZE = 10;
+  const DEBOUNCE_MS = 200;
+
+  /** Format a number with locale-aware grouping (e.g. 1,234). */
+  function fmtNum(n: number): string { return n.toLocaleString(); }
+
+  const KIND_COLORS: Record<string, string> = {
+    'constructor': '#8b5cf6',
+    'method': '#3b82f6',
+    'property': '#10b981',
+    'field': '#f59e0b',
+    'event': '#ef4444',
+    'indexer': '#06b6d4',
+    'enum member': '#d97706',
+  };
+
+  class TypeSearchController {
+    private input: HTMLInputElement;
+    private resultsEl: HTMLElement;
+    private status: HTMLElement;
+    private countEl: HTMLElement;
+    private filtersEl: HTMLElement;
+    private clearFiltersBtn: HTMLElement;
+    private index: TypeIndexEntry[];
+    private memberCount: number;
+    private activeKinds = new Set<string>();
+    private debounceTimer: number | null = null;
+    private lastScored: { entry: TypeIndexEntry; score: number }[] = [];
+    private lastTokens: string[] = [];
+    private visibleCount = 0;
+    private sync: any;
+
+    constructor() {
+      this.input = document.getElementById('type-search-input') as HTMLInputElement;
+      this.resultsEl = document.getElementById('type-search-results') as HTMLElement;
+      this.status = document.getElementById('type-search-status') as HTMLElement;
+      this.countEl = document.getElementById('type-search-count') as HTMLElement;
+      this.filtersEl = document.getElementById('type-kind-filters') as HTMLElement;
+      this.clearFiltersBtn = document.getElementById('type-clear-filters') as HTMLElement;
+      this.index = (window as any).__typeSearchIndex ?? [];
+      this.memberCount = (window as any).__typeMemberCount ?? 0;
+
+      if (!this.input || !this.resultsEl) return;
+
+      this.sync = new (window as any).InpageSearchSync('type', () => this.clear());
+
+      this.init();
+      this.restoreFromUrl();
+    }
+
+    private init(): void {
+      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.clear();
+      });
+
+      this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (this.activeKinds.has(kind)) {
+            this.activeKinds.delete(kind);
+            chip.classList.remove('active');
+            chip.setAttribute('aria-pressed', 'false');
+          } else {
+            this.activeKinds.add(kind);
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+          this.clearFiltersBtn.style.display = this.activeKinds.size > 0 ? '' : 'none';
+          this.syncUrl();
+          this.applySearch();
+        });
+      });
+
+      this.clearFiltersBtn?.addEventListener('click', () => {
+        this.activeKinds.clear();
+        this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        this.clearFiltersBtn.style.display = 'none';
+        this.syncUrl();
+        this.applySearch();
+      });
+
+      // When clicking a search result, scroll to the anchor in the content below
+      this.resultsEl.addEventListener('click', (e) => {
+        const link = (e.target as HTMLElement).closest('a.api-search-result');
+        if (!link) return;
+        const href = link.getAttribute('href');
+        if (!href || !href.startsWith('#')) return;
+        e.preventDefault();
+        const target = document.getElementById(href.slice(1));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Brief highlight flash on the target
+          target.classList.add('search-highlight');
+          setTimeout(() => target.classList.remove('search-highlight'), 1500);
+          history.replaceState(null, '', href);
+        }
+      });
+    }
+
+    private clear(): void {
+      this.input.value = '';
+      this.sync.updateClearButton();
+      this.syncUrl();
+      this.showContent();
+    }
+
+    private showContent(): void {
+      if (this.activeKinds.size > 0) {
+        this.search('');
+        return;
+      }
+      this.resultsEl.style.display = 'none';
+      this.resultsEl.innerHTML = '';
+      this.countEl.textContent = `${fmtNum(this.memberCount)} member${this.memberCount !== 1 ? 's' : ''}`;
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(() => {
+        this.syncUrl();
+        this.applySearch();
+      }, DEBOUNCE_MS);
+    }
+
+    private syncUrl(): void {
+      this.sync.writeUrl(this.input.value.trim(), this.activeKinds);
+    }
+
+    private restoreFromUrl(): void {
+      const q = this.sync.readQuery();
+      const validKinds = new Set(
+        Array.from(this.filtersEl?.querySelectorAll('.api-filter-chip') ?? [])
+          .map(c => (c as HTMLElement).dataset.kind!)
+      );
+      const kinds = this.sync.readKinds(validKinds);
+
+      if (q) {
+        this.input.value = q;
+        this.sync.updateClearButton();
+      }
+
+      if (kinds.size > 0) {
+        this.activeKinds = kinds;
+        this.filtersEl?.querySelectorAll('.api-filter-chip').forEach(chip => {
+          const kind = (chip as HTMLElement).dataset.kind!;
+          if (kinds.has(kind)) {
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+          }
+        });
+        this.clearFiltersBtn.style.display = '';
+      }
+
+      if (q || kinds.size > 0) {
+        this.applySearch();
+      }
+    }
+
+    private applySearch(): void {
+      const q = this.input.value.trim();
+      if (!q && this.activeKinds.size === 0) {
+        this.showContent();
+        return;
+      }
+      this.search(q);
+    }
+
+    private search(query: string): void {
+      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hasKindFilter = this.activeKinds.size > 0;
+
+      type Scored = { entry: TypeIndexEntry; score: number };
+      const scored: Scored[] = [];
+
+      for (const entry of this.index) {
+        if (hasKindFilter && !this.activeKinds.has(entry.k)) continue;
+
+        if (tokens.length === 0) {
+          scored.push({ entry, score: 50 });
+          continue;
+        }
+
+        const nameLower = entry.n.toLowerCase();
+        const summaryLower = entry.s.toLowerCase();
+        const returnLower = (entry.r ?? '').toLowerCase();
+
+        let score = 0;
+        for (const token of tokens) {
+          if (nameLower === token) {
+            score += 100;
+          } else if (nameLower.startsWith(token)) {
+            score += 60;
+          } else if (nameLower.includes(token)) {
+            score += 40;
+          } else if (this.camelMatch(entry.n, token)) {
+            score += 55;
+          } else if (returnLower.includes(token)) {
+            score += 25;
+          } else if (summaryLower.includes(token)) {
+            score += 10;
+          } else {
+            score = 0;
+            break;
+          }
+        }
+
+        if (score > 0) scored.push({ entry, score });
+      }
+
+      scored.sort((a, b) => b.score - a.score || a.entry.n.localeCompare(b.entry.n));
+
+      this.lastScored = scored;
+      this.lastTokens = tokens;
+      this.visibleCount = 0;
+
+      const total = scored.length;
+
+      this.resultsEl.style.display = '';
+
+      if (total === 0) {
+        const hint = query
+          ? `No results for "<strong>${this.esc(query)}</strong>"`
+          : 'No results match the selected filters';
+        this.resultsEl.innerHTML = `
+          <div class="api-search-empty">
+            <p>${hint}</p>
+            <p class="api-search-empty-hint">Try a different name or keyword.</p>
+          </div>`;
+        this.countEl.textContent = '0 results';
+        this.status.textContent = 'No results';
+        return;
+      }
+
+      this.resultsEl.innerHTML = '';
+      this.loadMore();
+    }
+
+    private loadMore(): void {
+      const total = this.lastScored.length;
+      const nextBatch = this.lastScored.slice(this.visibleCount, this.visibleCount + PAGE_SIZE);
+      this.visibleCount += nextBatch.length;
+
+      const existingBtn = this.resultsEl.querySelector('.api-load-more');
+      if (existingBtn) existingBtn.remove();
+
+      const fragment = document.createDocumentFragment();
+      for (const s of nextBatch) {
+        const div = document.createElement('div');
+        div.innerHTML = this.renderResult(s.entry, this.lastTokens);
+        while (div.firstChild) fragment.appendChild(div.firstChild);
+      }
+      this.resultsEl.appendChild(fragment);
+
+      this.countEl.textContent = this.visibleCount < total
+        ? `Showing ${fmtNum(this.visibleCount)} of ${fmtNum(total)} results`
+        : `${fmtNum(total)} result${total !== 1 ? 's' : ''}`;
+      this.status.textContent = this.countEl.textContent ?? '';
+
+      const remaining = total - this.visibleCount;
+      if (remaining > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'api-load-more';
+        btn.type = 'button';
+        const nextCount = Math.min(remaining, PAGE_SIZE);
+        btn.textContent = `Show ${fmtNum(nextCount)} more of ${fmtNum(remaining)} remaining`;
+        btn.addEventListener('click', () => this.loadMore());
+        this.resultsEl.appendChild(btn);
+      }
+    }
+
+    private renderResult(entry: TypeIndexEntry, tokens: string[]): string {
+      const kindClass = `kind-${entry.k.replace(/\s+/g, '-')}`;
+      const kindColor = KIND_COLORS[entry.k] ?? KIND_COLORS['method'];
+
+      // Build an anchor to jump to the member card on the same page
+      // Enum members don't have individual anchors ΓÇö jump to the enum-members section
+      let anchor: string;
+      if (entry.k === 'enum member') {
+        anchor = '#enum-members';
+      } else {
+        const anchorName = entry.n.includes('(constructor)') ? 'constructor' : entry.n;
+        anchor = '#' + anchorName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      }
+
+      const returnInfo = entry.r
+        ? `<span class="api-list-meta"><code>${this.esc(entry.r)}</code></span>`
+        : '';
+
+      return `<a href="${anchor}" class="api-list-item api-search-result" title="${this.esc(entry.n)}">
+        <div class="api-list-header">
+          <span class="api-search-result-name" style="color: ${kindColor}">${this.highlight(entry.n.replace(/ \(constructor\)$/, ''), tokens)}</span>
+          <span class="api-kind-micro ${kindClass}">${this.esc(entry.k)}</span>
+          <div class="trailing">
+            ${returnInfo}
+          </div>
+        </div>
+        ${entry.s ? `<div class="api-list-desc">${this.esc(entry.s)}</div>` : ''}
+      </a>`;
+    }
+
+    private highlight(text: string, tokens: string[]): string {
+      if (!tokens.length) return this.esc(text);
+      const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch))
+        .replace(re, '<mark>$1</mark>');
+    }
+
+    private camelMatch(name: string, token: string): boolean {
+      const uppers = name.replace(/[^A-Z]/g, '').toLowerCase();
+      if (uppers.length < 2) return false;
+      return uppers.startsWith(token) || uppers.includes(token);
+    }
+
+    private esc(text: string): string {
+      return text.replace(/[&<>"']/g, ch =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch));
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    new TypeSearchController();
+  });
+</script>
+
+<style>
+  /* Kind-tinted page wrapper ΓÇö sets --kind-tint for all descendants */
+  .type-page { /* nothing visual ΓÇö just a variable host */ }
+  .kind-tint-class         { --kind-tint: var(--api-kind-class); }
+  .kind-tint-interface     { --kind-tint: var(--api-kind-interface); }
+  .kind-tint-enum          { --kind-tint: var(--api-kind-enum); }
+  .kind-tint-struct        { --kind-tint: var(--api-kind-struct); }
+  .kind-tint-record        { --kind-tint: var(--api-kind-record); }
+  .kind-tint-delegate      { --kind-tint: var(--api-kind-delegate); }
+  .kind-tint-record-struct { --kind-tint: var(--api-kind-record-struct); }
+
+  /* Type-scoped search */
+  .type-search-section {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Type parameters */
+  .tp-name {
+    font-weight: 600;
+    font-size: var(--api-text-base);
+    color: var(--api-accent-text);
+    background: none;
+    padding: 0;
+  }
+  .tp-desc {
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+    line-height: 1.5;
+  }
+
+  /* Delegate parameters */
+  .dp-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .dp-name {
+    font-weight: 600;
+    font-size: var(--api-text-base);
+    color: var(--sl-color-text);
+    background: none;
+    padding: 0;
+  }
+  .dp-type {
+    font-size: var(--api-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+  .dp-type code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+  .dp-desc {
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+    margin-top: 0.25rem;
+    line-height: 1.5;
+  }
+  .dp-returns {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid var(--api-border-subtle);
+    font-size: var(--api-text-base);
+  }
+
+  /* Permissions */
+  .perm-type {
+    font-weight: 600;
+    font-size: var(--api-text-base);
+  }
+  .perm-desc {
+    font-size: var(--api-text-base);
+    color: var(--sl-color-gray-2);
+  }
+
+  /* See Also */
+  .see-also-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .ext-icon { font-size: var(--api-text-xs); }
+
+  /* Highlight flash when jumping to a member via search */
+  :global(.search-highlight) {
+    animation: search-flash 1.5s ease-out;
+  }
+  @keyframes search-flash {
+    0%   { outline: 2px solid var(--sl-color-accent); outline-offset: 4px; }
+    100% { outline: 2px solid transparent; outline-offset: 4px; }
+  }
+
+  @media (max-width: 768px) {
+    .see-also-grid {
+      gap: 0.35rem;
+    }
+  }
+
+</style>

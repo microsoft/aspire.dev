@@ -2,17 +2,16 @@
 title: Config Settings Table
 ---
 
-| Setting                                        | Description                                     |
-| ---------------------------------------------- | ----------------------------------------------- |
-| `appHostPath`                                  | Path to default AppHost project.                |
-| `features.defaultWatchEnabled`                 | Enable watch mode by default for run command.   |
-| `features.dotnetSdkInstallationEnabled`        | Enable automatic .NET SDK installation.         |
-| `features.execCommandEnabled`                  | Enable exec command.                            |
-| `features.minimumSdkCheckEnabled`              | Enforce minimum SDK version.                    |
-| `features.orphanDetectionWithTimestampEnabled` | Use timestamp-based orphan detection.           |
-| `features.packageSearchDiskCachingEnabled`     | Cache package search results on disk.           |
-| `features.runningInstanceDetectionEnabled`     | Enable detection of already running instances.  |
-| `features.showAllTemplates`                    | Show all templates including experimental ones. |
-| `features.showDeprecatedPackages`              | Show deprecated packages.                       |
-| `features.stagingChannelEnabled`               | Use staging channel packages.                   |
-| `features.updateNotificationsEnabled`          | Show update notifications.                      |
+| Logical key                            | Stored in `aspire.config.json` as      | Description                                                                                                                                         |
+| -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `appHost.path`                         | `appHost.path`                         | Project-scoped path to the default AppHost entry point. This setting must be configured in the local `aspire.config.json` file.                     |
+| `channel`                              | `channel`                              | Default Aspire channel used by channel-aware commands such as `aspire new`, `aspire init`, and `aspire update`.                                     |
+| `features.defaultWatchEnabled`         | `features.defaultWatchEnabled`         | Enable or disable watch mode by default when running Aspire applications for automatic restarts on file changes.                                    |
+| `features.execCommandEnabled`          | `features.execCommandEnabled`          | Enable or disable the legacy `aspire exec` command for executing commands inside running resources.                                                 |
+| `features.experimentalPolyglot:go`     | `features.experimentalPolyglot:go`     | Enable or disable experimental Go language support for polyglot Aspire applications.                                                                |
+| `features.experimentalPolyglot:java`   | `features.experimentalPolyglot:java`   | Enable or disable experimental Java language support for polyglot Aspire applications.                                                              |
+| `features.experimentalPolyglot:python` | `features.experimentalPolyglot:python` | Enable or disable experimental Python language support for polyglot Aspire applications.                                                            |
+| `features.experimentalPolyglot:rust`   | `features.experimentalPolyglot:rust`   | Enable or disable experimental Rust language support for polyglot Aspire applications.                                                              |
+| `features.showAllTemplates`            | `features.showAllTemplates`            | Show all available templates, including experimental ones, in `aspire new` and `aspire init`.                                                       |
+| `features.showDeprecatedPackages`      | `features.showDeprecatedPackages`      | Show or hide deprecated packages in `aspire add` search results.                                                                                    |
+| `features.updateNotificationsEnabled`  | `features.updateNotificationsEnabled`  | Enable or disable Aspire CLI update notifications.                                                                                                  |

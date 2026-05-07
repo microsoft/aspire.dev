@@ -8,7 +8,7 @@ import { locales } from './config/locales.ts';
 import { headAttrs } from './config/head.attrs.ts';
 import { socialConfig } from './config/socials.config.ts';
 import catppuccin from '@catppuccin/starlight';
-import lunaria from '@lunariajs/starlight';
+import lunaria from './config/lunaria-starlight.mjs';
 import mermaid from 'astro-mermaid';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';
@@ -20,6 +20,9 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightSidebarTopics from 'starlight-sidebar-topics';
 import starlightPageActions from 'starlight-page-actions';
 import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
+
+const modeArgIndex = process.argv.indexOf('--mode');
+const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
 
 // https://astro.build/config
 export default defineConfig({
@@ -34,12 +37,14 @@ export default defineConfig({
       iconPacks,
     }),
     starlight({
+      pagefind: !isSkipSearchBuild,
       title: 'Aspire',
+      routeMiddleware: ['./src/route-data-middleware'],
       defaultLocale: 'root',
       locales,
       logo: {
         src: './src/assets/aspire-logo-32.svg',
-        replacesTitle: true,
+        replacesTitle: false,
       },
       editLink: {
         baseUrl: 'https://github.com/microsoft/aspire.dev/edit/main/src/frontend/',
@@ -49,12 +54,14 @@ export default defineConfig({
       social: socialConfig,
       customCss: ['@fontsource-variable/outfit', './src/styles/site.css'],
       components: {
+        Banner: './src/components/starlight/Banner.astro',
         EditLink: './src/components/starlight/EditLink.astro',
         Footer: './src/components/starlight/Footer.astro',
         Head: './src/components/starlight/Head.astro',
         Header: './src/components/starlight/Header.astro',
         Hero: './src/components/starlight/Hero.astro',
         MarkdownContent: './src/components/starlight/MarkdownContent.astro',
+        PageTitle: './src/components/starlight/PageTitle.astro',
         Search: './src/components/starlight/Search.astro',
         Sidebar: './src/components/starlight/Sidebar.astro',
         SocialIcons: './src/components/starlight/SocialIcons.astro',
@@ -67,6 +74,7 @@ export default defineConfig({
       },
       plugins: [
         starlightPageActions({
+          share: true,
           actions: {
             chatgpt: false,
             claude: false,
@@ -75,14 +83,14 @@ export default defineConfig({
                 label: 'Open in GitHub Copilot',
                 href: 'https://github.com/copilot/?prompt=',
               },
+              claude: {
+                label: 'Open in Claude',
+                href: 'https://claude.ai/new?q=',
+              },
               chatGpt: {
                 label: 'Open in ChatGPT',
                 href: 'https://chatgpt.com/?q=',
               },
-              claude: {
-                label: 'Open in Claude',
-                href: 'https://claude.ai/new?q=',
-              }
             },
           },
         }),
@@ -92,11 +100,17 @@ export default defineConfig({
         }),
         catppuccin(),
         starlightSidebarTopics(sidebarTopics, {
-          exclude: ['**/includes/**/*', '/support'],
+          exclude: [
+            '**/includes/**/*',
+            '/support', 
+            '/reference/api', 
+            '/reference/api/**'
+          ],
         }),
         starlightLinksValidator({
           errorOnRelativeLinks: false,
           errorOnFallbackPages: false,
+          exclude: ['/i18n/'],
         }),
         starlightScrollToTop({
           // https://frostybee.github.io/starlight-scroll-to-top/svg-paths/
@@ -116,7 +130,6 @@ export default defineConfig({
             ja: 'トップへ戻る',
             ko: '맨 위로',
             'pt-br': 'Voltar ao topo',
-            'pt-pt': 'Voltar ao início',
             ru: 'Наверх',
             tr: 'Başa dön',
             uk: 'Прокрутити вгору',
@@ -127,19 +140,23 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Aspire',
           description:
-            'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+            'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
           // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
           exclude: [
             'includes/**',
             'index',
             '404',
             'docs',
+            'dashboard/index',
+            'deployment/index',
+            'community/index',
+            'integrations/index',
             'integrations/gallery',
             'reference/overview',
-            'reference/api/browser',
             'community/contributors',
-            'community/posts',
             'community/videos',
+            'community/thanks',
+            'reference/api/**',
             'da/**',
             'de/**',
             'es/**',
@@ -150,7 +167,6 @@ export default defineConfig({
             'ja/**',
             'ko/**',
             'pt-br/**',
-            'pt-pt/**',
             'ru/**',
             'tr/**',
             'uk/**',
@@ -161,6 +177,7 @@ export default defineConfig({
           showCaptions: true,
         }),
         starlightKbd({
+          globalPicker: false, // We manually place the picker in the footer preferences
           types: [
             { id: 'mac', label: 'macOS', detector: 'apple' },
             { id: 'windows', label: 'Windows', detector: 'windows', default: true },

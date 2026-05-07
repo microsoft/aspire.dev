@@ -9,12 +9,13 @@ type Props = {
   options: Option[];
   key: string;
   title?: string;
+  marginTop?: number | null;
 };
 
-const { options, key, title } = Astro.props;
+const { options, key, title, marginTop } = Astro.props;
 ---
 
-<div class="pivot-container not-content">
+<div class="pivot-container not-content" data-tour-target="pivot-selector" data-tour-step="pivot-selector">
   {title && <div class="pivot-title">{title}</div>}
   <div class="pivot-selector" id=`pivot-selector-${key}`>
     {
@@ -29,6 +30,8 @@ const { options, key, title } = Astro.props;
     type="button"
     class="pivot-collapse-btn"
     id=`pivot-collapse-${key}`
+    data-tour-target="pivot-collapse"
+    data-tour-step="pivot-selector"
     aria-label="Collapse selector"
   >
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -44,6 +47,8 @@ const { options, key, title } = Astro.props;
     type="button"
     class="pivot-expand-btn"
     id=`pivot-expand-${key}`
+    data-tour-target="pivot-expand"
+    data-tour-step="pivot-selector"
     aria-label="Expand selector"
     data-tooltip-placement="top"
   >
@@ -58,14 +63,14 @@ const { options, key, title } = Astro.props;
   </button>
 </div>
 
-<style>
+<style define:vars={{ marginTop: marginTop !== null && marginTop !== undefined ? `${marginTop}rem` : '0rem' }}>
   .pivot-container {
     background: var(--sl-color-bg-nav);
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
     padding: 1rem;
     box-shadow: var(--sl-shadow-sm);
-    margin-top: 0;
+    margin-top: var(--marginTop);
     margin-bottom: 1.5rem;
     --pivot-float-x: -50%;
   }
@@ -79,6 +84,7 @@ const { options, key, title } = Astro.props;
     box-shadow: var(--sl-shadow-md);
     border-color: var(--sl-color-gray-4);
     max-width: min(calc(100vw - 2rem), 800px);
+    margin-top: 0;
     width: auto;
     opacity: 1;
     animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);

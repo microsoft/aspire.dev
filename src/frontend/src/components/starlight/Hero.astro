@@ -1,20 +1,40 @@
 ---
+import type { ComponentProps } from 'astro/types';
 import { Image } from 'astro:assets';
 import { LinkButton } from '@astrojs/starlight/components';
 
 const PAGE_TITLE_ID = '_top';
+const MAX_HERO_IMAGE_WIDTH = 1000;
+
+type HeroAction = {
+  attrs?: Record<string, unknown> & { class?: string };
+  icon?: { name?: ComponentProps<typeof LinkButton>['icon']; html?: string };
+  link: string;
+  text: string;
+  variant?: ComponentProps<typeof LinkButton>['variant'];
+};
 
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, image, actions = [] } = data.hero || {};
+const heroActions = actions as HeroAction[];
 
-const imageAttrs = {
+const baseImageAttrs = {
   loading: 'eager' as const,
   decoding: 'async' as const,
-  width: 1000,
-  height: 1000,
   fetchpriority: 'high' as const,
   alt: image?.alt || '',
 };
+
+function getImageAttrs(source: ImageMetadata) {
+  const width = Math.min(source.width, MAX_HERO_IMAGE_WIDTH);
+  const height = Math.round((source.height / source.width) * width);
+
+  return {
+    ...baseImageAttrs,
+    width,
+    height,
+  };
+}
 
 let darkImage: ImageMetadata | undefined;
 let lightImage: ImageMetadata | undefined;
@@ -36,12 +56,12 @@ if (image) {
     darkImage && (
       <Image
         src={darkImage}
-        {...imageAttrs}
+        {...getImageAttrs(darkImage)}
         class:list={{ 'light:sl-hidden': Boolean(lightImage) }}
       />
     )
   }
-  {lightImage && <Image src={lightImage} {...imageAttrs} class="dark:sl-hidden" />}
+  {lightImage && <Image src={lightImage} {...getImageAttrs(lightImage)} class="dark:sl-hidden" />}
   {rawHtml && <div class="hero-html sl-flex" set:html={rawHtml} />}
   <div class="sl-flex stack">
     <div class="sl-flex copy">
@@ -49,11 +69,17 @@ if (image) {
       {tagline && <div class="tagline" set:html={tagline} />}
     </div>
     {
-      actions.length > 0 && (
+      heroActions.length > 0 && (
         <div class="sl-flex actions">
-          {actions.map(
+          {heroActions.map(
             ({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
-              <LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+              <LinkButton
+                {href}
+                {variant}
+                icon={icon?.name as ComponentProps<typeof LinkButton>['icon']}
+                class:list={[className]}
+                {...attrs}
+              >
                 {text}
                 {icon?.html && <Fragment set:html={icon.html} />}
               </LinkButton>

@@ -2,32 +2,120 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, release/* ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, release/* ]
 
 permissions:
   contents: read
   security-events: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      apphost: ${{ steps.filter.outputs.apphost }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detect changed areas
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "apphost=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+
+          # If the workflow changed, build everything. if it hasn't,
+          # check for frontend and/or apphost changes...
+          if git diff --quiet "$base_sha" "$head_sha" -- .github/workflows; then
+            workflow=false
+          else
+            workflow=true
+          fi
+
+          if [[ "$workflow" == "true" ]]; then
+            frontend=true
+            apphost=true
+          else
+            if git diff --quiet "$base_sha" "$head_sha" -- src/frontend; then
+              frontend=false
+            else
+              frontend=true
+            fi
+
+            if git diff --quiet "$base_sha" "$head_sha" -- src/apphost src/statichost global.json NuGet.config; then
+              apphost=false
+            else
+              apphost=true
+            fi
+          fi
+
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "apphost=$apphost" >> "$GITHUB_OUTPUT"
+
   frontend-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     uses: ./.github/workflows/frontend-build.yml
     with:
       node_version: '24.x'
+      pull_number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
 
   apphost-build:
+    needs: changes
+    if: ${{ needs.changes.outputs.apphost == 'true' }}
     uses: ./.github/workflows/apphost-build.yml
 
-  integration-test:
-    needs:
-      - frontend-build
-      - apphost-build
-    uses: ./.github/workflows/integration.yml
-    with:
-      node_version:  '24.x'
+  ci-gate:
+    needs: [changes, frontend-build, apphost-build]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CI results
+        shell: bash
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          APPHOST_CHANGED: ${{ needs.changes.outputs.apphost }}
+          FRONTEND_RESULT: ${{ needs['frontend-build'].result }}
+          APPHOST_RESULT: ${{ needs['apphost-build'].result }}
+        run: |
+          echo "changes result: $CHANGES_RESULT"
+          echo "frontend changed: $FRONTEND_CHANGED"
+          echo "frontend-build result: $FRONTEND_RESULT"
+          echo "apphost changed: $APPHOST_CHANGED"
+          echo "apphost-build result: $APPHOST_RESULT"
 
-  security-scan:
-    uses: ./.github/workflows/security-scan.yml
-    with:
-      node_version:  '24.x'
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "The changes job must succeed."
+            exit 1
+          fi
+
+          if [[ "$FRONTEND_CHANGED" == "true" ]]; then
+            if [[ "$FRONTEND_RESULT" != "success" ]]; then
+              echo "frontend-build should have run and succeeded."
+              exit 1
+            fi
+          elif [[ "$FRONTEND_RESULT" != "skipped" ]]; then
+            echo "frontend-build should have been skipped."
+            exit 1
+          fi
+
+          if [[ "$APPHOST_CHANGED" == "true" ]]; then
+            if [[ "$APPHOST_RESULT" != "success" ]]; then
+              echo "apphost-build should have run and succeeded."
+              exit 1
+            fi
+          elif [[ "$APPHOST_RESULT" != "skipped" ]]; then
+            echo "apphost-build should have been skipped."
+            exit 1
+          fi

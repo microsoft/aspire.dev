@@ -2,6 +2,8 @@
 import { Tooltips } from 'astro-tooltips';
 import DefaultHead from '@astrojs/starlight/components/Head.astro';
 import AccessibleCodeButtons from '../AccessibleCodeButtons.astro';
+import SiteTour from '../SiteTour.astro';
+import { getStructuredData } from '@utils/structured-data';
 
 const repoUrl = (
   import.meta.env.PUBLIC_REPO_URL ||
@@ -13,6 +15,8 @@ const commit = import.meta.env.PUBLIC_GIT_COMMIT_ID || import.meta.env.GIT_COMMI
 const route = Astro.locals?.starlightRoute;
 const entryId = route?.entry?.id;
 const path = route?.entry?.filePath;
+const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
+const structuredData = route ? getStructuredData(route, Astro.url, Astro.site) : undefined;
 
 function computeRepoPath() {
   if (path) {
@@ -33,6 +37,210 @@ function computeSourceUrl() {
 <meta name="git-source-url" content={computeSourceUrl()} />
 
 <DefaultHead {...Astro.props} />
+{structuredData && <script type="application/ld+json" is:inline set:html={structuredData} />}
+
+<!-- Restore persisted sidebar state before paint and keep legacy AppHost pages readable -->
+<script is:inline>
+  (function () {
+    var appHostLangLabels = {
+      csharp: 'C#',
+      typescript: 'TypeScript',
+    };
+    var appHostLangStorageKey = 'starlight-synced-tabs__aspire-lang';
+
+    function normalizeAppHostLang(value) {
+      var normalized = (value || '').toLowerCase().replace(/\s+/g, '');
+      if (normalized.indexOf('typescript') !== -1) {
+        return 'typescript';
+      }
+      if (
+        normalized.indexOf('c#') !== -1 ||
+        normalized.indexOf('csharp') !== -1 ||
+        normalized.indexOf('c-sharp') !== -1
+      ) {
+        return 'csharp';
+      }
+      return '';
+    }
+
+    function updateAppHostLangUrl(value) {
+      var normalized = normalizeAppHostLang(value);
+      if (!normalized) return;
+
+      var url = new URL(window.location);
+      url.searchParams.set('aspire-lang', normalized);
+      window.history.replaceState({}, '', url);
+    }
+
+    function persistAppHostLang(value) {
+      var normalized = normalizeAppHostLang(value);
+      if (!normalized) return '';
+
+      document.documentElement.setAttribute('data-apphost-lang', normalized);
+      try {
+        localStorage.setItem('aspire-lang', normalized);
+        localStorage.setItem(appHostLangStorageKey, appHostLangLabels[normalized]);
+      } catch (e) {}
+      return normalized;
+    }
+
+    function syncAppHostLangFromTab(value) {
+      var normalized = persistAppHostLang(value);
+      if (!normalized) return;
+      updateAppHostLangUrl(normalized);
+    }
+
+    function initAppHostLangSync() {
+      if (window.__aspireAppHostLangSyncInitialized) return;
+      window.__aspireAppHostLangSyncInitialized = true;
+
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        if (!(target instanceof Element)) return;
+
+        var tab = target.closest('starlight-tabs[data-sync-key="aspire-lang"] [role="tab"]');
+        if (tab) {
+          var tabValue = normalizeAppHostLang(tab.textContent);
+          if (tabValue) {
+            window.requestAnimationFrame(function () {
+              syncAppHostLangFromTab(tabValue);
+            });
+          }
+        }
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        var target = event.target;
+        if (!(target instanceof Element)) return;
+        var starlightTabs = target.closest('starlight-tabs[data-sync-key="aspire-lang"]');
+        if (!starlightTabs) return;
+
+        window.requestAnimationFrame(function () {
+          var selectedTab = starlightTabs.querySelector('[role="tab"][aria-selected="true"]');
+          var selectedValue = normalizeAppHostLang(selectedTab && selectedTab.textContent);
+          if (selectedValue) {
+            syncAppHostLangFromTab(selectedValue);
+          }
+        });
+      });
+    }
+
+    var qsAppHostLang = persistAppHostLang(
+      new URLSearchParams(window.location.search).get('aspire-lang')
+    );
+    var rawAppHostLang = qsAppHostLang || 'csharp';
+
+    try {
+      rawAppHostLang =
+        qsAppHostLang ||
+        localStorage.getItem('aspire-lang') ||
+        localStorage.getItem('aspire-apphost-lang') ||
+        localStorage.getItem(appHostLangStorageKey) ||
+        localStorage.getItem('starlight-synced-tabs__apphost-lang') ||
+        localStorage.getItem('starlight-synced-tabs__apphost-implementation-lang') ||
+        'csharp';
+    } catch (e) {}
+
+    document.documentElement.setAttribute(
+      'data-apphost-lang',
+      normalizeAppHostLang(rawAppHostLang) || 'csharp'
+    );
+
+    try {
+      var path = window.location.pathname.replace(/\/$/, '');
+      if (
+        localStorage.getItem('api-sidebar-collapsed') === '1' &&
+        path.indexOf('/reference/api') !== -1
+      ) {
+        document.documentElement.setAttribute('data-sidebar-collapsed', '');
+      }
+
+      if (
+        localStorage.getItem('topic-sidebar-collapsed') === '1' &&
+        path.indexOf('/reference/api') === -1
+      ) {
+        document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
+      }
+    } catch (e) {}
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAppHostLangSync);
+    } else {
+      initAppHostLangSync();
+    }
+  })();
+</script>
+
+<!-- Auto-detect language for first-time visitors -->
+<script>
+  import { isApiReferencePath } from '@utils/api-reference-routes';
+  import { getStoredPreference, setStoredPreference } from '@utils/browser-storage';
+  import {
+    DEFAULT_LOCALE,
+    PREFERRED_LOCALE_STORAGE_KEY,
+    VISITED_STORAGE_KEY,
+    addLocaleToPath,
+    appendSearchAndHash,
+    getLocaleFromPath,
+    normalizeLocale,
+  } from '@utils/locale-routes';
+
+  (function () {
+    function getBrowserLocale() {
+      const candidates = navigator.languages && navigator.languages.length > 0
+        ? navigator.languages
+        : [navigator.language || DEFAULT_LOCALE];
+
+      for (const candidate of candidates) {
+        const locale = normalizeLocale(candidate);
+        if (locale) return locale;
+      }
+
+      return DEFAULT_LOCALE;
+    }
+
+    function storePreferredLocale(locale: string | undefined) {
+      const normalizedLocale = normalizeLocale(locale) || DEFAULT_LOCALE;
+      setStoredPreference(PREFERRED_LOCALE_STORAGE_KEY, normalizedLocale);
+      return normalizedLocale;
+    }
+
+    function getStoredPreferredLocale() {
+      return normalizeLocale(getStoredPreference(PREFERRED_LOCALE_STORAGE_KEY));
+    }
+
+    // Check if current path already has a language prefix
+    const currentPath = window.location.pathname;
+    const currentLocale = getLocaleFromPath(currentPath);
+    const isApiReference = isApiReferencePath(currentPath);
+
+    if (currentLocale) {
+      storePreferredLocale(currentLocale);
+      setStoredPreference(VISITED_STORAGE_KEY, 'true');
+      return;
+    }
+
+    let preferredLocale = getStoredPreferredLocale();
+
+    if (!preferredLocale) {
+      const hasVisited = getStoredPreference(VISITED_STORAGE_KEY);
+      if (!hasVisited) {
+        preferredLocale = storePreferredLocale(getBrowserLocale());
+        setStoredPreference(VISITED_STORAGE_KEY, 'true');
+      }
+    }
+
+    if (!isApiReference && preferredLocale && preferredLocale !== DEFAULT_LOCALE) {
+      const localizedPath = addLocaleToPath(currentPath, preferredLocale);
+      window.location.href = appendSearchAndHash(
+        localizedPath,
+        window.location.search,
+        window.location.hash
+      );
+    }
+  })();
+</script>
 
 <Tooltips
   interactive={false}
@@ -41,6 +249,140 @@ function computeSourceUrl() {
   duration={[0, 0]}
   hideOnClick={true}
   animation="scale"
+  onClickOutside={function (instance, event) {
+    if (instance) {
+      instance.hide();
+    }
+  }}
 />
 
+<script is:inline>
+  (function () {
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement._tippy) {
+          activeElement._tippy.hide();
+        }
+      }
+    });
+  })();
+</script>
+
+<!--
+  Workaround for expressive-code-twoslash@0.6.1 runtime bug where the popup is
+  rendered as a child of .twoslash-hover but the shipped script looks for it
+  as nextElementSibling and falls back to brittle indexOf pairing. The fallback
+  breaks after the first mouseleave detaches popups, so tooltips stop showing.
+  We replace each hover with a clone (stripping the plugin's listeners), park
+  the popup in .expressive-code (to escape <pre> overflow clipping), and wire
+  correct show/hide handlers.
+-->
+<script is:inline>
+  (function () {
+    if (window.__aspireTwoslashFixInitialized) return;
+    window.__aspireTwoslashFixInitialized = true;
+
+    function position(popup, hover, ec) {
+      // Position absolutely inside .expressive-code (our positioning context).
+      // This keeps popup inside the CSS-variable scope (so background/color/
+      // z-index vars apply) while escaping the <pre overflow:auto> clip.
+      var hoverRect = hover.getBoundingClientRect();
+      var ecRect = ec.getBoundingClientRect();
+      var popupRect = popup.getBoundingClientRect();
+      var gap = 4;
+      var top = hoverRect.bottom - ecRect.top + gap;
+      var left = hoverRect.left - ecRect.left;
+      // Clamp horizontally within .expressive-code bounds.
+      var maxLeft = Math.max(0, ecRect.width - popupRect.width - 8);
+      if (left > maxLeft) left = maxLeft;
+      if (left < 0) left = 0;
+      popup.style.position = 'absolute';
+      popup.style.top = top + 'px';
+      popup.style.left = left + 'px';
+      popup.style.right = 'auto';
+      popup.style.margin = '0';
+    }
+
+    function initHover(hover) {
+      var popup = hover.querySelector(':scope > .twoslash-popup-container');
+      if (!popup) return;
+      var ec = hover.closest('.expressive-code');
+      if (!ec) return;
+
+      // Park popup as a direct child of .expressive-code so it escapes the
+      // <pre overflow:auto> clip while keeping the plugin's CSS variables in
+      // scope. Make .expressive-code a positioning context AND a stacking
+      // context (via isolation:isolate) so the popup's z-index:999 stays
+      // contained below the site nav (z-index:10) instead of bubbling up to
+      // the root stacking context.
+      ec.style.position = ec.style.position || 'relative';
+      ec.style.isolation = 'isolate';
+      if (popup.parentNode !== ec) ec.appendChild(popup);
+      popup.style.display = 'none';
+      popup.setAttribute('aria-hidden', 'true');
+      popup.setAttribute('role', 'tooltip');
+
+      var hideTimer;
+      var hoveringPopup = false;
+
+      function show() {
+        clearTimeout(hideTimer);
+        popup.style.display = 'block';
+        popup.setAttribute('aria-hidden', 'false');
+        position(popup, hover, ec);
+      }
+      function scheduleHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
+          if (hoveringPopup || hover.matches(':hover')) return;
+          popup.style.display = 'none';
+          popup.setAttribute('aria-hidden', 'true');
+        }, 100);
+      }
+
+      hover.addEventListener('mouseenter', show);
+      hover.addEventListener('mouseleave', scheduleHide);
+      hover.addEventListener('focus', show);
+      hover.addEventListener('blur', scheduleHide);
+      popup.addEventListener('mouseenter', function () {
+        clearTimeout(hideTimer);
+        hoveringPopup = true;
+      });
+      popup.addEventListener('mouseleave', function () {
+        hoveringPopup = false;
+        scheduleHide();
+      });
+    }
+
+    function fixAll() {
+      var hovers = document.querySelectorAll('.twoslash-hover');
+      for (var i = 0; i < hovers.length; i++) {
+        var hover = hovers[i];
+        if (hover.dataset.tsFixed === '1') continue;
+        var clone = hover.cloneNode(true);
+        clone.dataset.tsFixed = '1';
+        hover.parentNode.replaceChild(clone, hover);
+        initHover(clone);
+      }
+    }
+
+    function scheduleFix() {
+      // Run after the plugin's own astro:page-load / initial pass.
+      setTimeout(fixAll, 0);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', scheduleFix);
+    } else {
+      scheduleFix();
+    }
+    document.addEventListener('astro:page-load', scheduleFix);
+    document.addEventListener('astro:after-swap', function () {
+      setTimeout(fixAll, 150);
+    });
+  })();
+</script>
+
 <AccessibleCodeButtons />
+{isSiteTourEnabled && <SiteTour />}

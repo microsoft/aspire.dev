@@ -11,7 +11,7 @@ export const headAttrs: HeadAttr[] = [
     attrs: {
       name: 'description',
       content:
-        'Aspire is a polyglot local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+        'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
     },
   },
   {
@@ -22,9 +22,10 @@ export const headAttrs: HeadAttr[] = [
 					Aspire, .NET Aspire, dotnet aspire,
 					distributed applications, cloud-native, microservices, orchestration,
 					.NET, observability, otel, opentelemetry, dashboard, service discovery, integrations,
-					C#, csharp, polyglot, python, go, node.js, javascript, typescript,
+					C#, csharp, multi-language, polyglot, python, go, node.js, javascript, typescript,
 					vite, react, blazor, wasm, webassembly, aspnetcore, minimal apis,
-					docker, containers, kubernetes, compose
+					docker, containers, kubernetes, compose,
+					AI, MCP, model context protocol, AI coding agents, agentic development, copilot, cursor, claude code, vibe coding
 				`
         .replace(/\s*\n\s*/g, ' ')
         .trim(),
@@ -56,7 +57,7 @@ export const headAttrs: HeadAttr[] = [
     attrs: {
       name: 'twitter:description',
       content:
-        'Aspire (formerly .NET Aspire) streamlines your development workflow with code-first control, modularity, and observability.',
+        'Aspire streamlines your development workflow with code-first control, modularity, and observability.',
     },
   },
   { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://aspire.dev/og-image.png' } },
@@ -97,7 +98,7 @@ export const headAttrs: HeadAttr[] = [
     tag: 'script',
     attrs: {
       type: 'text/plain',
-      src: '/1ds/',
+      src: '/scripts/analytics/1ds.js',
       defer: true,
       'data-category': 'analytics',
     },
@@ -106,7 +107,7 @@ export const headAttrs: HeadAttr[] = [
     tag: 'script',
     attrs: {
       type: 'text/plain',
-      src: '/track/',
+      src: '/scripts/analytics/track.js',
       defer: true,
       'data-category': 'analytics',
     },

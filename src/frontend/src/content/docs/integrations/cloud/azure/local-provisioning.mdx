@@ -7,8 +7,6 @@ import {
   Aside,
   FileTree,
   Steps,
-  Tabs,
-  TabItem,
 } from '@astrojs/starlight/components';
 
 import OsAwareTabs from '@components/OsAwareTabs.astro';
@@ -23,7 +21,7 @@ When you add an Azure resource using methods like `AddAzureStorage()` or `AddAzu
 
 1. Detects that the resource doesn't exist locally
 2. Generates Bicep infrastructure-as-code
-3. Uses Azure CLI or Azure SDK to deploy resources
+3. Uses the configured Azure credential and Azure APIs to deploy resources
 4. Configures connection information automatically
 5. Injects configuration into your application
 
@@ -34,7 +32,7 @@ When you add an Azure resource using methods like `AddAzureStorage()` or `AddAzu
 Before using local provisioning, ensure you have:
 
 - **Azure subscription**: An active Azure subscription
-- **Azure CLI**: Installed and authenticated (`az login`)
+- **Azure credentials**: A supported local credential source such as Azure CLI (`az login`), Visual Studio, Visual Studio Code, or Azure Developer CLI
 - **Appropriate permissions**: Contributor access to create resources
 - **Aspire 9.0+**: Local provisioning requires Aspire 9.0 or later
 
@@ -44,12 +42,11 @@ Local provisioning requires configuring your Azure subscription and location. Yo
 
 ### User secrets
 
-The recommended approach for development is using user secrets:
+The recommended approach for development is using the Aspire CLI:
 
 ```bash
-dotnet user-secrets init --project ./YourAppHost/YourAppHost.csproj
-dotnet user-secrets set "Azure:SubscriptionId" "your-subscription-id" --project ./YourAppHost
-dotnet user-secrets set "Azure:Location" "eastus" --project ./YourAppHost
+aspire secret set "Azure:SubscriptionId" "your-subscription-id"
+aspire secret set "Azure:Location" "eastus"
 ```
 
 ### appsettings.json
@@ -60,8 +57,7 @@ Alternatively, configure in `appsettings.Development.json`:
 {
   "Azure": {
     "SubscriptionId": "your-subscription-id",
-    "Location": "eastus",
-    "CredentialSource": "AzureCli"
+    "Location": "eastus"
   }
 }
 ```
@@ -96,16 +92,19 @@ You can also use environment variables:
 
 The following configuration options are available:
 
-| Setting                            | Description                    | Default    |
-| ---------------------------------- | ------------------------------ | ---------- |
-| `Azure:SubscriptionId`             | Your Azure subscription ID     | (required) |
-| `Azure:Location`                   | Azure region for resources     | (required) |
-| `Azure:CredentialSource`           | Authentication method          | `AzureCli` |
-| `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true`     |
+| Setting | Description | Default |
+| --- | --- | --- |
+| `Azure:SubscriptionId` | Your Azure subscription ID | (required) |
+| `Azure:Location` | Azure region for resources | (required) |
+| `Azure:TenantId` | Azure tenant to use when selecting subscriptions and credentials | Current credential tenant |
+| `Azure:ResourceGroup` | Specific resource group to create or reuse | Auto-generated |
+| `Azure:ResourceGroupPrefix` | Prefix used when Aspire generates a resource group name | `rg-aspire` |
+| `Azure:CredentialSource` | Authentication method for local provisioning | `Default` |
+| `Azure:AllowResourceGroupCreation` | Allow creating resource groups | `true` |
 
 ## Resource group management
 
-By default, Aspire creates a resource group for your provisioned resources. The resource group name follows the pattern: `rg-{apphost-name}`.
+By default, Aspire creates a resource group for your provisioned resources named `rg-aspire-{apphost-name}-{random-suffix}`. If you set `Azure:ResourceGroupPrefix`, Aspire uses that prefix instead of `rg-aspire`.
 
 ### Use an existing resource group
 
@@ -155,8 +154,8 @@ To prevent Aspire from creating resource groups:
 2. **Configure Azure subscription** (if not already done)
 
    ```bash
-   dotnet user-secrets set "Azure:SubscriptionId" "your-sub-id" --project ./AppHost
-   dotnet user-secrets set "Azure:Location" "eastus" --project ./AppHost
+   aspire secret set "Azure:SubscriptionId" "your-sub-id"
+   aspire secret set "Azure:Location" "eastus"
    ```
 
 3. **Run your application**
@@ -179,49 +178,19 @@ To prevent Aspire from creating resource groups:
 
 ## Authentication
 
-Local provisioning supports multiple authentication methods:
+When `Azure:CredentialSource` isn't set, local provisioning uses a development-focused `DefaultAzureCredential` chain. That default supports local credentials such as Azure CLI, Visual Studio, Visual Studio Code, and Azure Developer CLI, while excluding Azure-hosted credentials such as managed identity and workload identity.
 
-### Azure CLI (Default)
+If you want to force a specific local credential, set `Azure:CredentialSource` to one of the supported values:
 
-Uses your Azure CLI credentials:
-
-```bash
-az login
-```
-
-Configuration:
-
-```json
-{
-  "Azure": {
-    "CredentialSource": "AzureCli"
-  }
-}
-```
-
-### Managed Identity
-
-When running in Azure (e.g., Azure Container Instances):
-
-```json
-{
-  "Azure": {
-    "CredentialSource": "ManagedIdentity"
-  }
-}
-```
-
-### Visual Studio
-
-Uses Visual Studio's Azure account:
-
-```json
-{
-  "Azure": {
-    "CredentialSource": "VisualStudio"
-  }
-}
-```
+| Value | Uses |
+| --- | --- |
+| `Default` | Development credential chain for local provisioning |
+| `AzureCli` | Azure CLI sign-in (`az login`) |
+| `AzureDeveloperCli` | Azure Developer CLI sign-in (`azd auth login`) |
+| `VisualStudio` | Visual Studio Azure account |
+| `VisualStudioCode` | Visual Studio Code Azure account |
+| `AzurePowerShell` | Azure PowerShell sign-in |
+| `InteractiveBrowser` | Browser-based sign-in prompt |
 
 ## Provisioned resource naming
 

@@ -35,13 +35,17 @@ The dashboard is shipped as a Docker image and can be used without the rest of A
 - Browser frontend authenticated with a browser token.
 - Incoming telemetry is unsecured. Warnings are displayed in the console and dashboard UI.
 
-The telemetry endpoint accepts incoming OTLP data without authentication. When the endpoint is unsecured, the dashboard is open to receiving telemetry from untrusted apps.
+The telemetry endpoint accepts incoming <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> data without authentication. When the endpoint is unsecured, the dashboard is open to receiving telemetry from untrusted apps.
 
 For information about securing the telemetry when running the dashboard in standalone mode, see [Securing the telemetry endpoint](#secure-telemetry-endpoint).
 
 ## Secure telemetry endpoint
 
 The Aspire dashboard provides a variety of ways to view logs, traces, and metrics for your app. This information enables you to track the behavior and performance of your app and to diagnose any issues that arise. It's important that you can trust this information, and a warning is displayed in the dashboard UI if telemetry isn't secured.
+
+When the dashboard is launched by an Aspire AppHost, the OTLP and telemetry API endpoints are both enabled and secured with API key authentication automatically. However, when the dashboard is run in [standalone mode](/dashboard/standalone/), additional configuration is required to enable and secure these endpoints.
+
+### Incoming OTLP endpoint
 
 The dashboard collects telemetry through an [OTLP (OpenTelemetry protocol)](https://opentelemetry.io/docs/specs/otel/protocol/) endpoint. Apps send telemetry to this endpoint, and the dashboard stores the external information it receives in memory, which is then accessible via the UI.
 
@@ -53,7 +57,7 @@ API key authentication can be enabled on the telemetry endpoint with some additi
 <div slot="unix">
 
 ```bash
-docker run --rm -it -d -p 18888:18888 -p 4317:18889 --name aspire-dashboard \
+docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard \
     -e DASHBOARD__OTLP__AUTHMODE='ApiKey' \
     -e DASHBOARD__OTLP__PRIMARYAPIKEY='{MY_APIKEY}' \
     mcr.microsoft.com/dotnet/aspire-dashboard:latest
@@ -63,7 +67,7 @@ docker run --rm -it -d -p 18888:18888 -p 4317:18889 --name aspire-dashboard \
 <div slot="windows">
 
 ```powershell
-docker run --rm -it -d -p 18888:18888 -p 4317:18889 --name aspire-dashboard `
+docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard `
     -e DASHBOARD__OTLP__AUTHMODE='ApiKey' `
     -e DASHBOARD__OTLP__PRIMARYAPIKEY='{MY_APIKEY}' `
     mcr.microsoft.com/dotnet/aspire-dashboard:latest
@@ -74,7 +78,7 @@ docker run --rm -it -d -p 18888:18888 -p 4317:18889 --name aspire-dashboard `
 
 The preceding Docker command:
 
-- Starts the Aspire dashboard image and exposes OTLP endpoint as port 4317
+- Starts the Aspire dashboard image and exposes OTLP endpoints as port `4317` (gRPC) and port `4318` (HTTP)
 - Configures the OTLP endpoint to use `ApiKey` authentication. This requires that incoming telemetry has a valid `x-otlp-api-key` header value.
 - Configures the expected API key. `{MY_APIKEY}` in the example value should be replaced with a real API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended.
 
@@ -86,6 +90,39 @@ builder.Services.Configure<OtlpExporterOptions>(
 ```
 
 Other languages have different OpenTelemetry APIs. Passing the [`OTEL_EXPORTER_OTLP_HEADERS` environment variable](https://opentelemetry.io/docs/specs/otel/protocol/exporter/) to apps is a universal way to configure the header.
+
+### Telemetry API endpoint
+
+The dashboard has an optional HTTP API that exposes collected telemetry data as JSON at `/api/telemetry/*` endpoints. The telemetry API allows programmatic access to spans, logs, traces, and resource information stored in the dashboard. Because telemetry data can contain sensitive runtime information, the API is disabled by default and must be explicitly enabled.
+
+When enabled, the telemetry API is served on the same endpoint as the dashboard frontend (`ASPNETCORE_URLS`). Enable and secure the API with the following configuration:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard \
+    -e DASHBOARD__API__ENABLED='true' \
+    -e DASHBOARD__API__AUTHMODE='ApiKey' \
+    -e DASHBOARD__API__PRIMARYAPIKEY='{MY_APIKEY}' \
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+docker run --rm -it -d -p 18888:18888 -p 4317:18889 -p 4318:18890 --name aspire-dashboard `
+    -e DASHBOARD__API__ENABLED='true' `
+    -e DASHBOARD__API__AUTHMODE='ApiKey' `
+    -e DASHBOARD__API__PRIMARYAPIKEY='{MY_APIKEY}' `
+    mcr.microsoft.com/dotnet/aspire-dashboard:latest
+```
+
+</div>
+</OsAwareTabs>
+
+When API key authentication is configured, each request to the telemetry API must include a valid `x-api-key` header. If the API is enabled without configuring an auth mode or API key, it defaults to `Unsecured` and a warning is logged at startup.
 
 ## Memory exhaustion
 

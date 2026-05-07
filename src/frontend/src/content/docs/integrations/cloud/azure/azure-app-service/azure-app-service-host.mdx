@@ -49,31 +49,23 @@ var existingResourceGroup = builder.AddParameter("existingResourceGroup");
 var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env")
     .AsExisting(existingAppServicePlanName, existingResourceGroup);
 
-builder.AddProject<Projects.WebApi>("api")
-    .PublishAsAzureAppServiceWebsite((infra, website) =>
-    {
-        // Optional: customize the Azure App Service website here
-    });
+builder.AddProject<Projects.WebApi>("api");
 
 // After adding all resources, run the app...
 ```
 
 For more information on treating Azure App Service resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 
-## Publish resources as Azure App Service websites
+## Deploy supported resources to an App Service environment
 
-After adding an App Service environment, you can publish compute resources (`IComputeResource`) as Azure App Service websites using the `PublishAsAzureAppServiceWebsite` method.
+After adding an App Service environment, Aspire automatically deploys supported compute resources in that environment as Azure App Service websites. Today that includes web-facing project resources and Dockerfile-backed web containers. Backing services such as databases, caches, and brokers should use managed Azure services instead of App Service websites.
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env");
 
-builder.AddProject<Projects.WebApi>("api")
-    .PublishAsAzureAppServiceWebsite((infra, website) =>
-    {
-        // Optional: customize the Azure App Service website here
-    });
+builder.AddProject<Projects.WebApi>("api");
 
 builder.Build().Run();
 ```
@@ -82,30 +74,33 @@ The preceding code:
 
 - Creates an Azure App Service environment named `app-service-env`.
 - Adds a project named `api` to the AppHost.
-- Configures the project to be published as an Azure App Service website.
-- Provides an optional callback to customize the website configuration.
+- Targets the `api` project to the App Service environment automatically.
 
 During local development (when running with <Kbd windows='F5' mac='F5' />), the project runs locally. When you publish your app, the project is deployed as an Azure App Service website within the provisioned environment.
 
 <Aside type="note">
-  When you publish resources to Azure App Service using the
-  `PublishAsAzureAppServiceWebsite` method, Aspire automatically sets the
-  `AZURE_TOKEN_CREDENTIALS` environment variable to `managedidentity`. This
-  ensures that `DefaultAzureCredential` uses only `ManagedIdentityCredential`
-  for authentication, following [Azure SDK best
+  When App Service deployment configures a managed identity for a resource,
+  Aspire automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable
+  to `ManagedIdentityCredential`. This ensures that `DefaultAzureCredential`
+  uses only `ManagedIdentityCredential` for authentication, following [Azure SDK
+  best
   practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
-  If you need to use a different credential type, you can remove this
-  environment variable in the `PublishAsAzureAppServiceWebsite` callback. For
+  If you need to use a different credential type, remove this app setting by
+  customizing the generated website with `PublishAsAzureAppServiceWebsite`. For
   more information, see [DefaultAzureCredential behavior in Azure
   deployments](/whats-new/aspire-13/#defaultazurecredential-behavior-in-azure-deployments).
 </Aside>
 
-## Customize the App Service website
+## Customize App Service websites
+
+Use `PublishAsAzureAppServiceWebsite` when you want to customize the Azure App Service website or deployment slot that Aspire provisions for a project. It isn't required for a standard App Service deployment.
 
 The `PublishAsAzureAppServiceWebsite` method accepts a callback that allows you to customize the Azure App Service website configuration using the [Azure.Provisioning](https://learn.microsoft.com/dotnet/api/azure.provisioning) APIs:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env");
 
 builder.AddProject<Projects.WebApi>("api")
     .PublishAsAzureAppServiceWebsite((infra, website) =>
@@ -123,9 +118,71 @@ builder.AddProject<Projects.WebApi>("api")
 
 The preceding code:
 
+- Adds an App Service environment.
 - Chains a call to `PublishAsAzureAppServiceWebsite` with a customization callback.
 - Adds an application setting for `ASPNETCORE_ENVIRONMENT`.
 - Adds multiple tags for metadata and organization.
+
+## Deployment slots
+
+[Deployment slots](https://learn.microsoft.com/azure/app-service/deploy-staging-slots) let you deploy your app to a staging environment for testing before swapping it into production. The `WithDeploymentSlot` extension method configures a deployment slot for the App Service environment:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("appservice")
+    .WithDeploymentSlot("staging");
+
+var apiService = builder.AddProject<Projects.ApiService>("apiservice")
+    .WithHttpHealthCheck("/health")
+    .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithHttpHealthCheck("/health")
+    .WithReference(apiService)
+    .WaitFor(apiService);
+
+builder.Build().Run();
+```
+
+The preceding code configures all App Service websites to be deployed to a `staging` slot.
+
+### Deployment slot behavior
+
+When you deploy to a slot, the deployment behavior depends on whether the production App Service already exists:
+
+- **New App Service**: If the production App Service (production slot) doesn't exist at the time of deployment, Aspire deploys to both the production App Service and the specified deployment slot.
+- **Existing App Service**: If the production App Service already exists, Aspire deploys only to the specified deployment slot.
+
+This behavior allows you to safely deploy and test changes in a staging environment before swapping to production.
+
+### Using parameters for deployment slots
+
+You can also specify the deployment slot value as a parameter, allowing the slot name to be provided at deployment time:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var slotName = builder.AddParameter("deploymentSlot");
+
+builder.AddAzureAppServiceEnvironment("appservice")
+    .WithDeploymentSlot(slotName);
+
+// Add your projects and other resources...
+
+builder.Build().Run();
+```
+
+With this configuration, you can specify the slot name when running `aspire deploy` by providing a value for the `deploymentSlot` parameter.
+
+### Applying customizations to slots
+
+<Aside type="caution">
+Customizations applied to the production App Service are not automatically applied to deployment slots. You must explicitly apply any customizations to the slot as well.
+</Aside>
+
+When you customize App Service resources using `PublishAsAzureAppServiceWebsite` or `ConfigureInfrastructure`, those customizations apply to the production slot by default. If you need the same customizations on your deployment slot, you must apply them separately. This gives you fine-grained control over the configuration of each slot, allowing staging and production environments to have different settings when needed.
 
 ## Provisioning-generated Bicep
 

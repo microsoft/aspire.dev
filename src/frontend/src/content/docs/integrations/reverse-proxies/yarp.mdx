@@ -1,8 +1,6 @@
 ---
 title: YARP integration
 description: Learn how to use the YARP (Yet Another Reverse Proxy) integration for reverse proxy functionality.
-prev: false
-next: false
 ---
 
 import InstallPackage from '@components/InstallPackage.astro';
@@ -174,6 +172,24 @@ var frontend = builder.AddYarp("frontend")
                       .WithDockerfile("../npmapp");
 ```
 
+When using `WithStaticFiles` together with `WithDockerfile`, the YARP container expects static files to be placed at the `/wwwroot` directory inside the container. Your Dockerfile must use the YARP base image (`mcr.microsoft.com/dotnet/nightly/yarp`) as its final stage so the YARP server can start and serve the files. The following example shows a multi-stage Dockerfile that builds a Node.js frontend app and copies the output to `/app/wwwroot`:
+
+```dockerfile title="Dockerfile"
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM mcr.microsoft.com/dotnet/nightly/yarp
+COPY --from=build /app/dist /wwwroot
+```
+
+<Aside type="caution">
+If the built assets aren't copied to `/app/wwwroot`, the container starts successfully but returns 404 for all static file requests. Look for the log message `The WebRootPath was not found: /wwwroot. Static files may be unavailable.` as an indicator that the path is misconfigured.
+</Aside>
+
 #### Combining static files with routing
 
 You can combine static file serving with dynamic routing:
@@ -192,3 +208,36 @@ var gateway = builder.AddYarp("gateway")
                          // Static files are served for all other routes
                      });
 ```
+
+## HTTPS endpoints
+
+When both the YARP gateway and backend services use HTTPS, configure HTTPS endpoints using `WithHttpsEndpoint` and the developer certificate. YARP can proxy HTTPS-to-HTTPS when the backend service exposes an HTTPS endpoint:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Backend service with HTTPS
+var razorPages = builder.AddProject<Projects.RazorPagesApp>("razorpages")
+    .WithHttpsEndpoint();
+
+// YARP gateway proxying to the HTTPS backend
+var gateway = builder.AddYarp("gateway")
+                     .WithHttpsEndpoint()
+                     .WithHttpsDeveloperCertificate()
+                     .WithConfiguration(yarp =>
+                     {
+                         yarp.AddRoute("/{**catch-all}", razorPages);
+                     });
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+When using HTTPS with YARP, ensure that the developer certificate is trusted on your machine. Run `dotnet dev-certs https --trust` if you see certificate validation errors.
+</Aside>
+
+## See also
+
+- [YARP documentation](https://microsoft.github.io/reverse-proxy/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

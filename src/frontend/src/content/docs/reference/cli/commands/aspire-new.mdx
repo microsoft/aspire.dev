@@ -3,7 +3,11 @@ title: aspire new command
 description: Learn about the aspire new command and its usage. This command creates new Aspire projects or solutions.
 ---
 
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+
 import Include from '@components/Include.astro';
+import LearnMore from '@components/LearnMore.astro';
+import { Aside } from '@astrojs/starlight/components';
 
 ## Name
 
@@ -15,11 +19,79 @@ import Include from '@components/Include.astro';
 aspire new [command] [options]
 ```
 
+<AsciinemaPlayer src="/casts/aspire-new.cast" poster="npt:0:02" rows={12} loop={false} />
+
 ## Description
 
 The `aspire new` command is the driver for creating Aspire projects, apps, or solutions, based on the Aspire templates. Each command specifies the template to use, and the options for the driver specify the options for the template.
 
 This command defaults to **interactive** mode. When executed without any options, the command prompts you for the project template and version, name, and output folder. When the `--name`, `--output`, and `--version` options are provided, the command runs **non-interactive** and generates files based on the command template.
+
+### Default output directory
+
+When you don't provide `--output`, the default output directory is derived from the **template name**. For example, running `aspire new aspire-starter` without `--output` creates a directory named `./aspire-starter` in the current working directory.
+
+If that directory already exists and is non-empty, the command automatically appends a numeric suffix to find a unique name (for example, `./aspire-starter-2`, `./aspire-starter-3`, and so on).
+
+### Output path validation
+
+The `--output` option validates the provided path before creating the project:
+
+- Paths that contain **invalid characters** (such as null bytes) are rejected with an error.
+- Paths that point to an **existing non-empty directory** are rejected with a clear error message. Use a different output path or an empty directory.
+
+<Aside type="note">
+  The `aspire new` command currently requires an interactive terminal even when
+  all options are provided. The `--non-interactive` flag is not fully supported.
+  In CI/CD pipelines or other non-interactive environments, use `dotnet new`
+  with Aspire templates as an alternative for project creation.
+</Aside>
+
+## Interactive prompts
+
+When running `aspire new` in interactive mode, the command asks one or more questions before generating the project. The available prompts depend on the template and options you provide.
+
+### Use \*.dev.localhost URLs?
+
+During project creation, you may be prompted:
+
+> **Use \*.dev.localhost URLs?**
+
+This prompt determines whether the generated launch profile configures your Aspire services to be accessible via `*.dev.localhost` wildcard subdomain URLs (for example, `https://myservice.dev.localhost`) instead of standard `http://localhost` with port numbers.
+
+#### What are \*.dev.localhost URLs?
+
+`*.dev.localhost` is a wildcard subdomain pattern that resolves to your local machine (`127.0.0.1` or `::1`) in most modern browsers without additional DNS configuration. This resolution is a browser feature — non-browser HTTP clients (for example, `curl`, `HttpClient`, or other command-line tools) don't automatically resolve `*.dev.localhost` subdomains and may require **hosts** file entries to reach them.
+
+The Aspire developer certificate trusts `*.dev.localhost` subdomains, so browsers accept HTTPS connections to any subdomain when the certificate is trusted.
+
+#### Yes — use \*.dev.localhost URLs
+
+Choosing **Yes** configures the generated project so that each service gets a unique subdomain URL such as `https://myservice.dev.localhost`. This option:
+
+- Enables HTTPS for all services from the start, leveraging the Aspire developer certificate.
+- Gives each service its own origin, which prevents cookie and authentication token collisions between services running on the same machine.
+- More closely mirrors a production setup where services are hosted on separate domains or subdomains.
+
+**Prerequisite:** The Aspire developer certificate must be trusted on your machine. If you haven't already done so, run:
+
+```bash title="Aspire CLI"
+aspire certs trust
+```
+
+<LearnMore>
+  [Command reference: `aspire certs trust`](../aspire-certs-trust/)
+</LearnMore>
+
+<Aside type="note">
+  Safari on macOS does not resolve `*.dev.localhost` subdomains to
+  `127.0.0.1` by default. If you use Safari, choose **No** or add entries to
+  your **hosts** file (for example, `127.0.0.1 myservice.dev.localhost`).
+</Aside>
+
+#### No — use standard localhost URLs (default)
+
+Choosing **No** (the default) configures services with standard `http://localhost:<port>` addresses. This option requires no certificate setup and works in all browsers and tools without additional configuration.
 
 ## Options
 
@@ -47,7 +119,13 @@ The following options are available:
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
-- <Include relativePath="reference/cli/includes/option-debug.md" />
+- <Include relativePath="reference/cli/includes/option-log-level.md" />
+
+- <Include relativePath="reference/cli/includes/option-non-interactive.md" />
+
+- <Include relativePath="reference/cli/includes/option-nologo.md" />
+
+- <Include relativePath="reference/cli/includes/option-banner.md" />
 
 - <Include relativePath="reference/cli/includes/option-wait.md" />
 
@@ -55,12 +133,14 @@ The following options are available:
 
 Each command represents a template. Pass the `--help` parameter to the template command to print the options available to the template.
 
-| Command                     | Template                          |
-| --------------------------- | --------------------------------- |
-| `aspire-starter`            | Starter App (ASP.NET Core/Blazor) |
-| `aspire-ts-cs-starter`      | Starter App (ASP.NET Core/React)  |
-| `aspire-py-starter`         | Starter App (FastAPI/React)       |
-| `aspire-apphost-singlefile` | Empty AppHost                     |
+| Command                | Template                          |
+| ---------------------- | --------------------------------- |
+| `aspire-starter`       | Starter App (ASP.NET Core/Blazor) |
+| `aspire-ts-cs-starter` | Starter App (ASP.NET Core/React)  |
+| `aspire-py-starter`    | Starter App (FastAPI/React)       |
+| `aspire-ts-starter`    | Starter App (Express/React)       |
+| `aspire-empty`         | Empty (C# AppHost)                |
+| `aspire-ts-empty`      | Empty (TypeScript AppHost)        |
 
 ## Examples
 
@@ -70,10 +150,10 @@ Each command represents a template. Pass the `--help` parameter to the template 
   aspire new aspire-starter
   ```
 
-- Create an AppHost project named `aspireapp` from the **13.1.0** templates and place the output in a folder named `dev`.
+- Create an AppHost project named `aspireapp` from the **13.2.0** templates and place the output in a folder named `dev`.
 
   ```bash title="Aspire CLI"
-  aspire new aspire-apphost-singlefile --version 13.1.0 --name aspireapp --output ./dev
+  aspire new aspire-empty --version 13.2.0 --name aspireapp --output ./dev
   ```
 
 - Create an Aspire starter app using templates from the `daily` channel to get the latest pre-release templates.

@@ -1,12 +1,519 @@
 ---
 import SidebarTopicsSidebar from 'starlight-sidebar-topics/overrides/Sidebar.astro';
-import { Icon, LinkButton } from '@astrojs/starlight/components';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+// @ts-ignore Starlight provides this virtual component at runtime.
+import MobileMenuFooter from 'virtual:starlight/components/MobileMenuFooter';
+import { Badge, Icon, LinkButton } from '@astrojs/starlight/components';
+import { sidebarTopics } from '../../../config/sidebar/sidebar.topics.js';
+import { referenceTopics } from '../../../config/sidebar/reference.topics.js';
+
+const routeData = Astro.locals.starlightRoute;
+const topicState = Astro.locals.starlightSidebarTopics;
+const pageId = routeData?.id ?? '';
+const locale = routeData?.locale;
+const isApiRefPage = pageId.startsWith('reference/api');
+const apiLang = pageId.startsWith('reference/api/typescript')
+  ? 'ts'
+  : pageId.startsWith('reference/api/csharp')
+    ? 'csharp'
+    : undefined;
+const sidebar = routeData?.sidebar ?? [];
+const topics = topicState?.topics ?? [];
+
+type SidebarTopicOption = {
+  label: string;
+  link: string;
+  icon?: string;
+  badge?: {
+    text: string;
+    variant?: TopicBadgeVariant;
+  };
+  isCurrent: boolean;
+};
+
+type TopicBadgeVariant = 'success' | 'default' | 'note' | 'danger' | 'caution' | 'tip';
+
+function resolveTopicLabel(topic: (typeof sidebarTopics)[number], currentLocale?: string) {
+  if (typeof topic.label === 'string') {
+    return topic.label;
+  }
+
+  return topic.label[currentLocale ?? ''] ?? topic.label.en ?? Object.values(topic.label)[0] ?? '';
+}
+
+function buildLocalizedHref(path: string, currentLocale?: string) {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const prefixed = currentLocale ? `/${currentLocale}${normalized}` : normalized;
+  return prefixed.endsWith('/') ? prefixed : `${prefixed}/`;
+}
+
+function resolveTopicBadge(
+  badge:
+    | string
+    | { text: string | Record<string, string>; variant?: TopicBadgeVariant }
+    | undefined,
+  currentLocale?: string
+): SidebarTopicOption['badge'] {
+  if (!badge) {
+    return undefined;
+  }
+
+  if (typeof badge === 'string') {
+    return { text: badge };
+  }
+
+  const text =
+    typeof badge.text === 'string'
+      ? badge.text
+      : (badge.text[currentLocale ?? ''] ?? badge.text.en ?? Object.values(badge.text)[0] ?? '');
+
+  return {
+    text,
+    variant: badge.variant,
+  };
+}
+
+function normalizeTopic(
+  topic: {
+    label: string | Record<string, string>;
+    link: string;
+    icon?: string;
+    badge?: string | { text: string | Record<string, string>; variant?: TopicBadgeVariant };
+    isCurrent: boolean;
+  },
+  currentLocale?: string
+): SidebarTopicOption {
+  return {
+    label:
+      typeof topic.label === 'string'
+        ? topic.label
+        : (topic.label[currentLocale ?? ''] ??
+          topic.label.en ??
+          Object.values(topic.label)[0] ??
+          ''),
+    link: topic.link,
+    icon: topic.icon,
+    badge: resolveTopicBadge(topic.badge, currentLocale),
+    isCurrent: topic.isCurrent,
+  };
+}
+
+const fallbackApiTopics: SidebarTopicOption[] = isApiRefPage
+  ? sidebarTopics.map((topic) => ({
+      label: resolveTopicLabel(topic, locale),
+      link: buildLocalizedHref(topic.link, locale),
+      icon: topic.icon,
+      badge: resolveTopicBadge(topic.badge, locale),
+      isCurrent: topic === referenceTopics,
+    }))
+  : [];
+const effectiveTopics: SidebarTopicOption[] = isApiRefPage
+  ? fallbackApiTopics
+  : topics.map((topic) => normalizeTopic(topic, locale));
+const currentTopic = effectiveTopics.find((topic) => topic.isCurrent) ?? effectiveTopics[0];
+const hasTopicSidebar = Boolean(
+  !isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic
+);
+const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 0);
 ---
 
-<div class="topics-sidebar">
-  <SidebarTopicsSidebar {...Astro.props}>
-    <slot />
-  </SidebarTopicsSidebar>
+<div
+  class="topics-sidebar"
+  data-api-ref={isApiRefPage || undefined}
+  data-api-lang={apiLang}
+  data-topic-nav={hasTopicSidebar || undefined}
+>
+  {
+    isApiRefPage ? (
+      <>
+        <div class="api-sidebar-sticky not-content">
+          <div
+            class:list={[
+              'sidebar-sticky-toolbar',
+              'api-sidebar-toolbar',
+              { 'sidebar-sticky-toolbar-topic-stack': hasSharedTopicDropdown },
+            ]}
+          >
+            <div class="sidebar-filter">
+              <div class="sidebar-filter-wrap">
+                <svg
+                  class="sidebar-filter-icon"
+                  aria-hidden="true"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                <label class="sr-only" for="sidebar-filter-input">
+                  Filter sidebar
+                </label>
+                <input
+                  type="text"
+                  id="sidebar-filter-input"
+                  class="sidebar-filter-input"
+                  placeholder="Filter sidebar…"
+                  autocomplete="off"
+                  aria-label="Filter sidebar entries"
+                />
+                <button
+                  type="button"
+                  id="sidebar-filter-clear"
+                  class="sidebar-filter-clear"
+                  aria-label="Clear filter"
+                  hidden
+                >
+                  <svg
+                    aria-hidden="true"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+            </div>
+            <button
+              type="button"
+              class="sidebar-collapse-btn"
+              id="sidebar-collapse-btn"
+              data-tour-target="sidebar-toggle"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <>
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="M9 3v18m7-6l-3-3l3-3" />
+                </>
+              </svg>
+            </button>
+          </div>
+          {hasSharedTopicDropdown && (
+            <div
+              class="sidebar-dropdown-shell topic-selector-dropdown"
+              data-sidebar-dropdown
+              data-tour-target="topics-dropdown"
+              data-tour-step="topics-dropdown"
+            >
+              <button
+                type="button"
+                class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
+                id="topic-sidebar-trigger"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                data-dropdown-trigger
+              >
+                {currentTopic?.icon && (
+                  <span class="starlight-sidebar-topics-icon topic-selector-icon">
+                    <Icon name={currentTopic.icon as any} />
+                  </span>
+                )}
+                <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
+                  <span class="sidebar-dropdown-trigger-label topic-selector-label">
+                    {currentTopic?.label}
+                  </span>
+                  {currentTopic?.badge && (
+                    <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
+                      <Badge
+                        class="starlight-sidebar-topics-badge"
+                        text={currentTopic.badge.text}
+                        variant={currentTopic.badge.variant}
+                      />
+                    </span>
+                  )}
+                </span>
+                <svg
+                  class="sidebar-dropdown-caret"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 7.5L10 12.5L15 7.5" />
+                </svg>
+              </button>
+              <div
+                class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
+                hidden
+                data-dropdown-panel
+              >
+                <ul
+                  class="starlight-sidebar-topics starlight-sidebar-topics-menu"
+                  role="menu"
+                  aria-labelledby="topic-sidebar-trigger"
+                >
+                  {effectiveTopics.map((topic) => (
+                    <li role="none">
+                      <a
+                        href={topic.link}
+                        class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                        role="menuitem"
+                      >
+                        {topic.icon && (
+                          <div class="starlight-sidebar-topics-icon">
+                            <Icon name={topic.icon as any} />
+                          </div>
+                        )}
+                        <div>
+                          {topic.label}
+                          {topic.badge && (
+                            <Badge
+                              class="starlight-sidebar-topics-badge"
+                              text={topic.badge.text}
+                              variant={topic.badge.variant}
+                            />
+                          )}
+                        </div>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          <div
+            class="sidebar-filter-empty sidebar-filter-empty-below-dropdown"
+            id="sidebar-filter-empty"
+            aria-labelledby="sidebar-filter-empty-copy"
+            hidden
+          >
+            <p class="sidebar-filter-empty-copy" id="sidebar-filter-empty-copy" />
+            <button
+              type="button"
+              class="sidebar-filter-empty-action"
+              id="sidebar-filter-empty-action"
+            >
+              Clear filter
+            </button>
+          </div>
+        </div>
+        <SidebarPersister>
+          <SidebarSublist sublist={sidebar} />
+        </SidebarPersister>
+        <div class="md:sl-hidden">
+          <MobileMenuFooter />
+        </div>
+      </>
+    ) : hasTopicSidebar ? (
+      <>
+        <div class="topic-sidebar-sticky not-content">
+          <div class="topic-sidebar-toolbar">
+            <div class="sidebar-filter">
+              <div class="sidebar-filter-wrap">
+                <svg
+                  class="sidebar-filter-icon"
+                  aria-hidden="true"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                <label class="sr-only" for="sidebar-filter-input">
+                  Filter sidebar
+                </label>
+                <input
+                  type="text"
+                  id="sidebar-filter-input"
+                  class="sidebar-filter-input"
+                  placeholder="Filter sidebar…"
+                  autocomplete="off"
+                  aria-label="Filter sidebar entries"
+                />
+                <button
+                  type="button"
+                  id="sidebar-filter-clear"
+                  class="sidebar-filter-clear"
+                  aria-label="Clear filter"
+                  hidden
+                >
+                  <svg
+                    aria-hidden="true"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+            </div>
+            <button
+              type="button"
+              class="sidebar-collapse-btn"
+              id="topic-sidebar-collapse-btn"
+              data-tour-target="sidebar-toggle"
+              data-tour-step="sidebar-toggle"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <>
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="M9 3v18m7-6l-3-3l3-3" />
+                </>
+              </svg>
+            </button>
+          </div>
+          <div
+            class="sidebar-dropdown-shell topic-selector-dropdown"
+            data-sidebar-dropdown
+            data-tour-target="topics-dropdown"
+            data-tour-step="topics-dropdown"
+          >
+            <button
+              type="button"
+              class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
+              id="topic-sidebar-trigger"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              data-dropdown-trigger
+            >
+              {currentTopic?.icon && (
+                <span class="starlight-sidebar-topics-icon topic-selector-icon">
+                  <Icon name={currentTopic.icon as any} />
+                </span>
+              )}
+              <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
+                <span class="sidebar-dropdown-trigger-label topic-selector-label">
+                  {currentTopic?.label}
+                </span>
+                {currentTopic?.badge && (
+                  <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
+                    <Badge
+                      class="starlight-sidebar-topics-badge"
+                      text={currentTopic.badge.text}
+                      variant={currentTopic.badge.variant}
+                    />
+                  </span>
+                )}
+              </span>
+              <svg
+                class="sidebar-dropdown-caret"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 7.5L10 12.5L15 7.5" />
+              </svg>
+            </button>
+            <div
+              class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
+              hidden
+              data-dropdown-panel
+            >
+              <ul
+                class="starlight-sidebar-topics starlight-sidebar-topics-menu"
+                role="menu"
+                aria-labelledby="topic-sidebar-trigger"
+              >
+                {effectiveTopics.map((topic) => (
+                  <li role="none">
+                    <a
+                      href={topic.link}
+                      class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                      role="menuitem"
+                    >
+                      {topic.icon && (
+                        <div class="starlight-sidebar-topics-icon">
+                          <Icon name={topic.icon as any} />
+                        </div>
+                      )}
+                      <div>
+                        {topic.label}
+                        {topic.badge && (
+                          <Badge
+                            class="starlight-sidebar-topics-badge"
+                            text={topic.badge.text}
+                            variant={topic.badge.variant}
+                          />
+                        )}
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div
+            class="sidebar-filter-empty sidebar-filter-empty-below-dropdown"
+            id="sidebar-filter-empty"
+            aria-labelledby="sidebar-filter-empty-copy"
+            hidden
+          >
+            <p class="sidebar-filter-empty-copy" id="sidebar-filter-empty-copy" />
+            <button
+              type="button"
+              class="sidebar-filter-empty-action"
+              id="sidebar-filter-empty-action"
+            >
+              Clear filter
+            </button>
+          </div>
+        </div>
+        <SidebarPersister>
+          <SidebarSublist sublist={sidebar} />
+        </SidebarPersister>
+        <div class="md:sl-hidden">
+          <MobileMenuFooter />
+        </div>
+      </>
+    ) : (
+      <SidebarTopicsSidebar {...Astro.props}>
+        <slot />
+      </SidebarTopicsSidebar>
+    )
+  }
   <div class="divider"></div>
   <div class="sidebar-bottom">
     <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal">
@@ -15,6 +522,62 @@ import { Icon, LinkButton } from '@astrojs/starlight/components';
     </LinkButton>
   </div>
 </div>
+{
+  isApiRefPage && (
+    <button
+      type="button"
+      class="sidebar-expand-btn"
+      id="sidebar-expand-btn"
+      data-tour-target="sidebar-toggle"
+      aria-label="Expand sidebar"
+      title="Expand sidebar"
+      hidden
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18m5-12l3 3l-3 3" />
+        </>
+      </svg>
+    </button>
+  )
+}
+{
+  hasTopicSidebar && (
+    <button
+      type="button"
+      class="sidebar-expand-btn"
+      id="topic-sidebar-expand-btn"
+      data-tour-target="sidebar-toggle"
+      aria-label="Expand sidebar"
+      title="Expand sidebar"
+      hidden
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <>
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18m5-12l3 3l-3 3" />
+        </>
+      </svg>
+    </button>
+  )
+}
 
 <style>
   .topics-sidebar {
@@ -40,4 +603,1260 @@ import { Icon, LinkButton } from '@astrojs/starlight/components';
   .topics-sidebar .sl-link-button {
     padding-bottom: 0rem;
   }
+
+  .topics-sidebar {
+    --sidebar-dropdown-trigger-bg: var(--sl-color-bg);
+    --sidebar-dropdown-trigger-border: var(--sl-color-gray-5);
+    --sidebar-dropdown-panel-bg: color-mix(
+      in srgb,
+      var(--sl-color-bg-sidebar) 97%,
+      var(--sl-color-black)
+    );
+    --sidebar-dropdown-hover-bg: color-mix(in srgb, var(--sl-color-text-accent) 14%, transparent);
+    --sidebar-dropdown-selected-bg: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 18%,
+      transparent
+    );
+    --sidebar-dropdown-selected-border: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 40%,
+      transparent
+    );
+    --sidebar-dropdown-muted: var(--sl-color-gray-2);
+    --sidebar-dropdown-code-bg: color-mix(in srgb, var(--sl-color-bg-nav) 70%, transparent);
+    --sidebar-dropdown-code-border: color-mix(
+      in srgb,
+      var(--sl-color-hairline-light) 90%,
+      transparent
+    );
+    --sidebar-dropdown-code-color: var(--sl-color-text);
+    --sidebar-empty-bg: color-mix(
+      in srgb,
+      var(--sl-color-bg-sidebar) 90%,
+      var(--sl-color-text-accent) 10%
+    );
+    --sidebar-empty-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-4) 72%,
+      var(--sl-color-text-accent) 28%
+    );
+    --sidebar-empty-action-bg-hover: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 12%,
+      transparent
+    );
+    --sidebar-empty-action-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-4) 76%,
+      var(--sl-color-text-accent) 24%
+    );
+    --sidebar-control-pad-x: 0.8rem;
+    --sidebar-control-icon-size: 1.25rem;
+    --sidebar-control-gap: 0.75rem;
+    --sidebar-control-height: 2.5rem;
+  }
+
+  /* Sidebar sticky wrappers */
+  .api-sidebar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sl-color-bg-sidebar);
+    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
+    padding-inline: var(--sl-sidebar-pad-x);
+  }
+
+  .sidebar-sticky-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--sl-color-hairline-light);
+  }
+
+  .sidebar-sticky-toolbar-topic-stack {
+    padding-bottom: 0.35rem;
+    border-bottom: 0;
+  }
+
+  .topic-sidebar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sl-color-bg-sidebar);
+    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
+    padding-inline: var(--sl-sidebar-pad-x);
+  }
+
+  .topic-sidebar-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    padding: 0.75rem 0 0.35rem;
+  }
+
+  .sidebar-dropdown-shell {
+    position: relative;
+    min-width: 0;
+  }
+
+  .topic-selector-dropdown {
+    padding: 0.35rem 0 0.75rem;
+  }
+
+  .sidebar-dropdown-trigger {
+    width: 100%;
+    min-height: var(--sidebar-control-height);
+    display: flex;
+    align-items: center;
+    gap: var(--sidebar-control-gap);
+    padding: 0.625rem var(--sidebar-control-pad-x);
+    border: 1px solid var(--sidebar-dropdown-trigger-border);
+    border-radius: 0.5rem;
+    background: var(--sidebar-dropdown-trigger-bg);
+    color: var(--sl-color-text);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .sidebar-dropdown-trigger:hover {
+    border-color: var(--sl-color-gray-4);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .sidebar-dropdown-trigger:focus-visible {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  .sidebar-dropdown-shell[data-open='true'] .sidebar-dropdown-trigger {
+    border-color: color-mix(in srgb, var(--sl-color-text-accent) 45%, var(--sl-color-gray-4));
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 18%, transparent),
+      var(--sl-shadow-md);
+  }
+
+  .sidebar-dropdown-trigger-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sidebar-dropdown-trigger-label {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .sidebar-dropdown-trigger-meta,
+  .sidebar-dropdown-option-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .sidebar-dropdown-option-meta {
+    min-height: 1.1rem;
+  }
+
+  .sidebar-dropdown-inline-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.38rem;
+    border: 1px solid var(--sidebar-dropdown-code-border);
+    border-radius: 0.375rem;
+    background: var(--sidebar-dropdown-code-bg);
+    color: var(--sidebar-dropdown-code-color);
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.76rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .sidebar-dropdown-caret {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--sl-color-gray-2);
+    transition:
+      transform 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .sidebar-dropdown-shell[data-open='true'] .sidebar-dropdown-caret {
+    transform: rotate(180deg);
+    color: var(--sl-color-text-accent);
+  }
+
+  .sidebar-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    z-index: 25;
+    padding: 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--sl-color-gray-4) 90%, transparent);
+    border-radius: 0.5rem;
+    background: var(--sidebar-dropdown-panel-bg);
+    box-shadow: var(--sl-shadow-lg);
+    backdrop-filter: blur(14px);
+  }
+
+  .sidebar-dropdown-panel[hidden] {
+    display: none;
+  }
+
+  .sidebar-dropdown-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.8rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--sl-color-text);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .sidebar-dropdown-option:hover,
+  .sidebar-dropdown-option:focus-visible {
+    background: var(--sidebar-dropdown-hover-bg);
+    color: var(--sl-color-white);
+    outline: none;
+  }
+
+  .sidebar-dropdown-option[aria-checked='true'] {
+    background: var(--sidebar-dropdown-selected-bg);
+    box-shadow: inset 0 0 0 1px var(--sidebar-dropdown-selected-border);
+  }
+
+  .sidebar-dropdown-option-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.26rem;
+    min-width: 0;
+  }
+
+  .sidebar-dropdown-option-label {
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .sidebar-dropdown-trigger-topic {
+    margin-top: 0;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+    background: var(--sidebar-dropdown-trigger-bg);
+    border-color: var(--sidebar-dropdown-trigger-border);
+    color: var(--sl-color-text);
+  }
+
+  .topic-selector-icon {
+    width: var(--sidebar-control-icon-size);
+    min-width: var(--sidebar-control-icon-size);
+    height: var(--sidebar-control-icon-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 0;
+  }
+
+  .sidebar-dropdown-trigger-topic .starlight-sidebar-topics-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    border-color: transparent;
+    margin-right: 0;
+  }
+
+  .topic-selector-meta :global(.starlight-sidebar-topics-badge) {
+    margin-inline-start: 0;
+  }
+
+  .sidebar-dropdown-panel-topics {
+    top: 100%;
+    padding: 0.25rem;
+    margin-top: 0rem;
+    overflow: hidden;
+    background-clip: padding-box;
+  }
+
+  .starlight-sidebar-topics.starlight-sidebar-topics-menu {
+    margin: 0;
+    padding: 0.2rem;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    max-height: min(60vh, 24rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .starlight-sidebar-topics-menu::after {
+    content: none;
+  }
+
+  .starlight-sidebar-topics-menu li + li {
+    margin-top: 0;
+  }
+
+  .starlight-sidebar-topics-menu a {
+    font-size: var(--sl-text-sm, 0.875rem);
+    padding: 0.55rem 0.6rem;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .starlight-sidebar-topics-menu a:hover,
+  .starlight-sidebar-topics-menu a:focus-visible {
+    transform: none;
+  }
+
+  .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current {
+    background: var(--sidebar-dropdown-selected-bg);
+    border: 1px solid var(--sidebar-dropdown-selected-border);
+    color: var(--sl-color-accent-high);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--sidebar-dropdown-selected-border) 75%, transparent);
+  }
+
+  .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current .starlight-sidebar-topics-icon {
+    color: inherit;
+  }
+
+  :global([data-theme='light']) .starlight-sidebar-topics-menu a.starlight-sidebar-topics-current {
+    color: var(--sl-color-accent);
+  }
+
+  /* ── Sidebar filter input ─────────────────────────────────────── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .sidebar-filter {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sidebar-filter-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .sidebar-filter-icon {
+    position: absolute;
+    left: var(--sidebar-control-pad-x);
+    width: var(--sidebar-control-icon-size);
+    height: var(--sidebar-control-icon-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sidebar-dropdown-muted);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .sidebar-filter-input {
+    width: 100%;
+    min-height: var(--sidebar-control-height);
+    padding: 0.45rem 2rem 0.45rem
+      calc(
+        var(--sidebar-control-pad-x) + var(--sidebar-control-icon-size) + var(--sidebar-control-gap)
+      );
+    background: var(--sidebar-dropdown-trigger-bg);
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm, 0.875rem);
+    border: 1px solid var(--sidebar-dropdown-trigger-border);
+    border-radius: 0.5rem;
+    line-height: 1.4;
+    box-sizing: border-box;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s,
+      background-color 0.15s,
+      color 0.15s;
+  }
+
+  .sidebar-filter-input::placeholder {
+    color: var(--sidebar-dropdown-muted);
+    opacity: 1;
+  }
+
+  .sidebar-filter-input:hover {
+    border-color: var(--sl-color-gray-4);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .sidebar-filter-input:focus {
+    outline: none;
+    border-color: var(--sl-color-text-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 20%, transparent);
+  }
+
+  .sidebar-filter-clear {
+    position: absolute;
+    right: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0.25rem;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+
+  .sidebar-filter-clear:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-4) 40%, transparent);
+  }
+
+  .sidebar-filter-clear[hidden] {
+    display: none;
+  }
+
+  .sidebar-filter-empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    margin-bottom: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--sidebar-empty-border);
+    border-radius: 0.5rem;
+    background: var(--sidebar-empty-bg);
+    color: var(--sl-color-text);
+  }
+
+  .sidebar-filter-empty-below-dropdown {
+    margin-top: 0;
+  }
+
+  .sidebar-filter-empty[hidden] {
+    display: none;
+  }
+
+  .sidebar-filter-empty-copy {
+    flex: 1 1 12rem;
+    margin: 0;
+    color: var(--sl-color-text);
+    font-size: var(--sl-text-sm, 0.875rem);
+    line-height: 1.45;
+  }
+
+  .sidebar-filter-empty-action {
+    flex-shrink: 0;
+    align-self: center;
+    padding: 0.42rem 0.7rem;
+    border: 1px solid var(--sidebar-empty-action-border);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--sl-color-text-accent);
+    font-size: var(--sl-text-xs, 0.75rem);
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .sidebar-filter-empty-action:hover,
+  .sidebar-filter-empty-action:focus-visible {
+    background: var(--sidebar-empty-action-bg-hover);
+    border-color: color-mix(
+      in srgb,
+      var(--sl-color-text-accent) 40%,
+      var(--sidebar-empty-action-border)
+    );
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-text-accent) 16%, transparent);
+  }
+
+  :global([data-theme='light']) .sidebar-filter-input {
+    border-color: var(--sl-color-gray-5);
+  }
+  :global([data-theme='light']) .topics-sidebar {
+    --sidebar-dropdown-trigger-bg: var(--sl-color-bg);
+    --sidebar-dropdown-trigger-border: var(--sl-color-gray-5);
+    --sidebar-dropdown-panel-bg: color-mix(in srgb, var(--sl-color-bg) 98%, white);
+    --sidebar-dropdown-hover-bg: color-mix(in srgb, var(--aspire-color-primary) 10%, white);
+    --sidebar-dropdown-selected-bg: color-mix(in srgb, var(--aspire-color-primary) 12%, white);
+    --sidebar-dropdown-selected-border: color-mix(
+      in srgb,
+      var(--aspire-color-primary) 36%,
+      var(--sl-color-gray-5)
+    );
+    --sidebar-dropdown-muted: var(--sl-color-gray-3);
+    --sidebar-dropdown-code-bg: color-mix(
+      in srgb,
+      var(--aspire-color-white) 92%,
+      var(--sl-color-gray-7)
+    );
+    --sidebar-dropdown-code-border: color-mix(in srgb, var(--sl-color-gray-6) 82%, transparent);
+    --sidebar-dropdown-code-color: var(--aspire-color-muted-strong, var(--sl-color-gray-2));
+    --sidebar-empty-bg: color-mix(in srgb, var(--sl-color-bg) 92%, var(--aspire-color-primary) 8%);
+    --sidebar-empty-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-5) 72%,
+      var(--aspire-color-primary) 28%
+    );
+    --sidebar-empty-action-bg-hover: color-mix(in srgb, var(--aspire-color-primary) 10%, white);
+    --sidebar-empty-action-border: color-mix(
+      in srgb,
+      var(--sl-color-gray-5) 74%,
+      var(--aspire-color-primary) 26%
+    );
+  }
+  :global([data-theme='light']) .sidebar-filter-clear:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-color-gray-5) 60%, transparent);
+  }
+  /* Sidebar filter highlight */
+  :global(mark.sb-hl) {
+    background: color-mix(in srgb, var(--sl-color-text-accent) 25%, transparent);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* ── Sidebar collapse / expand ────────────────────────────────── */
+
+  .sidebar-collapse-btn {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 0.375rem;
+    color: var(--sl-color-text-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
+  }
+  .sidebar-collapse-btn:hover {
+    color: var(--sl-color-text);
+    background-color: var(--sl-color-gray-6);
+  }
+  .sidebar-collapse-btn svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .sidebar-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin: 0.75rem auto 0;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 0.375rem;
+    color: var(--sl-color-text-accent);
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
+  }
+  .sidebar-expand-btn[hidden] {
+    display: none;
+  }
+  .sidebar-expand-btn:hover {
+    color: var(--sl-color-text);
+    background-color: var(--sl-color-gray-6);
+  }
+  .sidebar-expand-btn svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Hide collapse/expand on mobile-style sidebar (< 72rem for API pages) */
+  @media (max-width: 71.999rem) {
+    .sidebar-collapse-btn,
+    .sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 50rem) {
+    .topic-sidebar-toolbar {
+      gap: 0.5rem;
+    }
+
+    .sidebar-dropdown-trigger,
+    .sidebar-dropdown-option {
+      padding-inline: 0.7rem;
+    }
+  }
 </style>
+
+<script>
+  /**
+   * Sidebar filter controller shared by API reference and topic sidebars.
+   * Filters sidebar entries by matching their label text against user input.
+   */
+  class SidebarFilterController {
+    private input: HTMLInputElement | null = null;
+    private clearBtn: HTMLButtonElement | null = null;
+    private statusEl: HTMLElement | null = null;
+    private emptyEl: HTMLElement | null = null;
+    private emptyCopyEl: HTMLElement | null = null;
+    private emptyActionBtn: HTMLButtonElement | null = null;
+    private sidebarContainer: HTMLElement | null = null;
+    private debounceTimer: number | null = null;
+    private static readonly DEBOUNCE_MS = 200;
+
+    constructor() {
+      this.init();
+    }
+
+    private init(): void {
+      const container = document.querySelector(
+        '.topics-sidebar[data-api-ref], .topics-sidebar[data-topic-nav]'
+      ) as HTMLElement | null;
+      if (!container) return;
+      if (container.dataset.filterBound === 'true') return;
+      container.dataset.filterBound = 'true';
+
+      this.input = container.querySelector('#sidebar-filter-input');
+      this.clearBtn = container.querySelector('#sidebar-filter-clear');
+      this.statusEl = container.querySelector('#sidebar-filter-status');
+      this.emptyEl = container.querySelector('#sidebar-filter-empty');
+      this.emptyCopyEl = container.querySelector('#sidebar-filter-empty-copy');
+      this.emptyActionBtn = container.querySelector('#sidebar-filter-empty-action');
+      this.sidebarContainer = container.querySelector('.sl-sidebar-persist');
+
+      if (!this.input || !this.sidebarContainer) {
+        // Fallback: look for the ul.top-level directly
+        this.sidebarContainer = container.querySelector('ul.top-level')?.parentElement ?? null;
+      }
+      if (!this.input) return;
+
+      this.input.addEventListener('input', () => this.handleInput());
+      this.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          this.clear();
+          this.input?.blur();
+        }
+      });
+
+      this.clearBtn?.addEventListener('click', () => {
+        this.clear();
+        this.input?.focus();
+      });
+
+      this.emptyActionBtn?.addEventListener('click', () => {
+        this.clear();
+        this.input?.focus();
+      });
+    }
+
+    private handleInput(): void {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      this.debounceTimer = window.setTimeout(
+        () => this.applyFilter(),
+        SidebarFilterController.DEBOUNCE_MS
+      );
+    }
+
+    private clear(): void {
+      if (this.input) this.input.value = '';
+      this.applyFilter();
+    }
+
+    private applyFilter(): void {
+      const query = this.input?.value.trim().toLowerCase() ?? '';
+      const hasQuery = query.length > 0;
+
+      // Toggle clear button visibility
+      if (this.clearBtn) {
+        this.clearBtn.hidden = !hasQuery;
+      }
+
+      const topList = this.sidebarContainer?.querySelector('ul.top-level') as HTMLElement | null;
+      if (!topList) return;
+
+      if (!hasQuery) {
+        this.resetAll(topList);
+        this.updateStatus('');
+        this.updateEmptyState(false, '');
+        return;
+      }
+
+      let visibleCount = 0;
+      const topItems = topList.querySelectorAll(':scope > li');
+
+      for (const li of topItems) {
+        visibleCount += this.filterItem(li as HTMLElement, query);
+      }
+
+      if (visibleCount === 0) {
+        this.updateStatus('No matching sidebar article titles');
+        this.updateEmptyState(true, this.input?.value.trim() ?? '');
+      } else {
+        this.updateStatus(`${visibleCount} matching ${visibleCount === 1 ? 'entry' : 'entries'}`);
+        this.updateEmptyState(false, '');
+      }
+    }
+
+    /**
+     * CamelCase match: "dab" matches DistributedApplicationBuilder.
+     */
+    private camelMatch(text: string, query: string): boolean {
+      const uppers = text.replace(/[^A-Z]/g, '').toLowerCase();
+      return uppers.length >= 2 && (uppers.startsWith(query) || uppers.includes(query));
+    }
+
+    /**
+     * Recursively filter a sidebar <li>.
+     * Returns the number of visible leaf items within this subtree.
+     */
+    private filterItem(li: HTMLElement, query: string): number {
+      const details = li.querySelector(':scope > details') as HTMLDetailsElement | null;
+
+      if (details) {
+        // Group item (has children)
+        const summary = details.querySelector(':scope > summary');
+        const labelEl = summary?.querySelector(
+          '.group-label .large, .group-label'
+        ) as HTMLElement | null;
+        const groupLabel = (labelEl?.textContent ?? '').trim();
+        const groupLower = groupLabel.toLowerCase();
+        const groupMatches = groupLower.includes(query) || this.camelMatch(groupLabel, query);
+
+        // Filter children
+        const childList = details.querySelector(':scope > ul');
+        const childItems = childList?.querySelectorAll(':scope > li') ?? [];
+        let childVisible = 0;
+
+        for (const childLi of childItems) {
+          childVisible += this.filterItem(childLi as HTMLElement, query);
+        }
+
+        if (groupMatches) {
+          // Group label matches — show the group and ALL children
+          li.style.display = '';
+          if (labelEl) this.highlightText(labelEl, query);
+          this.showAllChildren(details as HTMLElement);
+          (details as HTMLDetailsElement).open = true;
+          return this.countLeafItems(details as HTMLElement);
+        } else if (childVisible > 0) {
+          // Some children match — show the group, keep it open
+          li.style.display = '';
+          if (labelEl) this.clearHighlight(labelEl);
+          (details as HTMLDetailsElement).open = true;
+          return childVisible;
+        } else {
+          // Nothing matches — hide the group
+          li.style.display = 'none';
+          if (labelEl) this.clearHighlight(labelEl);
+          return 0;
+        }
+      } else {
+        // Leaf item (link)
+        const link = li.querySelector(':scope > a') as HTMLElement | null;
+        const label = (link?.textContent ?? '').trim();
+        const labelLower = label.toLowerCase();
+        const matches = labelLower.includes(query) || this.camelMatch(label, query);
+        li.style.display = matches ? '' : 'none';
+        if (link) {
+          if (matches && query) {
+            this.highlightText(link, query);
+          } else {
+            this.clearHighlight(link);
+          }
+        }
+        return matches ? 1 : 0;
+      }
+    }
+
+    /** Highlight matching text within an element */
+    private highlightText(el: HTMLElement, query: string): void {
+      this.clearHighlight(el);
+      if (!query) {
+        return;
+      }
+
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          const text = node.textContent ?? '';
+          const parent = node.parentElement;
+          if (!parent || !text.trim()) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          if (parent.closest('mark.sb-hl, .sl-badge, .starlight-sidebar-topics-badge')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+
+      let textNode: Text | null = null;
+      let matchIndex = -1;
+
+      while (walker.nextNode()) {
+        const candidate = walker.currentNode as Text;
+        const candidateText = candidate.textContent ?? '';
+        const idx = candidateText.toLowerCase().indexOf(query);
+        if (idx >= 0) {
+          textNode = candidate;
+          matchIndex = idx;
+          break;
+        }
+      }
+
+      if (!textNode || matchIndex < 0) {
+        return;
+      }
+
+      const range = document.createRange();
+      range.setStart(textNode, matchIndex);
+      range.setEnd(textNode, matchIndex + query.length);
+
+      const mark = document.createElement('mark');
+      mark.className = 'sb-hl';
+      range.surroundContents(mark);
+    }
+
+    /** Remove highlights from an element */
+    private clearHighlight(el: HTMLElement): void {
+      const marks = el.querySelectorAll('mark.sb-hl');
+      if (marks.length === 0) return;
+
+      for (const mark of marks) {
+        mark.replaceWith(document.createTextNode(mark.textContent ?? ''));
+      }
+
+      el.normalize();
+    }
+
+    /** Show all descendants (reset display) */
+    private showAllChildren(parent: HTMLElement): void {
+      const childItems = parent.querySelectorAll('li');
+      for (const li of childItems) {
+        (li as HTMLElement).style.display = '';
+      }
+    }
+
+    /** Count leaf items (links, not groups) in a subtree */
+    private countLeafItems(parent: HTMLElement): number {
+      return parent.querySelectorAll('a[href]').length;
+    }
+
+    /** Reset all items to visible and restore collapsed state */
+    private resetAll(topList: HTMLElement): void {
+      const allItems = topList.querySelectorAll('li');
+      for (const li of allItems) {
+        (li as HTMLElement).style.display = '';
+      }
+      // Clear highlights
+      topList.querySelectorAll('mark.sb-hl').forEach((mark) => {
+        mark.replaceWith(document.createTextNode(mark.textContent ?? ''));
+      });
+      topList.normalize();
+      // Re-collapse groups that aren't on the current page path
+      const allDetails = topList.querySelectorAll('details');
+      for (const details of allDetails) {
+        const hasCurrent = details.querySelector('[aria-current="page"]');
+        if (!hasCurrent) {
+          (details as HTMLDetailsElement).open = false;
+        }
+      }
+    }
+
+    private updateStatus(text: string): void {
+      if (this.statusEl) this.statusEl.textContent = text;
+    }
+
+    private updateEmptyState(show: boolean, query: string): void {
+      if (!this.emptyEl || !this.emptyCopyEl) {
+        return;
+      }
+
+      this.emptyEl.hidden = !show;
+      if (!show) {
+        this.emptyCopyEl.textContent = '';
+        return;
+      }
+
+      this.emptyCopyEl.textContent = query
+        ? `No sidebar article titles match "${query}".`
+        : 'No matching sidebar article titles.';
+    }
+  }
+
+  const TOPIC_SIDEBAR_COLLAPSED_KEY = 'topic-sidebar-collapsed';
+  function setSidebarDropdownOpen(dropdown: HTMLElement, isOpen: boolean): void {
+    const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
+    const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
+    if (!trigger || !panel) {
+      return;
+    }
+
+    dropdown.dataset.open = isOpen ? 'true' : 'false';
+    trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    panel.hidden = !isOpen;
+  }
+
+  function closeAllSidebarDropdowns(except?: HTMLElement): void {
+    const dropdowns = document.querySelectorAll<HTMLElement>('[data-sidebar-dropdown]');
+    for (const dropdown of dropdowns) {
+      if (except && dropdown === except) {
+        continue;
+      }
+      setSidebarDropdownOpen(dropdown, false);
+    }
+  }
+
+  function initSidebarDropdowns(): void {
+    const dropdowns = document.querySelectorAll<HTMLElement>('[data-sidebar-dropdown]');
+
+    for (const dropdown of dropdowns) {
+      const trigger = dropdown.querySelector<HTMLElement>('[data-dropdown-trigger]');
+      const panel = dropdown.querySelector<HTMLElement>('[data-dropdown-panel]');
+      if (!trigger || !panel) {
+        continue;
+      }
+
+      if (dropdown.dataset.bound === 'true') {
+        continue;
+      }
+
+      dropdown.dataset.bound = 'true';
+      setSidebarDropdownOpen(dropdown, false);
+
+      trigger.addEventListener('click', () => {
+        const isOpen = dropdown.dataset.open === 'true';
+        closeAllSidebarDropdowns(isOpen ? undefined : dropdown);
+        setSidebarDropdownOpen(dropdown, !isOpen);
+      });
+
+      panel.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('a[href]')) {
+          setSidebarDropdownOpen(dropdown, false);
+        }
+      });
+
+      dropdown.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          setSidebarDropdownOpen(dropdown, false);
+          trigger.focus();
+        }
+      });
+    }
+
+    if (!(window as any).__sidebarDropdownHandlers) {
+      (window as any).__sidebarDropdownHandlers = true;
+
+      document.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null;
+        if (!target?.closest('[data-sidebar-dropdown]')) {
+          closeAllSidebarDropdowns();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeAllSidebarDropdowns();
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle Ctrl+K / Cmd+K on API reference pages.
+   * Routes to #api-search-input (the main search on the index page) if present,
+   * otherwise falls back to the sidebar filter input.
+   *
+   * Because Search.astro does not render <site-search> on API pages, there is
+   * no competing Pagefind handler — we just need to prevent the browser default.
+   */
+  function handleApiSearchShortcut(e: KeyboardEvent) {
+    // Only act when on an API ref page (signalled by server-rendered attribute)
+    if (!document.querySelector('.topics-sidebar[data-api-ref]')) return;
+    if (!((e.ctrlKey || e.metaKey) && e.key === 'k')) return;
+
+    e.preventDefault();
+
+    // Prefer the page-level API search input; fall back to sidebar filter
+    const target =
+      (document.getElementById('api-search-input') as HTMLInputElement | null) ??
+      (document.getElementById('sidebar-filter-input') as HTMLInputElement | null);
+
+    if (target) {
+      target.focus();
+      target.select();
+    }
+  }
+
+  // Initialize on load and after Astro client-side navigation
+  function initSidebarFilter() {
+    new SidebarFilterController();
+  }
+
+  /* ── Sidebar collapse / expand toggle ─────────────────────────── */
+
+  const SIDEBAR_COLLAPSED_KEY = 'api-sidebar-collapsed';
+  const SIDEBAR_READY_ATTR = 'data-api-sidebar-ready';
+  const TOPIC_SIDEBAR_READY_ATTR = 'data-topic-sidebar-ready';
+
+  function setSidebarReady(ready: boolean): void {
+    if (ready) {
+      document.documentElement.setAttribute(SIDEBAR_READY_ATTR, '');
+    } else {
+      document.documentElement.removeAttribute(SIDEBAR_READY_ATTR);
+    }
+  }
+
+  function setTopicSidebarReady(ready: boolean): void {
+    if (ready) {
+      document.documentElement.setAttribute(TOPIC_SIDEBAR_READY_ATTR, '');
+    } else {
+      document.documentElement.removeAttribute(TOPIC_SIDEBAR_READY_ATTR);
+    }
+  }
+
+  function initSidebarCollapse() {
+    setSidebarReady(false);
+
+    const container = document.querySelector('.topics-sidebar[data-api-ref]');
+    if (!container) {
+      // Not an API page — remove stale collapsed state from a previous API page visit
+      document.documentElement.removeAttribute('data-sidebar-collapsed');
+      return;
+    }
+
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    const expandBtn = document.getElementById('sidebar-expand-btn');
+    if (!collapseBtn || !expandBtn) return;
+
+    // Sync expand button visibility with the collapsed state
+    // (the data-sidebar-collapsed attribute is set early in Head.astro)
+    const isCollapsed = document.documentElement.hasAttribute('data-sidebar-collapsed');
+    expandBtn.hidden = !isCollapsed;
+
+    collapseBtn.addEventListener('click', () => {
+      setSidebarCollapsed(true, expandBtn, collapseBtn);
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
+    });
+
+    expandBtn.addEventListener('click', () => {
+      setSidebarCollapsed(false, expandBtn, collapseBtn);
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '0');
+    });
+
+    setSidebarReady(true);
+  }
+
+  function initTopicSidebarCollapse() {
+    setTopicSidebarReady(false);
+
+    const container = document.querySelector('.topics-sidebar[data-topic-nav]');
+    if (!container) {
+      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
+      return;
+    }
+
+    const collapseBtn = document.getElementById('topic-sidebar-collapse-btn');
+    const expandBtn = document.getElementById('topic-sidebar-expand-btn');
+    if (!collapseBtn || !expandBtn) {
+      return;
+    }
+
+    const isCollapsed = document.documentElement.hasAttribute('data-topic-sidebar-collapsed');
+    expandBtn.hidden = !isCollapsed;
+
+    if (collapseBtn.dataset.bound !== 'true') {
+      collapseBtn.dataset.bound = 'true';
+      collapseBtn.addEventListener('click', () => {
+        setTopicSidebarCollapsed(true, expandBtn);
+        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
+      });
+    }
+
+    if (expandBtn.dataset.bound !== 'true') {
+      expandBtn.dataset.bound = 'true';
+      expandBtn.addEventListener('click', () => {
+        setTopicSidebarCollapsed(false, expandBtn);
+        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
+      });
+    }
+
+    setTopicSidebarReady(true);
+  }
+
+  function setTopicSidebarCollapsed(collapsed: boolean, expandBtn: HTMLElement): void {
+    if (collapsed) {
+      document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
+      expandBtn.hidden = false;
+    } else {
+      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
+      expandBtn.hidden = true;
+    }
+  }
+
+  function initTopicSidebarUi() {
+    initSidebarDropdowns();
+    initTopicSidebarCollapse();
+  }
+
+  function setSidebarCollapsed(
+    collapsed: boolean,
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement
+  ) {
+    if (collapsed) {
+      document.documentElement.setAttribute('data-sidebar-collapsed', '');
+      expandBtn.hidden = false;
+    } else {
+      document.documentElement.removeAttribute('data-sidebar-collapsed');
+      expandBtn.hidden = true;
+    }
+  }
+
+  /** Auto-focus the sidebar filter input on API reference pages.
+   *  Skips if the page-level search input exists (it gets focus instead). */
+  function focusSidebarFilter() {
+    if (document.getElementById('api-search-input')) return;
+    const filterInput = document.getElementById('sidebar-filter-input') as HTMLInputElement | null;
+    filterInput?.focus();
+  }
+
+  // Guard against registering duplicate listeners on client-side navigation
+  if (!(window as any).__sidebarInit) {
+    (window as any).__sidebarInit = true;
+    document.addEventListener('keydown', handleApiSearchShortcut);
+    document.addEventListener('DOMContentLoaded', initSidebarFilter);
+    document.addEventListener('astro:after-swap', initSidebarFilter);
+    document.addEventListener('DOMContentLoaded', initSidebarCollapse);
+    document.addEventListener('astro:after-swap', initSidebarCollapse);
+    document.addEventListener('DOMContentLoaded', initTopicSidebarUi);
+    document.addEventListener('astro:after-swap', initTopicSidebarUi);
+    document.addEventListener('astro:page-load', focusSidebarFilter);
+  }
+  // Also init immediately in case DOMContentLoaded already fired
+  if (document.readyState !== 'loading') initSidebarFilter();
+  if (document.readyState !== 'loading') initSidebarCollapse();
+  if (document.readyState !== 'loading') initTopicSidebarUi();
+  // Defer focus slightly to run after Astro/Starlight's own DOM setup
+  requestAnimationFrame(() => focusSidebarFilter());
+
+  /* ── Sticky sidebar offsets & auto-scroll ─────────────────────── */
+
+  /**
+   * Set up sticky positioning for the sidebar header and filter.
+   * Also scrolls the active sidebar item into view.
+   */
+  function setupStickySidebar() {
+    const sidebar = document.querySelector('.topics-sidebar[data-api-ref]') as HTMLElement | null;
+    if (!sidebar) return;
+
+    // Auto-scroll the active item into view
+    scrollToActive(sidebar);
+  }
+
+  /**
+   * Scroll the sidebar so the currently active item is visible,
+   * positioned roughly in the upper third of the visible area.
+   */
+  function scrollToActive(sidebar: Element) {
+    const scrollContainer = sidebar.closest('.sidebar-pane');
+    if (!scrollContainer) return;
+
+    const activeLink = sidebar.querySelector('[aria-current="page"]') as HTMLElement | null;
+    if (!activeLink) return;
+
+    // Wait a tick for sticky layout to settle
+    requestAnimationFrame(() => {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const activeRect = activeLink.getBoundingClientRect();
+
+      // Check if active item is already fully visible
+      if (activeRect.top >= containerRect.top && activeRect.bottom <= containerRect.bottom) {
+        return; // Already visible, no scroll needed
+      }
+
+      // Scroll so active item is in the upper third of the visible area
+      const targetOffset = activeRect.top - containerRect.top - containerRect.height / 3;
+      scrollContainer.scrollTop += targetOffset;
+    });
+  }
+
+  // Run sticky setup on load and after client-side navigation
+  if (!(window as any).__apiSidebarStickInit) {
+    (window as any).__apiSidebarStickInit = true;
+    document.addEventListener('DOMContentLoaded', setupStickySidebar);
+    document.addEventListener('astro:after-swap', setupStickySidebar);
+    document.addEventListener('astro:page-load', setupStickySidebar);
+  }
+  if (document.readyState !== 'loading') {
+    requestAnimationFrame(setupStickySidebar);
+  }
+</script>

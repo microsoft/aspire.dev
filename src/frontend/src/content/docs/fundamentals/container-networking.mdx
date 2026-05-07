@@ -22,7 +22,7 @@ These inconsistencies make container-to-host communication fragile and error-pro
 
 ## How the container tunnel works
 
-Once enabled, the container tunnel is managed by DCP and operates transparently—you don't need to configure it directly. When a container resource references an endpoint on a host-based service (via `WithReference`), Aspire detects that the container needs to reach the host and sets up a tunnel automatically.
+The container tunnel is managed by DCP and operates transparently—you don't need to configure it directly. When a container resource references an endpoint on a host-based service (via `WithReference`), Aspire detects that the container needs to reach the host and sets up a tunnel automatically.
 
 At a high level, the tunnel works as follows:
 
@@ -30,9 +30,9 @@ At a high level, the tunnel works as follows:
 
 1. **Dependency detection**: When the AppHost builds the app model, it identifies which containers reference endpoints on host-based resources.
 
-2. **Tunnel setup**: DCP creates a network path from the container bridge network to the host, so containers can reach host-bound ports.
+2. **Tunnel container**: DCP deploys a lightweight tunnel container on the Aspire container bridge network. This container serves as the entry point for all container-to-host traffic.
 
-3. **Endpoint injection**: The correct host endpoints are injected into the container as environment variables, using addresses that are reachable from within the container network.
+3. **Endpoint injection**: DCP injects the tunnel container's address into each dependent container as environment variables, so that containers seamlessly route traffic to the host through the tunnel.
 
 4. **Automatic cleanup**: When the AppHost process stops, DCP tears down the tunnel along with the rest of the orchestrated resources.
 
@@ -83,13 +83,9 @@ builder.Build().Run();
 In most cases you don't need to use network identifiers directly. When you call `WithReference`, Aspire automatically resolves endpoints using the correct network context for the consuming resource.
 </Aside>
 
-## Enable the container tunnel
+## Disable the container tunnel
 
-<Aside type="caution">
-The container tunnel is an experimental feature. Its behavior may change in future releases.
-</Aside>
-
-To enable the container tunnel, set the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `true` before running your AppHost. You can set this in your AppHost _launchSettings.json_:
+Starting with Aspire 13.3, the container tunnel is **enabled by default**. If the tunnel causes issues in your environment, you can disable it by setting the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environment variable to `false`. You can set this in your AppHost _launchSettings.json_:
 
 ```json title="JSON — Properties/launchSettings.json"
 {
@@ -97,7 +93,7 @@ To enable the container tunnel, set the `ASPIRE_ENABLE_CONTAINER_TUNNEL` environ
     "https": {
       "commandName": "Project",
       "environmentVariables": {
-        "ASPIRE_ENABLE_CONTAINER_TUNNEL": "true"
+        "ASPIRE_ENABLE_CONTAINER_TUNNEL": "false"
       }
     }
   }
@@ -110,7 +106,7 @@ Alternatively, set the variable in your shell before running:
 <div slot="unix">
 
 ```bash
-export ASPIRE_ENABLE_CONTAINER_TUNNEL=true
+export ASPIRE_ENABLE_CONTAINER_TUNNEL=false
 aspire run
 ```
 
@@ -118,14 +114,14 @@ aspire run
 <div slot="windows">
 
 ```powershell
-$env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "true"
+$env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "false"
 aspire run
 ```
 
 </div>
 </OsAwareTabs>
 
-When the tunnel is enabled, containers can reach host-based services without relying on platform-specific workarounds like `host.docker.internal`.
+When the tunnel is disabled, containers fall back to platform-specific mechanisms (such as `host.docker.internal`) to reach host-based services.
 
 ## When to use the container tunnel
 
