@@ -25,6 +25,8 @@ internal sealed class CanonicalType
     public string? DelegateReturnType { get; set; }
     public List<CanonicalParameter>? DelegateParameters { get; set; }
     public List<CanonicalAttribute>? Attributes { get; set; }
+    /// <summary>Full names of public nested types declared on this type. Roslyn merges partial declarations, so this includes nested types contributed by every partial source file.</summary>
+    public List<string>? NestedTypes { get; set; }
     /// <summary>Repo-relative source file path (e.g. "src/Aspire.Hosting/Foo.cs").</summary>
     public string? SourceFile { get; set; }
     /// <summary>Line range in the source file (e.g. "15-200").</summary>

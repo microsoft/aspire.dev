@@ -1,0 +1,74 @@
+---
+title: Compiler Error ASPIREBROWSERLOGS001
+description: Learn more about compiler Error ASPIREBROWSERLOGS001. Browser logs types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.3"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Browser logs types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic error is reported when using experimental browser logs APIs in Aspire from the `Aspire.Hosting.Browsers` package, including:
+
+- `WithBrowserLogs` extension method
+- `BrowserUserDataMode` enum
+- Other types and members that configure the tracked browser session
+
+These APIs let you attach a tracked Chromium browser session to any HTTP/HTTPS resource in your AppHost so that browser console output flows into the resource's console log stream in the Aspire dashboard. For more information, see [Browser logs](/integrations/devtools/browser-logs/).
+
+## Example
+
+The following code generates `ASPIREBROWSERLOGS001`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddViteApp("web", "../web")
+    .WithBrowserLogs();
+
+builder.Build().Run();
+```
+
+## To correct this error
+
+Suppress the error with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREBROWSERLOGS001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREBROWSERLOGS001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREBROWSERLOGS001` directive:
+
+  ```csharp title="C# — Suppressing the error"
+  #pragma warning disable ASPIREBROWSERLOGS001
+
+  var builder = DistributedApplication.CreateBuilder(args);
+
+  builder.AddViteApp("web", "../web")
+      .WithBrowserLogs();
+
+  builder.Build().Run();
+  ```
+
+## See also
+
+- [Browser logs](/integrations/devtools/browser-logs/)

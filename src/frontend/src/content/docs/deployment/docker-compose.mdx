@@ -1,17 +1,57 @@
 ---
 title: Deploy to Docker Compose
-description: Learn how to publish and deploy your Aspire application using Docker Compose.
+description: Learn how to publish and deploy your Aspire application using Docker Compose with Docker or Podman.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 
-Docker Compose is a deployment target for Aspire applications. When you add a Docker Compose environment to your AppHost, Aspire generates Docker Compose files, environment variable configurations, and container images from your app model. You can then deploy these artifacts to any machine running Docker.
+Docker Compose is a deployment target for Aspire applications. When you add a Docker Compose environment to your AppHost, Aspire generates Docker Compose files, environment variable configurations, and container images from your app model. You can then deploy these artifacts to any machine running Docker or Podman.
 
 <Aside type="note">
   This page covers the **deployment workflow** for Docker Compose. For hosting
   integration setup, resource configuration, and local development details, see
   the [Docker integration](/integrations/compute/docker/) page.
+</Aside>
+
+## Container runtime support
+
+Aspire supports both **Docker** and **Podman** as container runtimes for Docker Compose deployments. Podman is popular in security-conscious, daemonless, and rootless environments. Aspire automatically detects and uses the best available runtime — no additional configuration is required.
+
+### Auto-detection
+
+At deploy time, Aspire probes Docker and Podman in parallel and selects the active runtime using the following priority:
+
+1. A runtime that is **running** (daemon active) is preferred over one that is merely installed.
+2. If both runtimes are running, **Docker is preferred** as the tiebreaker.
+3. The detected runtime is cached for the lifetime of the operation.
+
+<Aside type="tip">
+  To see which runtime Aspire detected and why, run `aspire doctor`. It reports
+  all available runtimes with their status, version, and which one is active.
+</Aside>
+
+### Override the active runtime
+
+To bypass auto-detection and force a specific runtime, set the `ASPIRE_CONTAINER_RUNTIME` environment variable to `docker` or `podman` before invoking the Aspire CLI:
+
+```bash title="Terminal"
+ASPIRE_CONTAINER_RUNTIME=podman aspire deploy
+```
+
+When this variable is set, the chosen runtime is shown by `aspire doctor` with the reason `(explicit configuration)` and is honored even when both runtimes are running.
+
+### Podman-specific behavior
+
+When Podman is the active runtime, Aspire uses `podman-compose` (or the Docker Compose v2 provider for Podman) for `compose up` / `compose down` operations. Service discovery uses `podman ps --filter label=...`, which is compatible with both `podman-compose` (Python) and Docker Compose v2 providers.
+
+<Aside type="caution">
+  Aspire requires **Podman 5.0.0 or later**. Older Podman versions (such as the
+  4.9.x series shipped with Ubuntu 24.04) are reported by `aspire doctor` with a
+  warning that the client version is below the minimum, and they are not used
+  even when Podman is the only installed runtime. On distributions that don't
+  package Podman 5+ natively, install it from a vendor channel (for example,
+  Fedora 42+ ships Podman 5 in the default repositories) before deploying.
 </Aside>
 
 ## Prerequisites
@@ -109,13 +149,19 @@ Aspire provides a progressive deployment workflow for Docker Compose, allowing y
 
 ### Clean up deployment
 
-To stop and remove a running Docker Compose deployment, use the `aspire do docker-compose-down-{resource-name}` command:
+To stop and remove a running Docker Compose deployment, use the `aspire destroy` command:
 
 ```bash title="Terminal"
-aspire do docker-compose-down-env
+aspire destroy
 ```
 
-This command stops and removes all containers, networks, and volumes created by the Docker Compose deployment.
+The command shows the resources that will be removed and prompts for confirmation. Once confirmed, it stops and removes all containers, networks, and volumes created by the Docker Compose deployment.
+
+<Aside type="caution">
+  `aspire destroy` permanently removes the deployed containers, networks, and
+  volumes. This action cannot be undone. Pass `--yes` only in automated or CI
+  scenarios where you've already validated what will be removed.
+</Aside>
 
 ## Multi-environment deployments
 
@@ -166,7 +212,87 @@ When you publish or deploy, Aspire generates the following artifacts in the `asp
 | `docker-compose.yaml`       | The generated Compose file defining all services, networks, and volumes.                            |
 | `.env`                      | Environment variable file with expected parameters (unfilled after `aspire publish`).               |
 | `.env.{environment}`        | Environment-specific variable files with filled-in values (generated during `prepare` or `deploy`). |
-| `Dockerfile` (per resource) | Dockerfiles for resources that require generated build contexts.                                    |
+| `Dockerfile` (per resource) | Dockerfiles for resources that use existing or programmatically generated Dockerfile build contexts. |
+
+## Generate Dockerfiles from your AppHost
+
+Docker Compose deployments can build images from Dockerfiles that are generated by your AppHost. Use `AddDockerfileBuilder` to create a new container resource from a generated Dockerfile, or `WithDockerfileBuilder` to replace the image for an existing container resource with a generated Dockerfile build.
+
+<Aside type="caution">
+  The Dockerfile builder APIs are experimental and may change in future
+  releases. In C# AppHosts, suppress diagnostic
+  [`ASPIREDOCKERFILEBUILDER001`](/diagnostics/aspiredockerfilebuilder001/) when you choose to use them.
+</Aside>
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env");
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("frontend", "../frontend", context =>
+{
+    var build = context.Builder.From("node:22-alpine", "build");
+    build.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci")
+        .Copy(".", ".")
+        .Run("npm run build");
+
+    var runtime = context.Builder.From("nginx:alpine", "runtime");
+    runtime.CopyFrom("build", "/app/dist", "/usr/share/nginx/html")
+        .Expose(80);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment('env');
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+
+  await dockerfile
+    .from('node:22-alpine', { stageName: 'build' })
+    .workDir('/app')
+    .copy('package*.json', './')
+    .run('npm ci')
+    .copy('.', '.')
+    .run('npm run build');
+
+  await dockerfile
+    .from('nginx:alpine', { stageName: 'runtime' })
+    .copyFrom('build', '/app/dist', '/usr/share/nginx/html')
+    .expose(80);
+};
+
+await builder.addDockerfileBuilder(
+  'frontend',
+  '../frontend',
+  configureDockerfile,
+  { stage: 'runtime' }
+);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The generated Dockerfile is included with the Docker Compose output and is used when `aspire do prepare-{resource-name}` or `aspire deploy` builds container images.
 
 ## Environment variables
 
@@ -195,13 +321,71 @@ builder.AddDockerComposeEnvironment("env")
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-:::note
-The `ConfigureEnvFile` API is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addContainer('api', 'nginx:alpine');
+await api.withBindMount('/host/path/data', '/container/data');
+
+const compose = await builder.addDockerComposeEnvironment('env');
+await compose.configureEnvFile(async (envVars) => {
+  const bindMount = await envVars.get('API_BINDMOUNT_0');
+  await bindMount.description.set('Customized bind mount source');
+  await bindMount.defaultValue.set('./data');
+});
+
+await builder.build().run();
+```
 </TabItem>
 </Tabs>
 
 This is useful when you need to add custom environment variables to the generated `.env` file or modify how environment variables are captured.
+
+## Customize the Docker Compose file
+
+Use `ConfigureComposeFile` to customize the generated `docker-compose.yml` model before Aspire writes it to disk:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("env")
+    .ConfigureComposeFile(composeFile =>
+    {
+        composeFile.Name = "my-app";
+
+        var api = composeFile.Services["api"];
+        api.PullPolicy = "always";
+    });
+
+builder.AddProject<Projects.Api>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const compose = await builder.addDockerComposeEnvironment('env');
+await compose.configureComposeFile(async (composeFile) => {
+  await composeFile.name.set('my-app');
+
+  const api = await composeFile.services.get('api');
+  await api.pullPolicy.set('always');
+});
+
+await builder.addProject('api', '../Api/Api.csproj', 'http');
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 ## Customize Docker Compose services
 
@@ -214,27 +398,37 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddDockerComposeEnvironment("env");
 
+var containerName = builder.AddParameter("container-name");
+
 builder.AddContainer("cache", "redis", "latest")
     .PublishAsDockerComposeService((resource, service) =>
     {
         // Customize the generated Docker Compose service
+        service.ContainerName =
+            containerName.AsEnvironmentPlaceholder(resource);
         service.Labels.Add("com.example.team", "backend");
+        service.Restart = "unless-stopped";
     });
 
 builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
+```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 await builder.addDockerComposeEnvironment('env');
 
+const containerName = await builder.addParameter('container-name');
 const cache = await builder.addContainer('cache', 'redis:latest');
-await cache.publishAsDockerComposeService(async (resource, service) => {
+await cache.publishAsDockerComposeService(async (composeService, service) => {
+  await service.containerName.set(
+    await containerName.asEnvironmentPlaceholder(composeService)
+  );
   await service.labels.set('com.example.team', 'backend');
+  await service.restart.set('unless-stopped');
 });
 
 await builder.build().run();
@@ -242,7 +436,42 @@ await builder.build().run();
 </TabItem>
 </Tabs>
 
-The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, or other Docker Compose service settings.
+The `configure` callback receives the `DockerComposeServiceResource` and the generated `Service` object, allowing you to modify properties like labels, restart policy, container name, or other Docker Compose service settings. Use `AsEnvironmentPlaceholder` for values that should be written as Compose environment variable placeholders in the generated YAML and `.env` files.
+
+## Resolve Docker Compose service host names
+
+Use `GetHostAddressExpression` when you need the host name that another Docker Compose service should use for an endpoint. In Docker Compose deployments, this expression resolves to the generated service name on the Compose network.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var compose = builder.AddDockerComposeEnvironment("env");
+
+var api = builder.AddContainer("api", "nginx", "alpine")
+    .WithHttpEndpoint(name: "http", targetPort: 80);
+
+var apiHost = compose.Resource.GetHostAddressExpression(
+    api.GetEndpoint("http"));
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const compose = await builder.addDockerComposeEnvironment('env');
+
+const api = await builder.addContainer('api', 'nginx:alpine');
+await api.withHttpEndpoint({ name: 'http', targetPort: 80 });
+
+const apiEndpoint = await api.getEndpoint('http');
+const apiHost = await compose.getHostAddressExpression(apiEndpoint);
+```
+</TabItem>
+</Tabs>
 
 ## Image pull policy
 
@@ -542,6 +771,7 @@ This workflow checks out your code, sets up .NET and installs the Aspire CLI, au
 - [Docker integration](/integrations/compute/docker/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Deploy your first Aspire app](/get-started/deploy-first-app/)
+- [aspire doctor command](/reference/cli/commands/aspire-doctor/)
 - [`Aspire.Hosting.Docker` C# API reference](https://aspire.dev/reference/api/csharp/aspire.hosting.docker/)
 - [`Aspire.Hosting.Docker` TypeScript API reference](https://aspire.dev/reference/api/typescript/aspire.hosting.docker/)
 - [Working with GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)

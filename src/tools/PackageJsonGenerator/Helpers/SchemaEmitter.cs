@@ -121,6 +121,17 @@ internal static class SchemaEmitter
             writer.WriteEndArray();
         }
 
+        // Nested types — full names of public nested types declared on this type.
+        if (type.NestedTypes is { Count: > 0 })
+        {
+            writer.WriteStartArray("nestedTypes");
+            foreach (var nested in type.NestedTypes)
+            {
+                writer.WriteStringValue(nested);
+            }
+            writer.WriteEndArray();
+        }
+
         // Delegate signature
         if (type.DelegateReturnType is not null)
         {

@@ -1,0 +1,106 @@
+---
+title: Compiler Warning ASPIREEXPORT013
+description: Learn more about compiler Warning ASPIREEXPORT013. A polyglot capability ID is defined by multiple exports in the same assembly.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.3"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Polyglot capability ID '{0}' is defined by multiple exports in this assembly: {1}. Use unique AspireExport IDs for overloaded or colliding members.
+
+This diagnostic warning is reported when two or more Aspire Type System (ATS) exports in the same assembly generate the same runtime capability ID. The capability ID is used to dispatch calls from TypeScript, Python, Java, and other AppHost runtimes back to the hosting integration. Unlike C# method signatures, a capability ID doesn't include the receiver type, parameter list, or overload signature, so exports that are distinct in C# can still collide at runtime.
+
+## Example
+
+The following code generates `ASPIREEXPORT013`:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configure")]
+public static IResourceBuilder<MyResource> ConfigureResource(
+    this IResourceBuilder<MyResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+Both exports generate the same capability ID, such as `MyCompany.Hosting.MyIntegration/configure`, even though they target different C# receiver types.
+
+The diagnostic can also be reported for public instance members exposed through `[AspireExport(ExposeMethods = true)]`:
+
+```csharp title="C# — Context.cs"
+[AspireExport(ExposeMethods = true)]
+public sealed class HelmChartOptions
+{
+    public void WithNamespace(string namespaceName)
+    {
+        // ...
+    }
+
+    public void WithNamespace(int namespaceNumber)
+    {
+        // ...
+    }
+}
+```
+
+Both overloads generate the same default member capability ID because the overload signature isn't part of the capability ID.
+
+## To correct this warning
+
+Use unique export IDs for members that would otherwise generate the same capability ID:
+
+```csharp title="C# — Integration.cs"
+[AspireExport("configureBuilder", MethodName = "configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configureResource", MethodName = "configure")]
+public static IResourceBuilder<MyResource> ConfigureResource(
+    this IResourceBuilder<MyResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+Use `MethodName` when separate target types can still expose the same friendly method name in the generated SDK while keeping the underlying capability IDs unique. For overloads on the same context type, prefer a single ATS-friendly overload, mark unsupported overloads with `[AspireExportIgnore]`, or give each exported overload a unique SDK method name.
+
+## Suppress the warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREEXPORT013.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREEXPORT013</NoWarn>
+  </PropertyGroup>
+  ```

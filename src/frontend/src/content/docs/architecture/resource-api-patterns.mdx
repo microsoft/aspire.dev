@@ -156,9 +156,11 @@ Custom value objects defer evaluation and allow the framework to discover depend
 |--|--|--|--|
 | `IValueProvider` | `ValueTask<string?> GetValueAsync(CancellationToken)` | Run | Resolve live values at runtime |
 | `IManifestExpressionProvider` | `string ValueExpression { get; }` | Publish | Emit structured expressions in manifests |
+| `IExpressionValue` | Inherits `IValueProvider` and `IManifestExpressionProvider` | Run and publish | Mark a value object as usable wherever an expression-backed value is accepted |
 | `IValueWithReferences` _(opt.)_ | `IEnumerable<object> References { get; }` | Both (if needed) | Declare dependencies on other resources |
 
 - **Implement** `IValueProvider` and `IManifestExpressionProvider` on all structured value types.  
+- **Implement** `IExpressionValue` when a structured value type should be accepted by APIs such as `WithEnvironment(...)`.
 - **Implement** `IValueWithReferences` only when your type holds resource references.
 
 ### Attaching to resources
@@ -198,5 +200,6 @@ public static IResourceBuilder<T> WithEnvironment<T>(
 |--|--|--|
 | `IValueProvider` | `GetValueAsync(...)` | Deferred runtime resolution |
 | `IManifestExpressionProvider` | `ValueExpression` | Structured publish-time expression |
+| `IExpressionValue` | `IValueProvider` + `IManifestExpressionProvider` | Reusable expression-backed value |
 | `IValueWithReferences` _(opt.)_ | `References` | Declare resource dependencies |
 | `WithEnvironment(...)` | `new("NAME", valueProvider)` | Attach structured values unflattened |

@@ -16,7 +16,7 @@ Aspire provides a first-class setup experience for AI coding agents. Run `aspire
 
 Aspire gives coding agents the same visibility into your running application that a developer has. The resource data, structured logs, and distributed traces you see in the [Aspire Dashboard](/dashboard/overview/) are exposed to agents through the [Aspire MCP server](/get-started/aspire-mcp-server/) and the [Aspire CLI](/get-started/install-cli/). Whether a person is debugging in the dashboard or an agent is diagnosing through MCP, they see the same picture.
 
-The Aspire CLI is built for agent-driven workflows — every command works non-interactively to not block and prompts and supports `--format Json` for structured plain text output. Key commands include `aspire start` (background execution), `aspire start --isolated` (parallel worktrees), `aspire wait` (block until healthy), `aspire describe`, `aspire logs`, and `aspire docs search`.
+The Aspire CLI is built for agent-driven workflows — commands support non-interactive execution to avoid blocking on prompts, and many commands support `--format Json` for structured plain text output. Key commands include `aspire start` (background execution), `aspire start --isolated` (parallel worktrees), `aspire wait` (block until healthy), `aspire describe`, `aspire logs`, and `aspire docs search`.
 
 The Aspire skill file (installed by `aspire agent init`) teaches agents all of these patterns automatically.
 
@@ -34,11 +34,20 @@ When you create a new Aspire project with `aspire new` or `aspire init`, you're 
    aspire agent init
    ```
 
-1. Select the components you want to configure:
+1. Select the **skill locations** where you want files installed. The **Standard** location is pre-selected by default:
 
-   - **Aspire skill file** (recommended) — teaches your AI agent how to use Aspire CLI commands
+   | Location | Directory | Notes |
+   |---|---|---|
+   | **Standard** | `.agents/skills/` | Supported by VS Code, GitHub Copilot, and OpenCode |
+   | **Claude Code** | `.claude/skills/` | Claude Code specific |
+   | **GitHub Skills** | `.github/skills/` | VS Code / GitHub Copilot specific |
+   | **OpenCode** | `.opencode/skill/` | OpenCode specific |
+
+1. Select the **skills and tools** to install into those locations. All options are pre-selected by default:
+
+   - **Aspire skill** — teaches your AI agent how to use Aspire CLI commands
    - **Playwright CLI** — enables browser automation for testing web resources
-   - **Aspire MCP server** — gives your AI agent runtime access to resources, logs, and traces
+   - **dotnet-inspect skill** — teaches your AI agent to query .NET API surfaces
 
 </Steps>
 
@@ -55,14 +64,18 @@ The `aspire agent init` command detects your AI development environment and crea
 
 ### Aspire skill file
 
-The skill file teaches your AI coding agent how to work with Aspire. It includes a CLI command reference, key workflows (starting apps, debugging issues, adding integrations), and important rules to follow. The file is created in the format your agent expects:
+The skill file teaches your AI coding agent how to work with Aspire. It includes a CLI command reference, key workflows (starting apps, debugging issues, adding integrations), and important rules to follow. The file is installed into each selected skill location:
 
 <FileTree>
 
+- .agents/skills/aspire/
+  - SKILL.md  Standard (VS Code, GitHub Copilot, OpenCode)
 - .github/skills/aspire/
-  - SKILL.md  GitHub Copilot
+  - SKILL.md  GitHub Copilot (legacy location)
 - .claude/skills/aspire/
   - SKILL.md  Claude Code
+- .opencode/skill/aspire/
+  - SKILL.md  OpenCode
 
 </FileTree>
 
@@ -72,6 +85,29 @@ The skill file guides your agent on how to:
 - Debug issues using structured logs and distributed traces
 - Add integrations with `aspire add` and search documentation with `aspire docs`
 - Use resource MCP tools for database queries and other resource-specific operations
+
+### dotnet-inspect skill
+
+The `dotnet-inspect` skill teaches your AI agent to query .NET API surfaces using the [`dotnet-inspect`](https://github.com/richlander/dotnet-inspect) tool. It's installed alongside the Aspire skill in each selected location:
+
+<FileTree>
+
+- .agents/skills/dotnet-inspect/
+  - SKILL.md
+- .github/skills/dotnet-inspect/
+  - SKILL.md
+- .claude/skills/dotnet-inspect/
+  - SKILL.md
+- .opencode/skill/dotnet-inspect/
+  - SKILL.md
+
+</FileTree>
+
+The skill enables your agent to inspect NuGet package API surfaces, compare API changes between package versions, and explore .NET types and members.
+
+:::note[Skill conflict]
+The `dotnet-inspect` skill should not be installed alongside the Aspire skill. The Aspire skill already includes support for `aspire docs api` subcommands, providing a powerful way to query Aspire APIs across both C# and TypeScript.
+:::
 
 ### Aspire MCP server
 
@@ -165,4 +201,4 @@ The Aspire MCP server uses the STDIO transport protocol and may work with other 
 - [aspire agent init command](/reference/cli/commands/aspire-agent-init/)
 - [aspire agent mcp command](/reference/cli/commands/aspire-agent-mcp/)
 - [Dashboard security considerations](/dashboard/security-considerations/)
-- [GitHub Copilot in the Dashboard](/dashboard/copilot/)
+- [Dashboard and AI coding agents](/dashboard/ai-coding-agents/)

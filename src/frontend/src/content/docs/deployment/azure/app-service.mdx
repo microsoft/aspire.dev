@@ -99,6 +99,51 @@ Start with the common case:
 
 App Service routes public traffic to the app's target port, even if the app listens on a development port such as `8080`.
 
+### Automatic HTTPS upgrade
+
+Azure App Service redirects HTTP traffic to HTTPS at the platform level. To match the deployed serving scheme, Aspire upgrades external HTTP endpoints in an App Service environment to HTTPS on port 443 when it generates endpoint URLs and service discovery connection strings for dependent resources.
+
+This behavior is enabled by default. If you intentionally need generated endpoint URLs and connection strings to preserve `http://`, disable the upgrade on the App Service environment:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureAppServiceEnvironment("app-service-env")
+    .WithHttpsUpgrade(false);
+
+builder.AddDockerfile("web", "./web")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addAzureAppServiceEnvironment("app-service-env")
+    .withHttpsUpgrade(false);
+
+await builder
+    .addDockerfile("web", "./web")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080, name: "http" })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Disabling the upgrade primarily affects generated endpoint configuration for dependent resources. Azure App Service can still redirect HTTP requests to HTTPS after deployment.
+
 ### Constraints
 
 Azure App Service uses a public website model:

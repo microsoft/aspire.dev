@@ -43,7 +43,7 @@ builder.Build().Run();
 ```
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
-```typescript title="apphost.ts" twoslash
+```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -147,16 +147,19 @@ var app = builder.AddExecutable("app", "node", ".", "app.js")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 ```typescript title="apphost.ts" twoslash
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const redis = await builder.addRedis("cache");
+const redisEndpoint = await redis.getEndpoint("tcp");
+const redisHost = await redisEndpoint.property(EndpointProperty.Host);
+const redisPort = await redisEndpoint.property(EndpointProperty.Port);
 
 const app = await builder.addExecutable("app", "node", ".", ["app.js"])
     .withReference(redis)
-    .withEnvironment("REDIS_HOST", redis.host)
-    .withEnvironment("REDIS_PORT", redis.port);
+    .withEnvironment("REDIS_HOST", redisHost)
+    .withEnvironment("REDIS_PORT", redisPort);
 ```
 </TabItem>
 </Tabs>

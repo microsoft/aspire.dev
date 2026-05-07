@@ -3,7 +3,7 @@ title: Custom HTTP commands
 description: Learn how to create custom HTTP commands in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import LearnMore from '@components/LearnMore.astro';
 import customHttpCommandHighlighted from '@assets/fundamentals/custom-http-command-highlighted.png';
@@ -88,6 +88,7 @@ The preceding code:
   - `commandOptions`: An optional instance of `HttpCommandOptions` that configures the command's behavior and appearance in the UI:
     - `Description`: Provides a description of the command that's shown in the UI.
     - `PrepareRequest`: A callback function that configures the HTTP request before sending it. In this case, it adds a custom (`X-CacheInvalidation-Key`) header with the value of the `ApiCacheInvalidationKey` parameter.
+    - `ResultMode`: Specifies whether the response body should be returned as command result data. For more information, see [Return the HTTP response body](#return-the-http-response-body).
     - `IconName`: Specifies the icon to be used for the command in the UI (`DocumentLightning`).
     - `IsHighlighted`: Indicates whether the command should be highlighted in the UI.
 - Finally, the application is built and run.
@@ -132,6 +133,96 @@ The preceding code:
 - If the header value doesn't match the expected key, it returns an unauthorized response.
 - If the header is valid, it calls the `ClearAllAsync` method on the `ICacheService` to clear all cached items.
 - Finally, it returns an HTTP OK response.
+
+## Return the HTTP response body
+
+By default, an HTTP command uses the HTTP status code to determine whether the command succeeded, and it doesn't return the response body as command result data. Set `HttpCommandOptions.ResultMode` to opt in to returning a non-empty response body from the endpoint. The body is surfaced as the command's structured output, just like [structured output from custom resource commands](/fundamentals/custom-resource-commands/#return-structured-output-from-a-command).
+
+The following example configures an HTTP command that returns a JSON response body:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.Api>("api")
+    .WithHttpCommand(
+        path: "/admin/sync",
+        displayName: "Sync now",
+        commandOptions: new HttpCommandOptions
+        {
+            Method = HttpMethod.Post,
+            ResultMode = HttpCommandResultMode.Auto
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder, HttpCommandResultMode } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+  .addNodeApp('api', './api', 'src/index.ts')
+  .withHttpCommand('/admin/sync', 'Sync now', {
+    methodName: 'POST',
+    resultMode: HttpCommandResultMode.Auto,
+  });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The endpoint can return the payload that should be shown to the command caller. For example, a C# minimal API endpoint can use `MapPost`:
+
+```csharp title="Program.cs"
+app.MapPost("/admin/sync", () =>
+{
+    return Results.Json(new
+    {
+        status = "Completed",
+        itemsProcessed = 42
+    });
+});
+```
+
+The Node.js app registered by the TypeScript AppHost sample can return the same payload from an Express endpoint:
+
+```typescript title="src/index.ts"
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.post('/admin/sync', (_req, res) => {
+  res.json({
+    status: 'Completed',
+    itemsProcessed: 42,
+  });
+});
+
+app.listen(port, () => {
+  console.log(`API listening on port ${port}`);
+});
+```
+
+`HttpCommandResultMode` controls how the default HTTP command result handler interprets the response body:
+
+| Result mode | Behavior                                                                                                                                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `None`      | The default. The response body isn't captured as command result data.                                                                                                                                                                                                                                         |
+| `Auto`      | Infers the result format from the response `Content-Type`. JSON content types, such as `application/json` and `application/*+json`, are returned as JSON. Text-like content types, such as `text/*`, XML, and `application/x-www-form-urlencoded`, are returned as text. Other content types aren't captured. |
+| `Json`      | Returns the response body as JSON command result data, regardless of the response `Content-Type`.                                                                                                                                                                                                             |
+| `Text`      | Returns the response body as plain text command result data, regardless of the response `Content-Type`.                                                                                                                                                                                                       |
+
+If the endpoint returns a non-success status code, the command fails. When `ResultMode` captures a response body, that body is attached to the failure result so callers can inspect the error details. `ResultMode` is used only when `HttpCommandOptions.GetCommandResult` isn't set; if you provide `GetCommandResult`, that callback controls the command's success, message, and result data.
 
 ### Example dashboard experiences
 

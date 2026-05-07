@@ -1,0 +1,110 @@
+---
+title: Azure Kubernetes Service (AKS) integration
+description: Learn how to add Azure Kubernetes Service deployment support to your Aspire application using the Aspire.Hosting.Azure.Kubernetes hosting integration.
+---
+
+import InstallPackage from '@components/InstallPackage.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+The Aspire AKS hosting integration enables you to deploy your Aspire application to Azure Kubernetes Service (AKS) with full provisioning. Aspire creates the AKS cluster, Azure Container Registry (ACR), managed identity, and any Azure resources your app depends on — all from your AppHost definition.
+
+## Hosting integration
+
+To get started with the Aspire AKS hosting integration, install the [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kubernetes) NuGet package in the AppHost project:
+
+<InstallPackage packageName="Aspire.Hosting.Azure.Kubernetes" />
+
+## Add AKS environment
+
+After installing the package, add an AKS environment to your AppHost:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+When an AKS environment is present, all compute resources are automatically deployed to AKS — no additional opt-in is required.
+
+## Configure the system node pool
+
+Customize the system node pool VM size and scaling using `WithSystemNodePool`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddAzureKubernetesEnvironment("aks")
+    .WithSystemNodePool("Standard_D4s_v5", minCount: 1, maxCount: 5);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSystemNodePool('Standard_D4s_v5', 1, 5);
+```
+</TabItem>
+</Tabs>
+
+## Add node pools
+
+Add additional node pools for workload isolation, GPU workloads, or specialized hardware requirements:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+var gpuPool = aks.AddNodePool("gpupool", "Standard_NC6s_v3", minCount: 0, maxCount: 5);
+
+builder.AddContainer("ml-worker", "my-ml-image")
+    .WithNodePool(gpuPool);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+const gpuPool = await aks.addNodePool('gpupool', 'Standard_NC6s_v3', 0, 5);
+
+const worker = await builder.addContainer('ml-worker', 'my-ml-image');
+await worker.withNodePool(gpuPool);
+```
+</TabItem>
+</Tabs>
+
+## Publishing and deployment
+
+The AKS integration supports both `aspire publish` (generate Helm chart and Bicep artifacts) and `aspire deploy` (provision Azure infrastructure and deploy in a single command).
+
+For a complete end-to-end walkthrough, see [Deploy to AKS](/deployment/kubernetes/aks/).
+
+## See also
+
+- [Deploy to AKS](/deployment/kubernetes/aks/)
+- [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Kubernetes integration](/integrations/compute/kubernetes/)
+- [Deploy to Azure](/deployment/azure/)
+- [Azure Kubernetes Service documentation](https://learn.microsoft.com/azure/aks/)
