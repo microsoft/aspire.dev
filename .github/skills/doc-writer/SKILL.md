@@ -71,6 +71,7 @@ description: A brief summary of the page content (required for SEO)
 ```
 
 Optional frontmatter fields:
+
 - `next: false` - Disable "Next page" link for terminal pages
 - Custom metadata as needed by Starlight theme
 
@@ -79,23 +80,30 @@ Optional frontmatter fields:
 Import Starlight components at the top of your MDX file:
 
 ```tsx
-import { CardGrid, LinkCard, Steps, Tabs, TabItem, Icon, FileTree } from '@astrojs/starlight/components';
+import {
+  CardGrid,
+  LinkCard,
+  Steps,
+  Tabs,
+  TabItem,
+  Icon,
+  FileTree,
+} from "@astrojs/starlight/components";
 ```
 
 Additional commonly used imports:
 
 ```tsx
-import { Kbd } from 'starlight-kbd/components';
-import LearnMore from '@components/LearnMore.astro';
-import AppHostLangPivot from '@components/AppHostLangPivot.astro';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
-import ThemeImage from '@components/ThemeImage.astro';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
-import Badge from '@astrojs/starlight/components/Badge.astro';
-import Image from 'astro:assets';
+import { Kbd } from "starlight-kbd/components";
+import LearnMore from "@components/LearnMore.astro";
+import PivotSelector from "@components/PivotSelector.astro";
+import Pivot from "@components/Pivot.astro";
+import ThemeImage from "@components/ThemeImage.astro";
+import InstallPackage from "@components/InstallPackage.astro";
+import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
+import AsciinemaPlayer from "@components/AsciinemaPlayer.astro";
+import Badge from "@astrojs/starlight/components/Badge.astro";
+import Image from "astro:assets";
 ```
 
 ### Component Usage
@@ -135,33 +143,34 @@ Critical warning - this could cause data loss or security issues.
 
 Use for sequential instructions:
 
-```mdx
+````mdx
 <Steps>
 
 1. First step with explanation
 
-    ```bash title="Run this command"
-    aspire new aspire-starter
-    ```
+   ```bash title="Run this command"
+   aspire new aspire-starter
+   ```
 
 2. Second step
 
 3. Third step
 
 </Steps>
-```
+````
 
 #### Tabs/TabItem
 
 Use for language or platform-specific content:
 
-```mdx
+````mdx
 <Tabs syncKey="cli-commands">
 <TabItem label="CLI">
 
 ```bash
 aspire run
 ```
+````
 
 </TabItem>
 <TabItem label="Visual Studio">
@@ -176,25 +185,23 @@ If a heading should appear in the **On this page** table of contents, keep that 
 
 #### Pivot/PivotSelector
 
-Use for programming language selection that persists across page navigations (for example, site-wide via query string and local storage). For Aspire AppHost C# and TypeScript content, use `AppHostLangPivot` instead; see [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
+Use `Pivot` and `PivotSelector` sparingly, only for **key landing-page-style articles** where the choice should persist across page navigations and where sharing the page through a URL should land the reader on a specific variant. Pivots support query string values to set the selected option (for example, `?aspire-lang=typescript`). Examples in use today include the [Build your first Aspire app](/get-started/first-app/) and [Deploy your first Aspire app](/get-started/deploy-first-app/) tutorials.
+
+For most pages — including AppHost C# and TypeScript code samples within a guide — prefer synced `Tabs` / `TabItem` blocks at the snippet level instead. See [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
 
 ```mdx
 <PivotSelector
-    title="Select your programming language"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-    ]}
+  title="Select your programming language"
+  key="lang"
+  options={[
+    { id: "csharp", title: "C#" },
+    { id: "python", title: "Python" },
+  ]}
 />
 
-<Pivot id="csharp">
-C# specific content here.
-</Pivot>
+<Pivot id="csharp">C# specific content here.</Pivot>
 
-<Pivot id="python">
-Python specific content here.
-</Pivot>
+<Pivot id="python">Python specific content here.</Pivot>
 ```
 
 If a heading needs to appear in the **On this page** table of contents, keep the heading outside the `Pivot` content and put only the variant-specific body content inside each `Pivot`.
@@ -225,16 +232,16 @@ Use for navigation and feature highlights:
 
 ```mdx
 <CardGrid>
-<LinkCard
+  <LinkCard
     title="Getting Started"
     description="Build your first Aspire app"
     href="/get-started/first-app/"
-/>
-<LinkCard
+  />
+  <LinkCard
     title="Integrations"
     description="Explore available integrations"
     href="/integrations/"
-/>
+  />
 </CardGrid>
 ```
 
@@ -243,12 +250,13 @@ Use for navigation and feature highlights:
 Use the `Kbd` component from `starlight-kbd` to display keyboard shortcuts with OS-specific variants. This renders styled `<kbd>` elements and automatically shows the correct shortcut for the reader's operating system.
 
 ```mdx
-import { Kbd } from 'starlight-kbd/components';
+import { Kbd } from "starlight-kbd/components";
 
 Open the Command Palette (<Kbd windows="Ctrl+Shift+P" mac="Cmd+Shift+P" />)
 ```
 
 **Props**:
+
 - `windows` — The shortcut for Windows (also used as the default/Linux fallback)
 - `mac` — The shortcut for macOS
 - `linux` — (optional) The shortcut for Linux, if different from Windows
@@ -270,10 +278,10 @@ Press <Kbd windows="F5" /> to start debugging.
 Use the `LearnMore` component to add a styled "learn more" link with an open-book icon. It provides a consistent visual pattern for directing readers to related documentation.
 
 ```mdx
-import LearnMore from '@components/LearnMore.astro';
+import LearnMore from "@components/LearnMore.astro";
 
 <LearnMore>
-For more information, see [Service Defaults](/fundamentals/service-defaults/).
+  For more information, see [Service Defaults](/fundamentals/service-defaults/).
 </LearnMore>
 ```
 
@@ -288,7 +296,8 @@ aspire config set features:polyglotSupportEnabled true --global
 ```
 
 <LearnMore>
-For more information, see [aspire config command reference](/reference/cli/commands/aspire-config-set/)
+  For more information, see [aspire config command
+  reference](/reference/cli/commands/aspire-config-set/)
 </LearnMore>
 :::
 ````
@@ -322,7 +331,7 @@ builder.Build().Run();
 
 ````mdx
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from "./.modules/aspire.js";
 
 const builder = await createBuilder();
 
@@ -374,7 +383,7 @@ Aspire supports both **C# AppHosts** (`AppHost.cs`) and **TypeScript AppHosts** 
 Use synced `Tabs` for AppHost-specific content that changes between C# and TypeScript. Each AppHost code snippet should provide its own language tabs and use `syncKey='aspire-lang'` so the user's language choice stays synchronized across snippets on the page.
 
 ````mdx
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
@@ -394,7 +403,7 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from "./.modules/aspire.js";
 
 const builder = await createBuilder();
 
@@ -418,15 +427,15 @@ If a section heading should appear in the **On this page** table of contents, ke
 
 ### Conventions
 
-| Aspect | C# | TypeScript |
-|---|---|---|
-| File title | `title="AppHost.cs"` | `title="apphost.ts"` |
-| Tab wrapper | Shared `<Tabs syncKey='aspire-lang'>` container | Shared `<Tabs syncKey='aspire-lang'>` container |
-| Tab item | `<TabItem id='csharp' label='C#'>` | `<TabItem id='typescript' label='TypeScript'>` |
-| Builder creation | `DistributedApplication.CreateBuilder(args)` |  `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
-| Method casing | PascalCase (`AddRedis`) | camelCase (`addRedis`) |
-| Async pattern | Synchronous fluent calls | `await` each builder call |
-| Build & run | `builder.Build().Run()` | `await builder.build().run()` |
+| Aspect           | C#                                              | TypeScript                                                                                                          |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| File title       | `title="AppHost.cs"`                            | `title="apphost.ts"`                                                                                                |
+| Tab wrapper      | Shared `<Tabs syncKey='aspire-lang'>` container | Shared `<Tabs syncKey='aspire-lang'>` container                                                                     |
+| Tab item         | `<TabItem id='csharp' label='C#'>`              | `<TabItem id='typescript' label='TypeScript'>`                                                                      |
+| Builder creation | `DistributedApplication.CreateBuilder(args)`    | `import { createBuilder } from './.modules/aspire.js';` then newline for space followed by `await createBuilder();` |
+| Method casing    | PascalCase (`AddRedis`)                         | camelCase (`addRedis`)                                                                                              |
+| Async pattern    | Synchronous fluent calls                        | `await` each builder call                                                                                           |
+| Build & run      | `builder.Build().Run()`                         | `await builder.build().run()`                                                                                       |
 
 ### Prose Guidelines
 
@@ -445,7 +454,7 @@ If a hosting integration does not yet have TypeScript AppHost support, show only
 
 ```mdx
 <Aside type="note">
-TypeScript AppHost support for this integration is not yet available.
+  TypeScript AppHost support for this integration is not yet available.
 </Aside>
 ```
 
@@ -457,18 +466,18 @@ Do **not** wrap a single language in a single-language `<Tabs>` component — th
 
 Place integration docs in the appropriate category folder under `src/frontend/src/content/docs/integrations/`:
 
-| Category | Folder | Examples |
-|----------|--------|----------|
-| AI/ML | `ai/` | Ollama, Azure OpenAI |
-| Caching | `caching/` | Redis, Garnet, Valkey |
-| Cloud | `cloud/` | Azure, AWS services |
-| Compute | `compute/` | Docker, Kubernetes |
-| Databases | `databases/` | PostgreSQL, SQL Server, MongoDB |
-| Frameworks | `frameworks/` | Python, Rust, Orleans |
-| Messaging | `messaging/` | RabbitMQ, Kafka |
-| Observability | `observability/` | OpenTelemetry, Prometheus |
-| Reverse Proxies | `reverse-proxies/` | YARP |
-| Security | `security/` | Keycloak |
+| Category        | Folder             | Examples                        |
+| --------------- | ------------------ | ------------------------------- |
+| AI/ML           | `ai/`              | Ollama, Azure OpenAI            |
+| Caching         | `caching/`         | Redis, Garnet, Valkey           |
+| Cloud           | `cloud/`           | Azure, AWS services             |
+| Compute         | `compute/`         | Docker, Kubernetes              |
+| Databases       | `databases/`       | PostgreSQL, SQL Server, MongoDB |
+| Frameworks      | `frameworks/`      | Python, Rust, Orleans           |
+| Messaging       | `messaging/`       | RabbitMQ, Kafka                 |
+| Observability   | `observability/`   | OpenTelemetry, Prometheus       |
+| Reverse Proxies | `reverse-proxies/` | YARP                            |
+| Security        | `security/`        | Keycloak                        |
 
 ### Integration Documentation Structure
 
@@ -480,13 +489,20 @@ title: [Technology] integration
 description: Learn how to use the [Technology] integration with Aspire.
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import Image from 'astro:assets';
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import InstallPackage from "@components/InstallPackage.astro";
+import Image from "astro:assets";
 
 import techIcon from "@assets/icons/technology.svg";
 
-<Image src={techIcon} alt="Technology logo" width={100} height={100} style="float: left; margin-right: 1rem;" data-zoom-off />
+<Image
+  src={techIcon}
+  alt="Technology logo"
+  width={100}
+  height={100}
+  style="float: left; margin-right: 1rem;"
+  data-zoom-off
+/>
 
 Brief description of the technology and what the integration enables.
 
@@ -512,7 +528,7 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from "./.modules/aspire.js";
 
 const builder = await createBuilder();
 
@@ -563,7 +579,7 @@ builder.Build().Run();
 <TabItem id='typescript' label='TypeScript'>
 
 ```typescript title="apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
+import { createBuilder } from "./.modules/aspire.js";
 
 const builder = await createBuilder();
 
@@ -638,7 +654,7 @@ The connection name must match the resource name defined in the AppHost.
 For integrations from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire), add the badge at the top:
 
 ```mdx
-import Badge from '@astrojs/starlight/components/Badge.astro';
+import Badge from "@astrojs/starlight/components/Badge.astro";
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 ```
@@ -694,12 +710,12 @@ After adding integration documentation, run the update-integrations prompt to en
 
 Use consistent terminology throughout:
 
-| Preferred | Avoid |
-|-----------|-------|
-| Aspire | .NET Aspire (except in formal/legal contexts) |
-| AppHost | App Host, app host |
-| resource | component (for AppHost resources) |
-| integration | connector, plugin |
+| Preferred   | Avoid                                         |
+| ----------- | --------------------------------------------- |
+| Aspire      | .NET Aspire (except in formal/legal contexts) |
+| AppHost     | App Host, app host                            |
+| resource    | component (for AppHost resources)             |
+| integration | connector, plugin                             |
 
 ### Inclusive Language
 
@@ -728,30 +744,30 @@ Place icons in `src/frontend/src/assets/icons/`
 ### Icon Usage
 
 ```mdx
-import Image from 'astro:assets';
+import Image from "astro:assets";
 import techIcon from "@assets/icons/technology.svg";
 
 <Image
-    src={techIcon}
-    alt="Technology logo"
-    width={100}
-    height={100}
-    style="float: left; margin-right: 1rem;"
-    data-zoom-off
+  src={techIcon}
+  alt="Technology logo"
+  width={100}
+  height={100}
+  style="float: left; margin-right: 1rem;"
+  data-zoom-off
 />
 ```
 
 For light/dark theme variants:
 
 ```mdx
-import ThemeImage from '@components/ThemeImage.astro';
+import ThemeImage from "@components/ThemeImage.astro";
 
 <ThemeImage
-    lightSrc={techIconLight}
-    darkSrc={techIconDark}
-    alt="Technology logo"
-    width={100}
-    height={100}
+  lightSrc={techIconLight}
+  darkSrc={techIconDark}
+  alt="Technology logo"
+  width={100}
+  height={100}
 />
 ```
 
@@ -904,6 +920,7 @@ Install the [📦 Aspire.Hosting.Redis](https://nuget.org/packages/Aspire.Hostin
 ### See Also Sections
 
 End pages with a "See also" section linking to:
+
 - Official technology documentation
 - Related Aspire documentation
 - NuGet package pages
@@ -923,25 +940,23 @@ The aspire.dev site supports multiple languages. When creating new content:
 
 ```mdx
 <Aside type="note" title="Prerequisites">
-Before continuing, ensure you have:
-- [Installed the Aspire CLI](/get-started/install-cli/)
-- [Completed the prerequisites](/get-started/prerequisites/)
+  Before continuing, ensure you have: - [Installed the Aspire
+  CLI](/get-started/install-cli/) - [Completed the
+  prerequisites](/get-started/prerequisites/)
 </Aside>
 ```
 
 ### Version-Specific Information
 
 ```mdx
-<Aside type="caution">
-This feature requires Aspire version 9.0 or later.
-</Aside>
+<Aside type="caution">This feature requires Aspire version 9.0 or later.</Aside>
 ```
 
 ### Feature Flags or Experimental Features
 
 ```mdx
 <Aside type="danger" title="Experimental">
-This feature is experimental and may change in future releases.
+  This feature is experimental and may change in future releases.
 </Aside>
 ```
 
@@ -978,15 +993,17 @@ The following rules are derived from common feedback patterns in documentation P
 ### Code Example Rules
 
 1. **Use standard indentation**: For fluent APIs on newlines, use standard 4-space indentation, NOT alignment with the method call above
-   
+
    ✅ Correct:
+
    ```csharp
    builder.AddProject<Projects.Api>("api")
        .WithReference(redis)
        .WithExternalHttpEndpoints();
    ```
-   
+
    ❌ Incorrect (aligned indentation):
+
    ```csharp
    builder.AddProject<Projects.Api>("api")
           .WithReference(redis)
