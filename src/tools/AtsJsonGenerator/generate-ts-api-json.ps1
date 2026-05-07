@@ -162,7 +162,7 @@ function Get-ReleaseFeedNameFromCommit {
 
     $normalizedCommit = $Commit.Trim()
     $length = [Math]::Min(8, $normalizedCommit.Length)
-    return "darc-pub-dotnet-aspire-$($normalizedCommit.Substring(0, $length))"
+    return "darc-pub-microsoft-aspire-$($normalizedCommit.Substring(0, $length))"
 }
 
 function ConvertTo-ReleaseFeedServiceIndex {

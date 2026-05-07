@@ -3,7 +3,7 @@ title: Compiler Warning ASPIREDOCKERFILEBUILDER001
 description: Learn more about compiler Warning ASPIREDOCKERFILEBUILDER001. Dockerfile builder types and members are for evaluation purposes only and are subject to change or removal in future updates.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 
 <Badge
   text="Version introduced: 13.0"
@@ -20,24 +20,122 @@ These APIs enable programmatic creation of Dockerfiles at build time, allowing d
 
 ## Example
 
-The following code generates `ASPIREDOCKERFILEBUILDER001`:
+The following code generates `ASPIREDOCKERFILEBUILDER001` in a C# AppHost:
 
-```csharp title="C# — Using DockerfileBuilderCallbackContext"
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddContainer("my-service", "base-image")
-    .WithDockerfile(ctx =>
-    {
-        // ctx is of type DockerfileBuilderCallbackContext
-        ctx.Builder
-            .From("node:20-alpine")
-            .WorkDir("/app")
-            .Copy("package*.json", "./")
-            .Run("npm install")
-            .Copy(".", ".")
-            .Cmd("node", "index.js");
-    });
+builder.AddDockerfileBuilder("my-service", "./service", context =>
+{
+    var stage = context.Builder.From("node:22-alpine", "runtime");
+    stage.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci --omit=dev")
+        .Copy(".", ".")
+        .Cmd(["node", "index.js"]);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
 ```
+
+## AppHost examples
+
+TypeScript AppHosts can use the same Dockerfile builder callback surface. The warning suppression options below apply to C# compiler diagnostics; TypeScript code doesn't use `#pragma` or `.editorconfig` to suppress `ASPIREDOCKERFILEBUILDER001`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("my-service", "./service", context =>
+{
+    var stage = context.Builder.From("node:22-alpine", "runtime");
+    stage.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci --omit=dev")
+        .Copy(".", ".")
+        .Cmd(["node", "index.js"]);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("node:22-alpine", { stageName: "runtime" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci --omit=dev")
+    .copy(".", ".")
+    .cmd(["node", "index.js"]);
+};
+
+await builder.addDockerfileBuilder("my-service", "./service", configureDockerfile, {
+  stage: "runtime",
+});
+```
+</TabItem>
+</Tabs>
+
+The callback can also be applied to an existing container resource with `WithDockerfileBuilder`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddContainer("my-service", "node:22-alpine")
+    .WithDockerfileBuilder("./service", context =>
+    {
+        var stage = context.Builder.From("node:22-alpine", "runtime");
+        stage.WorkDir("/app")
+            .Copy("package*.json", "./")
+            .Run("npm ci --omit=dev")
+            .Copy(".", ".")
+            .Cmd(["node", "index.js"]);
+
+        return Task.CompletedTask;
+    }, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("node:22-alpine", { stageName: "runtime" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci --omit=dev")
+    .copy(".", ".")
+    .cmd(["node", "index.js"]);
+};
+
+await builder
+  .addContainer("my-service", "node:22-alpine")
+  .withDockerfileBuilder("./service", configureDockerfile, {
+    stage: "runtime",
+  });
+```
+</TabItem>
+</Tabs>
 
 ## Understanding Dockerfile builder callbacks
 
@@ -69,6 +167,8 @@ The `DockerfileBuilderCallbackContext` provides context information for Dockerfi
 - Token to observe for cancellation requests
 - Enables cooperative cancellation of long-running operations
 
+In TypeScript AppHosts, callback context values use camelCase names and asynchronous methods. For example, use `await context.builder()` to get the `DockerfileBuilder` instance.
+
 ## To suppress this warning
 
 Suppress the warning with either of the following methods:
@@ -96,10 +196,14 @@ Suppress the warning with either of the following methods:
   var builder = DistributedApplication.CreateBuilder(args);
 
   #pragma warning disable ASPIREDOCKERFILEBUILDER001
-  builder.AddContainer("my-service", "base-image")
-      .WithDockerfile(ctx =>
-      {
-          // Dockerfile building logic
-      });
+  builder.AddDockerfileBuilder("my-service", "./service", context =>
+  {
+      var stage = context.Builder.From("node:22-alpine", "runtime");
+      stage.WorkDir("/app")
+          .Copy(".", ".")
+          .Cmd(["node", "index.js"]);
+
+      return Task.CompletedTask;
+  }, stage: "runtime");
   #pragma warning restore ASPIREDOCKERFILEBUILDER001
   ```

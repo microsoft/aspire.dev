@@ -194,6 +194,98 @@ public sealed class PackageJsonGeneratorTests
         Assert.Equal(unchangedWriteTime, File.GetLastWriteTimeUtc(outputPath));
     }
 
+    [Fact]
+    public void GeneratePackageJson_IncludesNestedTypesFromPartialDeclarations()
+    {
+        // Two partial declarations split across separate source files, mirroring
+        // FoundryModel.cs + FoundryModel.Generated.cs. Roslyn merges partials, so
+        // both nested types should be discoverable from the parent.
+        using var assembly = TestAssembly.Create(
+            [
+                """
+                namespace Sample.Library;
+
+                public partial class Container
+                {
+                    public sealed class OpenAI
+                    {
+                        public string Name => "openai";
+                    }
+                }
+                """,
+                """
+                namespace Sample.Library;
+
+                public partial class Container
+                {
+                    public sealed class Anthropic
+                    {
+                        public string Name => "anthropic";
+                    }
+                }
+                """,
+            ]);
+
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        var types = document.RootElement.GetProperty("types").EnumerateArray().ToList();
+
+        var container = types.Single(t => t.GetProperty("fullName").GetString() == "Sample.Library.Container");
+        var nested = container.GetProperty("nestedTypes")
+            .EnumerateArray()
+            .Select(e => e.GetString())
+            .ToList();
+
+        Assert.Equal(
+            ["Sample.Library.Container.Anthropic", "Sample.Library.Container.OpenAI"],
+            nested);
+
+        // Nested types should also be present as standalone type entries.
+        Assert.Contains(types, t => t.GetProperty("fullName").GetString() == "Sample.Library.Container.OpenAI");
+        Assert.Contains(types, t => t.GetProperty("fullName").GetString() == "Sample.Library.Container.Anthropic");
+    }
+
+    [Fact]
+    public void GeneratePackageJson_OmitsNestedTypesArrayWhenNone()
+    {
+        using var assembly = TestAssembly.Create(
+            """
+            namespace Sample.Library;
+
+            public sealed class Widget
+            {
+                public string Name => "demo";
+            }
+            """);
+
+        var outputPath = Path.Combine(assembly.DirectoryPath, "Package.json");
+
+        PackageJsonGenerator.GeneratePackageJson(
+            assembly.AssemblyPath,
+            assembly.References,
+            outputPath,
+            versionOverride: "1.2.3",
+            packageNameOverride: "Sample.Package",
+            targetFrameworkOverride: "net8.0");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        var widget = document.RootElement
+            .GetProperty("types")
+            .EnumerateArray()
+            .Single(t => t.GetProperty("name").GetString() == "Widget");
+
+        Assert.False(widget.TryGetProperty("nestedTypes", out _));
+    }
+
     private sealed class TestAssembly : IDisposable
     {
         private TestAssembly(string directoryPath, string assemblyPath, string[] references)
@@ -209,7 +301,9 @@ public sealed class PackageJsonGeneratorTests
 
         public string[] References { get; }
 
-        public static TestAssembly Create(string source)
+        public static TestAssembly Create(string source) => Create([source]);
+
+        public static TestAssembly Create(string[] sources)
         {
             var tempDirectory = Directory.CreateTempSubdirectory("pkg-generator-tests-");
             var assemblyPath = Path.Combine(tempDirectory.FullName, "Sample.Library.dll");
@@ -226,7 +320,7 @@ public sealed class PackageJsonGeneratorTests
 
             var compilation = CSharpCompilation.Create(
                 assemblyName: "Sample.Library",
-                syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
+                syntaxTrees: sources.Select(s => CSharpSyntaxTree.ParseText(s)),
                 references: references.Select(reference => MetadataReference.CreateFromFile(reference)),
                 options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 

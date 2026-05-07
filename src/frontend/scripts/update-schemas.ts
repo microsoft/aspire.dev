@@ -3,8 +3,12 @@
  * versioned copy under src/data/schemas/, then updates the version index.
  *
  * Usage:
- *   pnpm update:schemas                     # fetch latest non-prerelease
- *   pnpm update:schemas -- --version 13.2.3 # pin to a specific version tag
+ *   pnpm update:schemas                                      # fetch latest non-prerelease
+ *   pnpm update:schemas -- --version 13.2.3                  # pin to a specific version tag
+ *   pnpm update:schemas -- --version 13.3.0 --ref <sha|ref>  # label as 13.3.0 but fetch from
+ *                                                            # the given commit SHA or branch ref
+ *                                                            # (used before the v<version> tag is
+ *                                                            # published)
  */
 
 import fs from 'fs';
@@ -73,15 +77,15 @@ async function fetchLatestReleaseVersion(): Promise<string> {
   return stable.tag_name.replace(/^v/, '');
 }
 
-/** Fetch the raw schema JSON from microsoft/aspire at the given tag. */
-async function fetchSchemaAtTag(tag: string): Promise<Record<string, unknown>> {
+/** Fetch the raw schema JSON from microsoft/aspire at the given git ref (tag, branch, or SHA). */
+async function fetchSchemaAtRef(ref: string): Promise<Record<string, unknown>> {
   const rawUrl =
-    `https://raw.githubusercontent.com/${ASPIRE_REPO}/v${tag}/${SCHEMA_SOURCE_PATH}`;
+    `https://raw.githubusercontent.com/${ASPIRE_REPO}/${ref}/${SCHEMA_SOURCE_PATH}`;
   const res = await fetch(rawUrl, {
     headers: { 'User-Agent': 'aspire-schema-updater' },
   });
   if (!res.ok) {
-    throw new Error(`Failed to fetch schema at tag v${tag}: ${res.status} ${res.statusText}`);
+    throw new Error(`Failed to fetch schema at ref ${ref}: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as Record<string, unknown>;
 }
@@ -128,13 +132,19 @@ async function main(): Promise<void> {
     console.log(`✅ Latest stable release: ${version}`);
   }
 
+  const refArg = process.argv.indexOf('--ref');
+  const ref =
+    refArg >= 0 && process.argv[refArg + 1]
+      ? process.argv[refArg + 1]
+      : `v${version}`;
+
   const outFile = schemaFilePath(version);
 
   if (fs.existsSync(outFile)) {
     console.log(`ℹ️  Schema for v${version} already exists at ${path.relative(FRONTEND_ROOT, outFile)}`);
   } else {
-    console.log(`⬇️  Fetching schema from microsoft/aspire @ v${version}…`);
-    const schema = await fetchSchemaAtTag(version);
+    console.log(`⬇️  Fetching schema from microsoft/aspire @ ${ref}…`);
+    const schema = await fetchSchemaAtRef(ref);
 
     // Update $id to point to the versioned aspire.dev URL
     schema['$id'] = `${SITE_ORIGIN}${SCHEMA_BASE_PATH}/${version}.json`;

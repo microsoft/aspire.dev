@@ -577,6 +577,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspireexport010',
             },
             {
+              label: 'ASPIREEXPORT013',
+              link: '/diagnostics/aspireexport013',
+            },
+            {
               label: 'ASPIRECERTIFICATES001',
               link: '/diagnostics/aspirecertificates001',
             },

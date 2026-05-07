@@ -87,22 +87,7 @@ latest release.
 
 ### Associate the schema in Visual Studio Code
 
-If you prefer not to commit a `$schema` property, you can associate the schema
-with `aspire.config.json` in your user or workspace `settings.json`:
-
-```json title=".vscode/settings.json"
-{
-  "json.schemas": [
-    {
-      "fileMatch": ["aspire.config.json"],
-      "url": "https://aspire.dev/reference/cli/configuration/schema.json"
-    }
-  ]
-}
-```
-
-VS Code also honors the `$schema` property automatically, so either approach
-enables completions and validation in the built-in JSON language service.
+With the [Aspire VS Code extension](/get-started/aspire-vscode-extension/) installed, the schema is registered for `aspire.config.json` automatically. Without the extension, add a `$schema` property to the top of `aspire.config.json` (see above) or map the schema manually in `.vscode/settings.json` under `json.schemas`.
 
 ### Other editors
 
@@ -121,6 +106,33 @@ Use `aspire config list` to see the values that are currently set, and use
 can configure.
 
 <Include relativePath="reference/cli/includes/config-settings-table.md" />
+
+### Configure the AppHost path
+
+Use `appHost.path` to set the default AppHost entry point for the current
+configuration root:
+
+```bash title="Set the local AppHost path"
+aspire config set appHost.path ./apphost.ts
+```
+
+The CLI writes this value to the local `aspire.config.json` file:
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "./apphost.ts"
+  }
+}
+```
+
+The AppHost path can point to the entry point used by your AppHost language, such
+as `apphost.ts`, `Program.cs`, or an AppHost project file. The path is
+project-specific and can't be configured globally. If a global settings file
+contains `appHost.path` or the legacy `appHostPath` key, the CLI ignores that
+value and warns that AppHost paths must be configured locally. The legacy
+`appHostPath` key is also blocked by `aspire config set`; use `appHost.path`
+instead.
 
 :::tip
 Some feature flags shown by `aspire config list --all` may correspond to
@@ -171,7 +183,7 @@ CLI supports.
   installed CLI can configure.
 
 - Use `aspire config get <key>` to inspect a specific setting such as
-  `channel` or `appHostPath`.
+  `channel` or `appHost.path`.
 
 - Use `aspire config set <key> <value>` to update a setting, and
   `aspire config set --global ...` when you want a user-scoped default.

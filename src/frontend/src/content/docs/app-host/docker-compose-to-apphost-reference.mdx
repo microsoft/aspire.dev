@@ -27,6 +27,7 @@ Learn more about [Docker Compose services](https://docs.docker.com/compose/compo
 | `build: ./path` | `builder.AddDockerfile("name", "./path")` | Build from specific path |
 | `build.context: ./app` | `builder.AddDockerfile("name", "./app")` | Build context |
 | `build.dockerfile: Custom.dockerfile` | `builder.Add*("name").WithDockerfile("Custom.dockerfile")` | Custom Dockerfile name |
+| Generated Dockerfile | `builder.AddDockerfileBuilder("name", "./app", callback, stage: "runtime")` | Generate the Dockerfile from AppHost code |
 
 <LearnMore>
 Learn more about [Docker Compose build reference](https://docs.docker.com/compose/compose-file/build/) and [WithDockerfile](/app-host/withdockerfile/).
@@ -72,7 +73,8 @@ Learn more about [Docker Compose ports](https://docs.docker.com/compose/compose-
 |----------------|-------------|
 | `environment: KEY=value` | `.WithEnvironment("KEY", "value")` <br/> Static environment variable |
 | `environment: KEY=${HOST_VAR}` | `.WithEnvironment(context => context.EnvironmentVariables["KEY"] = hostVar)` <br/> Environment variable with callback context |
-| `env_file: .env` | `.ConfigureEnvFile(env => { ... })` <br/> Environment file generation (available in 13.1+) |
+| `environment: KEY=${PARAM}` | `.AsEnvironmentPlaceholder(resource)` inside `.PublishAsDockerComposeService(...)` <br/> Compose environment variable placeholder |
+| `env_file: .env` | `.ConfigureEnvFile(env => { ... })` <br/> Environment file customization (available in 13.1+) |
 
 <LearnMore>
 Learn more about [Docker Compose environment](https://docs.docker.com/compose/compose-file/05-services/#environment) and [external parameters](/fundamentals/external-parameters/).
@@ -107,7 +109,8 @@ Learn more about [Docker Compose depends_on](https://docs.docker.com/compose/com
 | Docker Compose | Aspire | Notes |
 |----------------|-------------|-------|
 | `networks: [backend]` | Automatic | Aspire handles networking automatically |
-| Custom networks | Not needed | Service discovery handles inter-service communication |
+| Service host name on a Compose network | `.GetHostAddressExpression(endpoint)` | Produces the generated Docker Compose service host name for an endpoint |
+| Custom networks | `.ConfigureComposeFile(file => { ... })` | Customize the generated Compose file when automatic networking isn't enough |
 
 <LearnMore>
 Learn more about [Docker Compose networks](https://docs.docker.com/compose/compose-file/05-services/#networks) and [service discovery](/fundamentals/service-discovery/).
@@ -139,8 +142,8 @@ Learn more about [Docker Compose healthcheck](https://docs.docker.com/compose/co
 
 | Docker Compose | Aspire | Notes |
 |----------------|-------------|-------|
-| `restart: unless-stopped` | Not supported | Restart policies aren't supported in Aspire |
-| `restart: always` | Not supported | Restart policies aren't supported in Aspire |
+| `restart: unless-stopped` | `.PublishAsDockerComposeService((resource, service) => service.Restart = "unless-stopped")` | Customize the generated Docker Compose service |
+| `restart: always` | `.PublishAsDockerComposeService((resource, service) => service.Restart = "always")` | Customize the generated Docker Compose service |
 | `restart: no` | Default | No restart policy |
 
 <LearnMore>
