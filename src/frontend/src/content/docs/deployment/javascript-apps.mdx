@@ -8,18 +8,17 @@ import LearnMore from '@components/LearnMore.astro';
 
 JavaScript app resources can represent static browser frontends, Node.js servers, SSR frameworks, and specialized resources such as Next.js apps. The deployment decision is less about which AppHost API you started with and more about **which resource owns the public HTTP surface in production**.
 
-
 Use this table as the starting point:
 
-| What are you deploying? | Production entrypoint | Aspire pattern |
-|---|---|---|
-| Static frontend served by a backend | Backend, API, or web server | `PublishWithContainerFiles` |
-| Static frontend served by a gateway or BFF | Reverse proxy | `PublishWithStaticFiles` |
-| Static frontend served by its own JavaScript resource | JavaScript app resource | `PublishAsStaticWebsite` |
-| SSR or Node.js app with a built server artifact | JavaScript app resource | `PublishAsNodeServer` |
-| SSR or Node.js app started by a package script | JavaScript app resource | `PublishAsNpmScript` |
-| Next.js standalone app | Next.js app resource | `AddNextJsApp` |
-| Static frontend hosted separately from the backend | Static host + separate API | Custom topology |
+| What are you deploying?                               | Production entrypoint       | Aspire pattern              |
+| ----------------------------------------------------- | --------------------------- | --------------------------- |
+| Static frontend served by a backend                   | Backend, API, or web server | `PublishWithContainerFiles` |
+| Static frontend served by a gateway or BFF            | Reverse proxy               | `PublishWithStaticFiles`    |
+| Static frontend served by its own JavaScript resource | JavaScript app resource     | `PublishAsStaticWebsite`    |
+| SSR or Node.js app with a built server artifact       | JavaScript app resource     | `PublishAsNodeServer`       |
+| SSR or Node.js app started by a package script        | JavaScript app resource     | `PublishAsNpmScript`        |
+| Next.js standalone app                                | Next.js app resource        | `AddNextJsApp`              |
+| Static frontend hosted separately from the backend    | Static host + separate API  | Custom topology             |
 
 This article is deployment-target agnostic. It explains the JavaScript hosting models you can use with Aspire, not the full steps for a specific deployment target.
 
@@ -183,8 +182,9 @@ await builder
   .withExternalHttpEndpoints()
   .publishWithStaticFiles(frontend)
   .withConfiguration(async (yarp) => {
-    (await yarp.addRoute('/api/{**catch-all}', apiEndpoint))
-      .withTransformPathRemovePrefix('/api');
+    (
+      await yarp.addRoute('/api/{**catch-all}', apiEndpoint)
+    ).withTransformPathRemovePrefix('/api');
   });
 
 await builder.build().run();
@@ -270,7 +270,7 @@ if (await builder.executionContext.isRunMode()) {
 
 ## Static frontend served by its own JavaScript resource
 
-Use `PublishAsStaticWebsite` when the framework produces static files and you want the JavaScript app resource to become the deployed static website. The generated container uses YARP to serve the built files and can optionally proxy API requests to a backend resource using [service discovery](/fundamentals/service-discovery/overview/).
+Use `PublishAsStaticWebsite` when the framework produces static files and you want the JavaScript app resource to become the deployed static website. The generated container uses YARP to serve the built files and can optionally proxy API requests to a backend resource using [service discovery](/fundamentals/service-discovery/).
 
 Choose this shape instead of `PublishWithStaticFiles(...)` when you do not already have a gateway or BFF resource that should own the public route table. If you already have an explicit YARP resource for gateway or BFF behavior, keep using `PublishWithStaticFiles(...)` on that resource.
 
@@ -327,11 +327,11 @@ await builder.build().run();
 
 ### Static website options
 
-| Option | Default | Description |
-|---|---|---|
-| `OutputPath` / `outputPath` | `dist` | The build output directory that contains the static files to serve. |
-| `StripPrefix` / `stripPrefix` | `false` | Whether to remove the API path prefix before forwarding to the API backend. Set to `true` if the API does not expect the route prefix in the request path. |
-| `TargetEndpointName` / `targetEndpointName` | `null` | The endpoint name on the API resource to use for proxying. When unset, YARP uses service discovery and prefers HTTPS when available. |
+| Option                                      | Default | Description                                                                                                                                                |
+| ------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OutputPath` / `outputPath`                 | `dist`  | The build output directory that contains the static files to serve.                                                                                        |
+| `StripPrefix` / `stripPrefix`               | `false` | Whether to remove the API path prefix before forwarding to the API backend. Set to `true` if the API does not expect the route prefix in the request path. |
+| `TargetEndpointName` / `targetEndpointName` | `null`  | The endpoint name on the API resource to use for proxying. When unset, YARP uses service discovery and prefers HTTPS when available.                       |
 
 You can call `PublishAsStaticWebsite` without an API target when the static website does not need proxy routes. Add `apiPath` and `apiTarget` when the static website should also route API requests to a backend resource.
 
@@ -509,14 +509,16 @@ Set `output: "standalone"` in your Next.js configuration so the generated Docker
 ```javascript title="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
 ```
 
 <LearnMore>
-  For setting up `AddNextJsApp` with its deploy-time `output: "standalone"` validation, see [JavaScript integration — Add Next.js application](/integrations/frameworks/javascript/#add-nextjs-application).
+  For setting up `AddNextJsApp` with its deploy-time `output: "standalone"`
+  validation, see [JavaScript integration — Add Next.js
+  application](/integrations/frameworks/javascript/#add-nextjs-application).
 </LearnMore>
 
 ## Separate static host and backend API
@@ -671,18 +673,18 @@ Aspire can still orchestrate the frontend build and the backend resource, but th
 
 The following table summarizes common framework outputs and the Aspire patterns they usually map to. Treat it as guidance, not an exhaustive list.
 
-| Framework | Recommended method | Entry point | Configuration required |
-|---|---|---|---|
-| Vite / React / Vue | `PublishAsStaticWebsite` | N/A (YARP serves `dist/`) | None |
-| Angular | `PublishAsStaticWebsite` | N/A (YARP serves `dist/`) | `outputPath` in `angular.json` so the build writes to `dist/` directly |
-| Astro (static output) | `PublishAsStaticWebsite` | N/A (YARP serves `dist/`) | None |
-| SvelteKit | `PublishAsNodeServer` | `build/index.js` | `@sveltejs/adapter-node` |
-| TanStack Start | `PublishAsNodeServer` | `.output/server/index.mjs` | None (Nitro `node-server` preset by default) |
-| Next.js | `AddNextJsApp` | `server.js` (in `.next/standalone/`) | `output: "standalone"` in `next.config.*` |
-| Nuxt | `PublishAsNpmScript` | `node .output/server/index.mjs` (via `start`) | `NUXT_` prefix on `runtimeConfig` env vars |
-| Astro SSR | `PublishAsNpmScript` | `node ./dist/server/entry.mjs` (via `start`) | `@astrojs/node`, `prerender: false` per page |
-| Remix / React Router | `PublishAsNpmScript` | `react-router-serve` (via `start`) | None |
-| Qwik City | `PublishAsNpmScript` | `node server/entry.node-server.js` (via `start`) | Node server adapter, Node 20+ |
+| Framework             | Recommended method       | Entry point                                      | Configuration required                                                 |
+| --------------------- | ------------------------ | ------------------------------------------------ | ---------------------------------------------------------------------- |
+| Vite / React / Vue    | `PublishAsStaticWebsite` | N/A (YARP serves `dist/`)                        | None                                                                   |
+| Angular               | `PublishAsStaticWebsite` | N/A (YARP serves `dist/`)                        | `outputPath` in `angular.json` so the build writes to `dist/` directly |
+| Astro (static output) | `PublishAsStaticWebsite` | N/A (YARP serves `dist/`)                        | None                                                                   |
+| SvelteKit             | `PublishAsNodeServer`    | `build/index.js`                                 | `@sveltejs/adapter-node`                                               |
+| TanStack Start        | `PublishAsNodeServer`    | `.output/server/index.mjs`                       | None (Nitro `node-server` preset by default)                           |
+| Next.js               | `AddNextJsApp`           | `server.js` (in `.next/standalone/`)             | `output: "standalone"` in `next.config.*`                              |
+| Nuxt                  | `PublishAsNpmScript`     | `node .output/server/index.mjs` (via `start`)    | `NUXT_` prefix on `runtimeConfig` env vars                             |
+| Astro SSR             | `PublishAsNpmScript`     | `node ./dist/server/entry.mjs` (via `start`)     | `@astrojs/node`, `prerender: false` per page                           |
+| Remix / React Router  | `PublishAsNpmScript`     | `react-router-serve` (via `start`)               | None                                                                   |
+| Qwik City             | `PublishAsNpmScript`     | `node server/entry.node-server.js` (via `start`) | Node server adapter, Node 20+                                          |
 
 ### Framework-specific gotchas
 
