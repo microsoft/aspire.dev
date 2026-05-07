@@ -87,6 +87,7 @@ Additional commonly used imports:
 ```tsx
 import { Kbd } from 'starlight-kbd/components';
 import LearnMore from '@components/LearnMore.astro';
+import AppHostLangPivot from '@components/AppHostLangPivot.astro';
 import PivotSelector from '@components/PivotSelector.astro';
 import Pivot from '@components/Pivot.astro';
 import ThemeImage from '@components/ThemeImage.astro';
@@ -175,7 +176,7 @@ If a heading should appear in the **On this page** table of contents, keep that 
 
 #### Pivot/PivotSelector
 
-Use for programming language selection that persists across page:
+Use for programming language selection that persists across page navigations (for example, site-wide via query string and local storage). For Aspire AppHost C# and TypeScript content, use `AppHostLangPivot` instead; see [AppHost Language Parity (C# and TypeScript)](#apphost-language-parity-c-and-typescript).
 
 ```mdx
 <PivotSelector
