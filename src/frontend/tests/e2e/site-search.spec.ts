@@ -70,6 +70,10 @@ test.describe('site search dialog', () => {
 
     const dialog = page.locator('site-search dialog[open]');
     const results = dialog.locator('.pagefind-ui__result-link');
+    // Anchor the input to the dialog element itself (not `dialog[open]`)
+    // so the locator still resolves after Escape closes the dialog and
+    // we can assert the post-close `aria-expanded` value.
+    const input = page.locator('site-search dialog input.pagefind-ui__search-input');
     await expect(results.first()).toBeVisible({ timeout: 15000 });
     await expect.poll(() => results.count()).toBeGreaterThanOrEqual(3);
 
@@ -77,7 +81,6 @@ test.describe('site search dialog', () => {
     await expect(results.nth(0)).toHaveAttribute('data-search-active', 'true');
     await expect(results.nth(0)).toHaveAttribute('aria-selected', 'true');
 
-    const input = dialog.locator('input.pagefind-ui__search-input');
     await expect(input).toBeFocused();
     await expect(input).toHaveAttribute('role', 'combobox');
     await expect(input).toHaveAttribute('aria-controls', 'aspire-search-results');
