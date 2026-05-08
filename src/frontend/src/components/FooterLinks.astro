@@ -1,10 +1,33 @@
 ---
 import { Icon } from '@astrojs/starlight/components';
-import config from 'virtual:starlight/user-config';
+import { socialConfig } from '../../config/socials.config';
 
-const links = config.social || [];
-const gitHubLink = links.find((link) => link.label === 'GitHub')?.href ?? null;
-const discordLink = links.find((link) => link.label === 'Discord')?.href ?? null;
+type CommunityLink = {
+  icon: (typeof socialConfig)[number]['icon'] | 'reddit';
+  label: string;
+  href: string;
+};
+
+const getSocialLink = (label: string, displayLabel = label): CommunityLink | null => {
+  const link = socialConfig.find((social) => social.label === label);
+  return link ? { icon: link.icon, label: displayLabel, href: link.href } : null;
+};
+
+const communityLinks = [
+  getSocialLink('X', 'X (Twitter)'),
+  getSocialLink('BlueSky'),
+  getSocialLink('GitHub'),
+  getSocialLink('Discord'),
+  {
+    icon: 'reddit',
+    label: 'Reddit',
+    href: 'https://www.reddit.com/r/aspiredotdev',
+  },
+  getSocialLink('YouTube'),
+  getSocialLink('Twitch'),
+  getSocialLink('Blog', Astro.locals.t('footer.blog' as any)),
+].filter((link): link is CommunityLink => link !== null);
+
 const is404 =
   Astro.locals.starlightRoute?.entry?.slug === '404' ||
   /^\/(?:[^/]+\/)?404\/?$/.test(Astro.url.pathname);
@@ -15,46 +38,14 @@ const is404 =
     <div class="footer-column">
       <p class="footer-heading">{Astro.locals.t('footer.community' as any)}</p>
       <ul class="footer-links">
-        <li>
-          <a href="https://x.com/aspiredotdev" target="_blank" rel="noopener noreferrer">
-            <Icon name="x.com" size="1em" />
-            Follow
-          </a>
-        </li>
-        {gitHubLink && (
+        {communityLinks.map((link) => (
           <li>
-            <a href={gitHubLink} target="_blank" rel="noopener noreferrer">
-              <Icon name="github" size="1em" />
-              {Astro.locals.t('footer.collab' as any)}
+            <a href={link.href} target="_blank" rel="noopener noreferrer">
+              <Icon name={link.icon} size="1em" />
+              {link.label}
             </a>
           </li>
-        )}
-        {discordLink && (
-          <li>
-            <a href={discordLink} target="_blank" rel="noopener noreferrer">
-              <Icon name="discord" size="1em" />
-              Discord
-            </a>
-          </li>
-        )}
-        <li>
-          <a href="https://www.reddit.com/r/aspiredotdev" target="_blank" rel="noopener noreferrer">
-            <Icon name="reddit" size="1em" />
-            {Astro.locals.t('footer.discuss' as any)}
-          </a>
-        </li>
-        <li>
-          <a href="https://www.youtube.com/@aspiredotdev" target="_blank" rel="noopener noreferrer">
-            <Icon name="youtube" size="1em" />
-            {Astro.locals.t('footer.watch' as any)}
-          </a>
-        </li>
-        <li>
-          <a href="https://devblogs.microsoft.com/aspire" target="_blank" rel="noopener noreferrer">
-            <Icon name="document" size="1em" />
-            {Astro.locals.t('footer.blog' as any)}
-          </a>
-        </li>
+        ))}
       </ul>
     </div>
   )
