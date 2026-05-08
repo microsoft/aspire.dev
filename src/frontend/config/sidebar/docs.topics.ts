@@ -868,6 +868,27 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
+          label: 'Hot Reload and watch',
+          slug: 'app-host/hot-reload-and-watch',
+          translations: {
+            da: 'Hot Reload and watch',
+            de: 'Hot Reload and watch',
+            en: 'Hot Reload and watch',
+            es: 'Hot Reload and watch',
+            fr: 'Hot Reload and watch',
+            hi: 'Hot Reload and watch',
+            id: 'Hot Reload and watch',
+            it: 'Hot Reload and watch',
+            ja: 'Hot Reload and watch',
+            ko: 'Hot Reload and watch',
+            'pt-BR': 'Hot Reload and watch',
+            ru: 'Hot Reload and watch',
+            tr: 'Hot Reload and watch',
+            uk: 'Hot Reload and watch',
+            'zh-CN': 'Hot Reload and watch',
+          },
+        },
+        {
           label: 'Eventing',
           slug: 'app-host/eventing',
           translations: {
@@ -896,10 +917,10 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
               },
             },
             {
-          label: 'Container files',
-          slug: 'app-host/container-files',
-        },
-        {
+              label: 'Container files',
+              slug: 'app-host/container-files',
+            },
+            {
               label: 'Executable resources',
               slug: 'app-host/executable-resources',
               translations: {
