@@ -846,3 +846,333 @@ else
     exit 1
 fi
 ```
+
+## Command arguments
+
+Commands can declare input arguments that the dashboard renders as a prompt dialog before execution and that the CLI accepts as ordered positional values. Arguments are defined by setting `CommandOptions.Arguments` to an array of `InteractionInput` objects.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "send-message",
+        displayName: "Send Message",
+        executeCommand: context =>
+        {
+            var text = context.Arguments.GetString("text");
+            var repeat = context.Arguments.GetInt32("repeat") ?? 1;
+
+            for (var i = 0; i < repeat; i++)
+            {
+                context.Logger.LogInformation("{Text}", text);
+            }
+
+            return Task.FromResult(CommandResults.Success($"Sent '{text}' {repeat} time(s)."));
+        },
+        commandOptions: new CommandOptions
+        {
+            Arguments =
+            [
+                new InteractionInput { Name = "text",   Label = "Message",  InputType = InputType.Text,    Required = true, MaxLength = 200 },
+                new InteractionInput { Name = "repeat", Label = "Repeat",   InputType = InputType.Number,  Value = "1" },
+            ]
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    InputType,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand(
+        "send-message",
+        "Send Message",
+        async (context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const args = await context.arguments();
+            const text = await args.requiredValue("text");
+            const repeat = Number(await args.value("repeat") ?? "1");
+
+            return { success: true, message: `Sent '${text}' ${repeat} time(s).` };
+        },
+        {
+            commandOptions: {
+                arguments: [
+                    { name: "text",   label: "Message", inputType: InputType.Text,   required: true, maxLength: 200 },
+                    { name: "repeat", label: "Repeat",  inputType: InputType.Number, value: "1" },
+                ]
+            }
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### InteractionInput properties
+
+Each `InteractionInput` object in the `Arguments` array configures one input field in the dashboard prompt and one positional argument for the CLI:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Name` / `name` | `string` | Unique identifier used to read the value at runtime. |
+| `Label` / `label` | `string` | Human-readable label shown in the dashboard input dialog. |
+| `InputType` / `inputType` | `InputType` | Controls the widget type. See the table below. |
+| `Value` / `value` | `string?` | Default value pre-filled in the dialog. |
+| `Required` / `required` | `bool` | When `true`, the built-in validator rejects empty submissions. |
+| `MaxLength` / `maxLength` | `int?` | Optional maximum character length for `Text` and `SecretText` inputs. |
+| `Options` / `options` | `KeyValuePair<string,string>[]?` | Required for `Choice` inputs. Each pair is `(value, label)`. |
+
+The `InputType` enum controls how the dashboard renders the field and how built-in validation works:
+
+| Value | Dashboard widget | CLI behavior | Built-in validation |
+|-------|-----------------|--------------|---------------------|
+| `Text` | Single-line text box | Positional string value | `Required`, `MaxLength` |
+| `Number` | Number input | Positional string parsed as number | Must be a valid number |
+| `Boolean` | Checkbox | `true` or `false` string | Must be `true` or `false` |
+| `Choice` | Drop-down list | String must match one of `Options` | Must be a member of `Options` |
+| `SecretText` | Masked text box | Positional string value | `Required`, `MaxLength` |
+
+### Read argument values at runtime
+
+The `ExecuteCommandContext` exposes an `Arguments` property (C#) / `arguments()` method (TypeScript) that returns an `InteractionInputCollection` for reading submitted values.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+`InteractionInputCollection` provides typed convenience accessors for common argument reads:
+
+```csharp
+var text    = context.Arguments.GetString("text");    // string?
+var repeat  = context.Arguments.GetInt32("repeat");   // int?
+var shout   = context.Arguments.GetBoolean("shout");  // bool?
+var amount  = context.Arguments.GetDouble("amount");  // double?
+```
+
+All accessors return `null` when the argument is absent or empty. Use the `Required = true` property on `InteractionInput` to enforce presence before the callback runs.
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+`InteractionInputCollection` (returned by `await context.arguments()`) provides idiomatic async helpers:
+
+```typescript
+const args = await context.arguments();
+
+const all    = await args.toArray();                 // InteractionInput[]
+const input  = await args.required("text");          // InteractionInput (throws if absent)
+const text   = await args.value("text");             // string | undefined
+const must   = await args.requiredValue("text");     // string (throws if absent or empty)
+```
+
+Use `requiredValue` for arguments declared with `required: true` to get a non-nullable string directly. Use `value` when the argument is optional and you want to handle the absent case yourself.
+
+</TabItem>
+</Tabs>
+
+### Pass arguments from the CLI
+
+When invoking a command from the CLI, supply argument values as ordered positional tokens after the command name. The CLI maps them onto the declared `Arguments` array by position:
+
+```bash title="Terminal"
+aspire resource myservice send-message "Hello world" 3 --apphost MyApp.AppHost.csproj
+```
+
+In the example above, `"Hello world"` maps to the first argument (`text`) and `3` maps to the second (`repeat`).
+
+<Aside type="note">
+The CLI passes all positional values as strings; the AppHost performs type coercion and built-in validation before invoking the command callback. If a required argument is missing or a value fails validation, the CLI receives a structured error instead of invoking the callback.
+</Aside>
+
+## Argument validation
+
+Commands can run server-side validation before the callback executes. Declare a `ValidateArguments` callback on `CommandOptions` to add custom rules on top of the built-in required, max-length, and type checks.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "deploy",
+        displayName: "Deploy",
+        executeCommand: context =>
+        {
+            var target = context.Arguments.GetString("target")!;
+            // ... perform deployment ...
+            return Task.FromResult(CommandResults.Success($"Deployed to {target}."));
+        },
+        commandOptions: new CommandOptions
+        {
+            Arguments =
+            [
+                new InteractionInput { Name = "target", Label = "Target", InputType = InputType.Text, Required = true },
+            ],
+            ValidateArguments = context =>
+            {
+                var target = context.Inputs.GetString("target");
+                if (string.Equals(target, "prod", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.AddValidationError("target", "Target must not be 'prod'.");
+                }
+
+                return Task.CompletedTask;
+            }
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    InputType,
+    type ExecuteCommandContext,
+    type InputsDialogValidationContext,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand(
+        "deploy",
+        "Deploy",
+        async (context: ExecuteCommandContext) => {
+            const args = await context.arguments();
+            const target = await args.requiredValue("target");
+            // ... perform deployment ...
+            return { success: true, message: `Deployed to ${target}.` };
+        },
+        {
+            commandOptions: {
+                arguments: [
+                    { name: "target", label: "Target", inputType: InputType.Text, required: true }
+                ],
+                validateArguments: async (context: InputsDialogValidationContext) => {
+                    const inputs = await context.inputs();
+                    const target = await inputs.value("target");
+
+                    if (target?.toLowerCase() === "prod") {
+                        await context.addValidationError("target", "Target must not be 'prod'.");
+                    }
+                }
+            }
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Built-in validation runs first (required fields, max length, choice membership, and type coercion). If built-in validation passes, the `ValidateArguments` callback runs next. Either kind of validation failure prevents the command callback from executing and returns structured field errors to the caller:
+
+- **Dashboard**: The input dialog stays open with inline field-level error messages.
+- **CLI / MCP**: The command exits with a non-zero status and prints the field errors to stderr.
+
+The `ValidateArguments` context exposes the same `Inputs`/`inputs()` surface as `ExecuteCommandContext.Arguments`/`arguments()`, so the same typed accessors work in both places.
+
+## Command visibility
+
+By default, commands registered with `WithCommand` are visible to both the Aspire dashboard and to API/MCP callers. Use `CommandOptions.Visibility` to restrict or expand where a command appears:
+
+| Value | Where the command is available |
+|-------|-------------------------------|
+| `ResourceCommandVisibility.Dashboard` | Dashboard UI only |
+| `ResourceCommandVisibility.Api` | API and MCP clients only |
+| `ResourceCommandVisibility.All` | Both dashboard and API/MCP (default) |
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    // Only exposed through the API/MCP — not shown in the dashboard
+    .WithCommand(
+        name: "get-metrics",
+        displayName: "Get Metrics",
+        executeCommand: context =>
+        {
+            // ... collect and return metrics ...
+            return Task.FromResult(CommandResults.Success(
+                message: "Metrics collected.",
+                value: new CommandResultData { Value = "{}", Format = CommandResultFormat.Json }));
+        },
+        commandOptions: new CommandOptions
+        {
+            Visibility = ResourceCommandVisibility.Api,
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    ResourceCommandVisibility,
+    CommandResultFormat,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    // Only exposed through the API/MCP — not shown in the dashboard
+    .withCommand(
+        "get-metrics",
+        "Get Metrics",
+        async (_context) => {
+            return {
+                success: true,
+                message: "Metrics collected.",
+                data: { value: "{}", format: CommandResultFormat.Json },
+            };
+        },
+        {
+            commandOptions: {
+                visibility: ResourceCommandVisibility.Api,
+            }
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, scripting, CI integration) that you don't want to clutter the dashboard UI. Use `ResourceCommandVisibility.Dashboard` for interactive commands that only make sense when a developer is watching the results.
+</Aside>
