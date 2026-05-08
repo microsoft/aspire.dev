@@ -66,8 +66,8 @@ const typescriptHref = `${base}/reference/api/typescript/`;
    * Layered enhancements for the Starlight/Pagefind search dialog:
    *   1. Injects the C#/TypeScript "API search notice" template.
    *   2. Injects the keyboard-shortcut footer (↑ ↓ ↵ Esc).
-   *   3. Wires keyboard navigation across Pagefind result links with
-   *      aria-activedescendant for screen-reader users.
+   *   3. Wires keyboard navigation across Pagefind result links so
+   *      arrow keys and Tab move *real* focus (and stay in sync).
    *   4. Forwards the typed query into the API notice buttons as `?q=`,
    *      so a user who searches and falls back to the API listings keeps
    *      their query.
@@ -75,7 +75,8 @@ const typescriptHref = `${base}/reference/api/typescript/`;
    * Pagefind UI is rendered lazily (and not at all in `astro dev`), so we
    * use a single MutationObserver on the <site-search> custom element to
    * pick up newly mounted pieces and keep the active result list in sync
-   * as the user types.
+   * as the user types. Mutations are coalesced via requestAnimationFrame
+   * to avoid flicker while Pagefind re-renders results on every keystroke.
    */
   let cleanup: (() => void) | undefined;
 
@@ -89,15 +90,27 @@ const typescriptHref = `${base}/reference/api/typescript/`;
   class SearchKeyboardNav {
     private dialog: HTMLDialogElement;
     private input: HTMLInputElement | null = null;
-    private results: HTMLAnchorElement[] = [];
+    // All keyboard-navigable targets: Pagefind result links + the
+    // Pagefind "Load more results" button + the C#/TS API buttons. Up/Down
+    // cycle through them in DOM order so arrow nav matches Tab order.
+    private targets: HTMLElement[] = [];
     private activeIndex = -1;
     private wired = false;
+    private suppressFocusinSync = false;
     private readonly keydownHandler: (e: KeyboardEvent) => void;
+    private readonly focusinHandler: (e: FocusEvent) => void;
+    private readonly dialogStateHandler: () => void;
     private readonly resultsContainerId = 'aspire-search-results';
+    private readonly targetSelector =
+      '.pagefind-ui__result-link, .pagefind-ui__button, a[data-api-search-link]';
 
     constructor(dialog: HTMLDialogElement) {
       this.dialog = dialog;
       this.keydownHandler = (e) => this.handleKey(e);
+      this.focusinHandler = (e) => this.handleFocusIn(e);
+      this.dialogStateHandler = () => {
+        this.input?.setAttribute('aria-expanded', this.dialog.open ? 'true' : 'false');
+      };
     }
 
     refresh(): void {
@@ -107,88 +120,182 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         input.setAttribute('role', 'combobox');
         input.setAttribute('aria-autocomplete', 'list');
         input.setAttribute('aria-controls', this.resultsContainerId);
-        input.setAttribute('aria-expanded', 'true');
-        input.addEventListener('keydown', this.keydownHandler);
+        // Capture-phase keydown on the dialog catches arrows whether the
+        // user is in the input or already on a focused result/button.
+        this.dialog.addEventListener('keydown', this.keydownHandler, true);
+        this.dialog.addEventListener('focusin', this.focusinHandler);
+        this.dialog.addEventListener('close', this.dialogStateHandler);
         this.wired = true;
       }
 
+      // `aria-expanded` reflects whether the listbox is actually visible.
+      // The native <dialog> tracks this via its `open` property.
+      this.input?.setAttribute('aria-expanded', this.dialog.open ? 'true' : 'false');
+
       const resultsContainer = this.dialog.querySelector<HTMLElement>('.pagefind-ui__results');
       if (resultsContainer) {
-        if (!resultsContainer.id) resultsContainer.id = this.resultsContainerId;
+        // Force the id to the value we advertise via `aria-controls` so the
+        // reference is never broken by an upstream id assignment.
+        resultsContainer.id = this.resultsContainerId;
         resultsContainer.setAttribute('role', 'listbox');
       }
 
-      const newResults = Array.from(
-        this.dialog.querySelectorAll<HTMLAnchorElement>('.pagefind-ui__result-link')
+      const newTargets = Array.from(
+        this.dialog.querySelectorAll<HTMLElement>(this.targetSelector)
       );
 
-      newResults.forEach((link, i) => {
-        if (!link.id) link.id = `aspire-search-result-${i}`;
-        link.setAttribute('role', 'option');
+      newTargets.forEach((el, i) => {
+        if (!el.id) el.id = `aspire-search-target-${i}`;
+        // Only the result links live inside the listbox; the load-more
+        // button and API buttons sit outside it, so they stay plain
+        // focusable controls (no `role="option"`).
+        if (el.classList.contains('pagefind-ui__result-link')) {
+          el.setAttribute('role', 'option');
+        }
       });
 
-      const sameLength = newResults.length === this.results.length;
-      const sameNodes = sameLength && newResults.every((r, i) => r === this.results[i]);
+      const sameLength = newTargets.length === this.targets.length;
+      const sameNodes = sameLength && newTargets.every((el, i) => el === this.targets[i]);
       if (sameNodes) return;
 
-      // Result set changed (Pagefind re-rendered). Reset to first.
-      for (const stale of this.results) {
+      // Capture the previously-active *result link* (not button). Buttons
+      // are stable across renders so they don't need preservation, and we
+      // don't want to auto-park the highlight on them.
+      const previousLink =
+        this.activeIndex >= 0 &&
+        this.targets[this.activeIndex] instanceof HTMLAnchorElement &&
+        this.targets[this.activeIndex]?.classList.contains('pagefind-ui__result-link')
+          ? (this.targets[this.activeIndex] as HTMLAnchorElement)
+          : null;
+
+      for (const stale of this.targets) {
         stale.removeAttribute('data-search-active');
         stale.setAttribute('aria-selected', 'false');
       }
-      this.results = newResults;
-      if (this.results.length > 0) {
-        this.setActive(0, /* scroll */ false);
+      this.targets = newTargets;
+
+      if (this.targets.length === 0) {
+        this.activeIndex = -1;
+        this.input?.removeAttribute('aria-activedescendant');
+        return;
+      }
+
+      // Resolve the first result link in the new list. We only ever
+      // auto-highlight result links — never the "Load more results" or
+      // C#/TypeScript API buttons. (The buttons stay reachable via Tab
+      // and arrow nav once the user explicitly enters the list.)
+      const firstResultLinkIndex = this.targets.findIndex(
+        (el) =>
+          el instanceof HTMLAnchorElement && el.classList.contains('pagefind-ui__result-link')
+      );
+
+      let preserved = -1;
+      if (previousLink) {
+        preserved = this.targets.indexOf(previousLink);
+        if (preserved < 0) {
+          const prevHref = previousLink.href;
+          preserved = this.targets.findIndex(
+            (el) =>
+              el instanceof HTMLAnchorElement &&
+              el.classList.contains('pagefind-ui__result-link') &&
+              el.href === prevHref
+          );
+        }
+      }
+
+      if (preserved >= 0) {
+        this.setActive(preserved, /* moveFocus */ false, /* scroll */ false);
+      } else if (firstResultLinkIndex >= 0) {
+        // Auto-highlight the first result (DocSearch / GH command-palette
+        // pattern) but keep focus in the input so the user can keep typing.
+        this.setActive(firstResultLinkIndex, false, false);
       } else {
+        // No results yet (e.g. dialog just opened, only API buttons exist).
+        // Leave nav un-anchored so the first ArrowDown lands on the first
+        // *real* navigation target the user expects.
         this.activeIndex = -1;
         this.input?.removeAttribute('aria-activedescendant');
       }
     }
 
-    private setActive(index: number, scroll = true): void {
-      if (this.activeIndex >= 0 && this.results[this.activeIndex]) {
-        const prev = this.results[this.activeIndex];
+    private setActive(index: number, moveFocus = false, scroll = true): void {
+      if (this.activeIndex >= 0 && this.targets[this.activeIndex]) {
+        const prev = this.targets[this.activeIndex];
         prev.removeAttribute('data-search-active');
         prev.setAttribute('aria-selected', 'false');
       }
       this.activeIndex = index;
-      if (index >= 0 && this.results[index]) {
-        const el = this.results[index];
-        el.setAttribute('data-search-active', 'true');
-        el.setAttribute('aria-selected', 'true');
+      if (index < 0 || !this.targets[index]) {
+        this.input?.removeAttribute('aria-activedescendant');
+        return;
+      }
+      const el = this.targets[index];
+      el.setAttribute('data-search-active', 'true');
+      el.setAttribute('aria-selected', 'true');
+      // Only point aria-activedescendant at result links; the API/load-more
+      // buttons aren't part of the listbox.
+      if (el.getAttribute('role') === 'option') {
         this.input?.setAttribute('aria-activedescendant', el.id);
-        if (scroll) {
-          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          el.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
-        }
+      } else {
+        this.input?.removeAttribute('aria-activedescendant');
+      }
+      if (moveFocus && document.activeElement !== el) {
+        this.suppressFocusinSync = true;
+        el.focus({ preventScroll: true });
+        this.suppressFocusinSync = false;
+      }
+      if (scroll) {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
       }
     }
 
     private handleKey(e: KeyboardEvent): void {
       if (e.key === 'ArrowDown') {
-        if (this.results.length === 0) return;
+        if (this.targets.length === 0) return;
         e.preventDefault();
-        const next = this.activeIndex < 0 ? 0 : (this.activeIndex + 1) % this.results.length;
-        this.setActive(next);
+        const next = this.activeIndex < 0 ? 0 : (this.activeIndex + 1) % this.targets.length;
+        this.setActive(next, /* moveFocus */ true);
       } else if (e.key === 'ArrowUp') {
-        if (this.results.length === 0) return;
+        if (this.targets.length === 0) return;
         e.preventDefault();
-        const prev = this.activeIndex <= 0 ? this.results.length - 1 : this.activeIndex - 1;
-        this.setActive(prev);
-      } else if (e.key === 'Home' && this.results.length > 0) {
+        const prev = this.activeIndex <= 0 ? this.targets.length - 1 : this.activeIndex - 1;
+        this.setActive(prev, true);
+      } else if (e.key === 'Home' && this.targets.length > 0) {
         e.preventDefault();
-        this.setActive(0);
-      } else if (e.key === 'End' && this.results.length > 0) {
+        this.setActive(0, true);
+      } else if (e.key === 'End' && this.targets.length > 0) {
         e.preventDefault();
-        this.setActive(this.results.length - 1);
-      } else if (e.key === 'Enter' && this.activeIndex >= 0 && this.results[this.activeIndex]) {
-        e.preventDefault();
-        this.results[this.activeIndex].click();
+        this.setActive(this.targets.length - 1, true);
+      } else if (e.key === 'Enter' && this.activeIndex >= 0 && this.targets[this.activeIndex]) {
+        // If focus is already on the target, the browser's native Enter
+        // handles activation. Only synthesise a click when the user is
+        // still in the input.
+        if (e.target === this.input) {
+          e.preventDefault();
+          this.targets[this.activeIndex].click();
+        }
+      }
+      // Tab is intentionally NOT intercepted: native browser focus order
+      // walks through results + buttons, and `handleFocusIn` keeps
+      // activeIndex in sync — so up/down can resume cleanly from wherever
+      // Tab landed.
+    }
+
+    private handleFocusIn(e: FocusEvent): void {
+      if (this.suppressFocusinSync) return;
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const idx = this.targets.indexOf(target);
+      if (idx >= 0 && idx !== this.activeIndex) {
+        this.setActive(idx, /* moveFocus */ false, /* scroll */ false);
       }
     }
 
     destroy(): void {
-      this.input?.removeEventListener('keydown', this.keydownHandler);
+      this.dialog.removeEventListener('keydown', this.keydownHandler, true);
+      this.dialog.removeEventListener('focusin', this.focusinHandler);
+      this.dialog.removeEventListener('close', this.dialogStateHandler);
     }
   }
 
@@ -274,10 +381,22 @@ const typescriptHref = `${base}/reference/api/typescript/`;
 
     setup();
 
-    const observer = new MutationObserver(setup);
+    // Pagefind re-renders the result list on every keystroke and emits
+    // many mutations per render. Coalesce to one refresh per frame so
+    // the active highlight doesn't flicker between intermediate states.
+    let rafId: number | null = null;
+    const scheduleSetup = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        setup();
+      });
+    };
+    const observer = new MutationObserver(scheduleSetup);
     observer.observe(siteSearch, { childList: true, subtree: true });
 
     cleanup = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       observer.disconnect();
       nav.destroy();
       linker.destroy();
@@ -348,21 +467,51 @@ const typescriptHref = `${base}/reference/api/typescript/`;
     flex-shrink: 0;
   }
 
-  /* ── Active result highlight (keyboard navigation) ─────────────── */
-  #starlight__search .pagefind-ui__result-link[data-search-active='true'] {
-    /* Cue the link itself; ::after pseudo-element from Starlight covers
-     * the whole row, so a strong outline around the title row reads as
-     * the active selection without affecting click semantics. */
-    color: var(--sl-color-text-accent);
-  }
-
+  /* ── Active target (keyboard nav + Tab focus, unified) ─────────────
+     Starlight already paints :focus-within with `outline: 1px solid
+     --sl-color-accent-high` + `background: --sl-color-accent-low` on
+     `.pagefind-ui__result-title` (top-level) and `.pagefind-ui__result-nested`.
+     We mirror that exact treatment for `[data-search-active]` so the
+     virtual highlight (set while focus is still in the input) and real
+     focus produce the same look — no double border, no competing rules.
+  */
   #starlight__search
-    .pagefind-ui__result-title:has(.pagefind-ui__result-link[data-search-active='true']),
+    .pagefind-ui__result-title:not(:where(.pagefind-ui__result-nested *)):has(
+      > .pagefind-ui__result-link[data-search-active='true']
+    ),
   #starlight__search
     .pagefind-ui__result-nested:has(.pagefind-ui__result-link[data-search-active='true']) {
-    outline: 2px solid var(--sl-color-text-accent);
-    outline-offset: -2px;
+    outline: 1px solid var(--sl-color-accent-high);
     background-color: var(--sl-color-accent-low);
+  }
+
+  /* The Pagefind "Load more results" button and the C#/TS API buttons are
+     also keyboard-navigable. `[data-search-active]` is set on the element
+     itself (not a parent), and we match `:focus-visible` so Tab and
+     arrow nav land on the same look. */
+  #starlight__search .pagefind-ui__button[data-search-active='true'],
+  #starlight__search .pagefind-ui__button:focus-visible {
+    border-color: var(--sl-color-accent-high);
+    background-color: var(--sl-color-accent-low);
+    color: var(--sl-color-white);
+    outline: none;
+  }
+
+  .api-search-btn[data-search-active='true'],
+  .api-search-btn:focus-visible {
+    border-color: var(--sl-color-accent-high);
+    background-color: var(--sl-color-accent-low);
+    outline: none;
+  }
+
+  /* The Pagefind result link covers its row via `::after`. `scroll-margin`
+     on the link gives `scrollIntoView({block: 'nearest'})` enough room
+     to keep the active row visible above the sticky keyboard footer. */
+  #starlight__search .pagefind-ui__result-link,
+  #starlight__search .pagefind-ui__button,
+  .api-search-btn {
+    scroll-margin-block-start: 1rem;
+    scroll-margin-block-end: 4rem;
   }
 
   /* ── Keyboard hints footer ─────────────────────────────────────── */
@@ -445,12 +594,8 @@ const typescriptHref = `${base}/reference/api/typescript/`;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    #starlight__search .pagefind-ui__result-link[data-search-active='true'],
-    #starlight__search
-      .pagefind-ui__result-title:has(.pagefind-ui__result-link[data-search-active='true']),
-    #starlight__search
-      .pagefind-ui__result-nested:has(.pagefind-ui__result-link[data-search-active='true']) {
-      transition: none;
+    #starlight__search .pagefind-ui__result-link {
+      scroll-behavior: auto;
     }
   }
 

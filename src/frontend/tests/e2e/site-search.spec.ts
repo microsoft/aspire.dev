@@ -55,7 +55,9 @@ test.describe('site search dialog', () => {
     await expect(footer).toContainText('Close');
   });
 
-  test('arrow keys cycle through results and Escape closes the dialog', async ({ page }) => {
+  test('arrow keys cycle through results, Tab keeps state, and Escape closes the dialog', async ({
+    page,
+  }) => {
     await page.goto('/');
     await dismissCookieConsentIfVisible(page);
 
@@ -69,7 +71,7 @@ test.describe('site search dialog', () => {
     const dialog = page.locator('site-search dialog[open]');
     const results = dialog.locator('.pagefind-ui__result-link');
     await expect(results.first()).toBeVisible({ timeout: 15000 });
-    await expect.poll(() => results.count()).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => results.count()).toBeGreaterThanOrEqual(3);
 
     // First result should auto-highlight as soon as Pagefind renders.
     await expect(results.nth(0)).toHaveAttribute('data-search-active', 'true');
@@ -79,26 +81,76 @@ test.describe('site search dialog', () => {
     await expect(input).toBeFocused();
     await expect(input).toHaveAttribute('role', 'combobox');
     await expect(input).toHaveAttribute('aria-controls', 'aspire-search-results');
+    await expect(input).toHaveAttribute('aria-expanded', 'true');
 
-    // ArrowDown moves the active marker to the next result.
+    // ArrowDown moves the active marker to the next result *and* moves
+    // real focus there, so Tab can resume from that location.
     await input.press('ArrowDown');
     await expect(results.nth(0)).not.toHaveAttribute('data-search-active', 'true');
     await expect(results.nth(1)).toHaveAttribute('data-search-active', 'true');
     await expect(results.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await expect(results.nth(1)).toBeFocused();
 
-    // ArrowUp returns to the first result.
-    await input.press('ArrowUp');
-    await expect(results.nth(0)).toHaveAttribute('data-search-active', 'true');
+    // Native Tab from result[1] should advance focus to result[2] and
+    // the focusin handler should keep activeIndex in sync.
+    await page.keyboard.press('Tab');
+    await expect(results.nth(2)).toBeFocused();
+    await expect(results.nth(2)).toHaveAttribute('data-search-active', 'true');
     await expect(results.nth(1)).not.toHaveAttribute('data-search-active', 'true');
 
+    // Up/Down can resume from the post-Tab location.
+    await page.keyboard.press('ArrowUp');
+    await expect(results.nth(1)).toBeFocused();
+    await expect(results.nth(1)).toHaveAttribute('data-search-active', 'true');
+
     // The input's aria-activedescendant tracks the active result.
-    const activeId = await results.nth(0).getAttribute('id');
+    const activeId = await results.nth(1).getAttribute('id');
     expect(activeId).toBeTruthy();
     await expect(input).toHaveAttribute('aria-activedescendant', activeId!);
 
-    // Escape closes the dialog.
-    await input.press('Escape');
+    // Escape closes the dialog (native <dialog> behaviour) and
+    // aria-expanded flips back to "false".
+    await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
+    await expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('arrow nav also cycles through the C#/TypeScript API buttons', async ({ page }) => {
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const results = dialog.locator('.pagefind-ui__result-link');
+    const csharpBtn = dialog.locator('a[data-api-search-link][data-api-lang="csharp"]');
+    const tsBtn = dialog.locator('a[data-api-search-link][data-api-lang="typescript"]');
+
+    await expect(results.first()).toBeVisible({ timeout: 15000 });
+    await expect(csharpBtn).toBeVisible();
+
+    // Press End to jump to the last keyboard target — that should be the
+    // TypeScript API button (last item in DOM order: results → load-more
+    // → C# button → TS button).
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    await input.press('End');
+    await expect(tsBtn).toHaveAttribute('data-search-active', 'true');
+    await expect(tsBtn).toBeFocused();
+
+    // ArrowUp from TS button should land on the C# button.
+    await page.keyboard.press('ArrowUp');
+    await expect(csharpBtn).toHaveAttribute('data-search-active', 'true');
+    await expect(csharpBtn).toBeFocused();
+    await expect(tsBtn).not.toHaveAttribute('data-search-active', 'true');
+
+    // Press Home to jump back to the very first result; the API buttons
+    // release the active marker.
+    await page.keyboard.press('Home');
+    await expect(results.first()).toHaveAttribute('data-search-active', 'true');
+    await expect(csharpBtn).not.toHaveAttribute('data-search-active', 'true');
   });
 
   test('typed query is forwarded to the C# and TypeScript API buttons', async ({ page }) => {
