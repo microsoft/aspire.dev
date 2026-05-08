@@ -11,10 +11,12 @@ import standaloneModeImage from '@assets/dashboard/standalone/standalone-mode.pn
 import standaloneModeImageLight from '@assets/dashboard/standalone/standalone-mode-light.png';
 import containerLogImage from '@assets/dashboard/standalone/aspire-dashboard-container-log.png';
 
-The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing telemetry. The dashboard:
+The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing telemetry. You can run the dashboard in standalone mode in two ways:
 
-- Ships as a container image that can be used with any OpenTelemetry enabled app.
-- Can be used standalone, without the rest of Aspire.
+- Use the [Aspire CLI](/reference/cli/overview/) to start the dashboard with default local endpoints.
+- Use the standalone dashboard container image when you want to run it with Docker or another OCI-compliant container runtime.
+
+Both options work without the rest of Aspire and can receive telemetry from any OpenTelemetry-enabled app.
 
 <ThemeImage
   light={standaloneModeImageLight}
@@ -23,9 +25,29 @@ The [Aspire dashboard](/dashboard/overview/) provides a great UI for viewing tel
 
 ## Start the dashboard
 
-### Docker
+Choose the startup path that best fits your workflow. The Aspire CLI provides the shortest local setup, while the container image works well when you already manage tools through a container runtime.
 
-The dashboard is started using the Docker command line.
+### Aspire CLI
+
+Install the [Aspire CLI](/get-started/install-cli/), then start the dashboard:
+
+```bash title="Aspire CLI"
+aspire dashboard run
+```
+
+The dashboard starts with the following defaults:
+
+- **Frontend UI** at `http://localhost:18888`
+- **OTLP/gRPC** endpoint at `http://localhost:4317`
+- **OTLP/HTTP** endpoint at `http://localhost:4318`
+
+The dashboard is secured with a browser token by default. A login URL with the token is displayed in the terminal output. Use `--allow-anonymous` to disable authentication during local development.
+
+For all available options, see the [`aspire dashboard run`](/reference/cli/commands/aspire-dashboard-run/) command reference.
+
+### Container image
+
+The dashboard also ships as a standalone container image. Use this option when a container workflow fits your environment or you want to manage dashboard hosting with your existing container tooling.
 
 <OsAwareTabs syncKey="terminal">
 <div slot="unix">
@@ -54,27 +76,11 @@ The preceding Docker command:
   - Mapping the dashboard's OTLP/gRPC port `18889` to the host's port `4317`. Port `4317` receives OpenTelemetry data from apps using [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc).
   - Mapping the dashboard's OTLP/HTTP port `18890` to the host's port `4318`. Port `4318` receives OpenTelemetry data from apps using [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp).
 
-### Aspire CLI
-
-If you have the [Aspire CLI](/reference/cli/overview/) installed, you can start the dashboard with a single command:
-
-```bash title="Aspire CLI"
-aspire dashboard run
-```
-
-The dashboard starts with the following defaults:
-
-- **Frontend UI** at `http://localhost:18888`
-- **OTLP/gRPC** endpoint at `http://localhost:4317`
-- **OTLP/HTTP** endpoint at `http://localhost:4318`
-
-The dashboard is secured with a browser token by default. A login URL with the token is displayed in the terminal output. Use `--allow-anonymous` to disable authentication during local development.
-
-For all available options, see the [`aspire dashboard run`](/reference/cli/commands/aspire-dashboard-run/) command reference.
-
 ## Login to the dashboard
 
 Data displayed in the dashboard can be sensitive. By default, the dashboard is secured with authentication that requires a token to login.
+
+When the dashboard is run with `aspire dashboard run`, the Aspire CLI prints the login URL directly in the terminal. Open that URL in your browser to log in.
 
 When the dashboard is run from a standalone container, the login token is printed to the container logs. The logs are displayed in the Docker Desktop user interface on the **Logs** tab for the **aspire-dashboard** container:
 
@@ -113,7 +119,7 @@ echo $matches.Value
 </OsAwareTabs>
 
 <Aside type="tip">
-To avoid the login, you can disable the authentication requirement by setting the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable to `true`. Additional configuration is available, see [Dashboard configuration](/dashboard/configuration/).
+To avoid the login during local development, start the dashboard with `aspire dashboard run --allow-anonymous`. If you're running the dashboard container, set the `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS` environment variable to `true`. Additional configuration is available, see [Dashboard configuration](/dashboard/configuration/).
 </Aside>
 
 For more information about logging into the dashboard, see [Dashboard authentication](/dashboard/explore/#dashboard-authentication).
@@ -128,7 +134,7 @@ The dashboard offers a UI for viewing telemetry. Refer to the documentation to e
 
 Although there is no restriction on where the dashboard is run, the dashboard is designed as a development and short-term diagnostic tool. The dashboard persists telemetry in-memory which creates some limitations:
 
-- Telemetry is automatically removed if [telemetry limits](configuration#telemetry-limits) are exceeded.
+- Telemetry is automatically removed if [telemetry limits](/dashboard/configuration/#telemetry-limits) are exceeded.
 - No telemetry is persisted when the dashboard is restarted.
 
 ### Unavailable features when standalone
@@ -141,7 +147,7 @@ AI coding agents can still use the standalone dashboard via the Aspire CLI and M
 
 Apps send telemetry to the dashboard using [OpenTelemetry Protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/). The dashboard must expose a port for receiving OpenTelemetry data, and apps are configured to send data to that address.
 
-A Docker command was shown earlier to [start the dashboard](#start-the-dashboard). It configured the container to receive OpenTelemetry data on port `4317` (gRPC) and port `4318` (HTTP). The <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint addresses are `http://localhost:4317` for gRPC and `http://localhost:4318` for HTTP.
+Both startup options shown earlier configure the dashboard to receive OpenTelemetry data on port `4317` (gRPC) and port `4318` (HTTP). The <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> endpoint addresses are `http://localhost:4317` for gRPC and `http://localhost:4318` for HTTP. The Docker command maps the container's OTLP ports to the same host ports.
 
 ### Configure OpenTelemetry SDK
 
