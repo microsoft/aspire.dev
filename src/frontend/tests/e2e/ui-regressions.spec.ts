@@ -266,7 +266,7 @@ test('footer preferences persist theme and keyboard style selections', async ({ 
 });
 
 test('terminal tabs stay synced between pages', async ({ page }) => {
-  await page.goto('/dashboard/overview/');
+  await page.goto('/dashboard/standalone/');
   await dismissCookieConsentIfVisible(page);
 
   const sourceTabs = page.locator('starlight-tabs[data-sync-key="terminal"]').first();
