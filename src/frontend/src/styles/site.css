@@ -49,21 +49,20 @@
   --color-yellow: hsl(50, 55%, 75%);    /* catppuccin-aligned pastel gold */
 
   /* Inline code surface (dark theme).
-     bg  = #1f1e33 + 14% accent  ≈ #2b264b   (luma ≈ 0.024)
-     fg  = --sl-color-accent-high (#c6c2f2)  → contrast ≈ 8.4:1 (AAA)
-     The border alpha keeps the hairline visible without competing with text. */
-  --aspire-inline-code-bg: color-mix(in srgb, var(--sl-color-accent) 14%, var(--sl-color-bg));
+     bg uses currentColor (= the chip's text accent) mixed with #000 so the
+     chip surface always reads as a darker shade of the accent, regardless
+     of what surface it sits on (page bg, aside bg, etc.). Borders use
+     currentColor-on-transparent so they overlay whatever's behind them.
+     The 22% mix keeps text contrast > 6:1 (AAA) for every accent we use. */
+  --aspire-inline-code-bg: color-mix(in srgb, currentColor 22%, #000);
   --aspire-inline-code-text: var(--sl-color-accent-high);
-  --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
+  --aspire-inline-code-border: color-mix(in srgb, currentColor 35%, transparent);
 
-  /* Inline code inside an aside adopts the aside's accent
-     (note=blue, tip=purple, caution=orange, danger=red) so the chip
-     feels native to the alert. Starlight sets --sl-color-asides-text-accent
-     on .starlight-aside--<variant>, which inherits down to the chip. */
+  /* Inline code inside an aside adopts the aside's accent so the chip
+     feels native to the alert. Only the text color needs to change —
+     bg and border use currentColor and follow automatically. */
   .starlight-aside {
-    --aspire-inline-code-bg: color-mix(in srgb, var(--sl-color-asides-text-accent) 14%, var(--sl-color-bg));
     --aspire-inline-code-text: var(--sl-color-asides-text-accent);
-    --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-asides-text-accent) 35%, transparent);
   }
 
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
@@ -154,40 +153,31 @@
   --color-yellow: hsl(50, 90%, 32%);    /* catppuccin-aligned deep gold */
 
   /* Inline code surface (light theme).
-     bg  = #ffffff + 11% accent  ≈ #f0ecfb   (luma ≈ 0.85)
-     fg  = --sl-color-accent-high (#322660)  → contrast ≈ 11.4:1 (AAA)
-     The 11% mix keeps the surface light enough that link text inside
-     <code><a>…</a></code> (using --aspire-color-purple #512bd4) also clears AA. */
-  --aspire-inline-code-bg: color-mix(in srgb, var(--sl-color-accent) 11%, var(--sl-color-bg));
+     Same currentColor + neutral pattern as dark mode, but mixed with #fff
+     so the chip is a lighter tint of the accent on any surface (page bg,
+     aside bg). The 11% mix keeps text contrast > 4.5:1 (AA) for every
+     accent and pins below cover the two Catppuccin Latte accents that
+     dip below AA on a self-tinted chip. */
+  --aspire-inline-code-bg: color-mix(in srgb, currentColor 11%, #fff);
   --aspire-inline-code-text: var(--sl-color-accent-high);
-  --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+  --aspire-inline-code-border: color-mix(in srgb, currentColor 30%, transparent);
 
-  /* Inline code inside an aside adopts the aside's accent so the chip
-     blends with the alert (note=blue, tip=green via Catppuccin Latte,
-     caution=orange, danger=red). The Starlight + Catppuccin Latte palette
-     leaves a couple of accents borderline for AA on a tinted chip, so
-     specific variants below are pinned to AA-safe shades. */
+  /* Inline code inside an aside adopts the aside's accent. */
   .starlight-aside {
-    --aspire-inline-code-bg: color-mix(in srgb, var(--sl-color-asides-text-accent) 11%, var(--sl-color-bg));
     --aspire-inline-code-text: var(--sl-color-asides-text-accent);
-    --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-asides-text-accent) 30%, transparent);
   }
 
-  /* Catppuccin Latte note blue (#1e66f4) drops to ~4.2:1 on a self-tinted
-     chip — below WCAG AA. Pin to a deeper blue. */
+  /* Catppuccin Latte note blue (#1e66f4) drops below AA on a self-tinted
+     chip. Pin to a deeper blue. */
   .starlight-aside--note {
-    --aspire-inline-code-bg: color-mix(in srgb, #1e40af 11%, var(--sl-color-bg));
     --aspire-inline-code-text: #1e40af;
-    --aspire-inline-code-border: color-mix(in srgb, #1e40af 30%, transparent);
   }
 
   /* --sl-color-orange-high (#c08400) is too light to clear AA on a
      white-ish chip, so caution uses the same darker orange (#ab3f00)
      the site already uses for the caution title. */
   .starlight-aside--caution {
-    --aspire-inline-code-bg: color-mix(in srgb, #ab3f00 11%, var(--sl-color-bg));
     --aspire-inline-code-text: #ab3f00;
-    --aspire-inline-code-border: color-mix(in srgb, #ab3f00 30%, transparent);
   }
 
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
