@@ -56,6 +56,16 @@
   --aspire-inline-code-text: var(--sl-color-accent-high);
   --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
 
+  /* Inline code inside an aside adopts the aside's accent
+     (note=blue, tip=purple, caution=orange, danger=red) so the chip
+     feels native to the alert. Starlight sets --sl-color-asides-text-accent
+     on .starlight-aside--<variant>, which inherits down to the chip. */
+  .starlight-aside {
+    --aspire-inline-code-bg: color-mix(in srgb, var(--sl-color-asides-text-accent) 14%, var(--sl-color-bg));
+    --aspire-inline-code-text: var(--sl-color-asides-text-accent);
+    --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-asides-text-accent) 35%, transparent);
+  }
+
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
   --gradient-flamingo-purple: linear-gradient(90deg, var(--color-flamingo), var(--color-purple));
@@ -152,6 +162,34 @@
   --aspire-inline-code-text: var(--sl-color-accent-high);
   --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
 
+  /* Inline code inside an aside adopts the aside's accent so the chip
+     blends with the alert (note=blue, tip=green via Catppuccin Latte,
+     caution=orange, danger=red). The Starlight + Catppuccin Latte palette
+     leaves a couple of accents borderline for AA on a tinted chip, so
+     specific variants below are pinned to AA-safe shades. */
+  .starlight-aside {
+    --aspire-inline-code-bg: color-mix(in srgb, var(--sl-color-asides-text-accent) 11%, var(--sl-color-bg));
+    --aspire-inline-code-text: var(--sl-color-asides-text-accent);
+    --aspire-inline-code-border: color-mix(in srgb, var(--sl-color-asides-text-accent) 30%, transparent);
+  }
+
+  /* Catppuccin Latte note blue (#1e66f4) drops to ~4.2:1 on a self-tinted
+     chip — below WCAG AA. Pin to a deeper blue. */
+  .starlight-aside--note {
+    --aspire-inline-code-bg: color-mix(in srgb, #1e40af 11%, var(--sl-color-bg));
+    --aspire-inline-code-text: #1e40af;
+    --aspire-inline-code-border: color-mix(in srgb, #1e40af 30%, transparent);
+  }
+
+  /* --sl-color-orange-high (#c08400) is too light to clear AA on a
+     white-ish chip, so caution uses the same darker orange (#ab3f00)
+     the site already uses for the caution title. */
+  .starlight-aside--caution {
+    --aspire-inline-code-bg: color-mix(in srgb, #ab3f00 11%, var(--sl-color-bg));
+    --aspire-inline-code-text: #ab3f00;
+    --aspire-inline-code-border: color-mix(in srgb, #ab3f00 30%, transparent);
+  }
+
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
   --gradient-flamingo-purple: linear-gradient(90deg, var(--color-flamingo), var(--color-purple));
@@ -235,16 +273,16 @@
 /* Inline code: theme-aware accent surface with a hairline border.
    - Background mixes the accent color into the page background so it tints
      subtly but stays clearly distinct from the surrounding surface.
-   - Text uses --sl-color-accent-high, which clears WCAG AA against both
-     light and dark surfaces in the Aspire theme.
+   - Text uses --sl-color-accent-high (or the aside's text-accent inside an
+     aside), which clears WCAG AA against the tinted surface.
    - Border is a low-alpha accent so it reads as a hairline, not a frame.
+   - Padding is inherited from Starlight's base inline-code rule.
    - Scoped to :not(pre) so fenced code blocks (handled by expressive-code)
      are unaffected. */
 .sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
   background-color: var(--aspire-inline-code-bg);
   color: var(--aspire-inline-code-text);
   border: 1px solid var(--aspire-inline-code-border);
-  padding: 0.0625rem 0.3125rem;
 }
 
 /* Inline code inside links keeps the link color so the affordance stays
