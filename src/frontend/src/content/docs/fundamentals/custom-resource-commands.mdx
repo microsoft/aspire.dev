@@ -865,8 +865,8 @@ builder.AddProject<Projects.MyService>("myservice")
         displayName: "Send Message",
         executeCommand: context =>
         {
-            var text = context.Arguments.GetString("text");
-            var repeat = context.Arguments.GetInt32("repeat") ?? 1;
+            var text = context.Arguments.GetString("text")!;
+            var repeat = int.TryParse(context.Arguments.GetString("repeat"), out var r) ? r : 1;
 
             for (var i = 0; i < repeat; i++)
             {
@@ -961,13 +961,13 @@ The `ExecuteCommandContext` exposes an `Arguments` property (C#) / `arguments()`
 `InteractionInputCollection` provides typed convenience accessors for common argument reads:
 
 ```csharp
-var text    = context.Arguments.GetString("text");    // string?
-var repeat  = context.Arguments.GetInt32("repeat");   // int?
-var shout   = context.Arguments.GetBoolean("shout");  // bool?
-var amount  = context.Arguments.GetDouble("amount");  // double?
+var text    = context.Arguments.GetString("text");    // string? — null when absent or empty
+var repeat  = context.Arguments.GetInt32("repeat");   // int    — throws when absent or unparseable
+var shout   = context.Arguments.GetBoolean("shout");  // bool   — throws when absent or unparseable
+var amount  = context.Arguments.GetDouble("amount");  // double — throws when absent or unparseable
 ```
 
-All accessors return `null` when the argument is absent or empty. Use the `Required = true` property on `InteractionInput` to enforce presence before the callback runs.
+`GetString` returns `null` when the argument is absent or empty. The numeric and boolean accessors throw `InvalidOperationException` when the value is missing and `FormatException` (or `OverflowException` for `GetInt32` and `GetDouble`) when the value can't be parsed. Use `Required = true` on `InteractionInput` to enforce presence before the callback runs, or call `GetString` first and parse the result manually if you need a fallback.
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
@@ -1100,13 +1100,14 @@ The `ValidateArguments` context exposes the same `Inputs`/`inputs()` surface as 
 
 ## Command visibility
 
-By default, commands registered with `WithCommand` are visible to both the Aspire dashboard and to API/MCP callers. Use `CommandOptions.Visibility` to restrict or expand where a command appears:
+By default, commands registered with `WithCommand` are visible to both the Aspire dashboard and to API/MCP callers. The `ResourceCommandVisibility` enum is bit-combinable, so you can restrict or expand where a command appears by setting `CommandOptions.Visibility`:
 
 | Value | Where the command is available |
 |-------|-------------------------------|
-| `ResourceCommandVisibility.Dashboard` | Dashboard UI only |
+| `ResourceCommandVisibility.UI` | Dashboard and other UI clients only |
 | `ResourceCommandVisibility.Api` | API and MCP clients only |
-| `ResourceCommandVisibility.All` | Both dashboard and API/MCP (default) |
+| `ResourceCommandVisibility.UI \| ResourceCommandVisibility.Api` | Both UI and API/MCP (default) |
+| `ResourceCommandVisibility.None` | Hidden from all clients |
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -1174,5 +1175,5 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="tip">
-Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, scripting, CI integration) that you don't want to clutter the dashboard UI. Use `ResourceCommandVisibility.Dashboard` for interactive commands that only make sense when a developer is watching the results.
+Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, scripting, CI integration) that you don't want to clutter the dashboard UI. Use `ResourceCommandVisibility.UI` for interactive commands that only make sense when a developer is watching the results.
 </Aside>
