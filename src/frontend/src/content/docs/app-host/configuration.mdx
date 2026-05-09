@@ -188,3 +188,48 @@ You might override `DcpCliPath` in these scenarios:
 <Aside type="tip">
 If your AppHost fails to start with an error about missing DCP or orchestration dependencies, ensure you have the [Aspire SDK](/get-started/aspire-sdk/) properly configured rather than manually setting `DcpCliPath`.
 </Aside>
+
+### AspireUseCliBundle
+
+The `AspireUseCliBundle` property is an opt-in flag that tells the AppHost to resolve DCP and the Aspire Dashboard from the **Aspire CLI bundle** rather than from the platform-specific `Aspire.Hosting.Orchestration.*` and `Aspire.Dashboard.Sdk.*` NuGet packages.
+
+When `AspireUseCliBundle` is `true`:
+
+- `Aspire.AppHost.Sdk` still sets AppHost properties and adds the implicit `Aspire.Hosting.AppHost` package.
+- The SDK skips adding the implicit RID-specific `Aspire.Dashboard.Sdk.*` and `Aspire.Hosting.Orchestration.*` package references.
+- At build time, the `ResolveAspireCliBundlePaths` MSBuild task resolves the DCP and Dashboard executables in this priority order:
+  1. Explicit `AspireCliBundlePath` / `AspireCliPath` properties in the project file.
+  2. The `aspire` executable on `PATH`.
+- If the bundle cannot be found, the build emits error `ASPIRE009` with a message directing you to <https://get.aspire.dev> to install the Aspire CLI.
+
+#### Enable the opt-in
+
+Set `AspireUseCliBundle` in your AppHost `.csproj`:
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+</PropertyGroup>
+```
+
+#### Override the bundle path
+
+If the Aspire CLI is not on `PATH`, provide an explicit path using `AspireCliBundlePath` (path to the CLI bundle directory) or `AspireCliPath` (path to the `aspire` executable):
+
+```xml title="MyApp.AppHost.csproj"
+<PropertyGroup>
+  <AspireUseCliBundle>true</AspireUseCliBundle>
+  <!-- Either set the path to the aspire executable: -->
+  <AspireCliPath>/usr/local/bin/aspire</AspireCliPath>
+  <!-- Or set the path to the unpacked CLI bundle directory: -->
+  <!-- <AspireCliBundlePath>/path/to/aspire/bundle</AspireCliBundlePath> -->
+</PropertyGroup>
+```
+
+#### Running with aspire run
+
+When you start an opted-in AppHost using `aspire run`, the CLI automatically passes the resolved bundle paths through the `ASPIRE_DCP_PATH` and `ASPIRE_DASHBOARD_PATH` environment variables.
+
+:::note
+`AspireUseCliBundle` is a preview opt-in intended for users who want to decouple their AppHost from platform-specific NuGet packages and always run the DCP and Dashboard versions shipped with the Aspire CLI. For most users the default NuGet-based workflow is recommended.
+:::
