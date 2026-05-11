@@ -101,6 +101,32 @@ public sealed class YouTubeWebSubServiceTests
         Assert.Null(broadcaster.Current.YouTube.VideoId);
     }
 
+    [Fact]
+    public async Task ConfirmYouTubeLiveStatusAsync_ResolvesChannelIdBeforePollingWhenOptionEmpty()
+    {
+        var client = new TestYouTubeClient
+        {
+            ResolvedChannelId = "channel-123",
+        };
+        client.LiveResults.Enqueue(new YouTubeLiveResult(true, "video-123"));
+        var broadcaster = LiveTestHelpers.CreateBroadcaster();
+
+        await LiveStatusEndpointRouteBuilderExtensions.ConfirmYouTubeLiveStatusAsync(
+            new YouTubeOptions
+            {
+                ChannelHandle = "@aspiredotdev",
+            },
+            client,
+            broadcaster,
+            NullLogger.Instance,
+            CancellationToken.None);
+
+        Assert.True(broadcaster.Current.YouTube.Live);
+        Assert.Equal("video-123", broadcaster.Current.YouTube.VideoId);
+        Assert.Equal(1, client.ResolveChannelIdCalls);
+        Assert.Equal(["channel-123"], client.LiveLookups);
+    }
+
     private sealed class TestYouTubeClient : IYouTubeClient
     {
         public string? ResolvedChannelId { get; set; } = "channel-123";

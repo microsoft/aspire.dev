@@ -99,6 +99,12 @@ public sealed class TwitchEventSubService(
             Twitch = new TwitchStatus(stream.Live, twitch.ChannelLogin, stream.Title)
         });
 
+        if (string.IsNullOrWhiteSpace(twitch.WebhookSecret))
+        {
+            logger.LogWarning("Twitch WebhookSecret not configured; skipping EventSub subscription reconciliation.");
+            return;
+        }
+
         // Ensure subs.
         var callback = $"{opts.PublicBaseUrl.TrimEnd('/')}/api/live/twitch/webhook";
         var existing = await client.ListEventSubAsync(cancellationToken).ConfigureAwait(false);
@@ -106,11 +112,12 @@ public sealed class TwitchEventSubService(
         await EnsureSubAsync(existing, "stream.online", channelId, callback, twitch.WebhookSecret, cancellationToken).ConfigureAwait(false);
         await EnsureSubAsync(existing, "stream.offline", channelId, callback, twitch.WebhookSecret, cancellationToken).ConfigureAwait(false);
 
-        // Drop stale subs (different callback or revoked).
+        // Drop stale subs (different callback/channel or revoked).
         foreach (var sub in existing)
         {
             var stale = sub.Type is "stream.online" or "stream.offline"
                 && (!string.Equals(sub.CallbackUrl, callback, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(sub.BroadcasterUserId, channelId, StringComparison.Ordinal)
                     || sub.Status is "authorization_revoked" or "user_removed" or "notification_failures_exceeded");
             if (stale)
             {
@@ -124,6 +131,7 @@ public sealed class TwitchEventSubService(
     {
         var found = existing.FirstOrDefault(s => s.Type == type
             && string.Equals(s.CallbackUrl, callback, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(s.BroadcasterUserId, channelId, StringComparison.Ordinal)
             && s.Status is "enabled" or "webhook_callback_verification_pending");
         if (found is not null) return;
 

@@ -264,8 +264,12 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         {
             try
             {
-                var live = await ytClient.GetCurrentLiveAsync(youtube.ChannelId, CancellationToken.None).ConfigureAwait(false);
-                broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(live.Live, live.VideoId) });
+                await ConfirmYouTubeLiveStatusAsync(
+                    youtube,
+                    ytClient,
+                    broadcaster,
+                    logger,
+                    CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -274,6 +278,29 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         });
 
         return Results.Ok();
+    }
+
+    internal static async Task ConfirmYouTubeLiveStatusAsync(
+        YouTubeOptions youtube,
+        IYouTubeClient ytClient,
+        LiveStatusBroadcaster broadcaster,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var channelId = youtube.ChannelId;
+        if (string.IsNullOrWhiteSpace(channelId))
+        {
+            channelId = await ytClient.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (string.IsNullOrWhiteSpace(channelId))
+        {
+            logger.LogWarning("Could not resolve YouTube channel id for webhook confirmation.");
+            return;
+        }
+
+        var live = await ytClient.GetCurrentLiveAsync(channelId, cancellationToken).ConfigureAwait(false);
+        broadcaster.Update(new LiveStatusUpdate { YouTube = new YouTubeStatus(live.Live, live.VideoId) });
     }
 
     // --- Dev-only -----------------------------------------------------------
