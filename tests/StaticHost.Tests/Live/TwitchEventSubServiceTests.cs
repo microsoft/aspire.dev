@@ -52,6 +52,37 @@ public sealed class TwitchEventSubServiceTests
         Assert.Equal(["offline-stale"], client.DeletedSubscriptions);
     }
 
+    [Fact]
+    public async Task ReconcileAsync_CachesResolvedChannelIdAcrossReconciles()
+    {
+        var client = new TestTwitchClient
+        {
+            User = new TwitchUser("user-123", "aspiredotdev", "Aspire"),
+            Stream = new TwitchStreamInfo(false, null),
+        };
+        var service = new TwitchEventSubService(
+            client,
+            LiveTestHelpers.CreateBroadcaster(),
+            new TestOptionsMonitor<LiveStatusOptions>(new LiveStatusOptions
+            {
+                PublicBaseUrl = "https://example.com/",
+                Twitch = new TwitchOptions
+                {
+                    ClientId = "client-id",
+                    ClientSecret = "client-secret",
+                    WebhookSecret = "webhook-secret",
+                    ChannelLogin = "aspiredotdev",
+                },
+            }),
+            NullLogger<TwitchEventSubService>.Instance);
+
+        await service.ReconcileAsync(CancellationToken.None);
+        await service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Equal(1, client.UserLookupCount);
+        Assert.Equal(["user-123", "user-123"], client.StreamLookups);
+    }
+
     private sealed class TestTwitchClient : ITwitchClient
     {
         public TwitchUser? User { get; set; }
@@ -64,11 +95,21 @@ public sealed class TwitchEventSubServiceTests
 
         public List<string> DeletedSubscriptions { get; } = [];
 
-        public Task<TwitchUser?> GetUserByLoginAsync(string login, CancellationToken cancellationToken) =>
-            Task.FromResult(User);
+        public int UserLookupCount { get; private set; }
 
-        public Task<TwitchStreamInfo> GetStreamAsync(string userId, CancellationToken cancellationToken) =>
-            Task.FromResult(Stream);
+        public List<string> StreamLookups { get; } = [];
+
+        public Task<TwitchUser?> GetUserByLoginAsync(string login, CancellationToken cancellationToken)
+        {
+            UserLookupCount++;
+            return Task.FromResult(User);
+        }
+
+        public Task<TwitchStreamInfo> GetStreamAsync(string userId, CancellationToken cancellationToken)
+        {
+            StreamLookups.Add(userId);
+            return Task.FromResult(Stream);
+        }
 
         public Task<IReadOnlyList<TwitchEventSubSubscription>> ListEventSubAsync(CancellationToken cancellationToken) =>
             Task.FromResult(Subscriptions);

@@ -22,6 +22,8 @@ public sealed class TwitchEventSubService(
     TimeProvider? timeProvider = null) : BackgroundService
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private string? _resolvedChannelLogin;
+    private string? _resolvedChannelId;
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -69,13 +71,25 @@ public sealed class TwitchEventSubService(
         var channelId = twitch.ChannelId;
         if (string.IsNullOrEmpty(channelId))
         {
-            var user = await client.GetUserByLoginAsync(twitch.ChannelLogin, cancellationToken).ConfigureAwait(false);
-            if (user is null)
+            if (!string.Equals(_resolvedChannelLogin, twitch.ChannelLogin, StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogWarning("Twitch user '{Login}' not found.", twitch.ChannelLogin);
-                return;
+                _resolvedChannelId = null;
+                _resolvedChannelLogin = twitch.ChannelLogin;
             }
-            channelId = user.Id;
+
+            channelId = _resolvedChannelId ?? "";
+            if (string.IsNullOrEmpty(channelId))
+            {
+                var user = await client.GetUserByLoginAsync(twitch.ChannelLogin, cancellationToken).ConfigureAwait(false);
+                if (user is null)
+                {
+                    logger.LogWarning("Twitch user '{Login}' not found.", twitch.ChannelLogin);
+                    return;
+                }
+                channelId = user.Id;
+            }
+
+            _resolvedChannelId = channelId;
         }
 
         // Re-seed state.
