@@ -1,12 +1,12 @@
 diff --git a/entryToSimpleMarkdown.ts b/entryToSimpleMarkdown.ts
-index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..b2858348745f7116f9a9e598cd10a0a098f056c0 100644
+index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da0ec6fd6f 100644
 --- a/entryToSimpleMarkdown.ts
 +++ b/entryToSimpleMarkdown.ts
 @@ -20,6 +20,7 @@ const minifyDefaults = {
  	danger: false,
  	details: true,
  	whitespace: true,
-+	preserveCodeBlocks: true,
++	collapseCodeBlocks: false,
  	customSelectors: [],
  };
  /** Resolved minification options */
@@ -15,7 +15,9 @@ index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..b2858348745f7116f9a9e598cd10a0a0
  	let markdown = String(file).trim();
  	if (shouldMinify && minify.whitespace) {
 -		markdown = markdown.replace(/\s+/g, ' ');
-+		if (minify.preserveCodeBlocks) {
++		if (minify.collapseCodeBlocks) {
++			markdown = markdown.replace(/\s+/g, ' ');
++		} else {
 +			// Collapse whitespace in prose, but keep the contents of fenced code
 +			// blocks (``` and ~~~, of any length ≥ 3) intact so multi-line code
 +			// samples stay multi-line. Fences are matched at the start of a line
@@ -37,37 +39,38 @@ index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..b2858348745f7116f9a9e598cd10a0a0
 +			// input; trim again so the `\n` wrappers we added around fences at
 +			// the start/end of the document don't reintroduce it.
 +			markdown = parts.join('').trim();
-+		} else {
-+			markdown = markdown.replace(/\s+/g, ' ');
 +		}
  	}
  	return markdown;
  }
 diff --git a/types.ts b/types.ts
-index c7260e0ddd8b251d399d6d31b767924b8413ee81..f08910727ecb8a81248f51035ea1f4e6d2b4273d 100644
+index c7260e0ddd8b251d399d6d31b767924b8413ee81..ae048511968d45bbef14c2d5b780bdaffcba0df7 100644
 --- a/types.ts
 +++ b/types.ts
-@@ -130,6 +130,24 @@ export interface StarlightLllmsTextOptions {
+@@ -130,6 +130,27 @@ export interface StarlightLllmsTextOptions {
  		 */
  		whitespace?: boolean;
  
 +		/**
-+		 * When `whitespace` is enabled, preserve the original newlines (and
-+		 * indentation) inside fenced code blocks (``` and ~~~) so that
-+		 * multi-line code samples stay multi-line in `llms-small.txt`.
++		 * When `whitespace` is enabled, also collapse whitespace inside fenced
++		 * code blocks (``` and ~~~). By default, the bodies of fenced code
++		 * blocks keep their original newlines (and indentation) so multi-line
++		 * code samples stay multi-line in `llms-small.txt`.
 +		 *
-+		 * Whitespace in prose (paragraphs, lists, etc.) is still collapsed for
-+		 * token efficiency — only code-block bodies are exempt. Both
-+		 * variable-length fences (e.g. four or more backticks) and tilde fences
-+		 * are recognized. Has no effect when `whitespace` is `false`.
++		 * Whitespace in prose (paragraphs, lists, etc.) is always collapsed
++		 * when `whitespace` is enabled; this option only controls whether
++		 * code-block bodies are exempt. Both variable-length fences (e.g.
++		 * four or more backticks) and tilde fences are recognized.
 +		 *
-+		 * Set this to `false` to restore the previous behavior of collapsing
++		 * Set this to `true` to restore the previous behavior of collapsing
 +		 * every whitespace run, including newlines inside code fences, into a
 +		 * single space.
 +		 *
-+		 * @default true
++		 * Has no effect when `whitespace` is `false`.
++		 *
++		 * @default false
 +		 */
-+		preserveCodeBlocks?: boolean;
++		collapseCodeBlocks?: boolean;
 +
  		/**
  		 * Custom selectors to exclude when generating `llms-small.txt`.

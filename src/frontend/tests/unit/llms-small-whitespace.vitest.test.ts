@@ -14,10 +14,12 @@ import { describe, expect, test } from 'vitest';
 // `aspire docs get` command) then render multi-line code samples as flowed
 // prose.
 //
-// The patch in `src/frontend/patches/starlight-llms-txt@0.8.1.patch` introduces
-// a `minify.preserveCodeBlocks` option (default `true`) that preserves the
-// bodies of ``` and ~~~ fenced blocks while still collapsing whitespace in
-// surrounding prose. The upstream PR mirrors this change.
+// The patch in `src/frontend/patches/starlight-llms-txt@0.8.1.patch` adds a
+// `minify.collapseCodeBlocks` option (default `false`). When unset (the new
+// default), the plugin preserves the bodies of ``` and ~~~ fenced blocks
+// while still collapsing whitespace in surrounding prose. Setting it to
+// `true` restores the legacy flatten-everything behavior. The upstream PR
+// mirrors this change.
 //
 // The sentinel below pins the *exact* fence regex shipped in the patched
 // plugin to the regex used by the inlined helper. That makes the behavior
@@ -41,17 +43,17 @@ const INLINED_FENCE_MATCHER =
   /(?<=^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n(?:[\s\S]*?\n)?\1\2[ \t]*(?=\n|$)/g;
 
 describe('starlight-llms-txt patch sentinel', () => {
-  test('patched entryToSimpleMarkdown.ts contains preserveCodeBlocks branch', () => {
+  test('patched entryToSimpleMarkdown.ts contains collapseCodeBlocks branch', () => {
     const source = readFileSync(patchedPluginPath, 'utf8');
 
     expect(
       source,
-      'patched plugin should declare the preserveCodeBlocks default',
-    ).toContain('preserveCodeBlocks: true');
+      'patched plugin should declare the collapseCodeBlocks default',
+    ).toContain('collapseCodeBlocks: false');
     expect(
       source,
-      'patched plugin should guard the new branch with the option',
-    ).toContain('minify.preserveCodeBlocks');
+      'patched plugin should gate the legacy branch on the new option',
+    ).toContain('minify.collapseCodeBlocks');
     expect(
       source,
       'patched plugin should trim boundary whitespace introduced by the `\\n` wrappers',
