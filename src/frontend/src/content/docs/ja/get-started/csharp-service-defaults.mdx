@@ -12,7 +12,13 @@ import { Aside } from '@astrojs/starlight/components';
 
 クラウド ネイティブ アプリケーションでは、さまざまな環境で信頼性とセキュリティを保って動作させるために、広範な設定が必要になることが少なくありません。Aspire は、OpenTelemetry、正常性チェック、環境変数などの構成管理を効率化するための、多くのヘルパー メソッドやツールを提供しています。
 
-## Service Default プロジェクトを確認する
+ファイルベースの AppHost 構成には、C# サービスの既定値（Service Defaults）プロジェクトは含まれません。ファイルベースの AppHost を使用する場合は、必要なリソース向けに次のコマンドを実行して生成してください:
+
+```bash title='.NET CLI — 新しい service defaults テンプレートを作成'
+dotnet new aspire-servicedefaults -n YourAppName.ServiceDefaults
+```
+
+## Service Defaults プロジェクトを確認する
 
 Aspire オーケストレーションに参加、または新しい Aspire プロジェクトを作成すると、_YourAppName.ServiceDefaults.csproj_ プロジェクトがソリューションに追加されます。たとえば API を構築する場合、アプリの _Program.cs_ ファイル内で `AddServiceDefaults` メソッドを呼び出します。:
 
@@ -31,7 +37,8 @@ builder.AddServiceDefaults();
 
 <Aside type="caution">
   Aspire の Service Defaults プロジェクトは、Extensions.cs
-  ファイルとその機能を共有することに特化して設計されています。このプロジェクトには、その他の共有機能やモデルを含めないでください。それらの用途には、一般的な共有クラス
+    ファイルとその機能を共有することに特化して設計されています。このプロジェクトには、その他の
+    共有機能やモデルを含めないでください。それらの用途には、一般的な共有クラス
   ライブラリ プロジェクトを使用してください。
 </Aside>
 
@@ -52,8 +59,8 @@ _YourAppName.ServiceDefaults_ プロジェクトは、次のような XML を含
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
 
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0" />
-    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.5.2" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="10.0.0" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
@@ -68,8 +75,8 @@ ServiceDefaults プロジェクトのテンプレートでは、`Microsoft.AspNe
 
 <Aside type="tip">
   `Microsoft.AspNetCore.App` への依存関係を持たせたくない場合は、カスタムの
-  ServiceDefaults プロジェクトを作成できます。 詳細については[Service Defaults
-  のカスタマイズ](#service-defaults-のカスタマイズ)をご参照ください。
+    ServiceDefaults プロジェクトを作成できます。 詳細については[Service Defaults
+    のカスタマイズ](#service-defaults-のカスタマイズ)をご参照ください。
 </Aside>
 
 `IsAspireSharedProject` プロパティは `true` に設定されており、このプロジェクトが共有プロジェクトであることを示しています。Aspire のツールは、このプロジェクトを Aspire ソリューションに追加される他のプロジェクトの参照先として使用します。新しいプロジェクトをオーケストレーションに参加させると、自動的に _YourAppName.ServiceDefaults_ プロジェクトが参照され、あわせて _Program.cs_ ファイルが更新されて` AddServiceDefaults` メソッドが呼び出されるようになります。
@@ -154,8 +161,7 @@ public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) w
                         !context.Request.Path.StartsWithSegments(HealthEndpointPath)
                             && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath)
                 )
-                // gRPC インストルメンテーションを有効化する場合は、次の行のコメントを解除します
-                // （OpenTelemetry.Instrumentation.GrpcNetClient パッケージが必要です）
+                // gRPC インストルメンテーションを有効化する場合は、次の行のコメントを解除します（OpenTelemetry.Instrumentation.GrpcNetClient パッケージが必要です）
                 //.AddGrpcClientInstrumentation()
                 .AddHttpClientInstrumentation();
         });
@@ -189,8 +195,7 @@ private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builde
         builder.Services.AddOpenTelemetry().UseOtlpExporter();
     }
 
-    // Azure Monitor エクスポーターを有効化する場合は、次の行のコメントを解除します
-    // （Azure.Monitor.OpenTelemetry.AspNetCore パッケージが必要です）
+    // Azure Monitor エクスポーターを有効化する場合は、次の行のコメントを解除します（Azure.Monitor.OpenTelemetry.AspNetCore パッケージが必要です）
     //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
     //{
     //    builder.Services.AddOpenTelemetry()
@@ -221,8 +226,7 @@ public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) w
 }
 ```
 
-`AddDefaultHealthChecks` メソッドは、アプリが応答可能であることを保証するための既定の Liveness チェックを追加します。
-`AddHealthChecks` の呼び出しにより、HealthCheckService が登録されます。
+`AddDefaultHealthChecks` メソッドは、アプリが応答可能であることを保証するための既定の Liveness チェックを追加します。`AddHealthChecks` の呼び出しにより、HealthCheckService が登録されます。
 
 #### Web アプリにおける正常性チェックの構成
 
@@ -231,8 +235,8 @@ Web アプリで正常性チェックを公開するために、Aspire はソリ
 ```csharp title="Extensions.cs"
 public static WebApplication MapDefaultEndpoints(this WebApplication app)
 {
-    // 開発環境以外で正常性チェック エンドポイントを公開することには、セキュリティ上の考慮点があります。
-    // 詳細については https://aspire.dev/ja/fundamentals/health-checks/ をご確認ください。
+    // 開発環境以外でアプリケーションに正常性チェック エンドポイントを追加することには、セキュリティ上の考慮事項があります。
+    // 非開発環境でこれらのエンドポイントを有効化する前に、詳細を https://aka.ms/dotnet/aspire/healthchecks で確認してください。
     if (app.Environment.IsDevelopment())
     {
         // アプリ起動後にトラフィックを受け付け可能と判断されるには、すべての正常性チェックが成功する必要があります
@@ -256,12 +260,10 @@ public static WebApplication MapDefaultEndpoints(this WebApplication app)
 - 正常性チェックのタグに `live` を含むものを対象として、Liveness エンドポイントを `/alive` にマップします
 
 <Aside type="note">
-  **Service Defaults** project template. Aspire 9.2 以降、スターター
-  テンプレートは ASP.NET Core プロジェクト向けに `WithHttpsHealthCheck`
-  の呼び出しを含むように更新されています。 開発中のリクエスト トレース
-  ログをより見やすく保つため、構成された正常性チェック エンドポイント
-  （`/health` および `/alive`）に対するトレースは、**Service
-  Defaults**プロジェクト テンプレートでは 既定で除外されるようになっています。
+    現在のスターター テンプレートには、ASP.NET Core プロジェクト向けの
+    `WithHttpsHealthCheck` 呼び出しが含まれています。開発中のリクエスト トレース ログを見やすく保つため、構成済みの正常性チェック
+    エンドポイント（`/health` と `/alive`）のトレースは、**Service
+    Defaults** プロジェクト テンプレートで既定で除外されます。
 </Aside>
 
 ## Service Defaults のカスタマイズ
