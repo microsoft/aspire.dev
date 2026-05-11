@@ -18,6 +18,12 @@ import { describe, expect, test } from 'vitest';
 // a `minify.preserveCodeBlocks` option (default `true`) that preserves the
 // bodies of ``` and ~~~ fenced blocks while still collapsing whitespace in
 // surrounding prose. The upstream PR mirrors this change.
+//
+// The sentinel below pins the *exact* fence regex shipped in the patched
+// plugin to the regex used by the inlined helper. That makes the behavior
+// fixtures (which run the inlined helper) a faithful test of what's actually
+// running at build time — drift between the inlined copy and the shipped
+// patched code fails CI on the sentinel.
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(testsDir, '..', '..');
@@ -27,6 +33,12 @@ const patchedPluginPath = path.join(
   'starlight-llms-txt',
   'entryToSimpleMarkdown.ts',
 );
+
+// Source of the fence regex used by the inlined helper, captured as a string
+// so it can be compared byte-for-byte to the regex literal embedded in the
+// patched plugin file. MUST equal `INLINED_FENCE_MATCHER.toString()`.
+const INLINED_FENCE_MATCHER =
+  /(?<=^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n(?:[\s\S]*?\n)?\1\2[ \t]*(?=\n|$)/g;
 
 describe('starlight-llms-txt patch sentinel', () => {
   test('patched entryToSimpleMarkdown.ts contains preserveCodeBlocks branch', () => {
@@ -42,26 +54,45 @@ describe('starlight-llms-txt patch sentinel', () => {
     ).toContain('minify.preserveCodeBlocks');
     expect(
       source,
-      'patched plugin should match fenced code blocks at start of line',
-    ).toContain('`{3,}|~{3,}');
+      'patched plugin should trim boundary whitespace introduced by the `\\n` wrappers',
+    ).toContain("parts.join('').trim()");
+    expect(
+      source,
+      'patched plugin should guard the optional `match.index`',
+    ).toContain('match.index ?? 0');
+  });
+
+  test('patched fence regex matches the regex used by the inlined helper', () => {
+    const source = readFileSync(patchedPluginPath, 'utf8');
+    const regexLiteral = source.match(/\/\(\?<=\^\|\\n\)[^\n]+\/g/);
+
+    expect(
+      regexLiteral,
+      'patched plugin should declare a fenceMatcher regex literal',
+    ).not.toBeNull();
+    // This pins the regex shipped in the plugin to the regex run by the
+    // fixtures below. If upstream amends the algorithm, the inlined copy and
+    // this assertion both need to be updated together.
+    expect(regexLiteral![0]).toBe(INLINED_FENCE_MATCHER.toString());
   });
 });
 
 // The minify algorithm from the patch, inlined here so the fixtures run in
 // isolation from the plugin's full runtime (which depends on Astro/Starlight).
 // MUST stay byte-identical to the implementation in
-// `patches/starlight-llms-txt@0.8.1.patch`.
+// `patches/starlight-llms-txt@0.8.1.patch`; the sentinel above enforces this.
 function minifyPreservingCodeBlocks(markdown: string): string {
-  const fenceMatcher = /(?<=^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\1\2[ \t]*(?=\n|$)/g;
+  const fenceMatcher = new RegExp(INLINED_FENCE_MATCHER.source, INLINED_FENCE_MATCHER.flags);
   const parts: string[] = [];
   let lastIndex = 0;
   for (const match of markdown.matchAll(fenceMatcher)) {
-    parts.push(markdown.slice(lastIndex, match.index).replace(/\s+/g, ' '));
+    const index = match.index ?? 0;
+    parts.push(markdown.slice(lastIndex, index).replace(/\s+/g, ' '));
     parts.push('\n', match[0], '\n');
-    lastIndex = match.index + match[0].length;
+    lastIndex = index + match[0].length;
   }
   parts.push(markdown.slice(lastIndex).replace(/\s+/g, ' '));
-  return parts.join('');
+  return parts.join('').trim();
 }
 
 const fixtures: Array<{ name: string; input: string; expected: string }> = [
@@ -80,7 +111,7 @@ const fixtures: Array<{ name: string; input: string; expected: string }> = [
   {
     name: 'two adjacent fenced blocks',
     input: '```a\nx\n```\n```b\ny\n```',
-    expected: '\n```a\nx\n```\n \n```b\ny\n```\n',
+    expected: '```a\nx\n```\n \n```b\ny\n```',
   },
   {
     name: '4-backtick fence containing literal triple-backtick',
@@ -105,17 +136,27 @@ const fixtures: Array<{ name: string; input: string; expected: string }> = [
   {
     name: 'fence at start of input',
     input: '```js\nconst a = 1;\n```\n\ntrailing prose',
-    expected: '\n```js\nconst a = 1;\n```\n trailing prose',
+    expected: '```js\nconst a = 1;\n```\n trailing prose',
   },
   {
     name: 'fence at end of input',
     input: 'leading prose\n\n```js\nconst a = 1;\n```',
-    expected: 'leading prose \n```js\nconst a = 1;\n```\n',
+    expected: 'leading prose \n```js\nconst a = 1;\n```',
   },
   {
     name: 'mismatched fence length does not match',
     input: 'pre\n\n```bash\naspire run\n````\n\npost',
     expected: 'pre ```bash aspire run ```` post',
+  },
+  {
+    name: 'empty fenced block is preserved',
+    input: 'pre\n\n```\n```\n\npost',
+    expected: 'pre \n```\n```\n post',
+  },
+  {
+    name: 'fence-only input (start AND end of input)',
+    input: '```js\nconst a = 1;\n```',
+    expected: '```js\nconst a = 1;\n```',
   },
 ];
 
