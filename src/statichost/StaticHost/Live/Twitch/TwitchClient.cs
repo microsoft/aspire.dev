@@ -88,8 +88,13 @@ public sealed class TwitchClient(
             var status = sub.GetProperty("status").GetString() ?? "";
             var transport = sub.GetProperty("transport");
             var callback = transport.TryGetProperty("callback", out var cb) ? cb.GetString() ?? "" : "";
+            var condition = sub.TryGetProperty("condition", out var conditionEl) ? conditionEl : default;
+            var broadcasterUserId = condition.ValueKind == JsonValueKind.Object &&
+                condition.TryGetProperty("broadcaster_user_id", out var broadcasterUserIdEl)
+                    ? broadcasterUserIdEl.GetString()
+                    : null;
 
-            list.Add(new TwitchEventSubSubscription(id, type, status, callback));
+            list.Add(new TwitchEventSubSubscription(id, type, status, callback, broadcasterUserId));
         }
 
         return list;
