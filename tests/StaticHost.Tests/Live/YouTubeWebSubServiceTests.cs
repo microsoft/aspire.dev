@@ -39,6 +39,36 @@ public sealed class YouTubeWebSubServiceTests
     }
 
     [Fact]
+    public async Task TickAsync_CachesResolvedChannelIdAcrossPolls()
+    {
+        var client = new TestYouTubeClient
+        {
+            ResolvedChannelId = "channel-123",
+        };
+        client.LiveResults.Enqueue(new YouTubeLiveResult(true, "video-1"));
+        client.LiveResults.Enqueue(new YouTubeLiveResult(true, "video-2"));
+        var service = new YouTubeWebSubService(
+            client,
+            LiveTestHelpers.CreateBroadcaster(),
+            new TestOptionsMonitor<LiveStatusOptions>(new LiveStatusOptions
+            {
+                YouTube = new YouTubeOptions
+                {
+                    ApiKey = "api-key",
+                    ChannelHandle = "@aspiredotdev",
+                },
+            }),
+            NullLogger<YouTubeWebSubService>.Instance,
+            new FakeTimeProvider(DateTimeOffset.UnixEpoch));
+
+        await service.TickAsync(CancellationToken.None);
+        await service.TickAsync(CancellationToken.None);
+
+        Assert.Equal(1, client.ResolveChannelIdCalls);
+        Assert.Equal(["channel-123", "channel-123"], client.LiveLookups);
+    }
+
+    [Fact]
     public async Task TickAsync_RequiresConfiguredOfflineConfirmationCountBeforeBroadcastingOffline()
     {
         var client = new TestYouTubeClient();
@@ -79,11 +109,21 @@ public sealed class YouTubeWebSubServiceTests
 
         public List<Subscription> Subscriptions { get; } = [];
 
-        public Task<string?> ResolveChannelIdAsync(string handle, CancellationToken cancellationToken) =>
-            Task.FromResult(ResolvedChannelId);
+        public int ResolveChannelIdCalls { get; private set; }
 
-        public Task<YouTubeLiveResult> GetCurrentLiveAsync(string channelId, CancellationToken cancellationToken) =>
-            Task.FromResult(LiveResults.Count > 0 ? LiveResults.Dequeue() : new YouTubeLiveResult(false, null));
+        public List<string> LiveLookups { get; } = [];
+
+        public Task<string?> ResolveChannelIdAsync(string handle, CancellationToken cancellationToken)
+        {
+            ResolveChannelIdCalls++;
+            return Task.FromResult(ResolvedChannelId);
+        }
+
+        public Task<YouTubeLiveResult> GetCurrentLiveAsync(string channelId, CancellationToken cancellationToken)
+        {
+            LiveLookups.Add(channelId);
+            return Task.FromResult(LiveResults.Count > 0 ? LiveResults.Dequeue() : new YouTubeLiveResult(false, null));
+        }
 
         public Task SubscribeAsync(string channelId, string callbackUrl, string secret, TimeSpan lease, CancellationToken cancellationToken)
         {

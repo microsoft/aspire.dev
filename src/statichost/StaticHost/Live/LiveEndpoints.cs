@@ -68,8 +68,9 @@ public static class LiveStatusEndpointRouteBuilderExtensions
         return endpoints;
     }
 
-    private static IResult GetSnapshot(LiveStatusBroadcaster broadcaster)
+    private static IResult GetSnapshot(HttpContext context, LiveStatusBroadcaster broadcaster)
     {
+        context.Response.Headers.CacheControl = "no-store";
         var snapshot = broadcaster.Current;
         return Results.Json(snapshot, LiveStatusJsonContext.Default.LiveStatus,
             statusCode: StatusCodes.Status200OK);
@@ -92,9 +93,6 @@ public static class LiveStatusEndpointRouteBuilderExtensions
 
         var (reader, unsubscribe) = broadcaster.Subscribe();
         using var _ = unsubscribe;
-
-        using var heartbeat = time.CreateTimer(static _ => { }, null,
-            TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
 
         try
         {
