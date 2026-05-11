@@ -1,9 +1,55 @@
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// Matches versioned "What's new" release notes filenames such as
+// `aspire-13.mdx` (13.0), `aspire-13-3.mdx` (13.3), and `aspire-9-5.mdx` (9.5).
+// Excludes `upgrade-aspire.mdx` and other non-versioned pages.
+const whatsNewVersionPattern = /^aspire-(\d+)(?:-(\d+))?\.mdx$/;
+
+function getLatestWhatsNewSlug() {
+  const whatsNewDir = fileURLToPath(
+    new URL('../src/content/docs/whats-new/', import.meta.url)
+  );
+
+  let bestSlug = null;
+  let bestKey = -1;
+
+  for (const entry of readdirSync(whatsNewDir)) {
+    const match = whatsNewVersionPattern.exec(entry);
+    if (!match) continue;
+
+    const major = Number(match[1]);
+    const minor = Number(match[2] ?? 0);
+    const key = major * 1000 + minor;
+
+    if (key > bestKey) {
+      bestKey = key;
+      bestSlug = entry.replace(/\.mdx$/, '');
+    }
+  }
+
+  return bestSlug;
+}
+
+const latestWhatsNewSlug = getLatestWhatsNewSlug();
+
 export const redirects = {
   // https://docs.astro.build/en/guides/routing/#configured-redirects
   // For example:
   // '/original/path/': '/new/path'
   '/cli/': '/reference/cli/overview/',
   '/compatibility/': '/whats-new/upgrade-aspire/',
+  // `/whats-new/` has no index page; redirect it to the latest release notes
+  // (computed from the filenames in src/content/docs/whats-new/). Uses 302
+  // because the destination changes when a new version ships.
+  ...(latestWhatsNewSlug
+    ? {
+        '/whats-new/': {
+          status: 302,
+          destination: `/whats-new/${latestWhatsNewSlug}/`,
+        },
+      }
+    : {}),
   '/configure-the-mcp-server/': '/get-started/aspire-mcp-server/',
   '/install-aspire-cli/': '/get-started/install-cli/',
   '/get-started/welcome/': '/docs/',
