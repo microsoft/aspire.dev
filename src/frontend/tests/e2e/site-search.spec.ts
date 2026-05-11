@@ -137,9 +137,13 @@ test.describe('site search dialog', () => {
 
     // Press End to jump to the last keyboard target — that should be the
     // TypeScript API button (last item in DOM order: results → load-more
-    // → C# button → TS button).
+    // → C# button → TS button). Home/End are deliberately ignored while
+    // the caret is in the input (they keep native text-editing behaviour
+    // there), so we ArrowDown into the results first to move focus out
+    // of the search field.
     const input = dialog.locator('input.pagefind-ui__search-input');
-    await input.press('End');
+    await input.press('ArrowDown');
+    await page.keyboard.press('End');
     await expect(tsBtn).toHaveAttribute('data-search-active', 'true');
     await expect(tsBtn).toBeFocused();
 
@@ -154,6 +158,43 @@ test.describe('site search dialog', () => {
     await page.keyboard.press('Home');
     await expect(results.first()).toHaveAttribute('data-search-active', 'true');
     await expect(csharpBtn).not.toHaveAttribute('data-search-active', 'true');
+  });
+
+  test('Home/End in the search input do not focus the API/load-more buttons', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await dismissCookieConsentIfVisible(page);
+
+    const ready = await openSearchDialog(page);
+    test.skip(!ready, 'Pagefind is not available in dev mode; this assertion runs against astro preview.');
+
+    await typeSearchQuery(page, 'aspire');
+
+    const dialog = page.locator('site-search dialog[open]');
+    const input = dialog.locator('input.pagefind-ui__search-input');
+    const results = dialog.locator('.pagefind-ui__result-link');
+    const csharpBtn = dialog.locator('a[data-api-search-link][data-api-lang="csharp"]');
+    const tsBtn = dialog.locator('a[data-api-search-link][data-api-lang="typescript"]');
+
+    await expect(results.first()).toBeVisible({ timeout: 15000 });
+
+    // Pressing Home/End while focus is in the input must NOT move the
+    // active marker to the C#/TypeScript API buttons (or any other
+    // out-of-listbox target). This is the regression that previously
+    // stole the caret away from the search field whenever the user
+    // tried to jump to the start/end of their query text.
+    await input.press('Home');
+    await expect(csharpBtn).not.toHaveAttribute('data-search-active', 'true');
+    await expect(tsBtn).not.toHaveAttribute('data-search-active', 'true');
+    await expect(csharpBtn).not.toBeFocused();
+    await expect(tsBtn).not.toBeFocused();
+
+    await input.press('End');
+    await expect(csharpBtn).not.toHaveAttribute('data-search-active', 'true');
+    await expect(tsBtn).not.toHaveAttribute('data-search-active', 'true');
+    await expect(csharpBtn).not.toBeFocused();
+    await expect(tsBtn).not.toBeFocused();
   });
 
   test('typed query is forwarded to the C# and TypeScript API buttons', async ({ page }) => {

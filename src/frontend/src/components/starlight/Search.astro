@@ -120,6 +120,10 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         input.setAttribute('role', 'combobox');
         input.setAttribute('aria-autocomplete', 'list');
         input.setAttribute('aria-controls', this.resultsContainerId);
+        // Seed `aria-expanded` so it's always present once the combobox
+        // role is set; the line below this `if` will refresh it to the
+        // real dialog state on every render.
+        input.setAttribute('aria-expanded', 'false');
         // Capture-phase keydown on the dialog catches arrows whether the
         // user is in the input or already on a focused result/button.
         this.dialog.addEventListener('keydown', this.keydownHandler, true);
@@ -168,9 +172,23 @@ const typescriptHref = `${base}/reference/api/typescript/`;
           ? (this.targets[this.activeIndex] as HTMLAnchorElement)
           : null;
 
+      // Clean up only the elements that are leaving the target list.
+      // Elements that survive into `newTargets` keep their attributes so
+      // a transient Pagefind re-render (which can briefly emit a target
+      // list without the result links) doesn't permanently wipe the
+      // active highlight — `setActive` below will re-establish state on
+      // the surviving element if appropriate.
+      const newSet = new Set(newTargets);
       for (const stale of this.targets) {
+        if (newSet.has(stale)) continue;
         stale.removeAttribute('data-search-active');
-        stale.setAttribute('aria-selected', 'false');
+        // `aria-selected` is only valid on roles in the listbox family
+        // (option/row/tab/gridcell/treeitem). The load-more / API buttons
+        // sit outside the listbox, so we never write the attribute on
+        // them — and we don't clear it on them either.
+        if (stale.getAttribute('role') === 'option') {
+          stale.setAttribute('aria-selected', 'false');
+        }
       }
       this.targets = newTargets;
 
@@ -222,7 +240,9 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       if (this.activeIndex >= 0 && this.targets[this.activeIndex]) {
         const prev = this.targets[this.activeIndex];
         prev.removeAttribute('data-search-active');
-        prev.setAttribute('aria-selected', 'false');
+        if (prev.getAttribute('role') === 'option') {
+          prev.setAttribute('aria-selected', 'false');
+        }
       }
       this.activeIndex = index;
       if (index < 0 || !this.targets[index]) {
@@ -231,10 +251,14 @@ const typescriptHref = `${base}/reference/api/typescript/`;
       }
       const el = this.targets[index];
       el.setAttribute('data-search-active', 'true');
-      el.setAttribute('aria-selected', 'true');
-      // Only point aria-activedescendant at result links; the API/load-more
-      // buttons aren't part of the listbox.
+      // `aria-selected` and `aria-activedescendant` are only meaningful
+      // when the target lives inside the listbox (role="option"). The
+      // load-more button and the API reference buttons are plain
+      // focusable controls, so we deliberately leave both attributes
+      // off them — otherwise screen readers may announce them as
+      // "selected" listbox options.
       if (el.getAttribute('role') === 'option') {
+        el.setAttribute('aria-selected', 'true');
         this.input?.setAttribute('aria-activedescendant', el.id);
       } else {
         this.input?.removeAttribute('aria-activedescendant');
@@ -261,10 +285,14 @@ const typescriptHref = `${base}/reference/api/typescript/`;
         e.preventDefault();
         const prev = this.activeIndex <= 0 ? this.targets.length - 1 : this.activeIndex - 1;
         this.setActive(prev, true);
-      } else if (e.key === 'Home' && this.targets.length > 0) {
+      } else if (e.key === 'Home' && this.targets.length > 0 && e.target !== this.input) {
+        // Home/End are intercepted only when focus has already moved out
+        // of the input. While the caret is in the search field, the
+        // browser's native cursor behaviour (jump to start/end of the
+        // query text) takes priority over list navigation.
         e.preventDefault();
         this.setActive(0, true);
-      } else if (e.key === 'End' && this.targets.length > 0) {
+      } else if (e.key === 'End' && this.targets.length > 0 && e.target !== this.input) {
         e.preventDefault();
         this.setActive(this.targets.length - 1, true);
       } else if (e.key === 'Enter' && this.activeIndex >= 0 && this.targets[this.activeIndex]) {
@@ -515,6 +543,15 @@ const typescriptHref = `${base}/reference/api/typescript/`;
   }
 
   /* ── Keyboard hints footer ─────────────────────────────────────── */
+  /*
+   * The footer is rendered inside Starlight's `.dialog-frame`, which
+   * applies `padding: 1rem` (and `1.5rem` at >= 50rem). The negative
+   * `margin-inline` / `margin-block-end` values and the matching sticky
+   * `bottom` offset below "bleed" the footer back to the dialog edges so
+   * the border-top runs full width. If Starlight changes those padding
+   * tokens, update these values to match — otherwise the footer will
+   * appear visually inset from the dialog frame.
+   */
   .search-keyboard-footer {
     display: flex;
     flex-wrap: wrap;
