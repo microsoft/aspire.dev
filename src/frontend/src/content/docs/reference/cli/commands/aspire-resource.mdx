@@ -1,6 +1,6 @@
 ---
 title: aspire resource command
-description: Learn about the aspire resource command and its usage. This command executes a command on a resource in a running apphost, with support for named command options and command-specific help.
+description: Learn about the aspire resource command and its usage. This command executes a command on a resource in a running apphost.
 ---
 
 import Include from '@components/Include.astro';
@@ -31,46 +31,46 @@ selected resource at runtime. This is why the CLI reference documents
 `aspire resource start`.
 </Aside>
 
-### Command inputs as named options
+### Command arguments as named options
 
-When a resource command defines inputs (parameters), those inputs are passed as **named options** on the command line — not as positional values. Named options make it easier to supply only the inputs you need, skip optional ones, and pass values in any order.
+When a resource command defines arguments, those arguments are passed as **named options** on the command line. Named options make it easier to supply only the arguments you need, skip optional ones, and pass values in any order.
 
-To see what inputs a specific command accepts, use the command-specific `--help` flag:
+To see what arguments a specific command accepts, use the command-specific `--help` flag:
 
 ```bash title="Aspire CLI"
 aspire resource <resource> <command> --help
 ```
 
-The help output lists each input with its type, whether it's required, its default value (if any), and the set of allowed values for choice inputs. For example:
+The help output lists each argument with its type, whether it's required, its default value (if any), and the set of allowed values for choice arguments. For example:
 
 ```console
-Common dashboard/API command with text, number, boolean, choice, and secret argument inputs.
+Echo a message with text, number, boolean, choice, and secret command arguments.
 
 Usage:
-  aspire resource argument-commands echo-arguments [command-options] [options]
-  aspire resource argument-commands echo-arguments -- [command-options]
+  aspire resource <resource> <command> [command-options] [options]
+  aspire resource <resource> <command> -- [command-options]
 
 Command options:
   --message   Text value to echo. Required.
   --repeat    How many times to echo the message. Default: 1.
   --shout     Uppercase the echoed message. Default: false.
-  --flavor    Choice argument used to verify select input rendering. Allowed values: vanilla, chocolate, strawberry. Default: vanilla.
-  --secret    Secret text input. The command only returns its length.
+  --flavor    The message flavor. Allowed values: vanilla, chocolate, strawberry. Default: vanilla.
+  --secret    Secret text command argument. The command only returns its length.
 
 Options:
-  --apphost   The path to the Aspire AppHost project file or a directory to search
+  --apphost   The path to the Aspire AppHost file or a directory to search
   -?, -h, --help   Show help and usage information
 ```
 
 #### Handling option name collisions
 
-If a command input name conflicts with an Aspire CLI option (such as `--apphost`), use `--` to separate Aspire CLI options from command-specific options:
+If a command argument name conflicts with an Aspire CLI option (such as `--apphost`), use `--` to separate Aspire CLI options from command-specific options:
 
 ```bash title="Aspire CLI"
-aspire resource <resource> <command> --apphost './MyApp.AppHost.csproj' -- --apphost myvalue
+aspire resource <resource> <command> --apphost './MyApp.AppHost.cs' -- --apphost myvalue
 ```
 
-Everything after `--` is treated as command input options and is not parsed as Aspire CLI flags.
+Everything after `--` is treated as command argument options and is not parsed as Aspire CLI flags.
 
 When executed without the `--apphost` option, the command:
 
@@ -97,7 +97,9 @@ When executed without the `--apphost` option, the command:
 
 The following options are available:
 
-- <Include relativePath="reference/cli/includes/option-project.md" />
+- **`--apphost <apphost>`**
+
+  The path to the Aspire AppHost file or a directory to search.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -125,25 +127,25 @@ The following options are available:
   aspire resource worker stop
   ```
 
-- Target a specific AppHost project:
+- Target a specific AppHost file:
 
   ```bash title="Aspire CLI"
-  aspire resource api restart --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
+  aspire resource api restart --apphost './src/MyApp.AppHost/AppHost.cs'
   ```
 
-- Show command-specific help for a resource command with inputs:
+- Show command-specific help for a resource command with arguments:
 
   ```bash title="Aspire CLI"
   aspire resource my-resource echo-message --help
   ```
 
-- Execute a resource command with named inputs:
+- Execute a resource command with named arguments:
 
   ```bash title="Aspire CLI"
   aspire resource my-resource echo-message --message "hello" --repeat 3 --shout true
   ```
 
-- Supply only some optional inputs (skipping others):
+- Supply only some optional command arguments (skipping others):
 
   ```bash title="Aspire CLI"
   aspire resource my-resource echo-message --message "hello" --flavor chocolate
@@ -152,7 +154,7 @@ The following options are available:
 - Use `--` to avoid conflict with an Aspire CLI option named `--apphost`:
 
   ```bash title="Aspire CLI"
-  aspire resource my-resource custom-cmd --apphost './MyApp.AppHost.csproj' -- --apphost myvalue
+  aspire resource my-resource custom-cmd --apphost './apphost.ts' -- --apphost myvalue
   ```
 
 ## See also
