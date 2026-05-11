@@ -44,7 +44,15 @@ internal sealed class LinkHeaderMiddleware
 
     public Task InvokeAsync(HttpContext context)
     {
-        if (ShouldSkip(context.Request))
+        if (!ShouldHandle(context.Request))
+        {
+            return _next(context);
+        }
+
+        // Infrastructure paths (/_astro, /.well-known, /healthz, /install.*, /pagefind)
+        // never need a Link header. The path list lives on MarkdownPathMapper so
+        // both middlewares stay in lock-step.
+        if (MarkdownPathMapper.IsInfrastructurePath(context.Request.Path))
         {
             return _next(context);
         }
@@ -88,18 +96,8 @@ internal sealed class LinkHeaderMiddleware
         return _next(context);
     }
 
-    private static bool ShouldSkip(HttpRequest request)
-    {
-        if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method))
-        {
-            return true;
-        }
-
-        // Infrastructure paths (/_astro, /.well-known, /healthz, /install.*, /pagefind)
-        // never need a Link header. The path list lives on MarkdownPathMapper so
-        // both middlewares stay in lock-step.
-        return MarkdownPathMapper.IsInfrastructurePath(request.Path);
-    }
+    private static bool ShouldHandle(HttpRequest request) =>
+        HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method);
 
     private sealed record LinkHeaderState(HttpContext HttpContext, string? CompanionPath);
 }
