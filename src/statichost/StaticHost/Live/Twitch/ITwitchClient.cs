@@ -12,7 +12,7 @@ public sealed record TwitchEventSubSubscription(
     string Type,
     string Status,
     string CallbackUrl,
-    string? BroadcasterUserId = null);
+    string? BroadcasterUserId);
 
 /// <summary>Abstraction over the Twitch Helix API used by the live-status feature.</summary>
 public interface ITwitchClient
