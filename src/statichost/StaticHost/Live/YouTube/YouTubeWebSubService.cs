@@ -24,6 +24,8 @@ public sealed class YouTubeWebSubService(
 
     private DateTimeOffset _nextSubscribeAt = DateTimeOffset.MinValue;
     private int _consecutiveOfflinePolls;
+    private string? _resolvedChannelHandle;
+    private string? _resolvedChannelId;
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -69,12 +71,25 @@ public sealed class YouTubeWebSubService(
         var channelId = youtube.ChannelId;
         if (string.IsNullOrEmpty(channelId))
         {
-            channelId = await client.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken).ConfigureAwait(false) ?? "";
+            if (!string.Equals(_resolvedChannelHandle, youtube.ChannelHandle, StringComparison.OrdinalIgnoreCase))
+            {
+                _resolvedChannelId = null;
+                _resolvedChannelHandle = youtube.ChannelHandle;
+            }
+
+            channelId = _resolvedChannelId ?? "";
+            if (string.IsNullOrEmpty(channelId))
+            {
+                channelId = await client.ResolveChannelIdAsync(youtube.ChannelHandle, cancellationToken).ConfigureAwait(false) ?? "";
+            }
+
             if (string.IsNullOrEmpty(channelId))
             {
                 logger.LogWarning("Could not resolve YouTube channel id for {Handle}.", youtube.ChannelHandle);
                 return;
             }
+
+            _resolvedChannelId = channelId;
         }
 
         // Refresh subscription if lease close to expiry.

@@ -33,6 +33,7 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
 
   const PAGE_SELECTOR = '#aspire-live-tabs';
   let userSticky = false;
+  let unsubscribe: (() => void) | undefined;
 
   function findTabRoot(): HTMLElement | null {
     return document.querySelector<HTMLElement>(PAGE_SELECTOR);
@@ -79,7 +80,13 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
         userSticky = true;
       });
     });
-    subscribe(applySnapshot);
+    unsubscribe = subscribe(applySnapshot);
+  }
+
+  function cleanup(): void {
+    unsubscribe?.();
+    unsubscribe = undefined;
+    userSticky = false;
   }
 
   if (document.readyState === 'loading') {
@@ -88,6 +95,7 @@ const { youtubeChannelId, twitchChannel } = Astro.props;
     init();
   }
   document.addEventListener('astro:after-swap', init);
+  document.addEventListener('astro:before-swap', cleanup);
 </script>
 
 <style>
