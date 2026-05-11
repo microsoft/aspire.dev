@@ -28,6 +28,13 @@ function getLatestWhatsNewSlug() {
     }
   }
 
+  if (!bestSlug) {
+    throw new Error(
+      `No versioned "What's new" entries matched ${whatsNewVersionPattern} in ${whatsNewDir}. ` +
+        `The /whats-new/ redirect cannot be computed; check the file naming convention.`
+    );
+  }
+
   return bestSlug;
 }
 
@@ -42,14 +49,10 @@ export const redirects = {
   // `/whats-new/` has no index page; redirect it to the latest release notes
   // (computed from the filenames in src/content/docs/whats-new/). Uses 302
   // because the destination changes when a new version ships.
-  ...(latestWhatsNewSlug
-    ? {
-        '/whats-new/': {
-          status: 302,
-          destination: `/whats-new/${latestWhatsNewSlug}/`,
-        },
-      }
-    : {}),
+  '/whats-new/': {
+    status: 302,
+    destination: `/whats-new/${latestWhatsNewSlug}/`,
+  },
   '/configure-the-mcp-server/': '/get-started/aspire-mcp-server/',
   '/install-aspire-cli/': '/get-started/install-cli/',
   '/get-started/welcome/': '/docs/',
