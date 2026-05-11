@@ -7,7 +7,12 @@ public sealed record TwitchUser(string Id, string Login, string DisplayName);
 public sealed record TwitchStreamInfo(bool Live, string? Title);
 
 /// <summary>Existing EventSub subscription record.</summary>
-public sealed record TwitchEventSubSubscription(string Id, string Type, string Status, string CallbackUrl);
+public sealed record TwitchEventSubSubscription(
+    string Id,
+    string Type,
+    string Status,
+    string CallbackUrl,
+    string? BroadcasterUserId);
 
 /// <summary>Abstraction over the Twitch Helix API used by the live-status feature.</summary>
 public interface ITwitchClient

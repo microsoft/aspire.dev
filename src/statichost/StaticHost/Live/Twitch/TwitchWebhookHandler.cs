@@ -23,7 +23,8 @@ public static class TwitchWebhookHandler
         var expectedHex = signatureHeader[prefix.Length..];
 
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-        hmac.TransformBlock(Encoding.UTF8.GetBytes(messageId), 0, messageId.Length, null, 0);
+        var messageIdBytes = Encoding.UTF8.GetBytes(messageId);
+        hmac.TransformBlock(messageIdBytes, 0, messageIdBytes.Length, null, 0);
         var tsBytes = Encoding.UTF8.GetBytes(timestamp);
         hmac.TransformBlock(tsBytes, 0, tsBytes.Length, null, 0);
         hmac.TransformFinalBlock(body, 0, body.Length);
