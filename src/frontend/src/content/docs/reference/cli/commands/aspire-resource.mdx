@@ -30,6 +30,27 @@ selected resource at runtime. This is why the CLI reference documents
 `aspire resource start`.
 </Aside>
 
+### Discovering available resource commands
+
+Running `aspire resource <resource> --help` with a specific resource name queries the running AppHost and appends an **Available resource commands** section to the help output. This lets you discover what commands a resource supports without opening the dashboard.
+
+```text title="Example output"
+Available resource commands:
+  restart    Restart the resource.
+  start      Start the resource.
+  stop       Stop the resource.
+```
+
+If no single in-scope AppHost can be determined without an explicit `--apphost`, the resource-scoped help is shown without the commands section rather than prompting for AppHost selection.
+
+To pass `--help` as an argument to the resource command itself (rather than as a CLI help flag), separate it with `--`:
+
+```bash title="Aspire CLI"
+aspire resource myresource mycommand -- --help
+```
+
+### AppHost selection
+
 When executed without the `--apphost` option, the command:
 
 <Steps>
@@ -59,6 +80,10 @@ The following options are available:
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
+- **`--include-hidden`**
+
+  Includes resource commands that are marked as hidden. By default, hidden commands are not shown in help output or executed. Use this option to expose and run commands that are intentionally hidden from the default command listing.
+
 - <Include relativePath="reference/cli/includes/option-log-level.md" />
 
 - <Include relativePath="reference/cli/includes/option-non-interactive.md" />
@@ -87,6 +112,18 @@ The following options are available:
 
   ```bash title="Aspire CLI"
   aspire resource api restart --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
+  ```
+
+- List available commands for a specific resource:
+
+  ```bash title="Aspire CLI"
+  aspire resource myapi --help --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
+  ```
+
+- Include hidden commands when listing available commands:
+
+  ```bash title="Aspire CLI"
+  aspire resource myapi --help --include-hidden --apphost './src/MyApp.AppHost/MyApp.AppHost.csproj'
   ```
 
 ## See also
