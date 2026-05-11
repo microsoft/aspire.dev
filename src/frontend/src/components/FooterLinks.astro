@@ -5,27 +5,35 @@ import { socialConfig } from '../../config/socials.config';
 type CommunityLink = {
   icon: (typeof socialConfig)[number]['icon'] | 'reddit';
   label: string;
+  title: string;
   href: string;
 };
 
-const getSocialLink = (label: string, displayLabel = label): CommunityLink | null => {
+const getSocialLink = (
+  label: string,
+  title: string,
+  displayLabel = label,
+): CommunityLink | null => {
   const link = socialConfig.find((social) => social.label === label);
-  return link ? { icon: link.icon, label: displayLabel, href: link.href } : null;
+  return link ? { icon: link.icon, label: displayLabel, title, href: link.href } : null;
 };
 
+const t = (key: string) => Astro.locals.t(key as any);
+
 const communityLinks = [
-  getSocialLink('X', 'X (Twitter)'),
-  getSocialLink('BlueSky'),
-  getSocialLink('GitHub'),
-  getSocialLink('Discord'),
+  getSocialLink('X', t('footer.followOnX'), 'X'),
+  getSocialLink('BlueSky', t('footer.followOnBlueSky')),
+  getSocialLink('GitHub', t('footer.collaborateOnGitHub')),
+  getSocialLink('Discord', t('footer.joinDiscord')),
   {
-    icon: 'reddit',
+    icon: 'reddit' as const,
     label: 'Reddit',
+    title: t('footer.discussOnReddit'),
     href: 'https://www.reddit.com/r/aspiredotdev',
   },
-  getSocialLink('YouTube'),
-  getSocialLink('Twitch'),
-  getSocialLink('Blog', Astro.locals.t('footer.blog' as any)),
+  getSocialLink('YouTube', t('footer.watchOnYouTube')),
+  getSocialLink('Twitch', t('footer.watchOnTwitch')),
+  getSocialLink('Blog', t('footer.readBlog'), t('footer.blog')),
 ].filter((link): link is CommunityLink => link !== null);
 
 const is404 =
@@ -40,7 +48,7 @@ const is404 =
       <ul class="footer-links">
         {communityLinks.map((link) => (
           <li>
-            <a href={link.href} target="_blank" rel="noopener noreferrer">
+            <a href={link.href} target="_blank" rel="noopener noreferrer" title={link.title}>
               <Icon name={link.icon} size="1em" />
               {link.label}
             </a>
