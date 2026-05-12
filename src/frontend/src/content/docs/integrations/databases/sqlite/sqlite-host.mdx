@@ -1,12 +1,11 @@
 ---
-title: SQLite Hosting integration reference
-description: Learn how to use the Aspire SQLite Hosting integration to create and manage SQLite database resources in your Aspire projects.
+title: Set up SQLite in the AppHost
+description: Learn how to use the Aspire SQLite Hosting integration to orchestrate and configure a SQLite database resource in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import { Badge } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Badge, Steps } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import sqliteIcon from '@assets/icons/sqlite-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -20,126 +19,134 @@ import sqliteIcon from '@assets/icons/sqlite-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire SQLite integrations, follow the [Get started with SQLite integrations](../sqlite-get-started/) guide.
+This article is the reference for the Aspire SQLite Hosting integration. It enumerates the AppHost APIs that you use to model a SQLite database resource in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details about the Aspire SQLite Hosting integration, which models a SQLite database as the `SQLiteResource` type. To access these types and APIs, you need to install the SQLite Hosting integration in your AppHost project.
+If you're new to the SQLite integration, start with the [Get started with SQLite integrations](/integrations/databases/sqlite/sqlite-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to SQLite](../sqlite-connect/).
+
+<Aside type="note">
+  The SQLite hosting integration is part of the [.NET Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) and is not included in the core Aspire SDK. The TypeScript AppHost does not have an `addSqlite` API. To reference a SQLite file from a TypeScript AppHost, use `builder.addConnectionString(...)` with a parameter instead.
+</Aside>
 
 ## Installation
 
-The SQLite hosting integration models a SQLite database as the `SQLiteResource` type and will create the database file in the specified location. To get started with the Aspire SQLite hosting integration, install the [📦 CommunityToolkit.Aspire.Hosting.SQLite](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.SQLite) NuGet package in your AppHost project:
+To start building an Aspire app that uses SQLite, install the [📦 CommunityToolkit.Aspire.Hosting.SQLite](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.SQLite) NuGet package in your AppHost project:
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.SQLite" />
+```bash title="Terminal"
+aspire add sqlite
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.SQLite@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.SQLite" Version="*" />
+```
 
 ## Add SQLite resource
 
-In the AppHost project, register and consume the SQLite integration using the `AddSqlite` extension method to add the SQLite database to the application builder.
+Once you've installed the hosting integration in your AppHost project, you can add a SQLite resource:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlite = builder.AddSqlite("my-database");
+var sqlite = builder.AddSqlite("sqlite");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(sqlite);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(sqlite);
+
+// After adding all resources, run the app...
 ```
 
-When Aspire adds a SQLite database to the AppHost, as shown in the preceding example, it creates a new SQLite database file in the user's temp directory.
+<Steps>
 
-Alternatively, if you want to specify a custom location for the SQLite database file, provide the relevant arguments to the `AddSqlite` method.
+1. When Aspire adds a SQLite resource, as shown in the preceding example, it creates the database file in the user's temporary directory. No container is started because SQLite is an embedded, file-based database.
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced SQLite resource, such as `sqlite` in the preceding example.
+
+</Steps>
+
+<Aside type="note">
+    When you reference a SQLite resource from the AppHost, Aspire makes the database file path available to the consuming project as a `DATASOURCE` environment variable. For a complete list of these properties and per-language connection examples, see [Connect to SQLite](../sqlite-connect/).
+</Aside>
+
+## Add SQLite resource with custom database file path
+
+By default, Aspire creates the SQLite database file in the user's temporary directory. To specify a custom location, provide the directory path and file name as arguments to `AddSqlite`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlite = builder.AddSqlite("my-database", "C:\\Database\\Location", "my-database.db");
+var sqlite = builder.AddSqlite("sqlite", "C:\\Database\\Location", "my-database.db");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(sqlite);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(sqlite);
+
+// After adding all resources, run the app...
 ```
 
-The preceding code creates a SQLite database file at `C:\Database\Location\my-database.db`. The database file is created if it doesn't already exist.
+The preceding code creates the SQLite database file at `C:\Database\Location\my-database.db`. The file is created if it doesn't already exist.
 
 ## Add SQLiteWeb resource
 
-When adding the SQLite resource, you can also add the SQLiteWeb resource, which provides a web interface to interact with the SQLite database. To do this, use the `WithSqliteWeb` extension method.
+To add a browser-based management UI alongside your SQLite database, use the `WithSqliteWeb` extension method:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlite = builder.AddSqlite("my-database")
-                    .WithSqliteWeb();
+var sqlite = builder.AddSqlite("sqlite")
+    .WithSqliteWeb();
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(sqlite);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(sqlite);
+
+// After adding all resources, run the app...
 ```
 
-This code adds a container based on `ghcr.io/coleifer/sqlite-web` to the AppHost, which provides a web interface to interact with the SQLite database it is connected to. Each SQLiteWeb instance is connected to a single SQLite database, meaning that if you add multiple SQLiteWeb instances, there will be multiple SQLiteWeb containers.
+This adds a container based on [`ghcr.io/coleifer/sqlite-web`](https://github.com/coleifer/sqlite-web) connected to the same database file. Each `WithSqliteWeb` call creates one container per database. When you run the solution, the Aspire dashboard displays the SQLiteWeb resource with an endpoint — select it to open the SQLiteWeb UI in a new browser tab.
 
-When you run the solution, the Aspire dashboard displays the SQLiteWeb resource with an endpoint. Select the link to the endpoint to view SQLiteWeb in a new browser tab.
+## Add SQLite extensions
 
-## Adding SQLite extensions
-
-SQLite supports extensions that can be added to the SQLite database. Extensions can either be provided via a NuGet package, or via a location on disk. Use either the `WithNuGetExtension` or `WithLocalExtension` extension methods to add extensions to the SQLite database.
+SQLite supports loadable extensions that can be provided via a NuGet package or from a local file on disk. Use either `WithNuGetExtension` or `WithLocalExtension`:
 
 ```csharp title="C# — AppHost.cs (NuGet extension)"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlite = builder.AddSqlite("my-database")
-                    .WithNuGetExtension("SQLitePCLRaw.lib.e_sqlite3");
+var sqlite = builder.AddSqlite("sqlite")
+    .WithNuGetExtension("SQLitePCLRaw.lib.e_sqlite3");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(sqlite);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(sqlite);
+
+// After adding all resources, run the app...
 ```
 
 ```csharp title="C# — AppHost.cs (Local extension)"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sqlite = builder.AddSqlite("my-database")
-                    .WithLocalExtension("C:\\Extensions\\my-extension.dll");
+var sqlite = builder.AddSqlite("sqlite")
+    .WithLocalExtension("C:\\Extensions\\my-extension.dll");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(sqlite);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(sqlite);
+
+// After adding all resources, run the app...
 ```
 
 <Aside type="note">
-  The SQLite extensions support is considered experimental and produces a
-  `CTASPIRE002` warning.
+  SQLite extension support is considered experimental and produces a `CTASPIRE002` diagnostic warning.
 </Aside>
 
-## Pass connection information to app resources
+## Connection properties
 
-When you use the `WithReference` method to pass a SQLite database resource to an app resource such as a Python or JavaScript app, Aspire automatically injects environment variables that describe the connection information. 
+For the full reference of SQLite connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to SQLite](../sqlite-connect/).
 
-For example, if you reference a SQLite database resource named `sqlite`:
+## Hosting integration health checks
 
-```csharp title="C# — AppHost.cs"
-var sqlite = builder.AddSqlite("sqlite");
-
-var pythonApp = builder.AddUvicornApp("api", "./api", "main:app")
-    .WithReference(sqlite);
-```
-
-The following environment variable is available in the Python application:
-
-- `SQLITE_DATASOURCE` - The connection string for the `sqlite` resource, containing the database file path
-
-You can access this environment variable in your application code:
-
-```python title="Python example"
-import os
-import sqlite3
-
-connection_string = os.getenv("SQLITE_DATASOURCE")
-
-connection = sqlite3.connect(connection_string)
-cursor = connection.cursor()
-```
-
-```javascript title="JavaScript example"
-import sqlite3 from 'sqlite3';
-
-const connectionString = process.env.SQLITE_DATASOURCE;
-
-const db = new sqlite3.Database(connectionString);
-```
-
-For the complete list of properties available, see [Properties of the SQLite resources](../sqlite-client/#properties-of-the-sqlite-resources).
+The SQLite hosting integration does not register a health check because SQLite is an embedded, file-based database with no server process to poll. Health checks are available in the [C# client integration](../sqlite-connect/#client-integration-health-checks).
