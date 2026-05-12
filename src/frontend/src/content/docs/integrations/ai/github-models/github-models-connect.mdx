@@ -1,0 +1,395 @@
+---
+title: Connect to GitHub Models
+description: Learn how to connect to the GitHub Models API from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import githubIcon from '@assets/icons/github-icon.png';
+
+<Image
+  src={githubIcon}
+  alt="GitHub logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a GitHub Model resource that's already modeled in your AppHost. For the AppHost API surface — adding a model resource, API key parameters, organization configuration, and health checks — see [GitHub Models hosting integration](../github-models-host/).
+
+When you reference a GitHub Model resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire client integrations for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `chat` becomes `CHAT_ENDPOINT`.
+
+### GitHub Model resource
+
+The GitHub Model resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Endpoint`    | The GitHub Models inference endpoint URI, for example `https://models.github.ai/inference` |
+| `Key`         | The API key (GitHub PAT or `GITHUB_TOKEN`) for authentication |
+| `Model`       | The model identifier for inference requests, for instance `openai/gpt-4o-mini` |
+
+**Example connection string:**
+
+```
+Endpoint=https://models.github.ai/inference;Key=github_pat_abc123...;Model=openai/gpt-4o-mini
+```
+
+When an organization is configured, the endpoint includes the organization slug:
+
+```
+Endpoint=https://models.github.ai/orgs/my-org/inference;Key=github_pat_abc123...;Model=openai/gpt-4o-mini
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a GitHub Model resource named `chat` and references it from the consuming app.
+
+<Tabs syncKey="github-models-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is one of the Aspire client integrations. GitHub Models is OpenAI-compatible, so you can use either `Aspire.Azure.AI.Inference` (for the Azure AI Inference SDK) or `Aspire.OpenAI` (for the OpenAI SDK). Both integrations register the client through dependency injection and, optionally, register an `IChatClient` from `Microsoft.Extensions.AI`. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+### Using Azure AI Inference
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.AI.Inference" />
+
+#### Add a ChatCompletionsClient
+
+In _Program.cs_, call `AddAzureChatCompletionsClient` on your `IHostApplicationBuilder` to register a `ChatCompletionsClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureChatCompletionsClient(connectionName: "chat");
+```
+
+<Aside type="tip">
+The `connectionName` must match the GitHub Model resource name from the AppHost. For more information, see [Add a GitHub Model resource](../github-models-host/#add-a-github-model-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ChatCompletionsClient client)
+{
+    // Use client...
+}
+```
+
+#### Add a ChatCompletionsClient with IChatClient
+
+Call `AddChatClient` after `AddAzureChatCompletionsClient` to also register an `IChatClient` from `Microsoft.Extensions.AI`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureChatCompletionsClient("chat")
+       .AddChatClient();
+```
+
+Resolve the `IChatClient` through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IChatClient chatClient)
+{
+    public async Task<string> GenerateAsync(string prompt)
+    {
+        var response = await chatClient.GetResponseAsync(prompt);
+        return response.Text;
+    }
+}
+```
+
+### Using OpenAI client
+
+For models compatible with the OpenAI API (such as `openai/gpt-4o-mini`), you can use the OpenAI client.
+
+#### Install the client integration
+
+Install the [📦 Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.OpenAI" />
+
+#### Add an OpenAI client
+
+In _Program.cs_, call `AddOpenAIClient` to register an `OpenAIClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddOpenAIClient(connectionName: "chat");
+```
+
+Resolve the client through dependency injection and use the model name from the connection string:
+
+```csharp title="C# — ExampleService.cs"
+public class ChatService(OpenAIClient client, IConfiguration config)
+{
+    public async Task<string> GetResponseAsync(string prompt)
+    {
+        var modelName = config["ConnectionStrings:chat:Model"] ?? "openai/gpt-4o-mini";
+        var chatClient = client.GetChatClient(modelName);
+        var response = await chatClient.CompleteChatAsync(
+            [new UserChatMessage(prompt)]);
+        return response.Value.Content[0].Text;
+    }
+}
+```
+
+#### Add an OpenAI client with IChatClient
+
+```csharp title="C# — Program.cs"
+builder.AddOpenAIClient("chat")
+       .AddChatClient();
+```
+
+#### Configuration
+
+The Aspire OpenAI client integration supports configuration through connection strings, `Microsoft.Extensions.Configuration`, and inline delegates.
+
+**Connection strings.** Provide a named connection string in `appsettings.json`:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "chat": "Endpoint=https://models.github.ai/inference;Key=${GITHUB_TOKEN};Model=openai/gpt-4o-mini"
+  }
+}
+```
+
+**Configuration providers.** Use the `Aspire:OpenAI` key to load `OpenAISettings`:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "OpenAI": {
+      "DisableTracing": false,
+      "DisableMetrics": false
+    }
+  }
+}
+```
+
+**Inline delegates.**
+
+```csharp title="C# — Program.cs"
+builder.AddOpenAIClient("chat", settings => settings.DisableTracing = true);
+```
+
+#### Observability and telemetry
+
+The Aspire OpenAI client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+<Aside type="note">
+  Telemetry (traces and metrics) is experimental in the OpenAI .NET SDK. Enable
+  it globally via the `OpenAI.Experimental.EnableOpenTelemetry` AppContext switch
+  or the `OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY=true` environment variable.
+</Aside>
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection properties directly:
+
+```csharp title="C# — Program.cs"
+using Azure;
+using Azure.AI.Inference;
+
+var endpoint = Environment.GetEnvironmentVariable("CHAT_ENDPOINT");
+var apiKey = Environment.GetEnvironmentVariable("CHAT_KEY");
+var modelName = Environment.GetEnvironmentVariable("CHAT_MODEL");
+
+var client = new ChatCompletionsClient(
+    new Uri(endpoint!),
+    new AzureKeyCredential(apiKey!));
+
+var response = await client.CompleteAsync(new ChatCompletionsOptions
+{
+    Model = modelName,
+    Messages = { new ChatRequestUserMessage("Hello!") },
+});
+
+Console.WriteLine(response.Value.Choices[0].Message.Content);
+```
+
+</TabItem>
+<TabItem label="Go">
+
+GitHub Models exposes an OpenAI-compatible API, so you can use [`go-openai`](https://github.com/sashabaranov/go-openai) with a custom base URL:
+
+```bash title="Terminal"
+go get github.com/sashabaranov/go-openai
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    openai "github.com/sashabaranov/go-openai"
+)
+
+func main() {
+    // Read the Aspire-injected connection properties
+    apiKey := os.Getenv("CHAT_KEY")
+    endpoint := os.Getenv("CHAT_ENDPOINT")
+    modelName := os.Getenv("CHAT_MODEL")
+
+    config := openai.DefaultConfig(apiKey)
+    config.BaseURL = endpoint
+
+    client := openai.NewClientWithConfig(config)
+
+    resp, err := client.CreateChatCompletion(
+        context.Background(),
+        openai.ChatCompletionRequest{
+            Model: modelName,
+            Messages: []openai.ChatCompletionMessage{
+                {Role: openai.ChatMessageRoleUser, Content: "Hello!"},
+            },
+        },
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(resp.Choices[0].Message.Content)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+GitHub Models exposes an OpenAI-compatible API. Install either the `openai` package or `azure-ai-inference`:
+
+**Using the `openai` package:**
+
+```bash title="Terminal"
+pip install openai
+```
+
+```python title="Python — app.py"
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["CHAT_KEY"],
+    base_url=os.environ["CHAT_ENDPOINT"],
+)
+
+model_name = os.environ["CHAT_MODEL"]
+
+response = client.chat.completions.create(
+    model=model_name,
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+
+print(response.choices[0].message.content)
+```
+
+**Using `azure-ai-inference`:**
+
+```bash title="Terminal"
+pip install azure-ai-inference
+```
+
+```python title="Python — app.py"
+import os
+from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.core.credentials import AzureKeyCredential
+
+client = ChatCompletionsClient(
+    endpoint=os.environ["CHAT_ENDPOINT"],
+    credential=AzureKeyCredential(os.environ["CHAT_KEY"]),
+)
+
+model_name = os.environ["CHAT_MODEL"]
+
+response = client.complete(
+    messages=[UserMessage(content="Hello!")],
+    model=model_name,
+)
+
+print(response.choices[0].message.content)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+GitHub Models exposes an OpenAI-compatible API. Use either the `openai` npm package or `@azure-rest/ai-inference`:
+
+**Using the `openai` package:**
+
+```bash title="Terminal"
+npm install openai
+```
+
+```typescript title="TypeScript — index.ts"
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+    apiKey: process.env.CHAT_KEY,
+    baseURL: process.env.CHAT_ENDPOINT,
+});
+
+const modelName = process.env.CHAT_MODEL ?? 'openai/gpt-4o-mini';
+
+const response = await client.chat.completions.create({
+    model: modelName,
+    messages: [{ role: 'user', content: 'Hello!' }],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+**Using `@azure-rest/ai-inference`:**
+
+```bash title="Terminal"
+npm install @azure-rest/ai-inference @azure/core-auth
+```
+
+```typescript title="TypeScript — index.ts"
+import ModelClient from '@azure-rest/ai-inference';
+import { AzureKeyCredential } from '@azure/core-auth';
+
+const client = ModelClient(
+    process.env.CHAT_ENDPOINT!,
+    new AzureKeyCredential(process.env.CHAT_KEY!),
+);
+
+const modelName = process.env.CHAT_MODEL ?? 'openai/gpt-4o-mini';
+
+const response = await client.path('/chat/completions').post({
+    body: {
+        model: modelName,
+        messages: [{ role: 'user', content: 'Hello!' }],
+    },
+});
+
+if (response.status !== '200') {
+    throw new Error(`Request failed: ${response.status}`);
+}
+
+console.log(response.body.choices[0].message.content);
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Get started with the GitHub Models integrations](/integrations/ai/github-models/github-models-get-started/)
+- [GitHub Models hosting integration](/integrations/ai/github-models/github-models-host/)
+- [GitHub Models Marketplace](https://github.com/marketplace/models)
+- [GitHub Models documentation](https://docs.github.com/github-models)
