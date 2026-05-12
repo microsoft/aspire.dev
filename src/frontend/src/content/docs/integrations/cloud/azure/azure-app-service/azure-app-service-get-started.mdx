@@ -1,76 +1,92 @@
 ---
 title: Get started with the Azure App Service integration
-description: Learn how to set up the Aspire Azure App Service Hosting integration simply.
+description: Understand how the Aspire Azure App Service integration works — model an App Service environment in your AppHost, then deploy your apps to it.
 prev: false
 ---
 
-import { Aside, Badge, CardGrid, LinkCard } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import { Kbd } from 'starlight-kbd/components';
 import { Image } from 'astro:assets';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import appServiceIcon from '@assets/icons/azure-app-services.svg';
 
 <Image
   src={appServiceIcon}
   alt="Azure App Service logo"
-  height={80}
-  width={80}
+  height={100}
+  width={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-[Azure App Service](https://learn.microsoft.com/azure/app-service) is a fully managed platform for building, deploying, and scaling web apps. Aspire apps often run locally during development but require scalable, production-ready hosting environments for staging and production. The Aspire integration allows you to provision or reference an existing Azure App Service environment (App Service Plan) and automatically deploy supported web-facing project resources and Dockerfile-backed web containers as Azure App Service websites. Backing services such as databases, caches, and brokers should use managed Azure services instead of App Service websites. Use `PublishAsAzureAppServiceWebsite` when you need to customize the generated website.
+[Azure App Service](https://learn.microsoft.com/azure/app-service/) is a fully managed platform for building, deploying, and scaling web apps. Aspire apps run locally during development but require scalable, production-ready infrastructure for staging and production. The Aspire Azure App Service integration lets you model an App Service environment (App Service Plan) as a first-class resource in your AppHost and automatically deploy web-facing project resources and Dockerfile-backed containers to it.
 
-In this introduction, you'll see how to install and use the Aspire Azure App Service integration in a simple configuration. If you already have this knowledge, see [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/) for full reference details.
+## Why use Azure App Service with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding an Azure App Service environment through Aspire — rather than configuring deployment infrastructure by hand — gives you:
 
-## Set up hosting integration
+- **Zero extra local setup.** During development your projects run locally as usual. The App Service environment is only provisioned when you publish.
+- **Automatic deployment targeting.** Once an App Service environment is in your AppHost, all supported compute resources (project resources and Dockerfile-backed containers) are deployed to it automatically — no extra wiring required.
+- **Optional customization.** Use `PublishAsAzureAppServiceWebsite` (C#) or `publishAsAzureAppServiceWebsite` (TypeScript) only when you need to customize the generated website — for example to add application settings, tags, or deployment slots.
+- **Deployment slots.** Stage changes safely by configuring a named deployment slot for the environment so that new deployments land in staging before you swap them to production.
+- **Bicep-backed provisioning.** The hosting integration generates all required Azure resources — App Service Plan, Azure Container Registry, and managed identity — from the same C# or TypeScript AppHost code. No hand-authored Bicep required.
 
-To begin, install the Aspire Azure App Service Hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Azure.AppService" />
+Azure App Service is a **deployment target**, not a data service. There is no client library to install in consuming apps. Instead, the hosting integration wires the App Service environment into the Aspire manifest so that `aspire deploy` knows where to send each compute resource.
 
-Next, add an App Service environment to your AppHost project. The environment represents the hosting infrastructure (App Service Plan) where your apps will run:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group azure(cloud)[Azure]
 
-var appServiceEnv = builder.AddAzureAppServiceEnvironment("app-service-env");
+  service hosting(server)[Hosting integration] in apphost
+  service env(server)[App Service environment] in apphost
+  service project(server)[Project / container resource] in apphost
 
-builder.AddProject<Projects.WebApi>("api");
+  service plan(server)[App Service Plan] in azure
+  service acr(database)[Container Registry] in azure
+  service website(server)[App Service website] in azure
 
-builder.Build().Run();
+  hosting:R --> L:env
+  env:R --> L:project
+  project:R --> L:website
+  website:B --> T:plan
+  website:B --> T:acr
 ```
 
-<Aside type="caution">
-  When you call `AddAzureAppServiceEnvironment`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
+Getting there is a two-step process: model the App Service environment in your AppHost, then understand how your deployed apps read their runtime configuration.
 
-The preceding code:
+<Steps>
 
-- Creates an Azure App Service environment named `app-service-env`.
-- Adds a project named `api` to the AppHost.
-- Targets the `api` project to the App Service environment automatically.
+1. ### Set up App Service in your AppHost
 
-During local development (when running with <Kbd windows='F5' mac='F5' />), the project runs locally. When you publish your app, the project is deployed as an Azure App Service website within the provisioned environment.
+    Add the Azure App Service hosting integration to your AppHost, then declare an App Service environment. The [Azure App Service Hosting integration](/integrations/cloud/azure/azure-app-service/azure-app-service-host/) reference walks through every capability — deployment slots, infrastructure customization, application settings, and more — with side-by-side C# and TypeScript examples.
 
-You don't need `PublishAsAzureAppServiceWebsite` for standard deployment. Use it only when you want to customize the generated website or deployment slot.
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-app-service/azure-app-service-host/'>
+        Set up App Service in the AppHost
+    </LinkButton>
+
+2. ### Runtime configuration in deployed apps
+
+    When Aspire deploys a project to App Service, it injects connection strings and resource references as environment variables — the same values your app reads locally. See [Azure App Service runtime configuration](/integrations/cloud/azure/azure-app-service/azure-app-service-connect/) for details on how deployed apps consume those environment variables.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-app-service/azure-app-service-connect/'>
+        Runtime configuration
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
-<CardGrid>
-  <LinkCard
-    title="Azure App Service Hosting integration"
-    href="/integrations/cloud/azure/azure-app-service/azure-app-service-host/"
-    description="Learn about Azure App Service hosting integration, including provisioning, customization, and configuration."
-  />
-</CardGrid>
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)
+- [Deploy your first Aspire app](/get-started/deploy-first-app/)
