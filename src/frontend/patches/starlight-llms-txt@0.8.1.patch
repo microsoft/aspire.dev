@@ -1,5 +1,5 @@
 diff --git a/entryToSimpleMarkdown.ts b/entryToSimpleMarkdown.ts
-index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da0ec6fd6f 100644
+index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..8f86807662bff79fe0719cc762aac9ac4280c390 100644
 --- a/entryToSimpleMarkdown.ts
 +++ b/entryToSimpleMarkdown.ts
 @@ -20,6 +20,7 @@ const minifyDefaults = {
@@ -10,7 +10,40 @@ index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da
  	customSelectors: [],
  };
  /** Resolved minification options */
-@@ -192,7 +193,31 @@ export async function entryToSimpleMarkdown(
+@@ -28,12 +29,32 @@ const minify = { ...minifyDefaults, ...starlightLllmsTxtContext.minify };
+ const selectors = [...minify.customSelectors];
+ if (minify.details) selectors.unshift('details');
+ 
++/** Selectors for elements to remove from every output (independent of minification). */
++const removeSelectors = [...starlightLllmsTxtContext.removeSelectors];
++
+ const astroContainer = await experimental_AstroContainer.create({
+ 	renderers: [{ name: 'astro:jsx', ssr: mdxServer }],
+ });
+ 
+ const htmlToMarkdownPipeline = unified()
+ 	.use(rehypeParse, { fragment: true })
++	.use(function removeSelectorsLlmsTxt() {
++		return (tree) => {
++			if (removeSelectors.length === 0) {
++				return;
++			}
++			remove(tree, (_node) => {
++				const node = _node as RootContent;
++				for (const selector of removeSelectors) {
++					if (matches(selector, node)) {
++						return true;
++					}
++				}
++				return false;
++			});
++			return tree;
++		};
++	})
+ 	.use(function minifyLlmsTxt() {
+ 		return (tree, file) => {
+ 			if (!file.data.starlightLlmsTxt.minify) {
+@@ -192,7 +213,31 @@ export async function entryToSimpleMarkdown(
  	});
  	let markdown = String(file).trim();
  	if (shouldMinify && minify.whitespace) {
@@ -43,11 +76,31 @@ index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da
  	}
  	return markdown;
  }
+diff --git a/index.ts b/index.ts
+index d14558f7ce9025840df822e8a8105bed9f424e1c..943c5a231dea5001add53cb66b8abf6489c8f1b2 100644
+--- a/index.ts
++++ b/index.ts
+@@ -58,6 +58,7 @@ export default function starlightLlmsTxt(opts: StarlightLllmsTextOptions = {}):
+ 								locales: config.locales,
+ 								pageSeparator: opts.pageSeparator ?? '\n\n',
+ 								rawContent: opts.rawContent ?? false,
++								removeSelectors: opts.removeSelectors ?? [],
+ 							};
+ 
+ 							const modules = {
 diff --git a/types.ts b/types.ts
-index c7260e0ddd8b251d399d6d31b767924b8413ee81..ae048511968d45bbef14c2d5b780bdaffcba0df7 100644
+index c7260e0ddd8b251d399d6d31b767924b8413ee81..b712392e6a5054c4ffa12e7a0e0ac51f998a5c56 100644
 --- a/types.ts
 +++ b/types.ts
-@@ -130,6 +130,27 @@ export interface StarlightLllmsTextOptions {
+@@ -30,6 +30,7 @@ export interface ProjectContext {
+ 	exclude: NonNullable<StarlightLllmsTextOptions['exclude']>;
+ 	pageSeparator: NonNullable<StarlightLllmsTextOptions['pageSeparator']>;
+ 	rawContent: NonNullable<StarlightLllmsTextOptions['rawContent']>;
++	removeSelectors: NonNullable<StarlightLllmsTextOptions['removeSelectors']>;
+ }
+ 
+ /** Plugin user options. */
+@@ -130,6 +131,27 @@ export interface StarlightLllmsTextOptions {
  		 */
  		whitespace?: boolean;
  
@@ -75,3 +128,31 @@ index c7260e0ddd8b251d399d6d31b767924b8413ee81..ae048511968d45bbef14c2d5b780bdaf
  		/**
  		 * Custom selectors to exclude when generating `llms-small.txt`.
  		 *
+@@ -184,4 +206,27 @@ export interface StarlightLllmsTextOptions {
+ 	 * @default false
+ 	 */
+ 	rawContent?: boolean;
++
++	/**
++	 * CSS-style selectors matching elements that should be removed from the rendered HTML
++	 * before it is converted to Markdown for `llms.txt`, `llms-full.txt`, `llms-small.txt`,
++	 * and any `customSets` outputs.
++	 *
++	 * Selectors are tested with
++	 * [`hast-util-select`’s matching features](https://github.com/syntax-tree/hast-util-select#support)
++	 * and should match your site’s rendered HTML output.
++	 *
++	 * Unlike `minify.customSelectors`, which only applies when generating `llms-small.txt`,
++	 * selectors listed here are removed from every generated text bundle. Use this option
++	 * to strip transient annotations injected by docs-site rendering plugins (for example,
++	 * code-block hover popovers) that should not appear in the plain-text Markdown
++	 * surface consumed by LLMs.
++	 *
++	 * @default []
++	 *
++	 * @example
++	 * // Strip code-block hover popovers and similar annotations from every output.
++	 * removeSelectors: ['.twoslash-popup-container', '.twoslash-error-box'],
++	 */
++	removeSelectors?: string[];
+ }

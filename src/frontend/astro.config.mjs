@@ -141,6 +141,25 @@ export default defineConfig({
           projectName: 'Aspire',
           description:
             'Aspire is a multi-language local dev-time orchestration tool chain for building, running, debugging, and deploying distributed applications.',
+          // Strip transient annotations injected by expressive-code-twoslash from the
+          // rendered HTML before it's converted back to Markdown. Without this, the
+          // TypeScript hover popovers (type signatures, JSDoc, error boxes, etc.)
+          // leak into the code blocks in llms.txt / llms-full.txt / llms-small.txt
+          // and corrupt the source we hand to LLM tooling.
+          //
+          // Each selector below targets a *popup/annotation* sibling that twoslash
+          // injects next to the original token. The wrappers it places *around* the
+          // token (e.g. `.twoslash`, `.twoslash-hover`, `.twoslash-error-underline`)
+          // are deliberately not included here — they contain the author's actual
+          // code, which must survive into the Markdown output verbatim.
+          // See: ec.config.mjs (twoslash configuration).
+          removeSelectors: [
+            '.twoslash-popup-container',
+            '.twoslash-static',
+            '.twoslash-completion',
+            '.twoslash-error-box',
+            '.twoslash-custom-box',
+          ],
           // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
           exclude: [
             'includes/**',
