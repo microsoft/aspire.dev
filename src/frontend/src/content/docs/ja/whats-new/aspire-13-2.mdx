@@ -1,0 +1,1305 @@
+---
+title: Aspire 13.2 の新機能
+description: Aspire 13.2 には、新しい CLI コマンド、TypeScript AppHost サポート、新しく改善された統合が含まれています。
+sidebar:
+  label: Aspire 13.2
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+
+import resourcesDark from '@assets/whats-new/aspire-13.2/resources-dark.png';
+import resourcesLight from '@assets/whats-new/aspire-13.2/resources-light.png';
+import consoleLogsDark from '@assets/whats-new/aspire-13.2/console-logs-dark.png';
+import consoleLogsLight from '@assets/whats-new/aspire-13.2/console-logs-light.png';
+import structuredLogsDark from '@assets/whats-new/aspire-13.2/structured-logs-dark.png';
+import structuredLogsLight from '@assets/whats-new/aspire-13.2/structured-logs-light.png';
+import resourceGraphBefore from '@assets/whats-new/aspire-13.2/resource-graph-before.png';
+import resourceGraphAfter from '@assets/whats-new/aspire-13.2/resource-graph-after.png';
+import dashboardSetParameters from '@assets/whats-new/aspire-13.2/dashboard-set-parameters.png';
+import manageDialog from '@assets/whats-new/aspire-13.2/manage-dialog.png';
+import exportJsonMenu from '@assets/whats-new/aspire-13.2/export-json-menu.png';
+import exportJsonDialog from '@assets/whats-new/aspire-13.2/export-json-dialog.png';
+import exportEnvDialog from '@assets/whats-new/aspire-13.2/export-env-dialog.png';
+
+Aspire 13.2 へようこそ!長年の Aspire ユーザーでも、これから始めたばかりでも、新しい機能を試していただけることを楽しみにしています。質問やフィードバックがある場合、または問題に遭遇した場合は、[Discord](https://aka.ms/aspire-discord)) で挨拶するか、[GitHub](https://github.com/microsoft/aspire/issues).) で問題を開いてください。
+
+Aspire 13.2 では、CLI 機能の強化、ダッシュボードの改善、新しい AI エージェントの統合、多言語サポートの強化など、大幅な改善が行われています。このリリースは、Aspire の特徴である堅牢なクラウドネイティブ基盤を維持しながら、開発者とコーディング エージェントの両方にとってローカル開発をより合理化することに焦点を当てています。 13.2 には、Aspire チームがより頻繁に安定版リリースを出荷しやすくするための大幅なインフラストラクチャの改善も含まれています。このリリースの実現に貢献してくれたコミュニティの貢献者全員に多大な感謝を表します。皆さんの問題、PR、フィードバックが Aspire の前進の原動力となります。
+
+## 🆙 Aspire 13.2 にアップグレードする
+
+<span id="upgrade-to-aspire-13-2"></span>
+<br/>
+
+<Aside type="caution">
+Aspire 13.2 には、構成ファイル、リソースに対する重大な変更が含まれています
+コマンド、イベント処理、Azure AI Foundry (現 Microsoft Foundry) 統合。お願いします
+アップグレードする前に、[重大な変更](#breaking-changes) セクションを確認してください。
+</Aside>
+
+<Aside type="note">
+Aspire CLI のバージョンが 13 未満の場合は、
+[インストール手順](/ja/get-started/install-cli/) を使用して最新のバージョンをインストールします。
+安定版。
+</Aside>
+
+一般的なアップグレードのガイダンスについては、[Upgrade Aspire](/ja/whats-new/upgrade-aspire/) を参照してください。
+
+Aspire 13.2 にアップグレードする最も簡単な方法は、`aspire update` コマンドを使用することです。
+
+<Aside type="tip">`aspire update` コマンドは現在プレビュー段階です。</Aside>
+
+<Steps>
+
+1. Aspire CLI を更新します。
+
+   ```bash title="Aspire CLI — CLI を更新する"
+   aspire update --self
+   ```
+
+2. [`aspire update` コマンド](/ja/reference/cli/commands/aspire-update/) を使用して、Aspire アプリホストを更新します。
+
+   ```bash title="Aspire CLI — すべての Aspire パッケージを更新"
+   aspire update
+   ```
+
+</Steps>
+
+または、CLI を最初からインストールします。
+
+<OsAwareTabs>
+  <Fragment slot="unix">
+
+    ```bash title="Aspire CLI — Aspire CLI をインストール"
+    curl -sSL https://aspire.dev/install.sh | bash
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+
+    ```powershell title="Aspire CLI — Aspire CLI をインストール"
+    irm https://aspire.dev/install.ps1 | iex
+    ```
+
+  </Fragment>
+</OsAwareTabs>
+
+Aspire バージョン `13.2.0` を参照するようにアプリホストを手動で更新することもできます。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.AppHost.Sdk@13.2.0
+```
+
+</TabItem>
+</Tabs>
+
+C# アプリホストを使用している場合は、NuGet 経由でホスティングとクライアントの統合の両方をアップグレードできます。
+
+TypeScript アプリホストを使用している場合は、アップグレード後に `aspire restore` を実行して、統合 SDK が再生成されるようにします。
+
+<LearnMore>
+Aspire CLI のインストールの詳細については、[Aspire 
+CLI のインストール](/ja/get-started/install-cli/)を参照してください。
+</LearnMore>
+
+## 🛠️ CLI の機能強化
+
+Aspire 13.2 では、ターミナルからできることを劇的に拡張する新しい CLI コマンドが導入されています。 CLI は、これまでダッシュボードとアプリホスト内に閉じ込められていたすべてのデータを公開し、スクリプト、エディター、自動化ワークフローからアクセスできるようになりました。
+
+### 言語固有のテンプレートと複数言語のセットアップ
+
+Aspire 13.2 では、`aspire new` (完全なスターター テンプレートを作成) および `aspire init` (アプリホストのみを作成) のエクスペリエンスが、より言語を意識したものになります。 CLI には、C#、TypeScript、Python、および C# と TypesScript の両方のアプリホスト向けの言語固有のフルスタック スターター アプリをスキャフォールディングするオプションが追加されました。 `aspire new` を使用してテンプレートから新しいプロジェクトを作成するか、`aspire init` を使用して既存のプロジェクトに Aspire を追加します。
+
+新しい `aspire restore` コマンドは、このワークフローを補完します。 C# アプリホストの場合は統合 NuGet パッケージを復元し、TypeScript アプリホストの場合は統合 SDK コードと必要なアーティファクトを再生成します。これは `aspire run` で自動的に行われますが、手動でも公開されるようになりました。
+
+```bash title="Aspire CLI — テンプレートと復元"
+# インタラクティブなテンプレート ピッカーを使用して新しいスターターを作成する
+aspire new
+
+# または、既存のコードベースに新しい空の apphost を作成します。
+aspire init
+
+# 統合パッケージを復元し、アプリホストを起動します
+aspire run
+
+# 統合を手動で復元する
+aspire restore
+```
+
+### 分離モードとプロセス管理
+
+最もリクエストの多かった機能の 1 つが 13.2 に登場しました。Aspire 化したアプリを実行する **デタッチ モード** です。バックグラウンドで apphost を実行できるようになり、端末を他のタスクのために解放できるようになりました。
+
+```bash title="Aspire CLI — デタッチモードとプロセス管理"
+# 分離モードで実行する
+aspire run --detach
+
+# run --detach の短縮コマンド
+aspire start
+
+# 実行中のすべてのアプリホストをリストする
+aspire ps
+
+# バックグラウンドで実行中のアプリホストを停止する
+aspire stop
+```
+
+`aspire ps` コマンドを使用すると、現在実行中のすべての Aspire アプリホストが表示されるため、複数のプロジェクトを同時に管理することが簡単になります。 `aspire stop` と組み合わせると、コマンド ラインから直接アプリケーションのライフサイクルを完全に制御できます。
+
+新しい `aspire start` ショートカットにより、アプリホストのバックグラウンド起動が覚えやすくなり、`aspire stop` により、選択したアプリホストまたは実行中のすべてのアプリホストを停止できます。 JSON モードでは、`aspire ps` にリソースを含めることができるため、自動化とエディターの統合のための強固な構成要素になります。
+
+```bash title="Aspire CLI — 拡張された操作"
+aspire start --apphost .\MyApp.AppHost\MyApp.AppHost.csproj
+aspire ps --resources --format json
+aspire stop --all
+```
+
+リソース コマンドも `aspire resource <resource> <command>` 形式に再編成されました。 `start`、`stop`、`restart` などの組み込みコマンドが、ダッシュボードで公開される内容とより自然に連携するようになり、プロジェクト リソースで `rebuild` などのより豊富なコマンドを公開できるようになりました。
+
+```bash title="Aspire CLI — リソースコマンド"
+aspire resource api restart
+aspire resource api rebuild
+```
+
+<Aside type="tip">
+自動化および CI/CD シナリオの場合、`--format Json` を使用して機械可読出力を取得します。
+
+```bash title="Aspire CLI — JSON 出力を使用したデタッチモード"
+aspire run --detach --format Json
+aspire ps --format Json
+```
+
+</Aside>
+
+<LearnMore>
+コマンドリファレンス: [`aspire run`](/ja/reference/cli/commands/aspire-run/)、
+[`aspire ps`](/ja/reference/cli/commands/aspire-ps/) および [`aspire
+stop`](/ja/reference/cli/commands/aspire-stop/)。
+</LearnMore>
+
+### 並列開発のための分離モード
+
+新しい `--isolated` フラグは、ランダム化されたポートと分離されたユーザー シークレットを使用してアプリホストを実行し、ポートの競合や構成の衝突を防ぎます。
+
+```bash title="Aspire CLI — 分離モード"
+aspire run --isolated
+aspire start --isolated
+```
+
+これは、同じアプリホストの複数のインスタンスを並行して実行する必要があるエージェント ワークフロー、git ワークツリー、統合テストで特に役立ちます。
+
+### `aspire describe` によるリソース監視
+
+新しい `aspire describe` コマンドを使用すると、ユーザーとコーディング エージェントは、Aspire ダッシュボードで取得するのと同じ詳細なリソース情報に CLI アクセスできるようになります。リソースの状態、構成、環境変数、健全性ステータスなどをすべてターミナルから検査できます。
+
+```bash title="Aspire CLI — リソースについて説明"
+# 実行中のアプリホスト内のすべてのリソースを表示する
+aspire describe
+
+# リソース状態の変化を継続的にストリーミングする
+aspire describe --follow
+```
+
+<LearnMore>
+コマンドリファレンス: [`aspire
+description`](/ja/reference/cli/commands/aspire-describe/)。
+</LearnMore>
+
+### `aspire doctor` による環境診断
+
+新しい `aspire doctor` コマンドは、開発環境の包括的な診断を提供します。
+
+```bash title="Aspire CLI — 環境診断"
+aspire doctor
+```
+
+このコマンドは以下をチェックします。
+
+- HTTPS 開発証明書のステータス（複数の証明書の検出を含む）
+- コンテナ ランタイム (Docker/Podman) の可用性とバージョン
+- Docker エンジンのコンテナ トンネル要件
+- .NET SDK のインストールとバージョン
+- WSL2 環境設定
+- エージェント構成ステータス (非推奨の設定の検出)
+
+すべての実行ですべてのチェックが表示されるわけではありません。 WSL2 構成やエージェント構成ステータスなどの一部のチェックは条件付きであり、関連する環境または問題が検出された場合にのみ表示されます。
+
+問題が検出された場合、出力には実用的な推奨事項が表示されるため、構成の問題のトラブルシューティングが容易になります。
+
+### あいまい検索による `aspire add` の強化
+
+`aspire add` コマンドのあいまい検索により、適切な統合パッケージを簡単に見つけることができるようになりました。入力を開始するだけで、CLI が一致するパッケージを提案し、新しい統合を見つけてプロジェクトに追加する手間が軽減されます。このリリースでは、フレンドリ名の生成も改善され、C# アプリの NuGet 集中パッケージ管理がより適切に尊重されます。
+
+<LearnMore>
+コマンドリファレンス: [`aspire add`](/ja/reference/cli/commands/aspire-add/)。
+</LearnMore>
+
+### 証明書、エクスポート、シークレット、リソースのライフサイクル用の新しい CLI コマンド
+
+Aspire 13.2 では、いくつかの新しいコマンドにより、日常的な CLI の対象領域が大幅に拡張されています。
+
+証明書とパラメータ/シークレット管理は、ファーストクラスのコマンドを取得します。
+
+```bash title="Aspire CLI — 証明書とシークレット管理"
+aspire certs clean
+aspire certs trust
+
+aspire secret set ApiKey super-secret-value
+aspire secret list --format json
+```
+
+`aspire certs` は、古い開発者証明書をクリーンアップし、現在の証明書を信頼するのに役立ちます。一方、`aspire secret` は、アプリホスト [ユーザー シークレット](/ja/fundamentals/external-parameters/#シークレット値) に、シークレット値の設定、読み取り、一覧表示、検索、および削除のための独自の専用 CLI ワークフローを提供します。これらは、アプリ モデルで [`AddParameter(..., secret: true)`](/ja/fundamentals/external-parameters/) 呼び出しをサポートするシークレット値と同じです。`aspire secret set` はユーザー シークレット ストアに書き込むため、`dotnet user-secrets` 経由で管理するために .NET CLI をインストールする必要はなくなります。
+
+2 つの新しい操作コマンドがエクスペリエンスを完成させます。
+
+```bash title="Aspire CLI — 待機とエクスポート"
+aspire wait api --status healthy --timeout 120
+aspire export --output .\artifacts\aspire-export.zip
+```
+
+`aspire wait` を使用して、リソースが `healthy`、`up`、または `down` になるまで自動化をブロックし、`aspire export` を使用して、実行中のアプリホストからテレメトリ データとリソース データを zip ファイルにキャプチャします。 `aspire export <resource>` を使用して、エクスポートの範囲を単一のリソースに設定することもできます。
+
+<LearnMore>
+パラメーターとシークレットの詳細については、「[外部パラメーター](/ja/fundamentals/external-parameters/)」を参照してください。
+コマンドリファレンス: [`aspire secret`](/ja/reference/cli/commands/aspire-secret/)。
+</LearnMore>
+
+### エージェントの統合 (`aspire agent`)
+
+AI エージェントの統合を管理するという目的をより適切に反映するために、`aspire mcp` コマンドの名前が `aspire agent` に変更されました。また、Aspire 固有の SKILL.md ファイルをリポジトリに追加するように更新されました。新しいコマンド構造には次のものが含まれます。
+
+```bash title="Aspire CLI — エージェント統合"
+# MCP やスキルを含むエージェント環境設定を初期化します。
+aspire agent init
+
+# MCP (Model Context Protocol) サーバーを手動で起動する - のみ
+aspire agent mcp
+```
+
+これにより、AI エージェントが標準化されたプロトコルを通じて Aspire アプリケーションと対話できるようになり、AI 支援開発ワークフローの新たな可能性が開かれます。
+
+<LearnMore>
+コマンド リファレンス: [`aspire agent`](/ja/reference/cli/commands/aspire-agent/)、[`aspire agent mcp`](/ja/reference/cli/commands/aspire-agent-mcp/)、および [`aspire agent init`](/ja/reference/cli/commands/aspire-agent-init/)。
+
+Aspire で AI エージェントを構成する方法については、[AI コーディング エージェントの使用](/ja/get-started/ai-coding-agents/) を参照してください。
+
+</LearnMore>
+
+### CLI からのドキュメント コマンド (`aspire docs`)
+
+新しい `aspire docs` コマンドは、公式の [aspire.dev](https://aspire.dev) ドキュメントをターミナルに直接取り込みます。Aspire エージェントの統合を強化する同じ [MCP (モデル コンテキスト プロトコル) ドキュメント ツール](https://davidpine.dev/posts/aspire-docs-mcp-tools/) 上に構築されています)。これらのコマンドを使用すると、開発ワークフローを離れることなくドキュメントを参照、検索、および読むことができます。
+
+：：：注記
+これらのコマンドは、AI エージェントによる使用を目的としています。開発者はこれらを直接使用できますが、手動で使用するには人間工学に基づいたものではなく、ドキュメントにアクセスするには依然として Web サイトが最適な場所です。
+:::
+
+```bash title="Aspire CLI — ドキュメントを参照および検索"
+# 利用可能なドキュメント ページをすべてリストします。
+aspire docs list
+
+# 特定のトピックを検索する
+aspire docs search "redis"
+
+# スラグごとに完全なドキュメント ページを読む
+aspire docs get redis-integration
+
+# ページの特定のセクションを読む
+aspire docs get redis-integration --section "Add Redis resource"
+```
+
+各コマンドは機械可読出力の `--format Json` をサポートしているため、スクリプト作成や自動化に役立ちます。 `aspire docs search` コマンドは、返される結果の数を制御する `--limit` オプションも受け入れます。
+
+<LearnMore>
+コマンドリファレンス: [`aspire docs`](/ja/reference/cli/commands/aspire-docs/)、
+[`aspire docs list`](/ja/reference/cli/commands/aspire-docs-list/), [`aspire docs
+search`](/ja/reference/cli/commands/aspire-docs-search/), and [`aspire docs
+get`](/ja/reference/cli/commands/aspire-docs-get/)。
+</LearnMore>
+
+### 構成管理の改善
+
+`aspire config` コマンドが強化され、より適切に構成されました。
+
+```bash title="Aspire CLI — 設定管理"
+# すべての構成をセクションと色で整理してリストします。
+aspire config list
+
+# 利用可能な機能フラグをすべてリストします。
+aspire config list --all
+
+# 特定の設定を取得する
+aspire config get <key>
+
+# 構成値を設定する
+aspire config set <key> <value>
+```
+
+構成がローカル設定とグローバル設定に明確に分離され、機能フラグが整理されて表示されるようになりました。
+
+Aspire は、アプリホストの場所、言語メタデータ、Aspire SDK バージョン、チャネル選択、機能フラグ、起動プロファイル、パッケージ ピンを組み合わせた単一の `aspire.config.json` ファイルを優先するようになりました。
+
+```json title="JSON — aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.ts",
+    "language": "typescript/nodejs"
+  },
+  "sdk": {
+    "version": "13.2.0"
+  },
+  "channel": "stable",
+  "profiles": {
+    "default": {
+      "applicationUrl": "https://localhost:17000;http://localhost:15000"
+    }
+  }
+}
+```
+
+この統一された形式は、`.aspire/settings.json` と `apphost.run.json` にまたがる古い分割を置き換え、TypeScript アプリホストの移動、検査、自動化をはるかに簡単にします。
+
+#### 従来の構成ファイルからの自動移行
+
+`.aspire/settings.json` または `apphost.run.json` を使用する既存のプロジェクトがある場合、CLI は移行を自動的に処理します。既存のプロジェクトに対して `aspire` コマンド (`aspire run` など) を初めて実行すると、CLI は従来の `.aspire/settings.json` と `apphost.run.json` をプロジェクト ルートで新しい `aspire.config.json` にマージします。パスは自動的に再ベースされます。たとえば、`.aspire/` ディレクトリに相対していた `appHostPath` は、プロジェクト ルートに相対するように調整されます。レガシー ファイルは移行中に保存されるため、必要に応じて古い CLI バージョンを並行して使用し続けることができます。
+
+グローバル設定 (ユーザーレベルの Aspire ディレクトリ内の `globalsettings.json`) も、同じ場所の新しい `aspire.config.json` 形式にコピーされます。手動の手順は必要ありません。CLI を更新して、通常どおりプロジェクトを実行するだけです。
+
+<LearnMore>
+コマンドリファレンス: [`aspire config`](/ja/reference/cli/commands/aspire-config/)、
+[`aspire config list`](/ja/reference/cli/commands/aspire-config-list/), [`aspire
+config get`](/ja/reference/cli/commands/aspire-config-get/), and [`aspire config
+set`](/ja/reference/cli/commands/aspire-config-set/)。
+</LearnMore>
+
+### CLI オプションの標準化
+
+一般的な CLI 規則との一貫性を保つために、いくつかの CLI オプションが標準化されました。
+
+- **`-v` (`--version`** 用): `-v` フラグは、標準の CLI 規則に従って、`--version` の短いエイリアスになりました。
+- **`--format` の説明**: `--format` オプションの説明が「出力形式 (Table または Json)」に標準化されました。それをサポートするすべてのコマンドにわたって。
+- **`--log-level`/`-l`**: ログレベルのフィルタリングをサポートするコマンドは、一貫して `--log-level`/`-l` を使用するようになりました。
+
+### その他の CLI の改善
+
+13.2 には、小さいながらも有意義な CLI の改善が数多くあります。
+
+- apphost アーティファクトがすでに最新であることがわかっている場合、`aspire run` は `--no-build` をサポートするようになりました。
+- `--format json` は常に JSON 出力を stdout に送信し、ステータス メッセージは stderr に送信されます。これにより、人間が判読できる出力が構造化された JSON 出力から分離された状態に保たれるため、JSON を使用するスクリプトやエディターが整形式のコンテンツを受信できるようになります。
+- テーブル、ステータス インジケーター、ヘルプ構成、ログ、およびエラー メッセージが、対話型シナリオと非対話型シナリオにわたって改良されました。
+- 統合された自己解凍型 Aspire CLI バンドルにより、特に .NET がまだグローバルにインストールされていない場合の多言語エクスペリエンスが向上し続けます。
+- 絵文字で始まるステータス メッセージは一貫して配置されます。これはあなたが思っているよりも難しいです！乱雑な CLI 出力が表示された場合は、[お知らせください](https://github.com/microsoft/aspire).
+
+## 🧩 VS コード拡張機能
+
+Aspire VS Code 拡張機能は 13.2 でこれまでで最大のアップデートを受け、20 以上の PR が新機能を提供し、VS Code を Visual Studio と並ぶ一流の Aspire 開発環境にしました。
+
+### Aspire アクティビティ バー パネル
+
+アクティビティ バーの専用 **Aspire パネル**では、実行中のアプリホストとそのリソースのライブ ツリー ビューが表示されます。パネルは `aspire describe --follow` を使用して、ワークスペース アプリホストのリアルタイムのリソース状態更新をストリーミングします (ポーリングや待ち時間はありません)。ワークスペース/グローバル切り替えを使用すると、現在のワークスペースのアプリホストのみを表示するか、マシン上で実行中のすべてのアプリホストを表示するかを切り替えることができます。
+
+ツリー内のリソースには、健全性を認識するアイコン (正常な場合は緑色、エラーは赤色、劣化した場合はオレンジ色、起動中の場合はスピナー)、タイプ、状態、クリック可能なエンドポイント URL を含む豊富なマークダウン ツールチップ、およびログの表示、リソースの停止、再起動などの一般的な操作のための右クリックのコンテキスト メニューが表示されます。
+
+### CodeLens とガターの装飾
+
+Aspire アプリホストが実行されている場合、拡張機能は C# または TypeScript アプリホスト ファイルの各リソース定義の上に **インライン CodeLens** を表示するようになりました。
+
+- リソースのライブ状態 (実行中、開始中、停止、エラー) と健全性ステータス
+- アクション ボタン: 開始、停止、再起動、ログの表示
+- ランタイムからのカスタム リソース コマンド
+
+色付きの **ガター装飾** がリソース定義の横に表示されます (実行中は緑、開始中は青、エラーは赤、停止中は灰色)。エディターでアプリ全体の健全性を一目で確認できます。どちらの機能も、C# の `DistributedApplication.CreateBuilder` と TypeScript の `createBuilder()` を理解する言語対応パーサーによってサポートされています。
+
+### スタートガイドのチュートリアル
+
+新しい **「はじめに」ウォークスルー** では、CLI のインストール、プロジェクトの作成、アプリの実行、ダッシュボードの探索、および次のステップをすべて VS Code 内から行うことができるように、新規ユーザーをガイドします。このウォークスルーには、エディターから直接 Aspire CLI をインストールするためのクリック可能なターミナル リンクが含まれています。
+
+### デバッグの改善
+
+- **Azure Functions のデバッグ** — アプリホストから参照される Azure Functions プロジェクトを直接デバッグできるようになりました。
+- **TypeScript アプリホストのデバッグ** - TS アプリホストは、ツールの検出、ビルド/起動の調整、ブラウザーのデバッグ シナリオのサポートの向上により、より自然にデバッグに参加できるようになりました。
+- **`publish`、`deploy`、`do` フロー** を拡張機能から直接デバッグできるようになりました。
+- **Apphost 終了メッセージ** がデバッグ コンソールに表示され、トラブルシューティングが容易になりました。
+
+### `aspire.config.json` および <abbr title="モデル コンテキスト プロトコル" data-tooltip-placement="top">MCP</abbr> のサポート
+
+この拡張機能は、`.csproj` ファイル検出のみに依存するのではなく、アプリホスト検出のために `aspire.config.json` を読み取るようになり、TypeScript アプリホストがシームレスに機能するようになりました。 AI エージェント ワークフロー用に **Aspire MCP サーバーを自動登録**することもできます。 CLI は、PATH 上にない場合でも、デフォルトのインストール パスで自動的に検出されます。
+
+### 追加の改善点
+
+- 新しい `enableAspireDashboardAutoLaunch` 設定により、実行時のダッシュボードの自動起動を無効にできます。
+- ファイル ピッカーは、より多くの場所で生の文字列プロンプトを置き換えます。
+- リソース エンドポイント URL を右クリックしてコンテキスト メニューを表示します。
+- `code` が見つからない場合は、`code-insiders` に戻ります。
+
+<LearnMore>
+詳細については、[Aspire で VS Code を使用する](/ja/get-started/aspire-vscode-extension/) および [VS Code Marketplace の拡張機能](https://aka.ms/aspire/vscode).) を参照してください。
+</LearnMore>
+
+## 🌐 TypeScript AppHost のサポート (プレビュー)
+
+Aspire 13.2 で最も期待されている機能の 1 つは、TypeScript でのアプリホストの作成のサポートです。 TypeScript AppHost は現在プレビュー段階です。
+
+### TypeScript で apphost を書く
+
+TypeScript アプリホストは、`createBuilder()` を介して慣用的な TypeScript で表現された C# と同じアプリ モデル (リソース、参照、統合) を使用します。
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+const api = await builder.addProject("api", "../api")
+    .withReference(cache)
+    .waitFor(cache);
+
+await builder.build().run();
+```
+
+内部では、これは Aspire の .NET オーケストレーション ホストと並行してゲスト プロセスとして実行され、ローカル トランスポート経由で JSON-RPC 経由で通信します。 TypeScript はリソース グラフを定義します。ホストはオーケストレーション、ヘルスチェック、ダッシュボードを処理します。
+
+### コード生成
+
+`aspire add` を実行すると、CLI は統合の .NET アセンブリを検査し、TypeScript SDK を `.modules/` に生成します。 `aspire restore` を実行すると、これらの SDK が再生成されます。これは、ブランチのアップグレードまたは切り替え後に役立ちます (これは、`aspire run` でも自動的に実行されます)。
+
+13.2 では、コード ジェネレーターは、より豊富なコレクション処理のための AspireList サポートを取得し、TypeScript とともに Go、Java、および Rust のテスト ターゲットをカバーするようになりました。
+
+### デバッグ、ツール、およびテンプレート
+
+TypeScript アプリホストは、VS Code 拡張機能で最上級のサポートを備えています。CodeLens、ガター装飾、デバッグはすべて `createBuilder()` 呼び出しで機能します。 `aspire.config.json` 形式は、`.csproj` を必要とせずに TypeScript アプリホストが自動的に検出されることを意味します。テンプレートも更新され、依存関係が更新され、スターターのデフォルトが改善されました。
+
+<LearnMore>
+詳細については、 [多言語対応
+アーキテクチャ](/ja/architecture/multi-language-architecture/)をご覧ください。
+</LearnMore>
+
+## 📊 ダッシュボードの改善
+
+### データのエクスポートとインポート
+
+Aspire 13.2 では、ダッシュボードに包括的なデータのエクスポートおよびインポート機能が追加されています。一元化されたダイアログを通じてテレメトリを一括管理したり、個々のリソースとテレメトリを JSON としてエクスポートしたり、環境変数を `.env` ファイルとしてエクスポートしたりできます。
+
+#### 「ログとテレメトリの管理」ダイアログ
+
+新しい **ログとテレメトリの管理** ダイアログ (**設定 → 管理** からアクセス可能) は、ダッシュボードからデータをエクスポート、インポート、削除するためのワンストップ ショップです。リソースとテレメトリ タイプを選択し、必要に応じてエクスポート、削除、またはインポートします。
+
+データは zip ファイル内の JSON としてエクスポートされます。 AI やチームメイトと共有したり、後でダッシュボードにインポートし直したりできます。
+
+<Image src={manageDialog} alt="[選択したものをエクスポート]、[選択したものを削除]、および [ログとテレメトリのインポート] ボタンが表示されたログとテレメトリの管理ダイアログ" />
+
+ダッシュボードでは、`aspire export` でキャプチャされたテレメトリ バンドルをインポートすることもできるため、診断をバグ レポートに添付したり、セッションの特定時点のビューを保存したり、失敗したシナリオをチームメイトと共有したりすることが簡単になります。
+
+#### リソースとテレメトリの JSON をエクスポートする
+
+特定のリソースとテレメトリのデータをダッシュ​​ボードから直接エクスポートします。コンテキスト メニューで **Export JSON** を選択してデータを取得します。データをクリップボードにコピーするか、マシンにダウンロードします。
+
+<Image src={exportJsonMenu} alt="リソースのコンテキスト メニューの [JSON のエクスポート] ボタン" />
+
+<Image src={exportJsonDialog} alt="クリップボードにコピーするかダウンロードするオプションを含む「JSON をエクスポート」ダイアログ" />
+
+#### 環境変数を `.env` ファイルとしてエクスポートする
+
+リソースの詳細ビューからリソースの環境変数を `.env` ファイル形式に直接エクスポートします。
+
+<Image src={exportEnvDialog} alt=".env 形式でエクスポートされた環境変数を示す「環境のエクスポート」ダイアログ" />
+
+#### テレメトリ HTTP API
+
+ダッシュボードは、テレメトリ データをプログラムでクエリするための HTTP API を公開するようになりました。これらの API は、`aspire agent mcp` および `aspire otel` Aspire CLI コマンドを強化します。
+
+API は `/api/telemetry` で提供され、<abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> JSON 形式でデータを返します。利用可能なエンドポイント:
+
+- `GET /api/telemetry/resources` — テレメトリ データを持つリソースをリストします。
+- `GET /api/telemetry/spans` — オプションのフィルターを使用したクエリ スパン
+- `GET /api/telemetry/logs` — オプションのフィルターを使用してログをクエリする
+- `GET /api/telemetry/traces` — オプションのフィルターを使用してトレースをリストします。
+- `GET /api/telemetry/traces/{traceId}` — 特定のトレースのすべてのスパンを取得します
+
+スパンとログのエンドポイントは、`?follow=true` を介したリアルタイム ストリーミングもサポートしており、新しいテレメトリが到着すると NDJSON (改行区切りの JSON) を返します。 `resource` クエリ パラメーター (例: `?resource=api&resource=worker`) を繰り返すことで、複数のリソース名を指定できます。
+
+Aspire アプリホストで実行すると、テレメトリ API が自動的に有効になります。スタンドアロン ダッシュボード展開の場合は、`DASHBOARD__API__ENABLED` 環境変数を `true` に設定し、`DASHBOARD__API__AUTHMODE` (`ApiKey` または `Unsecured`) および `DASHBOARD__API__PRIMARYAPIKEY` を使用して認証を構成します。
+
+### ダッシュボードからパラメータを設定する
+
+ダッシュボードでリソースパラメータを直接設定できるようになりました。パラメータのキーアクションをクリックし、新しい値を入力します。次回それを覚えておくために、オプションで値をユーザー シークレットに保存します。
+
+<Image src={dashboardSetParameters} alt="ユーザー シークレットに保存するオプションを使用してパラメーター値を設定するためのダッシュボード ダイアログ" />
+
+### GenAI ビジュアライザーの改善
+
+GenAI ビジュアライザーはますます鮮明になっています。 13.2 では、より多くのスキーマ形状を処理し、切り捨てられたペイロードをより適切に許容し、非 ASCII テキストを適切に表示し、ツール呼び出しから対応するツール定義に直接ジャンプできるようにすることでツールの検査を容易にします。
+
+<Aside type="tip">
+Aspire を使用して AI を多用するワークロードを検査している場合、これらの改善により、
+ダッシュボードは、トラフィックが乱雑、不完全、または生成されている場合にさらに便利です
+きちんとしたサンプルではなく、実際のエージェントによるものです。
+</Aside>
+
+### リソースグラフの改善
+
+リソース グラフのレイアウトは、適応力に基づく配置により大幅に改善されました。多くの接続を持つリソースの周囲にスペースができるようになり、複雑なグラフが乱雑に感じられなくなりました。
+
+**改善後：**
+
+<Image src={resourceGraphAfter} alt="改善後のリソース グラフ。高度に接続されたリソースの周囲の間隔が適切になり、すっきりとしたレイアウトが表示されます。" />
+
+### ダッシュボードの UX の改良
+
+13.2 でのダッシュボードの追加の改良点:
+
+- リソースの永続的な折りたたみ/展開状態
+- 12 時間または 24 時間形式の設定。
+- ダッシュボードと CLI 全体で一貫したリソースの色。
+- トレース、スパン、ログ、リソースの JSON ビューアが改善されました。
+- 大きな gRPC ペイロードの処理が改善されました。
+- グラフのレイアウトとフィルタリング動作がより安定しました。
+- リバース プロキシ シナリオのベース パス構成。
+- レプリカ状態の集約 - 親リソースは、レプリカからの結合された状態を表示するようになりました。
+- より洗練されたダイアログ、メニュー、コピー フロー、およびリソースの詳細ビュー。
+
+<LearnMore>
+詳細については、 [Aspire ダッシュボードを探索する](/ja/dashboard/explore/) および
+[ダッシュボード構成](/ja/dashboard/configuration/)。
+</LearnMore>
+
+## 🧩 アプリモデルとリソースの改善
+
+### アプリモデルからの MCP エンドポイント
+
+Aspire 13.2 には `WithMcpServer` が追加されており、リソースが Model Context Protocol (MCP) サーバーをホストすることをアプリ モデル内で宣言できます。 Aspire ツールは、そのエンドポイントを直接検出してプロキシすることができます。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.MyApi>("api")
+    .WithMcpServer("/mcp");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../api", "https")
+    .withMcpServer({ path: "/mcp" });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+デフォルト以外のエンドポイントまたはパスで MCP サーバーをホストする場合は、
+カスタム `path` または `endpointName` を渡すことができます。
+</Aside>
+
+### プロジェクトの再構築とよりスマートな変更検出
+
+.NET プロジェクト リソースは、通常のライフサイクル コマンドに加えて `rebuild` コマンドをサポートするようになりました。これにより、apphost セッション全体を破棄することなく、単一のプロジェクト リソースにソースの変更を適用するクリーンな方法が得られます。
+
+```bash title="Aspire CLI — 単一のリソースを再構築"
+aspire resource api rebuild
+```
+
+内部では、Aspire は、隠されたリビルド リソースと改善された変更検出を通じて、停止、構築、再起動を調整します。そのため、そのエクスペリエンスは、「すべてを再起動して希望を得る」というよりは、「これだけを再構築する」にはるかに近くなります。
+
+### ファーストクラスのリソースとしての OTLP エンドポイント
+
+OpenTelemetry Protocol (OTLP) エンドポイントは、アプリケーション モデルのファーストクラス リソースとしてモデル化され、ダッシュボードに表示され、標準リソース API を通じて構成できるようになりました。
+
+### シークレットと証明書の処理の改善
+
+13.2 では、コンテナー ビルド シークレットの API がより明確になりました。 `WithBuildSecret` は古い `WithSecretBuildArg` 名を置き換え、安全な Docker または Podman ビルドのシークレット フローを読みやすくします。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var accessToken = builder.AddParameter("accessToken", secret: true);
+
+builder.AddContainer("worker", "contoso/worker")
+    .WithDockerfile("../worker")
+    .WithBuildSecret("ACCESS_TOKEN", accessToken);
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const accessToken = await builder.addParameter("accessToken", { secret: true });
+
+await builder.addContainer("worker", "contoso/worker")
+    .withDockerfile("../worker")
+    .withBuildSecret("ACCESS_TOKEN", accessToken);
+```
+
+</TabItem>
+</Tabs>
+
+証明書の信頼処理もより柔軟になりました。実行モード中にカスタム証明書バンドルを作成できるようになりました。これは、デフォルトの証明書レイアウトにきれいにマップされない Java トラスト ストアやカスタム バンドル形式などのシナリオに役立ちます。
+
+```csharp title="C# — カスタム証明書信頼設定"
+builder.AddContainer("my-java-app", "my-image:latest")
+    .WithCertificateTrustConfiguration(ctx =>
+    {
+        ctx.EnvironmentVariables["JAVAX_NET_SSL_TRUSTSTORE"] =
+            ctx.CreateCustomBundle((certs, ct) =>
+        {
+            var pkcs12Builder = new Pkcs12Builder();
+            var safeContents = new Pkcs12SafeContents();
+
+            foreach (var cert in certs)
+            {
+                safeContents.AddCertificate(cert);
+            }
+
+            pkcs12Builder.AddSafeContentsUnencrypted(safeContents);
+            pkcs12Builder.SealWithMac(
+                string.Empty, HashAlgorithmName.SHA256, 2048);
+
+            return Task.FromResult(pkcs12Builder.Encode());
+        });
+
+        return Task.CompletedTask;
+    });
+```
+
+`ReferenceExpression` は `GetValueAsync()` を公開し、多言語コード生成で条件付きモードをサポートするようになりました。これにより、同期値アクセス パターンに依存せずに高度なホスティング拡張機能を簡単に構築できるようになります。
+
+### 強化されたデバッグエクスペリエンス
+
+デバッグを改善するために、いくつかの型に `DebuggerDisplayAttribute` が含まれるようになりました。
+
+- `DistributedApplication`
+- リソースの種類
+- `EndpointReferenceExpression`
+- `ReferenceExpression`
+- `PipelineStep`
+
+これにより、デバッグ セッション中に Aspire アプリケーションの状態を検査することが容易になります。
+
+### リソースイベントの改善
+
+- ロギングコンテキストを改善するために、`Logger` プロパティを `IDistributedApplicationResourceEvent` に追加しました
+- `ResourceNotificationService.WaitFor` 例外メッセージが改善され、より詳細な情報が追加されました
+- `BeforeResourceStartedEvent` は実際にリソースを開始するときにのみ起動するようになりました (破壊的な変更)
+
+<LearnMore>
+イベントの詳細については、 [AppHost eventing
+API](/ja/app-host/eventing/)を参照してください。
+</LearnMore>
+
+### Docker とコンテナの機能強化
+
+- **プル「しない」 ポリシー**: ローカル イメージを必要とするシナリオ向けの公開イメージ プル ポリシー オプション
+- **Docker Compose の PullPolicy**: Docker Compose サービス クラスに `PullPolicy` プロパティを追加しました
+- **ファイルベースの Docker ビルド シークレット**: ビルド シークレットをファイル (`.npmrc` など) にできるようになり、資格情報をイメージにベイクすることなく、コンテナー ビルドでプライベート レジストリ認証が可能になります。
+- **PostgreSQL v18+ 互換性**: PostgreSQL バージョン 18 以降のデータ ボリューム パスを修正しました
+
+### ビルドの改善
+
+- apphost プロジェクトで `GenerateAssemblyInfo` が無効になっている場合のビルド エラー
+- `launchSettings.json` で末尾のカンマが許可されるようになりました
+- JSON コメントと末尾のカンマはエラーなしで解析されました
+
+### コンテキストに応じたエンドポイント解決
+
+Aspire 13.2 では、特定のリソースまたはネットワークの観点からエンドポイントを解決できる、強化されたコンテキスト エンドポイント解決 API が導入されています。これにより、コンテナー、ホスト サービス、特定のネットワークなど、アクセス元に応じてリソースの正しい URL を取得できます。
+
+同じリソースは、コンテキストに応じて異なる URL を持つことができます。
+
+- ローカルホストから: `http://localhost:1234`
+- ホスト Docker ネットワーク上のコンテナから: `http://host.docker.internal:1234`
+- Aspire コンテナ ネットワーク上のコンテナから: `http://resource.dev.internal:4567`
+
+#### 特定のリソース (呼び出し元) から解決します。
+
+`ValueProviderContext` の `Caller` プロパティを使用して、特定の呼び出しリソースの観点からエンドポイント URL を解決できます。
+
+```csharp title="C# — リソースの視点からエンドポイントを解決"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var containerApp = builder.AddContainer("worker", "myimage");
+
+// エンドポイント参照を取得する
+var endpoint = redis.GetEndpoint("tcp");
+
+// コンテナの観点から URL を解決する
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Caller = containerApp.Resource,
+});
+
+// URL はコンテナ間の通信に適したものになります。
+// 例: "redis:6379" または "cache:6379"
+```
+
+これは、異なるコンテキスト (コンテナーとホスト プロセス) で実行されている可能性のあるリソース間で接続情報を渡す必要がある場合に特に便利です。
+
+#### 特定のネットワークから解決する
+
+`ValueProviderContext` の `Network` プロパティを使用して、特定のネットワークの観点からエンドポイント URL を解決することもできます。
+
+```csharp title="C# — ネットワークの視点からエンドポイントを解決"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+// エンドポイント参照を取得する
+var endpoint = redis.GetEndpoint("tcp");
+
+// デフォルトの Aspire コンテナ ネットワークの URL を解決します。
+var url = await endpoint.GetValueAsync(new ValueProviderContext {
+    Network = KnownNetworkIdentifiers.DefaultAspireContainerNetwork
+});
+
+// URL はコンテナ ネットワークに適したものになります
+// 例: リソース名をホスト名として使用する「cache:6379」
+```
+
+`KnownNetworkIdentifiers` クラスは、事前定義されたネットワーク識別子を提供します。
+
+- `LocalhostNetwork`: ローカルホストベースの URL に解決されます。
+- `DefaultAspireContainerNetwork`: リソース名を使用してコンテナー ネットワーク URL に解決します
+- `PublicInternet`: 外部からアクセス可能な URL に解決されます。
+
+<Aside type="note">
+これらの API は Aspire 13.1 に存在していましたが、期待どおりに動作しませんでした。アスパイアで
+13.2 では、指定されたコンテキストに基づいてエンドポイントを正しく解決できるようになりました。
+</Aside>
+
+<LearnMore>
+詳細については、次を参照してください: - [GitHub の問題
+#7153](https://github.com/microsoft/aspire/issues/7153) - [GitHub PR
+#14278](https://github.com/microsoft/aspire/pull/14278) - [コンテキストベースのエンドポイント
+解決](/ja/architecture/resource-hierarchies/#context-based-endpoint-resolution)
+</LearnMore>
+
+## 📦 統合のアップデート
+
+### Docker Compose の公開
+
+Aspire 13.2 では、Docker Compose 公開統合がプレリリースから安定リリースに移行しました。 Docker Compose 環境をアプリ モデルに追加すると、Aspire は公開時にリソースから `docker-compose.yaml` を生成し、Docker Compose をサポートする環境に Aspire アプリケーションを簡単にデプロイできるようにします。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddDockerComposeEnvironment("compose");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addDockerComposeEnvironment("compose");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Aspire は、ネットワーク、ボリューム、環境変数など、アプリ モデル内のリソースから完全な `docker-compose.yaml` を生成します。
+
+### Microsoft Foundry とホスト型エージェント
+
+Aspire 13.2 は、以前の Azure AI Foundry に重点を置いたホスティング サーフェスを、より広範な Microsoft Foundry 統合に置き換えます。ホスティング パッケージは `Aspire.Hosting.Foundry` となり、`Aspire.Hosting.Azure.AIFoundry` を置き換えます。
+
+これで、Foundry アカウントの追加、Foundry プロジェクトの作成、生成された `FoundryModel` カタログを使用したモデル デプロイメントの添付、および通常の Aspire アプリ モデルからホストされたエージェントの公開ができるようになりました。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var foundry = builder.AddFoundry("foundry");
+var project = foundry.AddProject("agents");
+
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+
+builder.AddPythonApp("agent", "..\\agent", "main:app")
+    .WithReference(project)
+    .WithReference(chat)
+    .PublishAsHostedAgent(project);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry("foundry");
+const project = await foundry.addProject("agents");
+
+const chat = await project.addModelDeploymentFromModel("chat", {
+    name: "gpt-5-mini",
+    version: "2025-06-01",
+    format: "OpenAI",
+});
+
+await builder.addPythonApp("agent", "../agent", "main:app")
+    .withReference(project)
+    .withReference(chat)
+    .publishAsHostedAgent({ project });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+この領域の新しい API には、`AddProject`、`AddModelDeployment`、`WithAppInsights`、`WithKeyVault`、`WithContainerRegistry`、`PublishAsHostedAgent`、`AddAndPublishPromptAgent` があります。 `RunAsFoundryLocal` は引き続きローカル モデル開発に使用できますが、親リソースが Foundry Local として構成されている場合、Foundry プロジェクトはサポートされません。
+
+<Aside type="caution">
+これは破壊的な変更です。 `Aspire.Hosting.Azure.AIFoundry` が `Aspire.Hosting.Foundry` 
+に置き換えられました。移行手順における破壊的な変更については [AIFoundry から Foundry への
+移行](#aifoundry-から-foundry-への移行) を
+参照してください。
+</Aside>
+
+<LearnMore>
+詳細については、[Microsoft Foundry
+統合](/ja/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/)を参照してください。
+</LearnMore>
+
+### Azure 仮想ネットワークとプライベート エンドポイントのサポート
+
+Azure にデプロイする場合、リソースへのネットワーク アクセスを保護することが重要です。新しい `Aspire.Hosting.Azure.Network` 統合により、仮想ネットワーク、サブネット、NAT ゲートウェイ、ネットワーク セキュリティ グループ (NSG)、プライベート エンドポイントをアプリホスト内で直接定義することで Azure リソースをロックダウンでき、クラウド インフラストラクチャが既定で安全であることが保証されます。
+
+```csharp title="C# — AppHost.cs"
+var vnet = builder.AddAzureVirtualNetwork("vnet");
+
+// NSG ルールを使用してサブネットを追加する
+var subnet = vnet.AddSubnet("web", "10.0.1.0/24")
+    .AllowInbound(
+        port: "443",
+        from: AzureServiceTags.AzureLoadBalancer,
+        protocol: SecurityRuleProtocol.Tcp)
+    .DenyInbound(from: AzureServiceTags.Internet);
+
+// 確定的な送信 IP 用の NAT ゲートウェイを追加する
+var natGateway = builder.AddNatGateway("nat");
+subnet.WithNatGateway(natGateway);
+
+// 安全な接続のためにプライベート エンドポイントを追加する
+var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27");
+var storage = builder.AddAzureStorage("storage");
+peSubnet.AddPrivateEndpoint(storage.AddBlobs("blobs"));
+```
+
+主な機能は次のとおりです:
+
+- **仮想ネットワークとサブネット**: `AddAzureVirtualNetwork` でネットワークを作成し、`AddSubnet` でサブネットを追加します。
+- **NAT ゲートウェイ**: `AddNatGateway` および `WithNatGateway` を使用して、決定的な送信パブリック IP アドレスを提供します。
+- **ネットワーク セキュリティ グループ**: 短縮方法 (`AllowInbound`、`DenyInbound`、`AllowOutbound`、`DenyOutbound`) を使用するか、明示的な `AddNetworkSecurityGroup` と `WithSecurityRule` を使用して完全に制御し、トラフィック フローを制御します。
+- **プライベート エンドポイント**: `AddPrivateEndpoint` を使用してプライベート ネットワーク経由で Azure サービスに安全に接続します。これにより、プライベート DNS ゾーン、仮想ネットワーク リンクが自動的に作成され、ターゲット リソースでのパブリック アクセスが無効になります。
+
+<LearnMore>
+詳細については、 [Azure 仮想ネットワーク
+統合](/ja/integrations/cloud/azure/azure-virtual-network/)を参照してください。
+</LearnMore>
+
+### Azure AI と組み込みのサポート
+
+Azure AI Inference コンポーネントでは、チャットの完了に加えて埋め込みもサポートされるようになりました。 `EmbeddingsClient` を登録し、その上に `IEmbeddingGenerator<string, Embedding<float>>` を重ねることができます。
+
+```csharp title="C# — サービスプロジェクト"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAzureEmbeddingsClient("embeddings")
+    .AddEmbeddingGenerator();
+
+var app = builder.Build();
+
+app.MapGet("/embed", async (
+    IEmbeddingGenerator<string, Embedding<float>> generator) =>
+{
+    var embedding = await generator.GenerateEmbeddingAsync("Hello, world!");
+    return embedding.Vector.ToArray();
+});
+```
+
+<Aside type="note">
+`AddKeyedEmbeddingGenerator` では、キー付き埋め込みもサポートされています。
+</Aside>
+
+<LearnMore>
+詳細については、「Azure AI 推論」を参照してください。
+統合](/ja/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/)。
+</LearnMore>
+
+### Azure App Service の機能強化
+
+- 新しい拡張メソッドによる展開スロットのサポート
+- スティッキースロットアプリ設定の修正
+- 構成の名前付けの改善
+- `SearchIndexerClient` が Azure Search の拡張メソッドとして追加されました
+
+<LearnMore>
+詳細については、 [Azure App Service
+統合](/ja/integrations/cloud/azure/azure-app-service/azure-app-service-get-started/)を参照してください。
+</LearnMore>
+
+### Azure コンテナー レジストリ
+
+Azure Container Registry 統合では、新しい `WithPurgeTask` メソッドによるスケジュールされたイメージ クリーンアップがサポートされるようになりました。これにより、古いまたは未使用のコンテナ イメージを cron スケジュールで自動的に削除する [ACR パージ タスク](https://learn.microsoft.com/ja-jp/azure/container-registry/container-registry-auto-purge) がプロビジョニングされます。
+
+```csharp title="C# — ACR イメージクリーンアップをスケジュール"
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .WithPurgeTask("0 1 * * *", ago: TimeSpan.FromDays(7), keep: 5);
+```
+
+さらに、新しい `GetAzureContainerRegistry` メソッドを使用すると、コンピューティング環境からレジストリに簡単にアクセスして、さらに構成を行うことができます。
+
+<LearnMore>
+詳細については、 [Azure Container Registry
+統合](/ja/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/)を参照してください。
+</LearnMore>
+
+### Azure Data Lake Storage の統合
+
+Aspire 13.2 では、Azure Data Lake Storage のホスティングとクライアント側の両方のサポートが追加されています。これにより、階層型名前空間ストレージを使用するチームにとって重要なギャップが解消され、Data Lake ユーザーには、DI 登録、再試行、ヘルス チェック、ロギング、テレメトリなどの通常の Aspire 統合の利点が提供されます。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+var storage = builder.AddAzureStorage("storage");
+var dataLake = storage.AddDataLake("data-lake");
+var fileSystem = storage.AddDataLakeFileSystem("data-lake-file-system");
+
+api.WithReference(dataLake)
+   .WaitFor(dataLake)
+   .WithReference(fileSystem)
+   .WaitFor(fileSystem);
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject("api", "../api");
+const storage = await builder.addAzureStorage("storage");
+const dataLake = await storage.addDataLake("data-lake");
+const fileSystem = await storage.addDataLakeFileSystem("data-lake-file-system");
+
+await api.withReference(dataLake)
+   .waitFor(dataLake)
+   .withReference(fileSystem)
+   .waitFor(fileSystem);
+```
+
+</TabItem>
+</Tabs>
+
+```csharp title="C# — サービスプロジェクト"
+builder.AddAzureDataLakeServiceClient("data-lake");
+builder.AddAzureDataLakeFileSystemClient("data-lake-file-system");
+```
+
+<LearnMore>
+詳細については、 [Azure Data Lake
+ストレージ](/ja/integrations/cloud/azure/azure-storage-datatalake/)を参照してください。
+</LearnMore>
+
+### データベースの統合
+
+- **MongoDB**: 接続文字列オプションが正しく先頭にスラッシュを追加するようになりました。
+- **MongoDB Entity Framework Core**: [新しいクライアント統合 `Aspire.MongoDB.EntityFrameworkCore`](/ja/integrations/databases/efcore/mongodb/mongodb-efcore-get-started/)
+- **Oracle EF Core**: マルチターゲットのサポートが追加されました
+- **SQL Server**: 新しい `Aspire.Hosting.SqlServer` エクスポート
+
+新しい MongoDB EF Core プロバイダーにより、通常の Aspire エンリッチメント エクスペリエンスを維持しながら、MongoDB で EF Core を簡単に使用できるようになります。
+
+```csharp title="C# — サービスプロジェクト"
+builder.AddMongoDbContext<MyDbContext>("mongodb", databaseName: "appdb");
+```
+
+`DbContext` を自分で登録した場合でも、`EnrichMongoDbContext<TContext>()` を使用して Aspire インストルメンテーションおよびヘルス機能をオプトインできます。
+
+### Bun を使用した JavaScript ホスティング
+
+JavaScript リソースは、`WithBun()` を使用してパッケージ マネージャーとして Bun をオプトインできるようになりました。 Aspire は、Bun-backed アプリケーションに対して適切なパッケージ マネージャー アノテーション、インストール動作、およびコンテナー ビルド イメージのデフォルトを構成します。このリリースでは、`WithYarn()` 経由で `AddViteApp` で Yarn を使用する場合の信頼性の問題も修正されています。
+
+<Tabs>
+<TabItem label="C# AppHost">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddViteApp("frontend", "./frontend")
+    .WithBun()
+    .WithDockerfileBaseImage(buildImage: "oven/bun:latest");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem label="TypeScript AppHost">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addViteApp("frontend", "./frontend")
+    .withBun()
+    .withDockerfileBaseImage({ buildImage: "oven/bun:latest" });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+詳細については、 [Bun
+統合](/ja/integrations/frameworks/bun-apps/) ドキュメントを参照してください。。
+</LearnMore>
+
+### エミュレータのアップデート
+
+- Azure ServiceBus エミュレーターが 2.0.0 に更新されました
+- Azure App Configuration エミュレータが 1.0.2 に更新されました
+- CosmosDB プレビュー エミュレーターの準備状況チェックが追加されました
+- Azure Managed Redis は、既定のスキームとして `rediss://` を使用するようになりました
+- `RunAsEmulator` で複数の Azurite ストレージ アカウントがサポートされるようになりました
+
+### AI モデルの更新
+
+- Microsoft Foundry モデルは自動的に更新されます
+- GitHub モデルが更新されました
+- AI モデル コード生成により、マークダウンが C# XML ドキュメントに変換されるようになりました
+
+## 🚀 導入と公開
+
+### Kubernetes の改善
+
+- Kubernetes デプロイメントの YAML 公開の修正
+- `ExcludeFromManifest` によるリソースの処理の改善
+
+### Azure のデプロイメント
+
+- コンピューティング環境から公開されるコンテナー レジストリ
+- Azure App Service での環境正規化の処理の改善
+- デプロイメントの失敗に対するエラー メッセージの改善
+- プロビジョニング中の Azure ロールの割り当てとプライベート エンドポイント待機の改善
+- パイプラインサマリーのパブリッシュおよびデプロイにおけるマークダウンのサポート
+- リソース グループのパイプライン概要内の Azure portal リンク
+- Cosmos DB や AppContainers などの Azure 統合の多言語エクスポート対応範囲の向上
+
+### パイプラインの機能強化
+
+- 正常に完了した後に表示されるパイプラインの概要情報
+- デプロイメント状態マネージャーでの環境名の検証
+- デプロイメントディレクトリの権限は現在のユーザーに制限されます
+
+## 🐛 バグ修正
+
+このリリースには、あらゆる分野にわたる多数のバグ修正が含まれています。
+
+- AppHostServer の DCP パス作成を修正しました
+- ランダム化されたポートのダッシュボード URL ポートログを修正しました
+- AUX 予約デバイス名による Windows 起動エラーを修正
+- RabbitMQEventSourceListener の競合状態を修正しました
+- 証明書のシリアル番号の生成を修正しました
+- リソースロガーサービスの破棄とメモリリークを修正
+- さまざまな GenAI ツール定義の解析問題を修正しました
+- CLI インタラクティブ プロンプトでの検索ハイライトのコントラストが改善されました
+- リソース詳細パネルの表示オプション ボタンのツールチップを修正しました
+
+## ⚠️ 破壊的な変更
+
+<span id="breaking-changes"></span>
+
+### サービス検出環境変数の名前付け
+
+サービス検出環境変数は、エンドポイント **name** の代わりにエンドポイント **scheme** を使用するようになりました。
+
+```csharp title="C# — 変更前 (13.0/13.1)"
+// サービス__myservice__myendpoint__0 = https://localhost:5001
+```
+
+```csharp title="C# — 変更後 (13.2)"
+// サービス__myservice__https__0 = https://localhost:5001
+```
+
+これにより、エンドポイントが同じスキームを共有する場合の一貫性が向上します。サービス検出環境変数の特定のエンドポイント名パターンに依存するコードまたは構成がある場合は、代わりにスキームベースのパターンを使用するように更新します。
+
+### 統合された構成ファイル
+
+Aspire は、古い分割構成モデルよりも `aspire.config.json` を優先するようになりました。
+
+新しいスキャフォールドと更新されたツールはそこに統合設定を書き込み、`apphost.run.json` に存在していた起動プロファイルは同じファイルにマージされます。レガシー ファイルは移行中に引き続き読み取られますが、`.aspire/settings.json` または `apphost.run.json` を直接編集するカスタム オートメーションがある場合は、そのロジックを `aspire.config.json` に移動することを計画してください。
+
+### リソースコマンドの名前変更
+
+組み込みリソース コマンドでは、`start`、`stop`、`restart` という短い名前が使用されるようになりました。
+
+コマンド名を直接スクリプト化した場合は、`resource-start`、`resource-stop`、`resource-restart` から移行してください。
+
+```bash title="Aspire CLI — リソースコマンドを更新"
+aspire resource api start
+aspire resource api stop
+aspire resource api restart
+```
+
+<Aside type="note">
+`--apphost` は、現在コマンド全体で優先されるオプション名になりますが、
+従来の `--project` エイリアスは互換性のために引き続き受け入れられます。
+</Aside>
+
+### ダッシュボード テレメトリ API がオプトインになりました
+
+スタンドアロン ダッシュボードでは、HTTP API がデフォルトでオフになっています。
+
+ダッシュボードを直接ホストし、API に依存する場合は、`ASPIRE_DASHBOARD_API_ENABLED=true` を設定するか、同等の構成を指定して、明示的に有効にします。
+
+```json title="JSON — Dashboard configuration"
+{
+  "Dashboard": {
+    "Api": {
+      "Enabled": true
+    }
+  }
+}
+```
+
+<Aside type="note">
+AppHost に統合されたダッシュボード シナリオは、As​​pire.Hosting により引き続き機能します。
+これは、Aspire.Hosting が CLI やツールとの統合のためにダッシュボードを接続する際、
+ダッシュボード API を有効化しているためです。
+</Aside>
+
+### `BeforeResourceStartedEvent` の動作
+
+`BeforeResourceStartedEvent` は、状態が変化するたびではなく、実際にリソースを開始するときにのみ起動するようになりました。イベント ハンドラーが以前の動作に依存している場合は、イベント ハンドラーを更新します。
+
+### 接続プロパティのサフィックス
+
+接続プロパティのサフィックスが追加されました。接続プロパティに直接アクセスするコードの更新が必要になる場合があります。
+
+### AIFoundry から Foundry への移行
+
+`Aspire.Hosting.Azure.AIFoundry` は、より広い `Aspire.Hosting.Foundry` サーフェスに置き換えられました。
+
+アップグレードする場合は、次の両方の変更を加えます:
+
+- `Aspire.Hosting.Azure.AIFoundry` パッケージ参照を `Aspire.Hosting.Foundry` に置き換えます。
+- `AddAzureAIFoundry()` から `AddFoundry()` に移行し、`AddDeployment()` または `AddModelDeployment()` を使用してデプロイメントを明示的に追加します。
+
+```xml title="XML — AppHost project file"
+<ItemGroup>
+  <PackageReference Include="Aspire.Hosting.Foundry" Version="13.2.0" />
+</ItemGroup>
+```
+
+```csharp title="C# — 移行例"
+// 移行前
+var ai = builder.AddAzureAIFoundry("ai");
+
+// 移行後
+var foundry = builder.AddFoundry("ai");
+var project = foundry.AddProject("agents");
+var chat = project.AddModelDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
+```
+
+これにより、ホスティング API が現在の Foundry ブランドに合わせられ、新しい Microsoft Foundry リリースに追加された新しいプロジェクト、デプロイメント、ホスト型エージェント機能が利用できるようになります。
+
+### `WithSecretBuildArg` の名前が `WithBuildSecret` に変更されました
+
+わかりやすくするために、コンテナー ビルド シークレット API の名前が変更されました。
+
+```csharp title="C# — 移行例"
+// 移行前
+builder.AddContainer("worker", "contoso/worker")
+    .WithDockerfile("../worker")
+    .WithSecretBuildArg("ACCESS_TOKEN", accessToken);
+
+// 移行後
+builder.AddContainer("worker", "contoso/worker")
+    .WithDockerfile("../worker")
+    .WithBuildSecret("ACCESS_TOKEN", accessToken);
+```
+
+共有ヘルパーまたは拡張メソッドを通じてのみ古い名前を使用していた場合、これは通常、簡単な名前変更です。
+
+### `IAzureContainerRegistry` は廃止されました
+
+`IAzureContainerRegistry` インターフェイスは廃止済みとしてマークされています。代わりに、コンピューティング環境では新しい `ContainerRegistry` プロパティを使用してください。
+
+### クライアント統合におけるデフォルトの Azure 資格情報の動作
+
+Aspire Azure クライアント統合では、パラメーターなしの `DefaultAzureCredential` コンストラクターは使用されなくなりました。これは、Azure サービスで作業する `ManagedIdentityCredential` 以外の資格情報に依存するユーザーにとっては重大な変更です。新しい動作の詳細については、[デフォルトの Azure 資格情報](/ja/integrations/cloud/azure/azure-default-credential/) を参照してください。
+
+## ⬆️ 今すぐアップグレードしてください
+
+[Aspire 13.2 へのアップグレード](#upgrade-to-aspire-13-2) の指示に従って先に進み、このリリースの新しい CLI、TypeScript アプリホスト、ダッシュボード、ホスティング、および統合機能の使用を開始します。
+
+このリリースで対処された問題の完全なリストについては、[GitHub の Aspire 13.2 マイルストーン](https://github.com/microsoft/aspire/issues?q=is%3Aissue%20state%3Aclosed%20milestone%3A13.2) を参照してください。 いつものように、問題を提出し、プル リクエストを送信し、このリリースの形成に協力してくれたコミュニティの貢献者全員に多大な感謝の気持ちを伝えたいと思います。Aspire は皆さんのおかげでより良くなりました。
+
+## Aspire 13.2.1
+
+Aspire 13.2.1 は、信頼性の修正に重点を置いたパッチ リリースです。
+
+### TypeScript AppHost SDK の重大な変更
+
+次の TypeScript AppHost API の名前が変更されました。影響を受ける `apphost.ts` ファイルを適宜更新します。
+
+|前の名前 |新しい名前 |メモ |
+| --- | --- | --- |
+| `runAsExistingFromParameters(name, resourceGroup)` | `runAsExisting(name, { resourceGroup })` |名前の変更と位置 → オプション オブジェクト。 |
+| `publishAsExistingFromParameters(name, resourceGroup)` | `publishAsExisting(name, { resourceGroup })` |名前の変更と位置 → オプション オブジェクト。 |
+| `withConnectionPropertyValue(name, value)` | `withConnectionProperty(name, value)` |文字列/参照値の統合 API。 |
+| `withParameterBuildArg(name, parameter)` | `withBuildArg(name, parameter)` |名前が統合された `withBuildArg` サーフェスに変更されました。 |
+
+<Aside type="note">
+`withConnectionPropertyValue` は、生成された SDK の互換性エイリアスとして引き続き使用できるため、ランタイム SDK の中断ではありません。
+</Aside>
