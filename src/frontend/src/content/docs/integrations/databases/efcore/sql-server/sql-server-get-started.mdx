@@ -1,12 +1,10 @@
 ---
 title: Get started with the SQL Server Entity Framework Core integrations
-description: Learn how to set up the Aspire SQL Server EF Core Hosting and Client integrations simply.
+description: Understand how the Aspire SQL Server EF Core integrations fit together — model a SQL Server resource in your AppHost, then connect to it from C# apps using Entity Framework Core.
 ---
 
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import sqlIcon from '@assets/icons/sql-icon.png';
 
 <Image
@@ -18,105 +16,69 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server Entity Framework Core (EF Core) integration enables you to connect to existing SQL Server instances or create new instances from .NET with the [`mcr.microsoft.com/mssql/server` container image](https://hub.docker.com/_/microsoft-mssql-server).
+[SQL Server](https://www.microsoft.com/sql-server) is a relational database management system developed by Microsoft. The Aspire SQL Server Entity Framework Core (EF Core) integration lets you model a SQL Server instance and its databases as first-class resources in your AppHost, then connect to them from C# consuming apps using EF Core's familiar `DbContext` API.
 
-In this introduction, you'll see how to install and use the Aspire SQL Server EF Core integrations in a simple configuration. If you already have this knowledge, see the links below for full reference details.
+## Why use SQL Server with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding SQL Server through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs SQL Server from the [`mcr.microsoft.com/mssql/server`](https://hub.docker.com/_/microsoft-mssql-server) container image with credentials generated automatically for you.
+- **Consistent connection info.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# EF Core integration.** C# apps can use the `Aspire.Microsoft.EntityFrameworkCore.SqlServer` package for automatic `DbContext` registration, health checks, and OpenTelemetry.
 
-To begin, install the Aspire SQL Server Hosting integration in your Aspire AppHost project. This integration allows you to create and manage SQL Server database instances from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.SqlServer" shortName="sqlserver" />
+The SQL Server EF Core integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **C# EF Core client integration** for consuming apps.
 
-<Aside type="note">
-    The [Aspire SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/) is used in the App Host with both the EF Core and non-EF Core client integrations.
-</Aside>
+```mermaid
+architecture-beta
 
-Next, in the AppHost project, create instances of SQL Server server and database resources, then pass the database to the consuming client projects:
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service hosting(server)[Hosting integration] in apphost
+  service sqlserver(database)[SQL Server] in apphost
+  service db(database)[sqldb] in apphost
 
-var sql = builder.AddSqlServer("sql");
-var sqldb = sql.AddDatabase("sqldb");
+  service client(iconoir:server-connection)[EF Core client integration] in consumer
+  service app(server)[App] in consumer
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("exampleproject")
-                            .WaitFor(sqldb)
-                            .WithReference(sqldb);
-
-builder.Build().Run();
+  hosting:R --> L:sqlserver
+  sqlserver:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="tip">
-    This is the simplest implementation of SQL Server resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the SQL Server instance and databases as resources. The **EF Core client integration** lives in each C# consuming app and registers a `DbContext` wired to the SQL Server database Aspire injects.
 
-## Use the integration in client projects
+Getting there is a two-step process: model the SQL Server resources in your AppHost, then connect to the database from each app that needs it.
 
-Now that the hosting integration is ready, the next step is to install and configure the Aspire SQL Server EF Core client integration in any projects that need to use it.
+<Steps>
 
-### Set up client projects
+1. ### Model SQL Server in your AppHost
 
-In each of these consuming client projects, install the Aspire SQL Server EF Core client integration:
+    Add the SQL Server hosting integration to your AppHost, then declare a SQL Server instance, one or more databases, and reference them from the apps that need to talk to the database. The [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/) reference walks through every capability — adding databases, data volumes, and more.
 
-<InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/sql-server/sql-server-host/'>
+        Set up SQL Server in the AppHost
+    </LinkButton>
 
-In the `Program.cs` file of your client-consuming project, call the `AddSqlServerDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
+2. ### Connect from your consuming C# app
 
-```csharp title="C# — Program.cs"
-builder.AddSqlServerDbContext<ExampleDbContext>(connectionName: "sqldb");
-```
+    When you reference a SQL Server database from a C# consuming app, Aspire injects its connection information automatically. See [Connect to SQL Server (EF Core)](/integrations/databases/efcore/sql-server/sql-server-connect/) for the C# EF Core client integration walkthrough, including `DbContext` registration, enrichment, configuration, health checks, and telemetry.
 
-<Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the SQL Server database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
-</Aside>
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/efcore/sql-server/sql-server-connect/'>
+        Connect to SQL Server
+    </LinkButton>
 
-### Use injected SQL Server properties
-
-In the AppHost, when you used the `WithReference` method to pass a SQL Server database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
-
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `sqldb` becomes `SQLDB_URI`.
-
-Use the `GetValue()` method to obtain these environment variables in consuming projects:
-
-```csharp title="C# - Obtain configuration properties"
-string sqlHost = builder.Configuration.GetValue<string>("SQLDB_HOST");
-string sqlPort = builder.Configuration.GetValue<string>("SQLDB_PORT");
-string sqlJDBCConnectionString = builder.Configuration.GetValue<string>("SQLDB_JDBCCONNECTIONSTRING");
-```
-
-<Aside type="tip">
-    The full set of properties that Aspire injects depends on the SQL Server resource configuration. For more information, see [Properties of the SQL Server resources](/integrations/databases/efcore/sql-server/sql-server-client/#properties-of-the-sql-server-resources).
-</Aside>
-
-### Use SQL Server resources in client code
-
-You can now retrieve the `ExampleDbContext` instance using dependency injection. For example, to retrieve the context from a service:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(ExampleDbContext context)
-{
-    // Use context...
-}
-```
-
-For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
-
-## Next steps
-
-<CardGrid>
-    <LinkCard 
-        title="SQL Server Hosting integration"
-        description="Learn about the SQL Server hosting integration features and capabilities."
-        href="/integrations/databases/sql-server/sql-server-host/"
-    />
-    <LinkCard 
-        title="SQL Server Client integration"
-        description="Learn about the SQL Server EF Core client integration features and capabilities."
-        href="/integrations/databases/efcore/sql-server/sql-server-client/"
-    />
-</CardGrid>
+</Steps>

@@ -3,17 +3,26 @@ title: Apply EF Core migrations in Aspire
 description: Learn about how to apply Entity Framework Core migrations in Aspire, including running migrations at startup and publishing migration bundles as container images for deployment.
 ---
 
-import { Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import { Kbd } from 'starlight-kbd/components'
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
 import ThemeImage from '@components/ThemeImage.astro';
+import Image from 'astro:assets';
+import dotnetIcon from '@assets/icons/dotnet.svg';
 import dashboardPostMigrationDark from '@assets/integrations/efcore/dashboard-post-migration-dark.png';
 import dashboardPostMigrationLight from '@assets/integrations/efcore/dashboard-post-migration-light.png';
 
+<Image
+  src={dotnetIcon}
+  alt="Entity Framework Core logo"
+  width={60}
+  height={60}
+  style="float: inline-start; margin-inline-end: 1rem;"
+  data-zoom-off
+/>
+
 Since Aspire projects use a containerized architecture, databases are ephemeral and can be recreated at any time. Entity Framework Core (EF Core) uses a feature called [migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations) to create and update database schemas. Since databases are recreated when the app starts, you need to apply migrations to initialize the database schema each time your app starts. This is accomplished by registering a migration service project in your app that runs migrations during startup.
 
-In this tutorial, you learn how to configure Aspire projects to run EF Core migrations during app startup.
-
-Please be sure that you're already setup your development environment, see [Prerequisites](/get-started/prerequisites/).
+In this article, you learn how to configure Aspire projects to run EF Core migrations during app startup. Before continuing, ensure your development environment is set up — see [Prerequisites](/get-started/prerequisites/).
 
 ## Obtain the starter app
 
@@ -57,7 +66,7 @@ Close the browser tabs that display the Swagger endpoint and the Aspire dashboar
 Start by creating some migrations to apply.
 
 <Tabs syncKey='nuget-installer'>
-  <TabItem value="dotnet-cli" label=".NET CLI">
+  <TabItem label=".NET CLI">
     <Steps>
     1. Open a terminal (<Kbd windows="Ctrl+`" mac="⌘+`" linux="Ctrl+`" /> in Visual Studio Code).
     1. Set `SupportTicketApi/SupportTicketApi.Api` as the current directory.
@@ -67,14 +76,14 @@ Start by creating some migrations to apply.
         dotnet ef migrations add InitialCreate --project ../SupportTicketApi.Data/SupportTicketApi.Data.csproj
         ```
 
-        The proceeding command:
+        The preceding command:
 
         - Runs EF Core migration command-line tool in the *SupportTicketApi.Api* directory. `dotnet ef` is run in this location because the API service is where the DB context is used.
         - Creates a migration named *InitialCreate*.
         - Creates the migration in the in the *Migrations* folder in the *SupportTicketApi.Data* project.
     </Steps>
   </TabItem>
-  <TabItem value="package-manager-console" label="Package Manager Console">
+  <TabItem label="Package Manager Console">
 
     If you prefer using Visual Studio's Package Manager Console instead of the command line:
 
@@ -88,8 +97,9 @@ Start by creating some migrations to apply.
         Add-Migration InitialCreate
         ```
 
-        > [!IMPORTANT]
-        > When using Package Manager Console, ensure the startup project is set to the project that contains the DbContext registration (usually your API or web project), and the default project is set to where you want the migrations to be created (usually your data project). Remember to change the startup project back to your AppHost project when you're done, or the Aspire dashboard won't start when you press <kbd>F5</kbd>.
+        :::caution
+        When using Package Manager Console, ensure the startup project is set to the project that contains the DbContext registration (usually your API or web project), and the default project is set to where you want the migrations to be created (usually your data project). Remember to change the startup project back to your AppHost project when you're done, or the Aspire dashboard won't start when you press <Kbd windows="F5" />.
+        :::
 
     </Steps>
     </TabItem>
@@ -119,12 +129,12 @@ Start by creating some migrations to apply.
 1. Create another new migration to capture the changes to the model:
 
     <Tabs syncKey='nuget-installer'>
-    <TabItem value="dotnet-cli" label=".NET CLI">    
+    <TabItem label=".NET CLI">    
         ```bash title=".NET CLI"
         dotnet ef migrations add AddCompleted --project ../SupportTicketApi.Data/SupportTicketApi.Data.csproj
         ```
     </TabItem>
-    <TabItem value="package-manager-console" label="Package Manager Console">
+    <TabItem label="Package Manager Console">
         ```powershell title="Package Manager Console"
         Add-Migration AddCompleted
         ```
@@ -163,8 +173,9 @@ If you get an error like "No database provider has been configured for this DbCo
 
 </Steps>
 
-> [!TIP]
-> The connection string name must match what you use in your AppHost. For example, if you use `builder.AddProject<Projects.SupportTicketApi_Api>().WithReference(sqlServer.AddDatabase("ticketdb"))`, then use "ticketdb" as the connection string name.
+:::tip
+The connection string name must match what you use in your AppHost. For example, if you use `builder.AddProject<Projects.SupportTicketApi_Api>().WithReference(sqlServer.AddDatabase("ticketdb"))`, then use "ticketdb" as the connection string name.
+:::
 
 ### Multiple databases in one solution
 
@@ -198,8 +209,9 @@ Ensure you're running migration commands from the correct project:
 
 To execute migrations, call the EF Core `Microsoft.EntityFrameworkCore.Migrations.IMigrator.Migrate` method or the `IMigrator.MigrateAsync` method. In this tutorial, you'll create a separate worker service to apply migrations. This approach separates migration concerns into a dedicated project, which is easier to maintain and allows migrations to run before other services start.
 
-> [!NOTE]
-> **Where to create migrations**: Migrations should be created in the project that contains your Entity Framework DbContext and model classes (in this example, *SupportTicketApi.Data*). The migration service project references this data project to apply the migrations at startup.
+:::note
+**Where to create migrations**: Migrations should be created in the project that contains your Entity Framework DbContext and model classes (in this example, *SupportTicketApi.Data*). The migration service project references this data project to apply the migrations at startup.
+:::
 
 To create a service that applies the migrations:
 
@@ -226,8 +238,9 @@ To create a service that applies the migrations:
     dotnet add package Aspire.Microsoft.EntityFrameworkCore.SqlServer -v "13.1.0"
     ```
 
-    > [!TIP]
-    > In some cases, you might also need to add the [📦 Microsoft.EntityFrameworkCore.Tools](https://www.nuget.org/packages/Microsoft.EntityFrameworkCore.Tools) package to prevent EF Core from failing silently without applying migrations. This is particularly relevant when using databases other than SQL Server, such as PostgreSQL. For more information, see [dotnet/efcore#27215](https://github.com/dotnet/efcore/issues/27215#issuecomment-2045767772).
+    :::tip
+    In some cases, you might also need to add the [📦 Microsoft.EntityFrameworkCore.Tools](https://www.nuget.org/packages/Microsoft.EntityFrameworkCore.Tools) package to prevent EF Core from failing silently without applying migrations. This is particularly relevant when using databases other than SQL Server, such as PostgreSQL. For more information, see [dotnet/efcore#27215](https://github.com/dotnet/efcore/issues/27215#issuecomment-2045767772).
+    :::
 
 1. Add the highlighted lines to the *`Program.cs`* file in the *`SupportTicketApi.MigrationService`* project:
 
@@ -379,11 +392,13 @@ The migration service is created, but it needs to be added to the Aspire AppHost
 
     This code enlists the *`SupportTicketApi.MigrationService`* project as a service in the Aspire AppHost. It also ensures that the API resource doesn't run until the migrations are complete.
 
-    > [!NOTE]
-    > In the preceding code, the call to `AddDatabase` adds a representation of a SQL Server database to the Aspire application model with a connection string. It *doesn't* create a database in the SQL Server container. To ensure that the database is created, the sample project calls the EF Core `IDatabaseCreator.EnsureCreated` method from the support ticket API's `Program.cs` file.
+    :::note
+    In the preceding code, the call to `AddDatabase` adds a representation of a SQL Server database to the Aspire application model with a connection string. It *doesn't* create a database in the SQL Server container. To ensure that the database is created, the sample project calls the EF Core `IDatabaseCreator.EnsureCreated` method from the support ticket API's `Program.cs` file.
+    :::
 
-    > [!TIP]
-    > The code creates the SQL Server container each time it runs and applies migrations to it. Data doesn't persist across debugging sessions and any new database rows you create during testing will not survive an app restart. If you would prefer to persist this data, add a data volume to your container. For more information, see [Add SQL Server resource with data volume](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume).
+    :::tip
+    The code creates the SQL Server container each time it runs and applies migrations to it. Data doesn't persist across debugging sessions and any new database rows you create during testing will not survive an app restart. If you would prefer to persist this data, add a data volume to your container. For more information, see [Add SQL Server resource with data volume](/integrations/databases/sql-server/sql-server-host/#add-sql-server-resource-with-data-volume).
+    :::
 
 1. If the code cannot resolve the migration service project, add a reference to the migration service project in the AppHost project:
 
@@ -391,8 +406,9 @@ The migration service is created, but it needs to be added to the Aspire AppHost
     dotnet add SupportTicketApi.AppHost reference SupportTicketApi.MigrationService
     ```
 
-    > [!IMPORTANT]
-    > If you are using Visual Studio, and you selected the **`Enlist in Aspire orchestration`** option when creating the Worker Service project, similar code is added automatically with the service name `supportticketapi-migrationservice`. Replace that code with the preceding code.
+    :::caution
+    If you are using Visual Studio, and you selected the **`Enlist in Aspire orchestration`** option when creating the Worker Service project, similar code is added automatically with the service name `supportticketapi-migrationservice`. Replace that code with the preceding code.
+    :::
 
 </Steps>
 
@@ -660,3 +676,12 @@ Customize the generated manifest to use a `Job` workload or set `restartPolicy: 
 
 </TabItem>
 </Tabs>
+
+## See also
+
+- [EF Core migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations/)
+- [Connection resiliency](https://learn.microsoft.com/ef/core/miscellaneous/connection-resiliency)
+- [Seed data in a database using Aspire](/integrations/databases/efcore/seed-database/)
+- [Entity Framework Core overview](/integrations/databases/efcore/overview/)
+- [📦 Aspire.Hosting.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Hosting.EntityFrameworkCore)
+- [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer)

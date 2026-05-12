@@ -1,6 +1,6 @@
 ---
-title: SQL Server Entity Framework Core client integration
-description: Learn how to use the Aspire SQL Server EF Core client integration to connect to SQL Server databases.
+title: Connect to SQL Server (EF Core)
+description: Learn how to connect to SQL Server from C# consuming apps using Entity Framework Core in an Aspire solution.
 ---
 
 import { Image } from 'astro:assets';
@@ -17,15 +17,48 @@ import sqlIcon from '@assets/icons/sql-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire SQL Server Entity Framework Core (EF Core) integration, install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project, that is, the project for the application that uses the SQL Server EF Core client.
+This page describes how C# consuming apps connect to a SQL Server resource that's already modeled in your AppHost using Entity Framework Core. For the AppHost API surface — adding a SQL Server instance, databases, and more — see [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/).
+
+The Aspire SQL Server EF Core client integration is C#-only. It registers a `DbContext` subclass through dependency injection and adds health checks and telemetry automatically. Install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
 
-For an introduction to working with the SQL Server EF Core client integration, see [Get started with the SQL Server EF Core integrations](/integrations/databases/efcore/sql-server/sql-server-get-started/).
+## Connection properties
 
-<Aside type="note">
-Before using the Aspire SQL Server EF Core client integration in a project, ensure that the Aspire SQL Server Hosting integration is set up in the AppHost project. For more information, see [SQL Server Hosting integration](/integrations/databases/sql-server/sql-server-host/).
-</Aside>
+When you reference a SQL Server resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables.
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `sqldb` becomes `SQLDB_HOST`.
+
+### SQL Server server resource
+
+The SQL Server server resource exposes the following connection properties:
+
+| Property Name | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `Host`        | The hostname or IP address of the SQL Server     |
+| `Port`        | The port number the SQL Server is listening on   |
+| `Username`    | The username for authentication (defaults to sa) |
+| `Password`    | The password for authentication                  |
+| `Uri`         | The URI of the SQL Server |
+
+### SQL Server database resource
+
+The SQL Server database resource inherits all properties from its parent `SqlServerServerResource` and adds:
+
+| Property Name          | Description                                                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `DatabaseName`         | The name of the database                                                                                                      |
+| `JdbcConnectionString` | The JDBC connection string for the database, with the format `jdbc:sqlserver://{Host}:{Port};database={DatabaseName};user={Username};password={Password};encrypt=true;` |
+
+For example, if you reference a database resource named `sqldb` in your AppHost project, the following environment variables will be available in the consuming project:
+
+- `SQLDB_HOST`
+- `SQLDB_PORT`
+- `SQLDB_URI`
+- `SQLDB_USERNAME`
+- `SQLDB_PASSWORD`
+- `SQLDB_DATABASENAME`
+- `SQLDB_JDBCCONNECTIONSTRING`
 
 ## Add SQL Server database context
 
@@ -49,43 +82,6 @@ public class ExampleService(ExampleDbContext context)
 ```
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
-
-## Properties of the SQL Server resources
-
-When you use the `WithReference` method to pass a SQL Server server or database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
-
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `sql` becomes `SQL_HOST`.
-
-### SQL Server server resource
-
-The SQL Server server resource exposes the following connection properties:
-
-| Property Name | Description                                      |
-| ------------- | ------------------------------------------------ |
-| `Host`        | The hostname or IP address of the SQL Server     |
-| `Port`        | The port number the SQL Server is listening on   |
-| `Username`    | The username for authentication (defaults to sa) |
-| `Password`    | The password for authentication                  |
-| `Uri`         | The URI of the SQL Server |
-
-### SQL Server database resource
-
-The SQL Server database resource inherits all properties from its parent `SqlServerServerResource` and adds:
-
-| Property Name      | Description                                                                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `DatabaseName`     | The name of the database                                                                                                      |
-| `JdbcConnectionString` | The JDBC connection string for the database, with the format `jdbc:sqlserver://{Host}:{Port};database={DatabaseName};user={Username};password={Password};encrypt=true;` |
-
-For example, if you reference a database resource named `sqldb` in your AppHost project, the following environment variables will be available in the consuming project:
-
-- `SQLDB_HOST`
-- `SQLDB_PORT`
-- `SQLDB_URI`
-- `SQLDB_USERNAME`
-- `SQLDB_PASSWORD`
-- `SQLDB_DATABASENAME`
-- `SQLDB_JDBCCONNECTIONSTRING`
 
 ## Enrich a SQL Server database context
 
@@ -217,28 +213,28 @@ builder.AddSqlServerDbContext<AnotherDbContext>("another-sql");
 
 Here are the configurable options with corresponding default values:
 
-| Name                 | Description                                                                                                                 |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `ConnectionString`   | The connection string of the SQL Server database to connect to.                                                             |
-| `DbContextPooling`   | A boolean value that indicates whether the db context will be pooled or explicitly created every time it's requested        |
-| `MaxRetryCount`      | The maximum number of retry attempts. Default value is 6, set it to 0 to disable the retry mechanism.                       |
-| `DisableHealthChecks`| A boolean value that indicates whether the database health check is disabled or not.                                        |
-| `DisableTracing`     | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not.                                        |
-| `DisableMetrics`     | A boolean value that indicates whether the OpenTelemetry metrics are disabled or not.                                       |
-| `Timeout`            | The time in seconds to wait for the command to execute.                                                                     |
+| Name                  | Description                                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `ConnectionString`    | The connection string of the SQL Server database to connect to.                                                      |
+| `DbContextPooling`    | A boolean value that indicates whether the db context will be pooled or explicitly created every time it's requested |
+| `MaxRetryCount`       | The maximum number of retry attempts. Default value is 6, set it to 0 to disable the retry mechanism.                |
+| `DisableHealthChecks` | A boolean value that indicates whether the database health check is disabled or not.                                 |
+| `DisableTracing`      | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not.                                 |
+| `DisableMetrics`      | A boolean value that indicates whether the OpenTelemetry metrics are disabled or not.                                |
+| `Timeout`             | The time in seconds to wait for the command to execute.                                                              |
 
 ## Health checks
 
-By default, the Aspire Sql Server Entity Framework Core integration handles the following:
+By default, the Aspire SQL Server Entity Framework Core integration handles the following:
 
 - Adds the [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.SqlServer/SqlServerHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
-- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic.
 
 ## Observability
 
 ### Logging
 
-The Aspire SQL Server Entity Framework Core integration uses the following Log categories:
+The Aspire SQL Server Entity Framework Core integration uses the following log categories:
 
 - `Microsoft.EntityFrameworkCore.ChangeTracking`
 - `Microsoft.EntityFrameworkCore.Database.Command`
@@ -253,9 +249,9 @@ The Aspire SQL Server Entity Framework Core integration uses the following Log c
 
 ### Tracing
 
-The Aspire SQL Server Entity Framework Core integration will emit the following Tracing activities using OpenTelemetry:
+The Aspire SQL Server Entity Framework Core integration will emit the following tracing activities using OpenTelemetry:
 
-- "OpenTelemetry.Instrumentation.EntityFrameworkCore"
+- `OpenTelemetry.Instrumentation.EntityFrameworkCore`
 
 ### Metrics
 
