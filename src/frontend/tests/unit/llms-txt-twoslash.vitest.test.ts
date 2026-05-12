@@ -18,6 +18,9 @@
  *   1. The author-authored source code survives in the Markdown output.
  *   2. None of the popup/annotation text or class names leak through.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Element, RootContent } from 'hast';
 import { matches } from 'hast-util-select';
 import rehypeParse from 'rehype-parse';
@@ -30,7 +33,8 @@ import { describe, expect, test } from 'vitest';
 
 /**
  * Must match the `removeSelectors` list passed to `starlightLlmsTxt({...})` in
- * `astro.config.mjs`. Keep this in sync when adding/removing twoslash markers.
+ * `astro.config.mjs`. The wiring sentinel below enforces this equivalence; if
+ * you change the list in one place, change it in the other.
  */
 const REMOVE_SELECTORS = [
   '.twoslash-popup-container',
@@ -39,6 +43,94 @@ const REMOVE_SELECTORS = [
   '.twoslash-error-box',
   '.twoslash-custom-box',
 ];
+
+const testsDir = path.dirname(fileURLToPath(import.meta.url));
+const frontendRoot = path.resolve(testsDir, '..', '..');
+const patchedPluginRoot = path.join(frontendRoot, 'node_modules', 'starlight-llms-txt');
+const patchedEntryToSimpleMarkdownPath = path.join(patchedPluginRoot, 'entryToSimpleMarkdown.ts');
+const patchedTypesPath = path.join(patchedPluginRoot, 'types.ts');
+const patchedIndexPath = path.join(patchedPluginRoot, 'index.ts');
+const astroConfigPath = path.join(frontendRoot, 'astro.config.mjs');
+
+// The behavior tests further down inline a copy of the patched plugin's
+// HTML → Markdown pipeline so they can run without Astro/Starlight's full
+// runtime. That's only meaningful if the patched plugin actually ships the
+// same mechanism we're modelling, and only meaningful if `astro.config.mjs`
+// actually passes our selector list to `starlightLlmsTxt({...})`. The two
+// sentinel suites below pin those two contracts so a dropped patch or a
+// removed call site fails CI rather than silently regressing the generated
+// `dist/llms*.txt` outputs. This mirrors the sentinel pattern established
+// in `llms-small-whitespace.vitest.test.ts`.
+
+describe('starlight-llms-txt removeSelectors patch sentinel', () => {
+  test('patched entryToSimpleMarkdown.ts wires the removeSelectorsLlmsTxt unified step', () => {
+    const source = readFileSync(patchedEntryToSimpleMarkdownPath, 'utf8');
+
+    expect(
+      source,
+      'patched plugin should read removeSelectors from the virtual project context',
+    ).toContain('starlightLllmsTxtContext.removeSelectors');
+    expect(
+      source,
+      'patched plugin should register a removeSelectorsLlmsTxt unified step',
+    ).toMatch(/\.use\(function removeSelectorsLlmsTxt\(/);
+    expect(
+      source,
+      'patched plugin should match nodes against the configured selectors',
+    ).toMatch(/matches\(selector,\s*node\)/);
+    expect(
+      source,
+      'patched plugin should bail out when no selectors are configured',
+    ).toMatch(/removeSelectors\.length === 0/);
+  });
+
+  test('patched types.ts declares the new option and the ProjectContext field', () => {
+    const source = readFileSync(patchedTypesPath, 'utf8');
+
+    expect(
+      source,
+      'patched types should expose the public option on StarlightLllmsTextOptions',
+    ).toContain('removeSelectors?: string[]');
+    expect(
+      source,
+      'patched types should non-optionally surface the option on ProjectContext',
+    ).toMatch(/removeSelectors:\s*NonNullable<StarlightLllmsTextOptions\['removeSelectors'\]>/);
+  });
+
+  test('patched index.ts forwards opts.removeSelectors into the project context', () => {
+    const source = readFileSync(patchedIndexPath, 'utf8');
+
+    expect(
+      source,
+      'patched index should default opts.removeSelectors to an empty array',
+    ).toContain('removeSelectors: opts.removeSelectors ?? []');
+  });
+});
+
+describe('starlight-llms-txt removeSelectors wiring sentinel', () => {
+  test('astro.config.mjs passes the same selector list to starlightLlmsTxt', () => {
+    const source = readFileSync(astroConfigPath, 'utf8');
+    const starlightBlock = source.match(/starlightLlmsTxt\(\{[\s\S]+?\n\s*\}\)/);
+    expect(
+      starlightBlock,
+      'astro.config.mjs should call starlightLlmsTxt({...})',
+    ).not.toBeNull();
+
+    const removeSelectorsBlock = starlightBlock![0].match(/removeSelectors:\s*\[([\s\S]*?)\]/);
+    expect(
+      removeSelectorsBlock,
+      'starlightLlmsTxt block should declare a removeSelectors: [...] array',
+    ).not.toBeNull();
+
+    const configured = [...removeSelectorsBlock![1].matchAll(/['"]([^'"]+)['"]/g)]
+      .map((m) => m[1])
+      .sort();
+    expect(
+      configured,
+      'astro.config.mjs removeSelectors must match the list under test (update both together when adding twoslash classes)',
+    ).toEqual([...REMOVE_SELECTORS].sort());
+  });
+});
 
 /**
  * Runs an HTML fragment through the same pipeline starlight-llms-txt uses to
