@@ -176,8 +176,8 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/ai/openai/openai-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/ai/openai/openai-client',
+              label: 'Connect to OpenAI',
+              slug: 'integrations/ai/openai/openai-connect',
             },
           ],
         },

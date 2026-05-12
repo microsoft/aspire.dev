@@ -1,37 +1,132 @@
 ---
-title: OpenAI hosting integration
-description: Full reference for the Aspire OpenAI hosting integration.
+title: Set up OpenAI in the AppHost
+description: Learn how to use the Aspire OpenAI hosting integration to orchestrate and configure OpenAI resources in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import openaiIcon from '@assets/icons/openai-icon.png';
 
-The hosting integration models OpenAI with two resource types:
+<Image
+  src={openaiIcon}
+  alt="OpenAI logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
 
-- `OpenAIResource`: Parent that holds the shared API key and base endpoint (defaults to `https://api.openai.com/v1`).
-- `OpenAIModelResource`: Child representing a specific model; composes a connection string from the parent (`Endpoint` + `Key` + `Model`).
+This article is the reference for the Aspire OpenAI hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model an OpenAI parent resource and model resources in your [`AppHost`](/get-started/app-host/) project.
 
-To access these types and APIs, install the [📦 Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) NuGet package in your AppHost project:
+If you're new to the OpenAI integration, start with the [Get started with OpenAI integrations](/integrations/ai/openai/openai-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to OpenAI](../openai-connect/).
 
-<InstallPackage packageName="Aspire.Hosting.OpenAI" />
+## Installation
 
-## Add an OpenAI parent resource
+To start building an Aspire app that uses OpenAI, install the [📦 Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) NuGet package:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.OpenAI@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.OpenAI" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add openai
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the OpenAI hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.OpenAI": "9.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add OpenAI resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an OpenAI parent resource and then add one or more model resources beneath it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var openai = builder.AddOpenAI("openai");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(openai);
+var chat = openai.AddModel("chat", "gpt-4o-mini");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
 
-## Add OpenAI model resources
+const builder = await createBuilder();
 
-Add one or more model children beneath the parent and reference them from projects:
+const openai = await builder.addOpenAI("openai");
 
+const chat = await openai.addModel("chat", "gpt-4o-mini");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. Calling `AddOpenAI` (or `addOpenAI`) creates an `OpenAIResource` that models the OpenAI account. It registers a secret parameter for the API key that defaults to the `OPENAI_API_KEY` environment variable.
+
+1. Calling `AddModel` (or `addModel`) creates an `OpenAIModelResource` child whose connection string is composed from the parent endpoint, API key, and the model name you supply.
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced model resource, such as `chat` in the preceding example. Multiple models can share the single API key and endpoint from the parent resource.
+
+</Steps>
+
+<Aside type="note">
+    When you reference an OpenAI model resource from the AppHost, Aspire makes several properties available to the consuming project, such as the endpoint URI, API key, and model name. For a complete list of these properties and per-language connection examples, see [Connect to OpenAI](../openai-connect/).
+</Aside>
+
+## Add multiple OpenAI model resources
+
+Add multiple model children beneath the same parent to share a single API key and endpoint:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -40,31 +135,54 @@ var openai = builder.AddOpenAI("openai");
 var chat = openai.AddModel("chat", "gpt-4o-mini");
 var embeddings = openai.AddModel("embeddings", "text-embedding-3-small");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(chat);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat)
+    .WithReference(embeddings);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
 
-Referencing `chat` passes a connection string named `chat` to the project. Multiple models can share the single API key and endpoint via the parent resource.
+const builder = await createBuilder();
+
+const openai = await builder.addOpenAI("openai");
+
+const chat = await openai.addModel("chat", "gpt-4o-mini");
+const embeddings = await openai.addModel("embeddings", "text-embedding-3-small");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat)
+    .withReference(embeddings);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+Referencing `chat` passes a connection string named `chat` to the project, and referencing `embeddings` passes a connection string named `embeddings`. Both share the parent API key and endpoint.
 
 ## Use default API key parameter
 
-Calling `AddOpenAI("openai")` creates a secret parameter named `openai-openai-apikey`. Aspire resolves its value in this order:
+Calling `AddOpenAI("openai")` (or `addOpenAI("openai")`) automatically creates a secret parameter named `openai-openai-apikey`. Aspire resolves its value in this order:
 
 1. The `Parameters:openai-openai-apikey` configuration key (user secrets, `appsettings.*`, or environment variables).
 2. The `OPENAI_API_KEY` environment variable.
 
 If neither source provides a value, startup throws an exception. Provide the key via the Aspire CLI:
 
-```bash
+```bash title="Terminal"
 aspire secret set Parameters:openai-openai-apikey sk-your-api-key
 ```
 
 ## Use custom API key parameter
 
-Replace the default parameter by creating your own secret parameter and calling `WithApiKey` on the parent:
+Replace the default parameter by creating your own secret parameter and passing it to `WithApiKey` (or `withApiKey`) on the parent:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -75,16 +193,41 @@ var openai = builder.AddOpenAI("openai")
 
 var chat = openai.AddModel("chat", "gpt-4o-mini");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(chat);
-```
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
 
-<Aside type="note">Custom parameters must be marked `secret: true`.</Aside>
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const apiKey = await builder.addParameter("my-api-key", { secret: true });
+
+const openai = await builder.addOpenAI("openai");
+await openai.withApiKey(apiKey);
+
+const chat = await openai.addModel("chat", "gpt-4o-mini");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">Parameters marked <code>secret: true</code> are stored in the user secrets store and never appear in plain text in logs or the dashboard.</Aside>
 
 ## Add a custom endpoint
 
-Override the default endpoint (for example to use a proxy or compatible gateway):
+Override the default `https://api.openai.com/v1` endpoint to use a proxy, an Azure OpenAI endpoint, or any OpenAI-compatible gateway. Call `WithEndpoint` (or `withEndpoint`) on the parent resource:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -93,44 +236,99 @@ var openai = builder.AddOpenAI("openai")
 
 var chat = openai.AddModel("chat", "gpt-4o-mini");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(chat);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
 
-## Health checks
+const builder = await createBuilder();
 
-Add an optional single-run health check per model when diagnosing issues:
+const openai = await builder.addOpenAI("openai");
+await openai.withEndpoint("https://my-gateway.example.com/v1");
 
-```csharp
-var chat = builder.AddOpenAI("openai")
-                  .AddModel("chat", "gpt-4o-mini")
-                  .WithHealthCheck();
+const chat = await openai.addModel("chat", "gpt-4o-mini");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+</Tabs>
 
-The model health check validates endpoint reachability, API key validity (401), and model existence (404). It executes only once per application instance to limit rate-limit implications. A status-page check against `https://status.openai.com/api/v2/status.json` is automatically registered for each parent resource.
+All model resources beneath the parent inherit the overridden endpoint. The overridden endpoint is reflected in the `Endpoint` and `Uri` connection properties that Aspire injects into consuming apps.
+
+## Add health check per model
+
+Add an optional health check to a model resource to validate endpoint reachability, API key validity, and model existence at startup:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var openai = builder.AddOpenAI("openai");
+
+var chat = openai.AddModel("chat", "gpt-4o-mini")
+                 .WithHealthCheck();
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const openai = await builder.addOpenAI("openai");
+
+const chat = await openai.addModel("chat", "gpt-4o-mini");
+await chat.withHealthCheck();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The model health check validates endpoint reachability, API key validity (401), and model existence (404). It executes only once per application instance to limit rate-limit implications.
+
+<Aside type="note">
+In C#, each OpenAI parent resource also automatically registers a status-page health check against `https://status.openai.com/api/v2/status.json`. This status-page check is not currently exposed in the TypeScript AppHost.
+</Aside>
 
 ## Available models
 
-Common identifiers:
+Common model identifiers for the OpenAI API:
 
-- `gpt-5`
-- `gpt-4o-mini`
-- `gpt-4o`
-- `gpt-4-turbo`
-- `gpt-realtime`
-- `text-embedding-3-small`
-- `text-embedding-3-large`
-- `dall-e-3`
-- `whisper-1`
+| Category   | Model identifiers |
+| ---------- | ----------------- |
+| Chat       | `gpt-5`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
+| Reasoning  | `o3`, `o3-mini`, `o4-mini` |
+| Realtime   | `gpt-realtime` |
+| Embeddings | `text-embedding-3-small`, `text-embedding-3-large` |
+| Images     | `dall-e-3` |
+| Audio      | `whisper-1` |
 
-<Aside type="note">
-  The model name is case-insensitive, but we usually write it in lowercase.
-</Aside>
+For the full and up-to-date list, see the [OpenAI models documentation](https://platform.openai.com/docs/models).
 
-For more information, see the [OpenAI models documentation](https://platform.openai.com/docs/models).
+## Connection properties
+
+For the full reference of OpenAI connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to OpenAI](../openai-connect/).
 
 ## See also
 
-- [Get started with the OpenAI integration](/integrations/ai/openai/openai-get-started/)
-- [OpenAI client integration](/integrations/ai/openai/openai-client/)
-- [OpenAI documentation](https://openai.com/)
+- [Get started with the OpenAI integrations](/integrations/ai/openai/openai-get-started/)
+- [Connect to OpenAI](/integrations/ai/openai/openai-connect/)
+- [OpenAI API documentation](https://platform.openai.com/docs)
