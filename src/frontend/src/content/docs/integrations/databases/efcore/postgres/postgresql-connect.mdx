@@ -5,7 +5,7 @@ description: Learn how to connect a .NET consuming app to a PostgreSQL database 
 
 import { Image } from 'astro:assets';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import postgresIcon from '@assets/icons/postgresql-icon.png';
 
 <Image
@@ -43,17 +43,20 @@ The PostgreSQL database resource inherits all properties from its parent server 
 | `DatabaseName`         | `[RESOURCE]_DATABASENAME`          | The name of the database |
 | `JdbcConnectionString` | `[RESOURCE]_JDBCCONNECTIONSTRING`  | JDBC-format connection string |
 
-## Connect from your app using EF Core
+## Connect from your app
 
 EF Core is .NET-only. The steps below apply to any .NET consuming app that references a PostgreSQL database resource from the AppHost.
 
-### Install the client integration
+<Tabs syncKey="postgres-efcore-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
 
 Install the [📦 Aspire.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuget.org/packages/Aspire.Npgsql.EntityFrameworkCore.PostgreSQL) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
 
-### Add the Npgsql DbContext
+#### Add the Npgsql DbContext
 
 In _Program.cs_, call `AddNpgsqlDbContext<T>` on your `IHostApplicationBuilder` to register your `DbContext` subclass in the dependency injection container:
 
@@ -74,7 +77,7 @@ public class ExampleService(YourDbContext context)
 }
 ```
 
-### Add keyed DbContext instances
+#### Add keyed DbContext instances
 
 To register more than one `DbContext` targeting different databases, use the keyed services overload:
 
@@ -94,7 +97,7 @@ public class ExampleService(
 }
 ```
 
-### Enrich an existing DbContext
+#### Enrich an existing DbContext
 
 If you already register your `DbContext` using the standard EF Core approach, you can enhance it with Aspire-style retries, health checks, logging, and telemetry by calling `EnrichNpgsqlDbContext`:
 
@@ -111,7 +114,7 @@ builder.EnrichNpgsqlDbContext<YourDbContext>(
     });
 ```
 
-### Configuration providers
+#### Configuration providers
 
 The client integration loads `NpgsqlEntityFrameworkCorePostgreSQLSettings` from configuration files such as _appsettings.json_ using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key:
 
@@ -162,11 +165,11 @@ builder.AddNpgsqlDbContext<YourDbContext>(
     static settings => settings.DisableHealthChecks = true);
 ```
 
-### Health checks
+#### Health checks
 
 By default, the integration registers a [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs) that calls EF Core's `CanConnectAsync` method. The health check name is the name of the `TContext` type. It integrates with the `/health` HTTP endpoint so all registered health checks must pass before the app is considered ready to accept traffic.
 
-### Observability and telemetry
+#### Observability and telemetry
 
 The integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
@@ -214,6 +217,9 @@ The integration automatically configures logging, tracing, and metrics through O
   - `ec_Npgsql_multiplexing_average_write_time_per_batch`
 
 Any telemetry feature can be disabled through configuration options above.
+
+</TabItem>
+</Tabs>
 
 ## See also
 

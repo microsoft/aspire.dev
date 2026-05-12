@@ -3,7 +3,7 @@ title: Connect to Oracle with EF Core
 description: Learn how to use the Aspire Oracle Entity Framework Core client integration to connect to an Oracle database from a C# consuming app in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
 import oracleIcon from '@assets/icons/oracle-icon.svg';
@@ -62,13 +62,20 @@ Uri: oracle://system:p%40ssw0rd1@localhost:1521/FREEPDB1
 JdbcConnectionString: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
 ```
 
-## Install the client integration
+## Connect from your app
+
+Add the Aspire Oracle EF Core client integration to your C# consuming app to register a `DbContext` for Oracle Database with automatic health checks and telemetry.
+
+<Tabs syncKey="oracle-efcore-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
 
 Install the [📦 Aspire.Oracle.EntityFrameworkCore](https://www.nuget.org/packages/Aspire.Oracle.EntityFrameworkCore) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Oracle.EntityFrameworkCore" />
 
-## Add Oracle database context
+#### Add Oracle database context
 
 In `Program.cs`, call `AddOracleDatabaseDbContext` on your `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container:
 
@@ -91,7 +98,7 @@ public class ExampleService(ExampleDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-## Enrich Oracle database context
+#### Enrich Oracle database context
 
 You may prefer to use the standard Entity Framework Core method to register a database context and then enhance it with Aspire features. Register the context first:
 
@@ -124,11 +131,11 @@ builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
 
 The `settings` parameter is an instance of `OracleEntityFrameworkCoreSettings`.
 
-## Configuration
+#### Configuration
 
 The Aspire Oracle Entity Framework Core integration provides multiple configuration approaches to meet the requirements and conventions of your project.
 
-### Use a connection string
+##### Use a connection string
 
 When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddOracleDatabaseDbContext`:
 
@@ -150,7 +157,7 @@ The `EnrichOracleDatabaseDbContext` method won't use the `ConnectionStrings` con
 
 For more information, see the [ODP.NET documentation](https://www.oracle.com/database/technologies/appdev/dotnet/odp.html).
 
-### Use configuration providers
+##### Use configuration providers
 
 The integration supports `Microsoft.Extensions.Configuration` from configuration files such as `appsettings.json` by using the `Aspire:Oracle:EntityFrameworkCore` key:
 
@@ -173,7 +180,7 @@ The integration supports `Microsoft.Extensions.Configuration` from configuration
 The `CommandTimeout` property is in seconds. When set as shown in the preceding example, the timeout is 30 seconds.
 </Aside>
 
-### Use inline delegates
+##### Use inline delegates
 
 Pass an `Action<OracleEntityFrameworkCoreSettings>` to configure settings inline, for example to disable health checks:
 
@@ -190,7 +197,7 @@ builder.EnrichOracleDatabaseDbContext<ExampleDbContext>(
     static settings => settings.DisableHealthChecks = true);
 ```
 
-### Configuration options
+##### Configuration options
 
 Here are the configurable options with corresponding default values:
 
@@ -202,7 +209,7 @@ Here are the configurable options with corresponding default values:
 | `DisableRetry` | A boolean value that indicates whether command retries should be disabled or not. |
 | `CommandTimeout` | The time in seconds to wait for the command to execute. |
 
-## Client integration health checks
+#### Client integration health checks
 
 By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
 
@@ -211,11 +218,11 @@ By default, the Aspire Oracle Entity Framework Core integration handles the foll
 - Checks if `OracleEntityFrameworkCoreSettings.DisableHealthChecks` is `true`.
 - If so, adds the `DbContextHealthCheck`, which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
 
-## Observability and telemetry
+#### Observability and telemetry
 
 Aspire integrations automatically set up logging, tracing, and metrics configurations, which are sometimes known as *the pillars of observability*. Telemetry features can be disabled using the techniques presented in the [Configuration](#configuration) section.
 
-### Logging
+##### Logging
 
 The Aspire Oracle Entity Framework Core integration uses the following log categories:
 
@@ -230,17 +237,20 @@ The Aspire Oracle Entity Framework Core integration uses the following log categ
 - `Microsoft.EntityFrameworkCore.Query`
 - `Microsoft.EntityFrameworkCore.Update`
 
-### Tracing
+##### Tracing
 
 The Aspire Oracle Entity Framework Core integration emits the following tracing activities using OpenTelemetry:
 
 - `OpenTelemetry.Instrumentation.EntityFrameworkCore`
 
-### Metrics
+##### Metrics
 
 The Aspire Oracle Entity Framework Core integration currently supports the following metrics:
 
 - `Microsoft.EntityFrameworkCore`
+
+</TabItem>
+</Tabs>
 
 ## See also
 

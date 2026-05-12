@@ -4,7 +4,7 @@ description: Learn how to connect to an Azure SQL database from a C# consuming a
 ---
 
 import { Image } from 'astro:assets';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
 
@@ -66,13 +66,20 @@ Uri: mssql://sa:p%40ssw0rd1@myserver.database.windows.net:1433/catalog
 JdbcConnectionString: jdbc:sqlserver://myserver.database.windows.net:1433;trustServerCertificate=true;databaseName=catalog
 ```
 
-## Install the EF Core client integration
+## Connect from your app
+
+Add the Aspire EF Core Azure SQL client integration to your C# consuming app to register a `DbContext` for Azure SQL with automatic health checks and telemetry.
+
+<Tabs syncKey="azure-sql-efcore-consuming-lang">
+<TabItem label="C#">
+
+#### Install the EF Core client integration
 
 Install the [📦 Aspire.Microsoft.EntityFrameworkCore.SqlServer](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.SqlServer) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.SqlServer" />
 
-## Add SQL Server database context
+#### Add SQL Server database context
 
 In _Program.cs_, call `AddSqlServerDbContext` on your `IHostApplicationBuilder` to register a `Microsoft.EntityFrameworkCore.DbContext` for use via the dependency injection container. The method takes a connection name parameter:
 
@@ -100,7 +107,7 @@ public class ExampleService(ExampleDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-## Enrich a SQL Server database context
+#### Enrich a SQL Server database context
 
 You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
 
@@ -133,11 +140,11 @@ builder.EnrichSqlServerDbContext<ExampleDbContext>(
 
 The `settings` parameter is an instance of the `MicrosoftEntityFrameworkCoreSqlServerSettings` class.
 
-## Configuration
+#### Configuration
 
 The Aspire SQL Server Entity Framework Core integration provides multiple configuration approaches to meet the requirements and conventions of your project.
 
-### Use connection string
+##### Use connection string
 
 When using a connection string from the `ConnectionStrings` configuration section, provide the name of the connection string when calling `AddSqlServerDbContext<TContext>()`:
 
@@ -159,7 +166,7 @@ The `EnrichSqlServerDbContext` won't make use of the `ConnectionStrings` configu
 
 For more information, see [ConnectionString](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
 
-### Use configuration providers
+##### Use configuration providers
 
 The Aspire SQL Server Entity Framework Core integration supports `Microsoft.Extensions.Configuration`. It loads `MicrosoftEntityFrameworkCoreSqlServerSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:EntityFrameworkCore:SqlServer` key:
 
@@ -181,7 +188,7 @@ The Aspire SQL Server Entity Framework Core integration supports `Microsoft.Exte
 }
 ```
 
-### Use inline configurations
+##### Use inline configurations
 
 Pass an `Action<MicrosoftEntityFrameworkCoreSqlServerSettings>` delegate to set up options inline, for example to disable metrics:
 
@@ -192,7 +199,7 @@ builder.AddSqlServerDbContext<YourDbContext>(
         settings.DisableMetrics = true);
 ```
 
-### Configure multiple DbContext connections
+##### Configure multiple DbContext connections
 
 If you want to register more than one `DbContext` with different configuration, use the `$"Aspire.Microsoft.EntityFrameworkCore.SqlServer:{typeof(TContext).Name}"` configuration section name:
 
@@ -224,7 +231,7 @@ Then calling `AddSqlServerDbContext` with the `AnotherDbContext` type parameter 
 builder.AddSqlServerDbContext<AnotherDbContext>("another-sql");
 ```
 
-### Configuration options
+##### Configuration options
 
 Here are the configurable options with corresponding default values:
 
@@ -238,18 +245,18 @@ Here are the configurable options with corresponding default values:
 | `DisableMetrics`      | A boolean value that indicates whether the OpenTelemetry metrics are disabled or not.                                |
 | `Timeout`             | The time in seconds to wait for the command to execute.                                                              |
 
-## Client integration health checks
+#### Client integration health checks
 
 Aspire client integrations enable health checks by default. The SQL Server EF Core client integration adds:
 
 - The [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
 - Integration with the `/health` HTTP endpoint, which specifies all registered health checks must pass for the app to be considered ready to accept traffic.
 
-## Observability and telemetry
+#### Observability and telemetry
 
 Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
 
-### Logging
+##### Logging
 
 The Aspire SQL Server Entity Framework Core integration uses the following log categories:
 
@@ -264,13 +271,13 @@ The Aspire SQL Server Entity Framework Core integration uses the following log c
 - `Microsoft.EntityFrameworkCore.Query`
 - `Microsoft.EntityFrameworkCore.Update`
 
-### Tracing
+##### Tracing
 
 The Aspire SQL Server Entity Framework Core integration emits the following tracing activities using OpenTelemetry:
 
 - `OpenTelemetry.Instrumentation.EntityFrameworkCore`
 
-### Metrics
+##### Metrics
 
 The Aspire SQL Server Entity Framework Core integration emits the following metrics using OpenTelemetry:
 
@@ -285,3 +292,6 @@ The Aspire SQL Server Entity Framework Core integration emits the following metr
   - `ec_Microsoft_E_execution_strategy_operation_failures_per_second`
   - `ec_Microsoft_EntityFramew_total_optimistic_concurrency_failures`
   - `ec_Microsoft_EntityF_optimistic_concurrency_failures_per_second`
+
+</TabItem>
+</Tabs>

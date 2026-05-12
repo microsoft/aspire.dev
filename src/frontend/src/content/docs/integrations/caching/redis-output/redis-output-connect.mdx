@@ -4,7 +4,7 @@ description: Learn how to register an ASP.NET Core OutputCacheStore backed by Re
 ---
 
 import { Image } from 'astro:assets';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import redisIcon from '@assets/icons/redis-icon.png';
 
@@ -40,15 +40,18 @@ redis://:p%40ssw0rd1@localhost:6379
 
 ## Connect from your app
 
-The steps below assume your AppHost adds a Redis resource named `cache` and references it from your ASP.NET Core project, as shown in [Set up Redis output caching in the AppHost](../redis-output-host/#add-redis-resource).
+ASP.NET Core output caching is a C#-only feature — only the C# client integration is shown here. The steps below assume your AppHost adds a Redis resource named `cache` and references it from your ASP.NET Core project, as shown in [Set up Redis output caching in the AppHost](../redis-output-host/#add-redis-resource).
 
-### Install the client integration
+<Tabs syncKey="redis-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
 
 Install the [📦 Aspire.StackExchange.Redis.OutputCaching](https://www.nuget.org/packages/Aspire.StackExchange.Redis.OutputCaching) NuGet package in the consuming project:
 
 <InstallDotNetPackage packageName="Aspire.StackExchange.Redis.OutputCaching" />
 
-### Register the output cache store
+#### Register the output cache store
 
 In _Program.cs_, call `AddRedisOutputCache` to register `IOutputCacheStore` and add the output caching middleware:
 
@@ -68,7 +71,7 @@ var app = builder.Build();
 app.UseOutputCache();
 ```
 
-### Use `[OutputCache]` on endpoints
+#### Use `[OutputCache]` on endpoints
 
 For minimal API endpoints, use the `CacheOutput()` extension method or the `[OutputCache]` attribute:
 
@@ -98,7 +101,7 @@ public class WeatherController : ControllerBase
 }
 ```
 
-### Configuration
+#### Configuration
 
 The client integration offers three ways to supply configuration.
 
@@ -152,11 +155,11 @@ builder.AddRedisOutputCache(
     configureOptions: options => options.ConnectTimeout = 3000);
 ```
 
-### Client integration health checks
+#### Client integration health checks
 
 By default, Aspire integrations enable health checks. The Redis output caching integration adds a health check that verifies the Redis instance is reachable and can execute commands. The health check is wired into the `/health` HTTP endpoint — all registered health checks must pass before the app is considered ready to accept traffic.
 
-### Observability and telemetry
+#### Observability and telemetry
 
 The Aspire Redis output caching integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
@@ -169,6 +172,9 @@ The Aspire Redis output caching integration automatically configures logging, tr
 - `OpenTelemetry.Instrumentation.StackExchangeRedis`
 
 **Metrics** are emitted through OpenTelemetry. Any of these telemetry features can be disabled through the configuration options above.
+
+</TabItem>
+</Tabs>
 
 ## TypeScript, Go, and Python apps
 

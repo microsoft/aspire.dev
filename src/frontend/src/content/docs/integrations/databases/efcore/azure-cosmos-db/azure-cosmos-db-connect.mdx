@@ -4,7 +4,7 @@ description: Learn how to register a DbContext for Azure Cosmos DB in C# consumi
 ---
 
 import { Image } from 'astro:assets';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
 
@@ -23,13 +23,20 @@ This page describes how C# consuming apps connect to an Azure Cosmos DB resource
   The EF Core client integration (`Aspire.Microsoft.EntityFrameworkCore.Cosmos`) is **C#-only**. If your consuming app is written in TypeScript, Go, Python, or another language, use the [Azure Cosmos DB connection properties](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect/#connection-properties) injected by the hosting integration and connect with the appropriate SDK for that language.
 </Aside>
 
-## Install the client integration
+## Connect from your app
+
+Add the Aspire EF Core Azure Cosmos DB client integration to your C# consuming app to register a `DbContext` through dependency injection with automatic health checks and telemetry.
+
+<Tabs syncKey="cosmos-db-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
 
 Install the [📦 Aspire.Microsoft.EntityFrameworkCore.Cosmos](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.Cosmos) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Microsoft.EntityFrameworkCore.Cosmos" />
 
-## Add Cosmos DB context
+#### Add Cosmos DB context
 
 In _Program.cs_, call `AddCosmosDbContext` on your `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container:
 
@@ -58,7 +65,7 @@ public class ExampleService(MyDbContext context)
 
 For more information on using Entity Framework Core with Azure Cosmos DB, see the [EF Core Azure Cosmos DB provider documentation](https://learn.microsoft.com/ef/core/providers/cosmos/?tabs=dotnet-core-cli).
 
-## Add keyed Cosmos DB contexts
+#### Add keyed Cosmos DB contexts
 
 To register multiple `DbContext` instances with different connection names, use `AddKeyedCosmosDbContext`:
 
@@ -78,18 +85,18 @@ public class ExampleService(
 }
 ```
 
-## Connection properties
+#### Connection properties
 
 Aspire exposes each Cosmos DB resource property as an environment variable named `[RESOURCE]_[PROPERTY]`. The EF Core client integration reads these automatically from the resource name you pass to `AddCosmosDbContext`.
 
-### Cosmos DB account
+##### Cosmos DB account
 
 | Property Name      | Environment Variable         | Description |
 | ------------------ | ---------------------------- | ----------- |
 | `ConnectionString` | `[RESOURCE]_CONNECTIONSTRING` | The account endpoint URI. When access key authentication is enabled, also includes `AccountKey={key};`. |
 | `AccountKey`       | `[RESOURCE]_ACCOUNTKEY`      | The account key (only available when running the emulator or when access key authentication is enabled). |
 
-### Cosmos DB database
+##### Cosmos DB database
 
 Inherits Cosmos DB account properties, plus:
 
@@ -97,7 +104,7 @@ Inherits Cosmos DB account properties, plus:
 | -------------- | ------------------------- | ----------- |
 | `DatabaseName` | `[RESOURCE]_DATABASENAME` | The name of the database. |
 
-### Cosmos DB container
+##### Cosmos DB container
 
 Inherits Cosmos DB database properties, plus:
 
@@ -105,11 +112,11 @@ Inherits Cosmos DB database properties, plus:
 | --------------- | -------------------------- | ----------- |
 | `ContainerName` | `[RESOURCE]_CONTAINERNAME` | The name of the container. |
 
-## Configuration
+#### Configuration
 
 The Aspire EF Core Azure Cosmos DB integration offers multiple ways to provide configuration.
 
-### Use a connection string
+##### Use a connection string
 
 When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddCosmosDbContext`:
 
@@ -129,7 +136,7 @@ The connection string is resolved from the `ConnectionStrings` section:
 
 For more information, see the [ConnectionString documentation](https://learn.microsoft.com/azure/cosmos-db/nosql/how-to-dotnet-get-started#connect-with-a-connection-string).
 
-### Use configuration providers
+##### Use configuration providers
 
 The integration supports `Microsoft.Extensions.Configuration`. It loads `EntityFrameworkCoreCosmosSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:EntityFrameworkCore:Cosmos` key:
 
@@ -149,7 +156,7 @@ The integration supports `Microsoft.Extensions.Configuration`. It loads `EntityF
 
 For the complete JSON schema, see [Aspire.Microsoft.EntityFrameworkCore.Cosmos/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/main/src/Components/Aspire.Microsoft.EntityFrameworkCore.Cosmos/ConfigurationSchema.json).
 
-### Use inline delegates
+##### Use inline delegates
 
 Pass an `Action<EntityFrameworkCoreCosmosSettings>` to configure settings inline, for example to disable tracing:
 
@@ -159,15 +166,15 @@ builder.AddCosmosDbContext<MyDbContext>(
     settings => settings.DisableTracing = true);
 ```
 
-## Client integration health checks
+#### Client integration health checks
 
 The Aspire EF Core Azure Cosmos DB integration currently doesn't implement health checks, though this may change in future releases.
 
-## Observability and telemetry
+#### Observability and telemetry
 
 The Aspire EF Core Azure Cosmos DB integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
-### Logging
+##### Logging
 
 Log categories:
 
@@ -177,14 +184,14 @@ Log categories:
 - `Microsoft.EntityFrameworkCore.Infrastructure`
 - `Microsoft.EntityFrameworkCore.Query`
 
-### Tracing
+##### Tracing
 
 Tracing activities:
 
 - `Azure.Cosmos.Operation`
 - `OpenTelemetry.Instrumentation.EntityFrameworkCore`
 
-### Metrics
+##### Metrics
 
 Metrics emitted through OpenTelemetry:
 
@@ -199,3 +206,6 @@ Metrics emitted through OpenTelemetry:
   - `ec_Microsoft_E_execution_strategy_operation_failures_per_second`
   - `ec_Microsoft_EntityFramew_total_optimistic_concurrency_failures`
   - `ec_Microsoft_EntityF_optimistic_concurrency_failures_per_second`
+
+</TabItem>
+</Tabs>

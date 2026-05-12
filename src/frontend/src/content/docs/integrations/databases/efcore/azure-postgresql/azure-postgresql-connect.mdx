@@ -4,7 +4,7 @@ description: Learn how to connect to Azure PostgreSQL from C# consuming apps in 
 ---
 
 import { Image } from 'astro:assets';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
 
@@ -54,17 +54,20 @@ The Azure PostgreSQL database resource inherits all properties from its parent `
 | `JdbcConnectionString` | JDBC connection string including the database name without embedded credentials, for example `jdbc:postgresql://{Host}:{Port}/{DatabaseName}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin`. Credentials are provided as separate `Username` and `Password` properties when using password authentication. |
 | `DatabaseName`         | The name of the database |
 
-## Connect from your C# app
+## Connect from your app
 
 The recommended approach for C# apps is the Aspire Azure PostgreSQL EF Core client integration. It registers a pooled `DbContext` through dependency injection and adds health checks and telemetry automatically.
 
-### Install the client integration
+<Tabs syncKey="azure-postgres-efcore-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
 
 Install the [📦 Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuget.org/packages/Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL/) NuGet package in the client-consuming project:
 
 <InstallDotNetPackage packageName="Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL" />
 
-### Add the DbContext
+#### Add the DbContext
 
 In _Program.cs_, call `AddAzureNpgsqlDbContext` on your `IHostApplicationBuilder` to register a pooled `DbContext` that uses Azure authentication ([Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication)) by default:
 
@@ -91,11 +94,11 @@ public class ExampleService(YourDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-### Add keyed DbContext instances
+#### Add keyed DbContext instances
 
 To register multiple `DbContext` instances with different connection names, use the keyed service pattern by configuring separate named sections. See [Configure multiple DbContext classes](#configure-multiple-dbcontext-classes) for details.
 
-### Enrich a manually registered DbContext
+#### Enrich a manually registered DbContext
 
 If you need more control over `DbContext` registration — for example, to reuse existing configuration code, use EF Core interceptors, or opt out of context pooling — register the `DbContext` manually and call `EnrichAzureNpgsqlDbContext` to add Aspire health checks, retries, logging, and telemetry:
 
@@ -114,7 +117,7 @@ builder.EnrichAzureNpgsqlDbContext<YourDbContext>(
 
 The `settings` parameter is an instance of `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings`.
 
-### Configuration
+#### Configuration
 
 The client integration supports multiple ways to provide configuration.
 
@@ -176,7 +179,7 @@ builder.Services.AddDbContextPool<YourDbContext>(
 builder.EnrichAzureNpgsqlDbContext<YourDbContext>();
 ```
 
-### Configure multiple DbContext classes
+#### Configure multiple DbContext classes
 
 To register more than one `DbContext` with different configuration, use the `$"Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:{typeof(TContext).Name}"` configuration section name:
 
@@ -206,14 +209,14 @@ Call `AddAzureNpgsqlDbContext` with the `AnotherDbContext` type parameter to loa
 builder.AddAzureNpgsqlDbContext<AnotherDbContext>();
 ```
 
-### Client integration health checks
+#### Client integration health checks
 
 Aspire client integrations enable health checks by default. The Azure PostgreSQL EF Core client integration adds:
 
 - The [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
 - Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
-### Observability and telemetry
+#### Observability and telemetry
 
 The Aspire Azure PostgreSQL EF Core client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
@@ -261,3 +264,6 @@ The Aspire Azure PostgreSQL EF Core client integration automatically configures 
   - `ec_Npgsql_multiplexing_average_write_time_per_batch`
 
 Any of these telemetry features can be disabled through the configuration options above.
+
+</TabItem>
+</Tabs>
