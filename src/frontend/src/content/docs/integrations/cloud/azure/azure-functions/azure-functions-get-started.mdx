@@ -1,60 +1,88 @@
 ---
 title: Get started with the Azure Functions integration
-description: Learn how to set up the Aspire Azure Functions Hosting integration simply.
+description: Understand how the Aspire Azure Functions integration fits together — model a Functions project in your AppHost, then configure runtime bindings and environment access.
 prev: false
 ---
 
-import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import Pivot from '@components/Pivot.astro';
-import PivotSelector from '@components/PivotSelector.astro';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import functionsIcon from '@assets/icons/azure-functionapps-icon.png';
-
-<PivotSelector
-  title="Choose a development environment"
-  key="environment"
-  options={[
-    { title: 'Visual Studio Code', id: 'vscode' },
-    { title: 'Visual Studio', id: 'visual-studio' },
-    { title: '.NET CLI', id: 'dotnet-cli' },
-  ]} 
-/>
 
 <Image
   src={functionsIcon}
   alt="Azure Functions logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Azure Functions](https://learn.microsoft.com/azure-functions) is a serverless compute service that lets you run event-triggered code without having to explicitly provision or manage infrastructure. The Aspire Azure Functions integration enables you to model Azure Functions projects as part of your distributed application.
+[Azure Functions](https://learn.microsoft.com/azure/azure-functions/) is a serverless compute service that lets you run event-triggered code without having to explicitly provision or manage infrastructure. The Aspire Azure Functions integration lets you model a Functions project as a first-class compute resource in your AppHost, wire it up to storage, messaging, and database resources, and configure bindings automatically through Aspire-injected environment variables.
 
-In this introduction, you'll see how to install and use the Aspire Azure Functions integration in a simple configuration. If you already have this knowledge, see [Azure Functions Hosting integration](/integrations/cloud/azure/azure-functions/azure-functions-host/) for full reference details.
+## Why use Azure Functions with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Azure Functions through Aspire — rather than configuring host JSON and connection strings by hand — gives you:
 
-It's expected that you've installed the required Azure tooling:
+- **Zero-config local development.** Aspire starts a local Azure Functions host, wires up Azurite for the required host storage, and injects connection strings for any Azure resource you reference from the AppHost.
+- **Consistent resource references.** Trigger and binding configuration for Service Bus, Storage, Cosmos DB, and Event Hubs is automatically injected into the Functions host at run time.
+- **Dashboard observability.** The Functions project shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **KEDA-based deployment.** When deployed to Azure Container Apps, the integration configures KEDA auto-scaling rules for your functions automatically.
+- **Durable Task Scheduler support.** Attach a local or existing Durable Task Scheduler with `AddDurableTaskScheduler` and a named task hub.
 
-<Pivot id="visual-studio">
-- [Configure Visual Studio for Azure development with .NET](https://learn.microsoft.com/dotnet/azure/configure-visual-studio)
-</Pivot>
-<Pivot id="vscode">
-- [Configure Visual Studio Code for Azure development with .NET](https://learn.microsoft.com/dotnet/azure/configure-vs-code)
-</Pivot>
-<Pivot id="dotnet-cli">
-- [Install the Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local?tabs=isolated-process&pivots=programming-language-csharp#install-the-azure-functions-core-tools)
-</Pivot>
+## How the pieces fit together
 
-## Supported scenarios
+The Azure Functions integration has one side: a **hosting integration** that you use in your AppHost to model the Functions project as a compute resource. Azure Functions is not a backing service — it consumes other resources rather than providing connection information to them.
 
-The Aspire Azure Functions integration has several key supported scenarios.
+```mermaid
+architecture-beta
 
-### Supported triggers
+  group apphost(server)[AppHost]
+  group functions(server)[Functions project]
+
+  service hosting(server)[Hosting integration] in apphost
+  service storage(database)[Host storage] in apphost
+  service trigger(server)[Trigger resource] in apphost
+
+  service worker(server)[Functions runtime] in functions
+
+  hosting:R --> L:storage
+  hosting:R --> L:trigger
+  trigger:R --> L:worker
+```
+
+The **hosting integration** lives in your AppHost project and models the Azure Functions project and its resource dependencies. At run time, the Functions project reads Aspire-injected environment variables to connect to triggers and bindings.
+
+Getting there is a two-step process: model the Functions project in your AppHost, then configure your function bindings to read the injected connection information.
+
+<Steps>
+
+1. ### Model Azure Functions in your AppHost
+
+    Add the Azure Functions hosting integration to your AppHost, then declare a Functions project and reference the Azure resources it needs. The [Azure Functions Hosting integration](/integrations/cloud/azure/azure-functions/azure-functions-host/) reference walks through every capability — host storage, resource references, external HTTP endpoints, Durable Task Scheduler, and more — with side-by-side C# and TypeScript examples.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-functions/azure-functions-host/'>
+        Set up Azure Functions in the AppHost
+    </LinkButton>
+
+2. ### Configure runtime bindings
+
+    When your AppHost references other Azure resources from the Functions project, Aspire injects connection information as environment variables into the Functions host. See [Azure Functions runtime configuration](/integrations/cloud/azure/azure-functions/azure-functions-connect/) for how to read those values in .NET isolated worker, TypeScript/JavaScript, and Python functions, and for cross-links to binding-specific integration articles.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-functions/azure-functions-connect/'>
+        Configure runtime bindings
+    </LinkButton>
+
+</Steps>
+
+## Supported triggers
 
 The following table lists the supported triggers for Azure Functions in the Aspire integration:
 
@@ -66,45 +94,14 @@ The following table lists the supported triggers for Azure Functions in the Aspi
 | Azure Storage Queues trigger | `QueueTrigger` | [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) |
 | Azure CosmosDB trigger | `CosmosDbTrigger` | [📦 Aspire.Hosting.Azure.CosmosDB](https://www.nuget.org/packages/Aspire.Hosting.Azure.CosmosDB) |
 | HTTP trigger | `HttpTrigger` | Supported without any additional resource dependencies. |
-| Timer trigger | `TimerTrigger` | Supported without any additional resource dependencies—relies on implicit host storage. |
+| Timer trigger | `TimerTrigger` | Supported without any additional resource dependencies — relies on implicit host storage. |
 
-> [!IMPORTANT]
-> Other Azure Functions triggers and bindings aren't currently supported in the Aspire Azure Functions integration.
+:::caution
+Other Azure Functions triggers and bindings are not currently supported in the Aspire Azure Functions integration.
+:::
 
-For more information about the Azure Functions integration with Aspire, see [Azure Functions and Aspire integration](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration).
+## See also
 
-## Set up hosting integration
-
-To begin, install the Aspire Azure Functions Hosting integration in your Aspire AppHost project:
-
-<InstallPackage packageName="Aspire.Hosting.Azure.Functions" />
-
-Next, in the AppHost project, add an Azure Functions resource:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var functions = builder.AddAzureFunctionsProject<Projects.ExampleFunctions>("functions")
-    .WithExternalHttpEndpoints();
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(functions)
-    .WaitFor(functions);
-
-// After adding all resources, run the app...
-
-builder.Build().Run();
-```
-
-The preceding code adds an Azure Functions project resource named `functions` and makes it available to other projects in your distributed application.
-
-## Continue learning
-
-For more information on how the Azure Functions integration works, see:
-
-<CardGrid>
-    <LinkCard
-        href="/integrations/cloud/azure/azure-functions/azure-functions-host/"
-        title="Hosting integration"
-        description="Learn more about the Hosting integration" />
-</CardGrid>
+- [Azure Functions and Aspire integration](https://learn.microsoft.com/azure/azure-functions/dotnet-aspire-integration)
+- [Azure Service Bus integration](/integrations/messaging/azure-service-bus/azure-service-bus-get-started/)
+- [Azure Blob Storage integration](/integrations/storage/azure-blob-storage/azure-blob-storage-get-started/)
