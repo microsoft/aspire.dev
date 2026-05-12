@@ -3,15 +3,20 @@ title: Local Azure provisioning
 description: Learn how to automatically provision Azure resources during local development with Aspire.
 ---
 
-import {
-  Aside,
-  FileTree,
-  Steps,
-} from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import azureIcon from '@assets/icons/azure-icon.png';
 
-import OsAwareTabs from '@components/OsAwareTabs.astro';
+<Image
+  src={azureIcon}
+  alt="Azure logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
 
-Local Azure provisioning enables Aspire to automatically create and configure Azure resources during local development. When you add Azure resources to your AppHost and run your application, Aspire can provision those resources in your Azure subscription without manual intervention.
+This article describes how to enable local Azure provisioning in your Aspire [`AppHost`](/get-started/app-host/) project. Local Azure provisioning lets Aspire automatically create and configure Azure resources in your Azure subscription during local development — no manual portal or CLI setup required.
 
 ## How it works
 
@@ -71,22 +76,24 @@ Alternatively, configure in `appsettings.Development.json`:
 
 You can also use environment variables:
 
-<OsAwareTabs>
-  <Fragment slot="unix">
-    
-    ```bash export Azure__SubscriptionId="your-subscription-id" export
-    Azure__Location="eastus"
-    ```
+<Tabs>
+<TabItem label="Linux/macOS">
 
-  </Fragment>
-  <Fragment slot="windows">
-    
-    ```powershell $env:Azure__SubscriptionId = "your-subscription-id"
-    $env:Azure__Location = "eastus"
-    ```
+```bash
+export Azure__SubscriptionId="your-subscription-id"
+export Azure__Location="eastus"
+```
 
-  </Fragment>
-</OsAwareTabs>
+</TabItem>
+<TabItem label="Windows">
+
+```powershell
+$env:Azure__SubscriptionId = "your-subscription-id"
+$env:Azure__Location = "eastus"
+```
+
+</TabItem>
+</Tabs>
 
 ## Configuration options
 
@@ -136,36 +143,59 @@ To prevent Aspire from creating resource groups:
 }
 ```
 
-## Using local provisioning
+## Add Azure resources to your AppHost
+
+Add Azure resources to your AppHost using the relevant `Add*` APIs, then reference them from your consuming projects:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var storage = builder.AddAzureStorage("storage");
+var blobs = storage.AddBlobs("blobs");
+
+builder.AddProject<Projects.WebApp>("webapp")
+       .WithReference(blobs);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+const blobs = await storage.addBlobs("blobs");
+
+await builder.addNodeApp("webapp", "./webapp", "index.js")
+    .withReference(blobs);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+Once your AppHost is configured, run the application and Aspire automatically provisions the referenced Azure resources:
 
 <Steps>
 
-1. **Add Azure resources to your AppHost**
-
-   ```csharp
-   var builder = DistributedApplication.CreateBuilder(args);
-
-   var storage = builder.AddAzureStorage("storage");
-   var blobs = storage.AddBlobs("blobs");
-
-   builder.AddProject<Projects.WebApp>("webapp")
-          .WithReference(blobs);
-   ```
-
-2. **Configure Azure subscription** (if not already done)
+1. **Configure your Azure subscription** (if not already done)
 
    ```bash
    aspire secret set "Azure:SubscriptionId" "your-sub-id"
    aspire secret set "Azure:Location" "eastus"
    ```
 
-3. **Run your application**
+2. **Run your application**
 
    ```bash
    aspire run
    ```
 
-4. **Automatic provisioning**
+3. **Automatic provisioning**
 
    Aspire detects the Azure resources and provisions them automatically. You'll see output like:
 
@@ -231,16 +261,14 @@ When you use local provisioning, Aspire generates Bicep files in the `./infra` d
 
 Example generated structure:
 
-<FileTree>
-
-- AppHost
-  - infra Bicep files
-    - main.bicep
-    - storage.bicep
-    - servicebus.bicep
-  - Program.cs
-
-</FileTree>
+```
+AppHost/
+└── infra/               # Bicep files
+    ├── main.bicep
+    ├── storage.bicep
+    └── servicebus.bicep
+Program.cs
+```
 
 ## Limitations
 
