@@ -1,13 +1,11 @@
 ---
 title: Get started with the Ollama integrations
-description: Learn how to set up the Aspire Ollama hosting and client integrations simply.
+description: Understand how the Aspire Ollama integrations fit together — model an Ollama server resource in your AppHost, then connect to it from any consuming app.
 prev: false
 ---
 
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, Badge } from '@astrojs/starlight/components';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import ollamaIcon from '@assets/icons/ollama-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -21,67 +19,75 @@ import ollamaIcon from '@assets/icons/ollama-icon.png';
   data-zoom-off
 />
 
-[Ollama](https://ollama.com) is a powerful, open source language model that can be used to generate text based on a given prompt. The Aspire Ollama integration provides a way to host Ollama models using the [`docker.io/ollama/ollama` container image](https://hub.docker.com/r/ollama/ollama) and access them via the [OllamaSharp](https://www.nuget.org/packages/OllamaSharp) client.
+[Ollama](https://ollama.com/) is an open-source platform for running large language models (LLMs) locally. The Aspire Ollama integration — from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire) — lets you model an Ollama server and its models as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire Ollama integrations in a simple configuration. If you already have this knowledge, see [Ollama hosting integration](/integrations/ai/ollama/ollama-host/) for full reference details.
+## Why use Ollama with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Ollama through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs Ollama from the [`docker.io/ollama/ollama`](https://hub.docker.com/r/ollama/ollama) container image and automatically downloads the models you declare.
+- **Consistent connection info across languages.** Once you reference a model from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers health checks for both the Ollama server and each model resource, so the dashboard and your orchestrator can tell when a model has finished downloading and is ready.
+- **Dashboard observability.** The Ollama server and its model sub-resources appear in the Aspire dashboard with logs, status, and download progress alongside your other services.
+- **A first-class C# client integration.** C# apps can use `CommunityToolkit.Aspire.OllamaSharp` for dependency injection wired up from the same resource name, plus `Microsoft.Extensions.AI` abstractions for portable AI code.
+- **GPU and data-volume support.** Enable GPU acceleration with a single method call, and persist downloaded models across container restarts with a named data volume.
 
-To begin, install the Aspire Ollama Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Ollama model instances from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Ollama" />
+The Ollama integration has two sides: a **hosting integration** that you use in your AppHost to model the Ollama server and model resources, and a **connection story** for consuming apps that reference them.
 
-Next, in the AppHost project, register and consume the Ollama integration using the `AddOllama` extension method to add the Ollama container to the application builder. You can then add models to the container, which download and run when the container starts, using the `AddModel` extension method:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var ollama = builder.AddOllama("ollama");
+  service hosting(server)[Hosting integration] in apphost
+  service ollama(server)[Ollama server] in apphost
+  service model(database)[Model resource] in apphost
 
-var phi35 = ollama.AddModel("phi3.5");
+  service app(server)[App] in consumer
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(phi35);
-
-builder.Build().Run();
+  hosting:R --> L:ollama
+  ollama:R --> L:model
+  model:R --> L:app
 ```
 
-<Aside type="tip">
-    This is the simplest implementation of Ollama resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Ollama hosting integration](/integrations/ai/ollama/ollama-host/).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the Ollama server and its models as resources. Consuming apps receive connection information through Aspire''s standard environment-variable injection.
 
-## Set up client integration
+Getting there is a two-step process: model the Ollama resources in your AppHost, then connect to them from each app that needs them.
 
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+<Steps>
 
-Install the Aspire OllamaSharp client integration in the client-consuming project:
+1. ### Model Ollama in your AppHost
 
-<InstallDotNetPackage packageName="CommunityToolkit.Aspire.OllamaSharp" />
+    Add the Ollama hosting integration to your AppHost, then declare an Ollama server, one or more models, and reference them from the apps that need to use them. The [Ollama hosting integration](/integrations/ai/ollama/ollama-host/) reference walks through every capability — adding models, HuggingFace models, data volumes, GPU enablement, Open WebUI, and more.
 
-In the `Program.cs` file of your client-consuming project, call the `AddOllamaApiClient` extension to register an `IOllamaApiClient` for use via the dependency injection container:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/ai/ollama/ollama-host/'>
+        Set up Ollama in the AppHost
+    </LinkButton>
 
-```csharp
-builder.AddOllamaApiClient("llama3");
-```
+2. ### Connect from your consuming app
 
-After adding `IOllamaApiClient` to the builder, you can get the `IOllamaApiClient` instance using dependency injection. For example, to retrieve your context object from service:
+    When you reference an Ollama model resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Ollama](/integrations/ai/ollama/ollama-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
 
-```csharp
-public class ExampleService(IOllamaApiClient ollama)
-{
-    // Use ollama...
-}
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/ai/ollama/ollama-connect/'>
+        Connect to Ollama
+    </LinkButton>
 
-For full reference details, see [Ollama hosting integration](/integrations/ai/ollama/ollama-host/) and [Ollama client integration](/integrations/ai/ollama/ollama-client/).
+</Steps>
 
 ## See also
 
-- [Ollama](https://ollama.com)
+- [Ollama](https://ollama.com/)
 - [Open WebUI](https://openwebui.com)
 - [Aspire Community Toolkit GitHub repo](https://github.com/CommunityToolkit/Aspire)
 - [OllamaSharp](https://github.com/awaescher/OllamaSharp)
