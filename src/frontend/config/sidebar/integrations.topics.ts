@@ -817,12 +817,12 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
               slug: 'integrations/caching/valkey/valkey-get-started',
             },
             {
-              label: 'Hosting integration (AppHost)',
+              label: 'Set up Valkey in the AppHost',
               slug: 'integrations/caching/valkey/valkey-host',
             },
             {
-              label: 'Client integration (Your app)',
-              slug: 'integrations/caching/valkey/valkey-client',
+              label: 'Connect to Valkey',
+              slug: 'integrations/caching/valkey/valkey-connect',
             },
           ],
         },

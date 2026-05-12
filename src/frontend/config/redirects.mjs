@@ -61,6 +61,7 @@ export const redirects = {
   '/integrations/databases/postgres/': '/integrations/databases/postgres/postgres-get-started/',
   '/integrations/databases/sql-server/': '/integrations/databases/sql-server/sql-server-get-started/',
   '/integrations/databases/postgres/postgres-client/': '/integrations/databases/postgres/postgres-connect/',
+  '/integrations/caching/valkey/valkey-client/': '/integrations/caching/valkey/valkey-connect/',
   '/integrations/databases/milvus/': '/integrations/databases/milvus/milvus-get-started/',
   '/integrations/databases/qdrant/': '/integrations/databases/qdrant/qdrant-get-started/',
   '/integrations/oracle/': '/integrations/databases/efcore/oracle/oracle-get-started/',

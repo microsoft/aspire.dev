@@ -1,0 +1,277 @@
+---
+title: Connect to Valkey
+description: Learn how to connect to Valkey from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import valkeyIcon from '@assets/icons/valkey-icon.png';
+
+<Image
+  src={valkeyIcon}
+  alt="Valkey logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a Valkey resource that's already modeled in your AppHost. For the AppHost API surface — adding a Valkey resource, data volumes, persistence, parameters, and more — see [Valkey Hosting integration](../valkey-host/).
+
+When you reference a Valkey resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Redis client integration (Valkey is RESP-compatible) for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `cache` becomes `CACHE_URI`.
+
+The Valkey resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the Valkey server |
+| `Port`        | The port number the Valkey server is listening on |
+| `Password`    | The password for authentication |
+| `Uri`         | The connection URI, with the format `valkey://:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: valkey://:p%40ssw0rd1@localhost:6379
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a Valkey resource named `cache` and references it from the consuming app.
+
+<Tabs syncKey="valkey-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Redis client integration — Valkey is RESP-compatible, so the same client works. It registers an [`IConnectionMultiplexer`](https://stackexchange.github.io/StackExchange.Redis/Basics.html) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Aspire.StackExchange.Redis) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+
+#### Add the Redis client
+
+In _Program.cs_, call `AddRedisClient` on your `IHostApplicationBuilder` to register an `IConnectionMultiplexer`:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisClient(connectionName: "cache");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Valkey resource name from the AppHost. For more information, see [Add Valkey resource](../valkey-host/#add-valkey-resource).
+</Aside>
+
+Resolve the connection multiplexer through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IConnectionMultiplexer connectionMux)
+{
+    // Use connection multiplexer...
+}
+```
+
+#### Add keyed Redis clients
+
+To register multiple `IConnectionMultiplexer` instances with different connection names, use `AddKeyedRedisClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedRedisClient(name: "chat");
+builder.AddKeyedRedisClient(name: "queue");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] IConnectionMultiplexer chatMux,
+    [FromKeyedServices("queue")] IConnectionMultiplexer queueMux)
+{
+    // Use connections...
+}
+```
+
+#### Configuration
+
+The Aspire Redis client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRedisClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisClient("cache");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "cache": "localhost:6379"
+  }
+}
+```
+
+For more information, see [Stack Exchange Redis configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html#basic-configuration-strings).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `StackExchangeRedisSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:StackExchange:Redis` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "ConnectionString": "localhost:6379",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<StackExchangeRedisSettings>` to configure settings inline, for example to disable tracing:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisClient(
+    "cache",
+     static settings => settings.DisableTracing = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Redis client integration adds a health check that verifies the Valkey instance is reachable and can execute commands. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Redis client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Aspire.StackExchange.Redis`
+
+**Tracing** activities:
+
+- `OpenTelemetry.Instrumentation.StackExchangeRedis`
+
+**Metrics** are emitted through OpenTelemetry. Any of these telemetry features can be disabled through the configuration options above.
+
+#### Distributed caching and output caching
+
+Valkey also works with the Aspire distributed-caching and output-caching client integrations because they're built on top of the same Redis client. Install the respective packages and follow their guides:
+
+- [Aspire.StackExchange.Redis.DistributedCaching](https://www.nuget.org/packages/Aspire.StackExchange.Redis.DistributedCaching) — see [Get started with Redis distributed caching](/integrations/caching/redis-distributed/redis-distributed-get-started/).
+- [Aspire.StackExchange.Redis.OutputCaching](https://www.nuget.org/packages/Aspire.StackExchange.Redis.OutputCaching) — see [Get started with Redis output caching](/integrations/caching/redis-output/redis-output-get-started/).
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to [📦 StackExchange.Redis](https://www.nuget.org/packages/StackExchange.Redis/) directly:
+
+```csharp title="C# — Program.cs"
+using StackExchange.Redis;
+
+var connectionString = Environment.GetEnvironmentVariable("CACHE_URI");
+var mux = await ConnectionMultiplexer.ConnectAsync(connectionString!);
+
+var db = mux.GetDatabase();
+// Use db to interact with Valkey...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use [`go-redis`](https://github.com/redis/go-redis), the most actively maintained Go client for the RESP protocol:
+
+```bash title="Terminal"
+go get github.com/redis/go-redis/v9
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+    "github.com/redis/go-redis/v9"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    opt, err := redis.ParseURL(os.Getenv("CACHE_URI"))
+    if err != nil {
+        panic(err)
+    }
+
+    rdb := redis.NewClient(opt)
+    defer rdb.Close()
+
+    _ = rdb.Ping(context.Background()).Err()
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install [`redis-py`](https://github.com/redis/redis-py), the official Python client for RESP servers including Valkey:
+
+```bash title="Terminal"
+pip install redis
+```
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import os
+import redis
+
+# Read the Aspire-injected connection URI
+client = redis.from_url(os.getenv("CACHE_URI"))
+
+client.ping()
+# Use client to interact with Valkey...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install [`ioredis`](https://github.com/redis/ioredis), the most popular RESP client for Node.js:
+
+```bash title="Terminal"
+npm install ioredis
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import Redis from 'ioredis';
+
+// Read Aspire-injected connection properties
+const client = new Redis({
+    host: process.env.CACHE_HOST,
+    port: Number(process.env.CACHE_PORT),
+    password: process.env.CACHE_PASSWORD,
+});
+
+await client.ping();
+```
+
+Or use the connection URI directly:
+
+```typescript title="TypeScript — Connect with URI"
+import Redis from 'ioredis';
+
+const client = new Redis(process.env.CACHE_URI!);
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Pass custom environment variables](../valkey-host/#pass-custom-environment-variables) in the Hosting integration reference.
+</Aside>
