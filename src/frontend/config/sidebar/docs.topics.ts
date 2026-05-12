@@ -1066,6 +1066,14 @@ export const docsTopics: StarlightSidebarTopicsUserConfig = {
           },
         },
         {
+          label: 'Custom process commands',
+          slug: 'fundamentals/process-commands',
+          translations: {
+            en: 'Custom process commands',
+            ja: 'カスタム プロセス コマンド',
+          },
+        },
+        {
           label: 'Custom resource URLs',
           slug: 'fundamentals/custom-resource-urls',
           translations: {
