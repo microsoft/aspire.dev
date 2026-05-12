@@ -1,6 +1,6 @@
 ---
-title: JavaScript integration
-description: Learn how to orchestrate JavaScript applications with Aspire using the Aspire.Hosting.JavaScript package.
+title: Set up JavaScript apps in the AppHost
+description: Learn how to use the Aspire JavaScript hosting integration to orchestrate and configure JavaScript and TypeScript applications in an Aspire solution.
 ---
 
 import { Aside, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -12,18 +12,16 @@ import jsIcon from '@assets/icons/javascript.svg';
 <Image
   src={jsIcon}
   alt="JavaScript logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The Aspire JavaScript/TypeScript hosting integration enables you to orchestrate JavaScript applications alongside your Aspire projects in the AppHost. This integration provides a unified approach to running JavaScript applications with support for multiple package managers (npm, yarn, pnpm, bun), runtimes (Node.js), and build tools (Vite, and more).
-
+This article is the reference for the Aspire JavaScript hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to orchestrate JavaScript and TypeScript applications in your [`AppHost`](/get-started/app-host/) project.
 
 :::caution[Package rename]
-In Aspire 13.0, `Aspire.Hosting.NodeJs` was renamed to
-`Aspire.Hosting.JavaScript`.
+In Aspire 13.0, `Aspire.Hosting.NodeJs` was renamed to `Aspire.Hosting.JavaScript`.
 
 Use `Aspire.Hosting.JavaScript` for new and existing Aspire 13+ applications.
 `Aspire.Hosting.NodeJs` is the old package name.
@@ -31,7 +29,7 @@ Use `Aspire.Hosting.JavaScript` for new and existing Aspire 13+ applications.
 
 ## Hosting integration
 
-To get started with the Aspire JavaScript hosting integration, install the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package in the AppHost project.
+To start building an Aspire app that uses JavaScript and TypeScript, install the [📦 Aspire.Hosting.JavaScript](https://www.nuget.org/packages/Aspire.Hosting.JavaScript) NuGet package:
 
 <InstallPackage packageName="Aspire.Hosting.JavaScript" />
 
@@ -49,7 +47,7 @@ The `AddJavaScriptApp` method is the foundational method for adding JavaScript a
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -66,19 +64,19 @@ var frontend = builder.AddJavaScriptApp("frontend", "./frontend")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './api', 'server.js')
-  .withHttpEndpoint({ port: 3001, env: 'PORT' });
+    .addNodeApp('api', './api', 'server.js')
+    .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const frontend = await builder
-  .addJavaScriptApp('frontend', './frontend')
-  .withHttpEndpoint({ port: 3000, env: 'PORT' })
-  .withReference(api);
+    .addJavaScriptApp('frontend', './frontend')
+    .withHttpEndpoint({ port: 3000, env: 'PORT' })
+    .withReference(api);
 
 // After adding all resources, run the app...
 ```
@@ -107,7 +105,7 @@ For Node.js applications that don't use a package.json script runner, you can di
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -120,14 +118,14 @@ var api = builder
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './api', 'server.js')
-  .withHttpEndpoint({ port: 3000, env: 'PORT' });
+    .addNodeApp('api', './api', 'server.js')
+    .withHttpEndpoint({ port: 3000, env: 'PORT' });
 
 // After adding all resources, run the app...
 ```
@@ -153,7 +151,7 @@ For [Next.js](https://nextjs.org/) applications, use the `AddNextJsApp` extensio
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -171,18 +169,18 @@ var nextApp = builder.AddNextJsApp("next-app", "./next-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './api', 'server.js')
-  .withHttpEndpoint({ port: 3001, env: 'PORT' });
+    .addNodeApp('api', './api', 'server.js')
+    .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const nextApp = await builder
-  .addNextJsApp('next-app', './next-app')
-  .withReference(api);
+    .addNextJsApp('next-app', './next-app')
+    .withReference(api);
 
 // After adding all resources, run the app...
 ```
@@ -215,7 +213,7 @@ To opt out of the configuration validation step, call `DisableBuildValidation` /
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREJAVASCRIPT001
 
 var nextApp = builder.AddNextJsApp("next-app", "./next-app")
@@ -225,10 +223,10 @@ var nextApp = builder.AddNextJsApp("next-app", "./next-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 const nextApp = await builder
-  .addNextJsApp('next-app', './next-app')
-  .disableBuildValidation();
+    .addNextJsApp('next-app', './next-app')
+    .disableBuildValidation();
 ```
 
 </TabItem>
@@ -246,7 +244,7 @@ For Vite applications, you can use the `AddViteApp` extension method which provi
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -262,18 +260,18 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './api', 'server.js')
-  .withHttpEndpoint({ port: 3001, env: 'PORT' });
+    .addNodeApp('api', './api', 'server.js')
+    .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const viteApp = await builder
-  .addViteApp('vite-app', './vite-app')
-  .withReference(api);
+    .addViteApp('vite-app', './vite-app')
+    .withReference(api);
 
 // After adding all resources, run the app...
 ```
@@ -325,7 +323,7 @@ npm is the default package manager. If your project has a `package.json` file, A
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs" "WithNpm"
+```csharp title="C# — AppHost.cs" "WithNpm"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // npm is used by default
@@ -341,7 +339,7 @@ var customApp = builder.AddJavaScriptApp("custom-app", "./custom-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" "withNpm"
+```typescript title="TypeScript — apphost.ts" "withNpm"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -351,8 +349,8 @@ const app = await builder.addJavaScriptApp('app', './app');
 
 // Customize npm with additional flags
 const customApp = await builder
-  .addJavaScriptApp('custom-app', './custom-app')
-  .withNpm({ installCommand: 'ci', installArgs: ['--legacy-peer-deps'] });
+    .addJavaScriptApp('custom-app', './custom-app')
+    .withNpm({ installCommand: 'ci', installArgs: ['--legacy-peer-deps'] });
 
 // After adding all resources, run the app...
 ```
@@ -370,7 +368,7 @@ To use yarn as the package manager, call `WithYarn` / `withYarn`:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs" "WithYarn"
+```csharp title="C# — AppHost.cs" "WithYarn"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -386,7 +384,7 @@ var customApp = builder.AddJavaScriptApp("custom-app", "./custom-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" "withYarn"
+```typescript title="TypeScript — apphost.ts" "withYarn"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -395,8 +393,8 @@ const app = await builder.addJavaScriptApp('app', './app').withYarn();
 
 // Customize yarn with additional flags
 const customApp = await builder
-  .addJavaScriptApp('custom-app', './custom-app')
-  .withYarn({ installArgs: ['--immutable'] });
+    .addJavaScriptApp('custom-app', './custom-app')
+    .withYarn({ installArgs: ['--immutable'] });
 
 // After adding all resources, run the app...
 ```
@@ -418,7 +416,7 @@ To use pnpm as the package manager, call `WithPnpm` / `withPnpm`:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs" "WithPnpm"
+```csharp title="C# — AppHost.cs" "WithPnpm"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -434,7 +432,7 @@ var customApp = builder.AddJavaScriptApp("custom-app", "./custom-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" "withPnpm"
+```typescript title="TypeScript — apphost.ts" "withPnpm"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -443,8 +441,8 @@ const app = await builder.addJavaScriptApp('app', './app').withPnpm();
 
 // Customize pnpm with additional flags
 const customApp = await builder
-  .addJavaScriptApp('custom-app', './custom-app')
-  .withPnpm({ installArgs: ['--frozen-lockfile'] });
+    .addJavaScriptApp('custom-app', './custom-app')
+    .withPnpm({ installArgs: ['--frozen-lockfile'] });
 
 // After adding all resources, run the app...
 ```
@@ -462,7 +460,7 @@ To use Bun as the package manager, call `WithBun` / `withBun`:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs" "WithBun"
+```csharp title="C# — AppHost.cs" "WithBun"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddViteApp("app", "./app")
@@ -478,7 +476,7 @@ var customApp = builder.AddViteApp("custom-app", "./custom-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts" "withBun"
+```typescript title="TypeScript — apphost.ts" "withBun"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -487,8 +485,8 @@ const app = await builder.addViteApp('app', './app').withBun();
 
 // Customize Bun with additional flags
 const customApp = await builder
-  .addViteApp('custom-app', './custom-app')
-  .withBun({ installArgs: ['--frozen-lockfile'] });
+    .addViteApp('custom-app', './custom-app')
+    .withBun({ installArgs: ['--frozen-lockfile'] });
 
 // After adding all resources, run the app...
 ```
@@ -506,7 +504,7 @@ When publishing to a container, `WithBun` / `withBun` automatically configures a
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIREDOCKERFILEBUILDER001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -521,15 +519,15 @@ var app = builder.AddViteApp("app", "./app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const app = await builder
-  .addViteApp('app', './app')
-  .withBun()
-  .withDockerfileBaseImage({ buildImage: 'oven/bun:1.1' });
+    .addViteApp('app', './app')
+    .withBun()
+    .withDockerfileBaseImage({ buildImage: 'oven/bun:1.1' });
 
 // After adding all resources, run the app...
 ```
@@ -545,7 +543,7 @@ You can customize which scripts run during development and build:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Use different script names
@@ -559,16 +557,16 @@ var app = builder.AddJavaScriptApp("app", "./app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 // Use different script names
 const app = await builder
-  .addJavaScriptApp('app', './app')
-  .withRunScript('start') // Run "npm run start" during development instead of "dev"
-  .withBuildScript('prod'); // Run "npm run prod" during publish instead of "build"
+    .addJavaScriptApp('app', './app')
+    .withRunScript('start') // Run "npm run start" during development instead of "dev"
+    .withBuildScript('prod'); // Run "npm run prod" during publish instead of "build"
 
 // After adding all resources, run the app...
 ```
@@ -584,7 +582,7 @@ To pass command-line arguments to your scripts, use `WithArgs` / `withArgs`:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -597,15 +595,15 @@ var app = builder.AddJavaScriptApp("app", "./app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const app = await builder
-  .addJavaScriptApp('app', './app')
-  .withRunScript('dev')
-  .withArgs(['--port', '3000', '--host']);
+    .addJavaScriptApp('app', './app')
+    .withRunScript('dev')
+    .withArgs(['--port', '3000', '--host']);
 
 // After adding all resources, run the app...
 ```
@@ -630,7 +628,7 @@ Then reference the custom script:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -642,14 +640,14 @@ var app = builder.AddJavaScriptApp("app", "./app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const app = await builder
-  .addJavaScriptApp('app', './app')
-  .withRunScript('dev:custom');
+    .addJavaScriptApp('app', './app')
+    .withRunScript('dev:custom');
 
 // After adding all resources, run the app...
 ```
@@ -669,7 +667,7 @@ JavaScript applications typically use environment variables to configure the por
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var app = builder.AddJavaScriptApp("app", "./app")
@@ -681,14 +679,14 @@ var app = builder.AddJavaScriptApp("app", "./app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const app = await builder
-  .addJavaScriptApp('app', './app')
-  .withHttpEndpoint({ port: 3000, env: 'PORT' });
+    .addJavaScriptApp('app', './app')
+    .withHttpEndpoint({ port: 3000, env: 'PORT' });
 
 // After adding all resources, run the app...
 ```
@@ -710,7 +708,7 @@ For Vite applications, you can specify a custom configuration file if you need t
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var viteApp = builder.AddViteApp("vite-app", "./vite-app")
@@ -723,15 +721,15 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const viteApp = await builder
-  .addViteApp('vite-app', './vite-app')
+    .addViteApp('vite-app', './vite-app')
   // Path is relative to the Vite service project root
-  .withViteConfig('./vite.production.config.js');
+    .withViteConfig('./vite.production.config.js');
 
 // After adding all resources, run the app...
 ```
@@ -753,7 +751,7 @@ Aspire automatically augments existing Vite configurations to enable HTTPS endpo
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIRECERTIFICATES001
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -768,15 +766,15 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const viteApp = await builder
-  .addViteApp('vite-app', './vite-app')
-  .withHttpsEndpoint({ env: 'PORT' })
-  .withHttpsDeveloperCertificate();
+    .addViteApp('vite-app', './vite-app')
+    .withHttpsEndpoint({ env: 'PORT' })
+    .withHttpsDeveloperCertificate();
 
 // After adding all resources, run the app...
 ```
@@ -796,7 +794,7 @@ In your AppHost, expose the API URL to the Vite app using `WithEnvironment` / `w
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -814,20 +812,20 @@ var viteApp = builder.AddViteApp("vite-app", "./vite-app")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './api', 'server.js')
-  .withHttpEndpoint({ port: 3001, env: 'PORT' })
-  .withExternalHttpEndpoints();
+    .addNodeApp('api', './api', 'server.js')
+    .withHttpEndpoint({ port: 3001, env: 'PORT' })
+    .withExternalHttpEndpoints();
 
 const viteApp = await builder
-  .addViteApp('vite-app', './vite-app')
-  .withReference(api)
-  .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('http'));
+    .addViteApp('vite-app', './vite-app')
+    .withReference(api)
+    .withEnvironment('VITE_API_BASE_URL', await api.getEndpoint('http'));
 
 // After adding all resources, run the app...
 ```
@@ -869,7 +867,7 @@ To bridge this gap, pass the parameter to your API app as a standard environment
    <Tabs syncKey='aspire-lang'>
    <TabItem id='csharp' label='C#'>
 
-   ```csharp title="AppHost.cs"
+   ```csharp title="C# — AppHost.cs"
    var builder = DistributedApplication.CreateBuilder(args);
 
    var googleClientId = builder.AddParameter("google-client-id");
@@ -889,7 +887,7 @@ To bridge this gap, pass the parameter to your API app as a standard environment
      </TabItem>
      <TabItem id='typescript' label='TypeScript'>
 
-   ```typescript title="apphost.ts"
+   ```typescript title="TypeScript — apphost.ts"
    import { createBuilder } from './.modules/aspire.js';
 
    const builder = await createBuilder();
@@ -897,14 +895,14 @@ To bridge this gap, pass the parameter to your API app as a standard environment
    const googleClientId = await builder.addParameter('google-client-id');
 
    const api = await builder
-     .addNodeApp('api', './api', 'server.js')
-     .withHttpEndpoint({ port: 3001, env: 'PORT' })
-     .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
+       .addNodeApp('api', './api', 'server.js')
+       .withHttpEndpoint({ port: 3001, env: 'PORT' })
+       .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
 
    const frontend = await builder
-     .addViteApp('frontend', './frontend')
-     .withPnpm()
-     .withReference(api);
+       .addViteApp('frontend', './frontend')
+       .withPnpm()
+       .withReference(api);
 
    // After adding all resources, run the app...
    ```
@@ -987,7 +985,7 @@ For a **pnpm** monorepo, install dependencies from the workspace root and refere
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -1009,25 +1007,25 @@ var dashboard = builder.AddViteApp("dashboard", "./apps/dashboard")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './apps/api', 'server.js')
-  .withHttpEndpoint({ port: 3001, env: 'PORT' });
+    .addNodeApp('api', './apps/api', 'server.js')
+    .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 // Each app lives in its own subdirectory with its own package.json
 const frontend = await builder
-  .addViteApp('frontend', './apps/frontend')
-  .withPnpm()
-  .withReference(api);
+    .addViteApp('frontend', './apps/frontend')
+    .withPnpm()
+    .withReference(api);
 
 const dashboard = await builder
-  .addViteApp('dashboard', './apps/dashboard')
-  .withPnpm()
-  .withReference(api);
+    .addViteApp('dashboard', './apps/dashboard')
+    .withPnpm()
+    .withReference(api);
 
 // After adding all resources, run the app...
 ```
@@ -1057,7 +1055,7 @@ const dashboard = await builder
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder
@@ -1075,20 +1073,20 @@ var frontend = builder.AddJavaScriptApp("frontend", "./apps/frontend")
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const api = await builder
-  .addNodeApp('api', './apps/api', 'server.js')
-  .withHttpEndpoint({ port: 3001, env: 'PORT' });
+    .addNodeApp('api', './apps/api', 'server.js')
+    .withHttpEndpoint({ port: 3001, env: 'PORT' });
 
 const frontend = await builder
-  .addJavaScriptApp('frontend', './apps/frontend')
-  .withPnpm()
-  .withRunScript('dev')
-  .withReference(api);
+    .addJavaScriptApp('frontend', './apps/frontend')
+    .withPnpm()
+    .withRunScript('dev')
+    .withReference(api);
 
 // After adding all resources, run the app...
 ```
