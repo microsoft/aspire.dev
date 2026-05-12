@@ -1,11 +1,10 @@
 ---
 title: Get started with the Mailpit integrations
-description: Learn how to set up the Aspire Mailpit hosting integration simply.
-prev: false
+description: Understand how the Aspire Mailpit integrations fit together — model a Mailpit resource in your AppHost, then connect to it from any consuming app.
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
+import Badge from '@astrojs/starlight/components/Badge.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import mailpitIcon from '@assets/icons/mailpit-icon.svg';
 import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
@@ -16,49 +15,76 @@ import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
   light={mailpitLightIcon}
   dark={mailpitIcon}
   alt="Mailpit logo"
-  width={70}
-  height={70}
+  width={100}
+  height={100}
   zoomable={false}
   classOverride="float-inline-left icon"
 />
 
-[Mailpit](https://mailpit.axllent.org/) is an email testing tool for developers. It acts as an SMTP server, captures emails, and provides a web interface to view them. The Aspire Mailpit hosting integration enables you to run Mailpit alongside your Aspire projects for local email testing.
+[Mailpit](https://mailpit.axllent.org/) is an email testing tool for developers. It acts as an SMTP server, captures outgoing emails, and exposes a web UI to inspect them. The Aspire Mailpit integration lets you model a Mailpit instance as a first-class resource in your AppHost, then hand the SMTP connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire Mailpit hosting integration in a simple configuration. If you already have this knowledge, see [Mailpit hosting integration](/integrations/devtools/mailpit/mailpit-host/) for full reference details.
+## Why use Mailpit with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Mailpit through Aspire — rather than wiring up containers and SMTP settings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local email testing.** Aspire runs Mailpit from the [`docker.io/axllent/mailpit`](https://hub.docker.com/r/axllent/mailpit) container image with endpoints configured automatically.
+- **Consistent connection info across languages.** Once you reference the Mailpit resource from a consuming app, Aspire injects SMTP connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Dashboard observability.** The Mailpit resource shows up in the Aspire dashboard with logs and status alongside your other services.
+- **Built-in web UI.** Mailpit's web interface for inspecting captured emails is automatically accessible through the Aspire dashboard endpoint.
 
-To begin, install the Aspire Mailpit hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MailPit" />
+Mailpit is a hosting-only integration — there is no separate client integration package. Your consuming apps connect to Mailpit directly using any standard SMTP library.
 
-Next, in the AppHost project, add a Mailpit resource and pass it to your consuming projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var mailpit = builder.AddMailPit("mailpit");
+  service hosting(server)[Hosting integration] in apphost
+  service mailpit(server)[Mailpit] in apphost
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(mailpit);
+  service app(server)[App] in consumer
 
-// After adding all resources, run the app...
+  hosting:R --> L:mailpit
+  mailpit:R --> L:app
 ```
 
-## Sending emails to Mailpit
+The **hosting integration** lives in your AppHost project and models the Mailpit instance as a resource. Your consuming apps read the SMTP connection properties that Aspire injects and use any standard SMTP library to send emails to Mailpit for inspection.
 
-Mailpit doesn't require a dedicated client integration package. You can use any SMTP library to send emails to Mailpit. See the [Mailpit client integration](/integrations/devtools/mailpit/mailpit-client/) page for examples using MailKit and `System.Net.Mail`.
+Getting there is a two-step process: model the Mailpit resource in your AppHost, then connect to it from each app that sends emails.
 
-For full reference details, see [Mailpit hosting integration](/integrations/devtools/mailpit/mailpit-host/) and [Mailpit client integration](/integrations/devtools/mailpit/mailpit-client/).
+<Steps>
+
+1. ### Model Mailpit in your AppHost
+
+    Add the Mailpit hosting integration to your AppHost, then declare a Mailpit resource and reference it from the apps that need to send email. The [Mailpit Hosting integration](/integrations/devtools/mailpit/mailpit-host/) reference walks through every capability — SMTP endpoint, HTTP UI endpoint, and data volumes.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/devtools/mailpit/mailpit-host/'>
+        Set up Mailpit in the AppHost
+    </LinkButton>
+
+2. ### Connect from your consuming app
+
+    When you reference a Mailpit resource from a consuming app, Aspire injects its SMTP connection information as environment variables. See [Connect to Mailpit](/integrations/devtools/mailpit/mailpit-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/devtools/mailpit/mailpit-connect/'>
+        Connect to Mailpit
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
 - [Mailpit documentation](https://mailpit.axllent.org/)
 - [Mailpit GitHub repository](https://github.com/axllent/mailpit)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
-- [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/microsoft/aspire)
