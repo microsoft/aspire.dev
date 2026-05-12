@@ -1,0 +1,371 @@
+---
+title: Connect to Azure Database for PostgreSQL
+description: Learn how to connect to Azure Database for PostgreSQL from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
+
+<Image
+  src={postgresqlIcon}
+  alt="Azure Database for PostgreSQL logo"
+  width={80}
+  height={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Database for PostgreSQL resource that's already modeled in your AppHost. For the AppHost API surface — adding a flexible server, databases, run-as-container for local dev, password authentication, and more — see [Azure PostgreSQL Hosting integration](../azure-postgresql-host/).
+
+When you reference an Azure PostgreSQL resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire PostgreSQL client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
+
+### Azure PostgreSQL flexible server
+
+The flexible server resource exposes the following connection properties:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `Host`                 | The fully qualified domain name of the Azure PostgreSQL flexible server |
+| `Port`                 | The port number (fixed at `5432` for Azure Flexible Server) |
+| `Uri`                  | The connection URI, with the format `postgresql://{Host}` (Entra ID) or `postgresql://{Username}:{Password}@{Host}` (password auth) |
+| `JdbcConnectionString` | JDBC-format connection string, with the format `jdbc:postgresql://{Host}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin` |
+| `Username`             | Present when password authentication is enabled; the administrator username |
+| `Password`             | Present when password authentication is enabled; the administrator password |
+
+### Azure PostgreSQL database
+
+The database resource inherits all properties from its parent flexible server and adds:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `DatabaseName`         | The name of the database |
+| `Uri`                  | The database-specific connection URI, with the format `postgresql://{Host}/{DatabaseName}` (Entra ID) or `postgresql://{Username}:{Password}@{Host}/{DatabaseName}` (password auth) |
+| `JdbcConnectionString` | JDBC connection string with the database name |
+
+**Example environment variables** when you reference a database resource named `postgresdb`:
+
+```
+POSTGRESDB_HOST=myserver.postgres.database.azure.com
+POSTGRESDB_PORT=5432
+POSTGRESDB_URI=postgresql://myserver.postgres.database.azure.com/postgresdb
+POSTGRESDB_JDBCCONNECTIONSTRING=jdbc:postgresql://myserver.postgres.database.azure.com/postgresdb?sslmode=require&authenticationPluginClassName=...
+POSTGRESDB_DATABASENAME=postgresdb
+```
+
+When password authentication is enabled, additional variables are also available:
+
+```
+POSTGRESDB_USERNAME=adminuser
+POSTGRESDB_PASSWORD=p%40ssw0rd1
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure PostgreSQL database resource named `postgresdb` and references it from the consuming app.
+
+<Tabs syncKey="azure-postgresql-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire PostgreSQL client integration. It registers an [`NpgsqlDataSource`](https://www.npgsql.org/doc/api/Npgsql.NpgsqlDataSource.html) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+<Aside type="tip">
+  When targeting Azure with Entra ID (the default), use [📦 Aspire.Azure.Npgsql](https://www.nuget.org/packages/Aspire.Azure.Npgsql) instead of `Aspire.Npgsql`. It adds an Entra token provider so no password is needed. The examples below use `Aspire.Npgsql` which works for both local-container development and password-authenticated Azure deployments. See [Azure PostgreSQL client integration](/integrations/cloud/azure/azure-postgresql/azure-postgresql-connect/#use-the-azure-npgsql-integration-for-entra-id) below for the Entra ID variant.
+</Aside>
+
+#### Install the client integration
+
+Install the [📦 Aspire.Npgsql](https://www.nuget.org/packages/Aspire.Npgsql) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Npgsql" />
+
+#### Add the Npgsql data source
+
+In _Program.cs_, call `AddNpgsqlDataSource` on your `IHostApplicationBuilder` to register an `NpgsqlDataSource`:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(connectionName: "postgresdb");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure PostgreSQL database resource name from the AppHost. For more information, see [Add a database to an existing server](../azure-postgresql-host/#add-a-database-to-an-existing-server).
+</Aside>
+
+Resolve the data source through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(NpgsqlDataSource dataSource)
+{
+    // Use dataSource...
+}
+```
+
+#### Add keyed Npgsql clients
+
+To register multiple `NpgsqlDataSource` instances with different connection names, use `AddKeyedNpgsqlDataSource`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedNpgsqlDataSource(name: "catalogdb");
+builder.AddKeyedNpgsqlDataSource(name: "ordersdb");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("catalogdb")] NpgsqlDataSource catalogDataSource,
+    [FromKeyedServices("ordersdb")] NpgsqlDataSource ordersDataSource)
+{
+    // Use data sources...
+}
+```
+
+#### Configuration
+
+The Aspire PostgreSQL client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNpgsqlDataSource`:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource("postgresdb");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "postgresdb": "Host=myserver.postgres.database.azure.com;Database=postgresdb"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NpgsqlSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Npgsql` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Npgsql": {
+      "ConnectionString": "Host=myserver.postgres.database.azure.com;Database=postgresdb",
+      "DisableHealthChecks": false,
+      "DisableTracing": false,
+      "DisableMetrics": false
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<NpgsqlSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddNpgsqlDataSource(
+    "postgresdb",
+     static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The PostgreSQL client integration adds:
+
+- The [`NpgSqlHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which verifies that commands can be successfully executed against the underlying PostgreSQL database.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire PostgreSQL client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Npgsql.Connection`
+- `Npgsql.Command`
+- `Npgsql.Transaction`
+- `Npgsql.Copy`
+- `Npgsql.Replication`
+- `Npgsql.Exception`
+
+**Tracing** activities:
+
+- `Npgsql`
+
+**Metrics**:
+
+- `ec_Npgsql_bytes_written_per_second`
+- `ec_Npgsql_bytes_read_per_second`
+- `ec_Npgsql_commands_per_second`
+- `ec_Npgsql_total_commands`
+- `ec_Npgsql_current_commands`
+- `ec_Npgsql_failed_commands`
+- `ec_Npgsql_prepared_commands_ratio`
+- `ec_Npgsql_connection_pools`
+- `ec_Npgsql_multiplexing_average_commands_per_batch`
+- `ec_Npgsql_multiplexing_average_write_time_per_batch`
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Use the Azure Npgsql integration for Entra ID
+
+When your app targets Azure and you want to use Entra ID (managed identity) authentication — the default for Azure Database for PostgreSQL — install [📦 Aspire.Azure.Npgsql](https://www.nuget.org/packages/Aspire.Azure.Npgsql) instead and call `AddAzureNpgsqlDataSource`:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Npgsql" />
+
+```csharp title="C# — Program.cs"
+builder.AddAzureNpgsqlDataSource(connectionName: "postgresdb");
+```
+
+This registers an `NpgsqlDataSource` with an Entra token provider attached, so no password is required in your configuration. For keyed registrations, use `AddKeyedAzureNpgsqlDataSource`.
+
+For more information, see [PostgreSQL Entity Framework Core integrations](/integrations/databases/efcore/postgres/postgresql-get-started/) if you prefer an EF Core abstraction over raw `NpgsqlDataSource`.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Npgsql](https://www.nuget.org/packages/Npgsql/) NuGet package directly:
+
+```csharp title="C# — Program.cs"
+using Npgsql;
+
+var connectionString = Environment.GetEnvironmentVariable("POSTGRESDB_URI");
+
+await using var dataSource = NpgsqlDataSource.Create(connectionString!);
+await using var conn = await dataSource.OpenConnectionAsync();
+
+// Use conn to query the database...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the `pgx` driver, the most actively maintained PostgreSQL driver for Go:
+
+```bash title="Terminal"
+go get github.com/jackc/pgx/v5
+```
+
+<Aside type="note">
+    [`lib/pq`](https://github.com/lib/pq) is another popular Go PostgreSQL driver, but `pgx` is recommended for new projects because it offers better performance, native PostgreSQL protocol support, and active maintenance.
+</Aside>
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+    "github.com/jackc/pgx/v5"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    connStr := os.Getenv("POSTGRESDB_URI")
+
+    conn, err := pgx.Connect(context.Background(), connStr)
+    if err != nil {
+        panic(err)
+    }
+    defer conn.Close(context.Background())
+}
+```
+
+<Aside type="tip">
+  When connecting to Azure with Entra ID authentication, the injected `Uri` omits credentials. Use the Azure Identity SDK for Go to obtain a token and pass it to the Npgsql-style connection string, or switch to password authentication during development via [`RunAsContainer`](../azure-postgresql-host/#run-as-a-local-container-during-development).
+</Aside>
+
+</TabItem>
+<TabItem label="Python">
+
+Install a PostgreSQL driver. This example uses `psycopg`:
+
+```bash title="Terminal"
+pip install psycopg[binary]
+```
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import os
+import psycopg
+
+# Read the Aspire-injected connection URI
+postgres_uri = os.getenv("POSTGRESDB_URI")
+
+async with await psycopg.AsyncConnection.connect(
+    postgres_uri, autocommit=True
+) as conn:
+    # Use conn to query the database...
+    pass
+```
+
+You can also install `psycopg2-binary` if you prefer the psycopg2 API:
+
+```bash title="Terminal"
+pip install psycopg2-binary
+```
+
+```python title="Python — app.py (psycopg2)"
+import os
+import psycopg2
+
+conn = psycopg2.connect(os.getenv("POSTGRESDB_URI"))
+# Use conn to query the database...
+```
+
+<Aside type="tip">
+  When connecting to Azure with Entra ID authentication, the `Uri` injected by Aspire omits credentials. Use the [azure-identity](https://pypi.org/project/azure-identity/) package to obtain a token and pass it as the password, or use [`RunAsContainer`](../azure-postgresql-host/#run-as-a-local-container-during-development) for local development with password authentication.
+</Aside>
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the PostgreSQL client library:
+
+```bash title="Terminal"
+npm install pg
+npm install --save-dev @types/pg
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { Client } from 'pg';
+
+// Read Aspire-injected connection properties
+const client = new Client({
+    host: process.env.POSTGRESDB_HOST,
+    database: process.env.POSTGRESDB_DATABASENAME,
+    port: Number(process.env.POSTGRESDB_PORT ?? 5432),
+    // When using password authentication, include username and password:
+    // user: process.env.POSTGRESDB_USERNAME,
+    // password: process.env.POSTGRESDB_PASSWORD,
+});
+
+await client.connect();
+```
+
+Or use the connection URI directly:
+
+```typescript title="TypeScript — Connect with URI"
+import { Client } from 'pg';
+
+const client = new Client({
+    connectionString: process.env.POSTGRESDB_URI,
+});
+
+await client.connect();
+```
+
+<Aside type="note">
+  When connecting to Azure with Entra ID (the default), the `Uri` does not include a username or password. The `pg` library requires a password to be present for password-based authentication. For Entra ID connections from Node.js, obtain a token using the [Azure Identity SDK](https://www.npmjs.com/package/@azure/identity) and pass it as the password field, or use [`runAsContainer`](../azure-postgresql-host/#run-as-a-local-container-during-development) for local development.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Pass custom environment variables](/get-started/app-host/#pass-environment-variables-to-resources) in the AppHost reference.
+</Aside>
