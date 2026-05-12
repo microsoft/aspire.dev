@@ -3,9 +3,9 @@ title: Dev Tunnels integration
 description: Learn how to use the Dev Tunnels integration for exposing local web services to the internet.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
 import devTunnelsIcon from '@assets/icons/dev-tunnels-icon.svg';
 
 <Image
@@ -44,16 +44,41 @@ Before you create a dev tunnel, you first need to download and install the devtu
 
 To get started with the Dev Tunnels integration, install the [📦 Aspire.Hosting.DevTunnels](https://www.nuget.org/packages/Aspire.Hosting.DevTunnels) NuGet package in the AppHost project:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 <InstallPackage
   packageName="Aspire.Hosting.DevTunnels"
   shortName="devtunnels"
   prerelease={true}
 />
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add devtunnels
+```
+
+This updates your `aspire.config.json` with the Dev Tunnels hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.DevTunnels": "*-preview*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### Add a dev tunnel resource
 
 In the AppHost project, add a dev tunnel and configure it to expose specific resources:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -62,6 +87,20 @@ var web = builder.AddProject<Projects.Web>("web");
 var tunnel = builder.AddDevTunnel("my-tunnel")
                     .WithReference(web);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const web = await builder.addNodeApp("web", "../web", "index.js");
+
+const tunnel = await builder.addDevTunnel("my-tunnel")
+    .withReference(web);
+```
+</TabItem>
+</Tabs>
 
 When you run the AppHost, the dev tunnel is created to expose the web application endpoints publicly. The tunnel URLs are shown in the Aspire dashboard. By default, the tunnel requires authentication and is available only to the user who created it.
 
@@ -69,6 +108,8 @@ When you run the AppHost, the dev tunnel is created to expose the web applicatio
 
 To allow anonymous (public) access to the entire tunnel, chain a call to the `WithAnonymousAccess` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -78,11 +119,28 @@ var tunnel = builder.AddDevTunnel("public-api")
                     .WithReference(web)
                     .WithAnonymousAccess();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const web = await builder.addNodeApp("web", "../web", "index.js");
+
+const tunnel = await builder.addDevTunnel("public-api")
+    .withReference(web)
+    .withAnonymousAccess();
+```
+</TabItem>
+</Tabs>
 
 ### Configure dev tunnel options
 
 To configure other options for the dev tunnel, provide the `DevTunnelOptions` to the `AddDevTunnel` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -99,11 +157,31 @@ var options = new DevTunnelOptions
 var tunnel = builder.AddDevTunnel("qa", options)
                     .WithReference(web);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const web = await builder.addNodeApp("web", "../web", "index.js");
+
+const tunnel = await builder.addDevTunnel("qa", {
+    tunnelId: "my-tunnel-id",
+    description: "QA environment tunnel",
+    labels: ["qa", "testing"],
+    allowAnonymous: false,
+}).withReference(web);
+```
+</TabItem>
+</Tabs>
 
 ### Configure for mixed access
 
 To allow anonymous access to specific endpoints, use the appropriate `WithReference` overload:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -113,6 +191,21 @@ var tunnel = builder.AddDevTunnel("mixed-access")
                     .WithReference(api, "public", allowAnonymous: true)
                     .WithReference(api, "admin", allowAnonymous: false);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addNodeApp("api", "../api", "index.js");
+
+const tunnel = await builder.addDevTunnel("mixed-access")
+    .withReference(api, "public", { allowAnonymous: true })
+    .withReference(api, "admin", { allowAnonymous: false });
+```
+</TabItem>
+</Tabs>
 
 The preceding code exposes:
 
@@ -203,3 +296,11 @@ Verify that:
 - The tunnel is running and healthy in the Aspire dashboard
 - You're using the correct tunnel URL
 - Anonymous access is configured correctly if accessing without authentication
+
+## See also
+
+- [Dev tunnels overview](https://learn.microsoft.com/azure/developer/dev-tunnels/overview)
+- [Dev tunnels CLI installation](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started#install)
+- [Aspire integrations overview](/integrations/overview/)
+- [AppHost overview](/get-started/app-host/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)
