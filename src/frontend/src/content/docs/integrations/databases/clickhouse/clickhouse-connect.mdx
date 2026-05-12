@@ -1,0 +1,324 @@
+---
+title: Connect to ClickHouse
+description: Learn how to connect to ClickHouse from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import clickhouseIcon from '@assets/icons/clickhouse-icon.png';
+
+<Image
+  src={clickhouseIcon}
+  alt="ClickHouse logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a ClickHouse resource that's already modeled in your AppHost. For the AppHost API surface — adding a ClickHouse server, databases, volumes, and more — see [ClickHouse Hosting integration](../clickhouse-host/).
+
+When you reference a ClickHouse resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire ClickHouse client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `clickhousedb` becomes `CLICKHOUSEDB_HOST`.
+
+### ClickHouse server
+
+The ClickHouse server resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the ClickHouse server |
+| `Port`        | The port number the ClickHouse server is listening on (default: `8123`) |
+| `Username`    | The username for authentication (default: `default`) |
+| `Password`    | The password for authentication |
+
+**Example connection string:**
+
+```
+Host=localhost;Port=8123;Username=default;Password=p%40ssw0rd1
+```
+
+### ClickHouse database
+
+The ClickHouse database resource inherits all properties from its parent server resource and adds:
+
+| Property Name  | Description |
+| -------------- | ----------- |
+| `DatabaseName` | The name of the database |
+
+**Example connection string:**
+
+```
+Host=localhost;Port=8123;Username=default;Password=p@ssw0rd1;Database=clickhousedb
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a ClickHouse database resource named `clickhousedb` and references it from the consuming app.
+
+<Tabs syncKey="clickhouse-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire ClickHouse client integration. It registers an `IClickHouseClient` and a `ClickHouseDataSource` through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.ClickHouse.Driver](https://www.nuget.org/packages/Aspire.ClickHouse.Driver) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.ClickHouse.Driver" />
+
+#### Add the ClickHouse data source
+
+In _Program.cs_, call `AddClickHouseDataSource` on your `IHostApplicationBuilder` to register both `IClickHouseClient` and `ClickHouseDataSource`:
+
+```csharp title="C# — Program.cs"
+builder.AddClickHouseDataSource(connectionName: "clickhousedb");
+```
+
+<Aside type="tip">
+The `connectionName` must match the ClickHouse database resource name from the AppHost. For more information, see [Add ClickHouse server resource](../clickhouse-host/#add-clickhouse-server-resource).
+</Aside>
+
+Use `IClickHouseClient` for a simple query and insert API:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IClickHouseClient client)
+{
+    // Use client...
+}
+```
+
+Or use `ClickHouseDataSource` when you need ADO.NET access (connections, commands, transactions):
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ClickHouseDataSource dataSource)
+{
+    // Use data source...
+}
+```
+
+#### Add keyed ClickHouse data sources
+
+To register multiple `ClickHouseDataSource` instances with different connection names, use `AddKeyedClickHouseDataSource`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedClickHouseDataSource(name: "analytics");
+builder.AddKeyedClickHouseDataSource(name: "logging");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("analytics")] IClickHouseClient analyticsClient,
+    [FromKeyedServices("logging")] IClickHouseClient loggingClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire ClickHouse client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddClickHouseDataSource`:
+
+```csharp title="C# — Program.cs"
+builder.AddClickHouseDataSource("clickhousedb");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "clickhousedb": "Host=myserver;Port=8123;Username=default;Database=clickhousedb"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `ClickHouseClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:ClickHouse:Driver` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "ClickHouse": {
+      "Driver": {
+        "ConnectionString": "Host=myserver;Port=8123;Username=default;Database=clickhousedb",
+        "DisableHealthChecks": false,
+        "DisableTracing": false,
+        "DisableMetrics": true,
+        "HealthCheckTimeout": "00:00:03"
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<ClickHouseClientSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddClickHouseDataSource(
+    "clickhousedb",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The ClickHouse client integration adds:
+
+- A health check that calls `PingAsync` on the configured `ClickHouseDataSource`. If the ping succeeds, the health check is considered healthy.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire ClickHouse client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `ClickHouse.Driver`
+- `ClickHouse.Driver.BulkCopy`
+- `ClickHouse.Driver.Client`
+- `ClickHouse.Driver.Command`
+- `ClickHouse.Driver.Connection`
+- `ClickHouse.Driver.Transport`
+
+**Tracing** activities:
+
+- `ClickHouse.Driver`
+
+**Metrics:** The ClickHouse client integration doesn't currently expose OpenTelemetry metrics. The `DisableMetrics` setting defaults to `true`.
+
+Any logging or tracing features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and use it with the `ClickHouse.Driver` package directly:
+
+```csharp title="C# — Program.cs"
+using ClickHouse.Driver;
+
+var connectionString = Environment.GetEnvironmentVariable(
+    "ConnectionStrings__clickhousedb");
+
+var dataSource = new ClickHouseDataSource(connectionString!);
+// Use dataSource to query ClickHouse...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use [`clickhouse-go/v2`](https://github.com/ClickHouse/clickhouse-go), the official Go client for ClickHouse:
+
+```bash title="Terminal"
+go get github.com/ClickHouse/clickhouse-go/v2
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/ClickHouse/clickhouse-go/v2"
+)
+
+func main() {
+    // Read the Aspire-injected connection properties
+    host := os.Getenv("CLICKHOUSEDB_HOST")
+    port := os.Getenv("CLICKHOUSEDB_PORT")
+    username := os.Getenv("CLICKHOUSEDB_USERNAME")
+    password := os.Getenv("CLICKHOUSEDB_PASSWORD")
+    database := os.Getenv("CLICKHOUSEDB_DATABASENAME")
+
+    conn, err := clickhouse.Open(&clickhouse.Options{
+        Protocol: clickhouse.HTTP,
+        Addr:     []string{fmt.Sprintf("%s:%s", host, port)},
+        Auth: clickhouse.Auth{
+            Database: database,
+            Username: username,
+            Password: password,
+        },
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer conn.Close()
+
+    if err := conn.Ping(context.Background()); err != nil {
+        panic(err)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install [`clickhouse-connect`](https://github.com/ClickHouse/clickhouse-connect), the official Python driver for ClickHouse:
+
+```bash title="Terminal"
+pip install clickhouse-connect
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+import clickhouse_connect
+
+# Read the Aspire-injected connection properties
+client = clickhouse_connect.get_client(
+    host=os.getenv("CLICKHOUSEDB_HOST"),
+    port=int(os.getenv("CLICKHOUSEDB_PORT", "8123")),
+    username=os.getenv("CLICKHOUSEDB_USERNAME", "default"),
+    password=os.getenv("CLICKHOUSEDB_PASSWORD", ""),
+    database=os.getenv("CLICKHOUSEDB_DATABASENAME"),
+)
+
+client.ping()
+# Use client to query ClickHouse...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install [`@clickhouse/client`](https://github.com/ClickHouse/clickhouse-js), the official Node.js client for ClickHouse:
+
+```bash title="Terminal"
+npm install @clickhouse/client
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { createClient } from '@clickhouse/client';
+
+// Read Aspire-injected connection properties
+const client = createClient({
+    url: `http://${process.env.CLICKHOUSEDB_HOST}:${process.env.CLICKHOUSEDB_PORT}`,
+    username: process.env.CLICKHOUSEDB_USERNAME,
+    password: process.env.CLICKHOUSEDB_PASSWORD,
+    database: process.env.CLICKHOUSEDB_DATABASENAME,
+});
+
+const result = await client.ping();
+console.log('ClickHouse connection status:', result.success);
+// Use client to query ClickHouse...
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. For more information, see [External parameters](/get-started/resources/).
+</Aside>
