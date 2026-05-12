@@ -1,73 +1,92 @@
 ---
 title: Go integration
+description: Learn how to use the Aspire Community Toolkit Go hosting integration to orchestrate Go applications alongside other resources in the Aspire app host.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import Badge from '@astrojs/starlight/components/Badge.astro';
 import InstallPackage from '@components/InstallPackage.astro';
-import ThemeImage from '@components/ThemeImage.astro';
-import goIcon from '@assets/icons/go-icon.png';
-import goLightIcon from '@assets/icons/go-light-icon.png';
+import goIcon from '@assets/icons/go.svg';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<ThemeImage
-  light={goLightIcon}
-  dark={goIcon}
+<Image
+  src={goIcon}
   alt="Go logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-The Aspire Go hosting integration enables you to run Go applications alongside your Aspire projects in the Aspire app host.
+The Aspire Go hosting integration enables you to run Go applications alongside your other Aspire resources in the app host. Go apps participate in the same service discovery, health checks, OpenTelemetry export, and Aspire dashboard support as the rest of your solution.
+
+:::note
+TypeScript AppHost support for this integration is not yet available. The examples on this page use the C# AppHost only.
+:::
 
 ## Hosting integration
 
-To get started with the Aspire Go hosting integration, install the [CommunityToolkit.Aspire.Hosting.Golang](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Golang) NuGet package in the app host project.
+To access the Go hosting APIs in your [`AppHost`](/get-started/app-host/) project, install the [📦 CommunityToolkit.Aspire.Hosting.Golang](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Golang) NuGet package:
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Golang" />
 
 ### Add Go app
 
-To add a Go application to your app host, use the `AddGolangApp` extension method:
+Add a Go application to your app host using the `AddGolangApp` extension method:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goApp = builder.AddGolangApp("go-api", "../go-api")
+    .WithHttpEndpoint(env: "PORT")
+    .WithHttpHealthCheck("/health");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(goApp);
+
+builder.Build().Run();
+```
+
+`AddGolangApp` requires:
+
+- **name**: The name of the resource in the Aspire dashboard.
+- **workingDirectory**: The path to the directory containing your Go application, relative to the AppHost project. The app host runs `go run <executable>` in this directory.
+
+By default, the executable target is `.` (the Go module root), which is equivalent to `go run .`.
+
+### Specify the executable target
+
+Pass an explicit `executable` argument to run a package at a specific path inside the working directory:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var goApp = builder.AddGolangApp(
     name: "go-api",
-    workingDirectory: "../go-app")
-    .WithHttpEndpoint(port: 8080, env: "PORT");
+    workingDirectory: "../go-api",
+    executable: "./cmd/server")
+    .WithHttpEndpoint(env: "PORT");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(goApp);
-
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-The `AddGolangApp` method requires:
+### Configure HTTP endpoints
 
-- **name**: The name of the resource in the Aspire dashboard
-- **workingDirectory**: The path to the directory containing your Go application
-
-### Configure endpoints
-
-Go applications typically use environment variables to configure the port they listen on. Use `WithHttpEndpoint` to configure the port and set the PORT environment variable:
+Go applications typically read the port from an environment variable. Use `WithHttpEndpoint` to declare the HTTP endpoint and bind it to a named environment variable:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var goApp = builder.AddGolangApp("go-api", "../go-app")
+var goApp = builder.AddGolangApp("go-api", "../go-api")
     .WithHttpEndpoint(port: 8080, env: "PORT");
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-Your Go application can read the PORT environment variable to determine which port to listen on:
+Your Go application reads the `PORT` variable at startup:
 
-```go
+```go title="Go — main.go"
 package main
 
 import (
@@ -91,12 +110,56 @@ func main() {
 }
 ```
 
-### Working directory
+### Manage module dependencies
 
-The `workingDirectory` parameter specifies where the Go application is located. The Aspire app host will run `go run .` in this directory to start your Go application.
+Call `WithGoModTidy` to run `go mod tidy` before the Go app starts. This ensures the module's dependency graph is consistent and removes unused entries from `go.mod` and `go.sum`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goApp = builder.AddGolangApp("go-api", "../go-api")
+    .WithGoModTidy()
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+Call `WithGoModDownload` to run `go mod download` instead. This downloads all module dependencies to the local module cache without modifying `go.mod` or `go.sum`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goApp = builder.AddGolangApp("go-api", "../go-api")
+    .WithGoModDownload()
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+Both methods run only in run mode and have no effect during publish.
+
+### Use build tags
+
+Pass `buildTags` to control conditional compilation in the Go source:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goApp = builder.AddGolangApp(
+    name: "go-api",
+    workingDirectory: "../go-api",
+    executable: ".",
+    buildTags: ["integration"])
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+The build tags are passed to `go run` as `-tags integration` and to the generated Dockerfile's build stage as `go build -tags integration`.
 
 ## See also
 
+- [📦 CommunityToolkit.Aspire.Hosting.Golang](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Golang)
 - [Go documentation](https://go.dev/doc/)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
