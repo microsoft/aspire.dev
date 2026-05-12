@@ -1,8 +1,8 @@
 diff --git a/entryToSimpleMarkdown.ts b/entryToSimpleMarkdown.ts
-index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da0ec6fd6f 100644
+index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..0354f11fb5fd294ba494c02c7cb1f794f957a707 100644
 --- a/entryToSimpleMarkdown.ts
 +++ b/entryToSimpleMarkdown.ts
-@@ -20,6 +20,7 @@ const minifyDefaults = {
+@@ -20,13 +20,35 @@ const minifyDefaults = {
  	danger: false,
  	details: true,
  	whitespace: true,
@@ -10,7 +10,75 @@ index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da
  	customSelectors: [],
  };
  /** Resolved minification options */
-@@ -192,7 +193,31 @@ export async function entryToSimpleMarkdown(
+ const minify = { ...minifyDefaults, ...starlightLllmsTxtContext.minify };
+-/** Selectors for elements to remove during minification. */
+-const selectors = [...minify.customSelectors];
+-if (minify.details) selectors.unshift('details');
++
++/**
++ * Resolve the public `customSelectors` option into per-output buckets.
++ *
++ * - The array form is treated as `{ small: [...] }` for backwards compatibility with the
++ *   legacy `minify.customSelectors` option.
++ * - In the object form, `all` is merged into both `small` and `full`.
++ * - The deprecated `minify.customSelectors` option is merged additively into the `small`
++ *   bucket so existing configurations keep working.
++ */
++const userCustomSelectors = starlightLllmsTxtContext.customSelectors;
++const userCustomSmall = Array.isArray(userCustomSelectors)
++	? userCustomSelectors
++	: [...(userCustomSelectors.small ?? []), ...(userCustomSelectors.all ?? [])];
++const userCustomFull = Array.isArray(userCustomSelectors)
++	? []
++	: [...(userCustomSelectors.full ?? []), ...(userCustomSelectors.all ?? [])];
++
++/** Selectors removed when generating `llms-small.txt`. */
++const smallSelectors = [...minify.customSelectors, ...userCustomSmall];
++if (minify.details) smallSelectors.unshift('details');
++
++/** Selectors removed when generating `llms-full.txt` and any `customSets` outputs. */
++const fullSelectors = [...userCustomFull];
+ 
+ const astroContainer = await experimental_AstroContainer.create({
+ 	renderers: [{ name: 'astro:jsx', ssr: mdxServer }],
+@@ -34,20 +56,31 @@ const astroContainer = await experimental_AstroContainer.create({
+ 
+ const htmlToMarkdownPipeline = unified()
+ 	.use(rehypeParse, { fragment: true })
+-	.use(function minifyLlmsTxt() {
++	.use(function customSelectorsLlmsTxt() {
+ 		return (tree, file) => {
+-			if (!file.data.starlightLlmsTxt.minify) {
++			const stripList = file.data.starlightLlmsTxt.minify ? smallSelectors : fullSelectors;
++			if (stripList.length === 0) {
+ 				return;
+ 			}
+ 			remove(tree, (_node) => {
+ 				const node = _node as RootContent;
+-
+-				// Remove elements matching any selectors to be minified:
+-				for (const selector of selectors) {
++				for (const selector of stripList) {
+ 					if (matches(selector, node)) {
+ 						return true;
+ 					}
+ 				}
++				return false;
++			});
++			return tree;
++		};
++	})
++	.use(function minifyLlmsTxt() {
++		return (tree, file) => {
++			if (!file.data.starlightLlmsTxt.minify) {
++				return;
++			}
++			remove(tree, (_node) => {
++				const node = _node as RootContent;
+ 
+ 				// Remove aside components:
+ 				if (matches('.starlight-aside', node)) {
+@@ -192,7 +225,31 @@ export async function entryToSimpleMarkdown(
  	});
  	let markdown = String(file).trim();
  	if (shouldMinify && minify.whitespace) {
@@ -43,11 +111,31 @@ index 5fdc6c54ae6edc5874db921dde4b89ed9e15dc3c..c9561aadb8ec4be885a828b7a5ebc2da
  	}
  	return markdown;
  }
+diff --git a/index.ts b/index.ts
+index d14558f7ce9025840df822e8a8105bed9f424e1c..5352759b4ae7efb40ed84899e38a7f3d811f4b1b 100644
+--- a/index.ts
++++ b/index.ts
+@@ -58,6 +58,7 @@ export default function starlightLlmsTxt(opts: StarlightLllmsTextOptions = {}):
+ 								locales: config.locales,
+ 								pageSeparator: opts.pageSeparator ?? '\n\n',
+ 								rawContent: opts.rawContent ?? false,
++								customSelectors: opts.customSelectors ?? [],
+ 							};
+ 
+ 							const modules = {
 diff --git a/types.ts b/types.ts
-index c7260e0ddd8b251d399d6d31b767924b8413ee81..ae048511968d45bbef14c2d5b780bdaffcba0df7 100644
+index c7260e0ddd8b251d399d6d31b767924b8413ee81..47fce20aadc36d3d23992007e023e35c6204e02b 100644
 --- a/types.ts
 +++ b/types.ts
-@@ -130,6 +130,27 @@ export interface StarlightLllmsTextOptions {
+@@ -30,6 +30,7 @@ export interface ProjectContext {
+ 	exclude: NonNullable<StarlightLllmsTextOptions['exclude']>;
+ 	pageSeparator: NonNullable<StarlightLllmsTextOptions['pageSeparator']>;
+ 	rawContent: NonNullable<StarlightLllmsTextOptions['rawContent']>;
++	customSelectors: NonNullable<StarlightLllmsTextOptions['customSelectors']>;
+ }
+ 
+ /** Plugin user options. */
+@@ -130,9 +131,35 @@ export interface StarlightLllmsTextOptions {
  		 */
  		whitespace?: boolean;
  
@@ -75,3 +163,62 @@ index c7260e0ddd8b251d399d6d31b767924b8413ee81..ae048511968d45bbef14c2d5b780bdaf
  		/**
  		 * Custom selectors to exclude when generating `llms-small.txt`.
  		 *
++		 * @deprecated Use the top-level
++		 * {@link StarlightLllmsTextOptions.customSelectors | `customSelectors`} option instead.
++		 * Selectors listed here continue to apply to `llms-small.txt` only, additively with any
++		 * selectors listed in `customSelectors.small` and `customSelectors.all`.
++		 *
+ 		 * @default []
+ 		 *
+ 		 * @example
+@@ -184,4 +211,50 @@ export interface StarlightLllmsTextOptions {
+ 	 * @default false
+ 	 */
+ 	rawContent?: boolean;
++
++	/**
++	 * CSS-style selectors matching elements that should be removed from the rendered HTML
++	 * before it is converted to Markdown.
++	 *
++	 * Selectors are tested with
++	 * [`hast-util-select`’s matching features](https://github.com/syntax-tree/hast-util-select#support)
++	 * and should match your site’s rendered HTML output.
++	 *
++	 * Two shapes are supported:
++	 *
++	 * - **Array** — selectors apply to `llms-small.txt` only (same scope as the
++	 *   deprecated {@link StarlightLllmsTextOptions.minify | `minify.customSelectors`} option).
++	 * - **Object** with optional `small`, `full`, and `all` arrays:
++	 *   - `small` applies to `llms-small.txt`.
++	 *   - `full` applies to `llms-full.txt` and any `customSets` outputs.
++	 *   - `all` applies to both (merged with `small` and `full`).
++	 *
++	 * Selectors listed via the legacy `minify.customSelectors` option are merged additively
++	 * into the `small` bucket so existing configurations keep working.
++	 *
++	 * @default []
++	 *
++	 * @example
++	 * // Array form (legacy): strip a sponsors banner from llms-small.txt only.
++	 * customSelectors: ['.sponsors-banner'],
++	 *
++	 * @example
++	 * // Object form: strip code-block hover popovers from every output, while keeping a
++	 * // small-only filter for an interactive demo and a full-only filter for verbose notes.
++	 * customSelectors: {
++	 *   all: ['.twoslash-popup-container', '.twoslash-error-box'],
++	 *   small: ['interactive-demo'],
++	 *   full: ['.verbose-only'],
++	 * },
++	 */
++	customSelectors?:
++		| string[]
++		| {
++				/** Selectors applied when generating `llms-small.txt`. */
++				small?: string[];
++				/** Selectors applied when generating `llms-full.txt` and any `customSets` outputs. */
++				full?: string[];
++				/** Selectors applied to every generated output (merged with `small` and `full`). */
++				all?: string[];
++		  };
+ }
