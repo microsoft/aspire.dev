@@ -1,0 +1,76 @@
+---
+title: Compiler Warning ASPIREPROCESSCOMMAND001
+description: Learn more about compiler Warning ASPIREPROCESSCOMMAND001. Process command types and members are for evaluation purposes only and are subject to change or removal in future updates.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+<Badge
+  text="Version introduced: 13.4"
+  variant="note"
+  size="large"
+  class:list={'mb-1'}
+/>
+
+> Process command types and members are for evaluation purposes only and are subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+This diagnostic warning is reported when using the experimental `WithProcessCommand` extension method and related process command APIs. These APIs enable AppHost authors to expose custom resource commands backed by local processes (binaries, shell scripts, and other executables on the AppHost machine).
+
+The following APIs are protected by this diagnostic:
+
+- `WithProcessCommand` on `IResourceBuilder<T>` — registers a command that starts a local process when invoked
+- `ProcessCommandSpec` — describes the process to start, including executable path, arguments, environment variables, working directory, and stdin content
+- `ProcessCommandOptions` — controls command behavior such as the maximum captured output line count, success exit codes, and how the result is displayed
+
+## Example
+
+The following code generates `ASPIREPROCESSCOMMAND001`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache")
+    .WithProcessCommand(
+        name: "dotnet-version",
+        displayName: "Show .NET version",
+        executablePath: "dotnet",
+        arguments: ["--version"]);
+
+builder.Build().Run();
+```
+
+The diagnostic is triggered because `WithProcessCommand`, `ProcessCommandSpec`, and `ProcessCommandOptions` are all marked with the `[Experimental("ASPIREPROCESSCOMMAND001")]` attribute.
+
+## To correct this warning
+
+Suppress the warning with either of the following methods:
+
+- Set the severity of the rule in the _.editorconfig_ file.
+
+  ```ini title=".editorconfig"
+  [*.{cs,vb}]
+  dotnet_diagnostic.ASPIREPROCESSCOMMAND001.severity = none
+  ```
+
+  For more information about editor config files, see [Configuration files for code analysis rules](/diagnostics/overview/#suppress-in-the-editorconfig-file).
+
+- Add the following `PropertyGroup` to your project file:
+
+  ```xml title="C# project file"
+  <PropertyGroup>
+      <NoWarn>$(NoWarn);ASPIREPROCESSCOMMAND001</NoWarn>
+  </PropertyGroup>
+  ```
+
+- Suppress in code with the `#pragma warning disable ASPIREPROCESSCOMMAND001` directive:
+
+  ```csharp title="C# — Suppressing the warning"
+  #pragma warning disable ASPIREPROCESSCOMMAND001
+  var cache = builder.AddRedis("cache")
+      .WithProcessCommand("dotnet-version", "Show .NET version", "dotnet", ["--version"]);
+  #pragma warning restore ASPIREPROCESSCOMMAND001
+  ```
+
+## See also
+
+- [Process-backed resource commands](/fundamentals/custom-resource-commands/#process-backed-resource-commands) — Learn how to use `WithProcessCommand`

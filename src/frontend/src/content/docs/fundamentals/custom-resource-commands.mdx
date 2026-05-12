@@ -1178,7 +1178,7 @@ Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, s
 ## Process-backed resource commands
 
 :::caution[Experimental API]
-`WithProcessCommand` is experimental and requires opting in to the `ASPIREPROCESSCOMMAND001` diagnostic suppression. The API shape may change before it stabilizes.
+`WithProcessCommand` is experimental and requires opting in to the [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) diagnostic suppression. The API shape may change before it stabilizes.
 :::
 
 The `WithProcessCommand` API provides a reusable helper for the common pattern of exposing a local-tool invocation as a resource command. Instead of managing process start, stdout/stderr capture, and cancellation yourself inside a `WithCommand` callback, `WithProcessCommand` does that for you:
@@ -1231,6 +1231,10 @@ await cache.withProcessCommand(
     {
         executablePath: "dotnet",
         arguments: ["--version"],
+        workingDirectory: "/tmp",
+        environmentVariables: { DOTNET_CLI_TELEMETRY_OPTOUT: "1" },
+        maxOutputLineCount: 20,
+        displayImmediately: true,
     });
 
 await builder.build().run();
@@ -1256,8 +1260,14 @@ builder.AddRedis("cache")
         displayName: "Seed data",
         createProcessSpec: context => new ProcessCommandSpec("dotnet")
         {
-            Arguments = ["run", "--project", "tools/SeedData", "--",
-                         context.Arguments.GetString("dataset") ?? "small"],
+            Arguments =
+            [
+                "run",
+                "--project",
+                "tools/SeedData",
+                "--",
+                context.Arguments.GetString("dataset") ?? "small",
+            ],
             EnvironmentVariables = { ["ConnectionStrings__db"] = "Host=localhost;Database=db" },
         },
         options: new ProcessCommandOptions { MaxOutputLineCount = 20 });
@@ -1269,31 +1279,21 @@ The `context` parameter is an `ExecuteCommandContext`, so you can read user-supp
 
 ### `ProcessCommandSpec` properties
 
-| Property | Type | Description |
-|---|---|---|
-| `ExecutablePath` | `string` | The path to the executable. If not absolute, the AppHost's PATH is searched. |
-| `Arguments` | `IList<string>` | Argument list passed to the process. Each entry is a separate argument — no shell quoting needed. |
-| `EnvironmentVariables` | `IDictionary<string, string>` | Environment variables to set for the child process. |
-| `StandardInputContent` | `string?` | Optional text written to the process's stdin before it starts. |
-| `WorkingDirectory` | `string?` | Working directory for the child process. Defaults to the AppHost directory. |
+The following configuration options are available for the process to run. In C#, these map to `ProcessCommandSpec` properties. In TypeScript, they are provided as fields in the options object passed to `withProcessCommand`.
+
+- **Executable path** — the path to the process to launch. Short names (no directory separator) are resolved from the AppHost's `PATH`.
+- **Arguments** — a list of arguments passed to the process. Each entry is treated as a separate argument, so no shell quoting or escaping is needed.
+- **Environment variables** — additional key/value pairs set in the child process's environment.
+- **Standard input content** — optional text written to the process's stdin immediately after it starts.
+- **Working directory** — the directory the process starts in. Defaults to the AppHost directory if not specified.
 
 ### `ProcessCommandOptions`
 
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `MaxOutputLineCount` | `int` | 100 | Maximum number of stdout/stderr lines captured and returned as command output. Lines beyond this limit are discarded (oldest lines are dropped first). |
+The following options control how `WithProcessCommand` handles the process result. In C#, they are set on `ProcessCommandOptions`. In TypeScript, they are fields in the same options object as the process configuration above.
 
-### TypeScript `withProcessCommand` options
-
-In TypeScript AppHosts the options are supplied inline as a single object:
-
-| Field | Type | Description |
-|---|---|---|
-| `executablePath` | `string` | Path to the executable. |
-| `arguments` | `string[]?` | Argument list. |
-| `environmentVariables` | `Array<{ name: string; value: string }>?` | Environment variables for the child process. |
-| `standardInputContent` | `string?` | Text written to stdin. |
-| `maxOutputLineCount` | `number?` | Maximum captured output lines (default: 100). |
+- **Max output line count** — the maximum number of combined stdout/stderr lines captured and returned as the command result. Defaults to 50. Lines beyond this limit are silently discarded (oldest lines first).
+- **Display immediately** — when `true` (the default), the captured output is automatically shown in the dashboard as soon as the command finishes.
+- **Success exit codes** — the list of process exit codes that are treated as a successful command invocation. Defaults to `[0]`.
 
 ### Executable path resolution
 
@@ -1320,8 +1320,15 @@ builder.AddPostgres("postgres")
         displayName: "Run migration",
         createProcessSpec: context => new ProcessCommandSpec("dotnet")
         {
-            Arguments = ["run", "--project", "tools/Migrations", "--",
-                         "--target", context.Arguments.GetString("target") ?? "latest"],
+            Arguments =
+            [
+                "run",
+                "--project",
+                "tools/Migrations",
+                "--",
+                "--target",
+                context.Arguments.GetString("target") ?? "latest",
+            ],
         },
         options: new ProcessCommandOptions
         {
