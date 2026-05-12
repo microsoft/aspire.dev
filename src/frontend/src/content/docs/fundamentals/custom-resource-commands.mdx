@@ -1231,10 +1231,6 @@ await cache.withProcessCommand(
     {
         executablePath: "dotnet",
         arguments: ["--version"],
-        workingDirectory: "/tmp",
-        environmentVariables: { DOTNET_CLI_TELEMETRY_OPTOUT: "1" },
-        maxOutputLineCount: 20,
-        displayImmediately: true,
     });
 
 await builder.build().run();
@@ -1251,6 +1247,8 @@ When the command arguments depend on runtime context — for example, a dataset 
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREPROCESSCOMMAND001
+
+using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -1284,8 +1282,10 @@ The following configuration options are available for the process to run. In C#,
 - **Executable path** — the path to the process to launch. Short names (no directory separator) are resolved from the AppHost's `PATH`.
 - **Arguments** — a list of arguments passed to the process. Each entry is treated as a separate argument, so no shell quoting or escaping is needed.
 - **Environment variables** — additional key/value pairs set in the child process's environment.
+- **Inherit environment variables** — whether the child process inherits the AppHost process's environment variables. Defaults to `true`.
 - **Standard input content** — optional text written to the process's stdin immediately after it starts.
 - **Working directory** — the directory the process starts in. Defaults to the AppHost directory if not specified.
+- **Kill entire process tree** — whether cancellation and disposal should terminate the whole child process tree. Defaults to `true`.
 
 ### `ProcessCommandOptions`
 
@@ -1306,11 +1306,13 @@ This means you can reference tools such as `dotnet`, `node`, or `docker` by shor
 
 ### Combining with command arguments
 
-`WithProcessCommand` uses `WithCommand` internally, so you can combine it with the [Command arguments](#command-arguments) feature to prompt the user for input before the process runs:
+`WithProcessCommand` uses `WithCommand` internally. In C# dynamic process commands, you can combine it with the [Command arguments](#command-arguments) feature to prompt the user for input before the process runs:
 
 ```csharp title="AppHost.cs"
 #pragma warning disable ASPIREPROCESSCOMMAND001
 #pragma warning disable ASPIREINTERACTION001
+
+using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
