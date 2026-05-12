@@ -1,21 +1,19 @@
 ---
 title: Seed data in a database using Aspire
-description: Learn about how to seed database data in Aspire
+description: Learn how to seed database data in Aspire projects using SQL scripts or Entity Framework Core during app startup.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import Pivot from '@components/Pivot.astro';
-import PivotSelector from '@components/PivotSelector.astro';
-import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import Image from 'astro:assets';
+import dotnetIcon from '@assets/icons/dotnet.svg';
 
-<PivotSelector
-  title='Choose a Aspire Entity Framework Core client integration'
-  key='efcore'
-  options={[
-    { id: 'sql-server-ef', title: 'SQL Server' },
-    { id: 'postgresql-ef', title: 'PostgreSQL' },
-    { id: 'mysql-ef', title: 'Pomelo MySQL' },
-  ]}
+<Image
+  src={dotnetIcon}
+  alt="Entity Framework Core logo"
+  width={60}
+  height={60}
+  style="float: inline-start; margin-inline-end: 1rem;"
+  data-zoom-off
 />
 
 In this article, you learn how to configure Aspire projects to seed data in a database during app startup. Aspire enables you to seed data using database scripts or Entity Framework Core (EF Core) for common platforms such as SQL Server, PostgreSQL, and MySQL.
@@ -39,17 +37,20 @@ By default, Aspire database integrations rely on containerized databases, which 
 
 Aspire enables you to resolve these challenges using volumes, bind mounts, and a few configurations to seed data effectively.
 
-> [!TIP]
-> Container hosts like Docker and Podman support volumes and bind mounts, both of which provide locations for data that persist when a container restarts. Volumes are the recommended solution, because they offer better performance, portability, and security. The container host creates and remains in control of volumes. Each volume can store data for multiple containers. Bind mounts have relatively limited functionality in comparison but enable you to access the data from the host machine.
+:::tip
+Container hosts like Docker and Podman support volumes and bind mounts, both of which provide locations for data that persist when a container restarts. Volumes are the recommended solution, because they offer better performance, portability, and security. The container host creates and remains in control of volumes. Each volume can store data for multiple containers. Bind mounts have relatively limited functionality in comparison but enable you to access the data from the host machine.
+:::
 
-> [!NOTE]
-> Visit the [Database Container Sample App](https://github.com/microsoft/aspire-samples/blob/main/samples/DatabaseContainers/DatabaseContainers.AppHost/AppHost.cs) to view the full project and file structure for each database option.
+:::note
+Visit the [Database Container Sample App](https://github.com/microsoft/aspire-samples/blob/main/samples/DatabaseContainers/DatabaseContainers.AppHost/AppHost.cs) to view the full project and file structure for each database option.
+:::
 
 ## Seed data using SQL scripts
 
 The recommended method for executing database seeding scripts depends on the database server you use:
 
-<Pivot id="sql-server-ef">
+<Tabs syncKey="efcore-db-provider">
+<TabItem label="SQL Server">
 
 With Aspire, you can use the `WithCreationScript` method to ensure a T-SQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
 
@@ -138,7 +139,7 @@ You must ensure that this script is copied to the AppHost's output directory, so
 
 Adjust the `Include` parameter to match the path to your SQL script in the project.
 
-Next, in the *AppHost.cs* file, create the database and run the creation script:
+Next, in the _AppHost.cs_ file, create the database and run the creation script:
 
 ```csharp title="C# — AppHost.cs"
 var sqlserver = builder.AddSqlServer("sqlserver")
@@ -160,8 +161,8 @@ The preceding code:
 - Obtains the path to the T-SQL script in the output folder.
 - Calls `WithCreationScript()` to create and seed the database.
 
-</Pivot>
-<Pivot id="postgresql-ef">
+</TabItem>
+<TabItem label="PostgreSQL">
 
 With Aspire, you can use the `WithCreationScript()` method in the PostgreSQL integration but, because there is no `USE DATABASE` in PostgreSQL, it only supports operations against the default database. For example, you can issue `CREATE DATABASE` statements to create other databases, but you can't populate them with tables and data. Instead, you must use a bind mount and deploy the setup SQL script to it, so that the data is seeded when the container initializes the database.
 
@@ -187,7 +188,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 ```
 
-In the *AppHost.cs* file, create the database and mount the folder that contains the SQL script as a bind mount:
+In the _AppHost.cs_ file, create the database and mount the folder that contains the SQL script as a bind mount:
 
 ```csharp title="C# — AppHost.cs"
 // PostgreSQL container is configured with an auto-generated password by default
@@ -209,8 +210,8 @@ var postgres = builder.AddPostgres("postgres")
 var todosDb = postgres.AddDatabase(todosDbName);
 ```
 
-</Pivot>
-<Pivot id="mysql-ef">
+</TabItem>
+<TabItem label="Pomelo MySQL">
 
 With Aspire, you can use the `WithCreationScript` method to ensure a MySQL script is run when the database is created. Add SQL code to this script that creates and populates the database, the necessary tables, and other database objects.
 
@@ -266,20 +267,23 @@ The preceding code:
 
 If you run this code, you can use the PHP My Admin resource to check that a table called **catalog** has been created and populated with products.
 
-</Pivot>
+</TabItem>
+</Tabs>
 
 ## Seed data using EF Core
 
 To seed data, call `UseSeeding` or `UseAsyncSeeding` methods to configure database seeding directly during context configuration. This approach is cleaner than manually running migrations during startup and integrates better with EF Core's lifecycle management.
 
-> [!IMPORTANT]
-> These types of configurations should only be done during development, so make sure to add a conditional that checks your current environment context.
+:::caution
+These types of configurations should only be done during development, so make sure to add a conditional that checks your current environment context.
+:::
 
 ### Seed data with UseSeeding and UseAsyncSeeding methods
 
 Add the following code to the `Program.cs` file of your **API Service** project:
 
-<Pivot id="sql-server-ef">
+<Tabs syncKey="efcore-db-provider">
+<TabItem label="SQL Server">
 
 ```csharp title="C# — Program.cs"
 builder.AddSqlServerDbContext<TicketContext>("TicketsDB", 
