@@ -3,9 +3,9 @@ title: Kubernetes integration
 description: Learn how to add Kubernetes deployment support to your Aspire application using the Aspire.Hosting.Kubernetes hosting integration.
 ---
 
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import kubernetesIcon from '@assets/icons/kubernetes.svg';
 
 <Image
@@ -17,21 +17,65 @@ import kubernetesIcon from '@assets/icons/kubernetes.svg';
   data-zoom-off
 />
 
-The Aspire Kubernetes hosting integration enables you to publish and deploy your Aspire application to any Kubernetes cluster. Add a Kubernetes environment to your AppHost, and Aspire generates Helm charts from your application model — or deploys directly to a cluster using your current `kubectl` context.
+This article is the reference for the Aspire Kubernetes hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model Kubernetes environment resources in your [`AppHost`](/get-started/app-host/) project. The integration enables you to publish and deploy your Aspire application to any Kubernetes cluster, generating Helm charts from your application model or deploying directly to a cluster using your current `kubectl` context.
 
-## Hosting integration
+## Installation
 
-To get started with the Aspire Kubernetes hosting integration, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package in the AppHost project:
+To start building an Aspire app with Kubernetes deployment support, install the [📦 Aspire.Hosting.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Kubernetes) NuGet package:
 
-<InstallPackage packageName="Aspire.Hosting.Kubernetes" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Kubernetes@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Kubernetes" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add kubernetes
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Kubernetes hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Kubernetes": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add Kubernetes environment
 
 After installing the package, add a Kubernetes environment to your AppHost:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -40,8 +84,10 @@ var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.Build().Run();
 ```
+
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
+<TabItem id="typescript" label="TypeScript">
+
 ```typescript title="apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
@@ -56,6 +102,7 @@ const api = await builder
 
 await builder.build().run();
 ```
+
 </TabItem>
 </Tabs>
 
@@ -69,9 +116,10 @@ await builder.build().run();
 
 You can configure the generated Helm chart using the `WithHelm` method, which provides a fluent `HelmChartOptions` builder:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
 builder.AddKubernetesEnvironment("k8s")
     .WithHelm(helm =>
     {
@@ -82,8 +130,10 @@ builder.AddKubernetesEnvironment("k8s")
             .WithNamespace("my-namespace");
     });
 ```
+
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
+<TabItem id="typescript" label="TypeScript">
+
 ```typescript title="apphost.ts"
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withHelm(async (helm) => {
@@ -94,6 +144,7 @@ await k8s.withHelm(async (helm) => {
   await helm.withChartDescription('My Aspire application deployed to Kubernetes');
 });
 ```
+
 </TabItem>
 </Tabs>
 
@@ -113,33 +164,38 @@ The `WithHelm` method is the single configuration entry point for Helm chart set
 
 A vanilla Kubernetes cluster doesn't know which container registry to use for your application images. Use `AddContainerRegistry` and `WithContainerRegistry` to specify a registry that is accessible from both your local machine and from the cluster:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
 var registry = builder.AddContainerRegistry("registry", "myregistry.example.com:5000");
 builder.AddKubernetesEnvironment("k8s").WithContainerRegistry(registry);
 ```
+
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
+<TabItem id="typescript" label="TypeScript">
+
 ```typescript title="apphost.ts"
 const registry = await builder.addContainerRegistry('registry', 'myregistry.example.com:5000');
 const k8s = await builder.addKubernetesEnvironment('k8s');
 await k8s.withContainerRegistry(registry);
 ```
+
 </TabItem>
 </Tabs>
 
-:::note
-The container registry APIs are currently in preview. In C#, suppress the `ASPIRECOMPUTE003` diagnostic to use them.
-:::
+<Aside type="note">
+  The container registry APIs are currently in preview. In C#, suppress the `ASPIRECOMPUTE003` diagnostic to use them.
+</Aside>
 
 ## Customize individual resources
 
 Use `PublishAsKubernetesService` to modify the generated Kubernetes resources for individual services:
 
-<Tabs syncKey='aspire-lang'>
-<TabItem id='csharp' label='C#'>
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
 using Aspire.Hosting.Kubernetes.Resources;
 
 builder.AddContainer("service", "nginx")
@@ -152,8 +208,10 @@ builder.AddContainer("service", "nginx")
         }
     });
 ```
+
 </TabItem>
-<TabItem id='typescript' label='TypeScript'>
+<TabItem id="typescript" label="TypeScript">
+
 ```typescript title="apphost.ts"
 const service = await builder.addContainer('service', 'nginx');
 await service.publishAsKubernetesService(async (resource) => {
@@ -161,6 +219,7 @@ await service.publishAsKubernetesService(async (resource) => {
   await resource.workload.spec.replicas.set(3);
 });
 ```
+
 </TabItem>
 </Tabs>
 
