@@ -1,14 +1,11 @@
 ---
 title: Get started with the Meilisearch integrations
-description: Learn how to set up the Aspire Meilisearch hosting and client integrations simply.
+description: Understand why you use the Aspire Meilisearch integrations and how they fit together.
 prev: false
 ---
 
-import { Badge } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside } from '@astrojs/starlight/components';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -22,58 +19,72 @@ import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
   data-zoom-off
 />
 
-[Meilisearch](https://meilisearch.com) is a fast, open-source search engine that makes search and discovery easy. The Aspire Meilisearch integration enables you to connect to existing Meilisearch instances or create new instances from Aspire using the `docker.io/getmeili/meilisearch` container image.
+[Meilisearch](https://www.meilisearch.com/) is a fast, open-source full-text search engine. The Aspire Meilisearch integration lets you model a Meilisearch server as a first-class resource in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire Meilisearch integrations in a simple configuration. If you already have this knowledge, see [Meilisearch hosting integration](/integrations/databases/meilisearch/meilisearch-host/) for full reference details.
+## Why use Meilisearch with Aspire
 
-<Aside type="note">
-  To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Meilisearch through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs Meilisearch from the [`docker.io/getmeili/meilisearch`](https://hub.docker.com/r/getmeili/meilisearch) container image with a master key generated automatically for you.
+- **Consistent connection info across languages.** Once you reference the Meilisearch resource from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when Meilisearch is ready.
+- **Dashboard observability.** The Meilisearch resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `CommunityToolkit.Aspire.Meilisearch` package for dependency injection and health checks, all wired up from the same resource name.
 
-To begin, install the Aspire Meilisearch Hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Meilisearch" />
+The Meilisearch integration has two sides: a **hosting integration** that you use in your AppHost to model the Meilisearch resource, and a **connection story** for consuming apps that reference it.
 
-Next, in the AppHost project, register and consume the Meilisearch integration using the `AddMeilisearch` extension method to add the Meilisearch container to the application builder:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var meilisearch = builder.AddMeilisearch("meilisearch");
+  service hosting(server)[Hosting integration] in apphost
+  service meili(server)[Meilisearch server] in apphost
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(meilisearch);
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-// After adding all resources, run the app...
+  hosting:R --> L:meili
+  meili:R --> L:client
+  client:R --> L:app
 ```
 
-## Set up client integration
+The **hosting integration** lives in your AppHost project and models the Meilisearch server as a resource. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to Meilisearch.
 
-To get started with the Aspire Meilisearch client integration, install the NuGet package in the client-consuming project:
+Getting there is a two-step process: model the Meilisearch resource in your AppHost, then connect to it from each app that needs it.
 
-<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Meilisearch" />
+<Steps>
 
-In the `Program.cs` file of your client-consuming project, call the `AddMeilisearchClient` extension method to register a `MeilisearchClient` for use via the dependency injection container:
+1. ### Model Meilisearch in your AppHost
 
-```csharp
-builder.AddMeilisearchClient(connectionName: "meilisearch");
-```
+    Add the Meilisearch hosting integration to your AppHost, then declare a Meilisearch resource and reference it from the apps that need search capabilities. The [Meilisearch Hosting integration](/integrations/databases/meilisearch/meilisearch-host/) article walks through every capability — data volumes, data bind mounts, and master key parameters.
 
-You can then retrieve the `MeilisearchClient` instance using dependency injection. For example, to retrieve the client from a service:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/meilisearch/meilisearch-host/'>
+        Set up Meilisearch in the AppHost
+    </LinkButton>
 
-```csharp
-public class ExampleService(MeilisearchClient client)
-{
-    // Use client...
-}
-```
+2. ### Connect from your consuming app
 
-For full reference details, see [Meilisearch hosting integration](/integrations/databases/meilisearch/meilisearch-host/) and [Meilisearch client integration](/integrations/databases/meilisearch/meilisearch-client/).
+    When you reference a Meilisearch resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Meilisearch](/integrations/databases/meilisearch/meilisearch-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/meilisearch/meilisearch-connect/'>
+        Connect to Meilisearch
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
-- [Meilisearch](https://meilisearch.com)
-- [Meilisearch Client](https://github.com/meilisearch/meilisearch-dotnet)
+- [Meilisearch documentation](https://www.meilisearch.com/docs)
 - [Aspire Community Toolkit GitHub repo](https://github.com/CommunityToolkit/Aspire)

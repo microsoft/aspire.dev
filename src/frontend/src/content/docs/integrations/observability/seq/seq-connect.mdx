@@ -1,0 +1,320 @@
+---
+title: Connect to Seq
+description: Learn how to connect to Seq from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import seqIcon from '@assets/icons/seq-icon.png';
+
+<Image
+  src={seqIcon}
+  alt="Seq logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a Seq resource that's already modeled in your AppHost. For the AppHost API surface — adding a Seq resource, data volumes, EULA acceptance, and endpoints — see [Seq hosting integration](../seq-host/).
+
+When you reference a Seq resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the `Aspire.Seq` client integration for automatic OpenTelemetry log and trace export.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `seq` becomes `SEQ_URI`.
+
+The Seq resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the Seq server |
+| `Port`        | The port number the Seq server is listening on |
+| `Uri`         | The connection URI, with the format `http://{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: http://localhost:5341
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a Seq resource named `seq` and references it from the consuming app.
+
+<Tabs syncKey="seq-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the `Aspire.Seq` client integration. It registers OpenTelemetry Protocol (OTLP) exporters through dependency injection so that logs and traces are automatically forwarded to Seq. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Seq](https://www.nuget.org/packages/Aspire.Seq) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Seq" />
+
+#### Register the Seq endpoint
+
+In _Program.cs_, call `AddSeqEndpoint` on your `IHostApplicationBuilder` to register OTLP exporters that send logs and traces to Seq:
+
+```csharp title="C# — Program.cs"
+builder.AddSeqEndpoint(connectionName: "seq");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Seq resource name from the AppHost. For more information, see [Add Seq resource](../seq-host/#add-seq-resource).
+</Aside>
+
+#### Configuration
+
+The `Aspire.Seq` client integration offers multiple ways to provide configuration.
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `SeqSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Seq` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Seq": {
+      "DisableHealthChecks": false,
+      "ServerUrl": "http://localhost:5341"
+    }
+  }
+}
+```
+
+**Named configuration.** When connecting to multiple Seq instances, use named keys under `Aspire:Seq`:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Seq": {
+      "seq1": {
+        "ServerUrl": "http://seq1:5341",
+        "DisableHealthChecks": true
+      },
+      "seq2": {
+        "ServerUrl": "http://seq2:5341",
+        "DisableHealthChecks": false
+      }
+    }
+  }
+}
+```
+
+Then register each instance by its connection name:
+
+```csharp title="C# — Program.cs"
+builder.AddSeqEndpoint("seq1");
+builder.AddSeqEndpoint("seq2");
+```
+
+**Inline delegates.** Pass an `Action<SeqSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddSeqEndpoint("seq", static settings =>
+{
+    settings.DisableHealthChecks = true;
+    settings.ServerUrl = "http://localhost:5341";
+});
+```
+
+#### Client integration health checks
+
+By default, Aspire client integrations enable health checks. The `Aspire.Seq` integration adds a health check that attempts to connect to the Seq server's `/health` endpoint when `DisableHealthChecks` is `false`. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+Because Seq is a telemetry **sink**, the `Aspire.Seq` integration does not emit tracing activities or metrics of its own. It configures the following log category:
+
+**Logging** categories:
+
+- `Seq`
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected URI directly from the environment and configure the OpenTelemetry OTLP exporter manually:
+
+```csharp title="C# — Program.cs"
+using OpenTelemetry.Logs;
+using OpenTelemetry.Trace;
+
+var seqUri = Environment.GetEnvironmentVariable("SEQ_URI");
+
+builder.Logging.AddOpenTelemetry(logging =>
+{
+    logging.AddOtlpExporter(otlp => otlp.Endpoint = new Uri($"{seqUri}/ingest/otlp/v1/logs"));
+});
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing.AddOtlpExporter(otlp => otlp.Endpoint = new Uri($"{seqUri}/ingest/otlp/v1/traces"));
+    });
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [OpenTelemetry Go SDK](https://github.com/open-telemetry/opentelemetry-go) with an OTLP HTTP exporter to send logs and traces to Seq:
+
+```bash title="Terminal"
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk/trace
+```
+
+Read the injected environment variable and configure the exporter:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+    "go.opentelemetry.io/otel/sdk/trace"
+)
+
+func main() {
+    // Read the Aspire-injected Seq URI
+    seqUri := os.Getenv("SEQ_URI")
+
+    exporter, err := otlptracehttp.New(context.Background(),
+        otlptracehttp.WithEndpointURL(fmt.Sprintf("%s/ingest/otlp/v1/traces", seqUri)),
+        otlptracehttp.WithInsecure(),
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    tp := trace.NewTracerProvider(trace.WithBatcher(exporter))
+    defer tp.Shutdown(context.Background())
+
+    // Use tp as your global TracerProvider...
+}
+```
+
+<Aside type="note">
+    Seq accepts OTLP over HTTP. Use the `/ingest/otlp/v1/traces` and `/ingest/otlp/v1/logs` paths on the Seq URI.
+</Aside>
+
+</TabItem>
+<TabItem label="Python">
+
+Use the [OpenTelemetry Python SDK](https://github.com/open-telemetry/opentelemetry-python) with an OTLP exporter to send telemetry to Seq:
+
+```bash title="Terminal"
+pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+```
+
+Read the injected environment variable and configure the exporter:
+
+```python title="Python — app.py"
+import os
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+# Read the Aspire-injected Seq URI
+seq_uri = os.getenv("SEQ_URI")
+
+exporter = OTLPSpanExporter(
+    endpoint=f"{seq_uri}/ingest/otlp/v1/traces",
+)
+
+provider = TracerProvider()
+provider.add_span_processor(BatchSpanProcessor(exporter))
+trace.set_tracer_provider(provider)
+
+# Use trace.get_tracer(__name__) to create spans...
+```
+
+Alternatively, install `seqlog` to send structured log events directly to Seq via its native JSON ingestion endpoint:
+
+```bash title="Terminal"
+pip install seqlog
+```
+
+```python title="Python — app.py"
+import os
+import logging
+import seqlog
+
+seq_uri = os.getenv("SEQ_URI")
+
+seqlog.log_to_seq(
+    server_url=seq_uri,
+    level=logging.INFO,
+    batch_size=10,
+    auto_flush_timeout=2,
+)
+
+logging.info("Hello from Python via Seq!")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Use the [OpenTelemetry JS SDK](https://github.com/open-telemetry/opentelemetry-js) with an OTLP HTTP exporter to send telemetry to Seq:
+
+```bash title="Terminal"
+npm install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-http @opentelemetry/exporter-logs-otlp-http
+```
+
+Read the injected environment variable and configure the exporters:
+
+```typescript title="TypeScript — tracing.ts"
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+
+// Read the Aspire-injected Seq URI
+const seqUri = process.env.SEQ_URI!;
+
+const sdk = new NodeSDK({
+    traceExporter: new OTLPTraceExporter({
+        url: `${seqUri}/ingest/otlp/v1/traces`,
+    }),
+    logRecordProcessor: new (await import('@opentelemetry/sdk-logs')).BatchLogRecordProcessor(
+        new OTLPLogExporter({ url: `${seqUri}/ingest/otlp/v1/logs` })
+    ),
+});
+
+sdk.start();
+```
+
+Alternatively, use the [`seq-logging`](https://github.com/datalust/seq-logging) package to send structured log events to Seq via its native HTTP API:
+
+```bash title="Terminal"
+npm install seq-logging
+```
+
+```typescript title="TypeScript — index.ts"
+import * as seq from 'seq-logging';
+
+// Read the Aspire-injected Seq URI
+const seqUri = process.env.SEQ_URI!;
+
+const logger = new seq.Logger({ serverUrl: seqUri });
+
+logger.emit({
+    timestamp: new Date(),
+    level: 'Information',
+    messageTemplate: 'Hello from {Language}!',
+    properties: { Language: 'TypeScript' },
+});
+
+await logger.close();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment` (C#) or `withEnvironment` (TypeScript). See [Pass custom environment variables](../seq-host/) in the hosting integration reference.
+</Aside>

@@ -1,0 +1,391 @@
+---
+title: Connect to Azure AI Search
+description: Learn how to connect to Azure AI Search from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import searchIcon from '@assets/icons/azure-search-icon.png';
+
+<Image
+  src={searchIcon}
+  alt="Azure AI Search logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure AI Search resource that's already modeled in your AppHost. For the AppHost API surface — adding a search resource, connecting to existing services, customizing provisioning, and more — see [Azure AI Search Hosting integration](../azure-ai-search-host/).
+
+When you reference an Azure AI Search resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure AI Search client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `search` becomes `SEARCH_ENDPOINT`.
+
+The Azure AI Search resource exposes the following connection properties:
+
+| Property Name | Description                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| `Endpoint`    | The HTTPS endpoint of the Azure AI Search service: `https://{name}.search.windows.net`       |
+| `ApiKey`      | The admin API key (only available when using key-based connection strings, not role-based auth) |
+
+**Example connection string (role-based access, default):**
+
+```
+Endpoint=https://mysearch.search.windows.net
+```
+
+**Example connection string (key-based access):**
+
+```
+Endpoint=https://mysearch.search.windows.net;Key={account_key}
+```
+
+<Aside type="note">
+    By default, Azure AI Search resources are provisioned with `disableLocalAuth: true`, which uses role-based access via managed identity rather than API keys. The `ApiKey` property is only available when you provide a key-based connection string.
+</Aside>
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure AI Search resource named `search` and references it from the consuming app.
+
+<Tabs syncKey="azure-ai-search-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure AI Search client integration. It registers a [`SearchIndexClient`](https://learn.microsoft.com/dotnet/api/azure.search.documents.indexes.searchindexclient) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.Search.Documents](https://www.nuget.org/packages/Aspire.Azure.Search.Documents) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Search.Documents" />
+
+#### Add the Azure Search index client
+
+In _Program.cs_, call `AddAzureSearchClient` on your `IHostApplicationBuilder` to register a `SearchIndexClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureSearchClient(connectionName: "search");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure AI Search resource name from the AppHost. For more information, see [Add Azure AI Search resource](../azure-ai-search-host/#add-azure-ai-search-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SearchIndexClient indexClient)
+{
+    // Use indexClient...
+}
+```
+
+You can also retrieve a `SearchClient` for querying by calling `GetSearchClient` on the injected `SearchIndexClient`:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SearchIndexClient indexClient)
+{
+    public async Task<long> GetDocumentCountAsync(
+        string indexName,
+        CancellationToken cancellationToken)
+    {
+        var searchClient = indexClient.GetSearchClient(indexName);
+
+        var documentCountResponse = await searchClient.GetDocumentCountAsync(
+            cancellationToken);
+
+        return documentCountResponse.Value;
+    }
+}
+```
+
+#### Add keyed Azure Search index clients
+
+To register multiple `SearchIndexClient` instances with different connection names, use `AddKeyedAzureSearchClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureSearchClient(name: "catalog");
+builder.AddKeyedAzureSearchClient(name: "documents");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("catalog")] SearchIndexClient catalogClient,
+    [FromKeyedServices("documents")] SearchIndexClient documentsClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Azure AI Search client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureSearchClient`.
+
+For role-based access (recommended), provide just the endpoint URL:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "search": "https://mysearch.search.windows.net/"
+  }
+}
+```
+
+For key-based access, provide the full connection string:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "search": "Endpoint=https://mysearch.search.windows.net/;Key={account_key};"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureSearchSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Azure:Search:Documents` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Search": {
+        "Documents": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete Azure AI Search Documents client integration JSON schema, see [Aspire.Azure.Search.Documents/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/main/src/Components/Aspire.Azure.Search.Documents/ConfigurationSchema.json).
+
+**Named configuration.** To configure multiple instances, use the connection name as a key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Search": {
+        "Documents": {
+          "search1": {
+            "Endpoint": "https://mysearch1.search.windows.net/",
+            "DisableTracing": false
+          },
+          "search2": {
+            "Endpoint": "https://mysearch2.search.windows.net/",
+            "DisableTracing": true
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Named configuration takes precedence over top-level configuration when both are provided.
+
+**Inline delegates.** Pass an `Action<AzureSearchSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureSearchClient(
+    "search",
+    static settings => settings.DisableTracing = true);
+```
+
+You can also configure the `SearchClientOptions` using the `configureClientBuilder` parameter:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureSearchClient(
+    "search",
+    configureClientBuilder: builder => builder.ConfigureOptions(
+        static options => options.Diagnostics.ApplicationId = "CLIENT_ID"));
+```
+
+#### Client integration health checks
+
+The Azure AI Search client integration adds a health check that calls `GetServiceStatisticsAsync` on the `SearchIndexClient` to verify that the service is available. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Azure AI Search client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+
+**Tracing** activities:
+
+- The integration emits tracing activities using OpenTelemetry when interacting with the search service.
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected endpoint from the environment and use the [📦 Azure.Search.Documents](https://www.nuget.org/packages/Azure.Search.Documents/) package directly with `DefaultAzureCredential`:
+
+```csharp title="C# — Program.cs"
+using Azure;
+using Azure.Identity;
+using Azure.Search.Documents.Indexes;
+
+var endpoint = new Uri(Environment.GetEnvironmentVariable("SEARCH_ENDPOINT")!);
+
+// Use DefaultAzureCredential for role-based access (recommended)
+var indexClient = new SearchIndexClient(endpoint, new DefaultAzureCredential());
+
+// Use AzureKeyCredential for key-based access
+// var apiKey = Environment.GetEnvironmentVariable("SEARCH_APIKEY");
+// var indexClient = new SearchIndexClient(endpoint, new AzureKeyCredential(apiKey!));
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [`azure-sdk-for-go`](https://github.com/Azure/azure-sdk-for-go) package for Azure AI Search:
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/search/azsearch
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/search/azsearch"
+)
+
+func main() {
+    // Read the Aspire-injected endpoint
+    endpoint := os.Getenv("SEARCH_ENDPOINT")
+
+    // Use DefaultAzureCredential for role-based access (recommended)
+    cred, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := azsearch.NewIndexesClient(endpoint, cred, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    _ = client
+}
+```
+
+For key-based access, use `azsearch.NewIndexesClientWithKey`:
+
+```go title="Go — main.go (key-based)"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/search/azsearch"
+)
+
+func main() {
+    endpoint := os.Getenv("SEARCH_ENDPOINT")
+    apiKey := os.Getenv("SEARCH_APIKEY")
+
+    client, err := azsearch.NewIndexesClientWithKey(endpoint, apiKey, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    _ = client
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [azure-search-documents](https://pypi.org/project/azure-search-documents/) package:
+
+```bash title="Terminal"
+pip install azure-search-documents azure-identity
+```
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import os
+from azure.identity import DefaultAzureCredential
+from azure.search.documents.indexes import SearchIndexClient
+
+# Read the Aspire-injected endpoint
+endpoint = os.getenv("SEARCH_ENDPOINT")
+
+# Use DefaultAzureCredential for role-based access (recommended)
+credential = DefaultAzureCredential()
+client = SearchIndexClient(endpoint=endpoint, credential=credential)
+```
+
+For key-based access, use `AzureKeyCredential`:
+
+```python title="Python — app.py (key-based)"
+import os
+from azure.core.credentials import AzureKeyCredential
+from azure.search.documents.indexes import SearchIndexClient
+
+endpoint = os.getenv("SEARCH_ENDPOINT")
+api_key = os.getenv("SEARCH_APIKEY")
+
+client = SearchIndexClient(endpoint=endpoint, credential=AzureKeyCredential(api_key))
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [`@azure/search-documents`](https://www.npmjs.com/package/@azure/search-documents) package:
+
+```bash title="Terminal"
+npm install @azure/search-documents @azure/identity
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { SearchIndexClient } from '@azure/search-documents';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read Aspire-injected connection properties
+const endpoint = process.env.SEARCH_ENDPOINT!;
+
+// Use DefaultAzureCredential for role-based access (recommended)
+const client = new SearchIndexClient(endpoint, new DefaultAzureCredential());
+```
+
+For key-based access, use `AzureKeyCredential`:
+
+```typescript title="TypeScript — index.ts (key-based)"
+import { SearchIndexClient, AzureKeyCredential } from '@azure/search-documents';
+
+const endpoint = process.env.SEARCH_ENDPOINT!;
+const apiKey = process.env.SEARCH_APIKEY!;
+
+const client = new SearchIndexClient(endpoint, new AzureKeyCredential(apiKey));
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    For role-based access to work in local development, ensure that your local Azure identity (the account you're signed in to with the Azure CLI or Azure Developer CLI) has the required roles assigned on the Azure AI Search service. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>

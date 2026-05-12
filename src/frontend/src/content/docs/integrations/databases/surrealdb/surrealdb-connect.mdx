@@ -1,0 +1,291 @@
+---
+title: Connect to SurrealDB
+description: Learn how to connect to SurrealDB from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import surrealdbIcon from '@assets/icons/surrealdb-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={surrealdbIcon}
+  alt="SurrealDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a SurrealDB resource that's already modeled in your AppHost. For the AppHost API surface — adding a SurrealDB server, namespace, database, Surrealist, data bind mounts, and more — see [SurrealDB Hosting integration](../surrealdb-host/).
+
+When you reference a SurrealDB resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire SurrealDB client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `db` becomes `DB_ENDPOINT`.
+
+The SurrealDB database resource exposes the following connection properties:
+
+| Property Name      | Description |
+| ------------------ | ----------- |
+| `Host`             | The hostname or IP address of the SurrealDB server |
+| `Port`             | The HTTP/WebSocket port the SurrealDB server is listening on (default: `8000`) |
+| `Username`         | The username for authentication |
+| `Password`         | The password for authentication |
+| `Namespace`        | The SurrealDB namespace name |
+| `Database`         | The database name |
+| `Endpoint`         | The full WebSocket endpoint URL, with the format `ws://{Host}:{Port}/` |
+| `ConnectionString` | The full connection string, with the format `Endpoint=ws://{Host}:{Port}/;Namespace={Namespace};Database={Database};Username={Username};Password={Password}` |
+
+**Example connection string:**
+
+```
+ConnectionString: Endpoint=ws://localhost:8000/;Namespace=ns;Database=db;Username=root;Password=p%40ssw0rd1
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a SurrealDB server, namespace, and database resource with the database named `db` and references it from the consuming app.
+
+<Tabs syncKey="surrealdb-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire SurrealDB client integration. It registers a [`SurrealDbClient`](https://github.com/surrealdb/surrealdb.net) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 CommunityToolkit.Aspire.SurrealDb](https://nuget.org/packages/CommunityToolkit.Aspire.SurrealDb) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.SurrealDb" />
+
+#### Add the SurrealDB client
+
+In _Program.cs_, call `AddSurrealClient` on your `IHostApplicationBuilder` to register a `SurrealDbClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddSurrealClient(connectionName: "db");
+```
+
+<Aside type="tip">
+The `connectionName` must match the SurrealDB database resource name from the AppHost. For more information, see [Add SurrealDB resource](../surrealdb-host/#add-surrealdb-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SurrealDbClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed SurrealDB clients
+
+To register multiple `SurrealDbClient` instances with different connection names, use `AddKeyedSurrealClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedSurrealClient(name: "products");
+builder.AddKeyedSurrealClient(name: "orders");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("products")] SurrealDbClient productsClient,
+    [FromKeyedServices("orders")] SurrealDbClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire SurrealDB client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddSurrealClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddSurrealClient("db");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "db": "Endpoint=ws://localhost:8000/;Namespace=ns;Database=db;Username=root;Password=s3cr3t"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads settings from _appsettings.json_ (or any other configuration source) by using the `Aspire:Surreal:Client` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Surreal": {
+      "Client": {
+        "Endpoint": "ws://localhost:8000/",
+        "Namespace": "ns",
+        "Database": "db",
+        "Username": "root",
+        "Password": "s3cr3t"
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an action to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddSurrealClient(
+    "db",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The SurrealDB client integration adds a health check that verifies the SurrealDB instance is reachable and can execute queries. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and use the [📦 SurrealDB.Net](https://www.nuget.org/packages/SurrealDb.Net/) NuGet package to construct a client directly:
+
+```csharp title="C# — Program.cs"
+using SurrealDb.Net;
+
+var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTIONSTRING");
+
+var client = new SurrealDbClient(connectionString!);
+await client.Connect();
+
+// Use client to query the database...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the official SurrealDB Go driver:
+
+```bash title="Terminal"
+go get github.com/surrealdb/surrealdb.go
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "fmt"
+    "os"
+    surrealdb "github.com/surrealdb/surrealdb.go"
+)
+
+func main() {
+    // Read the Aspire-injected connection properties
+    endpoint := os.Getenv("DB_ENDPOINT")
+    namespace := os.Getenv("DB_NAMESPACE")
+    database  := os.Getenv("DB_DATABASE")
+    username  := os.Getenv("DB_USERNAME")
+    password  := os.Getenv("DB_PASSWORD")
+
+    db, err := surrealdb.New(endpoint)
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    if _, err = db.SignIn(&surrealdb.Auth{
+        Namespace: namespace,
+        Database:  database,
+        Username:  username,
+        Password:  password,
+    }); err != nil {
+        panic(err)
+    }
+
+    fmt.Println("Connected to SurrealDB")
+    // Use db to query the database...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the official SurrealDB Python package:
+
+```bash title="Terminal"
+pip install surrealdb
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+import asyncio
+from surrealdb import AsyncSurrealDB
+
+async def main():
+    # Read the Aspire-injected connection properties
+    endpoint  = os.getenv("DB_ENDPOINT")
+    namespace = os.getenv("DB_NAMESPACE")
+    database  = os.getenv("DB_DATABASE")
+    username  = os.getenv("DB_USERNAME")
+    password  = os.getenv("DB_PASSWORD")
+
+    async with AsyncSurrealDB(url=endpoint) as db:
+        await db.signin({"username": username, "password": password})
+        await db.use(namespace, database)
+
+        # Use db to query the database...
+
+asyncio.run(main())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the official SurrealDB JavaScript/TypeScript package:
+
+```bash title="Terminal"
+npm install surrealdb
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import Surreal from 'surrealdb';
+
+// Read Aspire-injected connection properties
+const endpoint  = process.env.DB_ENDPOINT!;
+const namespace = process.env.DB_NAMESPACE!;
+const database  = process.env.DB_DATABASE!;
+const username  = process.env.DB_USERNAME!;
+const password  = process.env.DB_PASSWORD!;
+
+const db = new Surreal();
+
+await db.connect(endpoint);
+
+await db.signin({ username, password });
+await db.use({ namespace, database });
+
+// Use db to query the database...
+
+await db.close();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See the Aspire AppHost documentation for details.
+</Aside>

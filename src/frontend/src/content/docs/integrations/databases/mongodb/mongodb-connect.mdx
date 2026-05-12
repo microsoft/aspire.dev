@@ -1,0 +1,387 @@
+---
+title: Connect to MongoDB
+description: Learn how to connect to MongoDB from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import mongodbIcon from '@assets/icons/mongodb-icon.png';
+
+<Image
+  src={mongodbIcon}
+  alt="MongoDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a MongoDB resource that is already modeled in your AppHost. For the AppHost API surface — adding a MongoDB server, databases, Mongo Express, volumes, and more — see [MongoDB Hosting integration](../mongodb-host/).
+
+When you reference a MongoDB resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire MongoDB client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `mongodb` becomes `MONGODB_URI`.
+
+### MongoDB server
+
+The MongoDB server resource exposes the following connection properties:
+
+| Property Name              | Description |
+| -------------------------- | ----------- |
+| `Host`                     | The hostname or IP address of the MongoDB server |
+| `Port`                     | The port number the MongoDB server is listening on |
+| `Username`                 | The username for authentication |
+| `Password`                 | The password for authentication |
+| `AuthenticationDatabase`   | The authentication database (when credentials are configured) |
+| `AuthenticationMechanism`  | The authentication mechanism (when credentials are configured) |
+| `Uri`                      | The connection URI, with the format `mongodb://{Username}:{Password}@{Host}:{Port}/?authSource={AuthenticationDatabase}&authMechanism={AuthenticationMechanism}` |
+
+**Example connection string:**
+
+```
+Uri: mongodb://admin:p%40ssw0rd1@localhost:27017/?authSource=admin&authMechanism=SCRAM-SHA-256
+```
+
+### MongoDB database
+
+The MongoDB database resource inherits all properties from its parent server resource and adds:
+
+| Property Name  | Description |
+| -------------- | ----------- |
+| `DatabaseName` | The MongoDB database name |
+
+**Example:**
+
+```
+Uri: mongodb://admin:p%40ssw0rd1@localhost:27017/?authSource=admin&authMechanism=SCRAM-SHA-256
+DatabaseName: mongodb
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a MongoDB server resource named `mongo` with a database named `mongodb` and references it from the consuming app.
+
+<Tabs syncKey="mongodb-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire MongoDB client integration. It registers an `IMongoClient` (and optionally an `IMongoDatabase`) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+The `Aspire.MongoDB.Driver` NuGet package depends on the `MongoDB.Driver` NuGet package. With the release of version 3.0.0 of `MongoDB.Driver`, a binary breaking change was introduced.
+
+- **`Aspire.MongoDB.Driver`** — depends on `MongoDB.Driver` 2.x. Install this for projects using the MongoDB .NET driver version 2.
+- **`Aspire.MongoDB.Driver.v3`** — depends on `MongoDB.Driver` 3.x. Install this for projects using the MongoDB .NET driver version 3.
+
+:::danger
+In a future version of Aspire, the `Aspire.MongoDB.Driver` package will be updated to reference `MongoDB.Driver` 3.x and `Aspire.MongoDB.Driver.v3` will be deprecated. For more information, see [Upgrade to version 3.0](https://www.mongodb.com/docs/drivers/csharp/v3.0/upgrade/v3/).
+:::
+
+Install the package that matches your `MongoDB.Driver` version:
+
+<InstallDotNetPackage packageName="Aspire.MongoDB.Driver" />
+
+or
+
+<InstallDotNetPackage packageName="Aspire.MongoDB.Driver.v3" />
+
+#### Add the MongoDB client
+
+In _Program.cs_, call `AddMongoDBClient` on your `IHostApplicationBuilder` to register an `IMongoClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDBClient(connectionName: "mongodb");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the MongoDB database resource name from the AppHost. For more information, see [Add MongoDB server resource](../mongodb-host/#add-mongodb-server-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IMongoClient client)
+{
+    // Use client...
+}
+```
+
+When you define a MongoDB database resource in your AppHost, you can instead require an `IMongoDatabase` instance:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IMongoDatabase database)
+{
+    // Use database...
+}
+```
+
+#### Add keyed MongoDB clients
+
+To register multiple `IMongoDatabase` instances with different connection names, use `AddKeyedMongoDBClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedMongoDBClient(name: "mainDb");
+builder.AddKeyedMongoDBClient(name: "loggingDb");
+```
+
+<Aside type="danger">
+When using keyed services, it's expected that your MongoDB resource configured two named databases, one for `mainDb` and one for `loggingDb`.
+</Aside>
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("mainDb")] IMongoDatabase mainDatabase,
+    [FromKeyedServices("loggingDb")] IMongoDatabase loggingDatabase)
+{
+    // Use databases...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire MongoDB client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddMongoDBClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDBClient("mongodb");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "mongodb": "mongodb://server:port/test"
+  }
+}
+```
+
+MongoDB Atlas connection strings are also supported:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "mongodb": "mongodb+srv://username:password@server.mongodb.net/"
+  }
+}
+```
+
+For more information, see [MongoDB: ConnectionString documentation](https://www.mongodb.com/docs/v3.0/reference/connection-string).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MongoDBSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:MongoDB:Driver` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "MongoDB": {
+      "Driver": {
+        "ConnectionString": "mongodb://server:port/test",
+        "DisableHealthChecks": false,
+        "HealthCheckTimeout": 10000,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+Named configuration is also supported, which allows you to configure multiple instances with different settings:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "MongoDB": {
+      "Driver": {
+        "mongo1": {
+          "ConnectionString": "mongodb://server1:port/test",
+          "DisableHealthChecks": false,
+          "HealthCheckTimeout": 10000
+        },
+        "mongo2": {
+          "ConnectionString": "mongodb://server2:port/test",
+          "DisableTracing": true,
+          "HealthCheckTimeout": 5000
+        }
+      }
+    }
+  }
+}
+```
+
+Named configuration takes precedence over top-level configuration.
+
+**Inline delegates.** Pass an `Action<MongoDBSettings>` delegate to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddMongoDBClient(
+    "mongodb",
+    static settings => settings.ConnectionString = "mongodb://server:port/test");
+```
+
+**Configuration options:**
+
+| Name                  | Description |
+| --------------------- | ----------- |
+| `ConnectionString`    | The connection string of the MongoDB database to connect to |
+| `DisableHealthChecks` | Whether the database health check is disabled |
+| `HealthCheckTimeout`  | The MongoDB health check timeout in milliseconds (`int?`) |
+| `DisableTracing`      | Whether OpenTelemetry tracing is disabled |
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The MongoDB client integration adds:
+
+- A health check that verifies that a connection can be made and commands can be run against the MongoDB database.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire MongoDB client integration automatically configures logging and tracing through OpenTelemetry. Metrics are not currently exposed.
+
+**Logging** categories:
+
+- `MongoDB[.*]`
+
+**Tracing** activities:
+
+- `MongoDB.Driver.Core.Extensions.DiagnosticSources`
+
+**Metrics:** The Aspire MongoDB client integration doesn't currently expose any OpenTelemetry metrics.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 MongoDB.Driver](https://www.nuget.org/packages/MongoDB.Driver/) NuGet package directly:
+
+```csharp title="C# — Program.cs"
+using MongoDB.Driver;
+
+var connectionUri = Environment.GetEnvironmentVariable("MONGODB_URI");
+
+var client = new MongoClient(connectionUri);
+var database = client.GetDatabase(
+    Environment.GetEnvironmentVariable("MONGODB_DATABASENAME"));
+
+// Use database to query MongoDB...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the official MongoDB Go driver:
+
+```bash title="Terminal"
+go get go.mongodb.org/mongo-driver/v2/mongo
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+    "go.mongodb.org/mongo-driver/v2/mongo"
+    "go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    connStr := os.Getenv("MONGODB_URI")
+
+    client, err := mongo.Connect(options.Client().ApplyURI(connStr))
+    if err != nil {
+        panic(err)
+    }
+    defer client.Disconnect(context.Background())
+
+    db := client.Database(os.Getenv("MONGODB_DATABASENAME"))
+    _ = db
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the official MongoDB Python driver:
+
+```bash title="Terminal"
+pip install pymongo
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+from pymongo import MongoClient
+
+# Read the Aspire-injected connection URI
+connection_uri = os.getenv("ConnectionStrings__mongodb")
+database_name = os.getenv("MONGODB_DATABASENAME")
+
+client = MongoClient(connection_uri)
+db = client[database_name]
+
+# Use db to query MongoDB...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the MongoDB Node.js driver:
+
+```bash title="Terminal"
+npm install mongodb
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { MongoClient } from 'mongodb';
+
+// Read the Aspire-injected connection URI
+const connectionUri = process.env.ConnectionStrings__mongodb!;
+const databaseName = process.env.MONGODB_DATABASENAME!;
+
+const client = new MongoClient(connectionUri);
+await client.connect();
+
+const db = client.db(databaseName);
+
+// Use db to query MongoDB...
+await client.close();
+```
+
+Or connect using individual properties:
+
+```typescript title="TypeScript — Connect with properties"
+const client = new MongoClient(
+    `mongodb://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}` +
+    `@${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}/` +
+    `?authSource=${process.env.MONGODB_AUTHENTICATIONDATABASE}` +
+    `&authMechanism=${process.env.MONGODB_AUTHENTICATIONMECHANISM}`
+);
+await client.connect();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Pass custom environment variables](../mongodb-host/#pass-custom-environment-variables) in the Hosting integration reference.
+</Aside>
+
+## See also
+
+- [MongoDB](https://www.mongodb.com/)
+- [MongoDB Atlas](https://mdb.link/atlas)
+- [MongoDB documentation](https://www.mongodb.com/docs/)
+- [Aspire integrations](/integrations/overview/)

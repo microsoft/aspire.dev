@@ -1,0 +1,233 @@
+---
+title: Connect to Redis distributed caching
+description: Learn how to register IDistributedCache backed by Redis in a consuming C# app using the Aspire.StackExchange.Redis.DistributedCaching client integration.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import redisIcon from '@assets/icons/redis-icon.png';
+
+<Image
+  src={redisIcon}
+  alt="Redis logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming C# apps connect to a Redis resource that's already modeled in the AppHost and register `IDistributedCache` using the `Aspire.StackExchange.Redis.DistributedCaching` client integration. For the AppHost API — adding the Redis resource, data volumes, persistence, and more — see [Set up Redis distributed caching in the AppHost](../redis-distributed-host/).
+
+`IDistributedCache` is a C# / ASP.NET Core abstraction. TypeScript, Go, and Python consumers don't have an equivalent; they should connect to Redis directly using the [Redis client integration](/integrations/caching/redis/redis-client/) instead.
+
+## Connection properties
+
+When you reference a Redis resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables named `[RESOURCE]_[PROPERTY]`. For a resource called `cache`, the following properties are available:
+
+| Property Name | Environment variable | Description |
+| ------------- | -------------------- | ----------- |
+| `Host`        | `CACHE_HOST`         | The hostname or IP address of the Redis server |
+| `Port`        | `CACHE_PORT`         | The port number the Redis server is listening on |
+| `Password`    | `CACHE_PASSWORD`     | The password for authentication |
+| `Uri`         | `CACHE_URI`          | The full connection URI: `redis://:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+CACHE_URI=redis://:p%40ssw0rd1@localhost:6379
+```
+
+The `Aspire.StackExchange.Redis.DistributedCaching` client integration reads these values automatically; you don't need to read environment variables directly.
+
+## Connect from your app
+
+`IDistributedCache` is a C# / ASP.NET Core abstraction — only the C# client integration is shown here. TypeScript, Go, and Python apps should connect to the same Redis resource directly with the [Redis client integration](/integrations/caching/redis/redis-client/) instead.
+
+<Tabs syncKey="redis-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
+
+Install the [📦 Aspire.StackExchange.Redis.DistributedCaching](https://www.nuget.org/packages/Aspire.StackExchange.Redis.DistributedCaching) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.StackExchange.Redis.DistributedCaching" />
+
+#### Add Redis distributed cache
+
+In _Program.cs_, call `AddRedisDistributedCache` on your `IHostApplicationBuilder` to register an `IDistributedCache` backed by Redis:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisDistributedCache(connectionName: "cache");
+```
+
+<Aside type="tip">
+  The `connectionName` must match the Redis resource name from the AppHost. For more information, see [Add Redis resource](../redis-distributed-host/#add-redis-resource).
+</Aside>
+
+Resolve `IDistributedCache` through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IDistributedCache cache)
+{
+    // Use cache...
+}
+```
+
+#### Add keyed Redis distributed cache
+
+`IDistributedCache` is registered as a singleton, so only one instance can be registered in the normal DI container. If you need multiple Redis-backed `IDistributedCache` instances alongside an `IConnectionMultiplexer`, use `AddKeyedRedisDistributedCache`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedRedisClient(name: "chat");
+builder.AddKeyedRedisDistributedCache(name: "product");
+```
+
+Resolve the instances separately:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] IConnectionMultiplexer chatConnectionMux,
+    IDistributedCache productCache)
+{
+    // chatConnectionMux — direct multiplexer for the "chat" Redis instance
+    // productCache — IDistributedCache backed by the "product" Redis instance
+}
+```
+
+#### Configuration
+
+The client integration supports three configuration approaches that can be combined.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRedisDistributedCache`:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisDistributedCache("cache");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "cache": "localhost:6379"
+  }
+}
+```
+
+For more information, see [Stack Exchange Redis configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html#basic-configuration-strings).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `StackExchangeRedisSettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:StackExchange:Redis:DistributedCaching` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "DistributedCaching": {
+          "ConnectionString": "localhost:6379",
+          "DisableHealthChecks": false,
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<StackExchangeRedisSettings>` to configure settings inline, for example to disable tracing:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisDistributedCache(
+    "cache",
+    static settings => settings.DisableTracing = true);
+```
+
+To configure the underlying [ConfigurationOptions](https://stackexchange.github.io/StackExchange.Redis/Configuration.html#configuration-options), pass a second delegate:
+
+```csharp title="C# — Program.cs"
+builder.AddRedisDistributedCache(
+    "cache",
+    null,
+    static options => options.ConnectTimeout = 3_000);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Redis distributed caching client integration adds a health check that verifies the Redis instance is reachable and can execute commands. The health check is wired into the `/health` HTTP endpoint — all registered checks must pass before the app is considered ready to accept traffic.
+
+Disable health checks via configuration:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "StackExchange": {
+      "Redis": {
+        "DistributedCaching": {
+          "DisableHealthChecks": true
+        }
+      }
+    }
+  }
+}
+```
+
+#### Observability and telemetry
+
+The client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Aspire.StackExchange.Redis`
+
+**Tracing** activities:
+
+- `OpenTelemetry.Instrumentation.StackExchangeRedis`
+
+**Metrics** are emitted through OpenTelemetry. Any telemetry feature can be disabled through the configuration options above.
+
+#### Use the client
+
+Inject `IDistributedCache` wherever you need it and use the standard ASP.NET Core caching API:
+
+```csharp title="C# — ExampleService.cs"
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text;
+
+public class ExampleService(IDistributedCache cache)
+{
+    public async Task SetAsync(string key, string value, CancellationToken ct = default)
+    {
+        var bytes = Encoding.UTF8.GetBytes(value);
+        await cache.SetAsync(key, bytes, new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+        }, ct);
+    }
+
+    public async Task<string?> GetAsync(string key, CancellationToken ct = default)
+    {
+        var bytes = await cache.GetAsync(key, ct);
+        return bytes is null ? null : Encoding.UTF8.GetString(bytes);
+    }
+}
+```
+
+`IDistributedCache` also integrates transparently with ASP.NET Core [session state](https://learn.microsoft.com/aspnet/core/fundamentals/app-state), [output caching](https://learn.microsoft.com/aspnet/core/performance/caching/output), and [Data Protection](https://learn.microsoft.com/aspnet/core/security/data-protection/introduction).
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  This integration is C#-only. TypeScript, Go, and Python apps don't have an `IDistributedCache` equivalent — connect to the same Redis resource directly using the [Redis client integration](/integrations/caching/redis/redis-client/) instead.
+</Aside>
+
+:::tip[Registered trademark]{icon="information"}
+
+<span id="registered-trademark"></span>
+Redis is a registered trademark of Redis Ltd. Any rights therein are reserved to
+Redis Ltd. Any use by Microsoft is for referential purposes only and does not
+indicate any sponsorship, endorsement or affiliation between Redis and
+Microsoft.
+
+:::

@@ -1,11 +1,11 @@
 ---
-title: Qdrant Hosting integration reference
-description: Learn how to use the Aspire Qdrant Hosting integration to orchestrate and configure Qdrant vector databases in your Aspire projects.
+title: Set up Qdrant in the AppHost
+description: Learn how to use the Aspire Qdrant Hosting integration to orchestrate and configure a Qdrant vector database in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import qdrantIcon from '@assets/icons/qdrant-icon.svg';
 
 <Image
@@ -17,65 +17,156 @@ import qdrantIcon from '@assets/icons/qdrant-icon.svg';
   data-zoom-off
 />
 
-To get started with the Aspire Qdrant integrations, follow the [Get started with Qdrant integrations](../qdrant-get-started/) guide.
+This article is the reference for the Aspire Qdrant Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model a Qdrant resource in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details about the Aspire Qdrant Hosting integration, which models Qdrant server resources as the `QdrantServerResource` type.
+If you're new to the Qdrant integration, start with the [Get started with Qdrant integrations](/integrations/databases/qdrant/qdrant-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Qdrant](../qdrant-connect/).
 
 ## Installation
 
-The Aspire Qdrant hosting integration models the Qdrant vector database server as the `QdrantServerResource` type.
+To start building an Aspire app that uses Qdrant, install the [📦 Aspire.Hosting.Qdrant](https://www.nuget.org/packages/Aspire.Hosting.Qdrant) NuGet package:
 
-To access these types and APIs for expressing them as resources in your AppHost project, install the [📦 Aspire.Hosting.Qdrant](https://www.nuget.org/packages/Aspire.Hosting.Qdrant) NuGet package:
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-<InstallPackage packageName="Aspire.Hosting.Qdrant" />
+```bash title="Terminal"
+aspire add qdrant
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Qdrant@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Qdrant" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add qdrant
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Qdrant hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Qdrant": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add Qdrant resource
 
-In the AppHost project, call `AddQdrant` to add and return a Qdrant server resource builder:
+Once you've installed the hosting integration in your AppHost project, you can add a Qdrant resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var qdrant = builder.AddQdrant("qdrant")
-                    .WithLifetime(ContainerLifetime.Persistent);
+    .WithLifetime(ContainerLifetime.Persistent);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(qdrant)
-       .WaitFor(qdrant);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(qdrant)
+    .WaitFor(qdrant);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const qdrant = await builder.addQdrant("qdrant");
+await qdrant.withLifetime(ContainerLifetime.Persistent);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(qdrant)
+    .waitFor(qdrant);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `qdrant/qdrant` image, it creates a new Qdrant instance on your local machine.
+
+1. The Qdrant resource is configured with a randomly generated API key by default. To set an explicit API key, see [Add Qdrant resource with API key parameter](#add-qdrant-resource-with-api-key-parameter).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Qdrant resource, such as `qdrant` in the preceding example.
+
+</Steps>
 
 <Aside type="note">
-The Qdrant container can be slow to start, so it's best to use a persistent lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+    The Qdrant container can be slow to start, so using a persistent lifetime is recommended to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
 </Aside>
 
-When Aspire adds a container image to the AppHost, as shown in the preceding example with the `qdrant/qdrant` image, it creates a new Qdrant server on your local machine. A reference to your Qdrant resource builder (the `qdrant` variable) is used to connect your application.
-
-The `WithReference` method configures a connection in the `ExampleProject` named `"qdrant"`. For more information, see [Container resource lifecycle](/architecture/resource-model/#built-in-resources-and-lifecycle).
-
-<Aside type="tip">
-If you'd rather connect to an existing Qdrant server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+<Aside type="note">
+    When you reference a Qdrant resource from the AppHost, Aspire makes several properties available to the consuming project, including REST and gRPC endpoints, hostnames, port numbers, and the API key. For a complete list of these properties and per-language connection examples, see [Connect to Qdrant](../qdrant-connect/).
 </Aside>
 
 ## Add Qdrant resource with API key parameter
 
-The Qdrant resource includes a default, randomly generated API key. Qdrant supports configuration-based API keys. When you want to provide an API key explicitly, you can provide it as a parameter:
+The Qdrant resource includes a randomly generated API key by default. To provide an explicit API key, pass it as a parameter:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var apiKey = builder.AddParameter("apiKey", secret: true);
 
 var qdrant = builder.AddQdrant("qdrant", apiKey)
-                    .WithLifetime(ContainerLifetime.Persistent);
+    .WithLifetime(ContainerLifetime.Persistent);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(qdrant)
-                       .WaitFor(qdrant);
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(qdrant)
+    .WaitFor(qdrant);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
 
-The preceding code gets a parameter to pass to the `AddQdrant` API, and internally assigns the parameter to the Qdrant container configuration. The `apiKey` parameter is usually specified as a user secret:
+const builder = await createBuilder();
+
+const apiKey = await builder.addParameter("apiKey", { secret: true });
+
+const qdrant = await builder.addQdrant("qdrant", { apiKey });
+await qdrant.withLifetime(ContainerLifetime.Persistent);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(qdrant)
+    .waitFor(qdrant);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The `apiKey` parameter is usually specified as a user secret:
 
 ```json title="JSON — secrets.json"
 {
@@ -89,105 +180,93 @@ For more information, see [External parameters](/get-started/resources/).
 
 ## Add Qdrant resource with data volume
 
-To add a data volume to the Qdrant resource, call the `WithDataVolume` method:
+Add a data volume to the Qdrant resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var qdrant = builder.AddQdrant("qdrant")
-                    .WithDataVolume()
-                    .WithLifetime(ContainerLifetime.Persistent);
+    .WithDataVolume()
+    .WithLifetime(ContainerLifetime.Persistent);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(qdrant)
-       .WaitFor(qdrant);
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(qdrant)
+    .WaitFor(qdrant);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
 
-The data volume is used to persist the Qdrant data outside the lifecycle of its container. The data volume is mounted at the `/qdrant/storage` path in the Qdrant container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-qdrant-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+const builder = await createBuilder();
+
+const qdrant = await builder.addQdrant("qdrant");
+await qdrant.withDataVolume();
+await qdrant.withLifetime(ContainerLifetime.Persistent);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(qdrant)
+    .waitFor(qdrant);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The data volume is used to persist Qdrant data outside the lifecycle of its container. The data volume is mounted at the `/qdrant/storage` path in the Qdrant container, and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-qdrant-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Qdrant resource with data bind mount
 
-To add a data bind mount to the Qdrant resource, call the `WithDataBindMount` method:
+Add a data bind mount to the Qdrant resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var qdrant = builder.AddQdrant("qdrant")
-                    .WithDataBindMount(source: @"C:\Qdrant\Data")
-                    .WithLifetime(ContainerLifetime.Persistent);
+    .WithDataBindMount(source: @"C:\Qdrant\Data")
+    .WithLifetime(ContainerLifetime.Persistent);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(qdrant)
-       .WaitFor(qdrant);
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(qdrant)
+    .WaitFor(qdrant);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
 
-<Aside>
-Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+const builder = await createBuilder();
 
-Data bind mounts rely on the host machine's filesystem to persist the Qdrant data across container restarts. The data bind mount is mounted at the `C:\Qdrant\Data` on Windows (or `/Qdrant/Data` on Unix) path on the host machine in the Qdrant container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+const qdrant = await builder.addQdrant("qdrant");
+await qdrant.withDataBindMount("C:\\Qdrant\\Data");
+await qdrant.withLifetime(ContainerLifetime.Persistent);
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(qdrant)
+    .waitFor(qdrant);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 </Aside>
 
-## Pass connection information to app resources
+Data bind mounts rely on the host machine's filesystem to persist Qdrant data across container restarts. The data bind mount is mounted at the `C:\Qdrant\Data` on Windows (or `/Qdrant/Data` on Unix) path on the host machine in the Qdrant container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-When you use the `WithReference` method to pass a Qdrant resource to an app resource such as a Python or JavaScript app, Aspire automatically injects environment variables that describe the connection information.
+## Connection properties
 
-For example, if you reference a Qdrant resource named `qdrant`:
-
-```csharp title="C# — AppHost.cs"
-var qdrant = builder.AddQdrant("qdrant");
-
-var pythonApp = builder.AddUvicornApp("api", "./api", "main:app")
-    .WithReference(qdrant);
-```
-
-The following environment variables are available in the Python application:
-
-- `QDRANT_GRPCHOST` - The gRPC hostname of the Qdrant server
-- `QDRANT_GRPCPORT` - The gRPC port number
-- `QDRANT_HTTPHOST` - The HTTP hostname of the Qdrant server
-- `QDRANT_HTTPPORT` - The HTTP port number
-- `QDRANT_APIKEY` - The API key for authentication
-- `QDRANT_URI` - The gRPC connection URI
-- `QDRANT_HTTPURI` - The HTTP connection URI
-
-You can access these environment variables in your application code:
-
-```python title="Python example"
-from qdrant_client import QdrantClient
-import os
-
-# Get connection properties
-grpc_host = os.getenv("QDRANT_GRPCHOST")
-grpc_port = os.getenv("QDRANT_GRPCPORT")
-api_key = os.getenv("QDRANT_APIKEY")
-
-# Create Qdrant client
-client = QdrantClient(
-    host=grpc_host,
-    port=int(grpc_port),
-    api_key=api_key,
-    prefer_grpc=True
-)
-```
-
-```javascript title="JavaScript example"
-const { QdrantClient } = require('@qdrant/js-client-rest');
-
-// Get connection properties
-const httpHost = process.env.QDRANT_HTTPHOST;
-const httpPort = process.env.QDRANT_HTTPPORT;
-const apiKey = process.env.QDRANT_APIKEY;
-
-// Create Qdrant client
-const client = new QdrantClient({
-  url: `http://${httpHost}:${httpPort}`,
-  apiKey: apiKey
-});
-```
+For the full reference of Qdrant connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Qdrant](../qdrant-connect/).
 
 ## Hosting integration health checks
 

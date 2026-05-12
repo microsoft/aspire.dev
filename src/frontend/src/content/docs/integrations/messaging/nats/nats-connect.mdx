@@ -1,0 +1,287 @@
+---
+title: Connect to NATS
+description: Learn how to connect to NATS from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import natsIcon from '@assets/icons/nats-icon.png';
+
+<Image
+  src={natsIcon}
+  alt="NATS logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a NATS resource that's already modeled in your AppHost. For the AppHost API surface — adding a NATS resource, JetStream, data volumes, parameters, and more — see [NATS Hosting integration](../nats-host/).
+
+When you reference a NATS resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire NATS client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `nats` becomes `NATS_URI`.
+
+The NATS resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the NATS server |
+| `Port`        | The port number the NATS server is listening on |
+| `Username`    | The username for authentication |
+| `Password`    | The password for authentication |
+| `Uri`         | The connection URI, with the format `nats://{Username}:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: nats://admin:p%40ssw0rd1@localhost:4222
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a NATS resource named `nats` and references it from the consuming app.
+
+<Tabs syncKey="nats-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire NATS client integration. It registers an [`INatsConnection`](https://nats-io.github.io/nats.net.v2/api/NATS.Client.Core.INatsConnection.html) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.NATS.Net](https://www.nuget.org/packages/Aspire.NATS.Net) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.NATS.Net" />
+
+#### Add the NATS client
+
+In _Program.cs_, call `AddNatsClient` on your `IHostApplicationBuilder` to register an `INatsConnection`:
+
+```csharp title="C# — Program.cs"
+builder.AddNatsClient(connectionName: "nats");
+```
+
+<Aside type="tip">
+The `connectionName` must match the NATS resource name from the AppHost. For more information, see [Add NATS resource](../nats-host/#add-nats-resource).
+</Aside>
+
+Resolve the connection through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(INatsConnection connection)
+{
+    // Use connection...
+}
+```
+
+#### Add keyed NATS clients
+
+To register multiple `INatsConnection` instances with different connection names, use `AddKeyedNatsClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedNatsClient(name: "products");
+builder.AddKeyedNatsClient(name: "orders");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("products")] INatsConnection productsConnection,
+    [FromKeyedServices("orders")] INatsConnection ordersConnection)
+{
+    // Use connections...
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire NATS client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddNatsClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddNatsClient("nats");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "nats": "nats://localhost:4222"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `NatsClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Nats:Client` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Nats": {
+      "Client": {
+        "ConnectionString": "nats://localhost:4222",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+For the complete NATS client integration JSON schema, see [Aspire.NATS.Net/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/v9.0.0/src/Components/Aspire.NATS.Net/ConfigurationSchema.json).
+
+**Inline delegates.** Pass an `Action<NatsClientSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddNatsClient(
+    "nats",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The NATS client integration adds a health check that verifies the NATS instance is reachable and can execute commands. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire NATS client integration automatically configures tracing through OpenTelemetry.
+
+**Tracing** activities:
+
+- `NATS` — emitted by `NatsConnection`
+- `NATS.Net` — emitted by the NATS .NET client library
+
+For more information about tracing activities, see [NATS .NET client library: OpenTelemetry support](https://nats-io.github.io/nats.net.v2/documentation/observability/opentelemetry.html).
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it directly to the [📦 NATS.Net](https://www.nuget.org/packages/NATS.Net/) NuGet package:
+
+```csharp title="C# — Program.cs"
+using NATS.Client.Core;
+
+var connectionUri = Environment.GetEnvironmentVariable("NATS_URI");
+
+await using var connection = new NatsConnection(
+    NatsOpts.Default with { Url = connectionUri! });
+
+await connection.ConnectAsync();
+// Use connection...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the official [`nats.go`](https://github.com/nats-io/nats.go) client:
+
+```bash title="Terminal"
+go get github.com/nats-io/nats.go
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    "github.com/nats-io/nats.go"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    natsURI := os.Getenv("NATS_URI")
+
+    nc, err := nats.Connect(natsURI)
+    if err != nil {
+        panic(err)
+    }
+    defer nc.Close()
+
+    // Use nc to publish and subscribe...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install [`nats-py`](https://github.com/nats-io/nats.py), the official Python NATS client:
+
+```bash title="Terminal"
+pip install nats-py
+```
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import asyncio
+import os
+import nats
+
+async def main():
+    # Read the Aspire-injected connection URI
+    nats_uri = os.getenv("NATS_URI")
+
+    nc = await nats.connect(nats_uri)
+    # Use nc to publish and subscribe...
+    await nc.close()
+
+asyncio.run(main())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [`nats`](https://www.npmjs.com/package/nats) package (`@nats-io/nats-core`):
+
+```bash title="Terminal"
+npm install nats
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { connect } from 'nats';
+
+// Read the Aspire-injected connection URI
+const nc = await connect({
+    servers: process.env.NATS_URI,
+});
+
+// Use nc to publish and subscribe...
+await nc.drain();
+```
+
+Or use individual connection properties:
+
+```typescript title="TypeScript — Connect with properties"
+import { connect } from 'nats';
+
+const nc = await connect({
+    servers: `${process.env.NATS_HOST}:${process.env.NATS_PORT}`,
+    user: process.env.NATS_USERNAME,
+    pass: process.env.NATS_PASSWORD,
+});
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Pass custom environment variables](../nats-host/#pass-custom-environment-variables) in the Hosting integration reference.
+</Aside>
+
+## See also
+
+- [NATS documentation](https://docs.nats.io/)
+- [NATS .NET client](https://github.com/nats-io/nats.net.v2)
+- [Aspire integrations overview](/integrations/overview/)

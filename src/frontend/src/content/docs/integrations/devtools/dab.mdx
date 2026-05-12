@@ -1,12 +1,11 @@
 ---
 title: Data API builder integration
-description: Learn how to use Data API builder with Aspire.
+description: Learn how to use the Aspire Data API Builder hosting integration to orchestrate and configure a Data API Builder resource in an Aspire solution.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import dabIcon from '@assets/icons/data-api-builder-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -20,95 +19,174 @@ import dabIcon from '@assets/icons/data-api-builder-icon.png';
   data-zoom-off
 />
 
-[Data API Builder](https://learn.microsoft.com/azure/data-api-builder/overview) (DAB) is an open-source tool that provides a REST and GraphQL API on top of your database. The Aspire Data API Builder hosting integration enables you to run Data API Builder alongside your .NET projects in the Aspire app host.
+This article is the reference for the Aspire Data API Builder hosting integration. It enumerates the AppHost APIs that you use to model a [Data API Builder](https://learn.microsoft.com/azure/data-api-builder/overview) (DAB) resource in your [`AppHost`](/get-started/app-host/) project. DAB is an open-source tool that generates REST and GraphQL APIs directly from your database schema.
 
-## Hosting integration
+:::note
+TypeScript AppHost support for the Data API Builder integration is not yet available. The examples on this page use the C# AppHost only.
+:::
 
-To get started with the Aspire Data API Builder hosting integration, install the [CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder) NuGet package in the app host project.
+## Installation
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder" />
+To start building an Aspire app that uses Data API Builder, install the [📦 CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder) NuGet package:
 
-### Add Data API Builder resource
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-To add Data API Builder to your app host, use the `AddDataAPIBuilder` extension method:
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Azure.DataApiBuilder" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost support for the Data API Builder integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+## Add Data API Builder resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a Data API Builder resource and reference a database as shown in the following example:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sqldb = builder.AddSqlServer("sql")
-                   .AddDatabase("sqldb");
+    .AddDatabase("sqldb");
 
 var dab = builder.AddDataAPIBuilder("dab")
-                 .WithReference(sqldb);
+    .WithReference(sqldb);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(dab);
+builder.AddProject<Projects.ExampleProject>("example-project")
+    .WithReference(dab);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost support for the Data API Builder integration is not yet available.
+
+</TabItem>
+</Tabs>
 
 The Data API Builder integration automatically discovers and uses `dab-config.json` configuration files in your project.
 
-### Multiple configuration files
+## Multiple configuration files
 
-Data API Builder supports multiple configuration files for different databases. To specify multiple configuration files:
+Data API Builder supports multiple configuration files for different databases. To specify multiple configuration files, pass an array of config file paths to `AddDataAPIBuilder`:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-                 .AddDatabase("sqldb");
+    .AddDatabase("sqldb");
 
 var postgres = builder.AddPostgres("postgres")
-                      .AddDatabase("postgresdb");
+    .AddDatabase("postgresdb");
 
 var dab = builder.AddDataAPIBuilder("dab", ["dab-config.SqlServer.json", "dab-config.PostgreSQL.json"])
-                 .WithReference(sql)
-                 .WithReference(postgres);
+    .WithReference(sql)
+    .WithReference(postgres);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-### Custom container images
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost support for the Data API Builder integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+## Custom container images
 
 To use a custom Data API Builder container image, use the container image methods:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var dab = builder.AddDataAPIBuilder("dab")
-                 .WithImageRegistry("myregistry.azurecr.io")
-                 .WithImage("custom-dab")
-                 .WithImageTag("1.0.0");
+    .WithImageRegistry("myregistry.azurecr.io")
+    .WithImage("custom-dab")
+    .WithImageTag("1.0.0");
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-### Database references
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost support for the Data API Builder integration is not yet available.
+
+</TabItem>
+</Tabs>
+
+## Database references
 
 Data API Builder requires references to the databases it exposes. Use `WithReference` to connect Data API Builder to your databases:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var sql = builder.AddSqlServer("sql")
-                 .AddDatabase("sqldb");
+    .AddDatabase("sqldb");
 
 var cosmos = builder.AddAzureCosmosDB("cosmos")
-                    .AddDatabase("cosmosdb");
+    .AddDatabase("cosmosdb");
 
 var dab = builder.AddDataAPIBuilder("dab")
-                 .WithReference(sql)
-                 .WithReference(cosmos);
+    .WithReference(sql)
+    .WithReference(cosmos);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-### Configuration file structure
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-Data API Builder uses `dab-config.json` files to define the API. Here's an example configuration:
+TypeScript AppHost support for the Data API Builder integration is not yet available.
 
-```json
+</TabItem>
+</Tabs>
+
+## Configuration file structure
+
+Data API Builder uses `dab-config.json` files to define the API. The following is an example configuration:
+
+```json title="JSON — dab-config.json"
 {
   "$schema": "https://github.com/Azure/data-api-builder/releases/download/v0.10.23/dab.draft.schema.json",
   "data-source": {
@@ -139,9 +217,9 @@ Data API Builder uses `dab-config.json` files to define the API. Here's an examp
 }
 ```
 
-The Aspire integration automatically injects the database connection strings from the referenced resources.
+The Aspire integration automatically injects the database connection strings from the referenced resources into the running container.
 
-### Endpoints
+## Endpoints
 
 Data API Builder exposes two endpoints:
 

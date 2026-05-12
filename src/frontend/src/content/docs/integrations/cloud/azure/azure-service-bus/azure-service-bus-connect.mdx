@@ -1,0 +1,394 @@
+---
+title: Connect to Azure Service Bus
+description: Learn how to connect to Azure Service Bus from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import serviceBusIcon from '@assets/icons/azure-servicebus-icon.png';
+
+<Image
+  src={serviceBusIcon}
+  alt="Azure Service Bus logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Service Bus resource that's already modeled in your AppHost. For the AppHost API surface — adding a Service Bus namespace, queues, topics, subscriptions, the emulator, and more — see [Azure Service Bus Hosting integration](../azure-service-bus-host/).
+
+When you reference a Service Bus resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Service Bus client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Endpoint` property of a resource called `messaging` becomes `MESSAGING_ENDPOINT`.
+
+### Service Bus namespace
+
+The Service Bus namespace resource exposes the following connection properties:
+
+| Property Name              | Description                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `Host`                     | The hostname of the Service Bus namespace                                                   |
+| `Port`                     | The port of the Service Bus namespace (emulator only)                                       |
+| `Endpoint`                 | The namespace endpoint, with the format `sb://{namespace}.servicebus.windows.net`           |
+| `FullyQualifiedNamespace`  | The fully qualified namespace hostname, e.g. `{namespace}.servicebus.windows.net`          |
+| `ConnectionString`         | **Emulator only.** Includes SAS key material for the local emulator connection.             |
+
+### Service Bus queue
+
+The Service Bus queue resource inherits all properties from its parent namespace and adds:
+
+| Property Name | Description           |
+| ------------- | --------------------- |
+| `QueueName`   | The name of the queue |
+
+### Service Bus topic
+
+The Service Bus topic resource inherits all properties from its parent namespace and adds:
+
+| Property Name | Description           |
+| ------------- | --------------------- |
+| `TopicName`   | The name of the topic |
+
+### Service Bus subscription
+
+The Service Bus subscription resource inherits all properties from its parent topic and adds:
+
+| Property Name      | Description                   |
+| ------------------ | ----------------------------- |
+| `SubscriptionName` | The name of the subscription  |
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure Service Bus namespace resource named `messaging` and references it from the consuming app.
+
+<Tabs syncKey="azure-service-bus-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure Service Bus client integration. It registers a [`ServiceBusClient`](https://learn.microsoft.com/dotnet/api/azure.messaging.servicebus.servicebusclient) through dependency injection and adds health checks and telemetry automatically.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.Messaging.ServiceBus](https://www.nuget.org/packages/Aspire.Azure.Messaging.ServiceBus) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Messaging.ServiceBus" />
+
+#### Add the Service Bus client
+
+In _Program.cs_, call `AddAzureServiceBusClient` on your `IHostApplicationBuilder` to register a `ServiceBusClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureServiceBusClient(connectionName: "messaging");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Service Bus resource name from the AppHost. For more information, see [Add Azure Service Bus resource](../azure-service-bus-host/#add-azure-service-bus-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ServiceBusClient client)
+{
+    // Use client to send or receive messages...
+}
+```
+
+#### Add keyed Service Bus clients
+
+To register multiple `ServiceBusClient` instances with different connection names, use `AddKeyedAzureServiceBusClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureServiceBusClient(name: "mainBus");
+builder.AddKeyedAzureServiceBusClient(name: "loggingBus");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("mainBus")] ServiceBusClient mainBusClient,
+    [FromKeyedServices("loggingBus")] ServiceBusClient loggingBusClient)
+{
+    // Use clients...
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Azure Service Bus client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureServiceBusClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureServiceBusClient("messaging");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "messaging": "Endpoint=sb://{namespace}.servicebus.windows.net/;SharedAccessKeyName={keyName};SharedAccessKey={key};"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureMessagingServiceBusSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Azure:Messaging:ServiceBus` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Messaging": {
+        "ServiceBus": {
+          "ConnectionString": "Endpoint=sb://{namespace}.servicebus.windows.net/;SharedAccessKeyName={keyName};SharedAccessKey={key};",
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete configuration schema, see [Aspire.Azure.Messaging.ServiceBus/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/v9.1.0/src/Components/Aspire.Azure.Messaging.ServiceBus/ConfigurationSchema.json).
+
+**Named configuration.** The integration supports named configuration for multiple instances:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Messaging": {
+        "ServiceBus": {
+          "bus1": {
+            "ConnectionString": "Endpoint=sb://namespace1.servicebus.windows.net/;SharedAccessKeyName=keyName;SharedAccessKey=mykey;"
+          },
+          "bus2": {
+            "ConnectionString": "Endpoint=sb://namespace2.servicebus.windows.net/;SharedAccessKeyName=keyName;SharedAccessKey=mykey;"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<AzureMessagingServiceBusSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureServiceBusClient(
+    "messaging",
+    static settings => settings.DisableTracing = true);
+```
+
+You can also configure `ServiceBusClientOptions` using the optional `configureClientOptions` parameter:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureServiceBusClient(
+    "messaging",
+    configureClientOptions:
+        clientOptions => clientOptions.Identifier = "myapp");
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure Service Bus client integration verifies that the Service Bus is reachable. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Azure Service Bus client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure-Messaging-ServiceBus`
+
+**Tracing** activities:
+
+- `Message`
+- `ServiceBusSender.Send`
+- `ServiceBusSender.Schedule`
+- `ServiceBusSender.Cancel`
+- `ServiceBusReceiver.Receive`
+- `ServiceBusReceiver.ReceiveDeferred`
+- `ServiceBusReceiver.Peek`
+- `ServiceBusReceiver.Abandon`
+- `ServiceBusReceiver.Complete`
+- `ServiceBusReceiver.DeadLetter`
+- `ServiceBusReceiver.Defer`
+- `ServiceBusReceiver.RenewMessageLock`
+- `ServiceBusSessionReceiver.RenewSessionLock`
+- `ServiceBusSessionReceiver.GetSessionState`
+- `ServiceBusSessionReceiver.SetSessionState`
+- `ServiceBusProcessor.ProcessMessage`
+- `ServiceBusSessionProcessor.ProcessSessionMessage`
+- `ServiceBusRuleManager.CreateRule`
+- `ServiceBusRuleManager.DeleteRule`
+- `ServiceBusRuleManager.GetRules`
+
+<Aside type="note">
+Azure Service Bus distributed tracing is currently in preview. Enable it by setting the experimental switch before creating the client:
+
+```csharp title="C# — Program.cs"
+AppContext.SetSwitch("Azure.Experimental.EnableActivitySource", true);
+```
+
+For more information, see [Azure Service Bus: Distributed tracing and correlation](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-end-to-end-tracing).
+</Aside>
+
+**Metrics** are not currently emitted by default due to limitations in the Azure SDK.
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [Azure SDK for Go](https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/messaging/azservicebus):
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the Aspire-injected environment variables and create a client. For Azure-hosted environments (using managed identity), use `DefaultAzureCredential`:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+)
+
+func main() {
+    // Read the Aspire-injected fully qualified namespace
+    fullyQualifiedNamespace := os.Getenv("MESSAGING_FULLYQUALIFIEDNAMESPACE")
+
+    credential, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := azservicebus.NewClient(fullyQualifiedNamespace, credential, nil)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close(nil)
+}
+```
+
+When using the local emulator, use the `ConnectionString` property instead:
+
+```go title="Go — main.go (emulator)"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+)
+
+func main() {
+    // Read the Aspire-injected connection string (emulator only)
+    connectionString := os.Getenv("MESSAGING_CONNECTIONSTRING")
+
+    client, err := azservicebus.NewClientFromConnectionString(connectionString, nil)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close(nil)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [azure-servicebus](https://pypi.org/project/azure-servicebus/) package:
+
+```bash title="Terminal"
+pip install azure-servicebus azure-identity
+```
+
+Read the Aspire-injected environment variables and create a client. For Azure-hosted environments (using managed identity), use `DefaultAzureCredential`:
+
+```python title="Python — app.py"
+import os
+from azure.servicebus import ServiceBusClient
+from azure.identity import DefaultAzureCredential
+
+# Read the Aspire-injected fully qualified namespace
+fully_qualified_namespace = os.getenv("MESSAGING_FULLYQUALIFIEDNAMESPACE")
+
+credential = DefaultAzureCredential()
+client = ServiceBusClient(fully_qualified_namespace, credential)
+
+# Use client to send or receive messages...
+```
+
+When using the local emulator, use the `ConnectionString` property instead:
+
+```python title="Python — app.py (emulator)"
+import os
+from azure.servicebus import ServiceBusClient
+
+# Read the Aspire-injected connection string (emulator only)
+connection_string = os.getenv("MESSAGING_CONNECTIONSTRING")
+
+client = ServiceBusClient.from_connection_string(connection_string)
+
+# Use client to send or receive messages...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [@azure/service-bus](https://www.npmjs.com/package/@azure/service-bus) package:
+
+```bash title="Terminal"
+npm install @azure/service-bus @azure/identity
+```
+
+Read the Aspire-injected environment variables and create a client. For Azure-hosted environments (using managed identity), use `DefaultAzureCredential`:
+
+```typescript title="TypeScript — index.ts"
+import { ServiceBusClient } from '@azure/service-bus';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read the Aspire-injected fully qualified namespace
+const fullyQualifiedNamespace = process.env.MESSAGING_FULLYQUALIFIEDNAMESPACE!;
+
+const credential = new DefaultAzureCredential();
+const client = new ServiceBusClient(fullyQualifiedNamespace, credential);
+
+// Use client to create senders and receivers...
+await client.close();
+```
+
+When using the local emulator, use the `ConnectionString` property instead:
+
+```typescript title="TypeScript — index.ts (emulator)"
+import { ServiceBusClient } from '@azure/service-bus';
+
+// Read the Aspire-injected connection string (emulator only)
+const connectionString = process.env.MESSAGING_CONNECTIONSTRING!;
+
+const client = ServiceBusClient.fromConnectionString(connectionString);
+
+// Use client to create senders and receivers...
+await client.close();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  If your app expects specific environment variable names different from the
+  Aspire defaults, you can pass custom connection properties from the AppHost.
+  See [Azure Service Bus Hosting integration](../azure-service-bus-host/) for
+  details on how resources and their properties are configured.
+</Aside>

@@ -1,0 +1,373 @@
+---
+title: Connect to Azure SQL Database
+description: Learn how to connect to Azure SQL Database from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import sqlServerIcon from '@assets/icons/azure-sqlserver-icon.png';
+
+<Image
+  src={sqlServerIcon}
+  alt="Azure SQL Database logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure SQL Database resource that's already modeled in your AppHost. For the AppHost API surface — adding an Azure SQL server, databases, running as a local container, managed identity, and more — see [Azure SQL Database Hosting integration](../azure-sql-database-host/).
+
+When you reference an Azure SQL Database resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire SQL Server client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `database` becomes `DATABASE_URI`.
+
+### Azure SQL server resource
+
+The Azure SQL server resource exposes the following connection properties:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `Host`                 | The fully qualified domain name of the Azure SQL Server |
+| `Port`                 | The SQL Server port (`1433` for Azure) |
+| `Uri`                  | The connection URI, with the format `mssql://{Host}:{Port}` |
+| `JdbcConnectionString` | JDBC connection string, with the format `jdbc:sqlserver://{Host}:{Port};encrypt=true;trustServerCertificate=false` |
+
+**Example connection strings:**
+
+```
+Uri: mssql://myserver.database.windows.net:1433
+JdbcConnectionString: jdbc:sqlserver://myserver.database.windows.net:1433;encrypt=true;trustServerCertificate=false
+```
+
+### Azure SQL database resource
+
+The Azure SQL database resource inherits all properties from its parent server resource and adds:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `DatabaseName`         | The name of the database |
+| `Uri`                  | The connection URI with the database name, with the format `mssql://{Host}:{Port}/{DatabaseName}` |
+| `JdbcConnectionString` | JDBC connection string with the database name, with the format `jdbc:sqlserver://{Host}:{Port};database={DatabaseName};encrypt=true;trustServerCertificate=false` |
+
+**Example connection strings:**
+
+```
+Uri: mssql://myserver.database.windows.net:1433/mydb
+JdbcConnectionString: jdbc:sqlserver://myserver.database.windows.net:1433;database=mydb;encrypt=true;trustServerCertificate=false
+```
+
+<Aside type="note">
+  Azure SQL Database uses Azure Active Directory authentication (managed identity)
+  when deployed to Azure — no username or password is injected. When you use
+  `RunAsContainer` for local development, the connection string includes SQL
+  authentication credentials instead. For JDBC connections, add the appropriate
+  authentication property such as `authentication=ActiveDirectoryDefault` or
+  `authentication=ActiveDirectoryManagedIdentity`.
+</Aside>
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure SQL database resource named `database` and references it from the consuming app.
+
+<Tabs syncKey="azure-sql-database-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire SQL Server client integration. It registers a [`SqlConnection`](https://learn.microsoft.com/dotnet/api/microsoft.data.sqlclient.sqlconnection) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Microsoft.Data.SqlClient](https://www.nuget.org/packages/Aspire.Microsoft.Data.SqlClient) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Data.SqlClient" />
+
+#### Add the SQL Server client
+
+In _Program.cs_, call `AddSqlServerClient` on your `IHostApplicationBuilder` to register a `SqlConnection`:
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient(connectionName: "database");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure SQL database resource name from the AppHost. For more information, see [Add Azure SQL server resource and database](../azure-sql-database-host/#add-azure-sql-server-resource-and-database).
+</Aside>
+
+Resolve the connection through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SqlConnection connection)
+{
+    // Use connection...
+}
+```
+
+#### Add keyed SQL Server clients
+
+To register multiple `SqlConnection` instances with different connection names, use `AddKeyedSqlServerClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedSqlServerClient(name: "primary-db");
+builder.AddKeyedSqlServerClient(name: "secondary-db");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("primary-db")] SqlConnection primaryConnection,
+    [FromKeyedServices("secondary-db")] SqlConnection secondaryConnection)
+{
+    // Use connections...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire SQL Server client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddSqlServerClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient("database");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "database": "Server=myserver.database.windows.net;Database=mydb;Authentication=Active Directory Default;Encrypt=True"
+  }
+}
+```
+
+For more information on connection string format, see [SqlConnection.ConnectionString](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring#remarks).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MicrosoftDataSqlClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:Data:SqlClient` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Microsoft": {
+      "Data": {
+        "SqlClient": {
+          "DisableHealthChecks": false,
+          "DisableTracing": false,
+          "DisableMetrics": false
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<MicrosoftDataSqlClientSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddSqlServerClient(
+    "database",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The SQL Server client integration adds:
+
+- A health check that attempts to connect to the Azure SQL Database instance and execute a command.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire SQL Server client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging:** The SQL Server client integration currently doesn't enable logging by default due to limitations of the `SqlClient`.
+
+**Tracing** activities:
+
+- `OpenTelemetry.Instrumentation.SqlClient`
+
+**Metrics** from `Microsoft.Data.SqlClient.EventSource`:
+
+- `active-hard-connections`
+- `hard-connects`
+- `hard-disconnects`
+- `active-soft-connects`
+- `soft-connects`
+- `soft-disconnects`
+- `number-of-non-pooled-connections`
+- `number-of-pooled-connections`
+- `number-of-active-connection-pool-groups`
+- `number-of-inactive-connection-pool-groups`
+- `number-of-active-connection-pools`
+- `number-of-inactive-connection-pools`
+- `number-of-active-connections`
+- `number-of-free-connections`
+- `number-of-stasis-connections`
+- `number-of-reclaimed-connections`
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and open a connection using [📦 Microsoft.Data.SqlClient](https://www.nuget.org/packages/Microsoft.Data.SqlClient/):
+
+```csharp title="C# — Program.cs"
+using Microsoft.Data.SqlClient;
+
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URI");
+
+await using var connection = new SqlConnection(connectionString);
+await connection.OpenAsync();
+
+// Use connection to query the database...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [`microsoft/go-mssqldb`](https://github.com/microsoft/go-mssqldb) driver, Microsoft's officially maintained Go driver for SQL Server and Azure SQL Database:
+
+```bash title="Terminal"
+go get github.com/microsoft/go-mssqldb
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "database/sql"
+    "os"
+
+    _ "github.com/microsoft/go-mssqldb"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    connStr := os.Getenv("DATABASE_URI")
+
+    db, err := sql.Open("mssql", connStr)
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    if err := db.PingContext(context.Background()); err != nil {
+        panic(err)
+    }
+}
+```
+
+<Aside type="note">
+  When connecting to Azure SQL Database in production, you need to use Azure Active
+  Directory authentication. The `microsoft/go-mssqldb` driver supports Azure AD
+  authentication via the `azuread` package. See the
+  [driver documentation](https://github.com/microsoft/go-mssqldb#azure-active-directory-authentication)
+  for details.
+</Aside>
+
+</TabItem>
+<TabItem label="Python">
+
+Install [`pyodbc`](https://github.com/mkleehammer/pyodbc) and the [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server):
+
+```bash title="Terminal"
+pip install pyodbc
+```
+
+<Aside type="note">
+You also need to install the ODBC driver separately. For platform-specific instructions, see [Microsoft ODBC Driver for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server).
+</Aside>
+
+Read the injected environment variables and connect using Azure Active Directory Default authentication:
+
+```python title="Python — app.py"
+import os
+import pyodbc
+
+# Read Aspire-injected connection properties
+sql_host = os.getenv("DATABASE_HOST")
+sql_port = os.getenv("DATABASE_PORT", "1433")
+sql_database = os.getenv("DATABASE_DATABASENAME")
+
+connection_string = (
+    f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+    f"SERVER={sql_host},{sql_port};"
+    f"DATABASE={sql_database};"
+    "Authentication=ActiveDirectoryDefault;"
+    "Encrypt=yes;"
+)
+
+conn = pyodbc.connect(connection_string)
+cursor = conn.cursor()
+
+# Use cursor to query the database...
+```
+
+<Aside type="tip">
+  When using `RunAsContainer` for local development, the resource injects
+  `USERNAME` and `PASSWORD` environment variables that you can use for SQL
+  authentication instead of `ActiveDirectoryDefault`.
+</Aside>
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [`mssql`](https://github.com/tediousjs/node-mssql) npm package, the most popular SQL Server and Azure SQL client for Node.js:
+
+```bash title="Terminal"
+npm install mssql
+npm install --save-dev @types/mssql
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import sql from 'mssql';
+
+// Read Aspire-injected connection properties
+const config: sql.config = {
+    server: process.env.DATABASE_HOST!,
+    port: Number(process.env.DATABASE_PORT),
+    database: process.env.DATABASE_DATABASENAME,
+    authentication: {
+        type: 'azure-active-directory-default',
+    },
+    options: {
+        encrypt: true,
+    },
+};
+
+const pool = await sql.connect(config);
+
+// Use pool to query the database...
+```
+
+Or use the connection URI directly:
+
+```typescript title="TypeScript — Connect with URI"
+import sql from 'mssql';
+
+const pool = await sql.connect(process.env.DATABASE_URI!);
+```
+
+<Aside type="tip">
+  When using `RunAsContainer` for local development, use SQL authentication
+  instead. Set `authentication.type` to `'default'` and supply
+  `process.env.DATABASE_USERNAME` and `process.env.DATABASE_PASSWORD`.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment` (C#) or `withEnvironment` (TypeScript).
+</Aside>

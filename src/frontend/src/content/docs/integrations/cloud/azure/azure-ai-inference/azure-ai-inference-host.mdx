@@ -1,53 +1,89 @@
 ---
-title: Azure AI Inference hosting integration
-description: Learn how to use the Aspire Azure AI Inference hosting integration to connect to Azure AI Inference resources.
+title: Set up Azure AI Inference in the AppHost
+description: Register an existing Azure AI Inference endpoint in your AppHost as a named connection string that any consuming app can reference.
 ---
 
-import { Aside, Badge } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 <Image
   src={aiFoundryIcon}
   alt="Azure AI Inference logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
 <Badge text="🧪 Preview" variant="note" size="large" />
 
-Although the Azure AI Inference library doesn't currently offer direct hosting integration, you can still integrate it into your AppHost project. Simply add a connection string to establish a reference to an existing Microsoft Foundry resource.
+This article is the reference for using Azure AI Inference in your AppHost. Aspire doesn't ship a dedicated Azure AI Inference hosting package — instead, you register an existing Azure AI Inference endpoint as a named **connection string** that consuming apps can reference.
 
-For an introduction to working with the Azure AI Inference hosting integration, see [Get started with the Azure AI Inference integrations](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/).
+If you're new to Azure AI Inference, start with [Get started with the Azure AI Inference integrations](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/). For how consuming apps read the connection information this page exposes, see [Connect to Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/).
 
-## Connect to an existing Microsoft Foundry service
+## Add an Azure AI Inference connection
 
-If you already have a [Microsoft Foundry](https://ai.azure.com/) service, you can easily connect to it by adding a connection string to your AppHost. This approach uses a simple, string-based configuration. To establish the connection, use the `AddConnectionString` method:
+Use `AddConnectionString` to register an existing Azure AI Inference endpoint with your AppHost, then reference it from any consuming app:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var aiFoundry = builder.AddConnectionString("ai-foundry");
+var aiInference = builder.AddConnectionString("ai-foundry");
 
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(aiFoundry);
+builder.AddProject<Projects.ExampleProject>("myapp")
+    .WithReference(aiInference);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-> [!NOTE]
-> Connection strings are used to represent a wide range of connection information, including database connections, message brokers, endpoint URIs, and other services. In nomenclature, the term "connection string" is used to represent any kind of connection information.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-The connection string is configured in the AppHost's configuration, typically under User Secrets, under the `ConnectionStrings` section:
+```typescript title="apphost.ts"
+import { createBuilder } from "./.modules/aspire.js";
 
-```json
+const builder = await createBuilder();
+
+const aiInference = await builder.addConnectionString("ai-foundry");
+
+const myapp = await builder.addProject("myapp", "../ExampleProject/ExampleProject.csproj");
+await myapp.withReference(aiInference);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure the connection string
+
+Store the Azure AI Inference connection string in your AppHost's configuration. During local development, use User Secrets to keep credentials out of source control. The key must match the resource name you passed to `AddConnectionString` ("ai-foundry" in the example above):
+
+```json title="JSON — User Secrets"
 {
   "ConnectionStrings": {
-    "ai-foundry": "Endpoint=https://{endpoint}/;DeploymentId={deploymentName}"
+    "ai-foundry": "Endpoint=https://{endpoint}/;Key={apikey};DeploymentId={deploymentName}"
   }
 }
 ```
 
-For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
+The connection string supports the following segments:
+
+| Segment | Description |
+| --- | --- |
+| `Endpoint` | The Azure AI Inference endpoint URL — for example, `https://{your-foundry-resource}.services.ai.azure.com/models`. |
+| `Key` | The API key for the Azure AI Inference endpoint. Omit when the consuming app authenticates with `DefaultAzureCredential`. |
+| `DeploymentId` | The name of the deployed model (for example, `gpt-4o`). |
+
+<Aside type="note">
+Connection strings represent any connection information — database connections, message brokers, endpoint URIs, and other services. For more information, see [Add existing Azure resources with connection strings](/integrations/cloud/azure/overview/#add-existing-azure-resources-with-connection-strings).
+</Aside>
+
+## Connection properties
+
+For the consumer-side view of how this connection is exposed as environment variables — and for per-language client examples — see [Connect to Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/).

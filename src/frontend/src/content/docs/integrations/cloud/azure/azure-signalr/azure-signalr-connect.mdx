@@ -1,0 +1,342 @@
+---
+title: Connect to Azure SignalR Service
+description: Learn how to connect to Azure SignalR Service from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import signalrIcon from '@assets/icons/azure-signalr-icon.png';
+
+<Image
+  src={signalrIcon}
+  alt="Azure SignalR Service icon"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure SignalR Service resource that's already modeled in your AppHost. For the AppHost API surface — adding a SignalR resource, service modes, emulator, and Bicep customization — see [Azure SignalR Service hosting integration](../azure-signalr-host/).
+
+Azure SignalR Service acts as a proxy between **hub servers** (where `Hub` or `Hub<T>` types are hosted) and **clients** (browser or mobile apps using the SignalR client). The architecture differs from a direct database connection: the server never receives connections from clients directly — Azure SignalR Service routes all traffic.
+
+:::note
+Aspire integrates at the **hub server** level, not the end-client level. The `WithReference` call injects the service endpoint into the server-side project so it can connect to Azure SignalR Service. End clients (browser apps, mobile apps) connect to hubs through normal SignalR client negotiation, not through Aspire.
+:::
+
+## Connection properties
+
+When you reference an Azure SignalR Service resource from a consuming app, Aspire injects the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Uri`         | The endpoint URI for the SignalR service, with the format `https://{host}` in Azure (typically `https://<resource-name>.service.signalr.net`) or the emulator endpoint when running locally |
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `signalr` becomes `SIGNALR_URI`.
+
+Additionally, Aspire sets `ConnectionStrings__signalr` (which maps to `ConnectionStrings:signalr` in .NET configuration) for use by the `AddNamedAzureSignalR` extension method in Default mode.
+
+**Example values:**
+
+```
+SIGNALR_URI: https://my-signalr.service.signalr.net
+ConnectionStrings__signalr: Endpoint=https://my-signalr.service.signalr.net;AuthType=azure.msitoken;...
+```
+
+When using the emulator locally, the connection string includes an `AccessKey`:
+
+```
+ConnectionStrings__signalr: Endpoint=http://localhost:8888;AccessKey=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789;Version=1.0;
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure SignalR Service resource named `signalr` and references it from the consuming app.
+
+<Tabs syncKey="azure-signalr-consuming-lang">
+<TabItem label="C#">
+
+The recommended approach for C# hub server apps is the `Microsoft.Azure.SignalR` package. It integrates Azure SignalR Service directly into ASP.NET Core's SignalR infrastructure and reads configuration injected by Aspire.
+
+#### Default mode — hub server
+
+In _Default_ mode, your hub server project registers its hubs normally with Azure SignalR Service acting as the transport layer. Install the [📦 Microsoft.Azure.SignalR](https://www.nuget.org/packages/Microsoft.Azure.SignalR) NuGet package:
+
+<InstallDotNetPackage packageName="Microsoft.Azure.SignalR" />
+
+In _Program.cs_, chain `AddNamedAzureSignalR` onto `AddSignalR`:
+
+```csharp title="C# — Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSignalR()
+    .AddNamedAzureSignalR("signalr");
+
+var app = builder.Build();
+
+app.MapHub<ChatHub>("/chat");
+
+app.Run();
+```
+
+The `AddNamedAzureSignalR` method reads the connection string from `ConnectionStrings:signalr`, which Aspire injects as `ConnectionStrings__signalr`. The connection name must match the resource name used in your AppHost.
+
+<Aside type="note">
+  If you're using the Azure SignalR emulator, you cannot use `AddNamedAzureSignalR`. The emulator requires Serverless mode — see the [Serverless mode](#serverless-mode) section below.
+</Aside>
+
+#### Serverless mode
+
+In _Serverless_ mode, there is no hub server. Instead, apps communicate with Azure SignalR Service through the Management SDK. Install the [📦 Microsoft.Azure.SignalR.Management](https://www.nuget.org/packages/Microsoft.Azure.SignalR.Management) NuGet package:
+
+<InstallDotNetPackage packageName="Microsoft.Azure.SignalR.Management" />
+
+Register the `ServiceManager` using the Aspire-injected connection string and expose a `/negotiate` endpoint:
+
+```csharp title="C# — Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton(sp =>
+{
+    return new ServiceManagerBuilder()
+        .WithOptions(options =>
+        {
+            options.ConnectionString = builder.Configuration.GetConnectionString("signalr");
+        })
+        .BuildServiceManager();
+});
+
+var app = builder.Build();
+
+app.MapPost("/negotiate", async (string? userId, ServiceManager sm, CancellationToken token) =>
+{
+    var context = await sm.CreateHubContextAsync("messages", token);
+
+    var negotiateResponse = await context.NegotiateAsync(new NegotiationOptions
+    {
+        UserId = userId
+    }, token);
+
+    return Results.Json(negotiateResponse, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    });
+});
+
+app.Run();
+```
+
+The `/negotiate` endpoint establishes a connection between the connecting client and the Azure SignalR Service. The `ServiceHubContext` is used to broadcast messages and manage connections to clients.
+
+For more information, see [Use Azure SignalR Management SDK](https://learn.microsoft.com/azure/azure-signalr/signalr-howto-use-management-sdk).
+
+#### Read environment variables in C\#
+
+To read the endpoint URI directly from the Aspire-injected environment variable:
+
+```csharp title="C# — Program.cs"
+var endpoint = Environment.GetEnvironmentVariable("SIGNALR_URI");
+// Use endpoint to configure the SignalR Service connection manually
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Azure SignalR Service doesn't have a native Go server SDK, but you can communicate with it using the [Azure SDK for Go](https://github.com/Azure/azure-sdk-for-go) and the SignalR REST API.
+
+:::note
+Azure SignalR Service is primarily designed for server-side communication in .NET. Go servers typically interact with the service through the [Management REST API](https://learn.microsoft.com/azure/azure-signalr/rest-api) to broadcast messages or manage connections.
+:::
+
+Install the Azure Identity package for authentication:
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the Aspire-injected endpoint and send messages via REST API:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "bytes"
+    "context"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+)
+
+func main() {
+    // Read the Aspire-injected endpoint URI
+    endpoint := os.Getenv("SIGNALR_URI")
+
+    // Authenticate using managed identity (matches Aspire's default provisioning)
+    cred, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    ctx := context.Background()
+    token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+        Scopes: []string{"https://signalr.azure.com/.default"},
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    // Broadcast a message to all clients in a hub
+    hubName := "messages"
+    url := fmt.Sprintf("%s/api/v1/hubs/%s", endpoint, hubName)
+
+    payload := map[string]interface{}{
+        "target":    "newMessage",
+        "arguments": []string{"Hello from Go"},
+    }
+    body, _ := json.Marshal(payload)
+
+    req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+    req.Header.Set("Authorization", "Bearer "+token.Token)
+    req.Header.Set("Content-Type", "application/json")
+
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+}
+```
+
+For local development with the emulator, use the connection string format (`SIGNALR_CONNECTIONSTRING`) with an access key instead of managed identity. For more information, see [Azure SignalR Service REST API](https://learn.microsoft.com/azure/azure-signalr/rest-api).
+
+</TabItem>
+<TabItem label="Python">
+
+Azure SignalR Service doesn't have a dedicated Python server SDK. Python apps interact with the service through the [Management REST API](https://learn.microsoft.com/azure/azure-signalr/rest-api) or using the `azure-messaging-webpubsubservice` package for the Web PubSub protocol.
+
+:::note
+The `azure-messaging-webpubsubservice` package targets Azure Web PubSub, which shares protocol concepts with Azure SignalR Service Serverless mode. For Azure SignalR Service specifically, use the REST API with managed identity.
+:::
+
+Install the Azure Identity package:
+
+```bash title="Terminal"
+pip install azure-identity requests
+```
+
+Read the Aspire-injected endpoint and broadcast via REST API:
+
+```python title="Python — app.py"
+import os
+import requests
+from azure.identity import DefaultAzureCredential
+
+# Read the Aspire-injected endpoint URI
+endpoint = os.getenv("SIGNALR_URI")
+
+# Authenticate using managed identity (matches Aspire's default provisioning)
+credential = DefaultAzureCredential()
+token = credential.get_token("https://signalr.azure.com/.default")
+
+hub_name = "messages"
+url = f"{endpoint}/api/v1/hubs/{hub_name}"
+
+headers = {
+    "Authorization": f"Bearer {token.token}",
+    "Content-Type": "application/json",
+}
+payload = {
+    "target": "newMessage",
+    "arguments": ["Hello from Python"],
+}
+
+response = requests.post(url, json=payload, headers=headers)
+response.raise_for_status()
+```
+
+For local development with the emulator, construct the authorization header using the access key from the connection string instead of a bearer token. For more information, see [Azure SignalR Service REST API](https://learn.microsoft.com/azure/azure-signalr/rest-api).
+
+</TabItem>
+<TabItem label="TypeScript">
+
+The `@microsoft/signalr` package is the official TypeScript/JavaScript client for connecting to SignalR hubs from browsers or Node.js applications. This is a **client-side** library — it connects to the hub endpoint, not to the Azure SignalR Service endpoint directly.
+
+:::note
+End clients (browsers, Node.js apps) connect to the **hub server's negotiate endpoint**, which in turn connects to Azure SignalR Service. End clients don't connect to Azure SignalR Service directly and don't need the Aspire-injected endpoint. The Aspire-injected `SIGNALR_URI` is for the **server** that hosts the hub.
+:::
+
+Install the package:
+
+```bash title="Terminal"
+npm install @microsoft/signalr
+```
+
+Connect to a hub using the negotiate endpoint of your hub server app:
+
+```typescript title="TypeScript — index.ts"
+import * as signalR from '@microsoft/signalr';
+
+// Connect to the hub server's negotiate endpoint (not Azure SignalR Service directly)
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("https://your-hub-server/chat")
+    .withAutomaticReconnect()
+    .build();
+
+connection.on("newMessage", (user: string, message: string) => {
+    console.log(`${user}: ${message}`);
+});
+
+await connection.start();
+await connection.invoke("SendMessage", "user1", "Hello from TypeScript!");
+```
+
+For Node.js server-side scenarios where you need to broadcast messages using the Management REST API, read the Aspire-injected endpoint:
+
+```typescript title="TypeScript — server.ts"
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read the Aspire-injected endpoint URI
+const endpoint = process.env.SIGNALR_URI;
+
+const credential = new DefaultAzureCredential();
+const tokenResponse = await credential.getToken("https://signalr.azure.com/.default");
+
+const hubName = "messages";
+const url = `${endpoint}/api/v1/hubs/${hubName}`;
+
+const response = await fetch(url, {
+    method: "POST",
+    headers: {
+        "Authorization": `Bearer ${tokenResponse.token}`,
+        "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+        target: "newMessage",
+        arguments: ["Hello from TypeScript"],
+    }),
+});
+```
+
+Install the Azure Identity package:
+
+```bash title="Terminal"
+npm install @azure/identity
+```
+
+For more information, see [Azure SignalR Service REST API](https://learn.microsoft.com/azure/azure-signalr/rest-api) and the [`@microsoft/signalr` package](https://www.npmjs.com/package/@microsoft/signalr).
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  If your app expects specific environment variable names different from the
+  Aspire defaults, you can pass individual connection properties from the
+  AppHost. See [Customize provisioning
+  infrastructure](../azure-signalr-host/#customize-provisioning-infrastructure)
+  in the hosting integration reference.
+</Aside>

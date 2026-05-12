@@ -3,16 +3,16 @@ title: Azure Front Door
 description: Learn how to use the Aspire Azure Front Door hosting integration to put a global edge in front of your application's backends.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
 import azureIcon from '@assets/icons/azure-front-door-icon.png';
 
 <Image
   src={azureIcon}
   alt="Azure Front Door logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
@@ -31,7 +31,10 @@ To access this type and APIs, add the [📦 Aspire.Hosting.Azure.FrontDoor](http
 
 ### Add an Azure Front Door resource
 
-In your AppHost, call `AddAzureFrontDoor` to add a Front Door profile, then call `WithOrigin` to attach a backend resource as an origin:
+In your AppHost, call `addAzureFrontDoor` to add a Front Door profile, then call `withOrigin` to attach a backend resource as an origin:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -48,17 +51,40 @@ builder.AddAzureFrontDoor("frontdoor")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment("production");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withExternalHttpEndpoints();
+
+const frontdoor = await builder.addAzureFrontDoor("frontdoor");
+await frontdoor.withOrigin(api);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code:
 
 - Adds an Azure App Service environment (a compute environment is required so Front Door can resolve the origin's hostname).
-- Adds an `api` project and exposes it externally with `WithExternalHttpEndpoints`. Front Door requires an origin to expose an external HTTP or HTTPS endpoint.
+- Adds an `api` project and exposes it externally with `withExternalHttpEndpoints`. Front Door requires an origin to expose an external HTTP or HTTPS endpoint.
 - Adds a Front Door profile named `frontdoor` and configures the `api` project as an origin.
 
-Each call to `WithOrigin` creates a separate Front Door endpoint, origin group, origin, and route, so each backend is independently routable through its own `*.azurefd.net` hostname.
+Each call to `withOrigin` creates a separate Front Door endpoint, origin group, origin, and route, so each backend is independently routable through its own `*.azurefd.net` hostname.
 
 <Aside type="caution">
-  When you call `AddAzureFrontDoor`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
+  When you call `addAzureFrontDoor`, it implicitly calls
+  `addAzureProvisioning`—which adds support for generating Azure resources
   dynamically during app startup. The app must configure the appropriate
   subscription and location. For more information, see [Local provisioning:
   Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
@@ -67,6 +93,9 @@ Each call to `WithOrigin` creates a separate Front Door endpoint, origin group, 
 ### Add multiple origins
 
 You can add multiple backends to the same Front Door profile. Each origin gets its own Front Door endpoint and route:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -85,6 +114,32 @@ builder.AddAzureFrontDoor("frontdoor")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment("production");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withExternalHttpEndpoints();
+
+const web = await builder.addProject("web", "../Web/Web.csproj");
+await web.withExternalHttpEndpoints();
+
+const frontdoor = await builder.addAzureFrontDoor("frontdoor");
+await frontdoor.withOrigin(api);
+await frontdoor.withOrigin(web);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Each origin must be added at most once per Front Door resource — adding the same resource twice throws `InvalidOperationException`.
 
@@ -168,11 +223,14 @@ output my_api_endpointUrl string = 'https://${my_apiEndpoint.properties.hostName
 
 Aspire passes the origin's hostname (resolved from the compute environment, not the full URL) into the `my_api_host` parameter so the Front Door origin points at the deployed backend.
 
-The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly are overwritten, so make changes through the C# provisioning APIs to ensure they're reflected in the generated files.
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly are overwritten, so make changes through the provisioning APIs to ensure they're reflected in the generated files.
 
 #### Customize provisioning infrastructure
 
-For advanced scenarios such as upgrading to the Premium SKU, attaching a Web Application Firewall (WAF) policy, configuring caching, or tuning routes, use `ConfigureInfrastructure` to modify the generated Bicep model directly:
+For advanced scenarios such as upgrading to the Premium SKU, attaching a Web Application Firewall (WAF) policy, configuring caching, or tuning routes, use `ConfigureInfrastructure` (`configureInfrastructure` in TypeScript) to modify the generated Bicep model directly:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 using Azure.Provisioning.Cdn;
@@ -195,6 +253,33 @@ var frontDoor = builder.AddAzureFrontDoor("frontdoor")
         };
     });
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addAzureAppServiceEnvironment("production");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withExternalHttpEndpoints();
+
+const frontdoor = await builder.addAzureFrontDoor("frontdoor");
+await frontdoor.withOrigin(api);
+await frontdoor.configureInfrastructure(async (infra) => {
+    // Use the AzureResourceInfrastructure API to customize Bicep
+    // parameters or resources directly.
+    await infra.addParameter("skuName", "Premium_AzureFrontDoor");
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.Cdn](https://learn.microsoft.com/dotnet/api/azure.provisioning.cdn) and [Azure.Provisioning.FrontDoor](https://learn.microsoft.com/dotnet/api/azure.provisioning.frontdoor) API documentation.
 

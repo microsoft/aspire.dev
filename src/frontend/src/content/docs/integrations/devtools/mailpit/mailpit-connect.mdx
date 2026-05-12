@@ -1,0 +1,205 @@
+---
+title: Connect to Mailpit
+description: Learn how to connect to Mailpit from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Aside, Badge, TabItem, Tabs } from '@astrojs/starlight/components';
+import ThemeImage from '@components/ThemeImage.astro';
+import mailpitIcon from '@assets/icons/mailpit-icon.svg';
+import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<ThemeImage
+  light={mailpitLightIcon}
+  dark={mailpitIcon}
+  alt="Mailpit logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+This page describes how consuming apps connect to a Mailpit resource that's already modeled in your AppHost. For the AppHost API surface — adding a Mailpit resource, the SMTP endpoint, the HTTP UI endpoint, and data volumes — see [Mailpit Hosting integration](../mailpit-host/).
+
+When you reference a Mailpit resource from your AppHost, Aspire injects the SMTP connection information into the consuming app as environment variables. Your app reads those variables and passes them to any standard SMTP library — the pattern works the same from any language.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `SmtpHost` property of a resource called `mailpit` becomes `MAILPIT_SMTPHOST`.
+
+The Mailpit resource exposes the following connection properties:
+
+| Property Name  | Description |
+| -------------- | ----------- |
+| `SmtpHost`     | The hostname or IP address of the Mailpit SMTP server |
+| `SmtpPort`     | The port number the Mailpit SMTP server is listening on (default: `1025`) |
+| `HttpEndpoint` | The base URL of the Mailpit web UI (default: `http://{host}:8025`) |
+
+**Example environment variable values for a resource named `mailpit`:**
+
+```
+MAILPIT_SMTPHOST=localhost
+MAILPIT_SMTPPORT=1025
+MAILPIT_HTTPENDPOINT=http://localhost:8025
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a Mailpit resource named `mailpit` and references it from the consuming app.
+
+<Tabs syncKey="mailpit-consuming-lang">
+<TabItem label="C#">
+
+There is no dedicated Aspire client integration package for Mailpit. Instead, read the Aspire-injected environment variables and use `System.Net.Mail.SmtpClient` (or any other SMTP library) to send emails.
+
+#### Read the SMTP connection properties
+
+```csharp title="C# — Program.cs"
+using System.Net.Mail;
+
+// Read Aspire-injected SMTP connection properties
+var smtpHost = Environment.GetEnvironmentVariable("MAILPIT_SMTPHOST") ?? "localhost";
+var smtpPort = int.TryParse(
+    Environment.GetEnvironmentVariable("MAILPIT_SMTPPORT"), out var p) ? p : 1025;
+```
+
+#### Send an email
+
+```csharp title="C# — Program.cs"
+using var client = new SmtpClient(smtpHost, smtpPort);
+using var message = new MailMessage(
+    from: "sender@example.com",
+    to: "recipient@example.com",
+    subject: "Hello from Aspire",
+    body: "This email was captured by Mailpit.");
+
+await client.SendMailAsync(message);
+```
+
+#### Inspect captured emails
+
+Open the Mailpit web UI via the `HttpEndpoint` property:
+
+```csharp title="C# — Program.cs"
+var mailpitUiUrl = Environment.GetEnvironmentVariable("MAILPIT_HTTPENDPOINT");
+// Navigate to mailpitUiUrl in a browser to inspect captured emails.
+```
+
+#### Register as a service
+
+For production-style registration, wrap the SMTP configuration in a hosted service or factory:
+
+```csharp title="C# — Program.cs"
+builder.Services.AddSingleton<SmtpClient>(_ =>
+    new SmtpClient(
+        host: Environment.GetEnvironmentVariable("MAILPIT_SMTPHOST") ?? "localhost",
+        port: int.TryParse(
+            Environment.GetEnvironmentVariable("MAILPIT_SMTPPORT"), out var p) ? p : 1025));
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the standard `net/smtp` package from the Go standard library — no third-party dependency is required:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "fmt"
+    "net/smtp"
+    "os"
+)
+
+func main() {
+    // Read Aspire-injected SMTP connection properties
+    smtpHost := os.Getenv("MAILPIT_SMTPHOST")
+    smtpPort := os.Getenv("MAILPIT_SMTPPORT")
+    addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
+
+    from := "sender@example.com"
+    to := []string{"recipient@example.com"}
+    msg := []byte(
+        "From: sender@example.com\r\n" +
+            "To: recipient@example.com\r\n" +
+            "Subject: Hello from Aspire\r\n" +
+            "\r\n" +
+            "This email was captured by Mailpit.\r\n",
+    )
+
+    // Mailpit does not require authentication
+    if err := smtp.SendMail(addr, nil, from, to, msg); err != nil {
+        panic(err)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Use the `smtplib` module from the Python standard library — no third-party dependency is required:
+
+```python title="Python — app.py"
+import os
+import smtplib
+from email.mime.text import MIMEText
+
+# Read Aspire-injected SMTP connection properties
+smtp_host = os.getenv("MAILPIT_SMTPHOST", "localhost")
+smtp_port = int(os.getenv("MAILPIT_SMTPPORT", "1025"))
+
+msg = MIMEText("This email was captured by Mailpit.")
+msg["Subject"] = "Hello from Aspire"
+msg["From"] = "sender@example.com"
+msg["To"] = "recipient@example.com"
+
+# Mailpit does not require authentication
+with smtplib.SMTP(smtp_host, smtp_port) as server:
+    server.sendmail("sender@example.com", ["recipient@example.com"], msg.as_string())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install [`nodemailer`](https://nodemailer.com/), a popular SMTP client for Node.js:
+
+```bash title="Terminal"
+npm install nodemailer
+npm install --save-dev @types/nodemailer
+```
+
+Read the injected environment variables and send an email:
+
+```typescript title="TypeScript — index.ts"
+import nodemailer from 'nodemailer';
+
+// Read Aspire-injected SMTP connection properties
+const transporter = nodemailer.createTransport({
+    host: process.env.MAILPIT_SMTPHOST,
+    port: Number(process.env.MAILPIT_SMTPPORT ?? 1025),
+    secure: false,         // Mailpit does not use TLS
+    auth: undefined,       // Mailpit does not require authentication
+});
+
+await transporter.sendMail({
+    from: 'sender@example.com',
+    to: 'recipient@example.com',
+    subject: 'Hello from Aspire',
+    text: 'This email was captured by Mailpit.',
+});
+```
+
+To open the Mailpit web UI programmatically, read the `HttpEndpoint`:
+
+```typescript title="TypeScript — Open Mailpit UI"
+const mailpitUiUrl = process.env.MAILPIT_HTTPENDPOINT;
+// Navigate to mailpitUiUrl in a browser to inspect captured emails.
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [Pass custom environment variables](/get-started/app-host/) in the AppHost reference.
+</Aside>

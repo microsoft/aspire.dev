@@ -1,140 +1,74 @@
 ---
-title: Dapr integration
+title: Dapr framework integration
+description: Learn how to use the Aspire Community Toolkit Dapr hosting integration to add Dapr sidecars, state stores, pub/sub components, and more to your Aspire AppHost project.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from "@components/InstallPackage.astro";
-import InstallDotNetPackage from "@components/InstallDotNetPackage.astro";
-import ThemeImage from '@components/ThemeImage.astro';
+import { Image } from 'astro:assets';
+import { Badge, Aside } from '@astrojs/starlight/components';
+import InstallPackage from '@components/InstallPackage.astro';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import daprIcon from '@assets/icons/dapr-icon.png';
-import daprLightIcon from '@assets/icons/dapr-light-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<ThemeImage
-  light={daprLightIcon}
-  dark={daprIcon}
+<Image
+  src={daprIcon}
   alt="Dapr logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-[Dapr](https://dapr.io/) (Distributed Application Runtime) is a portable, event-driven runtime that makes it easy for developers to build resilient, microservice stateless and stateful applications. The Aspire Dapr integration enables you to add [Dapr sidecars](https://docs.dapr.io/concepts/dapr-services/sidecar/) to your Aspire projects.
+[Dapr](https://dapr.io/) (Distributed Application Runtime) is a portable, event-driven runtime that makes it easy to build resilient, stateless and stateful microservice applications. The Aspire Dapr integration enables you to add [Dapr sidecars](https://docs.dapr.io/concepts/dapr-services/sidecar/) to your Aspire project resources and wire in state store, pub/sub, and component resources.
 
-<Aside type="note">
+:::note
+TypeScript AppHost support for this integration isn't yet available. All examples on this page are for C# AppHosts only.
+:::
 
+:::note
 This integration requires the Dapr CLI to be installed on your machine. For installation instructions, see [Install the Dapr CLI](https://docs.dapr.io/getting-started/install-dapr-cli/).
 
-After installing the CLI, you must run `dapr init` to initialize Dapr on your local machine before using this integration.
-
-</Aside>
+After installing the CLI, run `dapr init` to initialize Dapr on your local machine before using this integration.
+:::
 
 ## Hosting integration
-
-To get started with the Aspire Dapr hosting integration, install the [CommunityToolkit.Aspire.Hosting.Dapr](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Dapr) NuGet package in the app host project.
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Dapr" />
 
 ### Add Dapr sidecar
 
-In your app host project, add a Dapr sidecar to a project using the `WithDaprSidecar` extension method:
+Add a Dapr sidecar to any project resource by calling `WithDaprSidecar`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ExampleProject>("exampleproject")
-       .WithDaprSidecar();
+    .WithDaprSidecar();
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-By default, the Dapr sidecar uses the resource name as the Dapr app ID. You can customize the app ID and sidecar options:
+By default, the sidecar uses the resource name as the Dapr app ID. To customize the app ID and ports, pass a `DaprSidecarOptions` instance:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ExampleProject>("exampleproject")
-       .WithDaprSidecar(new DaprSidecarOptions
-       {
-           AppId = "my-app-id",
-           DaprGrpcPort = 50001,
-           DaprHttpPort = 3500,
-           MetricsPort = 9090
-       });
-
-// After adding all resources, run the app...
-```
-
-### Dashboard integration
-
-When you add Dapr sidecars to your projects, they appear as separate resources in the Aspire dashboard. Each sidecar is displayed with a unique name based on the project name and includes the configured ports.
-
-## Client integration
-
-To connect to services with Dapr sidecars from your client application, use the [Dapr.AspNetCore](https://www.nuget.org/packages/Dapr.AspNetCore) or [Dapr.Client](https://www.nuget.org/packages/Dapr.Client) NuGet packages:
-
-<InstallDotNetPackage packageName="Dapr.AspNetCore" />
-
-For non-ASP.NET Core applications, use the Dapr.Client package instead:
-
-```powershell
-dotnet add package Dapr.Client
-```
-
-### Use Dapr client
-
-In the `Program.cs` file of your client-consuming project, call the `AddDaprClient` extension method to register the Dapr client:
-
-```csharp
-builder.Services.AddDaprClient();
-```
-
-You can then retrieve the `DaprClient` instance using dependency injection:
-
-```csharp
-public class ExampleService(DaprClient daprClient)
-{
-    public async Task CallServiceAsync()
+    .WithDaprSidecar(new DaprSidecarOptions
     {
-        var response = await daprClient.InvokeMethodAsync<Response>(
-            HttpMethod.Get,
-            "exampleproject",
-            "api/data");
-    }
-}
+        AppId = "my-app-id",
+        DaprGrpcPort = 50001,
+        DaprHttpPort = 3500,
+        MetricsPort = 9090
+    });
+
+builder.Build().Run();
 ```
 
-### Service-to-service invocation
+### Add Dapr state store
 
-Dapr enables service-to-service invocation using the app ID. When you add a Dapr sidecar to a project, you can invoke methods on that service using the app ID:
-
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDaprClient();
-
-var app = builder.Build();
-
-app.MapGet("/call-service", async (DaprClient daprClient) =>
-{
-    var result = await daprClient.InvokeMethodAsync<string>(
-        HttpMethod.Get,
-        "exampleproject",
-        "api/data");
-    
-    return Results.Ok(result);
-});
-
-app.Run();
-```
-
-For more information on Dapr service invocation, see [Dapr service invocation](https://docs.dapr.io/developing-applications/building-blocks/service-invocation/).
-
-## Configure Dapr state stores
-
-The Aspire Dapr integration supports adding Dapr state store components. Use the `AddDaprStateStore` method to register a state store and reference it from your services:
+Add a Dapr state store component with `AddDaprStateStore` and reference it from the sidecar:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -142,15 +76,47 @@ var builder = DistributedApplication.CreateBuilder(args);
 var stateStore = builder.AddDaprStateStore("statestore");
 
 builder.AddProject<Projects.ExampleProject>("exampleproject")
-       .WithDaprSidecar()
-       .WithReference(stateStore);
+    .WithDaprSidecar(sidecar => sidecar
+        .WithReference(stateStore));
 
-// After adding all resources, run the app...
+builder.Build().Run();
+```
+
+### Add Dapr pub/sub
+
+Add a Dapr pub/sub component with `AddDaprPubSub` and reference it from the sidecar:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var pubSub = builder.AddDaprPubSub("pubsub");
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+    .WithDaprSidecar(sidecar => sidecar
+        .WithReference(pubSub));
+
+builder.Build().Run();
+```
+
+### Add Dapr component
+
+Use `AddDaprComponent` to add any Dapr component by type:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var binding = builder.AddDaprComponent("binding", "bindings.http");
+
+builder.AddProject<Projects.ExampleProject>("exampleproject")
+    .WithDaprSidecar(sidecar => sidecar
+        .WithReference(binding));
+
+builder.Build().Run();
 ```
 
 ### Configure an actor state store
 
-To configure a state store as an actor state store (required by Dapr actors), add the `actorStateStore` metadata entry to your component file. Create a `components` directory in your app host and add a component YAML file:
+To use an actor state store, add the `actorStateStore` metadata to a component YAML file. Create a `components` directory in your AppHost and add a component configuration file:
 
 ```yaml title="YAML — components/statestore.yaml"
 apiVersion: dapr.io/v1alpha1
@@ -170,55 +136,120 @@ spec:
       value: "true"
 ```
 
-Reference the component directory in your AppHost using `WithDaprSidecar` options:
+Reference the components directory from `DaprSidecarOptions`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ActorService>("actorservice")
-       .WithDaprSidecar(new DaprSidecarOptions
-       {
-           ResourcesDirectory = "./components"
-       });
+    .WithDaprSidecar(new DaprSidecarOptions
+    {
+        ResourcesPaths = ["./components"]
+    });
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
+
+### Dashboard integration
+
+When you add Dapr sidecars to your projects, they appear as separate resources in the Aspire dashboard. Each sidecar is displayed with a unique name derived from the project name and includes the configured ports.
+
+## Client integration
+
+To connect from a consuming project to services that have Dapr sidecars, install the [📦 Dapr.AspNetCore](https://www.nuget.org/packages/Dapr.AspNetCore) package:
+
+<InstallDotNetPackage packageName="Dapr.AspNetCore" />
+
+For non-ASP.NET Core applications, install [📦 Dapr.Client](https://www.nuget.org/packages/Dapr.Client) instead:
+
+```bash title="Terminal"
+dotnet add package Dapr.Client
+```
+
+### Use the Dapr client
+
+In the `Program.cs` file of your consuming project, register the Dapr client with the dependency injection container:
+
+```csharp title="C# — Program.cs"
+builder.Services.AddDaprClient();
+```
+
+Retrieve the `DaprClient` instance using dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(DaprClient daprClient)
+{
+    public async Task CallServiceAsync()
+    {
+        var response = await daprClient.InvokeMethodAsync<Response>(
+            HttpMethod.Get,
+            "exampleproject",
+            "api/data");
+    }
+}
+```
+
+### Service-to-service invocation
+
+Dapr enables service-to-service invocation using the app ID. The following example invokes an endpoint on the service identified by the Dapr app ID `exampleproject`:
+
+```csharp title="C# — Program.cs"
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDaprClient();
+
+var app = builder.Build();
+
+app.MapGet("/call-service", async (DaprClient daprClient) =>
+{
+    var result = await daprClient.InvokeMethodAsync<string>(
+        HttpMethod.Get,
+        "exampleproject",
+        "api/data");
+
+    return Results.Ok(result);
+});
+
+app.Run();
+```
+
+For more information, see [Dapr service invocation](https://docs.dapr.io/developing-applications/building-blocks/service-invocation/).
 
 ## Deploy with Azure Container Apps
 
-The Aspire Dapr Community Toolkit integration configures Dapr sidecars for local development. When deploying to Azure Container Apps (ACA), Dapr sidecar settings are part of the container app configuration and must be preserved on each deployment.
+The Dapr integration configures Dapr sidecars for local development. When deploying to Azure Container Apps (ACA), Dapr sidecar settings are part of the container app configuration and must be preserved on each deployment.
 
-<Aside type="caution">
+:::caution
 When you redeploy a container app that previously had Dapr enabled, Azure Container Apps does **not** automatically retain Dapr settings from the previous deployment. If Dapr appears disabled in the Azure portal after redeployment, re-enable it by configuring the Dapr settings in the ACA environment or by using `PublishAsAzureContainerApp` with explicit Dapr configuration.
-</Aside>
+:::
 
-To ensure Dapr settings are preserved on Azure Container Apps deployments, configure the sidecar explicitly using `PublishAsAzureContainerApp`:
+To ensure Dapr settings are preserved, configure the sidecar explicitly using `PublishAsAzureContainerApp`:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddProject<Projects.ExampleProject>("exampleproject")
-       .WithDaprSidecar()
-       .PublishAsAzureContainerApp((infra, app) =>
-       {
-           // Enable Dapr on the container app and set the app ID
-           app.Configuration.Dapr = new()
-           {
-               IsEnabled = true,
-               AppId = "exampleproject",
-               AppPort = 8080,
-           };
-       });
+    .WithDaprSidecar()
+    .PublishAsAzureContainerApp((infra, app) =>
+    {
+        app.Configuration.Dapr = new()
+        {
+            IsEnabled = true,
+            AppId = "exampleproject",
+            AppPort = 8080,
+        };
+    });
 
-// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-For more information on customizing Azure Container Apps resources, see [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/).
+For more information, see [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/).
 
 ## See also
 
+- [📦 CommunityToolkit.Aspire.Hosting.Dapr](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Dapr) NuGet package
 - [Dapr documentation](https://docs.dapr.io/)
 - [Dapr .NET SDK](https://docs.dapr.io/developing-applications/sdks/dotnet/)
+- [Dapr service invocation](https://docs.dapr.io/developing-applications/building-blocks/service-invocation/)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/microsoft/aspire)
+- [Configure Azure Container Apps](/integrations/cloud/azure/configure-container-apps/)

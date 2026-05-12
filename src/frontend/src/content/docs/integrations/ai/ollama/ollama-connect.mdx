@@ -1,0 +1,345 @@
+---
+title: Connect to Ollama
+description: Learn how to connect to Ollama from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import ollamaIcon from '@assets/icons/ollama-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={ollamaIcon}
+  alt="Ollama logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Ollama model resource that's already modeled in your AppHost. For the AppHost API surface — adding an Ollama server, models, data volumes, GPU support, and more — see [Ollama hosting integration](../ollama-host/).
+
+When you reference an Ollama model resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire OllamaSharp client integration for automatic dependency injection.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `ollama-llama3` becomes `OLLAMA_LLAMA3_URI`.
+
+### Ollama server resource
+
+The Ollama server resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the Ollama server |
+| `Port`        | The port number the Ollama server is listening on (default: `11434`) |
+| `Uri`         | The full HTTP endpoint URI, with the format `http://{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: http://localhost:11434
+```
+
+### Ollama model resource
+
+The Ollama model resource inherits all properties from its parent server resource and adds:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Model`       | The name of the model, for example `llama3` or `phi3.5` |
+
+The model resource connection string combines both:
+
+```
+Endpoint=http://localhost:11434;Model=llama3
+```
+
+<Aside type="tip">
+  Model resource names are derived from the model name by sanitizing it: the tag suffix is stripped, forward slashes produce the last path segment, and dots are replaced with hyphens. For example, `"phi3.5"` on an Ollama resource named `"ollama"` produces the resource name `"ollama-phi3-5"` and therefore the env var prefix `OLLAMA_PHI3_5_`.
+</Aside>
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Ollama model resource named `llama3` on an Ollama server resource named `ollama` — producing a consuming resource called `ollama-llama3` with the env var prefix `OLLAMA_LLAMA3_`.
+
+<Tabs syncKey="ollama-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire OllamaSharp client integration. It registers an `IOllamaApiClient` through dependency injection and supports `Microsoft.Extensions.AI` abstractions (`IChatClient`, `IEmbeddingGenerator`). If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 CommunityToolkit.Aspire.OllamaSharp](https://www.nuget.org/packages/CommunityToolkit.Aspire.OllamaSharp) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.OllamaSharp" />
+
+#### Add the Ollama API client
+
+In _Program.cs_, call `AddOllamaApiClient` on your `IHostApplicationBuilder` to register an `IOllamaApiClient`. When the resource provided in the AppHost is an `OllamaModelResource`, the model is set as the default model automatically:
+
+```csharp title="C# — Program.cs"
+builder.AddOllamaApiClient(connectionName: "ollama-llama3");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Ollama model resource name from the AppHost. For more information, see [Add Ollama model resource](../ollama-host/#add-ollama-model-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IOllamaApiClient ollama)
+{
+    // Use ollama...
+}
+```
+
+#### Add keyed Ollama clients
+
+To register multiple `IOllamaApiClient` instances with different connection names, use `AddKeyedOllamaApiClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedOllamaApiClient(name: "chat");
+builder.AddKeyedOllamaApiClient(name: "embeddings");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] IOllamaApiClient chatOllama,
+    [FromKeyedServices("embeddings")] IOllamaApiClient embeddingsOllama)
+{
+    // Use ollama clients...
+}
+```
+
+#### Integration with Microsoft.Extensions.AI
+
+The [📦 Microsoft.Extensions.AI](https://www.nuget.org/packages/Microsoft.Extensions.AI) package provides portable `IChatClient` and `IEmbeddingGenerator<string, Embedding<float>>` abstractions. OllamaSharp supports these interfaces and you can register them by chaining onto `AddOllamaApiClient`:
+
+```csharp title="C# — Program.cs"
+// Register IChatClient
+builder.AddOllamaApiClient("ollama-llama3")
+       .AddChatClient();
+
+// Register IEmbeddingGenerator
+builder.AddOllamaApiClient("ollama-llama3")
+       .AddEmbeddingGenerator();
+```
+
+Resolve through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IChatClient chatClient)
+{
+    // Use chat client...
+}
+```
+
+#### Add keyed Microsoft.Extensions.AI clients
+
+```csharp title="C# — Program.cs"
+builder.AddOllamaApiClient("chat")
+       .AddKeyedChatClient("chat");
+builder.AddOllamaApiClient("embeddings")
+       .AddKeyedEmbeddingGenerator("embeddings");
+```
+
+Then resolve by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] IChatClient chatClient,
+    [FromKeyedServices("embeddings")] IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator)
+{
+    // Use AI clients...
+}
+```
+
+#### Configuration
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddOllamaApiClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddOllamaApiClient("ollama-llama3");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "ollama-llama3": "Endpoint=http://localhost:11434;Model=llama3"
+  }
+}
+```
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected environment variables directly and construct an `OllamaApiClient`:
+
+```csharp title="C# — Program.cs"
+using OllamaSharp;
+
+var endpoint = Environment.GetEnvironmentVariable("OLLAMA_LLAMA3_URI");
+var modelName = Environment.GetEnvironmentVariable("OLLAMA_LLAMA3_MODEL");
+
+var client = new OllamaApiClient(new Uri(endpoint!))
+{
+    SelectedModel = modelName
+};
+
+// Use client...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the official [Ollama Go library](https://github.com/ollama/ollama/tree/main/api):
+
+```bash title="Terminal"
+go get github.com/ollama/ollama/api
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "net/http"
+    "net/url"
+    "os"
+
+    "github.com/ollama/ollama/api"
+)
+
+func main() {
+    // Read Aspire-injected connection properties
+    endpoint := os.Getenv("OLLAMA_LLAMA3_URI")
+    model := os.Getenv("OLLAMA_LLAMA3_MODEL")
+
+    serverURL, err := url.Parse(endpoint)
+    if err != nil {
+        panic(err)
+    }
+
+    client := api.NewClient(serverURL, http.DefaultClient)
+
+    req := &api.GenerateRequest{
+        Model:  model,
+        Prompt: "Why is the sky blue?",
+    }
+
+    ctx := context.Background()
+    err = client.Generate(ctx, req, func(resp api.GenerateResponse) error {
+        // Handle streamed response tokens...
+        return nil
+    })
+    if err != nil {
+        panic(err)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the official [`ollama`](https://github.com/ollama/ollama-python) Python library:
+
+```bash title="Terminal"
+pip install ollama
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+import ollama
+
+# Read Aspire-injected connection properties
+endpoint = os.getenv("OLLAMA_LLAMA3_URI")
+model = os.getenv("OLLAMA_LLAMA3_MODEL")
+
+client = ollama.Client(host=endpoint)
+
+response = client.generate(model=model, prompt="Why is the sky blue?")
+print(response["response"])
+```
+
+Or use the async client:
+
+```python title="Python — app.py (async)"
+import asyncio
+import os
+import ollama
+
+async def main():
+    endpoint = os.getenv("OLLAMA_LLAMA3_URI")
+    model = os.getenv("OLLAMA_LLAMA3_MODEL")
+
+    client = ollama.AsyncClient(host=endpoint)
+    response = await client.generate(model=model, prompt="Why is the sky blue?")
+    print(response["response"])
+
+asyncio.run(main())
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the official [`ollama`](https://www.npmjs.com/package/ollama) npm package:
+
+```bash title="Terminal"
+npm install ollama
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { Ollama } from 'ollama';
+
+// Read Aspire-injected connection properties
+const host = process.env.OLLAMA_LLAMA3_URI;
+const model = process.env.OLLAMA_LLAMA3_MODEL ?? 'llama3';
+
+const client = new Ollama({ host });
+
+const response = await client.generate({
+    model,
+    prompt: 'Why is the sky blue?',
+});
+
+console.log(response.response);
+```
+
+Or use streaming:
+
+```typescript title="TypeScript — Streaming response"
+import { Ollama } from 'ollama';
+
+const client = new Ollama({ host: process.env.OLLAMA_LLAMA3_URI });
+
+const stream = await client.generate({
+    model: process.env.OLLAMA_LLAMA3_MODEL ?? 'llama3',
+    prompt: 'Why is the sky blue?',
+    stream: true,
+});
+
+for await (const chunk of stream) {
+    process.stdout.write(chunk.response);
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See the Aspire AppHost documentation for details on custom environment variable injection.
+</Aside>

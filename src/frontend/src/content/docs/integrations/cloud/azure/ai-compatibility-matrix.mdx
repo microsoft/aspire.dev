@@ -3,9 +3,20 @@ title: AI integrations compatibility matrix
 description: View the compatibility matrix for Aspire AI integrations including Azure OpenAI, Azure AI Inference, and IChatClient support.
 ---
 
-import { Aside, Card } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import aiIcon from '@assets/icons/azure-openai-icon.png';
 
-Aspire provides several AI hosting and client integrations that enable you to work with different AI services and platforms. This article provides a compatibility matrix showing which client integrations work with which hosting integrations, along with guidance on the recommended pairings.
+<Image
+  src={aiIcon}
+  alt="Azure OpenAI logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+Aspire provides several AI hosting and client integrations that enable you to work with different AI services and platforms. This article is a compatibility reference showing which client integrations work with which hosting integrations, along with the recommended pairings and AppHost API examples.
 
 ## Compatibility matrix
 
@@ -18,14 +29,14 @@ The following table shows the compatibility between Aspire AI hosting and client
 | `Aspire.Hosting.OpenAI` | ✅ Yes (preferred) | ✅ Yes | ❌ No |
 | `Aspire.Hosting.GitHub.Models` | ⚠️ Partial | ❌ No | ✅ Yes (preferred) |
 
-<Card title='Legend'>
+<Aside type="note" title="Legend">
 
 - ✅ **Yes**: The client integration is compatible with the hosting integration.
 - ⚠️ **Partial**: The client integration might not support all models or APIs.
 - ❌ **No**: The client integration does not support the hosting environment.
 - **(preferred)**: The recommended client integration for this hosting integration.
 
-</Card>
+</Aside>
 
 ## Recommended pairings
 
@@ -39,6 +50,8 @@ For Microsoft Foundry resources, use the **Aspire.Azure.AI.Inference** client in
 
 The [Aspire.Hosting.Foundry](https://www.nuget.org/packages/Aspire.Hosting.Foundry) package provides the hosting integration. In your app host project:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -47,12 +60,26 @@ var foundry = builder.AddFoundry("foundry");
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(foundry);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const foundry = await builder.addFoundry("foundry");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(foundry);
+```
+</TabItem>
+</Tabs>
 
 #### Client integration
 
 The [Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) package provides the client integration. In your service project:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — Program.cs"
 builder.AddAzureChatCompletionsClient("foundry");
 ```
 
@@ -64,6 +91,8 @@ For Azure OpenAI resources, use the **Aspire.Azure.AI.OpenAI** client integratio
 
 The [Aspire.Hosting.Azure.CognitiveServices](https://www.nuget.org/packages/Aspire.Hosting.Azure.CognitiveServices) package provides the hosting integration. In your app host project:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -72,12 +101,26 @@ var openai = builder.AddAzureOpenAI("openai");
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(openai);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const openai = await builder.addAzureOpenAI("openai");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(openai);
+```
+</TabItem>
+</Tabs>
 
 #### Client integration
 
 The [Aspire.Azure.AI.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI) package provides the client integration. In your service project:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — Program.cs"
 builder.AddAzureOpenAIClient("openai");
 ```
 
@@ -89,6 +132,8 @@ For direct OpenAI API access, use the **Aspire.OpenAI** client integration. For 
 
 The [Aspire.Hosting.OpenAI](https://www.nuget.org/packages/Aspire.Hosting.OpenAI) package provides the hosting integration. In your app host project:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -97,12 +142,26 @@ var openai = builder.AddOpenAI("openai");
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(openai);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const openai = await builder.addOpenAI("openai");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(openai);
+```
+</TabItem>
+</Tabs>
 
 #### Client integration
 
 The [Aspire.OpenAI](https://www.nuget.org/packages/Aspire.OpenAI) package provides the client integration. In your service project:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — Program.cs"
 builder.AddOpenAIClient("openai");
 ```
 
@@ -114,6 +173,8 @@ For GitHub Models, use the **Aspire.Azure.AI.Inference** client integration for 
 
 The [Aspire.Hosting.GitHub.Models](https://www.nuget.org/packages/Aspire.Hosting.GitHub.Models) package provides the hosting integration. In your app host project:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -122,12 +183,26 @@ var chat = builder.AddGitHubModel("chat", "openai/gpt-4o-mini");
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(chat);
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const chat = await builder.addGitHubModel("chat", "openai/gpt-4o-mini");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(chat);
+```
+</TabItem>
+</Tabs>
 
 #### Client integration
 
 The [Aspire.Azure.AI.Inference](https://www.nuget.org/packages/Aspire.Azure.AI.Inference) package provides the client integration. In your service project:
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — Program.cs"
 builder.AddAzureChatCompletionsClient("chat");
 ```
 

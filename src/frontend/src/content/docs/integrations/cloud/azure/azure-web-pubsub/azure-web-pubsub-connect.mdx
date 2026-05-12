@@ -1,0 +1,335 @@
+---
+title: Connect to Azure Web PubSub
+description: Learn how to connect to Azure Web PubSub from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import webPubSubIcon from '@assets/icons/azure-webpubsub-icon.png';
+
+<Image
+  src={webPubSubIcon}
+  alt="Azure Web PubSub logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Web PubSub resource that's already modeled in your AppHost. For the AppHost API surface — adding a Web PubSub resource, hubs, event handlers, role assignments, and more — see [Azure Web PubSub Hosting integration](../azure-web-pubsub-host/).
+
+When you reference an Azure Web PubSub resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Web PubSub client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `web-pubsub` becomes `WEB_PUBSUB_URI`.
+
+The Azure Web PubSub resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Uri`         | The HTTPS service endpoint, with the format `https://{resource-name}.webpubsub.azure.com` |
+
+**Example:**
+
+```
+WEB_PUBSUB_URI: https://webpubsub-abc123.webpubsub.azure.com
+```
+
+### Connection string formats
+
+Azure Web PubSub clients accept two connection formats:
+
+- **Service endpoint (recommended):** Uses the endpoint URL with a [managed identity / default credential](/integrations/cloud/azure/azure-default-credential/). This is the format Aspire injects by default.
+
+  ```
+  https://{account_name}.webpubsub.azure.com
+  ```
+
+- **Full connection string (includes access key):** Combines the `Endpoint` and `AccessKey` components. Use this only when managed identity isn't available.
+
+  ```
+  Endpoint=https://{account_name}.webpubsub.azure.com;AccessKey={account_key}
+  ```
+
+<Aside type="tip">
+  Role-based access (managed identity) is the recommended approach for production. Aspire
+  provisions a `WebPubSubServiceOwner` role assignment for your app automatically. See
+  [Assign Azure Web PubSub roles](../azure-web-pubsub-host/#assign-azure-web-pubsub-roles).
+</Aside>
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure Web PubSub resource named `web-pubsub` and references it from the consuming app.
+
+<Tabs syncKey="azure-web-pubsub-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure Web PubSub client integration. It registers a [`WebPubSubServiceClient`](https://learn.microsoft.com/dotnet/api/azure.messaging.webpubsub.webpubsubserviceclient) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.Messaging.WebPubSub](https://www.nuget.org/packages/Aspire.Azure.Messaging.WebPubSub) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Messaging.WebPubSub" />
+
+#### Add the Web PubSub service client
+
+In _Program.cs_, call `AddAzureWebPubSubServiceClient` on your `IHostApplicationBuilder` to register a `WebPubSubServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureWebPubSubServiceClient(
+    connectionName: "web-pubsub",
+    settings => settings.HubName = "messages");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure Web PubSub resource name from the AppHost. For more information, see [Add Azure Web PubSub resource](../azure-web-pubsub-host/#add-azure-web-pubsub-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(WebPubSubServiceClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed Web PubSub clients
+
+To register multiple `WebPubSubServiceClient` instances for different hubs, use `AddKeyedAzureWebPubSubServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureWebPubSubServiceClient(name: "messages");
+builder.AddKeyedAzureWebPubSubServiceClient(name: "commands");
+```
+
+<Aside type="caution">
+  When using keyed services, your Web PubSub resource must be configured with two named hubs,
+  one for `messages` and one for `commands`.
+</Aside>
+
+Then resolve each client by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("messages")] WebPubSubServiceClient messagesClient,
+    [FromKeyedServices("commands")] WebPubSubServiceClient commandsClient)
+{
+    // Use clients...
+}
+```
+
+#### Configuration
+
+The Aspire Azure Web PubSub client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureWebPubSubServiceClient`. Two formats are supported:
+
+- **Service endpoint (recommended):**
+
+  ```json title="JSON — appsettings.json"
+  {
+    "ConnectionStrings": {
+      "web-pubsub": "https://{account_name}.webpubsub.azure.com"
+    }
+  }
+  ```
+
+- **Full connection string with access key:**
+
+  ```json title="JSON — appsettings.json"
+  {
+    "ConnectionStrings": {
+      "web-pubsub": "Endpoint=https://{account_name}.webpubsub.azure.com;AccessKey={account_key}"
+    }
+  }
+  ```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureMessagingWebPubSubSettings` from _appsettings.json_ using the `Aspire:Azure:Messaging:WebPubSub` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Messaging": {
+        "WebPubSub": {
+          "HubName": "messages",
+          "DisableHealthChecks": false
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<AzureMessagingWebPubSubSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureWebPubSubServiceClient(
+    "web-pubsub",
+    settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure Web PubSub client integration registers a health check that verifies the service is reachable. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Azure Web PubSub client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure.Messaging.WebPubSub`
+
+**Tracing** activities:
+
+- `Azure.Messaging.WebPubSub.*`
+
+**Metrics:** The Azure Web PubSub integration currently doesn't support metrics by default due to limitations in the Azure SDK for .NET.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected endpoint URI from the environment and create a `WebPubSubServiceClient` directly:
+
+```csharp title="C# — Program.cs"
+using Azure.Messaging.WebPubSub;
+using Azure.Identity;
+
+var endpoint = new Uri(Environment.GetEnvironmentVariable("WEB_PUBSUB_URI")!);
+var client = new WebPubSubServiceClient(endpoint, "messages", new DefaultAzureCredential());
+
+// Use client...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Install the [Azure Web PubSub SDK for Go](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/messaging/webpubsub):
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/messaging/webpubsub
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the injected environment variable and connect using managed identity:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/messaging/webpubsub"
+)
+
+func main() {
+    // Read the Aspire-injected service endpoint
+    endpoint := os.Getenv("WEB_PUBSUB_URI")
+
+    cred, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := webpubsub.NewClient(endpoint, cred, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    hubClient, err := client.NewHubClient("messages", nil)
+    if err != nil {
+        panic(err)
+    }
+
+    _ = hubClient
+    // Use hubClient to send messages...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [azure-messaging-webpubsubservice](https://pypi.org/project/azure-messaging-webpubsubservice/) package:
+
+```bash title="Terminal"
+pip install azure-messaging-webpubsubservice azure-identity
+```
+
+Read the injected environment variable and connect using managed identity:
+
+```python title="Python — app.py"
+import os
+from azure.identity import DefaultAzureCredential
+from azure.messaging.webpubsubservice import WebPubSubServiceClient
+
+# Read the Aspire-injected service endpoint
+endpoint = os.getenv("WEB_PUBSUB_URI")
+
+client = WebPubSubServiceClient(endpoint=endpoint, hub="messages", credential=DefaultAzureCredential())
+
+# Use client to send messages...
+```
+
+Or use a full connection string with access key:
+
+```python title="Python — app.py (connection string)"
+import os
+from azure.messaging.webpubsubservice import WebPubSubServiceClient
+
+connection_string = os.getenv("AZURE_WEB_PUBSUB_CONNECTION_STRING")
+client = WebPubSubServiceClient.from_connection_string(connection_string, hub="messages")
+
+# Use client...
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [@azure/web-pubsub](https://www.npmjs.com/package/@azure/web-pubsub) package:
+
+```bash title="Terminal"
+npm install @azure/web-pubsub @azure/identity
+```
+
+Read the injected environment variable and connect using managed identity:
+
+```typescript title="TypeScript — index.ts"
+import { WebPubSubServiceClient } from '@azure/web-pubsub';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read the Aspire-injected service endpoint
+const endpoint = process.env.WEB_PUBSUB_URI!;
+
+const client = new WebPubSubServiceClient(
+    endpoint,
+    new DefaultAzureCredential(),
+    "messages" // hub name
+);
+
+// Use client to send messages...
+```
+
+Or use a full connection string with access key:
+
+```typescript title="TypeScript — Connect with connection string"
+import { WebPubSubServiceClient } from '@azure/web-pubsub';
+
+const connectionString = process.env.AZURE_WEB_PUBSUB_CONNECTION_STRING!;
+const client = new WebPubSubServiceClient(connectionString, "messages");
+
+// Use client...
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [Customize provisioning infrastructure](../azure-web-pubsub-host/#customize-provisioning-infrastructure) in the Hosting integration reference.
+</Aside>

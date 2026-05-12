@@ -1,11 +1,11 @@
 ---
-title: Ollama Hosting integration reference
-description: Learn how to use the Aspire Ollama hosting integration to orchestrate and configure Ollama models in your Aspire projects.
+title: Set up Ollama in the AppHost
+description: Learn how to use the Aspire Ollama hosting integration to orchestrate and configure Ollama models in an Aspire solution.
 ---
 
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside, Badge } from '@astrojs/starlight/components';
+import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import ollamaIcon from '@assets/icons/ollama-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -19,40 +19,158 @@ import ollamaIcon from '@assets/icons/ollama-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire Ollama integrations, follow the [Get started with Ollama integrations](/integrations/ai/ollama/ollama-get-started/) guide.
+This article is the reference for the Aspire Ollama hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model an Ollama server and its model resources in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details about the Aspire Ollama Hosting integration.
+If you're new to the Ollama integration, start with the [Get started with Ollama integrations](/integrations/ai/ollama/ollama-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Ollama](../ollama-connect/).
 
 ## Installation
 
-The Aspire Ollama hosting integration models an Ollama server as the `OllamaResource` type, and provides the ability to add models to the server using the `AddModel` extension method, which represents the model as an `OllamaModelResource` type. To access these types and APIs for expressing them as resources in your AppHost project, install the [📦 CommunityToolkit.Aspire.Hosting.Ollama](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.Ollama) NuGet package:
+To start building an Aspire app that uses Ollama, install the [📦 CommunityToolkit.Aspire.Hosting.Ollama](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.Ollama) NuGet package:
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Ollama" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add ollama --source CommunityToolkit
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Ollama@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add ollama --source CommunityToolkit
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Ollama hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Ollama": "*"
+  }
+}
+```
+
+<Aside type="note">
+  The TypeScript AppHost bindings for Ollama are provided by the Community Toolkit package and are not part of the core Aspire TypeScript SDK. The `.modules/aspire.ts` file in your project will include `addOllama` and related APIs after installation.
+</Aside>
+
+</TabItem>
+</Tabs>
 
 ## Add Ollama resource
 
-In the AppHost project, register and consume the Ollama integration using the `AddOllama` extension method to add the Ollama container to the application builder. You can then add models to the container, which download and run when the container starts, using the `AddModel` extension method:
+Once you've installed the hosting integration in your AppHost project, you can add an Ollama server resource and then add model resources as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var ollama = builder.AddOllama("ollama");
+var llama3 = ollama.AddModel("llama3");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(llama3);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const ollama = await builder.addOllama("ollama");
+const llama3 = await ollama.addModel("llama3");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(llama3);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/ollama/ollama` image, it creates a new Ollama instance on your local machine.
+
+1. The resource name passed to `AddOllama` is used as the connection string name when referenced in a dependency. Model sub-resources are named by sanitizing the model name (for example, `"llama3"` produces the resource name `"ollama-llama3"`).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced model resource.
+
+</Steps>
+
+<Aside type="note">
+    When you reference an Ollama model resource from the AppHost, Aspire makes several properties available to the consuming project, such as the HTTP endpoint, host, and port. For a complete list of these properties and per-language connection examples, see [Connect to Ollama](../ollama-connect/).
+</Aside>
+
+## Add Ollama model resource
+
+Models are sub-resources of an Ollama server resource. You add them with the `AddModel` (or `addModel`) method. Each model is downloaded when the Ollama container first starts.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var ollama = builder.AddOllama("ollama");
 
+// Add by model name — resource name is generated automatically
 var phi35 = ollama.AddModel("phi3.5");
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>()
-                            .WithReference(phi35);
+// Add with an explicit resource name
+var llama3 = ollama.AddModel("ollama-llama3", "llama3");
 
-builder.Build().Run();
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(phi35)
+    .WithReference(llama3);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-Alternatively, if you want to use a model from the [Hugging Face](https://huggingface.co/) model hub, you can use the `AddHuggingFaceModel` extension method:
+const builder = await createBuilder();
 
-```csharp
-var llama = ollama.AddHuggingFaceModel("llama", "bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS");
+const ollama = await builder.addOllama("ollama");
+
+// Add by model name — resource name is generated automatically
+const phi35 = await ollama.addModel("phi3.5");
+
+// Add with an explicit resource name
+const llama3 = await ollama.addNamedModel("ollama-llama3", "llama3");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(phi35)
+    .withReference(llama3);
+
+// After adding all resources, run the app...
 ```
-
-When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/ollama/ollama` image, it creates a new Ollama instance on your local machine.
+</TabItem>
+</Tabs>
 
 ## Download the LLM
 
@@ -63,49 +181,230 @@ When the Ollama container for this integration first spins up, it downloads the 
   otherwise the download will be cancelled.
 </Aside>
 
-## Cache the LLM
+## Add Ollama resource with data volume
 
-One or more LLMs are downloaded into the container which Ollama is running from, and by default this container is ephemeral. If you need to persist one or more LLMs across container restarts, you need to mount a volume into the container using the `WithDataVolume` method:
+Add a data volume to the Ollama resource to persist downloaded models across container restarts:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var ollama = builder.AddOllama("ollama")
-                    .WithDataVolume();
+    .WithDataVolume();
 
-var llama = ollama.AddModel("llama3");
+var llama3 = ollama.AddModel("llama3");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(llama3);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const ollama = await builder.addOllama("ollama");
+await ollama.withDataVolume();
+
+const llama3 = await ollama.addModel("llama3");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(llama3);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The data volume is mounted at `/root/.ollama` in the Ollama container. When a `name` parameter isn't provided, the volume name is generated automatically. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Use GPUs when available
 
-One or more LLMs are downloaded into the container which Ollama is running from, and by default this container runs on CPU. If you need to run the container with GPU support, you can enable it using the `WithGPUSupport()` extension method.
+By default, the Ollama container runs on CPU. To enable GPU acceleration, use the `WithGPUSupport` (or `withGPUSupport`) extension method:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 **Nvidia:**
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var ollama = builder.AddOllama("ollama")
-                    .WithGPUSupport();
+    .WithGPUSupport();
+
 ollama.AddModel("llama3");
+
+// After adding all resources, run the app...
 ```
 
 **AMD:**
 
-```csharp
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var ollama = builder.AddOllama("ollama")
-                    .WithGPUSupport(OllamaGpuVendor.AMD);
+    .WithGPUSupport(OllamaGpuVendor.AMD);
+
 ollama.AddModel("llama3");
+
+// After adding all resources, run the app...
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+**Nvidia:**
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const ollama = await builder.addOllama("ollama");
+await ollama.withGPUSupport();
+
+await ollama.addModel("llama3");
+
+// After adding all resources, run the app...
+```
+
+**AMD:**
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const ollama = await builder.addOllama("ollama");
+await ollama.withGPUSupport({ vendor: "AMD" });
+
+await ollama.addModel("llama3");
+
+// After adding all resources, run the app...
+```
+
+<Aside type="note">
+  The TypeScript `withGPUSupport` API shape for vendor selection may differ from the C# overload. Refer to the generated `.modules/aspire.ts` in your project for the exact parameter structure.
+</Aside>
+
+</TabItem>
+</Tabs>
 
 For more information, see [GPU support in Docker Desktop](https://docs.docker.com/desktop/gpu/) and [GPU support in Podman](https://github.com/containers/podman/issues/19005).
 
-## Hosting integration health checks
+## Add a model from Hugging Face
 
-The Ollama hosting integration automatically adds a health check for the Ollama server and model resources. For the Ollama server, a health check is added to verify that the Ollama server is running and that a connection can be established to it. For the Ollama model resources, a health check is added to verify that the model is running and that the model is available, meaning the resource will be marked as unhealthy until the model has been downloaded.
+To use a model in GGUF format from [Hugging Face](https://huggingface.co/), use the `AddHuggingFaceModel` (or `addHuggingFaceModel`) extension method:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var ollama = builder.AddOllama("ollama");
+
+var llama = ollama.AddHuggingFaceModel(
+    "llama",
+    "bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS");
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(llama);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const ollama = await builder.addOllama("ollama");
+
+const llama = await ollama.addHuggingFaceModel(
+    "llama",
+    "bartowski/Llama-3.2-1B-Instruct-GGUF:IQ4_XS");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(llama);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+Only models in GGUF format are supported. Ollama automatically prefixes `hf.co/` if the model name doesn't already start with `hf.co/` or `huggingface.co/`.
+
+## Add Ollama resource with parameters
+
+To use a fixed port for the Ollama container, pass it as a parameter:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var ollama = builder.AddOllama("ollama", port: 11434);
+
+ollama.AddModel("llama3");
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const ollama = await builder.addOllama("ollama", { port: 11434 });
+
+await ollama.addModel("llama3");
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
 
 ## Open WebUI support
 
-The Ollama integration also provides support for running [Open WebUI](https://openwebui.com/) and having it communicate with the Ollama container:
+The Ollama integration also provides support for running [Open WebUI](https://openwebui.com/) alongside the Ollama container:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var ollama = builder.AddOllama("ollama")
-                    .WithOpenWebUI();
+    .WithOpenWebUI();
+
 ollama.AddModel("llama3");
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="note">
+  TypeScript AppHost support for `WithOpenWebUI` is not available in the current Community Toolkit TypeScript bindings. Use the C# AppHost to enable Open WebUI.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+## Connection properties
+
+For the full reference of Ollama connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Ollama](../ollama-connect/).
+
+## Hosting integration health checks
+
+The Ollama hosting integration automatically adds health checks for both the Ollama server and each model resource:
+
+- **Server health check.** Verifies that the Ollama server is running and that a connection can be established to it.
+- **Model health check.** Verifies that a model has been downloaded and is available. The model resource is marked as unhealthy until the download completes.
+

@@ -1,103 +1,100 @@
 ---
-title: Get started with the Redis integration
-description: Learn how to set up the Aspire Redis hosting and client integrations simply.
-prev: false
+title: Get started with the Redis integrations
+description: Understand why you use the Aspire Redis integrations and how they fit together.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import redisIcon from '@assets/icons/redis-icon.png';
 
 <Image
   src={redisIcon}
   alt="Redis logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Redis®](#registered-trademark) is the world's fastest data platform for caching, vector search, and NoSQL databases. The Aspire Redis integration enables you to connect to existing Redis instances, or create new instances from .NET with the [`docker.io/library/redis` container image](https://hub.docker.com/_/redis/).
+[Redis®](#registered-trademark) is the world's fastest data platform for caching, vector search, and NoSQL databases — a high-performance key/value cache, message queue, and primary data platform used by millions of applications worldwide. The Aspire Redis integration lets you model a Redis server as a first-class resource in your AppHost, then hand the connection information to any consuming app — regardless of language. Valkey and Garnet are drop-in alternatives that speak the same protocol and work with the same client libraries.
 
-<Aside>
-  This page covers the Redis integration. For Garnet and Valkey
-  (Redis-compatible alternatives), see their respective pages.
-</Aside>
+## Why use Redis with Aspire
 
-In this introduction, you'll see how to install and use the Aspire Redis integrations in a simple configuration. If you already have this knowledge, see [Redis hosting integration](/integrations/caching/redis/redis-host/) for full reference details.
+Adding Redis through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-<Aside type="note">
-  To follow this guide, you must have created an Aspire solution to work with.
-  To learn how to do that, see [Build your first Aspire
-  app](../../../../get-started/first-app/).
-</Aside>
+- **Zero-config local development.** Aspire runs Redis from the [`docker.io/library/redis`](https://hub.docker.com/_/redis/) container image with a password generated automatically for you.
+- **Consistent connection info across languages.** Once you reference the Redis resource from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when Redis is ready.
+- **Dashboard observability.** The Redis resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **First-class C# client integration.** C# apps use the `Aspire.StackExchange.Redis` package for automatic dependency injection, health checks, and OpenTelemetry tracing — all wired up from the same resource name.
+- **Management UIs.** Optionally attach [Redis Insight](https://redis.io/insight/) or [Redis Commander](https://joeferner.github.io/redis-commander/) as sub-resources to get a web-based dashboard for your Redis data.
 
-## Set up hosting integration
+## How the pieces fit together
 
-To begin, install the Aspire Redis hosting integration in your Aspire AppHost project:
+The Redis integration has two sides: a **hosting integration** that you use in your AppHost to model the Redis resource, and a **connection story** for consuming apps that reference it.
 
-<InstallPackage packageName="Aspire.Hosting.Redis" />
+```mermaid
+architecture-beta
 
-Next, in the AppHost project, create instances of Redis resources and pass them to the consuming client projects:
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service hosting(server)[Hosting integration] in apphost
+  service redis(server)[Redis server] in apphost
 
-var cache = builder.AddRedis("cache");
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
-
-builder.Build().Run();
+  hosting:R --> L:redis
+  redis:R --> L:client
+  client:R --> L:app
 ```
 
-When Aspire adds a container image to the AppHost, it creates a new Redis instance on your local machine.
+The **hosting integration** lives in your AppHost project and models the Redis server as a resource. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to Redis.
 
-<Aside type="tip">
-  If you'd rather connect to an existing Redis instance, call `AsExisting`
-  instead.
-</Aside>
+Getting there is a two-step process: model the Redis resource in your AppHost, then connect to it from each app that needs it.
 
-## Set up client integration
+<Steps>
 
-To get started with the Aspire Redis client integration, install the package:
+1. ### Model Redis in your AppHost
 
-<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+    Add the Redis hosting integration to your AppHost, then declare a Redis resource and reference it from the apps that need it. The [Redis Hosting integration](/integrations/caching/redis/redis-host/) article walks through every capability — data volumes, data bind mounts, persistence snapshots, Redis Insight, Redis Commander, and custom parameters — with side-by-side C# and TypeScript examples.
 
-In the `Program.cs` file of your client-consuming project, call the `AddRedisClient` extension method to register an `IConnectionMultiplexer` for use via the dependency injection container:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/caching/redis/redis-host/'>
+        Set up Redis in the AppHost
+    </LinkButton>
 
-```csharp
-builder.AddRedisClient(connectionName: "cache");
-```
+2. ### Connect from your consuming app
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the Redis
-  resource in the AppHost project.
-</Aside>
+    When you reference a Redis resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Redis](/integrations/caching/redis/redis-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration built on `Aspire.StackExchange.Redis`.
 
-You can then retrieve the `IConnectionMultiplexer` instance using dependency injection:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/caching/redis/redis-connect/'>
+        Connect to Redis
+    </LinkButton>
 
-```csharp
-public class ExampleService(IConnectionMultiplexer connectionMux)
-{
-    // Use connection multiplexer...
-}
-```
+</Steps>
 
 ## See also
 
-- [Redis hosting integration](/integrations/caching/redis/redis-host/)
-- [Redis client integration](/integrations/caching/redis/redis-client/)
-- [Redis documentation](https://redis.io/)
+- [Redis distributed caching](/integrations/caching/redis-distributed/redis-distributed-get-started/)
+- [Redis output caching](/integrations/caching/redis-output/redis-output-get-started/)
+- [Redis hosting extensions](/integrations/caching/redis-extensions/) — Community Toolkit extensions including DbGate.
+- [Valkey integration](/integrations/caching/valkey/valkey-get-started/) — RESP-compatible open-source Redis fork.
+- [Garnet integration](/integrations/caching/garnet/garnet-get-started/) — Microsoft's high-performance RESP-compatible server.
 
 :::tip[Registered trademark]{icon="information"}
 
 <span id="registered-trademark"></span>
 Redis is a registered trademark of Redis Ltd. Any rights therein are reserved to
 Redis Ltd. Any use by Microsoft is for referential purposes only and does not
-indicate any sponsorship, endorsement or affiliation between Redis and
-Microsoft.
+indicate any sponsorship, endorsement or affiliation between Redis and Microsoft.
 
 :::
