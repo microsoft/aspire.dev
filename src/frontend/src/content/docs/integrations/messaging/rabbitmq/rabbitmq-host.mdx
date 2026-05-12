@@ -1,100 +1,208 @@
 ---
-title: RabbitMQ hosting integration
-description: Learn how to use the RabbitMQ hosting integration to add a RabbitMQ resource to your AppHost.
+title: Set up RabbitMQ in the AppHost
+description: Learn how to use the Aspire RabbitMQ Hosting integration to orchestrate and configure a RabbitMQ resource in an Aspire solution.
 ---
 
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside, Steps } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import rabbitmqIcon from '@assets/icons/rabbitmq-icon.svg';
 
 <Image
   src={rabbitmqIcon}
   alt="RabbitMQ logo"
-  width={120}
-  height={120}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The RabbitMQ hosting integration models a RabbitMQ server as the `RabbitMQServerResource` type. To access this type and its APIs add the [📦 Aspire.Hosting.RabbitMQ](https://www.nuget.org/packages/Aspire.Hosting.RabbitMQ) NuGet package in the [`AppHost`](/get-started/app-host/) project.
+This article is the reference for the Aspire RabbitMQ Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model a RabbitMQ server resource in your [`AppHost`](/get-started/app-host/) project.
 
-<InstallPackage packageName="Aspire.Hosting.RabbitMQ" />
+If you're new to the RabbitMQ integration, start with the [Get started with RabbitMQ integrations](/integrations/messaging/rabbitmq/rabbitmq-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to RabbitMQ](../rabbitmq-connect/).
+
+## Installation
+
+To start building an Aspire app that uses RabbitMQ, install the [📦 Aspire.Hosting.RabbitMQ](https://www.nuget.org/packages/Aspire.Hosting.RabbitMQ) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add rabbitmq
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.RabbitMQ@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.RabbitMQ" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add rabbitmq
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the RabbitMQ hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.RabbitMQ": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add RabbitMQ server resource
 
-In your AppHost project, call `AddRabbitMQ` on the `builder` instance to add a RabbitMQ server resource:
+Once you've installed the hosting integration in your AppHost project, you can add a RabbitMQ server resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(rabbitmq);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const rabbitmq = await builder.addRabbitMQ("messaging");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
 <Steps>
 
-1. When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/library/rabbitmq` image, it creates a new RabbitMQ server instance on your local machine. A reference to your RabbitMQ server (the `rabbitmq` variable) is added to the `ExampleProject`.
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/rabbitmq` image, it creates a new RabbitMQ server instance on your local machine.
 
-1. The RabbitMQ server resource includes default credentials with a `username` of `"guest"` and randomly generated `password` using the `CreateDefaultPasswordParameter` method.
+1. The RabbitMQ server resource includes default credentials with a `username` of `"guest"` and a randomly generated `password` using the `CreateDefaultPasswordParameter` method.
 
-1. The `WithReference` method configures a connection in the `ExampleProject` named `"messaging"`.
+1. The AppHost reference call configures a connection in the consuming project named after the referenced RabbitMQ resource, such as `messaging` in the preceding example.
 
 </Steps>
 
-<Aside type="tip">
-    If you'd rather connect to an existing RabbitMQ server, chain a call to `AsExisting` instead—passing the appropriate parameters.
+<Aside type="note">
+    When you reference a RabbitMQ resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and credentials. For a complete list of these properties and per-language connection examples, see [Connect to RabbitMQ](../rabbitmq-connect/).
 </Aside>
 
 ## Add RabbitMQ server resource with data volume
 
-To add a data volume to the RabbitMQ server resource, call the `WithDataVolume` method on the RabbitMQ server resource:
+Add a data volume to the RabbitMQ server resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
-                      .WithDataVolume(isReadOnly: false);
+    .WithDataVolume(isReadOnly: false);
 
-builder.AddProject<Projects.ExampleProject>()
-        .WithReference(rabbitmq);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The data volume is used to persist the RabbitMQ server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/rabbitmq` path in the RabbitMQ server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-rabbitmq-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+const builder = await createBuilder();
+
+const rabbitmq = await builder.addRabbitMQ("messaging");
+await rabbitmq.withDataVolume({ isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The data volume is used to persist RabbitMQ server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/rabbitmq` path in the RabbitMQ server container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-rabbitmq-server-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add RabbitMQ server resource with data bind mount
 
-To add a data bind mount to the RabbitMQ server resource, call the `WithDataBindMount` method:
+Add a data bind mount to the RabbitMQ server resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var rabbitmq = builder.AddRabbitMQ("messaging")
-                      .WithDataBindMount(
-                          source: @"/RabbitMQ/Data",
-                          isReadOnly: false);
+    .WithDataBindMount(
+        source: "/RabbitMQ/Data",
+        isReadOnly: false);
 
-builder.AddProject<Projects.ExampleProject>()
-        .WithReference(rabbitmq);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const rabbitmq = await builder.addRabbitMQ("messaging");
+await rabbitmq.withDataBindMount("/RabbitMQ/Data", { isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
 
 <Aside type="note">
     Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 </Aside>
 
-Data bind mounts rely on the host machine's filesystem to persist the RabbitMQ server data across container restarts. The data bind mount is mounted at the `C:\RabbitMQ\Data` on Windows (or `/RabbitMQ/Data` on Unix) path on the host machine in the RabbitMQ server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+Data bind mounts rely on the host machine's filesystem to persist RabbitMQ server data across container restarts. The data bind mount is mounted at the `C:\RabbitMQ\Data` on Windows (or `/RabbitMQ/Data` on Unix) path on the host machine in the RabbitMQ server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
 ## Add RabbitMQ server resource with parameters
 
-When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters. Consider the following alternative example:
+When you want to explicitly provide the username and password used by the container image, you can provide these credentials as parameters. Consider the following alternative examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -103,16 +211,39 @@ var password = builder.AddParameter("password", secret: true);
 
 var rabbitmq = builder.AddRabbitMQ("messaging", username, password);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(rabbitmq);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const userName = await builder.addParameter("username", { secret: true });
+const password = await builder.addParameter("password", { secret: true });
+
+const rabbitmq = await builder.addRabbitMQ("messaging", { userName, password });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method.
 
 ## Add RabbitMQ server resource with management plugin
 
-To add the [RabbitMQ management plugin](https://www.rabbitmq.com/docs/management) to the RabbitMQ server resource, call the `WithManagementPlugin` method. Remember to use parameters to set the credentials for the container. You'll need these credentials to log into the management plugin:
+To add the [RabbitMQ management plugin](https://www.rabbitmq.com/docs/management) as a sub-resource, call `WithManagementPlugin` (or `withManagementPlugin`). You'll need the credentials you configured to log in to the management UI:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -120,15 +251,125 @@ var username = builder.AddParameter("username", secret: true);
 var password = builder.AddParameter("password", secret: true);
 
 var rabbitmq = builder.AddRabbitMQ("messaging", username, password)
-                      .WithManagementPlugin();
+    .WithManagementPlugin();
 
-builder.AddProject<Projects.ExampleProject>()
-        .WithReference(rabbitmq);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(rabbitmq);
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The RabbitMQ management plugin provides an HTTP-based API for management and monitoring of your RabbitMQ server. Aspire adds another container image [`docker.io/library/rabbitmq-management`](https://hub.docker.com/_/rabbitmq) to the AppHost that runs the management plugin. You can access the management plugin from the Aspire dashboard by selecting an endpoint for your RabbitMQ resource.
+const builder = await createBuilder();
+
+const userName = await builder.addParameter("username", { secret: true });
+const password = await builder.addParameter("password", { secret: true });
+
+const rabbitmq = await builder.addRabbitMQ("messaging", { userName, password });
+await rabbitmq.withManagementPlugin();
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The RabbitMQ management plugin provides an HTTP-based API for management and monitoring of your RabbitMQ server. Aspire adds another container image using the [`docker.io/library/rabbitmq`](https://hub.docker.com/_/rabbitmq) management variant to the AppHost that runs the management plugin on port `15672` by default. You can access the management UI from the Aspire dashboard by selecting the endpoint for your RabbitMQ resource.
+
+To configure a custom host port for the management plugin, pass the `port` option:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var rabbitmq = builder.AddRabbitMQ("messaging")
+    .WithManagementPlugin(port: 15672);
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+await rabbitmq.withManagementPlugin({ port: 15672 });
+```
+</TabItem>
+</Tabs>
+
+## Pass custom environment variables
+
+By default, Aspire injects the RabbitMQ connection information using variable names derived from the resource name (for example, `MESSAGING_URI`, `MESSAGING_HOST`, `MESSAGING_PORT`, `MESSAGING_USERNAME`, `MESSAGING_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rabbitmq = builder.AddRabbitMQ("messaging");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(rabbitmq)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["RABBITMQ_HOST"] = rabbitmq.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["RABBITMQ_PORT"] = rabbitmq.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["RABBITMQ_USER"] = rabbitmq.Resource.UserNameParameter;
+        context.EnvironmentVariables["RABBITMQ_PASSWORD"] = rabbitmq.Resource.PasswordParameter;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const rabbitmq = await builder.addRabbitMQ("messaging");
+const rabbitmqEndpoint = await rabbitmq.getEndpoint("tcp");
+const rabbitmqHost = await rabbitmqEndpoint.property(EndpointProperty.Host);
+const rabbitmqPort = await rabbitmqEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(rabbitmq)
+    .withEnvironment("RABBITMQ_HOST", rabbitmqHost)
+    .withEnvironment("RABBITMQ_PORT", rabbitmqPort)
+    .withEnvironment("RABBITMQ_USER", await rabbitmq.userNameParameter())
+    .withEnvironment("RABBITMQ_PASSWORD", await rabbitmq.passwordParameter());
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Connect to an existing RabbitMQ instance
+
+In C#, call `AsExisting` instead of `AddRabbitMQ` to reference an externally managed RabbitMQ instance:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var rabbitmq = builder.AddRabbitMQ("messaging")
+    .AsExisting(connectionStringParameter: builder.AddParameter("messaging-cs", secret: true));
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(rabbitmq);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `asExisting(...)` API for RabbitMQ. To connect to an existing RabbitMQ instance from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+</TabItem>
+</Tabs>
+
+## Connection properties
+
+For the full reference of RabbitMQ connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to RabbitMQ](../rabbitmq-connect/).
 
 ## Hosting integration health checks
 
