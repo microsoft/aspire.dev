@@ -51,6 +51,7 @@ const patchedEntryToSimpleMarkdownPath = path.join(patchedPluginRoot, 'entryToSi
 const patchedTypesPath = path.join(patchedPluginRoot, 'types.ts');
 const patchedIndexPath = path.join(patchedPluginRoot, 'index.ts');
 const astroConfigPath = path.join(frontendRoot, 'astro.config.mjs');
+const ecConfigPath = path.join(frontendRoot, 'ec.config.mjs');
 
 // The behavior tests further down inline a copy of the patched plugin's
 // HTML → Markdown pipeline so they can run without Astro/Starlight's full
@@ -140,6 +141,30 @@ describe('starlight-llms-txt customSelectors wiring sentinel', () => {
       configured,
       'astro.config.mjs customSelectors.all must match the list under test (update both together when adding twoslash classes)',
     ).toEqual([...REMOVE_SELECTORS].sort());
+  });
+});
+
+describe('expressive-code-twoslash enabled sentinel', () => {
+  /**
+   * Guards against accidentally disabling the twoslash plugin again. When TWOSLASH_ENABLED
+   * is `true`, expressive-code-twoslash renders hover popovers, completion menus, and
+   * error boxes into every TypeScript code block that carries the `twoslash` meta flag.
+   * The tests above confirm those annotations are stripped before the Markdown reaches
+   * `llms.txt` / `llms-full.txt` / `llms-small.txt`. Both contracts must hold together:
+   * annotations render on the site → annotations are stripped from the published .md.
+   */
+  test('ec.config.mjs has TWOSLASH_ENABLED = true so annotations render on hover', () => {
+    const source = readFileSync(ecConfigPath, 'utf8');
+
+    expect(
+      source,
+      'ec.config.mjs must set TWOSLASH_ENABLED to true — flip it back and remove this sentinel if twoslash is intentionally removed',
+    ).toMatch(/const TWOSLASH_ENABLED\s*=\s*true/);
+
+    expect(
+      source,
+      'TEMP disable comment should not be present when twoslash is enabled',
+    ).not.toMatch(/TEMP.*disabled/i);
   });
 });
 
