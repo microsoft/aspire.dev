@@ -1,85 +1,87 @@
 ---
-title: Get started with the Seq integration
-description: Learn how to set up the Aspire Seq hosting and client integrations simply.
+title: Get started with the Seq integrations
+description: Understand how the Aspire Seq integrations fit together — model a Seq resource in your AppHost, then connect to it from any consuming app.
 prev: false
 ---
 
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import seqIcon from '@assets/icons/seq-icon.png';
 
 <Image
   src={seqIcon}
   alt="Seq logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Seq](https://datalust.co/seq) is the intelligent search, analysis, and alerting server built for structured log data. The Aspire Seq integration enables you to connect to existing Seq instances or create new instances from Aspire with the [`datalust/seq` container image](https://hub.docker.com/r/datalust/seq).
+[Seq](https://datalust.co/seq) is the intelligent search, analysis, and alerting server built for structured log data. The Aspire Seq integration lets you model a Seq server as a first-class resource in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire Seq integrations in a simple configuration. If you already have this knowledge, see [Seq hosting integration](/integrations/observability/seq/seq-host/) for full reference details.
+## Why use Seq with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](../../../../get-started/first-app/).
-</Aside>
+Adding Seq through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs Seq from the [`docker.io/datalust/seq`](https://hub.docker.com/r/datalust/seq) container image with a persistent lifetime so your log history survives restarts.
+- **Consistent connection info across languages.** Once you reference the Seq resource from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Dashboard observability.** The Seq resource shows up in the Aspire dashboard with logs and status alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `Aspire.Seq` package for automatic OpenTelemetry log and trace export to Seq, all wired up from the same resource name.
 
-To begin, install the Aspire Seq hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Seq" />
+The Seq integration has two sides: a **hosting integration** that you use in your AppHost to model the Seq server resource, and a **connection story** for consuming apps that reference it.
 
-Next, in the AppHost project, create instances of Seq resources and pass them to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var seq = builder.AddSeq("seq")
-                 .ExcludeFromManifest()
-                 .WithLifetime(ContainerLifetime.Persistent)
-                 .WithEnvironment("ACCEPT_EULA", "Y");
+  service hosting(server)[Hosting integration] in apphost
+  service seq(server)[Seq server] in apphost
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(seq)
-                       .WaitFor(seq);
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-builder.Build().Run();
+  hosting:R --> L:seq
+  seq:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="note">
-  The Seq container may be slow to start, so it's best to use a _persistent_
-  lifetime to avoid unnecessary restarts. For more information, see [Container
-  resource
-  lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the Seq server as a resource. The **client integration** lives in each consuming app and uses the connection information Aspire injects to send logs and traces to Seq.
 
-<Aside type="note">
-  You must accept the [Seq EULA](https://datalust.co/doc/eula-current.pdf) for Seq to start. To accept the agreement in code, pass the environment variable `ACCEPT_EULA` to the Seq container, and set its value to `Y`.
-</Aside>
+Getting there is a two-step process: model the Seq resource in your AppHost, then connect to it from each app that needs it.
 
-## Set up client integration
+<Steps>
 
-To get started with the Seq client integration, install the package:
+1. ### Model Seq in your AppHost
 
-<InstallDotNetPackage packageName="Aspire.Seq" />
+    Add the Seq hosting integration to your AppHost, then declare a Seq resource and reference it from the apps that need to send telemetry. The [Seq hosting integration](/integrations/observability/seq/seq-host/) reference walks through every capability — data volumes, data bind mounts, EULA acceptance, and endpoints — with side-by-side C# and TypeScript examples.
 
-In the `Program.cs` file of your client-consuming project, call the `AddSeqEndpoint` extension method to register OpenTelemetry Protocol exporters to send logs and traces to Seq:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/observability/seq/seq-host/'>
+        Set up Seq in the AppHost
+    </LinkButton>
 
-```csharp
-builder.AddSeqEndpoint(connectionName: "seq");
-```
+2. ### Connect from your consuming app
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the Seq
-  resource in the AppHost project.
-</Aside>
+    When you reference a Seq resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Seq](/integrations/observability/seq/seq-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration that wires up OpenTelemetry export.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/observability/seq/seq-connect/'>
+        Connect to Seq
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
-- [Seq hosting integration](/integrations/observability/seq/seq-host/)
-- [Seq client integration](/integrations/observability/seq/seq-client/)
 - [Seq documentation](https://docs.datalust.co/)
+- [Seq EULA](https://datalust.co/doc/eula-current.pdf)
