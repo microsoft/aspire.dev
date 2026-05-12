@@ -1,119 +1,90 @@
 ---
 title: Get started with the Azure Cache for Redis integrations
-description: Learn how to set up the Aspire Azure Cache for Redis hosting and client integrations simply.
-prev: false
+description: Understand how the Aspire Azure Cache for Redis integrations fit together — model a managed Redis cache in your AppHost, then connect to it from any consuming app.
 ---
 
-import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import cacheRedisIcon from '@assets/icons/azure-cacheredis-icon.png';
 
 <Image
   src={cacheRedisIcon}
   alt="Azure Cache for Redis logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Azure Cache for Redis](https://learn.microsoft.com/azure/azure-cache-for-redis/cache-overview) provides an in-memory data store based on the [Redis](https://redis.io/) software. Redis improves the performance and scalability of an application that uses backend data stores heavily. It's able to process large volumes of application requests by keeping frequently accessed data in the server memory, which can be written to and read from quickly.
+[Azure Cache for Redis](https://learn.microsoft.com/azure/azure-cache-for-redis/cache-overview) provides a fully managed, in-memory data store based on [Redis](https://redis.io/). It improves application performance and scalability by caching frequently accessed data in server memory. The Aspire Azure Cache for Redis integration lets you model a managed Redis cache as a first-class resource in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire Azure Cache for Redis integrations in a simple configuration. If you already have this knowledge, see [Azure Cache for Redis Hosting integration](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host/) for full reference details.
+## Why use Azure Cache for Redis with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Azure Cache for Redis through Aspire — rather than wiring up connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs a Redis container locally during development so you don't need to provision an Azure resource until you're ready to deploy.
+- **Consistent connection info across languages.** Once you reference the cache from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Managed identity by default.** The hosting integration configures Microsoft Entra ID (role-based) authentication out of the box, avoiding passwords in connection strings.
+- **Automatic Azure provisioning.** Aspire generates Bicep for the Azure Cache for Redis resource so you can deploy to Azure without writing infrastructure code by hand.
+- **Dashboard observability.** The cache resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **Reuse the C# Redis client integration.** C# apps use the `Aspire.StackExchange.Redis` package for automatic dependency injection, health checks, and OpenTelemetry — the same client used for self-hosted Redis and Valkey.
 
-To begin, install the Aspire Azure Cache for Redis Hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Azure.Redis" />
+The Azure Cache for Redis integration has two sides: a **hosting integration** that you use in your AppHost to model the managed Redis resource, and a **connection story** for consuming apps that reference it.
 
-Next, in the AppHost project, create an Azure Cache for Redis resource and pass it to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var redis = builder.AddAzureManagedRedis("redis");
+  service hosting(server)[Hosting integration] in apphost
+  service redis(server)[Azure Managed Redis] in apphost
 
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(redis);
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-// After adding all resources, run the app...
-
-builder.Build().Run();
+  hosting:R --> L:redis
+  redis:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="caution">
-  When you call `AddAzureManagedRedis`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the Azure Cache for Redis resource. The **connection story** lives in each consuming app and uses the connection information Aspire injects to talk to the cache.
 
-## Set up client integration
+Getting there is a two-step process: model the Azure Cache for Redis resource in your AppHost, then connect to the cache from each app that needs it.
 
-To get started with the Aspire Azure Cache for Redis client integration, install the [📦 Aspire.StackExchange.Redis](https://www.nuget.org/packages/Aspire.StackExchange.Redis) NuGet package in the client-consuming project:
+<Steps>
 
-<InstallDotNetPackage packageName="Aspire.StackExchange.Redis" />
+1. ### Model Azure Cache for Redis in your AppHost
 
-In the `Program.cs` file of your client-consuming project, call the `AddRedisClient` extension method to register an `IConnectionMultiplexer`:
+    Add the Azure Cache for Redis hosting integration to your AppHost, then declare a managed Redis resource and reference it from the apps that need to talk to the cache. The [Azure Cache for Redis Hosting integration](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host/) reference walks through every capability — running as a local container for development, Entra ID versus access key authentication, connecting to an existing instance, and Bicep provisioning customization — with side-by-side C# and TypeScript examples.
 
-```csharp title="C# — Program.cs"
-builder.AddRedisClient(connectionName: "redis");
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host/'>
+        Set up Azure Cache for Redis in the AppHost
+    </LinkButton>
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the Redis resource in the AppHost project.
-</Aside>
+2. ### Connect from your consuming app
 
-### Use injected Azure Cache for Redis properties
+    When you reference an Azure Cache for Redis resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Azure Cache for Redis](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration built on `Aspire.StackExchange.Redis`.
 
-In the AppHost, when you used the `WithReference` method to pass an Azure Cache for Redis resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-connect/'>
+        Connect to Azure Cache for Redis
+    </LinkButton>
 
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Host` property of a resource called `redis` becomes `REDIS_HOST`.
-
-Use the `GetValue()` method to obtain these environment variables in consuming projects:
-
-```csharp title="C# — Obtain configuration properties"
-string redisHost = builder.Configuration.GetValue<string>("REDIS_HOST");
-string redisPort = builder.Configuration.GetValue<string>("REDIS_PORT");
-string redisUri = builder.Configuration.GetValue<string>("REDIS_URI");
-```
-
-<Aside type="tip">
-    The full set of properties that Aspire injects is available in the client integration documentation. For more information, see [Azure Cache for Redis Client integration](/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-client/).
-</Aside>
-
-## Use Azure Cache for Redis resources in client code
-
-After adding the `IConnectionMultiplexer`, you can retrieve the connection instance using dependency injection:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(IConnectionMultiplexer redis)
-{
-    // Use redis...
-}
-```
-
-For more information, see [StackExchange.Redis documentation](https://stackexchange.github.io/StackExchange.Redis/) for examples on using the `IConnectionMultiplexer`.
+</Steps>
 
 ## See also
 
-<CardGrid>
-  <LinkCard
-    title="Azure Cache for Redis Hosting integration"
-    href="/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host/"
-    description="Learn about Azure Cache for Redis hosting integration, including provisioning, customization, and configuration."
-  />
-  <LinkCard
-    title="Azure Cache for Redis Client integration"
-    href="/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-client/"
-    description="Learn about Azure Cache for Redis client integration, including distributed cache, output cache, and telemetry."
-  />
-</CardGrid>
+- [Redis integration](/integrations/caching/redis/redis-get-started/) — Azure Cache for Redis shares the same C# client integration as Redis.
+- [Redis distributed caching](/integrations/caching/redis-distributed/redis-distributed-get-started/)
+- [Redis output caching](/integrations/caching/redis-output/redis-output-get-started/)
+- [Valkey integration](/integrations/caching/valkey/valkey-get-started/) — RESP-compatible open-source Redis alternative.
