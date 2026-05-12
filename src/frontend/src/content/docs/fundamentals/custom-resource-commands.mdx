@@ -1174,3 +1174,174 @@ await builder.build().run();
 <Aside type="tip">
 Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, scripting, CI integration) that you don't want to clutter the dashboard UI. Use `ResourceCommandVisibility.UI` for interactive commands that only make sense when a developer is watching the results.
 </Aside>
+
+## Process-backed resource commands
+
+:::caution[Experimental API]
+`WithProcessCommand` is experimental and requires opting in to the [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) diagnostic suppression. The API shape may change before it stabilizes.
+:::
+
+The `WithProcessCommand` API provides a reusable helper for the common pattern of exposing a local-tool invocation as a resource command. Instead of managing process start, stdout/stderr capture, and cancellation yourself inside a `WithCommand` callback, `WithProcessCommand` does that for you:
+
+- Starts a local process from the AppHost machine using the provided executable path and arguments.
+- Passes arguments as an argument list (not through a shell), so no shell-quoting is needed.
+- Streams stdout and stderr to the command logger (visible in the [Aspire dashboard](/dashboard/explore/#console-logs-page) and via `aspire logs <resource>`).
+- Returns the captured output as bounded text (configurable via `MaxOutputLineCount`).
+- Maps non-zero exit codes and cancellation to appropriate `ExecuteCommandResult` values automatically.
+
+:::note
+`WithProcessCommand` runs processes on the **AppHost machine** — not inside a container. Use it for local tools such as `dotnet`, `node`, `docker`, custom CLIs, and scripts.
+:::
+
+### Static process command
+
+The simplest form takes the executable and an argument array directly:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPROCESSCOMMAND001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache")
+    .WithProcessCommand(
+        name: "dotnet-version",
+        displayName: "Show .NET version",
+        executablePath: "dotnet",
+        arguments: ["--version"]);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+await cache.withProcessCommand(
+    "node-version",
+    "Show Node.js version",
+    {
+        executablePath: "node",
+        arguments: ["--version"],
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When the command runs in the dashboard or CLI, `dotnet --version` (C#) or `node --version` (TypeScript) executes on the AppHost machine, and the version string is captured and displayed as the command output.
+
+### Dynamic process command
+
+When the command arguments depend on runtime context — for example, a dataset name supplied by the user through the dashboard's argument dialog — use the callback overload (C# only) to build the `ProcessCommandSpec` dynamically:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPROCESSCOMMAND001
+
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache")
+    .WithProcessCommand(
+        name: "seed-data",
+        displayName: "Seed data",
+        createProcessSpec: context => new ProcessCommandSpec("dotnet")
+        {
+            Arguments =
+            [
+                "run",
+                "--project",
+                "tools/SeedData",
+                "--",
+                context.Arguments.GetString("dataset") ?? "small",
+            ],
+            EnvironmentVariables = { ["ConnectionStrings__db"] = "Host=localhost;Database=db" },
+        },
+        options: new ProcessCommandOptions { MaxOutputLineCount = 20 });
+
+builder.Build().Run();
+```
+
+The `context` parameter is an `ExecuteCommandContext`, so you can read user-supplied arguments via `context.Arguments.GetString(name)`, resolve services, and check the cancellation token.
+
+### `ProcessCommandSpec` properties
+
+The following configuration options are available for the process to run. In C#, these map to `ProcessCommandSpec` properties. In TypeScript, they are provided as fields in the options object passed to `withProcessCommand`.
+
+- **Executable path** — the path to the process to launch. Short names (no directory separator) are resolved from the AppHost's `PATH`.
+- **Arguments** — a list of arguments passed to the process. Each entry is treated as a separate argument, so no shell quoting or escaping is needed.
+- **Environment variables** — additional key/value pairs set in the child process's environment.
+- **Inherit environment variables** — whether the child process inherits the AppHost process's environment variables. Defaults to `true`.
+- **Standard input content** — optional text written to the process's stdin immediately after it starts.
+- **Working directory** — the directory the process starts in. Defaults to the AppHost directory if not specified.
+- **Kill entire process tree** — whether cancellation and disposal should terminate the whole child process tree. Defaults to `true`.
+
+### `ProcessCommandOptions`
+
+The following options control how `WithProcessCommand` handles the process result. In C#, they are set on `ProcessCommandOptions`. In TypeScript, they are fields in the same options object as the process configuration above.
+
+- **Max output line count** — the maximum number of combined stdout/stderr lines captured and returned as the command result. Defaults to 50. Lines beyond this limit are silently discarded (oldest lines first).
+- **Display immediately** — when `true` (the default), the captured output is automatically shown in the dashboard as soon as the command finishes.
+- **Success exit codes** — the list of process exit codes that are treated as a successful command invocation. Defaults to `[0]`.
+
+### Executable path resolution
+
+`WithProcessCommand` resolves the executable using the following rules:
+
+1. If `ExecutablePath` is an absolute path or contains a path separator, it is used as-is.
+2. Otherwise, the AppHost process's `PATH` is searched for the named executable. On Windows, `PATHEXT` extensions are also tried.
+
+This means you can reference tools such as `dotnet`, `node`, or `docker` by short name as long as they are on the AppHost's PATH when the app starts.
+
+### Combining with command arguments
+
+`WithProcessCommand` uses `WithCommand` internally. In C# dynamic process commands, you can combine it with the [Command arguments](#command-arguments) feature to prompt the user for input before the process runs:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPROCESSCOMMAND001
+#pragma warning disable ASPIREINTERACTION001
+
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddPostgres("postgres")
+    .WithProcessCommand(
+        name: "run-migration",
+        displayName: "Run migration",
+        createProcessSpec: context => new ProcessCommandSpec("dotnet")
+        {
+            Arguments =
+            [
+                "run",
+                "--project",
+                "tools/Migrations",
+                "--",
+                "--target",
+                context.Arguments.GetString("target") ?? "latest",
+            ],
+        },
+        options: new ProcessCommandOptions
+        {
+            MaxOutputLineCount = 50,
+            Arguments =
+            [
+                new InteractionInput { Name = "target", Label = "Target migration", InputType = InputType.Text },
+            ],
+        });
+
+builder.Build().Run();
+```
+
+The dashboard renders the `Arguments` as a prompt dialog before starting the process, and the entered values are accessible via `context.Arguments`.
