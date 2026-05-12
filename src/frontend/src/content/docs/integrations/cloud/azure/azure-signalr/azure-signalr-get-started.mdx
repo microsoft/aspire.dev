@@ -1,109 +1,84 @@
 ---
 title: Get started with the Azure SignalR Service integration
-description: Learn how to set up the Aspire Azure SignalR Service Hosting and Hub host integrations simply.
-prev: false
+description: Understand how the Aspire Azure SignalR Service integration fits together — model a SignalR resource in your AppHost, then connect to it from your consuming apps.
 ---
 
-import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import signalrIcon from '@assets/icons/azure-signalr-icon.png';
 
 <Image
   src={signalrIcon}
   alt="Azure SignalR Service icon"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Azure SignalR Service](https://learn.microsoft.com/azure-signalr) is a fully managed real-time messaging service that simplifies adding real-time web functionality to applications. The Aspire Azure SignalR Service integration enables you to connect to Azure SignalR instances from your applications.
+[Azure SignalR Service](https://learn.microsoft.com/azure/azure-signalr/) is a fully managed real-time messaging service that simplifies adding real-time web functionality to applications. The Aspire Azure SignalR Service integration lets you model a SignalR resource as a first-class resource in your AppHost, then hand the connection information to any consuming app.
 
-In this introduction, you'll see how to install and use the Aspire Azure SignalR Service integrations in a simple configuration. If you already have this knowledge, see [Azure SignalR Service Hosting integration](/integrations/cloud/azure/azure-signalr/azure-signalr-host/) for full reference details.
+## Why use Azure SignalR Service with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Azure SignalR Service through Aspire — rather than wiring up connection strings and configuration by hand — gives you:
 
-## Set up hosting integration
+- **Consistent connection info.** Once you reference the SignalR resource from a consuming app, Aspire injects the endpoint as environment variables in a predictable format.
+- **Local emulation.** In Serverless mode, Aspire can run the Azure SignalR emulator locally so you don't need an Azure subscription for development.
+- **Built-in Bicep provisioning.** The hosting integration automatically generates the Azure infrastructure needed to provision your SignalR resource for cloud deployment.
+- **Dashboard observability.** The SignalR resource shows up in the Aspire dashboard alongside your other services.
+- **Managed identity support.** The generated Bicep disables local authentication by default, encouraging secure managed identity connections.
 
-To begin, install the Aspire Azure SignalR Service Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure SignalR Service resources from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Azure.SignalR" />
+The Azure SignalR Service integration has two sides: a **hosting integration** that you use in your AppHost to model the SignalR resource, and a **connection story** for consuming apps that reference it.
 
-Next, in the AppHost project, create an Azure SignalR Service resource and pass it to the consuming projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var signalR = builder.AddAzureSignalR("signalr");
+  service hosting(server)[Hosting integration] in apphost
+  service signalr(server)[Azure SignalR Service] in apphost
 
-var api = builder.AddProject<Projects.ApiService>("api")
-    .WithReference(signalR)
-    .WaitFor(signalR);
+  service app(server)[App] in consumer
 
-builder.AddProject<Projects.WebApp>("webapp")
-    .WithReference(api)
-    .WaitFor(api);
-
-// After adding all resources, run the app...
-
-builder.Build().Run();
+  hosting:R --> L:signalr
+  signalr:R --> L:app
 ```
 
-The preceding code adds an Azure SignalR Service resource named `signalr` to the AppHost project. The `api` project references the SignalR service and the `webapp` project references the API.
+The **hosting integration** lives in your AppHost project and models the Azure SignalR Service resource. Consuming apps reference the resource and use the injected endpoint to communicate with SignalR.
 
-<Aside type="caution">
-  When you call `AddAzureSignalR`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
+Getting there is a two-step process: model the Azure SignalR resource in your AppHost, then connect to it from each app that needs it.
 
-<Aside type="tip">
-    This is the simplest implementation of Azure SignalR Service resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Azure SignalR Service Hosting integration](/integrations/cloud/azure/azure-signalr/azure-signalr-host/).
-</Aside>
+<Steps>
 
-## Set up hub host integration
+1. ### Model Azure SignalR Service in your AppHost
 
-To use Azure SignalR Service from your hub host applications, install the SignalR package in your project:
+    Add the Azure SignalR Service hosting integration to your AppHost, then declare a SignalR resource and reference it from the apps that need it. The [Azure SignalR Service hosting integration](/integrations/cloud/azure/azure-signalr/azure-signalr-host/) reference walks through every capability — service modes, emulator, connecting to existing resources, and Bicep customization — with side-by-side C# and TypeScript examples.
 
-<InstallDotNetPackage packageName="Microsoft.Azure.SignalR" />
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-signalr/azure-signalr-host/'>
+        Set up Azure SignalR Service in the AppHost
+    </LinkButton>
 
-In the `Program.cs` file of your hub host project, configure Azure SignalR Service by chaining calls to `.AddSignalR().AddNamedAzureSignalR("name")`:
+2. ### Connect from your consuming app
 
-```csharp
-var builder = WebApplication.CreateBuilder(args);
+    When you reference an Azure SignalR Service resource from a consuming app, Aspire injects its endpoint as environment variables. See [Connect to Azure SignalR Service](/integrations/cloud/azure/azure-signalr/azure-signalr-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript.
 
-builder.Services.AddSignalR()
-                .AddNamedAzureSignalR("signalr");
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-signalr/azure-signalr-connect/'>
+        Connect to Azure SignalR Service
+    </LinkButton>
 
-var app = builder.Build();
+</Steps>
 
-app.MapHub<ChatHub>("/chat");
+## See also
 
-app.Run();
-```
-
-> [!TIP]
-> The name parameter must match the name used when adding the Azure SignalR Service resource in the AppHost project.
-
-For full details on using the hub host integration, see [Azure SignalR Service Hub host integration](/integrations/cloud/azure/azure-signalr/azure-signalr-client/).
-
-## Next steps
-
-<CardGrid>
-    <LinkCard
-        title="Azure SignalR Service Hosting integration"
-        description="Learn more about the hosting integration features and capabilities"
-        href="/integrations/cloud/azure/azure-signalr/azure-signalr-host/"
-    />
-    <LinkCard
-        title="Azure SignalR Service Hub host integration"
-        description="Learn how to use the Azure SignalR Service hub host integration"
-        href="/integrations/cloud/azure/azure-signalr/azure-signalr-client/"
-    />
-</CardGrid>
+- [Azure SignalR Service documentation](https://learn.microsoft.com/azure/azure-signalr/)

@@ -1,84 +1,91 @@
 ---
-title: Get started with the Microsoft Foundry integrations
-description: Learn how to set up the Aspire Microsoft Foundry hosting and client integrations simply.
+title: Get started with the Azure AI Foundry integrations
+description: Understand how the Aspire Azure AI Foundry integrations fit together — model a Foundry resource in your AppHost, then connect to it from any consuming app.
 prev: false
 ---
 
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside, Badge, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import aiFoundryIcon from '@assets/icons/azure-ai-foundry-icon.png';
 
 <Image
   src={aiFoundryIcon}
-  alt="Microsoft Foundry logo"
-  height={80}
-  width={80}
+  alt="Azure AI Foundry logo"
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-<Badge text="🧪 Preview" variant="note" size="large" />
+[Azure AI Foundry](https://learn.microsoft.com/azure/ai-foundry/) provides a unified platform for developing, testing, and deploying AI applications. The Aspire Azure AI Foundry integration lets you model a Foundry account, model deployments, Foundry projects, and hosted agents as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-[Microsoft Foundry](https://learn.microsoft.com/azure/foundry/what-is-foundry) provides a unified platform for developing, testing, and deploying AI applications. The Aspire Microsoft Foundry integration enables you to connect to Microsoft Foundry services from your applications, providing access to AI capabilities including model deployments, Foundry projects, and hosted agents.
+## Why use Azure AI Foundry with Aspire
 
-In this introduction, you'll see how to install and use the Aspire Microsoft Foundry integrations in a simple configuration. If you already have this knowledge, see [Microsoft Foundry Hosting integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/) for full reference details.
+Adding Azure AI Foundry through Aspire — rather than hard-coding endpoints and API keys in each service — gives you:
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+- **Centralized credential management.** Endpoint and API key are stored once in the AppHost and injected into each consuming app automatically.
+- **Model deployments as first-class resources.** Each deployment composes a connection string from the parent Foundry endpoint, API key, and model name, giving consuming apps a single named connection.
+- **Foundry Projects for agents.** Model Foundry projects with `AddProject`, attach model deployments, web-search tools, and hosted or prompt agents, and reference them from consuming services.
+- **Consistent connection info across languages.** Once you reference a deployment from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Foundry Local for offline development.** Use `RunAsFoundryLocal()` to run models locally without an Azure subscription.
+- **An upgrade path to the cloud.** The same AppHost model provisions Azure Cognitive Services accounts and deployments when you publish.
 
-## Set up hosting integration
+## How the pieces fit together
 
-To begin, install the Aspire Microsoft Foundry Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Microsoft Foundry resources from your Aspire hosting projects:
+The Azure AI Foundry integration has two sides: a **hosting integration** that you use in your AppHost to model the Foundry resource and its deployments, and a **connection story** for consuming apps that reference those deployment resources.
 
-<InstallPackage packageName="Aspire.Hosting.Foundry" />
+```mermaid
+architecture-beta
 
-Next, in the AppHost project, create a Microsoft Foundry resource and pass it to the consuming client projects:
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service hosting(server)[Hosting integration] in apphost
+  service foundry(internet)[Azure AI Foundry] in apphost
+  service model(database)[chat deployment] in apphost
 
-var foundry = builder.AddFoundry("foundry");
+  service client(iconoir:server-connection)[Client / SDK] in consumer
+  service app(server)[App] in consumer
 
-var chat = foundry.AddDeployment("chat", FoundryModel.OpenAI.Gpt5Mini);
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(chat)
-    .WaitFor(chat);
-
-// After adding all resources, run the app...
-
-builder.Build().Run();
+  hosting:R --> L:foundry
+  foundry:R --> L:model
+  model:R --> L:client
+  client:R --> L:app
 ```
 
-The preceding code adds a Microsoft Foundry resource named `foundry` with a deployment named `chat` using the generated `FoundryModel.OpenAI.Gpt5Mini` descriptor. The `WithReference` method passes the connection information to the `ExampleProject` project.
+The **hosting integration** lives in your AppHost project and models the Foundry account and deployment resources. The **client / SDK** lives in each consuming app and uses the connection information Aspire injects to call the Azure AI Foundry API.
 
-<Aside type="caution">
-  When you call `AddFoundry`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
+Getting there is a two-step process: model the Azure AI Foundry resources in your AppHost, then connect to the API from each app that needs it.
 
-<Aside type="tip">
-    This is the simplest implementation of Microsoft Foundry resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Microsoft Foundry Hosting integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/).
-</Aside>
+<Steps>
 
-## Set up client integration
+1. ### Model Azure AI Foundry in your AppHost
 
-The client integration for Microsoft Foundry is the [Azure AI Inference](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/) integration. To use Microsoft Foundry from your client applications, install the Azure AI Inference integration in your client project.
+    Add the Azure AI Foundry hosting integration to your AppHost, then declare a Foundry account, one or more model deployments, and reference them from the apps that need to call the API. The [Azure AI Foundry hosting integration](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/) reference walks through every capability — adding deployments, Foundry projects, hosted agents, prompt agents, role assignments, Foundry Local, and more — with side-by-side C# and TypeScript examples.
 
-For more information on using the client integration, see the [Azure AI Inference integration documentation](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/).
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/'>
+        Set up Azure AI Foundry in the AppHost
+    </LinkButton>
 
-## Next steps
+2. ### Connect from your consuming app
 
-<CardGrid>
-    <LinkCard
-        title="Microsoft Foundry Hosting integration"
-        description="Learn more about the hosting integration features and capabilities"
-        href="/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host/"
-    />
-    <LinkCard
-        title="Azure AI Inference Client integration"
-        description="Learn how to use the Azure AI Inference client integration"
-        href="/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/"
-    />
-</CardGrid>
+    When you reference a Foundry deployment from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Azure AI Foundry](/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration via Microsoft.Extensions.AI.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/'>
+        Connect to Azure AI Foundry
+    </LinkButton>
+
+</Steps>
+
+## See also
+
+- [Azure AI Foundry documentation](https://learn.microsoft.com/azure/ai-foundry/)
+- [Azure AI Inference integration](/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-get-started/)

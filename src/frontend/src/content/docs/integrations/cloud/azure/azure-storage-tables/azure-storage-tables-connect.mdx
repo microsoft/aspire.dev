@@ -1,0 +1,330 @@
+---
+title: Connect to Azure Table Storage
+description: Learn how to connect to Azure Table Storage from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import tableIcon from '@assets/icons/azure-table-icon.png';
+
+<Image
+  src={tableIcon}
+  alt="Azure Table Storage logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Table Storage resource that's already modeled in your AppHost. For the AppHost API surface — adding a storage account, table resources, Azurite emulator configuration, and more — see [Azure Table Storage Hosting integration](../azure-storage-tables-host/).
+
+When you reference an Azure Table Storage resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Data Tables client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `ConnectionString` property of a resource called `tables` becomes `TABLES_CONNECTIONSTRING`.
+
+The Azure Table Storage resource exposes the following connection properties:
+
+| Property Name      | Environment variable          | Description |
+|--------------------|-------------------------------|-------------|
+| `ConnectionString` | `{RESOURCE}_CONNECTIONSTRING` | The full Azure Storage connection string. Available when running locally with the Azurite emulator, or when configured for key-based access in production. |
+| `TableEndpoint`    | `{RESOURCE}_TABLEENDPOINT`    | The URI of the Table Storage service endpoint, with the format `https://{accountname}.table.core.windows.net/`. Available when using Azure Managed Identity or token-based access in production. |
+
+**Example values:**
+
+```
+TABLES_CONNECTIONSTRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=...;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;
+TABLES_TABLEENDPOINT: https://mystorageaccount.table.core.windows.net/
+```
+
+:::note
+Your app code specifies the table name when creating a `TableClient` — it isn't injected by Aspire as an environment variable.
+:::
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure Table Storage resource named `tables` and references it from the consuming app.
+
+<Tabs syncKey="azure-storage-tables-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure Data Tables client integration. It registers a [`TableServiceClient`](https://learn.microsoft.com/dotnet/api/azure.data.tables.tableserviceclient) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.Data.Tables](https://www.nuget.org/packages/Aspire.Azure.Data.Tables) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Data.Tables" />
+
+#### Add the Table Storage client
+
+In _Program.cs_, call `AddAzureTableServiceClient` on your `IHostApplicationBuilder` to register a `TableServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureTableServiceClient(connectionName: "tables");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure Table Storage resource name from the AppHost. For more information, see [Add Azure Table Storage resource](../azure-storage-tables-host/#add-azure-table-storage-resource).
+</Aside>
+
+Resolve the service client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(TableServiceClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed Table Storage clients
+
+To register multiple `TableServiceClient` instances with different connection names, use `AddKeyedAzureTableServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureTableServiceClient(name: "tables1");
+builder.AddKeyedAzureTableServiceClient(name: "tables2");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("tables1")] TableServiceClient tablesClient1,
+    [FromKeyedServices("tables2")] TableServiceClient tablesClient2)
+{
+    // Use clients...
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Azure Data Tables client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureTableServiceClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureTableServiceClient("tables");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "tables": "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=...;EndpointSuffix=core.windows.net"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureDataTablesSettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:Azure:Data:Tables` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Data": {
+        "Tables": {
+          "ServiceUri": "https://myaccount.table.core.windows.net/",
+          "DisableHealthChecks": false,
+          "DisableTracing": false,
+          "ClientOptions": {
+            "EnableTenantDiscovery": true
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<AzureDataTablesSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureTableServiceClient(
+    "tables",
+    settings => settings.DisableHealthChecks = true);
+```
+
+You can also configure the `TableClientOptions`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureTableServiceClient(
+    "tables",
+    configureClientBuilder: clientBuilder =>
+        clientBuilder.ConfigureOptions(
+            options => options.EnableTenantDiscovery = true));
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure Data Tables client integration adds:
+
+- A health check that attempts to connect to the Azure Table Storage service.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+To disable health checks, set `DisableHealthChecks` to `true` in the configuration.
+
+#### Observability and telemetry
+
+The Aspire Azure Data Tables client integration automatically configures logging and tracing through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+**Tracing** activities:
+
+- `Azure.Data.Tables.TableServiceClient`
+
+**Metrics:** The Azure Data Tables integration currently doesn't support metrics by default due to limitations in the Azure SDK.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and construct a `TableServiceClient` directly using the [📦 Azure.Data.Tables](https://www.nuget.org/packages/Azure.Data.Tables/) NuGet package:
+
+```csharp title="C# — Program.cs"
+using Azure.Data.Tables;
+
+var connectionString = Environment.GetEnvironmentVariable("TABLES_CONNECTIONSTRING");
+var tableEndpoint = Environment.GetEnvironmentVariable("TABLES_TABLEENDPOINT");
+
+// Use connection string (emulator or key-based access)
+var client = !string.IsNullOrEmpty(connectionString)
+    ? new TableServiceClient(connectionString)
+    : new TableServiceClient(new Uri(tableEndpoint!));
+
+// Get a client for a specific table
+var tableClient = client.GetTableClient("mytable");
+await tableClient.CreateIfNotExistsAsync();
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [`azure-sdk-for-go/sdk/data/aztables`](https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/data/aztables) package:
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/data/aztables
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/data/aztables"
+)
+
+func main() {
+    connectionString := os.Getenv("TABLES_CONNECTIONSTRING")
+    tableEndpoint := os.Getenv("TABLES_TABLEENDPOINT")
+
+    var client *aztables.ServiceClient
+    var err error
+
+    if connectionString != "" {
+        // Emulator or key-based access
+        client, err = aztables.NewServiceClientFromConnectionString(connectionString, nil)
+    } else {
+        // Token-based access using Managed Identity
+        client, err = aztables.NewServiceClient(tableEndpoint, nil, nil)
+    }
+    if err != nil {
+        panic(err)
+    }
+
+    // List tables
+    pager := client.NewListTablesPager(nil)
+    for pager.More() {
+        page, err := pager.NextPage(context.Background())
+        if err != nil {
+            panic(err)
+        }
+        for _, table := range page.Value {
+            _ = table
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [`azure-data-tables`](https://pypi.org/project/azure-data-tables/) package:
+
+```bash title="Terminal"
+pip install azure-data-tables
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+from azure.data.tables import TableServiceClient
+
+connection_string = os.getenv("TABLES_CONNECTIONSTRING")
+table_endpoint = os.getenv("TABLES_TABLEENDPOINT")
+
+if connection_string:
+    # Emulator or key-based access
+    client = TableServiceClient.from_connection_string(connection_string)
+else:
+    # Token-based access using Managed Identity
+    from azure.identity import DefaultAzureCredential
+    client = TableServiceClient(endpoint=table_endpoint, credential=DefaultAzureCredential())
+
+# List tables
+for table in client.list_tables():
+    print(table.name)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [`@azure/data-tables`](https://www.npmjs.com/package/@azure/data-tables) package:
+
+```bash title="Terminal"
+npm install @azure/data-tables
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { TableServiceClient } from '@azure/data-tables';
+
+const connectionString = process.env.TABLES_CONNECTIONSTRING;
+const tableEndpoint = process.env.TABLES_TABLEENDPOINT;
+
+let client: TableServiceClient;
+
+if (connectionString) {
+    // Emulator or key-based access
+    client = TableServiceClient.fromConnectionString(connectionString);
+} else {
+    // Token-based access using Managed Identity
+    const { DefaultAzureCredential } = await import('@azure/identity');
+    client = new TableServiceClient(tableEndpoint!, new DefaultAzureCredential());
+}
+
+// List tables
+for await (const table of client.listTables()) {
+    console.log(table.name);
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [Pass environment variables](/app-host/withenvironment/) in the AppHost reference.
+</Aside>
