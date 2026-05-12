@@ -336,7 +336,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host',
                     },
                     {
-                      label: 'Client integration',
+                      label: 'Connect to Azure',
                       slug: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect',
                     },
                   ],
@@ -354,7 +354,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-host',
                     },
                     {
-                      label: 'Client integration',
+                      label: 'Connect to Azure AI Inference',
                       slug: 'integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect',
                     },
                   ],
@@ -372,7 +372,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-host',
                     },
                     {
-                      label: 'Client integration',
+                      label: 'Connect to Azure AI Search',
                       slug: 'integrations/cloud/azure/azure-ai-search/azure-ai-search-connect',
                     },
                   ],
@@ -390,7 +390,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                       slug: 'integrations/cloud/azure/azure-openai/azure-openai-host',
                     },
                     {
-                      label: 'Client integration',
+                      label: 'Connect to Azure OpenAI',
                       slug: 'integrations/cloud/azure/azure-openai/azure-openai-connect',
                     },
                   ],
@@ -410,7 +410,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure App Configuration',
                   slug: 'integrations/cloud/azure/azure-app-configuration/azure-app-configuration-connect',
                 },
               ],
@@ -428,7 +428,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure App Service',
                   slug: 'integrations/cloud/azure/azure-app-service/azure-app-service-connect',
                 },
               ],
@@ -450,7 +450,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Cache for Redis',
                   slug: 'integrations/cloud/azure/azure-cache-redis/azure-cache-redis-connect',
                 },
               ],
@@ -468,7 +468,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Container Registry',
                   slug: 'integrations/cloud/azure/azure-container-registry/azure-container-registry-connect',
                 },
               ],
@@ -490,7 +490,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Cosmos DB',
                   slug: 'integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect',
                 },
               ],
@@ -512,7 +512,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Event Hubs',
                   slug: 'integrations/cloud/azure/azure-event-hubs/azure-event-hubs-connect',
                 },
               ],
@@ -534,7 +534,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-functions/azure-functions-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Functions',
                   slug: 'integrations/cloud/azure/azure-functions/azure-functions-connect',
                 },
               ],
@@ -552,7 +552,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Key Vault',
                   slug: 'integrations/cloud/azure/azure-key-vault/azure-key-vault-connect',
                 },
               ],
@@ -592,7 +592,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Service Bus',
                   slug: 'integrations/cloud/azure/azure-service-bus/azure-service-bus-connect',
                 },
               ],
@@ -628,7 +628,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure SQL Database',
                   slug: 'integrations/cloud/azure/azure-sql-database/azure-sql-database-connect',
                 },
               ],
@@ -642,11 +642,11 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Storage Blobs in the AppHost',
                   slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Storage Blobs',
                   slug: 'integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-connect',
                 },
               ],
@@ -664,11 +664,11 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Storage Queues in the AppHost',
                   slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Storage Queues',
                   slug: 'integrations/cloud/azure/azure-storage-queues/azure-storage-queues-connect',
                 },
               ],
@@ -682,11 +682,11 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Storage Tables in the AppHost',
                   slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Storage Tables',
                   slug: 'integrations/cloud/azure/azure-storage-tables/azure-storage-tables-connect',
                 },
               ],
@@ -704,11 +704,11 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
                   slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-get-started',
                 },
                 {
-                  label: 'Hosting integration',
+                  label: 'Set up Azure Web PubSub in the AppHost',
                   slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-host',
                 },
                 {
-                  label: 'Client integration',
+                  label: 'Connect to Azure Web PubSub',
                   slug: 'integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-connect',
                 },
               ],
