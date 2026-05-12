@@ -27,27 +27,62 @@ To get started with the Aspire Azure PostgreSQL Entity Framework Core client int
 
 <InstallDotNetPackage packageName="Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL" />
 
-## Add Azure Npgsql database context
+## Connection properties
 
-The Azure PostgreSQL connection can be consumed using the EF Core client integration by calling the `AddAzureNpgsqlDbContext`:
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
+
+### Azure PostgreSQL Flexible Server resource
+
+The Azure PostgreSQL Flexible Server resource exposes the following connection properties:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `Host`                 | The hostname or IP address of the Azure PostgreSQL Flexible Server |
+| `Port`                 | The port number the PostgreSQL server is listening on |
+| `Username`             | The username for authentication. Emitted when using password authentication; may be omitted when using Microsoft Entra ID authentication. |
+| `Password`             | The password for authentication. Present only when using password authentication; not present when using Microsoft Entra ID authentication. |
+| `Uri`                  | The connection URI in `postgresql://` format without embedded credentials, for example `postgresql://{Host}:{Port}?sslmode=Require` |
+| `JdbcConnectionString` | JDBC-format connection string without embedded credentials, for example `jdbc:postgresql://{Host}:{Port}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin`. Credentials are provided as separate `Username` and `Password` properties when using password authentication. |
+
+### Azure PostgreSQL database resource
+
+The Azure PostgreSQL database resource inherits all properties from its parent `AzurePostgresFlexibleServerResource` and adds:
+
+| Property Name          | Description |
+| ---------------------- | ----------- |
+| `Uri`                  | The connection URI in `postgresql://` format without embedded credentials, for example `postgresql://{Host}:{Port}/{DatabaseName}?sslmode=Require` |
+| `JdbcConnectionString` | JDBC connection string including the database name without embedded credentials, for example `jdbc:postgresql://{Host}:{Port}/{DatabaseName}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin`. Credentials are provided as separate `Username` and `Password` properties when using password authentication. |
+| `DatabaseName`         | The name of the database |
+
+## Connect from your C# app
+
+The recommended approach for C# apps is the Aspire Azure PostgreSQL EF Core client integration. It registers a pooled `DbContext` through dependency injection and adds health checks and telemetry automatically.
+
+### Install the client integration
+
+Install the [📦 Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL](https://www.nuget.org/packages/Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL/) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL" />
+
+### Add the DbContext
+
+In _Program.cs_, call `AddAzureNpgsqlDbContext` on your `IHostApplicationBuilder` to register a pooled `DbContext` that uses Azure authentication ([Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication)) by default:
 
 ```csharp title="C# — Program.cs"
-builder.AddAzureNpgsqlDbContext<YourDbContext>(
-    connectionName: "postgresdb");
+builder.AddAzureNpgsqlDbContext<YourDbContext>(connectionName: "postgresdb");
 ```
 
 <Aside type="note">
-To use this code, you must create a `DbContext` class called `YourDbContext` in your project. This class defines your database schema using EF Core. For more information on creating and configuring a `DbContext`, see [DbContext Lifetime, Configuration, and Initialization](https://learn.microsoft.com/ef/core/dbcontext-configuration/) in the EF Core documentation.
+You must create a `DbContext` class called `YourDbContext` in your project. This class defines your database schema using EF Core. For more information on creating and configuring a `DbContext`, see [DbContext Lifetime, Configuration, and Initialization](https://learn.microsoft.com/ef/core/dbcontext-configuration/) in the EF Core documentation.
 </Aside>
 
-> [!TIP]
-> The `connectionName` parameter must match the name used when adding the PostgreSQL server resource in the AppHost project.
+<Aside type="tip">
+The `connectionName` must match the Azure PostgreSQL database resource name from the AppHost. For more information, see [Add an Azure Database for PostgreSQL resource](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/#add-an-azure-database-for-postgresql-resource).
+</Aside>
 
-The preceding code snippet demonstrates how to use the `AddAzureNpgsqlDbContext` method to register a `YourDbContext` (that's [pooled for performance](https://learn.microsoft.com/ef/core/performance/advanced-performance-topics)) instance that uses Azure authentication ([Microsoft Entra ID](https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-azure-ad-authentication)). This `"postgresdb"` connection name corresponds to a connection string configuration value.
+Resolve the `DbContext` through dependency injection:
 
-After adding `YourDbContext` to the builder, you can get the `YourDbContext` instance using dependency injection. For example, to retrieve your data source object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-```csharp
+```csharp title="C# — ExampleService.cs"
 public class ExampleService(YourDbContext context)
 {
     // Use context...
@@ -56,57 +91,19 @@ public class ExampleService(YourDbContext context)
 
 For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
 
-## Properties of the Azure PostgreSQL resources
+### Add keyed DbContext instances
 
-When you use the `WithReference` method to pass an Azure PostgreSQL flexible server or database resource from the AppHost project to a consuming client project, several properties are available to use in the consuming project.
+To register multiple `DbContext` instances with different connection names, use the keyed service pattern by configuring separate named sections. See [Configure multiple DbContext classes](#configure-multiple-dbcontext-classes) for details.
 
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
+### Enrich a manually registered DbContext
 
-### Azure PostgreSQL flexible server resource
-
-The Azure PostgreSQL flexible server resource exposes the following connection properties:
-
-| Property Name          | Description                                                                                                                                                                                                                 |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Host`                 | The hostname or IP address of the Azure PostgreSQL flexible server                                                                                                                                                          |
-| `Port`                 | The port number the PostgreSQL server is listening on                                                                                                                                                                       |
-| `Username`             | The username for authentication. This property is emitted when the server is configured for password authentication and may be omitted when using the default Microsoft Entra ID authentication.                             |
-| `Password`             | The password for authentication. This property is emitted only when using password authentication and is not present when using Microsoft Entra ID authentication.                                                          |
-| `Uri`                  | The connection URI in postgresql:// format that does not embed credentials, for example `postgresql://{Host}:{Port}?sslmode=Require` |
-| `JdbcConnectionString` | JDBC-format connection string without embedded credentials, for example `jdbc:postgresql://{Host}:{Port}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin`. User and password credentials are provided as separate `Username` and `Password` properties when using password authentication. |
-
-### Azure PostgreSQL database resource
-
-The Azure PostgreSQL database resource inherits all properties from its parent `AzurePostgresFlexibleServerResource` and adds:
-
-| Property Name          | Description                                                                                                                                                                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Uri`                  | The connection URI in postgresql:// format that does not embed credentials, for example `postgresql://{Host}:{Port}/{DatabaseName}?sslmode=Require`. Credentials are exposed via other properties.   |
-| `JdbcConnectionString` | JDBC connection string including the database name without embedded credentials, for example `jdbc:postgresql://{Host}:{Port}/{DatabaseName}?sslmode=require&authenticationPluginClassName=com.azure.identity.extensions.jdbc.postgresql.AzurePostgresqlAuthenticationPlugin`. User and password credentials are provided as separate `Username` and `Password` properties when using password authentication. |
-| `DatabaseName`         | The name of the database                                                                                                                                                                                                         |
-
-## Enrich an Npgsql database context
-
-You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
+If you need more control over `DbContext` registration — for example, to reuse existing configuration code, use EF Core interceptors, or opt out of context pooling — register the `DbContext` manually and call `EnrichAzureNpgsqlDbContext` to add Aspire health checks, retries, logging, and telemetry:
 
 ```csharp title="C# — Program.cs"
 builder.Services.AddDbContext<YourDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")
         ?? throw new InvalidOperationException("Connection string 'postgresdb' not found.")));
-```
 
-> [!NOTE]
-> The connection string name that you pass to the `GetConnectionString` method must match the name used when adding the PostgreSQL server resource in the AppHost project. For more information, see [Add an Azure Database for PostgreSQL resource](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/#add-an-azure-database-for-postgresql-resource).
-
-You have more flexibility when you create the database context in this way, for example:
-
-- You can reuse existing configuration code for the database context without rewriting it for Aspire.
-- You can use Entity Framework Core interceptors to modify database operations.
-- You can choose not to use Entity Framework Core context pooling, which may perform better in some circumstances.
-
-If you use this method, you can enhance the database context with Aspire retries, health checks, logging, and telemetry features by calling the `EnrichAzureNpgsqlDbContext` method:
-
-```csharp title="C# — Program.cs"
 builder.EnrichAzureNpgsqlDbContext<YourDbContext>(
     configureSettings: settings =>
     {
@@ -115,32 +112,19 @@ builder.EnrichAzureNpgsqlDbContext<YourDbContext>(
     });
 ```
 
-The `settings` parameter is an instance of the `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings` class.
+The `settings` parameter is an instance of `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings`.
 
-You might also need to configure specific options of Npgsql, or register a `System.Data.Entity.DbContext` in other ways. In this case, you do so by calling the `EnrichAzureNpgsqlDbContext` extension method, as shown in the following example:
+### Configuration
 
-```csharp title="C# — Program.cs"
-var connectionString = builder.Configuration.GetConnectionString("postgresdb");
+The client integration supports multiple ways to provide configuration.
 
-builder.Services.AddDbContextPool<YourDbContext>(
-    dbContextOptionsBuilder => dbContextOptionsBuilder.UseNpgsql(connectionString));
-
-builder.EnrichAzureNpgsqlDbContext<YourDbContext>();
-```
-
-## Configuration
-
-The Aspire Azure PostgreSQL EntityFrameworkCore Npgsql integration provides multiple options to configure the database connection based on the requirements and conventions of your project.
-
-### Use a connection string
-
-When using a connection string defined in the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `AddAzureNpgsqlDataSource`:
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureNpgsqlDbContext`:
 
 ```csharp title="C# — Program.cs"
 builder.AddAzureNpgsqlDbContext<YourDbContext>("postgresdb");
 ```
 
-The connection string is retrieved from the `ConnectionStrings` configuration section, for example, consider the following JSON configuration:
+The connection string is resolved from the `ConnectionStrings` section:
 
 ```json title="JSON — appsettings.json"
 {
@@ -150,14 +134,9 @@ The connection string is retrieved from the `ConnectionStrings` configuration se
 }
 ```
 
-For more information on how to configure the connection string, see the [Npgsql connection string documentation](https://www.npgsql.org/doc/connection-string-parameters.html).
+The username and password are automatically inferred from the credential configured in the settings. For more information, see the [Npgsql connection string documentation](https://www.npgsql.org/doc/connection-string-parameters.html).
 
-> [!NOTE]
-> The username and password are automatically inferred from the credential provided in the settings.
-
-### Use configuration providers
-
-The Aspire Azure PostgreSQL EntityFrameworkCore Npgsql integration supports `Microsoft.Extensions.Configuration`. It loads the `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings` from configuration using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key. For example, consider the following _appsettings.json_ file that configures some of the available options:
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings` from _appsettings.json_ using the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL` key:
 
 ```json title="JSON — appsettings.json"
 {
@@ -174,9 +153,7 @@ The Aspire Azure PostgreSQL EntityFrameworkCore Npgsql integration supports `Mic
 }
 ```
 
-### Use inline delegates
-
-You can configure settings in code, by passing the `Action<AzureNpgsqlEntityFrameworkCorePostgreSQLSettings> configureSettings` delegate to set up some or all the options inline, for example to disable health checks from code:
+**Inline delegates.** Pass an `Action<AzureNpgsqlEntityFrameworkCorePostgreSQLSettings>` to configure settings inline, for example to disable health checks:
 
 ```csharp title="C# — Program.cs"
 builder.AddAzureNpgsqlDbContext<YourDbContext>(
@@ -184,35 +161,24 @@ builder.AddAzureNpgsqlDbContext<YourDbContext>(
     settings => settings.DisableHealthChecks = true);
 ```
 
-Alternatively, you can use the `EnrichAzureNpgsqlDbContext` extension method to configure the settings:
+Use the `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings.Credential` property to establish a connection. If no credential is configured, a [default Azure credential](/integrations/cloud/azure/azure-default-credential/) is used. When the connection string contains a username and password, the credential is ignored.
 
-```csharp
-builder.EnrichAzureNpgsqlDbContext<YourDbContext>(
-    settings => settings.DisableHealthChecks = true);
-```
-
-Use the `AzureNpgsqlEntityFrameworkCorePostgreSQLSettings.Credential` property to establish a connection. If no credential is configured, a [default credential](/integrations/cloud/azure/azure-default-credential/) is used.
-
-When the connection string contains a username and password, the credential is ignored.
-
-### Troubleshooting
-
-In the rare case that the `Username` property isn't provided and the integration can't detect it using the application's Managed Identity, Npgsql throws an exception with a message similar to the following:
+**Troubleshooting.** In the rare case that the `Username` property isn't provided and the integration can't detect it using the application's Managed Identity, Npgsql throws an exception similar to:
 
 > Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user ...
 
-In this case you can configure the `Username` property in the connection string and use `EnrichAzureNpgsqlDbContext`, passing the connection string in `UseNpgsql`:
+In this case, configure the `Username` property in the connection string and use `EnrichAzureNpgsqlDbContext`:
 
 ```csharp title="C# — Program.cs"
 builder.Services.AddDbContextPool<YourDbContext>(
-    options => options.UseNpgsql(newConnectionString));
+    options => options.UseNpgsql(connectionString));
 
 builder.EnrichAzureNpgsqlDbContext<YourDbContext>();
 ```
 
-## Configure multiple DbContext classes
+### Configure multiple DbContext classes
 
-If you want to register more than one `DbContext` with different configuration, you can use `$"Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:{typeof(TContext).Name}"` configuration section name. The json configuration would look like:
+To register more than one `DbContext` with different configuration, use the `$"Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:{typeof(TContext).Name}"` configuration section name:
 
 ```json title="JSON — appsettings.json"
 {
@@ -234,30 +200,29 @@ If you want to register more than one `DbContext` with different configuration, 
 }
 ```
 
-Then calling the `AddAzureNpgsqlDbContext` method with `AnotherDbContext` type parameter would load the settings from `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:AnotherDbContext` section.
+Call `AddAzureNpgsqlDbContext` with the `AnotherDbContext` type parameter to load settings from the `Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:AnotherDbContext` section:
 
 ```csharp title="C# — Program.cs"
 builder.AddAzureNpgsqlDbContext<AnotherDbContext>();
 ```
 
-By default, the Aspire PostgreSQL Entity Framework Core integrations handles the following:
+### Client integration health checks
 
-- Adds the [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
-- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for app to be considered ready to accept traffic
+Aspire client integrations enable health checks by default. The Azure PostgreSQL EF Core client integration adds:
 
-## Observability and telemetry
+- The [`DbContextHealthCheck`](https://github.com/Xabaril/AspNetCore.Diagnostics.HealthChecks/blob/master/src/HealthChecks.NpgSql/NpgSqlHealthCheck.cs), which calls EF Core's `CanConnectAsync` method. The name of the health check is the name of the `TContext` type.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
 
-Aspire integrations automatically set up Logging, Tracing, and Metrics configurations.
+### Observability and telemetry
 
-### Logging
+The Aspire Azure PostgreSQL EF Core client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
 
-The Aspire PostgreSQL Entity Framework Core integration uses the following Log categories:
+**Logging** categories:
 
 - `Microsoft.EntityFrameworkCore.ChangeTracking`
 - `Microsoft.EntityFrameworkCore.Database.Command`
 - `Microsoft.EntityFrameworkCore.Database.Connection`
 - `Microsoft.EntityFrameworkCore.Database.Transaction`
-- `Microsoft.EntityFrameworkCore.Migrations`
 - `Microsoft.EntityFrameworkCore.Infrastructure`
 - `Microsoft.EntityFrameworkCore.Migrations`
 - `Microsoft.EntityFrameworkCore.Model`
@@ -265,15 +230,11 @@ The Aspire PostgreSQL Entity Framework Core integration uses the following Log c
 - `Microsoft.EntityFrameworkCore.Query`
 - `Microsoft.EntityFrameworkCore.Update`
 
-### Tracing
-
-The Aspire PostgreSQL Entity Framework Core integration will emit the following tracing activities using OpenTelemetry:
+**Tracing** activities:
 
 - `Npgsql`
 
-### Metrics
-
-The Aspire PostgreSQL Entity Framework Core integration will emit the following metrics using OpenTelemetry:
+**Metrics**:
 
 - Microsoft.EntityFrameworkCore:
   - `ec_Microsoft_EntityFrameworkCore_active_db_contexts`
@@ -298,3 +259,5 @@ The Aspire PostgreSQL Entity Framework Core integration will emit the following 
   - `ec_Npgsql_connection_pools`
   - `ec_Npgsql_multiplexing_average_commands_per_batch`
   - `ec_Npgsql_multiplexing_average_write_time_per_batch`
+
+Any of these telemetry features can be disabled through the configuration options above.
