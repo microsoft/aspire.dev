@@ -1,0 +1,77 @@
+---
+title: Use Azure Container Registry at deploy time
+description: Learn how Azure Container Registry is consumed as a publish target during deployment, including registry outputs and integration with your deployment pipeline.
+---
+
+import { Image } from 'astro:assets';
+import { Aside } from '@astrojs/starlight/components';
+import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
+
+<Image
+  src={containerRegistryIcon}
+  alt="Azure Container Registry logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how Azure Container Registry is consumed at deployment time in an Aspire solution. For the AppHost API surface — adding a registry, referencing an existing one, scheduling purge tasks, and role assignments — see [Azure Container Registry Hosting integration](../azure-container-registry-host/).
+
+## ACR is a publish-target integration
+
+Unlike database or cache integrations, Azure Container Registry is not accessed by your app's code at runtime. It is a **publish-target** integration: your deployment pipeline pushes container images to the registry, and compute environments (such as Azure Container Apps) pull images from it using credentials that Aspire provisions automatically.
+
+There is no client library to install in consuming apps. Your services do not open a connection to ACR, send commands to it, or read environment variables from it at startup.
+
+<Aside type="note">
+  If your app needs to interact with ACR programmatically at runtime — for example, to list or delete images — use the [Azure Container Registry client library for .NET](https://learn.microsoft.com/dotnet/api/overview/azure/Containers.ContainerRegistry-readme) directly, and supply credentials through standard Azure identity mechanisms.
+</Aside>
+
+## Registry outputs
+
+When Aspire provisions an Azure Container Registry resource, the generated Bicep module exposes the following outputs:
+
+| Output name   | Description |
+| ------------- | ----------- |
+| `name`        | The provisioned name of the registry (used to reference the registry from other Bicep modules). |
+| `loginServer` | The registry login server hostname, for example `myacr1234abcd.azurecr.io`. This is the endpoint used to tag and push images during CI/CD and to pull images in compute environments. |
+
+These outputs are automatically wired into the compute environment's Bicep when you call `WithAzureContainerRegistry` (or `withAzureContainerRegistry`) from your AppHost.
+
+## Reference loginServer in your AppHost
+
+If you need to pass the registry's `loginServer` value to another resource in your AppHost — for example, to tag images before pushing — use `GetOutput` (or `getOutput`) to retrieve it as a Bicep output reference:
+
+```csharp title="C# — AppHost.cs"
+var acr = builder.AddAzureContainerRegistry("my-acr");
+
+var loginServer = acr.GetOutput("loginServer");
+```
+
+```typescript title="TypeScript — apphost.ts"
+const acr = await builder.addAzureContainerRegistry("my-acr");
+
+const loginServer = await acr.getOutput("loginServer");
+```
+
+## Push images from your CI/CD pipeline
+
+Your CI/CD pipeline is responsible for building and pushing container images to the registry. Use the `loginServer` output as the image tag prefix:
+
+```bash title="Terminal — Push image to ACR"
+# Authenticate using Azure CLI
+az acr login --name <registryName>
+
+# Tag and push the image
+docker tag myapp:latest <loginServer>/myapp:latest
+docker push <loginServer>/myapp:latest
+```
+
+For automated pipelines, use a service principal or managed identity with the `AcrPush` role. See [Assign roles for access control](../azure-container-registry-host/#assign-roles-for-access-control) in the Hosting integration reference for how to grant push access from your AppHost.
+
+## See also
+
+- [Azure Container Registry documentation](https://learn.microsoft.com/azure/container-registry/)
+- [Deploy to Azure Container Apps with Aspire](/deployment/azure/)
+- [Azure Container Registry Hosting integration](../azure-container-registry-host/)
