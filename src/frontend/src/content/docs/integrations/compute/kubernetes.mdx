@@ -164,6 +164,109 @@ await service.publishAsKubernetesService(async (resource) => {
 </TabItem>
 </Tabs>
 
+## Add custom Kubernetes manifests
+
+Within a `PublishAsKubernetesService` callback, use `AddManifest` to attach arbitrary Kubernetes manifests to the generated Helm chart. This is particularly useful for adding custom resources such as [KEDA](https://keda.sh/) `ScaledObject` definitions, `ConfigMap` objects, or any other Kubernetes resource alongside your service.
+
+`AddManifest` takes the manifest's `apiVersion`, `kind`, and `metadata.name`, and returns a handle that you can use to set labels, annotations, a namespace, and arbitrary field values using dot-notation paths.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+In C#, add directly to `AdditionalResources` using the strongly-typed resource types from `Aspire.Hosting.Kubernetes.Resources`:
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.Kubernetes.Resources;
+
+builder.AddContainer("service", "nginx")
+    .PublishAsKubernetesService(resource =>
+    {
+        var scaler = new ScaledObject
+        {
+            Metadata = { Name = "service-scaler" },
+        };
+        scaler.Metadata.Labels["example.com/custom"] = "true";
+        resource.AdditionalResources.Add(scaler);
+    });
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const service = await builder.addContainer('service', 'nginx');
+await service.publishAsKubernetesService(async (resource) => {
+    await resource.addManifest('keda.sh/v1alpha1', 'ScaledObject', 'service-scaler', {
+        configure: async (manifest) => {
+            await manifest.withLabel('example.com/custom', 'true');
+            await manifest.withAnnotation('example.com/source', 'typescript');
+            await manifest.withField('spec.scaleTargetRef.kind', 'Deployment');
+            await manifest.withField('spec.scaleTargetRef.name', 'service');
+            await manifest.withField('spec.maxReplicaCount', 3);
+        },
+    });
+});
+```
+</TabItem>
+<TabItem id='python' label='Python'>
+```python title="apphost.py"
+def configure_service(service):
+    def configure_manifest(manifest):
+        manifest.with_label("example.com/custom", "true")
+        manifest.with_annotation("example.com/source", "python")
+        manifest.with_field("spec.scaleTargetRef.kind", "Deployment")
+        manifest.with_field("spec.scaleTargetRef.name", "service")
+        manifest.with_field("spec.maxReplicaCount", 3)
+
+    service.add_manifest("keda.sh/v1alpha1", "ScaledObject", "service-scaler", configure_manifest)
+
+service_container.publish_as_kubernetes_service(configure_service)
+```
+</TabItem>
+<TabItem id='java' label='Java'>
+```java title="AppHost.java"
+serviceContainer.publishAsKubernetesService((service) -> {
+    service.addManifest("keda.sh/v1alpha1", "ScaledObject", "service-scaler", (manifest) -> {
+        manifest.withLabel("example.com/custom", "true");
+        manifest.withAnnotation("example.com/source", "java");
+        manifest.withField("spec.scaleTargetRef.kind", "Deployment");
+        manifest.withField("spec.scaleTargetRef.name", "service");
+        manifest.withField("spec.maxReplicaCount", 3);
+    });
+});
+```
+</TabItem>
+<TabItem id='go' label='Go'>
+```go title="apphost.go"
+serviceContainer.PublishAsKubernetesService(func(service aspire.KubernetesResource) {
+    service.AddManifest("keda.sh/v1alpha1", "ScaledObject", "service-scaler", &aspire.AddManifestOptions{
+        Configure: func(manifest aspire.KubernetesManifestResource) {
+            manifest.WithLabel("example.com/custom", "true")
+            manifest.WithAnnotation("example.com/source", "go")
+            manifest.WithField("spec.scaleTargetRef.kind", "Deployment")
+            manifest.WithField("spec.scaleTargetRef.name", "service")
+            manifest.WithField("spec.maxReplicaCount", 3)
+        },
+    })
+})
+```
+</TabItem>
+</Tabs>
+
+The manifest handle supports the following configuration methods:
+
+| Method | Description |
+|---|---|
+| `WithNamespace(string)` / `with_namespace` | Sets the Kubernetes namespace for the manifest. |
+| `WithLabel(key, value)` / `with_label` | Adds a metadata label to the manifest. |
+| `WithAnnotation(key, value)` / `with_annotation` | Adds a metadata annotation to the manifest. |
+| `WithField(path, value)` / `with_field` | Sets an arbitrary field using dot-notation path (for example, `spec.maxReplicaCount`). |
+
+Each manifest is emitted as a separate template file inside the generated Helm chart.
+
+<Aside type="note">
+The `AddManifest` API (and the polyglot `addManifest` / `add_manifest` equivalents) is the recommended way to attach custom Kubernetes resources when using polyglot AppHosts. In C# AppHosts, you can continue to add strongly-typed resource objects directly to `AdditionalResources`.
+</Aside>
+
 ## Publishing and deployment
 
 The Kubernetes integration supports both `aspire publish` (generate Helm chart artifacts) and `aspire deploy` (deploy directly to your current cluster context).
