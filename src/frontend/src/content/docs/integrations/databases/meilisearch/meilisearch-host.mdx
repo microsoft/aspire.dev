@@ -1,12 +1,12 @@
 ---
-title: Meilisearch Hosting integration reference
-description: Learn how to use the Aspire Meilisearch hosting integration to orchestrate and configure Meilisearch in your Aspire projects.
+title: Set up Meilisearch in the AppHost
+description: Learn how to use the Aspire Meilisearch Hosting integration to orchestrate and configure a Meilisearch resource in an Aspire solution.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import Badge from '@astrojs/starlight/components/Badge.astro';
 import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -20,32 +20,91 @@ import meilisearchIcon from '@assets/icons/meilisearch-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire Meilisearch integrations, follow the [Get started with Meilisearch integrations](/integrations/databases/meilisearch/meilisearch-get-started/) guide.
+This article is the reference for the Aspire Meilisearch Hosting integration. It enumerates the AppHost APIs that you use to model a Meilisearch resource in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details about the Aspire Meilisearch Hosting integration.
+If you're new to the Meilisearch integration, start with the [Get started with Meilisearch integrations](/integrations/databases/meilisearch/meilisearch-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Meilisearch](../meilisearch-connect/).
 
 ## Installation
 
-To access the hosting integration APIs for expressing Meilisearch resources in your AppHost project, install the [📦 CommunityToolkit.Aspire.Hosting.Meilisearch](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.Meilisearch) NuGet package:
+To start building an Aspire app that uses Meilisearch, install the [📦 CommunityToolkit.Aspire.Hosting.Meilisearch](https://nuget.org/packages/CommunityToolkit.Aspire.Hosting.Meilisearch) NuGet package:
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Meilisearch" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Meilisearch
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.Meilisearch@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.Meilisearch" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add CommunityToolkit.Aspire.Hosting.Meilisearch
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Meilisearch hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "CommunityToolkit.Aspire.Hosting.Meilisearch": "*"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add Meilisearch resource
 
-In the AppHost project, register and consume the Meilisearch integration using the `AddMeilisearch` extension method to add the Meilisearch container to the application builder.
+Once you've installed the hosting integration in your AppHost project, you can add a Meilisearch resource as shown in the following example:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var meilisearch = builder.AddMeilisearch("meilisearch");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(meilisearch);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(meilisearch);
 
 // After adding all resources, run the app...
 ```
 
-The Meilisearch resource includes a randomly generated master key when one wasn't provided.
+<Aside type="note">
+  TypeScript AppHost support for the Meilisearch Community Toolkit integration is not yet available. Use the C# AppHost to model Meilisearch resources. Connection information is still injected as environment variables for consuming apps in any language — see [Connect to Meilisearch](../meilisearch-connect/).
+</Aside>
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/getmeili/meilisearch` image, it creates a new Meilisearch instance on your local machine.
+
+1. The Meilisearch resource is configured with a randomly generated master key by default. To set an explicit master key, see [Add Meilisearch resource with master key parameter](#add-meilisearch-resource-with-master-key-parameter).
+
+1. The `WithReference` call configures a connection in the consuming project named after the referenced Meilisearch resource, such as `meilisearch` in the preceding example.
+
+</Steps>
+
+<Aside type="note">
+    When you reference a Meilisearch resource from the AppHost, Aspire makes several properties available to the consuming project, such as the URL, hostname, port, and master key. For a complete list of these properties and per-language connection examples, see [Connect to Meilisearch](../meilisearch-connect/).
+</Aside>
 
 ## Add Meilisearch resource with data volume
 
@@ -55,15 +114,15 @@ To add a data volume to the Meilisearch resource, call the `WithDataVolume` meth
 var builder = DistributedApplication.CreateBuilder(args);
 
 var meilisearch = builder.AddMeilisearch("meilisearch")
-                         .WithDataVolume();
+    .WithDataVolume();
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(meilisearch);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(meilisearch);
 
 // After adding all resources, run the app...
 ```
 
-The data volume is used to persist the Meilisearch data outside the lifecycle of its container. The data volume is mounted at the `/meili_data` path in the Meilisearch container.
+The data volume is used to persist Meilisearch data outside the lifecycle of its container. The data volume is mounted at the `/meili_data` path in the Meilisearch container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-meilisearch-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Meilisearch resource with data bind mount
 
@@ -73,28 +132,43 @@ To add a data bind mount to the Meilisearch resource, call the `WithDataBindMoun
 var builder = DistributedApplication.CreateBuilder(args);
 
 var meilisearch = builder.AddMeilisearch("meilisearch")
-                         .WithDataBindMount(source: @"C:\Meilisearch\Data");
+    .WithDataBindMount(source: @"C:\Meilisearch\Data");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(meilisearch);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(meilisearch);
 
 // After adding all resources, run the app...
 ```
 
-Data bind mounts rely on the host machine's filesystem to persist the Meilisearch data across container restarts.
+<Aside type="note">
+    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
+</Aside>
+
+Data bind mounts rely on the host machine's filesystem to persist Meilisearch data across container restarts. The data bind mount is mounted at `C:\Meilisearch\Data` on Windows (or the equivalent path on Unix) on the host machine. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
 ## Add Meilisearch resource with master key parameter
 
-When you want to explicitly provide the master key used by the container image, you can provide these credentials as parameters:
+When you want to explicitly provide the master key used by the container image, you can provide it as a parameter:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var masterkey = builder.AddParameter("masterkey", secret: true);
-var meilisearch = builder.AddMeilisearch("meilisearch", masterkey);
+var masterKey = builder.AddParameter("masterKey", secret: true);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(meilisearch);
+var meilisearch = builder.AddMeilisearch("meilisearch", masterKey);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(meilisearch);
 
 // After adding all resources, run the app...
 ```
+
+When no `masterKey` parameter is provided, Aspire generates a strong master key automatically.
+
+## Connection properties
+
+For the full reference of Meilisearch connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Meilisearch](../meilisearch-connect/).
+
+## Hosting integration health checks
+
+The Meilisearch hosting integration automatically adds a health check for the Meilisearch resource. The health check verifies that the Meilisearch instance is running and that a connection can be established to it.

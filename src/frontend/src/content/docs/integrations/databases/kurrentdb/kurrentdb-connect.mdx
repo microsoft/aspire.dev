@@ -1,0 +1,289 @@
+---
+title: Connect to KurrentDB
+description: Learn how to connect to KurrentDB from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import kurrentIcon from '@assets/icons/kurrent-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={kurrentIcon}
+  alt="KurrentDB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a KurrentDB resource that's already modeled in your AppHost. For the AppHost API surface — adding a KurrentDB resource, data volumes, data bind mounts, and more — see [KurrentDB Hosting integration](../kurrentdb-host/).
+
+When you reference a KurrentDB resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire KurrentDB client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `kurrentdb` becomes `KURRENTDB_URI`.
+
+The KurrentDB resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the KurrentDB server |
+| `Port`        | The gRPC port the KurrentDB server is listening on (default: `2113`) |
+| `Uri`         | The connection URI, with the format `kurrentdb://{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: kurrentdb://localhost:2113?tls=false
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a KurrentDB resource named `kurrentdb` and references it from the consuming app.
+
+<Tabs syncKey="kurrentdb-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire KurrentDB client integration. It registers a [`KurrentDBClient`](https://github.com/kurrent-io/KurrentDB-Client-Dotnet) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 CommunityToolkit.Aspire.KurrentDB](https://nuget.org/packages/CommunityToolkit.Aspire.KurrentDB) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.KurrentDB" />
+
+#### Add the KurrentDB client
+
+In _Program.cs_, call `AddKurrentDBClient` on your `IHostApplicationBuilder` to register a `KurrentDBClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKurrentDBClient(connectionName: "kurrentdb");
+```
+
+<Aside type="tip">
+The `connectionName` must match the KurrentDB resource name from the AppHost. For more information, see [Add KurrentDB resource](../kurrentdb-host/#add-kurrentdb-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(KurrentDBClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed KurrentDB clients
+
+To register multiple `KurrentDBClient` instances with different connection names, use `AddKeyedKurrentDBClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedKurrentDBClient(name: "events");
+builder.AddKeyedKurrentDBClient(name: "audit");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("events")] KurrentDBClient eventsClient,
+    [FromKeyedServices("audit")] KurrentDBClient auditClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire KurrentDB client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddKurrentDBClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKurrentDBClient("kurrentdb");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "kurrentdb": "kurrentdb://localhost:2113?tls=false"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `KurrentDBSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:KurrentDB:Client` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "KurrentDB": {
+      "Client": {
+        "ConnectionString": "kurrentdb://localhost:2113?tls=false",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<KurrentDBSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddKurrentDBClient(
+    "kurrentdb",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The KurrentDB client integration adds a health check that verifies the KurrentDB instance is reachable and can execute commands. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire KurrentDB client integration automatically configures logging and tracing through OpenTelemetry.
+
+**Logging** categories:
+
+- `Aspire.KurrentDB`
+
+**Tracing** activities:
+
+- `Aspire.KurrentDB` — emitted when tracing is not disabled via configuration.
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 KurrentDB.Client](https://www.nuget.org/packages/KurrentDB.Client/) NuGet package directly:
+
+```csharp title="C# — Program.cs"
+using KurrentDB.Client;
+
+var connectionString = Environment.GetEnvironmentVariable("KURRENTDB_URI");
+
+var settings = KurrentDBClientSettings.Create(connectionString!);
+var client = new KurrentDBClient(settings);
+
+// Use client to read and write events...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the official KurrentDB Go client:
+
+```bash title="Terminal"
+go get github.com/kurrent-io/KurrentDB-Client-Go/kurrentdb
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+    "github.com/kurrent-io/KurrentDB-Client-Go/kurrentdb"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    config, err := kurrentdb.ParseConnectionString(os.Getenv("KURRENTDB_URI"))
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := kurrentdb.NewClient(config)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    _ = client.AppendToStream(context.Background(), "example-stream",
+        kurrentdb.AppendToStreamOptions{},
+        // events...
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the KurrentDB Python client:
+
+```bash title="Terminal"
+pip install kurrentdbclient
+```
+
+<Aside type="note">
+    If `kurrentdbclient` is unavailable for your platform or Python version, use `esdbclient` instead — it is the predecessor package and speaks the same gRPC protocol.
+</Aside>
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import os
+from kurrentdbclient import KurrentDBClient
+
+# Read the Aspire-injected connection URI
+connection_string = os.getenv("KURRENTDB_URI")
+
+client = KurrentDBClient(uri=connection_string)
+
+# Use client to read and write events...
+client.close()
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the KurrentDB TypeScript/JavaScript client:
+
+```bash title="Terminal"
+npm install @kurrent/kurrentdb-client
+```
+
+<Aside type="note">
+    If you're working with an older EventStoreDB-compatible deployment, `@eventstore/db-client` is also available and speaks the same gRPC protocol.
+</Aside>
+
+Read the injected environment variable and connect:
+
+```typescript title="TypeScript — index.ts"
+import { KurrentDBClient } from '@kurrent/kurrentdb-client';
+
+// Read Aspire-injected connection URI
+const client = KurrentDBClient.connectionString(
+    process.env.KURRENTDB_URI!
+);
+
+// Use client to read and write events...
+client.dispose();
+```
+
+Or construct the client from individual connection properties:
+
+```typescript title="TypeScript — Connect with properties"
+import { KurrentDBClient } from '@kurrent/kurrentdb-client';
+
+const client = KurrentDBClient.connectionString(
+    `kurrentdb://${process.env.KURRENTDB_HOST}:${process.env.KURRENTDB_PORT}?tls=false`
+);
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See the Aspire AppHost documentation for details.
+</Aside>
