@@ -1,5 +1,5 @@
 /**
- * Regression test for the patched starlight-llms-txt `removeSelectors` option
+ * Regression test for the patched starlight-llms-txt `customSelectors` option
  * (see `src/frontend/patches/starlight-llms-txt@0.8.1.patch`) and our wiring of
  * it in `astro.config.mjs`.
  *
@@ -11,7 +11,7 @@
  * we hand to LLM tooling.
  *
  * This test exercises the HTML → Markdown pipeline used by
- * `starlight-llms-txt`'s `entryToSimpleMarkdown`, with the same `removeSelectors`
+ * `starlight-llms-txt`'s `entryToSimpleMarkdown`, with the same `customSelectors`
  * we configure in `astro.config.mjs`, against a fixture that mirrors the
  * markup actually produced by `expressive-code-twoslash`. It asserts that:
  *
@@ -32,7 +32,7 @@ import { remove } from 'unist-util-remove';
 import { describe, expect, test } from 'vitest';
 
 /**
- * Must match the `removeSelectors` list passed to `starlightLlmsTxt({...})` in
+ * Must match the `customSelectors.all` list passed to `starlightLlmsTxt({...})` in
  * `astro.config.mjs`. The wiring sentinel below enforces this equivalence; if
  * you change the list in one place, change it in the other.
  */
@@ -62,53 +62,61 @@ const astroConfigPath = path.join(frontendRoot, 'astro.config.mjs');
 // `dist/llms*.txt` outputs. This mirrors the sentinel pattern established
 // in `llms-small-whitespace.vitest.test.ts`.
 
-describe('starlight-llms-txt removeSelectors patch sentinel', () => {
-  test('patched entryToSimpleMarkdown.ts wires the removeSelectorsLlmsTxt unified step', () => {
+describe('starlight-llms-txt customSelectors patch sentinel', () => {
+  test('patched entryToSimpleMarkdown.ts wires the customSelectorsLlmsTxt unified step', () => {
     const source = readFileSync(patchedEntryToSimpleMarkdownPath, 'utf8');
 
     expect(
       source,
-      'patched plugin should read removeSelectors from the virtual project context',
-    ).toContain('starlightLllmsTxtContext.removeSelectors');
+      'patched plugin should read customSelectors from the virtual project context',
+    ).toContain('starlightLllmsTxtContext.customSelectors');
     expect(
       source,
-      'patched plugin should register a removeSelectorsLlmsTxt unified step',
-    ).toMatch(/\.use\(function removeSelectorsLlmsTxt\(/);
+      'patched plugin should register a customSelectorsLlmsTxt unified step',
+    ).toMatch(/\.use\(function customSelectorsLlmsTxt\(/);
+    expect(
+      source,
+      'patched plugin should resolve full-output selectors into a fullSelectors bucket',
+    ).toMatch(/const fullSelectors\s*=/);
+    expect(
+      source,
+      'patched plugin should resolve small-output selectors into a smallSelectors bucket',
+    ).toMatch(/const smallSelectors\s*=/);
     expect(
       source,
       'patched plugin should match nodes against the configured selectors',
     ).toMatch(/matches\(selector,\s*node\)/);
     expect(
       source,
-      'patched plugin should bail out when no selectors are configured',
-    ).toMatch(/removeSelectors\.length === 0/);
+      'patched plugin should pick the active bucket from file.data.starlightLlmsTxt.minify',
+    ).toMatch(/file\.data\.starlightLlmsTxt\.minify\s*\?\s*smallSelectors\s*:\s*fullSelectors/);
   });
 
-  test('patched types.ts declares the new option and the ProjectContext field', () => {
+  test('patched types.ts declares the customSelectors option and the ProjectContext field', () => {
     const source = readFileSync(patchedTypesPath, 'utf8');
 
     expect(
       source,
-      'patched types should expose the public option on StarlightLllmsTextOptions',
-    ).toContain('removeSelectors?: string[]');
+      'patched types should expose the public option as a union of array and per-output object',
+    ).toMatch(/customSelectors\?:\s*\n?\s*\|?\s*string\[\]\s*\n?\s*\|/);
     expect(
       source,
       'patched types should non-optionally surface the option on ProjectContext',
-    ).toMatch(/removeSelectors:\s*NonNullable<StarlightLllmsTextOptions\['removeSelectors'\]>/);
+    ).toMatch(/customSelectors:\s*NonNullable<StarlightLllmsTextOptions\['customSelectors'\]>/);
   });
 
-  test('patched index.ts forwards opts.removeSelectors into the project context', () => {
+  test('patched index.ts forwards opts.customSelectors into the project context', () => {
     const source = readFileSync(patchedIndexPath, 'utf8');
 
     expect(
       source,
-      'patched index should default opts.removeSelectors to an empty array',
-    ).toContain('removeSelectors: opts.removeSelectors ?? []');
+      'patched index should default opts.customSelectors to an empty array',
+    ).toContain('customSelectors: opts.customSelectors ?? []');
   });
 });
 
-describe('starlight-llms-txt removeSelectors wiring sentinel', () => {
-  test('astro.config.mjs passes the same selector list to starlightLlmsTxt', () => {
+describe('starlight-llms-txt customSelectors wiring sentinel', () => {
+  test('astro.config.mjs passes customSelectors.all to starlightLlmsTxt', () => {
     const source = readFileSync(astroConfigPath, 'utf8');
     const starlightBlock = source.match(/starlightLlmsTxt\(\{[\s\S]+?\n\s*\}\)/);
     expect(
@@ -116,18 +124,21 @@ describe('starlight-llms-txt removeSelectors wiring sentinel', () => {
       'astro.config.mjs should call starlightLlmsTxt({...})',
     ).not.toBeNull();
 
-    const removeSelectorsBlock = starlightBlock![0].match(/removeSelectors:\s*\[([\s\S]*?)\]/);
+    // Match `customSelectors: { ... all: [ ... ] ... }`.
+    const customSelectorsObj = starlightBlock![0].match(
+      /customSelectors:\s*\{[\s\S]*?all:\s*\[([\s\S]*?)\][\s\S]*?\}/,
+    );
     expect(
-      removeSelectorsBlock,
-      'starlightLlmsTxt block should declare a removeSelectors: [...] array',
+      customSelectorsObj,
+      'starlightLlmsTxt block should declare a customSelectors: { all: [...] } object',
     ).not.toBeNull();
 
-    const configured = [...removeSelectorsBlock![1].matchAll(/['"]([^'"]+)['"]/g)]
+    const configured = [...customSelectorsObj![1].matchAll(/['"]([^'"]+)['"]/g)]
       .map((m) => m[1])
       .sort();
     expect(
       configured,
-      'astro.config.mjs removeSelectors must match the list under test (update both together when adding twoslash classes)',
+      'astro.config.mjs customSelectors.all must match the list under test (update both together when adding twoslash classes)',
     ).toEqual([...REMOVE_SELECTORS].sort());
   });
 });
@@ -193,7 +204,7 @@ const TWOSLASH_ARTIFACTS = [
   'twoslash-custom-box',
 ];
 
-describe('starlight-llms-txt removeSelectors strips twoslash annotations', () => {
+describe('starlight-llms-txt customSelectors strips twoslash annotations', () => {
   test('removes hover popup but keeps the token text', async () => {
     const markdown = await htmlToMarkdown(HOVER_FIXTURE);
     expect(markdown).toContain('builder');
@@ -235,13 +246,13 @@ describe('starlight-llms-txt removeSelectors strips twoslash annotations', () =>
     }
   });
 
-  test('without removeSelectors, popup text DOES leak (sanity check)', async () => {
+  test('without customSelectors, popup text DOES leak (sanity check)', async () => {
     const markdown = await htmlToMarkdown(HOVER_FIXTURE, []);
     expect(markdown).toContain('HostBuilder');
   });
 });
 
-describe('removeSelectors preserves twoslash wrappers around the token', () => {
+describe('customSelectors preserves twoslash wrappers around the token', () => {
   test('does not match `.twoslash`, `.twoslash-hover`, or `.twoslash-error-underline` wrappers', () => {
     /* These wrappers contain the author's actual code text and must be kept;
      * twoslash places them around the token, so removing them would strip the

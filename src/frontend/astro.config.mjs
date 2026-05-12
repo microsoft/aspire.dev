@@ -153,13 +153,15 @@ export default defineConfig({
           // are deliberately not included here — they contain the author's actual
           // code, which must survive into the Markdown output verbatim.
           // See: ec.config.mjs (twoslash configuration).
-          removeSelectors: [
-            '.twoslash-popup-container',
-            '.twoslash-static',
-            '.twoslash-completion',
-            '.twoslash-error-box',
-            '.twoslash-custom-box',
-          ],
+          customSelectors: {
+            all: [
+              '.twoslash-popup-container',
+              '.twoslash-static',
+              '.twoslash-completion',
+              '.twoslash-error-box',
+              '.twoslash-custom-box',
+            ],
+          },
           // https://delucis.github.io/starlight-llms-txt/configuration/#exclude
           exclude: [
             'includes/**',
