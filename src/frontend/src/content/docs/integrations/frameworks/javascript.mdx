@@ -20,7 +20,6 @@ import jsIcon from '@assets/icons/javascript.svg';
 
 The Aspire JavaScript/TypeScript hosting integration enables you to orchestrate JavaScript applications alongside your Aspire projects in the AppHost. This integration provides a unified approach to running JavaScript applications with support for multiple package managers (npm, yarn, pnpm, bun), runtimes (Node.js), and build tools (Vite, and more).
 
-
 :::caution[Package rename]
 In Aspire 13.0, `Aspire.Hosting.NodeJs` was renamed to
 `Aspire.Hosting.JavaScript`.
@@ -41,6 +40,260 @@ The integration exposes a number of app resource types:
 - `NodeAppResource`: Added with `AddNodeApp` / `addNodeApp` for running specific JavaScript files with Node.js
 - `ViteAppResource`: Added with `AddViteApp` / `addViteApp` for Vite applications with Vite-specific defaults
 - `NextJsAppResource`: Added with `AddNextJsApp` / `addNextJsApp` for Next.js applications with Next.js-specific run and publish defaults
+
+## Framework examples
+
+The following TypeScript AppHost examples show validated ways to wire common JavaScript frameworks into Aspire for both local development and Docker Compose deployment. Each sample assumes:
+
+- A backend API app lives in `./frameworks/api` and listens on the `PORT` environment variable.
+- The framework app lives in `./frameworks/<framework-name>`.
+- Docker Compose is shown as an example deployment target with `addDockerComposeEnvironment`.
+
+For production deployment choices, see [Deploy JavaScript apps](/deployment/javascript-apps/).
+
+Start with a shared builder, Docker Compose deployment target, and API resource:
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+await builder.addDockerComposeEnvironment('compose');
+
+const api = await builder
+  .addNodeApp('api', './frameworks/api', 'server.js')
+  .withHttpEndpoint({ port: 3001, env: 'PORT' })
+  .withExternalHttpEndpoints();
+
+const apiEndpoint = await api.getEndpoint('http');
+```
+
+### Vite
+
+Plain Vite apps that produce static browser files use `addViteApp` and `publishAsStaticWebsite`. The `apiPath` / `apiTarget` options configure the deployed static website to proxy `/api` requests to the backend.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('vite', './frameworks/vite', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="Vite — src/weather.ts"
+export async function loadWeather() {
+  const response = await fetch('/api/weather');
+  return response.json();
+}
+```
+
+### React
+
+React apps created with Vite use the same static website pattern as other Vite browser apps.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('react', './frameworks/react', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+```tsx title="React — src/App.tsx"
+export async function loadWeather() {
+  const response = await fetch('/api/weather');
+  return response.json();
+}
+```
+
+### Vue
+
+Vue apps created with Vite also use `publishAsStaticWebsite`.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('vue', './frameworks/vue', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+```vue title="Vue — src/App.vue"
+<script setup lang="ts">
+const response = await fetch('/api/weather');
+const weather = await response.json();
+</script>
+```
+
+### Astro static
+
+Static Astro apps use `addViteApp` and `publishAsStaticWebsite`.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('astro', './frameworks/astro', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+### Angular
+
+Angular 17+ uses Vite internally. Use `addViteApp` with the Angular app's dev script, then publish the build output as a static website.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('angular', './frameworks/angular', { runScriptName: 'dev' })
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api })
+  .withExternalHttpEndpoints();
+```
+
+```javascript title="Angular — proxy.conf.js"
+const api = process.env.API_HTTP;
+
+module.exports = {
+  '/api': {
+    target: api,
+    changeOrigin: true,
+  },
+};
+```
+
+```typescript title="Angular — src/app/weather.ts"
+export async function loadWeather() {
+  const response = await fetch('/api/weather');
+  return response.json();
+}
+```
+
+### Next.js
+
+Next.js standalone apps use the dedicated `addNextJsApp` helper, not a generic Vite app. Read Aspire-provided values from server-side code paths with `process.env`.
+
+:::caution[Experimental]
+`AddNextJsApp` is marked `[Experimental]`. In C# AppHosts, suppress the `ASPIREJAVASCRIPT001` diagnostic when you use this API.
+:::
+
+```typescript title="apphost.ts"
+await builder
+  .addNextJsApp('nextjs', './frameworks/nextjs', { runScriptName: 'dev' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="Next.js — app/api/weather/route.ts"
+export async function GET() {
+  const response = await fetch(`${process.env.API_URL}/api/weather`);
+  const weather = await response.json();
+
+  return Response.json(weather);
+}
+```
+
+### Nuxt
+
+Nuxt apps need `node_modules` at runtime for server-side rendering, so publish them with `publishAsNpmScript`. Set both `API_URL` for direct server-side code and `NUXT_API_URL` for Nuxt runtime config.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('nuxt', './frameworks/nuxt', { runScriptName: 'dev' })
+  .publishAsNpmScript({ startScriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withEnvironment('NUXT_API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="Nuxt — nuxt.config.ts"
+export default defineNuxtConfig({
+  runtimeConfig: {
+    apiUrl: '',
+  },
+});
+```
+
+```typescript title="Nuxt — server/api/weather.ts"
+export default defineEventHandler(async () => {
+  const config = useRuntimeConfig();
+  return $fetch(`${config.apiUrl}/api/weather`);
+});
+```
+
+### SvelteKit
+
+SvelteKit with `@sveltejs/adapter-node` produces a self-contained Node server artifact, so publish it with `publishAsNodeServer`.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('sveltekit', './frameworks/sveltekit', { runScriptName: 'dev' })
+  .publishAsNodeServer('build/index.js', { outputPath: 'build' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+```typescript title="SvelteKit — src/routes/api/weather/+server.ts"
+import { env } from '$env/dynamic/private';
+
+export async function GET() {
+  const response = await fetch(`${env.API_URL}/api/weather`);
+  const weather = await response.json();
+
+  return Response.json(weather);
+}
+```
+
+### TanStack Start
+
+TanStack Start uses Nitro's Node server output and works with `publishAsNodeServer`.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('tanstack-start', './frameworks/tanstack-start', {
+    runScriptName: 'dev',
+  })
+  .publishAsNodeServer('.output/server/index.mjs', { outputPath: '.output' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+### Astro SSR
+
+Astro SSR apps using `@astrojs/node` need runtime dependencies, so publish them with `publishAsNpmScript`.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('astro-ssr', './frameworks/astro-ssr', { runScriptName: 'dev' })
+  .publishAsNpmScript({ startScriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+### Remix
+
+Remix / React Router apps need `node_modules` at runtime. Pass the port argument through the package script so the server listens on Aspire's assigned port.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('remix', './frameworks/remix', { runScriptName: 'dev' })
+  .publishAsNpmScript({
+    startScriptName: 'start',
+    runScriptArguments: '-- --port "$PORT"',
+  })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+### Qwik City
+
+Qwik City apps need runtime dependencies and the Node server adapter, so publish them with `publishAsNpmScript`.
+
+```typescript title="apphost.ts"
+await builder
+  .addViteApp('qwik', './frameworks/qwik', { runScriptName: 'dev' })
+  .publishAsNpmScript({ startScriptName: 'start' })
+  .withEnvironment('API_URL', apiEndpoint)
+  .withExternalHttpEndpoints();
+```
+
+After adding the framework resources your app needs, build and run the AppHost:
+
+```typescript title="apphost.ts"
+await builder.build().run();
+```
 
 ## Add JavaScript application
 
@@ -203,11 +456,12 @@ You must set `output: "standalone"` in your Next.js configuration for `AddNextJs
 ```javascript title="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
 ```
+
 :::
 
 To opt out of the configuration validation step, call `DisableBuildValidation` / `disableBuildValidation`:
@@ -236,7 +490,9 @@ const nextApp = await builder
 </Tabs>
 
 <LearnMore>
-  For Next.js publish-method requirements (standalone output, copy shape, server components), see [Deploy JavaScript apps — Next.js gotchas](/deployment/javascript-apps/#nextjs).
+  For Next.js publish-method requirements (standalone output, copy shape, server
+  components), see [Deploy JavaScript apps — Next.js
+  gotchas](/deployment/javascript-apps/#nextjs).
 </LearnMore>
 
 ## Add Vite application
@@ -307,7 +563,10 @@ The method accepts the same parameters as `AddJavaScriptApp`:
 - **runScriptName** (optional): The name of the script that runs the Vite app. Defaults to "dev".
 
 <LearnMore>
-  For framework-specific publish guidance — Vite/React/Vue, Angular, Astro, SvelteKit, TanStack Start, Nuxt, Remix, and Qwik — see [Deploy JavaScript apps — Framework-specific gotchas](/deployment/javascript-apps/#framework-specific-gotchas).
+  For framework-specific publish guidance — Vite/React/Vue, Angular, Astro,
+  SvelteKit, TanStack Start, Nuxt, Remix, and Qwik — see [Deploy JavaScript apps
+  — Framework-specific
+  gotchas](/deployment/javascript-apps/#framework-specific-gotchas).
 </LearnMore>
 
 ## Configure package managers
@@ -862,110 +1121,114 @@ To bridge this gap, pass the parameter to your API app as a standard environment
 
 <Steps>
 
-1. **Pass the parameter to the API in the AppHost**
+1.  **Pass the parameter to the API in the AppHost**
 
-   Define the parameter in the AppHost and pass it to the API app using `WithEnvironment` / `withEnvironment`. Then reference the API from the frontend so it can call the endpoint:
+        Define the parameter in the AppHost and pass it to the API app using `WithEnvironment` / `withEnvironment`. Then reference the API from the frontend so it can call the endpoint:
 
-   <Tabs syncKey='aspire-lang'>
-   <TabItem id='csharp' label='C#'>
+           <Tabs syncKey='aspire-lang'>
 
-   ```csharp title="AppHost.cs"
-   var builder = DistributedApplication.CreateBuilder(args);
+    <TabItem id='csharp' label='C#'>
 
-   var googleClientId = builder.AddParameter("google-client-id");
+        ```csharp title="AppHost.cs"
+        var builder = DistributedApplication.CreateBuilder(args);
 
-   var api = builder
-       .AddNodeApp("api", "./api", "server.js")
-       .WithHttpEndpoint(port: 3001, env: "PORT")
-       .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
+        var googleClientId = builder.AddParameter("google-client-id");
 
-   var frontend = builder.AddViteApp("frontend", "./frontend")
-       .WithPnpm()
-       .WithReference(api);
+        var api = builder
+            .AddNodeApp("api", "./api", "server.js")
+            .WithHttpEndpoint(port: 3001, env: "PORT")
+            .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
 
-   // After adding all resources, run the app...
-   ```
+        var frontend = builder.AddViteApp("frontend", "./frontend")
+            .WithPnpm()
+            .WithReference(api);
 
-     </TabItem>
-     <TabItem id='typescript' label='TypeScript'>
+        // After adding all resources, run the app...
+        ```
 
-   ```typescript title="apphost.ts"
-   import { createBuilder } from './.modules/aspire.js';
+             </TabItem>
 
-   const builder = await createBuilder();
+          <TabItem id='typescript' label='TypeScript'>
 
-   const googleClientId = await builder.addParameter('google-client-id');
+        ```typescript title="apphost.ts"
+        import { createBuilder } from './.modules/aspire.js';
 
-   const api = await builder
-     .addNodeApp('api', './api', 'server.js')
-     .withHttpEndpoint({ port: 3001, env: 'PORT' })
-     .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
+        const builder = await createBuilder();
 
-   const frontend = await builder
-     .addViteApp('frontend', './frontend')
-     .withPnpm()
-     .withReference(api);
+        const googleClientId = await builder.addParameter('google-client-id');
 
-   // After adding all resources, run the app...
-   ```
+        const api = await builder
+          .addNodeApp('api', './api', 'server.js')
+          .withHttpEndpoint({ port: 3001, env: 'PORT' })
+          .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
 
-     </TabItem>
+        const frontend = await builder
+          .addViteApp('frontend', './frontend')
+          .withPnpm()
+          .withReference(api);
 
-     </Tabs>
+        // After adding all resources, run the app...
+        ```
 
-2. **Expose a config endpoint in the API**
+             </TabItem>
 
-   Create an endpoint in your API app that reads the environment variable from `process.env` and returns it to the frontend:
+             </Tabs>
 
-   ```javascript title="JavaScript — api/server.js"
-   import http from 'node:http';
+2.  **Expose a config endpoint in the API**
 
-   const port = process.env.PORT ?? 3000;
-   const clientId = process.env.GOOGLE_CLIENT_ID;
+        Create an endpoint in your API app that reads the environment variable from `process.env` and returns it to the frontend:
 
-   const server = http.createServer((request, response) => {
-     if (request.url !== '/api/config/google-client-id') {
-       response.writeHead(404).end();
-       return;
-     }
+        ```javascript title="JavaScript — api/server.js"
+        import http from 'node:http';
 
-     if (!clientId) {
-       response.writeHead(404).end();
-       return;
-     }
+        const port = process.env.PORT ?? 3000;
+        const clientId = process.env.GOOGLE_CLIENT_ID;
 
-     response.setHeader('content-type', 'application/json');
-     response.end(JSON.stringify({ clientId }));
-   });
+        const server = http.createServer((request, response) => {
+          if (request.url !== '/api/config/google-client-id') {
+            response.writeHead(404).end();
+            return;
+          }
 
-   server.listen(port);
-   ```
+          if (!clientId) {
+            response.writeHead(404).end();
+            return;
+          }
 
-   <Aside type="caution" title="Only expose public configuration">
-     For multiple configuration values, consider grouping them under a single
-     endpoint (such as `GET /api/config`) to reduce network requests.
+          response.setHeader('content-type', 'application/json');
+          response.end(JSON.stringify({ clientId }));
+        });
 
-     Use this pattern only for non-secret/public configuration values (for
-     example OAuth client IDs). Do not expose secrets such as client secrets,
-     API keys, or connection strings via a frontend config endpoint.
-   </Aside>
+        server.listen(port);
+        ```
 
-3. **Fetch the config value in the SPA**
+         <Aside type="caution" title="Only expose public configuration">
 
-   In your frontend application, fetch the configuration value at startup instead of reading from `import.meta.env`:
+    For multiple configuration values, consider grouping them under a single
+    endpoint (such as `GET /api/config`) to reduce network requests.
 
-   ```typescript title="TypeScript — config.ts"
-   export async function getConfig() {
-     const response = await fetch('/api/config/google-client-id');
+        Use this pattern only for non-secret/public configuration values (for
+        example OAuth client IDs). Do not expose secrets such as client secrets,
+        API keys, or connection strings via a frontend config endpoint.
 
-     if (!response.ok) {
-       throw new Error('Failed to load configuration');
-     }
+         </Aside>
 
-     const { clientId } = await response.json();
-     return { googleClientId: clientId };
-   }
-   ```
+3.  **Fetch the config value in the SPA**
+
+    In your frontend application, fetch the configuration value at startup instead of reading from `import.meta.env`:
+
+    ```typescript title="TypeScript — config.ts"
+    export async function getConfig() {
+      const response = await fetch('/api/config/google-client-id');
+
+      if (!response.ok) {
+        throw new Error('Failed to load configuration');
+      }
+
+      const { clientId } = await response.json();
+      return { googleClientId: clientId };
+    }
+    ```
 
 </Steps>
 
