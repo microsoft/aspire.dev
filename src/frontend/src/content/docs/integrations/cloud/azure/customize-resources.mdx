@@ -388,7 +388,17 @@ servicebus.ConfigureInfrastructure(infra =>
 
 ### Add Azure resources to the infrastructure
 
-You can inject additional Azure constructs (for example, a private endpoint) into an integration's generated infrastructure:
+You can inject additional Azure constructs (for example, a private endpoint) into an integration's generated infrastructure when you need direct control over the underlying `Azure.Provisioning` types.
+
+<Aside type="tip" title="Prefer the high-level API when possible">
+  For private endpoints specifically, use the higher-level
+  [`AddPrivateEndpoint`](/integrations/cloud/azure/azure-virtual-network/#add-private-endpoints)
+  extension on an `AzureSubnetResource` from the `Aspire.Hosting.Azure.Network`
+  integration. It wires up the subnet, private link service connection, and
+  related DNS configuration for you. Reach for the
+  `ConfigureInfrastructure` approach below only when you need full control over
+  the underlying `Azure.Provisioning.Network.PrivateEndpoint` construct.
+</Aside>
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -396,18 +406,28 @@ You can inject additional Azure constructs (for example, a private endpoint) int
 ```csharp title="C# — AppHost.cs"
 storage.ConfigureInfrastructure(infra =>
 {
-    var privateEndpoint = new PrivateEndpoint("storagepe")
-    {
-        Location = "eastus",
-        Subnet = new SubnetReference
+    var account = infra.GetProvisionableResources()
+                       .OfType<StorageAccount>()
+                       .Single();
+
+    var subnetId = new ProvisioningParameter("subnetId", typeof(string));
+    infra.Add(subnetId);
+
+    var privateEndpoint = new PrivateEndpoint("storagepe");
+    privateEndpoint.Subnet.Id = subnetId;
+    privateEndpoint.PrivateLinkServiceConnections.Add(
+        new NetworkPrivateLinkServiceConnection
         {
-            Id = "/subscriptions/.../subnets/mysubnet"
-        }
-    };
+            Name = "storage-connection",
+            PrivateLinkServiceId = account.Id,
+            GroupIds = { "blob" }
+        });
 
     infra.Add(privateEndpoint);
 });
 ```
+
+`PrivateEndpoint` and `NetworkPrivateLinkServiceConnection` come from the `Azure.Provisioning.Network` namespace, and `ProvisioningParameter` comes from `Azure.Provisioning`. Adding a `ProvisioningParameter` lets you pass the subnet ID into the generated Bicep at deployment time.
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
@@ -520,9 +540,7 @@ Reference it from the AppHost:
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var storage = builder.AddAzureBicepResource(
-    name: "storage",
-    bicepFilePath: "./custom-storage.bicep")
+var storage = builder.AddBicepTemplate("storage", "./custom-storage.bicep")
     .WithParameter("storageAccountName", "mystorageaccount");
 
 builder.AddProject<Projects.WebApp>("webapp")
@@ -530,6 +548,8 @@ builder.AddProject<Projects.WebApp>("webapp")
 
 builder.Build().Run();
 ```
+
+To author a Bicep template inline instead of referencing a file, use `AddBicepTemplateString` and pass the Bicep content as a string.
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
@@ -554,11 +574,23 @@ await builder.build().run();
 
 ### Inspect generated Bicep
 
-After customizing with `ConfigureInfrastructure`, inspect the Bicep that Aspire generates:
+After customizing with `ConfigureInfrastructure`, inspect the Bicep that Aspire generates by publishing the AppHost to an output directory:
 
-1. Run your AppHost locally.
-2. Open the `./infra` directory inside your AppHost project.
-3. Review the generated `.bicep` files to verify your customizations.
+1. From your AppHost project directory, run:
+
+   ```bash title="Generate Azure deployment artifacts"
+   aspire publish -o ./infra
+   ```
+
+2. Open the `./infra` directory (or the path you passed to `-o`).
+3. Review `main.bicep` along with each per-resource module at `<resource-name>/<resource-name>.bicep` to verify your customizations.
+
+<Aside type="note">
+  Running the AppHost locally (for example with `aspire run`) doesn't write Bicep
+  into your project directory — generated templates land in a temporary
+  directory used by the local provisioner. Use `aspire publish` whenever you
+  want a stable, on-disk copy of the Bicep that Aspire produces.
+</Aside>
 
 <Aside type="tip">
 Use the Azure Portal's **Export template** feature to view Bicep for manually configured resources, then adapt it for Aspire.
