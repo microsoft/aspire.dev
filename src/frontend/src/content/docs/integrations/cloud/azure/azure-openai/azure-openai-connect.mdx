@@ -1,0 +1,502 @@
+---
+title: Connect to Azure OpenAI
+description: Learn how to connect to Azure OpenAI from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+next: false
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import openaiIcon from '@assets/icons/azure-openai-icon.png';
+
+<Image
+  src={openaiIcon}
+  alt="Azure OpenAI logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure OpenAI resource that's already modeled in your AppHost. For the AppHost API surface — adding an Azure OpenAI account, deployment resources, managed identity, and infrastructure customization — see [Azure OpenAI hosting integration](../azure-openai-host/).
+
+When you reference an Azure OpenAI deployment from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure OpenAI client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `chat` becomes `CHAT_URI`.
+
+### Azure OpenAI account resource
+
+The Azure OpenAI account resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Uri`         | The endpoint URI for the Azure OpenAI account, for example `https://{account-name}.openai.azure.com/` |
+
+**Example connection string:**
+
+```
+https://{account-name}.openai.azure.com/
+```
+
+### Azure OpenAI deployment resource
+
+The Azure OpenAI deployment resource inherits all properties from its parent account resource and adds:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `ModelName`   | The name of the deployment, for example `chat` |
+
+**Example environment variables** for a deployment resource named `chat`:
+
+```
+CHAT_URI=https://{account-name}.openai.azure.com/
+CHAT_MODELNAME=chat
+```
+
+<Aside type="note">
+  By default Azure OpenAI is provisioned with `disableLocalAuth: true`, so
+  consuming apps authenticate using managed identity. No API key environment
+  variable is injected. If you need API key authentication, use a connection
+  string with `Endpoint=...;Key=...` format instead.
+</Aside>
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure OpenAI deployment resource named `chat` and references it from the consuming app.
+
+<Tabs syncKey="azure-openai-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure OpenAI client integration. It registers an [`AzureOpenAIClient`](https://learn.microsoft.com/dotnet/api/azure.ai.openai.azureopenaiclient) through dependency injection and, optionally, registers an [`IChatClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ichatclient) via `Microsoft.Extensions.AI`. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.AI.OpenAI](https://www.nuget.org/packages/Aspire.Azure.AI.OpenAI) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.AI.OpenAI" />
+
+#### Add an Azure OpenAI client
+
+In _Program.cs_, call `AddAzureOpenAIClient` on your `IHostApplicationBuilder` to register an `AzureOpenAIClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureOpenAIClient(connectionName: "chat");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure OpenAI deployment resource name from the AppHost. For more information, see [Add an Azure OpenAI resource](../azure-openai-host/#add-an-azure-openai-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(AzureOpenAIClient client)
+{
+    // Use client...
+}
+```
+
+#### Add a chat client
+
+Call `AddChatClient` after `AddAzureOpenAIClient` to also register an `IChatClient` from `Microsoft.Extensions.AI`. The deployment name is passed as an argument:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureOpenAIClient("chat")
+       .AddChatClient("chat");
+```
+
+Use `AddKeyedChatClient` to register a keyed `IChatClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureOpenAIClient("chat")
+       .AddKeyedChatClient("serviceKey", "chat");
+```
+
+Resolve the `IChatClient` through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IChatClient chatClient)
+{
+    public async Task<string> GetResponseAsync(string userMessage)
+    {
+        var response = await chatClient.CompleteAsync(userMessage);
+        return response.Message.Text ?? string.Empty;
+    }
+}
+```
+
+For more information on `IChatClient` and `Microsoft.Extensions.AI`, see [Unified AI Building Blocks for .NET](https://learn.microsoft.com/dotnet/core/extensions/artificial-intelligence).
+
+#### Add keyed Azure OpenAI clients
+
+To register multiple `AzureOpenAIClient` instances with different connection names, use `AddKeyedAzureOpenAIClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureOpenAIClient(name: "chat");
+builder.AddKeyedAzureOpenAIClient(name: "embeddings");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] AzureOpenAIClient chatClient,
+    [FromKeyedServices("embeddings")] AzureOpenAIClient embeddingsClient)
+{
+    // Use clients...
+}
+```
+
+#### Configuration
+
+The Aspire Azure OpenAI client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureOpenAIClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureOpenAIClient("chat");
+```
+
+The connection string is resolved from the `ConnectionStrings` section. Two formats are supported:
+
+- **Managed identity (recommended):** The endpoint URI only.
+
+  ```json title="JSON — appsettings.json"
+  {
+    "ConnectionStrings": {
+      "chat": "https://{account-name}.openai.azure.com/"
+    }
+  }
+  ```
+
+- **API key:** Endpoint plus key.
+
+  ```json title="JSON — appsettings.json"
+  {
+    "ConnectionStrings": {
+      "chat": "Endpoint=https://{account-name}.openai.azure.com/;Key={api-key}"
+    }
+  }
+  ```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `AzureOpenAISettings` from _appsettings.json_ (or any other configuration source) using the `Aspire:Azure:AI:OpenAI` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "AI": {
+        "OpenAI": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Configure settings inline using an `Action<AzureOpenAISettings>`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureOpenAIClient(
+    "chat",
+    settings => settings.DisableTracing = true);
+```
+
+To configure the `AzureOpenAIClientOptions` inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureOpenAIClient(
+    connectionName: "chat",
+    configureClientBuilder: clientBuilder =>
+    {
+        clientBuilder.ConfigureOptions(options =>
+        {
+            options.UserAgentApplicationId = "MyApp";
+        });
+    });
+```
+
+#### Add Azure OpenAI client from configuration
+
+Use `AddOpenAIClientFromConfiguration` to register an `OpenAIClient` or `AzureOpenAIClient` based on the connection string value:
+
+```csharp title="C# — Program.cs"
+builder.AddOpenAIClientFromConfiguration("chat");
+```
+
+The method selects the client type according to these rules:
+
+| Connection string example | Registered client type |
+| ------------------------- | ---------------------- |
+| `https://{account}.openai.azure.com/` | `AzureOpenAIClient` |
+| `Endpoint=https://{account}.openai.azure.com/;Key={key}` | `AzureOpenAIClient` |
+| `Endpoint=https://{account}.openai.azure.com/;Key={key};IsAzure=false` | `OpenAIClient` |
+| `Endpoint=https://localhost:18889;Key={key}` | `OpenAIClient` |
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure OpenAI client integration participates in the standard Aspire health check pipeline.
+
+#### Observability and telemetry
+
+The Aspire Azure OpenAI client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure`
+- `Azure.Core`
+- `Azure.Identity`
+- `Azure.AI.OpenAI`
+
+**Tracing** activities:
+
+- `Azure.AI.OpenAI.*`
+- `gen_ai.system` — generic AI system tracing
+- `gen_ai.operation.name` — operation names for AI calls
+
+**Metrics:**
+
+The Aspire Azure OpenAI integration currently does not emit metrics by default due to limitations with the Azure SDK for .NET.
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected endpoint from the environment and construct an `AzureOpenAIClient` directly using `DefaultAzureCredential` for managed identity:
+
+```csharp title="C# — Program.cs"
+using Azure.AI.OpenAI;
+using Azure.Identity;
+
+var endpoint = Environment.GetEnvironmentVariable("CHAT_URI");
+var deploymentName = Environment.GetEnvironmentVariable("CHAT_MODELNAME");
+
+var client = new AzureOpenAIClient(
+    new Uri(endpoint!),
+    new DefaultAzureCredential());
+
+var chatClient = client.GetChatClient(deploymentName);
+// Use chatClient...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [Azure SDK for Go OpenAI client](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai):
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the injected environment variables and connect using managed identity:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+)
+
+func main() {
+    // Read the Aspire-injected connection properties
+    endpoint := os.Getenv("CHAT_URI")
+    deploymentName := os.Getenv("CHAT_MODELNAME")
+
+    credential, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := azopenai.NewClient(endpoint, credential, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    resp, err := client.GetChatCompletions(
+        context.Background(),
+        azopenai.ChatCompletionsOptions{
+            DeploymentName: &deploymentName,
+            Messages: []azopenai.ChatRequestMessageClassification{
+                &azopenai.ChatRequestUserMessage{
+                    Content: azopenai.NewChatRequestUserMessageContent("Hello!"),
+                },
+            },
+        },
+        nil,
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(*resp.Choices[0].Message.Content)
+}
+```
+
+<Aside type="note">
+  The `azidentity.NewDefaultAzureCredential` call uses the managed identity that
+  Aspire provisions via the `CognitiveServicesOpenAIUser` role assignment. No API
+  key is required when running in Azure with managed identity.
+</Aside>
+
+</TabItem>
+<TabItem label="Python">
+
+Install the official [OpenAI Python library](https://github.com/openai/openai-python) and the Azure Identity library:
+
+```bash title="Terminal"
+pip install openai azure-identity
+```
+
+Read the injected environment variables and connect using managed identity:
+
+```python title="Python — app.py"
+import os
+from openai import AzureOpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+# Read the Aspire-injected connection properties
+endpoint = os.environ["CHAT_URI"]
+deployment_name = os.environ["CHAT_MODELNAME"]
+
+# Obtain a token provider for managed identity
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
+
+client = AzureOpenAI(
+    azure_endpoint=endpoint,
+    azure_ad_token_provider=token_provider,
+    api_version="2024-10-21",
+)
+
+response = client.chat.completions.create(
+    model=deployment_name,
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+
+print(response.choices[0].message.content)
+```
+
+<Aside type="tip">
+  Alternatively, use the [azure-ai-inference](https://pypi.org/project/azure-ai-inference/)
+  package — the unified Azure AI inference client that works with Azure OpenAI
+  and other Azure AI models:
+
+  ```bash title="Terminal"
+  pip install azure-ai-inference azure-identity
+  ```
+
+  ```python title="Python — app.py (azure-ai-inference)"
+  import os
+  from azure.ai.inference import ChatCompletionsClient
+  from azure.identity import DefaultAzureCredential
+
+  endpoint = os.environ["CHAT_URI"]
+  deployment_name = os.environ["CHAT_MODELNAME"]
+
+  client = ChatCompletionsClient(
+      endpoint=endpoint,
+      credential=DefaultAzureCredential(),
+  )
+
+  response = client.complete(
+      model=deployment_name,
+      messages=[{"role": "user", "content": "Hello!"}],
+  )
+
+  print(response.choices[0].message.content)
+  ```
+</Aside>
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the official [Azure OpenAI TypeScript library](https://www.npmjs.com/package/@azure/openai):
+
+```bash title="Terminal"
+npm install @azure/openai @azure/identity
+```
+
+Read the injected environment variables and connect using managed identity:
+
+```typescript title="TypeScript — index.ts"
+import { AzureOpenAI } from '@azure/openai';
+import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
+
+// Read Aspire-injected connection properties
+const endpoint = process.env.CHAT_URI!;
+const deploymentName = process.env.CHAT_MODELNAME ?? 'chat';
+
+const credential = new DefaultAzureCredential();
+const tokenProvider = getBearerTokenProvider(
+    credential,
+    'https://cognitiveservices.azure.com/.default'
+);
+
+const client = new AzureOpenAI({
+    endpoint,
+    azureADTokenProvider: tokenProvider,
+    apiVersion: '2024-10-21',
+    deployment: deploymentName,
+});
+
+const response = await client.chat.completions.create({
+    model: deploymentName,
+    messages: [{ role: 'user', content: 'Hello!' }],
+});
+
+console.log(response.choices[0].message.content);
+```
+
+<Aside type="tip">
+  You can also use the community [`openai`](https://www.npmjs.com/package/openai)
+  package instead of `@azure/openai`:
+
+  ```typescript title="TypeScript — index.ts (openai)"
+  import OpenAI from 'openai';
+  import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
+
+  const endpoint = process.env.CHAT_URI!;
+  const deploymentName = process.env.CHAT_MODELNAME ?? 'chat';
+
+  const credential = new DefaultAzureCredential();
+  const tokenProvider = getBearerTokenProvider(
+      credential,
+      'https://cognitiveservices.azure.com/.default'
+  );
+
+  const client = new OpenAI({
+      baseURL: `${endpoint}openai`,
+      apiKey: '',
+      defaultHeaders: {
+          Authorization: `Bearer ${await tokenProvider()}`,
+      },
+  });
+
+  const response = await client.chat.completions.create({
+      model: deploymentName,
+      messages: [{ role: 'user', content: 'Hello!' }],
+  });
+
+  console.log(response.choices[0].message.content);
+  ```
+</Aside>
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Get started with the Azure OpenAI integrations](/integrations/cloud/azure/azure-openai/azure-openai-get-started/)
+- [Azure OpenAI hosting integration](/integrations/cloud/azure/azure-openai/azure-openai-host/)
+- [Azure OpenAI Service documentation](https://learn.microsoft.com/azure/ai-services/openai/)

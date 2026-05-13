@@ -1,12 +1,11 @@
 ---
-title: Elasticsearch hosting integration
-description: Learn how to use the Elasticsearch hosting integration to create and manage Elasticsearch instances.
+title: Set up Elasticsearch in the AppHost
+description: Learn how to use the Aspire Elasticsearch Hosting integration to orchestrate and configure an Elasticsearch instance in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import { Tabs, TabItem } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import elasticIcon from '@assets/icons/elastic-icon.png';
 
 <Image
@@ -18,141 +17,210 @@ import elasticIcon from '@assets/icons/elastic-icon.png';
   data-zoom-off
 />
 
-The Elasticsearch hosting integration models an Elasticsearch instance as the `ElasticsearchResource` type. To access this type and APIs, add the [📦 Aspire.Hosting.Elasticsearch](https://www.nuget.org/packages/Aspire.Hosting.Elasticsearch) NuGet package in your AppHost project:
+This article is the reference for the Aspire Elasticsearch Hosting integration. It enumerates the AppHost APIs — with C# examples — that you use to model an Elasticsearch resource in your [`AppHost`](/get-started/app-host/) project.
 
-<InstallPackage packageName="Aspire.Hosting.Elasticsearch" />
+If you're new to the Elasticsearch integration, start with the [Get started with Elasticsearch integrations](/integrations/databases/elasticsearch/elasticsearch-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Elasticsearch](../elasticsearch-connect/).
 
-For an introduction to the Elasticsearch integration, see [Get started with the Elasticsearch integrations](/integrations/databases/elasticsearch/elasticsearch-get-started/).
+## Installation
+
+To start building an Aspire app that uses Elasticsearch, install the [📦 Aspire.Hosting.Elasticsearch](https://www.nuget.org/packages/Aspire.Hosting.Elasticsearch) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add elasticsearch
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Elasticsearch@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Elasticsearch" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add elasticsearch
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Elasticsearch hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Elasticsearch": "13.3.0"
+  }
+}
+```
+
+<Aside type="caution">
+  The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. After installing the package, use `builder.addConnectionString(...)` to reference an existing Elasticsearch instance, or `builder.addContainer(...)` with the `docker.io/library/elasticsearch` image to spin up a new one.
+</Aside>
+
+</TabItem>
+</Tabs>
 
 ## Add Elasticsearch resource
 
-In your AppHost project, call `AddElasticsearch` on the builder instance to add an Elasticsearch resource:
+Once you've installed the hosting integration in your AppHost project, you can add an Elasticsearch resource as shown in the following example:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(elasticsearch);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(elasticsearch);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. To add an Elasticsearch instance to a TypeScript AppHost, use `builder.addContainer(...)` with the `docker.io/library/elasticsearch` image, or use [`builder.addConnectionString(...)`](/get-started/app-host/) to reference an existing instance.
+</TabItem>
+</Tabs>
 
-When Aspire adds a container image to the AppHost, it creates a new Elasticsearch instance on your local machine. The Elasticsearch resource includes default credentials with a `username` of `"elastic"` and a randomly generated password.
+<Steps>
 
-<Aside type="tip">
-  If you'd rather connect to an existing Elasticsearch instance, call
-  `AddConnectionString` instead. For more information, see [Reference existing
-  resources](/get-started/resources/).
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/elasticsearch` image, it creates a new Elasticsearch instance on your local machine.
+
+1. The Elasticsearch resource includes default credentials with a `username` of `"elastic"` and a randomly generated password. To set an explicit password, see [Add Elasticsearch resource with parameters](#add-elasticsearch-resource-with-parameters).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Elasticsearch resource, such as `elasticsearch` in the preceding example.
+
+</Steps>
+
+<Aside type="note">
+    When you reference an Elasticsearch resource from the AppHost, Aspire makes several properties available to the consuming project, such as the connection URI. For a complete list of these properties and per-language connection examples, see [Connect to Elasticsearch](../elasticsearch-connect/).
 </Aside>
 
 ## Add Elasticsearch resource with data volume
 
-To add a data volume to the Elasticsearch resource, call the `WithDataVolume` method on the Elasticsearch resource:
+Add a data volume to the Elasticsearch resource as shown in the following example:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch")
-                           .WithDataVolume(isReadOnly: false);
+    .WithDataVolume(isReadOnly: false);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(elasticsearch);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(elasticsearch);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. Data volume configuration is not available for Elasticsearch in TypeScript AppHosts.
+</TabItem>
+</Tabs>
 
-The data volume is used to persist the Elasticsearch data outside the lifecycle of its container. The data volume is mounted at the `/usr/share/elasticsearch/data` path in the Elasticsearch container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+The data volume is used to persist Elasticsearch data outside the lifecycle of its container. The data volume is mounted at the `/usr/share/elasticsearch/data` path in the Elasticsearch container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-elasticsearch-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Elasticsearch resource with data bind mount
 
-To add a data bind mount to the Elasticsearch resource, call the `WithDataBindMount` method:
+Add a data bind mount to the Elasticsearch resource as shown in the following example:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch")
-                           .WithDataBindMount(
-                               source: @"C:\Elasticsearch\Data",
-                               isReadOnly: false);
+    .WithDataBindMount(
+        source: @"C:\Elasticsearch\Data",
+        isReadOnly: false);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(elasticsearch);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(elasticsearch);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. Data bind mount configuration is not available for Elasticsearch in TypeScript AppHosts.
+</TabItem>
+</Tabs>
 
-<Aside>
-  Data bind mounts have limited functionality compared to volumes, and when you
-  use a bind mount, a file or directory on the host machine is mounted into a
-  container.
+<Aside type="note">
+    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 </Aside>
 
-Data bind mounts rely on the host machine's filesystem to persist the Elasticsearch data across container restarts. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+Data bind mounts rely on the host machine's filesystem to persist Elasticsearch data across container restarts. The data bind mount is mounted at the `C:\Elasticsearch\Data` on Windows (or `/Elasticsearch/Data` on Unix) path on the host machine in the Elasticsearch container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
-## Add Elasticsearch resource with password parameter
+## Add Elasticsearch resource with parameters
 
-When you want to explicitly provide the password used by the container image, you can provide these credentials as parameters:
+When you want to explicitly provide the password used by the container image, you can pass it as a parameter:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var password = builder.AddParameter("password", secret: true);
-var elasticsearch = builder.AddElasticsearch("elasticsearch", password);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(elasticsearch);
+var elasticsearch = builder.AddElasticsearch("elasticsearch", password: password);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(elasticsearch);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. Password parameters are not available for Elasticsearch in TypeScript AppHosts.
+</TabItem>
+</Tabs>
 
-For more information on providing parameters, see [External parameters](/get-started/resources/).
+When no `password` parameter is provided, Aspire generates a strong password automatically. For more information on providing parameters, see [External parameters](/get-started/resources/).
+
+## Connect to an existing Elasticsearch instance
+
+In C#, call `AsExisting` instead of `AddElasticsearch` to reference an externally managed Elasticsearch instance:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var elasticsearch = builder.AddElasticsearch("elasticsearch")
+    .AsExisting(connectionStringParameter: builder.AddParameter("elasticsearch-cs", secret: true));
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(elasticsearch);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `addElasticsearch(...)` API. To connect to an existing Elasticsearch instance from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+</TabItem>
+</Tabs>
+
+## Connection properties
+
+For the full reference of Elasticsearch connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Elasticsearch](../elasticsearch-connect/).
 
 ## Hosting integration health checks
 
 The Elasticsearch hosting integration automatically adds a health check for the Elasticsearch resource. The health check verifies that the Elasticsearch instance is running and that a connection can be established to it.
 
 The hosting integration relies on the [📦 AspNetCore.HealthChecks.Elasticsearch](https://www.nuget.org/packages/AspNetCore.HealthChecks.Elasticsearch) NuGet package.
-
-## Pass connection information to app resources
-
-You can use the Elasticsearch hosting integration with app resources that consume environment variables. When you add a reference to an Elasticsearch resource from a Python or JavaScript app resource, Aspire injects connection properties into the consuming app's environment variables, which you can use to interact with Elasticsearch.
-
-Consider the following example where a Python app is added to the Aspire app model and referenced to an Elasticsearch resource:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var elasticsearch = builder.AddElasticsearch("elasticsearch");
-
-var pythonApp = builder.AddPythonApp("python-app", "./python_app", "main.py")
-                       .WithReference(elasticsearch);
-```
-
-In the Python app, you can access the Elasticsearch connection information using the environment variable that Aspire injects. Here's an example of how to connect to Elasticsearch in Python using the official `elasticsearch` client:
-
-```python title="Python - Connect to Elasticsearch"
-from elasticsearch import Elasticsearch
-import os
-
-# Get the Elasticsearch endpoint from environment variables
-elasticsearch_endpoint = os.getenv("ConnectionStrings__elasticsearch")
-
-# Create Elasticsearch client
-es = Elasticsearch(elasticsearch_endpoint)
-
-# Use the client
-response = es.ping()
-print(f"Elasticsearch connection status: {response}")
-```
-
-Similarly, in a JavaScript app, you can use the environment variables to connect to Elasticsearch:
-
-```javascript title="JavaScript - Connect to Elasticsearch"
-import { Client } from '@elastic/elasticsearch';
-
-// Get the Elasticsearch endpoint from environment variables
-const elasticsearchEndpoint = process.env.ConnectionStrings__elasticsearch;
-
-// Create Elasticsearch client
-const client = new Client({
-  node: elasticsearchEndpoint
-});
-
-// Use the client
-const response = await client.ping();
-console.log('Elasticsearch connection status:', response);
-```

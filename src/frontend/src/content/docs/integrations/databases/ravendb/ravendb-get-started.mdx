@@ -1,86 +1,89 @@
 ---
 title: Get started with the RavenDB integrations
-description: Learn how to set up the Aspire RavenDB hosting and client integrations simply.
-prev: false
+description: Understand why you use the Aspire RavenDB integrations and how they fit together.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import { Badge } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import ThemeImage from '@components/ThemeImage.astro';
+import { Image } from 'astro:assets';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import ravendbIcon from '@assets/icons/ravendb-icon.png';
-import ravendbLightIcon from '@assets/icons/ravendb-light-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<ThemeImage
-  light={ravendbLightIcon}
-  dark={ravendbIcon}
+<Image
+  src={ravendbIcon}
   alt="RavenDB logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-[RavenDB](https://ravendb.net/) is a high-performance, open-source NoSQL database designed for fast, efficient, and scalable data storage. It supports advanced features like ACID transactions, distributed data replication, and time-series data management, making it an excellent choice for modern application development. The Aspire RavenDB integration enables you to connect to existing RavenDB instances or create new instances from Aspire using the `docker.io/ravendb/ravendb` container image.
+[RavenDB](https://ravendb.net/) is a high-performance, open-source NoSQL document database designed for fast, efficient, and scalable data storage. It supports ACID transactions, distributed data replication, and time-series data management. The Aspire RavenDB integration lets you model a RavenDB server and its databases as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire RavenDB integrations in a simple configuration. If you already have this knowledge, see [RavenDB hosting integration](/integrations/databases/ravendb/ravendb-host/) for full reference details.
+## Why use RavenDB with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding RavenDB through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs RavenDB from the [`docker.io/ravendb/ravendb`](https://hub.docker.com/r/ravendb/ravendb) container image.
+- **Consistent connection info across languages.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `CommunityToolkit.Aspire.RavenDB.Client` package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
 
-To begin, install the Aspire RavenDB Hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.RavenDB" />
+The RavenDB integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **connection story** for consuming apps that reference it.
 
-Next, in the AppHost project, call the `AddRavenDB` extension method to add a RavenDB server resource, then call `AddDatabase` on the server resource to add a database:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var ravenServer = builder.AddRavenDB("ravenServer");
-var ravendb = ravenServer.AddDatabase("ravendb");
+  service hosting(server)[Hosting integration] in apphost
+  service ravendb(database)[RavenDB server] in apphost
+  service db(database)[ravendb] in apphost
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(ravendb)
-       .WaitFor(ravendb);
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-// After adding all resources, build and run the app...
+  hosting:R --> L:ravendb
+  ravendb:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="caution">
-  A valid RavenDB license is required. If you don't have one yet, you can
-  request a free Community license at
-  [ravendb.net/license/request/community](https://ravendb.net/license/request/community).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the RavenDB server and databases as resources. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to the database.
 
-## Set up client integration
+Getting there is a two-step process: model the RavenDB resources in your AppHost, then connect to the database from each app that needs it.
 
-In each of the consuming client projects, install the Aspire RavenDB client integration:
+<Steps>
 
-<InstallDotNetPackage packageName="CommunityToolkit.Aspire.RavenDB.Client" />
+1. ### Model RavenDB in your AppHost
 
-In the `Program.cs` file of your client-consuming project, call the `AddRavenDBClient` extension method to register an `IDocumentStore` for use via the dependency injection container. The method takes a connection name parameter.
+    Add the RavenDB hosting integration to your AppHost, then declare a RavenDB server, one or more databases, and reference them from the apps that need to talk to the database. The [RavenDB Hosting integration](/integrations/databases/ravendb/ravendb-host/) article walks through every capability — adding databases, data volumes, data bind mounts, secured instances, and more.
 
-```csharp
-builder.AddRavenDBClient(connectionName: "ravendb");
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/ravendb/ravendb-host/'>
+        Set up RavenDB in the AppHost
+    </LinkButton>
 
-You can then retrieve the `IDocumentStore` instance using dependency injection. For example, to retrieve the client from a service:
+2. ### Connect from your consuming app
 
-```csharp
-public class ExampleService(IDocumentStore client)
-{
-    // Use client...
-}
-```
+    When you reference a RavenDB database from a consuming app, Aspire injects its connection information as environment variables. See [Connect to RavenDB](/integrations/databases/ravendb/ravendb-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
 
-For full reference details, see [RavenDB hosting integration](/integrations/databases/ravendb/ravendb-host/) and [RavenDB client integration](/integrations/databases/ravendb/ravendb-client/).
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/ravendb/ravendb-connect/'>
+        Connect to RavenDB
+    </LinkButton>
+
+</Steps>
 
 ## See also
 

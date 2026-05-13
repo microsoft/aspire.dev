@@ -1,84 +1,78 @@
 ---
 title: .NET MAUI integration
-description: Learn how to integrate .NET MAUI mobile and desktop applications with Aspire for simplified service orchestration and discovery.
+description: Learn how to use the Aspire .NET MAUI integration to orchestrate .NET MAUI mobile and desktop applications alongside backend services in your AppHost.
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Badge, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import { Kbd } from 'starlight-kbd/components'
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import mauiIcon from '@assets/icons/maui-icon.png';
-
-<Badge text="🧪 Preview" variant="note" size="large" />
 
 <Image
   src={mauiIcon}
   alt=".NET MAUI logo"
-  width={80}
-  height={80}
-  style={'float:left; margin-right:1rem;margin-bottom:.5rem;' /* TODO: remove after integration merge*/}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The .NET MAUI integration with Aspire simplifies the development experience when building mobile and desktop applications that connect to local web services during development. This integration enables you to orchestrate your .NET MAUI apps alongside your backend services using Aspire's powerful orchestration capabilities.
+This article is the reference for the Aspire .NET MAUI integration. It documents the AppHost APIs you use to orchestrate .NET MAUI mobile and desktop applications in your [`AppHost`](/get-started/app-host/) project, and shows how to configure .NET MAUI apps to discover and connect to Aspire-managed services.
 
 <Aside type="caution" title="Preview feature">
 This feature is currently in preview. Some features are still being implemented, and integration with Visual Studio 2026 is not completely available yet.
 </Aside>
 
-## What is .NET MAUI?
-
-.NET Multi-platform App UI (.NET MAUI) is a cross-platform framework for creating native mobile and desktop apps with C# and XAML. With .NET MAUI, you can develop apps that run on Android, iOS, macOS, and Windows from a single shared codebase.
-
-## Benefits of using Aspire with .NET MAUI
-
-Integrating Aspire with your .NET MAUI applications provides several key benefits:
-
-- **Simplified configuration**: Eliminate complex platform-specific networking configuration. No need to manually handle `10.0.2.2` for Android or deal with certificate validation issues.
-- **Automatic service discovery**: Your MAUI app automatically discovers and connects to local services without hardcoded URLs.
-- **Development tunnels integration**: Built-in support for Dev Tunnels on iOS and Android, making it easy to connect mobile emulators and simulators to local services.
-- **Consistent experience**: Use the same patterns and tools across your entire application stack.
-- **Observable services**: Monitor your services through the Aspire dashboard during development.
-
-### Comparison with traditional approach
-
-Traditionally, connecting a .NET MAUI app to local web services requires significant manual configuration:
-
-- Use different URLs for different platforms (localhost, 10.0.2.2, etc.).
-- Configure network security settings for Android.
-- Set up Apple Transport Security (ATS) for iOS.
-- Handle certificate validation for HTTPS.
-- Manually manage service URLs in your code.
-
-With Aspire integration, these complexities are handled automatically, allowing you to focus on building your application instead of configuring network access.
-
 ## Prerequisites
 
-To use Aspire with .NET MAUI, you need:
+To use the .NET MAUI integration with Aspire, you need:
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later.
 - [Aspire 13](/whats-new/aspire-13/) or later.
 - A .NET MAUI app targeting .NET 10 or later.
-- One or more web services to connect to.
 
 ## Hosting integration
 
-The MAUI hosting integration is distributed via the [Aspire.Hosting.Maui](https://www.nuget.org/packages/Aspire.Hosting.Maui) NuGet package and enables you to orchestrate .NET MAUI applications in your AppHost project.
+The .NET MAUI hosting integration is distributed via the [📦 Aspire.Hosting.Maui](https://www.nuget.org/packages/Aspire.Hosting.Maui) NuGet package. It enables you to orchestrate .NET MAUI applications in your AppHost project and register platform-specific device configurations.
 
-### Register MAUI project
+### Installation
 
-To register a MAUI project in your AppHost, install the `Aspire.Hosting.Maui` package and use the `AddMauiProject` extension method:
+To add the .NET MAUI hosting integration to your AppHost, install the [📦 Aspire.Hosting.Maui](https://www.nuget.org/packages/Aspire.Hosting.Maui) NuGet package:
+
+```bash title="Terminal"
+aspire add maui
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Maui@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Maui" Version="*" />
+```
+
+<Aside type="note">
+TypeScript AppHost support for this integration is not yet available.
+</Aside>
+
+### Add .NET MAUI project
+
+To orchestrate a .NET MAUI application in your AppHost, call `AddMauiProject` with the name and path to the `.csproj` file:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Register your backend service
 var weatherApi = builder.AddProject<Projects.WeatherApi>("webapi");
 
-// Register your MAUI app
 var mauiapp = builder.AddMauiProject("mauiapp", "../YourMauiApp/YourMauiApp.csproj");
 
-// Add platform specific preferences here, chaining calls on your mauiapp.
+// Add platform-specific device configurations here...
 
 builder.Build().Run();
 ```
@@ -89,97 +83,98 @@ The .NET MAUI app is added here via its `.csproj` path passed to `AddMauiProject
 
 ### Platform-specific device configurations
 
-The MAUI integration supports multiple platforms. Each platform requires a specific device configuration:
+Each target platform requires a specific device configuration chained from the MAUI project resource:
 
 <Tabs syncKey="platform">
 <TabItem label="Windows">
+
 Windows apps run directly on the host machine using localhost:
 
 ```csharp title="C# — AppHost.cs"
 mauiapp.AddWindowsDevice()
     .WithReference(weatherApi);
 ```
+
 </TabItem>
 <TabItem label="Mac Catalyst">
+
 Mac Catalyst apps also use localhost directly on macOS:
 
 ```csharp title="C# — AppHost.cs"
 mauiapp.AddMacCatalystDevice()
     .WithReference(weatherApi);
 ```
+
 </TabItem>
 <TabItem label="iOS Simulator">
+
 iOS Simulator requires Dev Tunnels to connect to local services:
 
 ```csharp title="C# — AppHost.cs"
-// Create a public dev tunnel for mobile platforms
 var publicDevTunnel = builder.AddDevTunnel("devtunnel-public")
     .WithAnonymousAccess()
     .WithReference(weatherApi.GetEndpoint("https"));
 
-// Add iOS simulator with Dev Tunnel
 mauiapp.AddiOSSimulator()
-    .WithOtlpDevTunnel() // Required for OpenTelemetry data collection
+    .WithOtlpDevTunnel()
     .WithReference(weatherApi, publicDevTunnel);
 ```
+
 </TabItem>
 <TabItem label="Android Emulator">
+
 Android Emulator also requires Dev Tunnels for connectivity:
 
 ```csharp title="C# — AppHost.cs"
 mauiapp.AddAndroidEmulator()
-    .WithOtlpDevTunnel() // Required for OpenTelemetry data collection
+    .WithOtlpDevTunnel()
     .WithReference(weatherApi, publicDevTunnel);
 ```
+
 </TabItem>
 </Tabs>
 
+On Windows and Mac Catalyst, local service connectivity works directly through localhost without requiring Dev Tunnels. iOS Simulator and Android Emulator require Dev Tunnels; the `WithOtlpDevTunnel()` method creates a Dev Tunnel specifically for OpenTelemetry Protocol (OTLP) traffic so telemetry from mobile targets reaches the Aspire dashboard.
+
+<Aside type="tip">
+You can add multiple device configurations for the same MAUI project. Each device configuration can target a different platform, allowing you to deploy and test your app on multiple targets simultaneously from the same AppHost.
+</Aside>
+
 ### Complete AppHost example
 
-Here's a complete example showing all platform configurations:
+The following example shows all platform configurations together in a single AppHost:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Register your web service
 var weatherApi = builder.AddProject<Projects.WeatherApi>("webapi");
 
-// Create a public dev tunnel for iOS and Android
 var publicDevTunnel = builder.AddDevTunnel("devtunnel-public")
     .WithAnonymousAccess()
     .WithReference(weatherApi.GetEndpoint("https"));
 
-// Register your MAUI app
-var mauiapp = builder.AddMauiProject("mauiapp", @"../YourMauiApp/YourMauiApp.csproj");
+var mauiapp = builder.AddMauiProject("mauiapp", "../YourMauiApp/YourMauiApp.csproj");
 
-// Add Windows device (uses localhost directly)
 mauiapp.AddWindowsDevice()
     .WithReference(weatherApi);
 
-// Add Mac Catalyst device (uses localhost directly)
 mauiapp.AddMacCatalystDevice()
     .WithReference(weatherApi);
 
-// Add iOS simulator with Dev Tunnel
 mauiapp.AddiOSSimulator()
-    .WithOtlpDevTunnel() // Required for OpenTelemetry data collection
+    .WithOtlpDevTunnel()
     .WithReference(weatherApi, publicDevTunnel);
 
-// Add Android emulator with Dev Tunnel
 mauiapp.AddAndroidEmulator()
-    .WithOtlpDevTunnel() // Required for OpenTelemetry data collection
+    .WithOtlpDevTunnel()
     .WithReference(weatherApi, publicDevTunnel);
 
 builder.Build().Run();
 ```
 
-<Aside type="tip">
-You can add multiple device configurations for the same MAUI project. Each device configuration can target different platforms, allowing you to deploy and test your app on multiple targets simultaneously from the same AppHost.
-</Aside>
+## Configure the .NET MAUI app
 
-## Client configuration
-
-To configure your .NET MAUI app to work with Aspire, you need to:
+To configure your .NET MAUI app to discover and connect to Aspire-managed services:
 
 <Steps>
 
@@ -191,17 +186,11 @@ To configure your .NET MAUI app to work with Aspire, you need to:
 
 ### Create a MAUI Service Defaults project
 
-The MAUI Service Defaults project contains shared configuration for your MAUI app:
+The MAUI Service Defaults project contains shared configuration for your MAUI app, including service discovery, resilience, and telemetry setup:
 
 ```bash title=".NET CLI — New service defaults"
 dotnet new maui-aspire-servicedefaults -n YourApp.MauiServiceDefaults
 ```
-
-This project includes:
-- Service discovery configuration.
-- Default resilience patterns.
-- Telemetry setup.
-- Platform-specific networking configuration.
 
 Add a reference to this project from your MAUI app:
 
@@ -231,13 +220,10 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // Add service defaults
         builder.AddServiceDefaults();
 
-        // Configure HTTP client with service discovery
         builder.Services.AddHttpClient<WeatherApiClient>(client =>
         {
-            // Service name matches the name used in AppHost
             client.BaseAddress = new Uri("https+http://webapi");
         });
 
@@ -247,7 +233,7 @@ public static class MauiProgram
 ```
 
 <Aside type="note">
-The `https+http://` scheme is special syntax that enables both HTTPS and HTTP protocols, with preference for HTTPS. The service name must match the name you used when registering the service in your `AppHost.cs`.
+The `https+http://` scheme enables both HTTPS and HTTP protocols, preferring HTTPS. The service name (`webapi`) must match the name used when registering the service in the AppHost.
 </Aside>
 
 ### Create a typed client
@@ -313,122 +299,9 @@ public partial class MainPage : ContentPage
 }
 ```
 
-## Platform-specific considerations
-
-### Dev Tunnels for iOS and Android
-
-Dev Tunnels provide a secure way to expose your local web services to mobile devices and emulators. The Aspire integration automatically:
-
-- Creates and manages Dev Tunnels for your services.
-- Configures your MAUI app to use the tunnel URLs.
-- Handles authentication and connection management.
-
-### OpenTelemetry data collection
-
-The `WithOtlpDevTunnel()` method creates a Dev Tunnel specifically for OpenTelemetry protocol (<abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr>) traffic, allowing telemetry data from your iOS and Android apps to reach the Aspire dashboard. This is essential for monitoring and debugging your mobile apps through the Aspire dashboard.
-
-### Windows and Mac Catalyst
-
-On Windows and Mac Catalyst, local service connectivity works directly through localhost without requiring Dev Tunnels. The Aspire integration provides a consistent API across all platforms while handling platform-specific requirements automatically.
-
-## Running your application
-
-To run your MAUI app with Aspire integration:
-
-<Tabs syncKey="environment">
-<TabItem label="Visual Studio">
-
-<Steps>
-
-1. Set the AppHost project as the startup project.
-2. Run the solution (<Kbd windows="F5" /> or Debug > Start Debugging).
-
-</Steps>
-
-</TabItem>
-<TabItem label="Aspire CLI">
-
-Navigate to the AppHost project directory and run:
-
-```bash title="Aspire CLI — Run"
-aspire run
-```
-
-</TabItem>
-<TabItem label="VS Code">
-
-<Steps>
-
-1. Open the AppHost project folder.
-2. Run the project using the .NET debugger or terminal.
-
-</Steps>
-
-</TabItem>
-</Tabs>
-
-When the AppHost starts:
-- The Aspire dashboard will open, showing all registered services.
-- Your MAUI app will **not** launch automatically.
-- Start each .NET MAUI target manually through the dashboard.
-
-The dashboard provides real-time monitoring, logs from all services, and distributed tracing across your entire application stack.
-
-## Troubleshooting
-
-### Service discovery not working
-
-If your MAUI app can't connect to your web services:
-
-<Steps>
-
-1. Verify that you've called `AddServiceDefaults()` in your MAUI app's `MauiProgram.cs`.
-2. Ensure the service name in your HTTP client configuration matches the name used in the AppHost.
-3. Check that you're using the `https+http://` scheme in your service URL.
-4. For iOS and Android, confirm that Dev Tunnels are configured correctly in the AppHost.
-
-</Steps>
-
-### Missing telemetry from iOS/Android apps
-
-If you're not seeing telemetry data from your iOS or Android apps in the Aspire dashboard:
-
-<Steps>
-
-1. Verify that you've added the `WithOtlpDevTunnel()` method to your device configurations.
-2. Ensure Dev Tunnels have anonymous access configured.
-3. Check that your firewall isn't blocking tunnel connections.
-
-</Steps>
-
-### Dev Tunnels connection issues
-
-If Dev Tunnels aren't working for iOS or Android:
-
-<Steps>
-
-1. Ensure the Dev Tunnel is configured with anonymous access: `.WithAnonymousAccess()`.
-2. Verify that the device configuration includes the Dev Tunnel reference.
-3. Try restarting the AppHost to recreate the tunnels.
-
-</Steps>
-
-## Best practices
-
-When building .NET MAUI apps with Aspire integration:
-
-- **Use typed clients**: Create strongly-typed HTTP clients for each service to improve maintainability.
-- **Handle errors gracefully**: Network operations can fail; implement proper error handling and retry logic.
-- **Leverage the dashboard**: Use the Aspire dashboard for debugging and monitoring during development.
-- **Test on all platforms**: While the integration handles platform differences, always test on your target platforms.
-- **Follow service defaults**: The service defaults project provides recommended patterns for resilience and telemetry.
-
-## Sample application
-
-For a complete working example of .NET MAUI integration with Aspire, see the [AspireWithMaui sample](https://github.com/microsoft/aspire/tree/main/playground/AspireWithMaui) in the Aspire repository.
-
 ## See also
 
 - [.NET MAUI documentation](https://learn.microsoft.com/dotnet/maui/)
 - [.NET MAUI integration with Aspire on Microsoft Learn](https://learn.microsoft.com/dotnet/maui/data-cloud/aspire-integration)
 - [Dev Tunnels documentation](https://learn.microsoft.com/aspnet/core/test/dev-tunnels)
+- [AspireWithMaui sample](https://github.com/microsoft/aspire/tree/main/playground/AspireWithMaui)

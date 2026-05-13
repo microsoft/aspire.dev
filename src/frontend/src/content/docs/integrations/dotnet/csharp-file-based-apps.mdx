@@ -1,11 +1,11 @@
 ---
 title: C# file-based apps
-description: Learn how to use AddCSharpApp to host C# file-based applications in your Aspire AppHost without a project file.
+description: Learn how to use the Aspire C# file-based apps hosting integration to run single .cs files without a project file alongside your other AppHost resources.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import LearnMore from '@components/LearnMore.astro';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import csharpIcon from '@assets/icons/csharp.svg';
 
 <Aside type="danger" title="Experimental">
@@ -23,7 +23,9 @@ import csharpIcon from '@assets/icons/csharp.svg';
   data-zoom-off
 />
 
-C# file-based applications let you run single `.cs` files without a `.csproj` project file. This feature, built on .NET 10 SDK's file-based app support, integrates directly with Aspire's orchestration. Use `AddCSharpApp` to add these lightweight apps to your AppHost alongside traditional projects, containers, and executables.
+This article is the reference for the Aspire C# file-based apps hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model C# file-based app resources in your [`AppHost`](/get-started/app-host/) project.
+
+C# file-based applications let you run single `.cs` files without a `.csproj` project file. This feature, built on .NET 10 SDK's file-based app support, integrates directly with Aspire's orchestration. Use `AddCSharpApp` (or `addCSharpApp` in TypeScript) to add these lightweight apps to your AppHost alongside traditional projects, containers, and executables.
 
 ## When to use file-based apps
 
@@ -34,11 +36,14 @@ Use file-based apps when you need to:
 - Create lightweight APIs with minimal ceremony.
 - Experiment with Aspire integrations in a single file.
 
-For production workloads or apps with multiple source files, use `AddProject<T>` with a standard `.csproj` project instead.
+For production workloads or apps with multiple source files, use `AddProject<T>` (C#) or `addProject` (TypeScript) with a standard `.csproj` project instead.
 
-## Basic usage
+## Add C# app resource
 
-Call `AddCSharpApp` with a resource name and the relative path to a `.cs` file:
+Call `AddCSharpApp` with a resource name and the relative path to a `.cs` file. The path is resolved relative to the AppHost directory:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIRECSHARPAPPS001
@@ -50,7 +55,26 @@ builder.AddCSharpApp("worker", "../worker/Program.cs");
 builder.Build().Run();
 ```
 
-The path is resolved relative to the AppHost directory. You can also point to a `.csproj` file or a directory that contains one:
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addCSharpApp("worker", "../worker/Program.cs");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+You can also point to a `.csproj` file or a directory that contains one:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIRECSHARPAPPS001
@@ -66,6 +90,26 @@ builder.AddCSharpApp("frontend", "../frontend/");
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Point to a .csproj file
+await builder.addCSharpApp("api", "../api/Api.csproj");
+
+// Point to a directory containing a .csproj file
+await builder.addCSharpApp("frontend", "../frontend/");
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="tip">
 When pointing to a `.csproj` file or directory, `AddCSharpApp` behaves similarly to `AddProject<T>` but doesn't require a `ProjectReference` from the AppHost to the target project.
 </Aside>
@@ -74,9 +118,12 @@ When pointing to a `.csproj` file or directory, `AddCSharpApp` behaves similarly
   For more information about `AddProject`, project references, and generated `Projects` types, see [Project resources](/integrations/dotnet/project-resources/).
 </LearnMore>
 
-## Resource dependencies
+## Add resource dependencies
 
-File-based apps integrate fully with Aspire's resource model. You can reference other resources, configure service discovery, and set environment variables just like any other project resource:
+File-based apps integrate fully with Aspire's resource model. You can reference other resources and configure service discovery just like any other project resource:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIRECSHARPAPPS001
@@ -94,11 +141,37 @@ builder.AddCSharpApp("worker", "../worker/Program.cs")
 builder.Build().Run();
 ```
 
-The file-based app receives connection strings and service discovery information through environment variables, exactly like projects added with `AddProject<T>`.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+const pg = await builder.addPostgres("pg");
+const db = await pg.addDatabase("mydb");
+
+await builder.addCSharpApp("worker", "../worker/Program.cs")
+    .withReference(cache)
+    .withReference(db)
+    .withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The file-based app receives connection strings and service discovery information through environment variables, exactly like projects added with `AddProject<T>` (or `addProject`).
 
 ## Configure options
 
-The `AddCSharpApp` method accepts an optional `Action<ProjectResourceOptions>` parameter to configure launch settings:
+The C# `AddCSharpApp` method accepts an optional `Action<ProjectResourceOptions>` callback to configure launch settings:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 #pragma warning disable ASPIRECSHARPAPPS001
@@ -115,6 +188,16 @@ builder.AddCSharpApp("api", "../api/Api.cs", options =>
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+:::note
+The TypeScript `addCSharpApp` API accepts a `ProjectResourceOptions` object via the `options` field, but creating and configuring that object from TypeScript is not yet directly supported. Launch profile customization for C# file-based apps is currently a C#-only feature.
+:::
+
+</TabItem>
+</Tabs>
+
 The available options are the same as those used with `AddProject<T>`:
 
 | Option                    | Description                                                       |
@@ -125,7 +208,7 @@ The available options are the same as those used with `AddProject<T>`:
 
 ## File-based AppHost
 
-You can also write the AppHost itself as a file-based app using the `#:sdk` directive:
+You can also write the AppHost itself as a file-based C# app using the `#:sdk` directive:
 
 ```csharp title="C# — apphost.cs"
 #:sdk Aspire.AppHost.Sdk@13.1.0
@@ -145,6 +228,10 @@ builder.Build().Run();
 
 Use `#:package` directives to add NuGet package references directly in the source file instead of a `.csproj`.
 
+:::note
+A TypeScript AppHost (`apphost.ts`) is already a file-based script with no project file required. The `#:sdk` and `#:package` directives are specific to the C# file-based AppHost feature and have no TypeScript equivalent.
+:::
+
 <LearnMore>
   Learn more about the [Aspire SDK](/get-started/aspire-sdk/).
 </LearnMore>
@@ -160,7 +247,7 @@ Since this feature is experimental, be aware of the following limitations:
 
 ## Suppress the diagnostic
 
-To use `AddCSharpApp`, suppress the `ASPIRECSHARPAPPS001` diagnostic using one of these methods:
+To use `AddCSharpApp` in a C# AppHost, suppress the `ASPIRECSHARPAPPS001` diagnostic using one of these methods:
 
 **In code** with a pragma directive:
 
@@ -184,6 +271,10 @@ builder.AddCSharpApp("worker", "../worker/Program.cs");
 [*.{cs,vb}]
 dotnet_diagnostic.ASPIRECSHARPAPPS001.severity = none
 ```
+
+:::note
+`ASPIRECSHARPAPPS001` is a C# compiler diagnostic. TypeScript AppHosts call `addCSharpApp` without any diagnostic suppression needed.
+:::
 
 <LearnMore>
   Learn more about [ASPIRECSHARPAPPS001](/diagnostics/aspirecsharpapps001/).

@@ -3,15 +3,25 @@ title: Browser logs
 description: Learn how to capture and configure browser console logs in Aspire using the BrowserLogs resource.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import aspireIcon from '@assets/icons/aspire-icon.png';
+
+<Image
+  src={aspireIcon}
+  alt="Aspire browser logs icon"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
 
 The browser logs feature in Aspire lets you attach a tracked Chromium browser session to any HTTP/HTTPS resource in your AppHost. When the session is active, browser console output (logs, errors, exceptions, and network events) flows into the resource's console log stream in the Aspire dashboard, and you can capture screenshots as command artifacts — all without leaving the dashboard.
 
-:::caution[Experimental API]
+<Aside type="caution" title="Experimental API">
 The browser logs API is experimental. In C#, `WithBrowserLogs` is gated behind the [`ASPIREBROWSERLOGS001`](/diagnostics/aspirebrowserlogs001/) diagnostic ID, which you must suppress to use the API.
-:::
+</Aside>
 
 ## Prerequisites
 
@@ -25,7 +35,23 @@ The browser logs feature ships in the `Aspire.Hosting.Browsers` hosting package.
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
 
-<InstallPackage packageName="Aspire.Hosting.Browsers" />
+```bash title="Terminal"
+aspire add browsers
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Browsers@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Browsers" Version="*" />
+```
 
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
@@ -43,7 +69,7 @@ This updates your `aspire.config.json` with the browser logs hosting integration
 ```json title="aspire.config.json" ins={3}
 {
   "packages": {
-    "Aspire.Hosting.Browsers": "13.3.0"
+    "Aspire.Hosting.Browsers": "13.3.0-preview.1.26256.5"
   }
 }
 ```
@@ -153,9 +179,9 @@ The dialog presents the following options:
 - **Profile** — Select a discovered Chromium profile from the Aspire-managed browser hive (available in `Shared` mode only).
 - **Save to user secrets** — Persist the selected settings to the AppHost's user secrets so they're restored on the next run. This option is only shown when the AppHost project has a user secrets ID configured. Run [`aspire secret set`](/reference/cli/commands/aspire-secret-set/) once in the AppHost project to initialize a user secrets store; subsequent **Save to user secrets** clicks then write the browser configuration into it.
 
-:::note
+<Aside type="note">
 The **Configure tracked browser** command is only available when the Aspire dashboard's interaction service is active (that is, when the dashboard is connected to the AppHost). It is disabled in standalone dashboard mode.
-:::
+</Aside>
 
 After confirming the dialog, the new configuration takes effect immediately: the current browser session restarts with the updated settings.
 
@@ -179,9 +205,9 @@ The tracked browser connects to the Aspire AppHost over the [Chrome DevTools Pro
 - **Page** — page lifecycle events
 - **Network** — network requests and failures
 
-:::tip
+<Aside type="tip">
 Browser logs are a complement to [browser telemetry](/dashboard/enable-browser-telemetry/), which uses the OpenTelemetry JavaScript SDK to send traces and metrics from within the browser app itself. The two features can be used together.
-:::
+</Aside>
 
 ## See also
 

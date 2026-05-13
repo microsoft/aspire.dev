@@ -3,13 +3,13 @@ title: Configure Azure Container Apps environments
 description: Learn how to configure Azure Container Apps environment settings for Aspire deployments.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
-import containerApps from '@assets/icons/azure-container-apps-environments.svg';
+import containerAppsIcon from '@assets/icons/azure-container-apps-environments.svg';
 
 <Image
-  src={containerApps}
-  alt="Azure Container Apps environment logo"
+  src={containerAppsIcon}
+  alt="Azure Container Apps logo"
   height={80}
   width={80}
   class:list={'float-inline-left icon'}
@@ -18,15 +18,7 @@ import containerApps from '@assets/icons/azure-container-apps-environments.svg';
 
 The [Aspire AppHost](/get-started/app-host/) simplifies infrastructure provisioning by generating code to create Azure resources for your applications. This approach lets you model and configure deployment-related aspects directly in your AppHost, reducing the need to rely on tools like Bicep. These aspects include configuring ACA environments, which provide a serverless platform for running containerized applications.
 
-Deploy compute resources to Azure Container Apps by adding an ACA environment with `AddAzureContainerAppEnvironment`.
-
-Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource for a project, container, or executable:
-
-- [`AzureContainerAppProjectExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappprojectextensions.publishasazurecontainerapp)
-- [`AzureContainerAppContainerExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappcontainerextensions.publishasazurecontainerapp)
-- [`AzureContainerAppExecutableExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappexecutableextensions.publishasazurecontainerapp)
-
-These APIs don't create the ACA environment for you. Add an ACA environment first, then use the callback when you need to customize the generated Container App resource.
+Deploy compute resources to Azure Container Apps by adding an ACA environment with `AddAzureContainerAppEnvironment`. Use `PublishAsAzureContainerApp` only when you want to customize the generated Container App resource for a project, container, or executable — it does not create the ACA environment. Add an ACA environment first, then use the callback to customize the generated Container App resource.
 
 By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources](/integrations/cloud/azure/customize-resources/)), you can configure and customize ACA environments along with related resources, such as container registries and file share volumes. Any available deployment setting can be configured. For more information on the available settings, see [Microsoft.App managedEnvironments](https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments).
 
@@ -37,8 +29,6 @@ By using the `Azure.Provisioning` APIs (explained in [Customize Azure resources]
   during deployment, so local host bind-mount semantics don't carry over to
   Azure Container Apps.
 </Aside>
-
-This article guides you through the process of tailoring ACA environments for your solutions.
 
 <Aside type="note">
   When Aspire configures a managed identity for a resource deployed to Azure
@@ -58,6 +48,8 @@ This article guides you through the process of tailoring ACA environments for yo
 
 The `AzureContainerAppEnvironmentResource` type models an ACA environment resource. When you call the `AddAzureContainerAppEnvironment` method, it creates an instance of this type (wrapped in the `IResourceBuilder<AzureContainerAppEnvironmentResource>`).
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -67,6 +59,19 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
+
+// Omitted for brevity...
+```
+</TabItem>
+</Tabs>
 
 By default, calling this API to add an ACA environment generates the following provisioning Bicep module:
 
@@ -185,12 +190,57 @@ This module configures:
 
 Using the `acaEnv` variable, you can chain a call to the `ConfigureInfrastructure` API to customize the ACA environment to your liking. For more information, see [Configure infrastructure](/integrations/cloud/azure/customize-resources/).
 
+## Use PublishAsAzureContainerApp
+
+The following `PublishAsAzureContainerApp` overloads let you customize the generated Container App resource for a project, container, or executable:
+
+- [`AzureContainerAppProjectExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappprojectextensions.publishasazurecontainerapp)
+- [`AzureContainerAppContainerExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappcontainerextensions.publishasazurecontainerapp)
+- [`AzureContainerAppExecutableExtensions.PublishAsAzureContainerApp`](https://learn.microsoft.com/dotnet/api/aspire.hosting.azurecontainerappexecutableextensions.publishasazurecontainerapp)
+
+The callback receives an `AzureResourceInfrastructure` instance and the strongly-typed `ContainerApp` resource. This lets you set any property that Azure Container Apps supports — such as scaling rules, ingress settings, or environment variables — before the Bicep is generated.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddAzureContainerAppEnvironment("aca-env");
+
+builder.AddProject<Projects.ApiService>("api")
+    .PublishAsAzureContainerApp((infrastructure, containerApp) =>
+    {
+        containerApp.Template.Value!.Scale = new ContainerAppScale
+        {
+            MinReplicas = 1,
+            MaxReplicas = 10
+        };
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+<Aside type="note">
+  The `PublishAsAzureContainerApp` callback receives strongly-typed Azure SDK
+  types from the `Azure.Provisioning.AppContainers` package — such as
+  `ContainerApp`, `ContainerAppScale`, and `ContainerAppIngressConfiguration`
+  — which are C#-specific and have no TypeScript equivalents. To customize a
+  deployed Container App from a TypeScript AppHost, use
+  `configureInfrastructure` with a raw Bicep override, or apply the
+  customizations via the Azure portal or a separate Bicep/ARM template.
+</Aside>
+</TabItem>
+</Tabs>
+
 ## Handle naming conventions
 
 By default, `AddAzureContainerAppEnvironment` uses a different Azure resource naming scheme than the [Azure Developer CLI (`azd`)](https://learn.microsoft.com/azure/developer/azure-developer-cli/). If you're upgrading an existing deployment that previously used `azd`, you might see duplicate Azure resources. To avoid this issue, call the `WithAzdResourceNaming` method to revert to the naming convention used by `azd`:
 
-```csharp
-var builder = DistributionApplicationBuilder.Create(args);
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
 
 var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
     .WithAzdResourceNaming();
@@ -199,28 +249,58 @@ var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env")
 
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const acaEnv = await builder.addAzureContainerAppEnvironment("aca-env");
+await acaEnv.withAzdResourceNaming();
+
+// Omitted for brevity...
+```
+</TabItem>
+</Tabs>
 
 Calling this API ensures your existing Azure resources remain consistent and prevents duplication.
 
 ## Customize provisioning infrastructure
 
-All Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources—using the `ConfigureInfrastructure` API:
+All Azure resources are subclasses of the `AzureProvisioningResource` type. This enables customization of the generated Bicep by providing a fluent API to configure the Azure resources — using the `ConfigureInfrastructure` API:
 
-```csharp
-var builder = DistributionApplicationBuilder.Create(args);
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
 
-var acaEnv = builder.AddAzureContainerAppEnvironment(Config.ContainEnvironmentName);
+var acaEnv = builder.AddAzureContainerAppEnvironment("aca-env");
 
-acaEnv.ConfigureInfrastructure(config =>
+acaEnv.ConfigureInfrastructure(infra =>
 {
-    var resources = config.GetProvisionableResources();
+    var resources = infra.GetProvisionableResources();
     var containerEnvironment = resources.OfType<ContainerAppManagedEnvironment>().FirstOrDefault();
 
     containerEnvironment.Tags.Add("ExampleKey", "Example value");
 });
-```
 
-The preceding code:
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+<Aside type="note">
+  `ConfigureInfrastructure` uses strongly-typed Azure SDK types from the
+  `Azure.Provisioning.AppContainers` package — such as
+  `ContainerAppManagedEnvironment` — which are C#-specific and have no
+  TypeScript equivalents. Infrastructure customization of this kind is only
+  available from a C# AppHost. For more information, see [Customize Azure
+  resources](/integrations/cloud/azure/customize-resources/).
+</Aside>
+</TabItem>
+</Tabs>
+
+The preceding C# code:
 
 - Chains a call to the `ConfigureInfrastructure` API:
   - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
@@ -232,5 +312,6 @@ The preceding code:
 
 - [Azure integrations overview](/integrations/cloud/azure/overview/)
 - [Deploy to Azure Container Apps](/get-started/deploy-first-app/)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
 - [Azure Container Apps documentation](https://learn.microsoft.com/azure/container-apps/)
 - [Container Apps pricing](https://learn.microsoft.com/azure/container-apps/billing)

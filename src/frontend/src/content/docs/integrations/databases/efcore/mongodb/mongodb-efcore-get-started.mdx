@@ -1,12 +1,10 @@
 ---
 title: Get started with the MongoDB Entity Framework Core integrations
-description: Learn how to set up the Aspire MongoDB Hosting and Entity Framework Core Client integrations simply.
+description: Understand why you use the Aspire MongoDB EF Core integrations and how they fit together.
 ---
 
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import mongodbIcon from '@assets/icons/mongodb-icon.png';
 
 <Image
@@ -18,87 +16,69 @@ import mongodbIcon from '@assets/icons/mongodb-icon.png';
   data-zoom-off
 />
 
-[MongoDB](https://www.mongodb.com/) is a popular, open-source NoSQL document database that offers high performance, scalability, and flexible data modeling. The Aspire MongoDB Entity Framework Core (EF Core) client integration provides a way to connect to existing MongoDB databases, or create new instances from the [`docker.io/library/mongo` container image](https://hub.docker.com/_/mongo).
+[MongoDB](https://www.mongodb.com/) is a popular, open-source NoSQL document database that offers high performance, scalability, and flexible data modeling. The Aspire MongoDB Entity Framework Core (EF Core) integration lets you model a MongoDB server and its databases as first-class resources in your AppHost, then hand the connection information to your C# consuming apps.
 
-In this introduction, you'll see how to install and use the Aspire MongoDB Entity Framework Core integrations in a simple configuration. The same hosting integration is used with both the EF Core and the non-EF Core client integrations. If you already have this knowledge, see [MongoDB Hosting integration](/integrations/databases/mongodb/mongodb-host/) and [MongoDB EF Core client integration](/integrations/databases/efcore/mongodb/mongodb-efcore-client/) for full reference details.
+## Why use MongoDB EF Core with Aspire
 
-<Aside type="note">
-  To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding MongoDB through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs MongoDB from the [`docker.io/library/mongo`](https://hub.docker.com/_/mongo) container image with credentials generated automatically for you.
+- **Automatic connection configuration.** When a consuming C# project references the MongoDB database resource, Aspire injects connection details automatically so your app finds them through dependency injection.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps use the `Aspire.MongoDB.EntityFrameworkCore` package to register a `DbContext` through dependency injection, with health checks, logging, tracing, and metrics all wired up automatically.
 
-To begin, install the Aspire MongoDB Hosting integration in your Aspire AppHost project. This integration allows you to create and manage MongoDB database instances from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.MongoDB" shortName="mongodb" />
+The MongoDB EF Core integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **client integration** for C# consuming apps that reference it.
 
-Next, in the AppHost project, create instances of MongoDB server and database resources, then pass the database to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var mongodb = builder.AddMongoDB("mongodb");
-var mydb = mongodb.AddDatabase("mydb");
+  service hosting(server)[Hosting integration] in apphost
+  service mongodb(logos:mongodb)[MongoDB server] in apphost
+  service db(database)[mydb] in apphost
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-                            .WaitFor(mydb)
-                            .WithReference(mydb);
+  service client(iconoir:server-connection)[EF Core client integration] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:mongodb
+  mongodb:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="tip">
-  This is the simplest implementation of MongoDB resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [MongoDB Hosting integration](/integrations/databases/mongodb/mongodb-host/).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the MongoDB server and databases as resources. The **EF Core client integration** lives in each consuming C# project and uses the connection information Aspire injects to register a `DbContext`.
 
-## Use the integration in client projects
+Getting there is a two-step process: model the MongoDB resources in your AppHost, then connect to the database from each C# app that needs it.
 
-Now that the hosting integration is ready, the next step is to install and configure the EF Core client integration in any projects that need to use it.
+<Steps>
 
-### Set up client projects
+1. ### Model MongoDB in your AppHost
 
-In each of these consuming client projects, install the Aspire MongoDB EF Core client integration:
+    Add the MongoDB hosting integration to your AppHost, then declare a MongoDB server, one or more databases, and reference them from the apps that need to talk to the database. The [MongoDB Hosting integration](/integrations/databases/mongodb/mongodb-host/) article walks through every capability — adding databases, data volumes, MongoDB Express, init scripts, and more.
 
-<InstallDotNetPackage packageName="Aspire.MongoDB.EntityFrameworkCore" />
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/mongodb/mongodb-host/'>
+        Set up MongoDB in the AppHost
+    </LinkButton>
 
-In the `Program.cs` file of your client-consuming project, call the `AddMongoDbContext` extension method on any `IHostApplicationBuilder` to register your `DbContext` subclass for use through the dependency injection container. The method takes a connection name parameter.
+2. ### Connect from your C# app
 
-```csharp title="C# — Program.cs"
-builder.AddMongoDbContext<MyDbContext>(connectionName: "mydb");
-```
+    When you reference a MongoDB database from a consuming C# project, install the `Aspire.MongoDB.EntityFrameworkCore` package and register your `DbContext` subclass. See [MongoDB EF Core client integration](/integrations/databases/efcore/mongodb/mongodb-efcore-connect/) for the full configuration reference — including `AddMongoDbContext`, `EnrichMongoDbContext`, health checks, and observability.
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the MongoDB database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
-</Aside>
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/efcore/mongodb/mongodb-efcore-connect/'>
+        Connect to MongoDB with EF Core
+    </LinkButton>
 
-<Aside type="note">
-  When using `AddDatabase` in the AppHost, the database name is included in the generated connection string, so you don't need to specify it again in `AddMongoDbContext`. If your connection string doesn't include a database name, you can provide it as the second parameter: `builder.AddMongoDbContext<MyDbContext>("mydb", "mydatabase")`.
-</Aside>
-
-### Use MongoDB resources in client code
-
-Now that you've added the `DbContext` to the builder in the consuming project, you can use the MongoDB resource to get and store data. Get the `DbContext` instance using dependency injection. For example, to retrieve your database context object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(MyDbContext context)
-{
-    // Use context to interact with the database...
-}
-```
-
-Having obtained the database context, you can work with the MongoDB database as you would in any other C# application using EF Core.
-
-## Next steps
-
-Now that you have an Aspire app with MongoDB EF Core integrations up and running, you can use the following reference documents to learn how to configure and interact with the MongoDB resources:
-
-<CardGrid>
-  <LinkCard
-    title="Understand the MongoDB hosting integration"
-    description="Discover how to configure persistence, MongoDB Express, and more."
-    href="/integrations/databases/mongodb/mongodb-host/"
-  />
-  <LinkCard
-    title="Understand the MongoDB EF Core client integration"
-    description="Discover how to enrich DbContext, configure settings, and more."
-    href="/integrations/databases/efcore/mongodb/mongodb-efcore-client/"
-  />
-</CardGrid>
+</Steps>

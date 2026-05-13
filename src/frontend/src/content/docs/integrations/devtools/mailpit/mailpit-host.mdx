@@ -1,10 +1,11 @@
 ---
-title: Mailpit Hosting integration reference
-description: Learn how to use the Aspire Mailpit hosting integration to orchestrate and configure Mailpit in your Aspire projects.
+title: Set up Mailpit in the AppHost
+description: Learn how to use the Aspire Mailpit Hosting integration to orchestrate and configure a Mailpit resource in an Aspire solution.
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
+import { Aside, Badge, Steps } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
+import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import mailpitIcon from '@assets/icons/mailpit-icon.svg';
 import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
@@ -15,76 +16,99 @@ import mailpitLightIcon from '@assets/icons/mailpit-light-icon.svg';
   light={mailpitLightIcon}
   dark={mailpitIcon}
   alt="Mailpit logo"
-  width={70}
-  height={70}
+  width={100}
+  height={100}
   zoomable={false}
   classOverride="float-inline-left icon"
 />
 
-To get started with the Aspire Mailpit integrations, follow the [Get started with Mailpit integrations](/integrations/devtools/mailpit/mailpit-get-started/) guide.
+This article is the reference for the Aspire Mailpit Hosting integration. It enumerates the AppHost APIs that you use to model a Mailpit resource in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details about the Aspire Mailpit Hosting integration.
+If you're new to the Mailpit integration, start with the [Get started with Mailpit integrations](/integrations/devtools/mailpit/mailpit-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Mailpit](../mailpit-connect/).
+
+:::note
+TypeScript AppHost support for the Mailpit integration is not yet available. The examples on this page use the C# AppHost only.
+:::
 
 ## Installation
 
-To access the Mailpit hosting integration APIs for expressing Mailpit resources in your AppHost project, install the [📦 CommunityToolkit.Aspire.Hosting.MailPit](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.MailPit) NuGet package:
+To start building an Aspire app that uses Mailpit, install the [📦 CommunityToolkit.Aspire.Hosting.MailPit](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.MailPit) NuGet package:
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.MailPit" />
+```bash title="Terminal"
+aspire add mailpit
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.MailPit@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.MailPit" Version="*" />
+```
 
 ## Add Mailpit resource
 
-To add Mailpit to your app host, use the `AddMailPit` extension method:
+Once you've installed the hosting integration in your AppHost project, you can add a Mailpit resource as shown in the following example:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mailpit = builder.AddMailPit("mailpit");
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(mailpit);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mailpit);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-When Aspire adds Mailpit to the app host, it creates a new Mailpit instance with the `docker.io/axllent/mailpit` container image.
+<Steps>
 
-## Ports
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/axllent/mailpit` image, it creates a new Mailpit instance on your local machine.
 
-Mailpit exposes two ports:
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Mailpit resource, such as `mailpit` in the preceding example.
 
-- **SMTP port**: 1025 (for sending emails)
-- **Web UI port**: 8025 (for viewing emails in the browser)
+</Steps>
 
-Both ports are automatically configured and accessible through the Aspire dashboard.
+<Aside type="note">
+    When you reference a Mailpit resource from the AppHost, Aspire makes several properties available to the consuming project, such as the SMTP host, SMTP port, and the HTTP UI endpoint URL. For a complete list of these properties and per-language connection examples, see [Connect to Mailpit](../mailpit-connect/).
+</Aside>
 
-## Data persistence
+## SMTP endpoint
 
-To persist emails across container restarts, use the `WithDataVolume` method:
+Mailpit listens for SMTP on port **1025** by default. Aspire exposes this as the `smtp` endpoint on the resource. When you call `WithReference(mailpit)` from a consuming project, Aspire injects the `SmtpHost` and `SmtpPort` connection properties automatically.
+
+## HTTP UI endpoint
+
+Mailpit serves its web-based email inspector on port **8025** by default. Aspire exposes this as the `http` endpoint on the resource. The `HttpEndpoint` connection property contains the full URL.
+
+You can open the Mailpit web UI from the Aspire dashboard by clicking the HTTP endpoint link next to the Mailpit resource.
+
+## Add Mailpit resource with data volume
+
+Add a data volume to the Mailpit resource to persist captured emails across container restarts:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mailpit = builder.AddMailPit("mailpit")
-                     .WithDataVolume();
+    .WithDataVolume();
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(mailpit);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(mailpit);
+
+// After adding all resources, run the app...
+builder.Build().Run();
 ```
 
-The data volume is used to persist the Mailpit data outside the lifecycle of the container.
+The data volume is mounted inside the Mailpit container and persists data outside the lifecycle of the container. When a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
-For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` method:
+## Connection properties
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var mailpit = builder.AddMailPit("mailpit")
-                     .WithDataBindMount(source: @"C:\Mailpit\Data");
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(mailpit);
-```
-
-## Web UI
-
-The Mailpit web interface is automatically available when you add a Mailpit resource. You can access it through the Aspire dashboard by clicking on the endpoint for the Mailpit resource.
+For the full reference of Mailpit connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Mailpit](../mailpit-connect/).

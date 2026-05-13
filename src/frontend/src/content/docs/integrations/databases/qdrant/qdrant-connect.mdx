@@ -1,0 +1,303 @@
+---
+title: Connect to Qdrant
+description: Learn how to connect to Qdrant from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import qdrantIcon from '@assets/icons/qdrant-icon.svg';
+
+<Image
+  src={qdrantIcon}
+  alt="Qdrant logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a Qdrant resource that's already modeled in your AppHost. For the AppHost API surface — adding a Qdrant resource, API key parameters, data volumes, and more — see [Qdrant Hosting integration](../qdrant-host/).
+
+When you reference a Qdrant resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Qdrant client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `HttpUri` property of a resource called `qdrant` becomes `QDRANT_HTTPURI`.
+
+Qdrant exposes both a REST API and a gRPC API. The Qdrant resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `GrpcHost`    | The hostname of the Qdrant gRPC endpoint |
+| `GrpcPort`    | The port number the Qdrant gRPC endpoint is listening on (default: 6334) |
+| `HttpHost`    | The hostname of the Qdrant REST endpoint |
+| `HttpPort`    | The port number the Qdrant REST endpoint is listening on (default: 6333) |
+| `ApiKey`      | The API key for authentication |
+| `Uri`         | The gRPC connection URI, with the format `http://{GrpcHost}:{GrpcPort}` |
+| `HttpUri`     | The REST connection URI, with the format `http://{HttpHost}:{HttpPort}` |
+
+**Example connection strings:**
+
+```
+Uri: http://localhost:6334
+HttpUri: http://localhost:6333
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a Qdrant resource named `qdrant` and references it from the consuming app.
+
+<Tabs syncKey="qdrant-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Qdrant client integration. It registers a [`QdrantClient`](https://github.com/qdrant/qdrant-dotnet/) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Qdrant.Client](https://www.nuget.org/packages/Aspire.Qdrant.Client) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Qdrant.Client" />
+
+#### Add the Qdrant client
+
+In _Program.cs_, call `AddQdrantClient` on your `IHostApplicationBuilder` to register a `QdrantClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient(connectionName: "qdrant");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Qdrant resource name from the AppHost. For more information, see [Add Qdrant resource](../qdrant-host/#add-qdrant-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(QdrantClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed Qdrant clients
+
+To register multiple `QdrantClient` instances with different connection names, use `AddKeyedQdrantClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedQdrantClient(name: "mainQdrant");
+builder.AddKeyedQdrantClient(name: "loggingQdrant");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("mainQdrant")] QdrantClient mainClient,
+    [FromKeyedServices("loggingQdrant")] QdrantClient loggingClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Qdrant client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddQdrantClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient("qdrant");
+```
+
+The connection string is resolved from the `ConnectionStrings` section. By default, the `QdrantClient` uses the gRPC endpoint:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "qdrant": "Endpoint=http://localhost:6334;Key=your-api-key"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `QdrantSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Qdrant:Client` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Qdrant": {
+      "Client": {
+        "Endpoint": "http://localhost:6334/",
+        "Key": "your-api-key",
+        "DisableHealthChecks": false,
+        "DisableTracing": false
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<QdrantSettings>` to configure settings inline, for example to set the API key:
+
+```csharp title="C# — Program.cs"
+builder.AddQdrantClient(
+    "qdrant",
+    settings => settings.Key = "your-api-key");
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Qdrant client integration adds a health check that verifies the Qdrant server is reachable. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Qdrant client integration automatically configures logging through OpenTelemetry.
+
+**Logging** categories:
+
+- `Qdrant.Client`
+
+The Qdrant integration doesn't currently emit tracing activities or metrics because they aren't supported by the `Qdrant.Client` library.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI and API key from the environment and create a `QdrantClient` directly using the [📦 Qdrant.Client](https://www.nuget.org/packages/Qdrant.Client/) NuGet package:
+
+```csharp title="C# — Program.cs"
+using Qdrant.Client;
+
+var endpoint = Environment.GetEnvironmentVariable("QDRANT_URI");
+var apiKey = Environment.GetEnvironmentVariable("QDRANT_APIKEY");
+
+var client = new QdrantClient(new Uri(endpoint!), apiKey: apiKey);
+// Use client to interact with Qdrant...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Install the official Go client for Qdrant:
+
+```bash title="Terminal"
+go get github.com/qdrant/go-client
+```
+
+Read the injected environment variables and connect using gRPC:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+    "strconv"
+
+    "github.com/qdrant/go-client/qdrant"
+)
+
+func main() {
+    // Read Aspire-injected connection properties
+    grpcHost := os.Getenv("QDRANT_GRPCHOST")
+    grpcPort, _ := strconv.Atoi(os.Getenv("QDRANT_GRPCPORT"))
+    apiKey := os.Getenv("QDRANT_APIKEY")
+
+    client, err := qdrant.NewClient(&qdrant.Config{
+        Host:   grpcHost,
+        Port:   grpcPort,
+        APIKey: apiKey,
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    // Use client to interact with Qdrant...
+    _ = context.Background()
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the official Python client for Qdrant:
+
+```bash title="Terminal"
+pip install qdrant-client
+```
+
+Read the injected environment variables and connect using gRPC (recommended for performance):
+
+```python title="Python — app.py"
+import os
+from qdrant_client import QdrantClient
+
+# Read Aspire-injected connection properties
+grpc_host = os.getenv("QDRANT_GRPCHOST")
+grpc_port = int(os.getenv("QDRANT_GRPCPORT"))
+api_key = os.getenv("QDRANT_APIKEY")
+
+client = QdrantClient(
+    host=grpc_host,
+    port=grpc_port,
+    api_key=api_key,
+    prefer_grpc=True,
+)
+
+# Use client to interact with Qdrant...
+```
+
+Or connect using the REST endpoint:
+
+```python title="Python — Connect via REST"
+import os
+from qdrant_client import QdrantClient
+
+http_uri = os.getenv("QDRANT_HTTPURI")
+api_key = os.getenv("QDRANT_APIKEY")
+
+client = QdrantClient(url=http_uri, api_key=api_key)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the official TypeScript/JavaScript REST client for Qdrant:
+
+```bash title="Terminal"
+npm install @qdrant/js-client-rest
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+// Read Aspire-injected connection properties
+const client = new QdrantClient({
+    url: process.env.QDRANT_HTTPURI,
+    apiKey: process.env.QDRANT_APIKEY,
+});
+
+// Use client to interact with Qdrant...
+```
+
+Or connect using individual host and port properties:
+
+```typescript title="TypeScript — Connect with host and port"
+import { QdrantClient } from '@qdrant/js-client-rest';
+
+const client = new QdrantClient({
+    host: process.env.QDRANT_HTTPHOST,
+    port: Number(process.env.QDRANT_HTTPPORT),
+    apiKey: process.env.QDRANT_APIKEY,
+});
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Qdrant Hosting integration](../qdrant-host/) for reference.
+</Aside>

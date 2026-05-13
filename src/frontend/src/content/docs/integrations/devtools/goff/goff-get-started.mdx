@@ -1,87 +1,89 @@
 ---
 title: Get started with the GO Feature Flag integrations
-description: Learn how to set up the Aspire GO Feature Flag hosting and client integrations simply.
-prev: false
+description: Understand why you use the Aspire GO Feature Flag integrations and how they fit together.
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import ThemeImage from '@components/ThemeImage.astro';
+import { Image } from 'astro:assets';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import goffIcon from '@assets/icons/go-feature-flag.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<ThemeImage
-  light={goffIcon}
-  dark={goffIcon}
-  alt="goff logo"
+<Image
+  src={goffIcon}
+  alt="GO Feature Flag logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-Feature flags let you modify system behavior without changing code. Deploy every day, release when you are ready. Reduce risk by releasing your features progressively.
+[GO Feature Flag](https://gofeatureflag.org/) is a simple, open-source feature flag solution that acts as an [OpenFeature](https://openfeature.dev/)-compliant relay proxy. It lets you modify system behavior without deploying new code — deploy every day and release when you're ready, with support for targeted rollouts and multi-language SDKs. The Aspire GO Feature Flag integration lets you model a relay proxy resource in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-* [GO Feature Flag](https://gofeatureflag.org/) believes in simplicity and offers a simple and lightweight solution to use feature flags.
-* Target individual segments, users, and development environments, use advanced rollout functionality.
-* 100% Opensource, no vendor locking, supports your favorite languages and is pushing for standardisation with the support of OpenFeature.
+## Why use GO Feature Flag with Aspire
 
-In this introduction, you'll see how to install and use the Aspire GO Feature Flag integrations in a simple configuration. If you already have this knowledge, see [GO Feature Flag hosting integration](/integrations/devtools/goff/goff-host/) for full reference details.
+Adding GO Feature Flag through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+- **Zero-config local development.** Aspire runs the relay proxy from the [`docker.io/gofeatureflag/go-feature-flag`](https://hub.docker.com/r/gofeatureflag/go-feature-flag) container image automatically.
+- **Consistent connection info across languages.** Once you reference the relay proxy resource from a consuming app, Aspire injects the endpoint as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check against the relay proxy `/health` endpoint so the dashboard can tell when it's ready.
+- **Dashboard observability.** The GO Feature Flag resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **OpenTelemetry export.** The relay proxy is configured to export traces and metrics through the Aspire OTLP exporter automatically.
+- **A first-class C# client integration.** C# apps can use the `CommunityToolkit.Aspire.GoFeatureFlag` package to register an OpenFeature `GOFeatureFlagProvider` through dependency injection, with health checks included.
 
-## Set up hosting integration
+## How the pieces fit together
 
-To begin, install the Aspire GO Feature Flag hosting integration in your Aspire AppHost project:
+The GO Feature Flag integration has two sides: a **hosting integration** that you use in your AppHost to model the relay proxy resource, and a **connection story** for consuming apps that reference it.
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.GoFeatureFlag" />
+```mermaid
+architecture-beta
 
-In your app host project, call `AddGoFeatureFlag` on the builder instance to add a goff container resource:
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service hosting(server)[Hosting integration] in apphost
+  service goff(server)[GO Feature Flag relay proxy] in apphost
 
-var goff = builder.AddGoFeatureFlag("goff")
-                  .WithGoffBindMount("./goff");
+  service app(server)[App] in consumer
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(goff);
-
-// After adding all resources, run the app...
+  hosting:R --> L:goff
+  goff:R --> L:app
 ```
 
-goff uses either the `YAML`, `JSON` or `TOML` format to configure feature flags. The `WithGoffBindMount` method mounts a local folder into the container where goff reads its flag configuration files.
+The **hosting integration** lives in your AppHost project and models the GO Feature Flag relay proxy as a resource. The consuming app uses the endpoint information Aspire injects to evaluate feature flags through the relay proxy.
 
-## Set up client integration
+Getting there is a two-step process: model the GO Feature Flag resource in your AppHost, then connect to the relay proxy from each app that needs it.
 
-Next, install the Aspire GO Feature Flag client integration in your client-consuming project:
+<Steps>
 
-<InstallDotNetPackage packageName="CommunityToolkit.Aspire.GoFeatureFlag" />
+1. ### Model GO Feature Flag in your AppHost
 
-In the `Program.cs` file of your client-consuming project, call the `AddGoFeatureFlagClient` extension method to register a `GoFeatureFlagProvider` for use via the dependency injection container:
+    Add the GO Feature Flag hosting integration to your AppHost, then declare a relay proxy resource and reference it from the apps that need to evaluate flags. The [GO Feature Flag Hosting integration](/integrations/devtools/goff/goff-host/) article walks through every capability — bind mounts, data volumes, log levels, custom ports, and more.
 
-```csharp
-builder.AddGoFeatureFlagClient(connectionName: "goff");
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/devtools/goff/goff-host/'>
+        Set up GO Feature Flag in the AppHost
+    </LinkButton>
 
-You can then retrieve the `GoFeatureFlagProvider` instance using dependency injection. For example, to retrieve the provider from a service:
+2. ### Connect from your consuming app
 
-```csharp
-public class ExampleService(GoFeatureFlagProvider provider)
-{
-    // Use provider...
-}
-```
+    When you reference a GO Feature Flag resource from a consuming app, Aspire injects its endpoint as environment variables. See [Connect to GO Feature Flag](/integrations/devtools/goff/goff-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
 
-For full reference details, see [GO Feature Flag hosting integration](/integrations/devtools/goff/goff-host/) and [GO Feature Flag client integration](/integrations/devtools/goff/goff-client/).
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/devtools/goff/goff-connect/'>
+        Connect to GO Feature Flag
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
 - [GO Feature Flag documentation](https://gofeatureflag.org/)
-- [.NET SDK for GO Feature Flag](https://github.com/open-feature/dotnet-sdk-contrib/tree/main/src/OpenFeature.Providers.GOFeatureFlag)
 - [OpenFeature documentation](https://openfeature.dev)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)

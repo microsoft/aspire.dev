@@ -1,90 +1,180 @@
 ---
-title: Azure Container Registry Hosting integration
-description: Learn about the Aspire Azure Container Registry hosting integration including provisioning, customization, and configuration.
+title: Set up Azure Container Registry in the AppHost
+description: Learn how to use the Aspire Azure Container Registry Hosting integration to provision, configure, and manage an Azure Container Registry resource in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import LearnMore from '@components/LearnMore.astro';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
 
 <Image
   src={containerRegistryIcon}
   alt="Azure Container Registry logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Azure Container Registry](https://learn.microsoft.com/azure/container-registry) is a managed Docker container registry service that simplifies the storage, management, and deployment of container images. The Aspire integration allows you to provision or reference an existing Azure Container Registry and seamlessly integrate it with your app's compute environments.
+This article is the reference for the Aspire Azure Container Registry Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model an Azure Container Registry resource in your [`AppHost`](/get-started/app-host/) project.
 
-## Key capabilities
+If you're new to the Azure Container Registry integration, start with the [Get started with Azure Container Registry integrations](/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/) guide. For how the registry is consumed at deployment time — including the `loginServer` output — see [Connect to Azure Container Registry](../azure-container-registry-connect/).
 
-Aspire apps often build and run container images locally but require secure registries for staging and production environments. The Azure Container Registry integration provides the following capabilities:
+## Installation
 
-- Provision or reference an existing Azure Container Registry.
-- Attach the registry to any compute-environment resource (for example, Azure Container Apps, Docker, Kubernetes) to ensure proper credential flow.
-- Grant fine-grained ACR role assignments to other Azure resources.
+To start building an Aspire app that uses Azure Container Registry, install the [📦 Aspire.Hosting.Azure.ContainerRegistry](https://www.nuget.org/packages/Aspire.Hosting.Azure.ContainerRegistry) NuGet package:
 
-## Supported scenarios
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-The Azure Container Registry integration supports the following scenarios:
+```bash title="Terminal"
+aspire add Aspire.Hosting.Azure.ContainerRegistry
+```
 
-- **Provisioning a new registry**: Automatically create a new Azure Container Registry for your app.
-- **Referencing an existing registry**: Use an existing Azure Container Registry by providing its name and resource group.
-- **Credential management**: Automatically flow credentials to compute environments for secure image pulls.
-- **Role assignments**: Assign specific roles (for example, `AcrPush`) to enable services to push images to the registry.
-- **Scheduled image cleanup**: Automatically remove old or unused container images on a cron schedule with purge tasks.
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
-## Hosting integration
+Or, choose a manual installation approach:
 
-The Aspire Azure Container Registry hosting integration models the container registry as the `AzureContainerRegistryResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.ContainerRegistry](https://www.nuget.org/packages/Aspire.Hosting.Azure.ContainerRegistry) NuGet package:
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.ContainerRegistry@*
+```
 
-<InstallPackage packageName="Aspire.Hosting.Azure.ContainerRegistry" />
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.ContainerRegistry" Version="*" />
+```
 
-## Provision a new container registry
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-The following example demonstrates how to provision a new Azure Container Registry and attach it to a container app environment:
+```bash title="Terminal"
+aspire add Aspire.Hosting.Azure.ContainerRegistry
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Container Registry hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.ContainerRegistry": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  When you call `AddAzureContainerRegistry` (or `addAzureContainerRegistry`), it implicitly calls
+  `AddAzureProvisioning` — which adds support for generating Azure resources dynamically during app
+  startup. The app must configure the appropriate subscription and location. For more information,
+  see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Add Azure Container Registry resource
+
+Once you've installed the hosting integration in your AppHost project, add an Azure Container Registry resource and wire it to a compute environment:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Add (or reference) the registry
 var acr = builder.AddAzureContainerRegistry("my-acr");
 
-// Wire an environment to that registry
 builder.AddAzureContainerAppEnvironment("env")
-       .WithAzureContainerRegistry(acr);
+    .WithAzureContainerRegistry(acr);
 
 builder.Build().Run();
 ```
 
-The preceding code:
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-- Creates a new Azure Container Registry named `my-acr`.
-- Attaches the registry to an Azure Container Apps environment named `env`.
-- Optionally grants the `AcrPush` role to a project resource named `api`, allowing it to push images to the registry.
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-<LearnMore>
-  For more information, see [Configure Azure Container Apps
-  environments](/integrations/cloud/azure/configure-container-apps/).
-</LearnMore>
+const builder = await createBuilder();
+
+const acr = await builder.addAzureContainerRegistry("my-acr");
+
+const env = await builder.addAzureContainerAppEnvironment("env");
+await env.withAzureContainerRegistry(acr);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. The registry resource is modeled as an `AzureContainerRegistryResource` in the Aspire resource graph.
+
+1. Calling `WithAzureContainerRegistry` (or `withAzureContainerRegistry`) on the compute environment attaches the registry and provisions the necessary role assignments and managed-identity bindings so the environment can pull images securely.
+
+1. At deployment time, the generated Bicep provisions the registry and outputs its `name` and `loginServer` for use by the deployment pipeline.
+
+</Steps>
+
+<Aside type="note">
+  Compute environments such as `AzureContainerAppEnvironment` automatically provision a default Azure Container Registry when none is specified. You only need to call `WithAzureContainerRegistry` when you want to use a specific registry.
+</Aside>
+
+## Get the registry from a compute environment
+
+To retrieve the registry that is associated with a compute environment — for example, to add purge tasks to the auto-provisioned default registry — use `GetAzureContainerRegistry` (or `getAzureContainerRegistry`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var env = builder.AddAzureContainerAppEnvironment("env");
+
+// Retrieve the default auto-provisioned registry
+var registry = env.GetAzureContainerRegistry();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const env = await builder.addAzureContainerAppEnvironment("env");
+
+// Retrieve the default auto-provisioned registry
+const registry = await env.getAzureContainerRegistry();
+```
+
+</TabItem>
+</Tabs>
+
+This returns an `AzureContainerRegistryResource` builder that you can use for further configuration, such as [scheduling image cleanup with purge tasks](#schedule-image-cleanup-with-purge-tasks).
 
 <Aside type="caution">
-  When you call `AddAzureContainerRegistry`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  The `IAzureContainerRegistry` interface is obsolete as of Aspire 13.2. If your code casts a compute environment to `IAzureContainerRegistry`, migrate to the `ContainerRegistry` property on `IAzureComputeEnvironmentResource` instead. For more information, see [What's new in Aspire 13.2](/whats-new/aspire-13-2/#breaking-changes).
 </Aside>
 
 ## Reference an existing container registry
 
-To reference an existing Azure Container Registry, use the `PublishAsExisting` method with the registry name and resource group:
+To reference a registry your team already manages rather than provisioning a new one, use `publishAsExisting`, `runAsExisting`, or `asExisting`:
 
-:::code source="snippets/acr/AspireAcr.AppHost/AspireAcr.AppHost/Program.Existing.cs" id="existing":::
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+Use `PublishAsExisting` to reference an existing registry only in publish (deployment) mode:
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -92,56 +182,140 @@ var builder = DistributedApplication.CreateBuilder(args);
 var registryName = builder.AddParameter("registryName");
 var rgName = builder.AddParameter("rgName");
 
-// Add (or reference) the registry
 var acr = builder.AddAzureContainerRegistry("my-acr")
     .PublishAsExisting(registryName, rgName);
 
-// Wire an environment to that registry
 builder.AddAzureContainerAppEnvironment("env")
     .WithAzureContainerRegistry(acr);
 
 builder.Build().Run();
 ```
 
-The preceding code:
+Use `AsExisting` to reference an existing registry in both run and publish modes:
 
-- References an existing Azure Container Registry named `my-acr` in the specified resource group.
-- Attaches the registry to an Azure Container Apps environment named `env`.
-- Uses parameters to allow for dynamic configuration of the registry name and resource group.
-- Optionally grants the `AcrPush` role to a project resource named `api`, allowing it to push images to the registry.
-
-### Access the registry from a compute environment
-
-Compute environments such as `AzureContainerAppEnvironment` and `AzureAppServiceEnvironment` automatically provision a default Azure Container Registry. You can also specify an explicit registry with `WithAzureContainerRegistry`. To get a resource builder for the associated registry, use the `GetAzureContainerRegistry` method:
-
-```csharp title="C# — Access the registry from the compute environment"
-var env = builder.AddAzureContainerAppEnvironment("env");
-
-// A default registry is auto-provisioned — no need to call
-// WithAzureContainerRegistry unless you want a specific one
-var registry = env.GetAzureContainerRegistry();
+```csharp title="C# — AppHost.cs"
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .AsExisting(name: builder.AddParameter("registryName"),
+                options: new() { ResourceGroup = builder.AddParameter("rgName") });
 ```
 
-This returns an `IResourceBuilder<AzureContainerRegistryResource>` that you can use for further configuration, such as adding [purge tasks](#schedule-image-cleanup-with-purge-tasks).
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-<Aside type="caution">
-  The `IAzureContainerRegistry` interface is obsolete as of Aspire 13.2. If your code casts a compute environment to `IAzureContainerRegistry`, migrate to the `ContainerRegistry` property on `IAzureComputeEnvironmentResource` instead. For more information, see [What's new in Aspire 13.2](/whats-new/aspire-13-2/#breaking-changes).
-</Aside>
+Use `publishAsExisting` to reference an existing registry only in publish (deployment) mode:
 
-### Schedule image cleanup with purge tasks
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-Over time, container registries accumulate old images that consume storage and increase costs. The `WithPurgeTask` method adds a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused container images on a cron schedule:
+const builder = await createBuilder();
 
-```csharp title="C# — Add a purge task"
+const registryName = await builder.addParameter("registryName");
+const rgName = await builder.addParameter("rgName");
+
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.publishAsExisting(registryName, { resourceGroup: rgName });
+
+const env = await builder.addAzureContainerAppEnvironment("env");
+await env.withAzureContainerRegistry(acr);
+
+await builder.build().run();
+```
+
+Use `asExisting` to reference an existing registry in both run and publish modes:
+
+```typescript title="TypeScript — apphost.ts"
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.asExisting(registryName, { resourceGroup: rgName });
+```
+
+</TabItem>
+</Tabs>
+
+## Assign roles for access control
+
+Use `WithRoleAssignments` (or `withRoleAssignments`) to grant an Azure resource fine-grained access to the registry. The `ContainerRegistryBuiltInRole` enum (TypeScript: `AzureContainerRegistryRole`) covers the standard ACR roles:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var acr = builder.AddAzureContainerRegistry("my-acr");
+
+// Grant the 'api' project permission to push images
+builder.AddProject<Projects.Api>("api")
+    .WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPush);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, AzureContainerRegistryRole } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const acr = await builder.addAzureContainerRegistry("my-acr");
+
+// Grant the 'api' project permission to push images
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withRoleAssignments(acr, [AzureContainerRegistryRole.AcrPush]);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Available roles include: `AcrPull`, `AcrPush`, `AcrDelete`, `AcrImageSigner`, `AcrQuarantineReader`, and `AcrQuarantineWriter`.
+
+## Schedule image cleanup with purge tasks
+
+Over time, container registries accumulate old images that consume storage. Use `WithPurgeTask` (or `withPurgeTask`) to add a scheduled [ACR purge task](https://learn.microsoft.com/azure/container-registry/container-registry-auto-purge) that automatically removes old or unused images:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
 var acr = builder.AddAzureContainerRegistry("my-acr")
     .WithPurgeTask("0 1 * * *", ago: TimeSpan.FromDays(7), keep: 5);
+
+builder.Build().Run();
 ```
 
-The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-#### Multiple purge tasks
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-You can add multiple purge tasks to a single registry, each with different schedules and filters:
+const builder = await createBuilder();
+
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.withPurgeTask("0 1 * * *", {
+    ago: 7 * 24 * 60 * 60 * 1000,  // 7 days in milliseconds
+    keep: 5,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code creates a purge task that runs daily at 1:00 AM, removing images older than 7 days while keeping the 5 most recent images per repository. The C# `ago` parameter accepts a `TimeSpan`; the TypeScript `ago` option accepts milliseconds.
+
+### Multiple purge tasks
+
+Add multiple purge tasks to target different repositories with different schedules:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="C# — Multiple purge tasks"
 var acr = builder.AddAzureContainerRegistry("my-acr")
@@ -149,26 +323,59 @@ var acr = builder.AddAzureContainerRegistry("my-acr")
     .WithPurgeTask("0 2 * * 0", filter: "app2:.*", ago: TimeSpan.FromDays(30), keep: 10);
 ```
 
-Each purge task is given a unique name automatically. You can also specify a custom task name with the `taskName` parameter.
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-### Key features
-
-**Automatic credential flow**
-
-When you attach an Azure Container Registry to a compute environment, Aspire automatically ensures that the correct credentials are available for secure image pulls.
-
-**Fine-grained role assignments**
-
-You can assign specific roles to Azure resources to control access to the container registry. For example, the `AcrPush` role allows a service to push images to the registry.
-
-```csharp
-builder.AddProject("api", "../Api/Api.csproj")
-       .WithRoleAssignments(acr, ContainerRegistryBuiltInRole.AcrPush);
+```typescript title="TypeScript — Multiple purge tasks"
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.withPurgeTask("0 1 * * *", { filter: "app1:.*", keep: 3 });
+await acr.withPurgeTask("0 2 * * 0", {
+    filter: "app2:.*",
+    ago: 30 * 24 * 60 * 60 * 1000,
+    keep: 10,
+});
 ```
+
+</TabItem>
+</Tabs>
+
+Each purge task is given a unique name automatically. Use the `taskName` option to specify a custom task name.
+
+## Customize the provisioning infrastructure
+
+To make changes that go beyond what the built-in APIs expose, configure the underlying Bicep infrastructure directly via `ConfigureInfrastructure` (or `configureInfrastructure`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .ConfigureInfrastructure(infra =>
+    {
+        var registry = infra.GetProvisionableResources()
+            .OfType<ContainerRegistry>()
+            .Single();
+
+        registry.Sku = new ContainerRegistrySku { Name = ContainerRegistrySkuName.Premium };
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.configureInfrastructure(async (infra) => {
+    // Use the Bicep infrastructure object to customize the registry
+});
+```
+
+</TabItem>
+</Tabs>
 
 ## Provisioning-generated Bicep
 
-If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand, instead the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Container Registry resource, the following Bicep is generated:
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Container Registry resource, the following Bicep is generated:
 
 ```bicep title="my-acr.module.bicep"
 @description('The location for the resource(s) to be deployed.')
@@ -190,23 +397,14 @@ output name string = my_acr.name
 output loginServer string = my_acr.properties.loginServer
 ```
 
-The preceding Bicep provisions an Azure Container Registry resource. Additionally, the added Azure Container App environment resource is also generated:
+The generated Bicep outputs the registry `name` and `loginServer` (the registry endpoint used for image push/pull). These outputs are referenced by the compute environment's Bicep and by your deployment pipeline.
 
-```bicep title="env.module.bicep"
-@description('The location for the resource(s) to be deployed.')
-param location string = resourceGroup().location
+### Attach to a compute environment (Bicep)
 
-param userPrincipalId string
+When you attach a registry to an Azure Container Apps environment, the environment's generated Bicep references the registry outputs and creates the required `AcrPull` role assignment on the managed identity:
 
-param tags object = { }
-
+```bicep title="env.module.bicep (excerpt)"
 param my_acr_outputs_name string
-
-resource env_mi 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: take('env_mi-${uniqueString(resourceGroup().id)}', 128)
-  location: location
-  tags: tags
-}
 
 resource my_acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
   name: my_acr_outputs_name
@@ -221,75 +419,12 @@ resource my_acr_env_mi_AcrPull 'Microsoft.Authorization/roleAssignments@2022-04-
   }
   scope: my_acr
 }
-
-resource env_law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: take('envlaw-${uniqueString(resourceGroup().id)}', 63)
-  location: location
-  properties: {
-    sku: {
-      name: 'PerGB2018'
-    }
-  }
-  tags: tags
-}
-
-resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
-  name: take('env${uniqueString(resourceGroup().id)}', 24)
-  location: location
-  properties: {
-    appLogsConfiguration: {
-      destination: 'log-analytics'
-      logAnalyticsConfiguration: {
-        customerId: env_law.properties.customerId
-        sharedKey: env_law.listKeys().primarySharedKey
-      }
-    }
-    workloadProfiles: [
-      {
-        name: 'consumption'
-        workloadProfileType: 'Consumption'
-      }
-    ]
-  }
-  tags: tags
-}
-
-resource aspireDashboard 'Microsoft.App/managedEnvironments/dotNetComponents@2024-10-02-preview' = {
-  name: 'aspire-dashboard'
-  properties: {
-    componentType: 'AspireDashboard'
-  }
-  parent: env
-}
-
-resource env_Contributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(env.id, userPrincipalId, subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c'))
-  properties: {
-    principalId: userPrincipalId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
-  }
-  scope: env
-}
-
-output MANAGED_IDENTITY_NAME string = env_mi.name
-
-output MANAGED_IDENTITY_PRINCIPAL_ID string = env_mi.properties.principalId
-
-output AZURE_LOG_ANALYTICS_WORKSPACE_NAME string = env_law.name
-
-output AZURE_LOG_ANALYTICS_WORKSPACE_ID string = env_law.id
-
-output AZURE_CONTAINER_REGISTRY_NAME string = my_acr_outputs_name
-
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = my_acr.properties.loginServer
-
-output AZURE_CONTAINER_REGISTRY_MANAGED_IDENTITY_ID string = env_mi.id
-
-output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = env.name
-
-output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = env.id
-
-output AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN string = env.properties.defaultDomain
 ```
 
-The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly are overwritten, so make changes through the C# provisioning APIs to ensure they're reflected in the generated files.
+The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly are overwritten, so make changes through the C# provisioning APIs (or `configureInfrastructure`) to ensure they're reflected in the generated files.
+
+## See also
+
+- [Azure Container Registry documentation](https://learn.microsoft.com/azure/container-registry/)
+- [Configure Azure Container Apps environments](/integrations/cloud/azure/configure-container-apps/)
+- [Local Azure provisioning](/integrations/cloud/azure/local-provisioning/)

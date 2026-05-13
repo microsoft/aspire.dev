@@ -1,65 +1,85 @@
 ---
-title: Azure Data Explorer (Kusto)
-description: Learn how to use the Azure Data Explorer (Kusto) hosting integration to add Kusto clusters and databases to your Aspire application.
+title: Set up Azure Data Explorer in the AppHost
+description: Learn how to use the Aspire Azure Data Explorer (Kusto) hosting integration to orchestrate and configure Kusto clusters and databases in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import kustoIcon from '@assets/icons/azure-dataexplorer-icon.svg';
 
 <Image
   src={kustoIcon}
   alt="Azure Data Explorer logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-[Azure Data Explorer](https://azure.microsoft.com/services/data-explorer/) (also known as Kusto) is a fast and highly scalable data exploration service for log and telemetry data. The Aspire Azure Data Explorer integration enables you to provision Kusto clusters and databases, or run a local emulator during development.
+This article is the reference for the Aspire Azure Data Explorer (Kusto) hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model Azure Data Explorer clusters and databases in your [`AppHost`](/get-started/app-host/) project.
 
-## Hosting integration
+[Azure Data Explorer](https://azure.microsoft.com/services/data-explorer/) (also known as Kusto) is a fast and highly scalable data exploration service for log and telemetry data. The hosting integration models the following types:
 
-The Aspire Azure Data Explorer hosting integration models Kusto resources as the following types:
+- `AzureKustoClusterResource`: A top-level cluster resource that holds databases and carries connection information.
+- `AzureKustoReadWriteDatabaseResource`: A read-write database within a cluster.
+- `AzureKustoEmulatorResource`: The local Kustainer emulator running as a container.
 
-- `AzureKustoClusterResource`: Represents an Azure Data Explorer (Kusto) cluster resource.
-- `AzureKustoReadWriteDatabaseResource`: Represents an Azure Data Explorer database resource.
-- `AzureKustoEmulatorResource`: Represents an Azure Data Explorer emulator resource.
+## Installation
 
-To access these types and APIs, add the [📦 Aspire.Hosting.Azure.Kusto](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kusto) NuGet package to your AppHost project.
+To start building an Aspire app that uses Azure Data Explorer, install the [📦 Aspire.Hosting.Azure.Kusto](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kusto) NuGet package:
 
-<InstallPackage packageName="Aspire.Hosting.Azure.Kusto" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-### Add Azure Data Explorer cluster resource
-
-In your AppHost project, call `AddAzureKustoCluster` to add and return an Azure Data Explorer cluster resource builder:
-
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
-
-var kusto = builder.AddAzureKustoCluster("kusto");
-
-builder.AddProject<Projects.ExampleProject>()
-    .WithReference(kusto);
-
-// After adding all resources, run the app...
+```bash title="Terminal"
+aspire add azure-kusto
 ```
 
-The preceding code adds an Azure Data Explorer cluster resource named `kusto` to the application model.
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
-<Aside type="caution">
-  When you call `AddAzureKustoCluster`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
+Or, choose a manual installation approach:
 
-### Add Azure Data Explorer database
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.Kusto@*
+```
 
-To add a database to a Kusto cluster, call the `AddReadWriteDatabase` method on the cluster resource builder:
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.Kusto" Version="*" />
+```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-kusto
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Data Explorer hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Kusto": "13.3.0-preview.1.26256.5"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add an Azure Data Explorer cluster resource
+
+Once you've installed the hosting integration, call `AddAzureKustoCluster` (or `addAzureKustoCluster`) to declare a cluster, then call `AddReadWriteDatabase` (or `addReadWriteDatabase`) to declare one or more databases inside it:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -72,17 +92,40 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The preceding code:
+const builder = await createBuilder();
 
-- Adds an Azure Data Explorer cluster resource named `kusto`.
-- Adds a database named `analytics` to the cluster.
-- References the database in the `ExampleProject` and waits for it to be ready.
+const kusto = await builder.addAzureKustoCluster("kusto");
+const database = await kusto.addReadWriteDatabase("analytics");
 
-### Run Azure Data Explorer as an emulator
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(database)
+    .waitFor(database);
 
-For local development and testing, you can run Azure Data Explorer as an emulator using the Kustainer container. Call the `RunAsEmulator` method:
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
 
+The preceding code adds an Azure Data Explorer cluster named `kusto` with a read-write database named `analytics`. The `WithReference` (or `withReference`) method injects the connection information into the consuming project.
+
+<Aside type="caution">
+  When you call `AddAzureKustoCluster`, it implicitly calls `AddAzureProvisioning` —
+  which adds support for generating Azure resources dynamically during app startup.
+  The app must configure the appropriate subscription and location. For more
+  information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+</Aside>
+
+## Run as emulator
+
+The hosting integration supports running Azure Data Explorer locally using the Kustainer container image. This lets you develop and test without an Azure subscription or an existing cluster.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -97,17 +140,35 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-When running as an emulator:
+const builder = await createBuilder();
 
-- The Kustainer Docker container is used to emulate Azure Data Explorer.
-- Databases are automatically created when the emulator starts.
-- The connection string is automatically configured for local development.
+const kusto = await builder.addAzureKustoCluster("kusto")
+    .runAsEmulator();
 
-### Configure the emulator port
+const database = await kusto.addReadWriteDatabase("analytics");
 
-By default, the emulator uses a dynamic port. To configure a specific host port:
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(database)
+    .waitFor(database);
 
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When running as an emulator, databases are automatically created when the container starts and the connection string is configured automatically for local development.
+
+### Configure the emulator host port
+
+By default, the emulator uses a dynamic host port. To fix the host port, pass a `configureContainer` callback and call `WithHostPort` (or `withHostPort`):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -119,11 +180,31 @@ var kusto = builder.AddAzureKustoCluster("kusto")
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-### Add database creation script
+const builder = await createBuilder();
+
+const kusto = await builder.addAzureKustoCluster("kusto")
+    .runAsEmulator({
+        configureContainer: async (emulator) => {
+            await emulator.withHostPort({ port: 8080 });
+        },
+    });
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+### Add a database creation script
 
 When running as an emulator, you can provide a KQL script to initialize the database with tables and data:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -145,68 +226,19 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose `withCreationScript` on the database resource. To initialise the emulator database schema from a TypeScript AppHost, apply schema through your application on startup instead.
+</TabItem>
+</Tabs>
 
 <Aside type="note">
   The creation script is only executed when running as an emulator. In production scenarios, database schema should be managed through your deployment and provisioning process.
 </Aside>
 
-## Client integration
+## Provisioning-generated Bicep
 
-<Aside type="note">
-  The Azure Data Explorer hosting integration does not include a corresponding client integration package. Use the [Kusto .NET SDK](https://learn.microsoft.com/azure/data-explorer/kusto/api/netfx/about-the-sdk) directly in your application to query data.
-</Aside>
-
-### Connect to Azure Data Explorer from your application
-
-To connect to Azure Data Explorer from your application, use the connection string provided by Aspire:
-
-```csharp title="C# — Program.cs"
-var connectionString = builder.Configuration.GetConnectionString("analytics");
-
-var kcsb = new KustoConnectionStringBuilder(connectionString)
-    .WithAadAzureTokenCredentialsAuthentication(new DefaultAzureCredential());
-
-using var client = KustoClientFactory.CreateCslQueryProvider(kcsb);
-```
-
-When running against the emulator, no authentication is required:
-
-```csharp title="C# — Program.cs"
-var connectionString = builder.Configuration.GetConnectionString("analytics");
-var kcsb = new KustoConnectionStringBuilder(connectionString);
-
-using var client = KustoClientFactory.CreateCslQueryProvider(kcsb);
-```
-
-## Dashboard commands
-
-When an Azure Data Explorer cluster resource is running, the Aspire dashboard provides commands to open the Kusto Explorer:
-
-- **Open in Kusto Explorer (Desktop)**: Opens the desktop Kusto Explorer application (Windows only).
-- **Open in Kusto Explorer (Web)**: Opens the web-based Kusto Explorer (Azure deployments only).
-
-## Connection string and properties
-
-When you add an Azure Data Explorer resource to your application, the connection properties are made available to consuming resources. The following properties are available:
-
-### Cluster resource
-
-| Property | Description |
-|----------|-------------|
-| `Uri` | The URI of the Azure Data Explorer cluster endpoint. |
-
-### Database resource
-
-| Property | Description |
-|----------|-------------|
-| `Uri` | The URI of the parent cluster endpoint (inherited from cluster). |
-| `DatabaseName` | The name of the database. |
-
-The connection string format is: `Data Source=https://{cluster-uri};Initial Catalog={database-name}`
-
-### Provisioning-generated Bicep
-
-If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by-hand—the provisioning APIs generate Bicep for you. When you publish your app, the generated Bicep is output alongside the manifest file. When you add an Azure Data Explorer resource, the following Bicep is generated:
+If you're new to [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview), it's a domain-specific language for defining Azure resources. With Aspire, you don't need to write Bicep by hand — the provisioning APIs generate it for you. When you publish your app, the generated Bicep is written alongside the manifest file. When you add an Azure Data Explorer resource, the following Bicep is generated:
 
 ```bicep title="Generated Bicep — kusto.bicep"
 @description('The location for the resource(s) to be deployed.')
@@ -254,13 +286,15 @@ output kustoClusterUri string = kusto.properties.uri
 
 The preceding Bicep provisions an Azure Data Explorer cluster with a dev/test SKU and a read-write database.
 
-The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
+The generated Bicep is a starting point — customise it through the C# provisioning APIs, not by editing the file directly, as direct edits are overwritten on the next publish.
 
-#### Customize provisioning infrastructure
+### Customize provisioning infrastructure
 
-All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API. For example, you can configure the cluster SKU, capacity, and more. The following example demonstrates how to customize the Azure Data Explorer resource:
+All Aspire Azure resources subclass `AzureProvisioningResource`. The `ConfigureInfrastructure` (or `configureInfrastructure`) API lets you customise the generated Bicep with a fluent callback:
 
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kusto = builder.AddAzureKustoCluster("kusto")
@@ -278,25 +312,64 @@ var kusto = builder.AddAzureKustoCluster("kusto")
         };
         cluster.IsAutoStopEnabled = false;
         cluster.Tags.Add("environment", "production");
-    })
-    .AddReadWriteDatabase("analytics");
+    });
+
+kusto.AddReadWriteDatabase("analytics");
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The preceding code:
+const builder = await createBuilder();
 
-- Chains a call to the `ConfigureInfrastructure` API:
-  - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
-  - The provisionable resources are retrieved by calling `GetProvisionableResources`.
-  - The `KustoCluster` is configured with a Standard SKU, 2-node capacity, and auto-stop disabled.
+const kusto = await builder.addAzureKustoCluster("kusto");
+await kusto.configureInfrastructure(async (infra) => {
+    // Modify infra resources here using the AzureResourceInfrastructure API
+});
 
-For more information, see [Customize Azure resources](/integrations/cloud/azure/customize-resources/). For the full list of configurable properties, see the [Azure.Provisioning.Kusto](https://learn.microsoft.com/dotnet/api/azure.provisioning.kusto) API documentation.
+await kusto.addReadWriteDatabase("analytics");
 
-## Health checks
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
 
-The Azure Data Explorer hosting integration automatically adds health checks for both cluster and database resources. The health check verifies that:
+The preceding C# code:
 
-- The cluster is reachable and responding to queries
-- When using a database, the database exists and is accessible
+- Retrieves the `KustoCluster` from the provisionable resources.
+- Sets the SKU to `StandardE8aV4` with a capacity of `2`.
+- Disables auto-stop.
+- Adds a tag with key `environment` and value `production`.
+
+For more configuration options, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization). For the full list of configurable properties, see the [Azure.Provisioning.Kusto](https://learn.microsoft.com/dotnet/api/azure.provisioning.kusto) API documentation.
+
+## Connection properties
+
+When you add an Azure Data Explorer resource to your application, the connection properties are made available to consuming resources:
+
+### Cluster resource
+
+| Property | Description |
+|----------|-------------|
+| `Uri` | The URI of the Azure Data Explorer cluster endpoint. |
+
+### Database resource
+
+| Property | Description |
+|----------|-------------|
+| `Uri` | The URI of the parent cluster endpoint (inherited from cluster). |
+| `DatabaseName` | The name of the database. |
+
+The connection string format is: `Data Source=https://{cluster-uri};Initial Catalog={database-name}`
+
+<Aside type="note">
+  The Azure Data Explorer hosting integration does not include a corresponding client integration package. Use the [Kusto .NET SDK](https://learn.microsoft.com/azure/data-explorer/kusto/api/netfx/about-the-sdk) directly in your application to query data.
+</Aside>
+
+## Hosting integration health checks
+
+The Azure Data Explorer hosting integration automatically adds health checks for both cluster and database resources. The health check verifies that the cluster is reachable and responding to queries, and that any referenced database exists and is accessible.
 
 Health check status is displayed in the Aspire dashboard resource list.
 
@@ -305,4 +378,5 @@ Health check status is displayed in the Aspire dashboard resource list.
 - [Azure Data Explorer documentation](https://learn.microsoft.com/azure/data-explorer/)
 - [Kusto Query Language (KQL) overview](https://learn.microsoft.com/azure/data-explorer/kusto/query/)
 - [Kusto .NET SDK](https://learn.microsoft.com/azure/data-explorer/kusto/api/netfx/about-the-sdk)
+- [Customize Azure resources](/integrations/cloud/azure/customize-resources/)
 - [Azure integration overview](/integrations/cloud/azure/overview/)

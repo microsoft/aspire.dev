@@ -1,0 +1,319 @@
+---
+title: Connect to RabbitMQ
+description: Learn how to connect to RabbitMQ from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import rabbitmqIcon from '@assets/icons/rabbitmq-icon.svg';
+
+<Image
+  src={rabbitmqIcon}
+  alt="RabbitMQ logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a RabbitMQ resource that's already modeled in your AppHost. For the AppHost API surface — adding a RabbitMQ server, data volumes, management plugin, parameters, and more — see [RabbitMQ Hosting integration](../rabbitmq-host/).
+
+When you reference a RabbitMQ resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire RabbitMQ client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `messaging` becomes `MESSAGING_URI`.
+
+The RabbitMQ server resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Host`        | The hostname or IP address of the RabbitMQ server |
+| `Port`        | The port number the RabbitMQ server is listening on |
+| `Username`    | The username for authentication |
+| `Password`    | The password for authentication |
+| `VirtualHost` | The virtual host path. Defaults to `/` (the default virtual host). Embedded as the path component of the connection URI when non-default. |
+| `Uri`         | The connection URI, with the format `amqp://{Username}:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: amqp://guest:p%40ssw0rd1@localhost:5672
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a RabbitMQ resource named `messaging` and references it from the consuming app.
+
+<Tabs syncKey="rabbitmq-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire RabbitMQ client integration. It registers an [`IConnection`](https://rabbitmq.github.io/rabbitmq-dotnet-client/api/RabbitMQ.Client.IConnection.html) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.RabbitMQ.Client) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.RabbitMQ.Client" />
+
+<Aside type="note">
+The `Aspire.RabbitMQ.Client` package references `RabbitMQ.Client` version 6.8.1. If your project requires `RabbitMQ.Client` version 7.x, install [📦 Aspire.RabbitMQ.Client.v7](https://www.nuget.org/packages/Aspire.RabbitMQ.Client.v7) instead. In a future version of Aspire, `Aspire.RabbitMQ.Client` will be updated to `7.x` and `Aspire.RabbitMQ.Client.v7` will be deprecated. For migration guidance, see [Migrating to RabbitMQ .NET Client 7.x](https://github.com/rabbitmq/rabbitmq-dotnet-client/blob/main/v7-MIGRATION.md).
+</Aside>
+
+#### Add the RabbitMQ client
+
+In _Program.cs_, call `AddRabbitMQClient` on your `IHostApplicationBuilder` to register an `IConnection`:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(connectionName: "messaging");
+```
+
+<Aside type="tip">
+The `connectionName` must match the RabbitMQ resource name from the AppHost. For more information, see [Add RabbitMQ server resource](../rabbitmq-host/#add-rabbitmq-server-resource).
+</Aside>
+
+Resolve the connection through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(IConnection connection)
+{
+    // Use connection...
+}
+```
+
+#### Add keyed RabbitMQ clients
+
+To register multiple `IConnection` instances with different connection names, use `AddKeyedRabbitMQClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedRabbitMQClient(name: "chat");
+builder.AddKeyedRabbitMQClient(name: "queue");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] IConnection chatConnection,
+    [FromKeyedServices("queue")] IConnection queueConnection)
+{
+    // Use connections...
+}
+```
+
+For more information, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire RabbitMQ client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddRabbitMQClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient("messaging");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "messaging": "amqp://username:password@localhost:5672"
+  }
+}
+```
+
+For more information on how to format this connection string, see the [RabbitMQ URI specification](https://www.rabbitmq.com/uri-spec.html).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `RabbitMQClientSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:RabbitMQ:Client` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "RabbitMQ": {
+      "Client": {
+        "ConnectionString": "amqp://username:password@localhost:5672",
+        "DisableHealthChecks": false,
+        "DisableTracing": false,
+        "MaxConnectRetryCount": 2
+      }
+    }
+  }
+}
+```
+
+For the complete JSON schema, see [Aspire.RabbitMQ.Client/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/v9.1.0/src/Components/Aspire.RabbitMQ.Client/ConfigurationSchema.json).
+
+**Inline delegates.** Pass an `Action<RabbitMQClientSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(
+    "messaging",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+You can also configure the [`IConnectionFactory`](https://rabbitmq.github.io/rabbitmq-dotnet-client/api/RabbitMQ.Client.IConnectionFactory.html) inline using the `configureConnectionFactory` delegate parameter:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient(
+    "messaging",
+    configureConnectionFactory:
+        static factory => factory.ClientProvidedName = "MyApp");
+```
+
+#### Auto activation
+
+Auto activation opens the RabbitMQ connection during startup rather than lazily on first use, ensuring that any connectivity issues are detected early.
+
+Auto activation is **disabled by default** in Aspire 9.5 to maintain backward compatibility. To enable it, set `DisableAutoActivation` to `false`:
+
+```csharp title="C# — Program.cs"
+builder.AddRabbitMQClient("messaging", o => o.DisableAutoActivation = false);
+```
+
+<Aside type="note">
+In a future version of Aspire, auto activation is planned to be **enabled by default**. When this change occurs, set `DisableAutoActivation = true` explicitly to keep the lazy initialization behavior.
+</Aside>
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The RabbitMQ client integration:
+
+- Adds a health check that attempts to connect to and create a channel on the RabbitMQ server when `DisableHealthChecks` is `false`.
+- Integrates with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire RabbitMQ client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `RabbitMQ.Client`
+
+**Tracing** activities:
+
+- `Aspire.RabbitMQ.Client`
+
+**Metrics**: The RabbitMQ client integration doesn't currently support metrics by default.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it directly to the [📦 RabbitMQ.Client](https://www.nuget.org/packages/RabbitMQ.Client/) library:
+
+```csharp title="C# — Program.cs"
+using RabbitMQ.Client;
+
+var uri = new Uri(Environment.GetEnvironmentVariable("MESSAGING_URI")!);
+var factory = new ConnectionFactory { Uri = uri };
+
+using var connection = await factory.CreateConnectionAsync();
+using var channel = await connection.CreateChannelAsync();
+// Use channel to publish or consume messages...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use [`rabbitmq/amqp091-go`](https://github.com/rabbitmq/amqp091-go), the official Go client for AMQP 0-9-1:
+
+```bash title="Terminal"
+go get github.com/rabbitmq/amqp091-go
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    amqp "github.com/rabbitmq/amqp091-go"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    conn, err := amqp.Dial(os.Getenv("MESSAGING_URI"))
+    if err != nil {
+        panic(err)
+    }
+    defer conn.Close()
+
+    ch, err := conn.Channel()
+    if err != nil {
+        panic(err)
+    }
+    defer ch.Close()
+
+    // Use ch to publish or consume messages...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install [`pika`](https://pika.readthedocs.io/), the pure-Python AMQP 0-9-1 client:
+
+```bash title="Terminal"
+pip install pika
+```
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import os
+import pika
+
+# Read the Aspire-injected connection URI
+params = pika.URLParameters(os.getenv("MESSAGING_URI"))
+connection = pika.BlockingConnection(params)
+channel = connection.channel()
+
+# Use channel to publish or consume messages...
+connection.close()
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install [`amqplib`](https://github.com/amqp-node/amqplib), the most widely used AMQP 0-9-1 client for Node.js:
+
+```bash title="Terminal"
+npm install amqplib
+npm install --save-dev @types/amqplib
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import amqp from 'amqplib';
+
+// Read Aspire-injected connection URI
+const connection = await amqp.connect(process.env.MESSAGING_URI!);
+const channel = await connection.createChannel();
+
+// Use channel to publish or consume messages...
+await channel.close();
+await connection.close();
+```
+
+Or, build the connection options from individual properties:
+
+```typescript title="TypeScript — Connect with individual properties"
+import amqp from 'amqplib';
+
+const connection = await amqp.connect({
+    hostname: process.env.MESSAGING_HOST,
+    port:     Number(process.env.MESSAGING_PORT),
+    username: process.env.MESSAGING_USERNAME,
+    password: process.env.MESSAGING_PASSWORD,
+    vhost:    process.env.MESSAGING_VIRTUALHOST ?? '/',
+});
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Pass custom environment variables](../rabbitmq-host/#pass-custom-environment-variables) in the Hosting integration reference.
+</Aside>

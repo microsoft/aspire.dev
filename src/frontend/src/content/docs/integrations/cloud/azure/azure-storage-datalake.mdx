@@ -3,14 +3,14 @@ title: Azure Data Lake Storage
 description: Learn how to use the Aspire Azure Data Lake Storage integration to connect to Azure Data Lake Storage Gen2 for big data analytics workloads.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
-import InstallPackage from '@components/InstallPackage.astro';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import storageIcon from '@assets/icons/azure-storagecontainer-icon.png';
+import dataLakeIcon from '@assets/icons/azure-datalake-icon.png';
 
 <Image
-  src={storageIcon}
+  src={dataLakeIcon}
   alt="Azure Data Lake Storage logo"
   height={80}
   width={80}
@@ -18,18 +18,63 @@ import storageIcon from '@assets/icons/azure-storagecontainer-icon.png';
   data-zoom-off
 />
 
-[Azure Data Lake Storage Gen2](https://azure.microsoft.com/services/storage/data-lake-storage/) is a set of capabilities built on Azure Blob Storage for big data analytics. The Aspire Azure Data Lake Storage integration enables you to connect to Azure Data Lake Storage instances from your applications.
+[Azure Data Lake Storage Gen2](https://azure.microsoft.com/services/storage/data-lake-storage/) is a set of capabilities built on Azure Blob Storage for big data analytics. The Aspire Azure Data Lake Storage hosting integration models Data Lake resources as children of an Azure Storage resource, and the client integration registers `DataLakeServiceClient` and `DataLakeFileSystemClient` instances for dependency injection.
 
 ## Hosting integration
 
 The Azure Data Lake Storage hosting integration models a Data Lake resource as a child of an Azure Storage resource. To add a Data Lake resource, install the [📦 Aspire.Hosting.Azure.Storage](https://www.nuget.org/packages/Aspire.Hosting.Azure.Storage) NuGet package in your [AppHost](/get-started/app-host/) project:
 
-<InstallPackage packageName="Aspire.Hosting.Azure.Storage" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.Storage@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.Storage" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-storage
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure Storage hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Storage": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ### Add Azure Data Lake resource
 
-In your AppHost project, call `AddDataLake` on an `IResourceBuilder<AzureStorageResource>` to add a Data Lake resource:
+In your AppHost project, call `AddDataLake` (or `addDataLake`) on an Azure Storage resource builder to add a Data Lake resource:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -37,16 +82,37 @@ var storage = builder.AddAzureStorage("storage");
 var dataLake = storage.AddDataLake("datalake");
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(dataLake);
+    .WithReference(dataLake)
+    .WaitFor(dataLake);
 
+// After adding all resources, run the app...
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+const dataLake = await storage.addDataLake("datalake");
+
+await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+    .withReference(dataLake)
+    .waitFor(dataLake);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 The preceding code:
 
 - Adds an Azure Storage resource named `storage`.
 - Adds a Data Lake resource named `datalake` as a child of the storage resource.
-- Passes a reference to the Data Lake resource to the `ExampleProject`.
+- Passes a reference to the Data Lake resource to the consuming project and waits for it to be ready.
 
 <Aside type="caution" title="Emulator not supported">
 Azure Data Lake Storage does **not** support the Azure Storage emulator. You must use an actual Azure Storage account with hierarchical namespace (HNS) enabled, or use connection strings for local development.
@@ -54,8 +120,10 @@ Azure Data Lake Storage does **not** support the Azure Storage emulator. You mus
 
 ### Add Azure Data Lake file system resource
 
-You can also add a Data Lake file system resource directly from the storage resource:
+You can also add a Data Lake file system resource directly from the storage resource using `AddDataLakeFileSystem` (or `addDataLakeFileSystem`):
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -65,24 +133,49 @@ var fileSystem = storage.AddDataLakeFileSystem("analytics", "analytics-data");
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(dataLake)
-    .WithReference(fileSystem);
+    .WithReference(fileSystem)
+    .WaitFor(dataLake);
 
+// After adding all resources, run the app...
 builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The `AddDataLakeFileSystem` method takes:
-- `name`: The resource name used in Aspire
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage");
+const dataLake = await storage.addDataLake("datalake");
+const fileSystem = await storage.addDataLakeFileSystem("analytics", { dataLakeFileSystemName: "analytics-data" });
+
+await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+    .withReference(dataLake)
+    .withReference(fileSystem)
+    .waitFor(dataLake);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The `AddDataLakeFileSystem` (or `addDataLakeFileSystem`) method takes:
+- `name`: The resource name used in Aspire.
 - `dataLakeFileSystemName` (optional): The actual file system name in Azure. Defaults to the resource name if not specified.
 
 <Aside type="note">
-Both `AddDataLake` and `AddDataLakeFileSystem` are called on the storage resource (`IResourceBuilder<AzureStorageResource>`), not on each other. When you call either method, the storage account is automatically configured with hierarchical namespace (HNS) enabled, which is required for Data Lake Storage Gen2.
+Both `AddDataLake` and `AddDataLakeFileSystem` are called on the storage resource, not on each other. When you call either method, the storage account is automatically configured with hierarchical namespace (HNS) enabled, which is required for Data Lake Storage Gen2.
 </Aside>
 
 ### Customize provisioning infrastructure
 
-The Data Lake resource is part of the Azure Storage resource, which is a subclass of `AzureProvisioningResource`. You can customize the generated Bicep using the `ConfigureInfrastructure` API on the storage resource. For example, you can configure the storage SKU, access tier, and other properties:
+The Data Lake resource is part of the Azure Storage resource, which is a subclass of `AzureProvisioningResource`. You can customize the generated Bicep using the `ConfigureInfrastructure` (or `configureInfrastructure`) API on the storage resource. For example, you can configure the storage SKU, access tier, and other properties:
 
-```csharp title="AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var storage = builder.AddAzureStorage("storage")
@@ -100,7 +193,36 @@ var dataLake = storage.AddDataLake("datalake");
 
 builder.AddProject<Projects.ExampleProject>()
     .WithReference(dataLake);
+
+// After adding all resources, run the app...
+builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const storage = await builder.addAzureStorage("storage")
+    .configureInfrastructure(infra => {
+        const storageAccount = infra.getProvisionableResources()
+            .filter(r => r.type === "StorageAccount")[0];
+
+        storageAccount.sku = { name: "Premium_LRS" };
+        storageAccount.tags["workload"] = "analytics";
+    });
+
+const dataLake = await storage.addDataLake("datalake");
+
+await builder.addProject("api", "../ExampleProject/ExampleProject.csproj")
+    .withReference(dataLake);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 For more information on customizing Azure Storage provisioning, see [Azure Blob Storage: Customize provisioning infrastructure](/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-host/#customize-provisioning-infrastructure).
 

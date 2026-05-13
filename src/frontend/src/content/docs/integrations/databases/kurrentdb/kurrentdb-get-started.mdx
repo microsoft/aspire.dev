@@ -1,80 +1,90 @@
 ---
 title: Get started with the KurrentDB integrations
-description: Learn how to set up the Aspire KurrentDB hosting and client integrations simply.
-prev: false
+description: Understand why you use the Aspire KurrentDB integrations and how they fit together.
 ---
 
-import { Aside, Badge } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import ThemeImage from '@components/ThemeImage.astro';
+import { Image } from 'astro:assets';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import kurrentIcon from '@assets/icons/kurrent-icon.png';
-import kurrentLightIcon from '@assets/icons/kurrent-light-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
 
-<ThemeImage
-  light={kurrentLightIcon}
-  dark={kurrentIcon}
+<Image
+  src={kurrentIcon}
   alt="KurrentDB logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-[KurrentDB](https://www.kurrent.io/) is an event store database designed for Event Sourcing, offering high availability and reliability for storing events. The Aspire KurrentDB integration enables you to connect to existing KurrentDB instances or create new instances from Aspire using the KurrentDB container image.
+[KurrentDB](https://kurrent.io/) is an open-source event-sourcing database (formerly EventStoreDB) purpose-built for storing events as an immutable, append-only log. It delivers high availability and reliability for event-driven and event-sourcing architectures. The Aspire KurrentDB integration lets you model a KurrentDB server as a first-class resource in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire KurrentDB integrations in a simple configuration. If you already have this knowledge, see [KurrentDB hosting integration](/integrations/databases/kurrentdb/kurrentdb-host/) for full reference details.
+## Why use KurrentDB with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding KurrentDB through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs KurrentDB from the [`docker.io/eventstore/eventstore`](https://hub.docker.com/r/eventstore/eventstore) container image with configuration generated automatically for you.
+- **Consistent connection info across languages.** Once you reference the KurrentDB resource from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when KurrentDB is ready.
+- **Dashboard observability.** The KurrentDB resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `CommunityToolkit.Aspire.KurrentDB` package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
 
-To begin, install the Aspire KurrentDB hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.KurrentDB" />
+The KurrentDB integration has two sides: a **hosting integration** that you use in your AppHost to model the KurrentDB resource, and a **connection story** for consuming apps that reference it.
 
-In the AppHost project, register and consume the KurrentDB integration using the `AddKurrentDB` extension method to add the KurrentDB container to the application builder:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var kurrentdb = builder.AddKurrentDB("kurrentdb");
+  service hosting(server)[Hosting integration] in apphost
+  service kurrentdb(database)[KurrentDB server] in apphost
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(kurrentdb);
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-// After adding all resources, run the app...
+  hosting:R --> L:kurrentdb
+  kurrentdb:R --> L:client
+  client:R --> L:app
 ```
 
-## Set up client integration
+The **hosting integration** lives in your AppHost project and models the KurrentDB server as a resource. The **client integration** lives in each consuming app and uses the connection information Aspire injects to talk to KurrentDB.
 
-In the client-consuming project, install the Aspire KurrentDB client integration:
+Getting there is a two-step process: model the KurrentDB resource in your AppHost, then connect to it from each app that needs it.
 
-<InstallDotNetPackage packageName="CommunityToolkit.Aspire.KurrentDB" />
+<Steps>
 
-In the `Program.cs` file of your client-consuming project, call the `AddKurrentDBClient` extension to register a `KurrentDBClient` for use via the dependency injection container:
+1. ### Model KurrentDB in your AppHost
 
-```csharp title="C# — Program.cs"
-builder.AddKurrentDBClient(connectionName: "kurrentdb");
-```
+    Add the KurrentDB hosting integration to your AppHost, then declare a KurrentDB resource and reference it from the apps that need to store or read events. The [KurrentDB Hosting integration](/integrations/databases/kurrentdb/kurrentdb-host/) article walks through every capability — data volumes, data bind mounts, and health checks — with C# examples.
 
-You can then retrieve the `KurrentDBClient` instance using dependency injection. For example, to retrieve the client from a service:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/kurrentdb/kurrentdb-host/'>
+        Set up KurrentDB in the AppHost
+    </LinkButton>
 
-```csharp
-public class ExampleService(KurrentDBClient client)
-{
-    // Use client...
-}
-```
+2. ### Connect from your consuming app
 
-For full reference details, see [KurrentDB hosting integration](/integrations/databases/kurrentdb/kurrentdb-host/) and [KurrentDB client integration](/integrations/databases/kurrentdb/kurrentdb-client/).
+    When you reference a KurrentDB resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to KurrentDB](/integrations/databases/kurrentdb/kurrentdb-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
+
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/kurrentdb/kurrentdb-connect/'>
+        Connect to KurrentDB
+    </LinkButton>
+
+</Steps>
 
 ## See also
 
-- [KurrentDB](https://www.kurrent.io/)
+- [KurrentDB](https://kurrent.io/)
 - [KurrentDB .NET Client](https://github.com/kurrent-io/KurrentDB-Client-Dotnet)
 - [Aspire Community Toolkit GitHub repo](https://github.com/CommunityToolkit/Aspire)

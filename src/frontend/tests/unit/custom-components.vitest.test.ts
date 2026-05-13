@@ -806,6 +806,44 @@ describe('custom Astro component render coverage', () => {
     expect(html).not.toContain('h=1000');
   });
 
+  it('renders footer community links with platform names', async () => {
+    const translations: Record<string, string> = {
+      'footer.community': 'Community',
+      'footer.blog': 'Blog',
+      'footer.collab': 'Collaborate',
+      'footer.discuss': 'Discuss',
+      'footer.watch': 'Watch',
+    };
+    const t = ((key: string) => translations[key] ?? key) as ((key: string) => string) & {
+      dir: () => 'ltr';
+    };
+    t.dir = () => 'ltr';
+
+    const html = normalizeHtml(
+      await renderComponent(FooterLinks, {
+        locals: { t },
+      })
+    );
+
+    for (const label of [
+      'X (Twitter)',
+      'BlueSky',
+      'GitHub',
+      'Discord',
+      'Reddit',
+      'YouTube',
+      'Twitch',
+      'Blog',
+    ]) {
+      expect(html).toContain(label);
+    }
+
+    expect(html).not.toContain('Follow');
+    expect(html).not.toContain('Collaborate');
+    expect(html).not.toContain('Discuss');
+    expect(html).not.toContain('Watch');
+  });
+
   it('hides footer community links on localized 404 pages', async () => {
     const html = normalizeHtml(
       await renderComponent(FooterLinks, {

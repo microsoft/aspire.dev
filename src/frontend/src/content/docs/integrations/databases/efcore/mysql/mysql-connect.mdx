@@ -1,0 +1,246 @@
+---
+title: Connect to MySQL with EF Core
+description: Learn how to register an EF Core DbContext for MySQL from a C# consuming app in an Aspire solution, including connection properties, configuration, health checks, and telemetry.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import { Image } from 'astro:assets';
+import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
+
+<Image
+  src={mysqlIcon}
+  alt="MySQL logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how C# consuming apps connect to a MySQL resource that's already modeled in your AppHost using Entity Framework Core (EF Core). For the AppHost API surface — adding a MySQL server, databases, phpMyAdmin, volumes, and more — see [MySQL Hosting integration](/integrations/databases/mysql/mysql-host/).
+
+The Aspire MySQL Pomelo EF Core client integration registers a `DbContext` subclass through dependency injection and adds health checks and telemetry automatically.
+
+## Connect from your app
+
+Add the Aspire Pomelo MySQL EF Core client integration to your C# consuming app to register a `DbContext` for MySQL with automatic health checks and telemetry.
+
+<Tabs syncKey="mysql-efcore-consuming-lang">
+<TabItem label="C#">
+
+#### Install the client integration
+
+Install the [📦 Aspire.Pomelo.EntityFrameworkCore.MySql](https://www.nuget.org/packages/Aspire.Pomelo.EntityFrameworkCore.MySql) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Pomelo.EntityFrameworkCore.MySql" />
+
+For an introduction to the MySQL EF Core integration, see [Get started with the MySQL EF Core integration](/integrations/databases/efcore/mysql/mysql-get-started/).
+
+#### Add MySQL database context
+
+In the `Program.cs` file of your client-consuming project, call the `AddMySqlDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
+
+```csharp title="C# — Program.cs"
+builder.AddMySqlDbContext<MyDbContext>(connectionName: "mysqldb");
+```
+
+<Aside type="tip">
+The `connectionName` parameter must match the name used when adding the MySQL database resource in the AppHost project. For more information, see [Add MySQL server and database resources](/integrations/databases/mysql/mysql-host/#add-mysql-server-resource).
+</Aside>
+
+You can then retrieve the `MyDbContext` instance using dependency injection. For example, to retrieve the data source from an example service:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(MyDbContext context)
+{
+    // Use the MySQL database context...
+}
+```
+
+For more information on dependency injection, see [.NET dependency injection](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
+
+#### Enrich MySQL database context
+
+You may prefer to use the standard Entity Framework method to obtain a database context and add it to the dependency injection container:
+
+```csharp title="C# — Program.cs"
+builder.Services.AddDbContext<ExampleDbContext>(options =>
+    options.UseMySql(builder.Configuration.GetConnectionString("mysqldb")
+        ?? throw new InvalidOperationException("Connection string 'mysqldb' not found."), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("mysqldb"))));
+```
+
+<Aside type="note">
+The connection string name that you pass to the `GetConnectionString` method must match the name used when adding the MySQL resource in the AppHost project. For more information, see [Add MySQL server and database resources](/integrations/databases/mysql/mysql-host/#add-mysql-server-resource).
+</Aside>
+
+You have more flexibility when you create the database context in this way, for example:
+
+- You can reuse existing configuration code for the database context without rewriting it for Aspire.
+- You can use Entity Framework Core interceptors to modify database operations.
+- You can choose not to use Entity Framework Core context pooling, which may perform better in some circumstances.
+
+If you use this method, you can enhance the database context with Aspire-style retries, health checks, logging, and telemetry features by calling the `EnrichMySqlDbContext` method:
+
+```csharp title="C# — Program.cs"
+builder.EnrichMySqlDbContext<ExampleDbContext>(
+    configureSettings: settings =>
+    {
+        settings.DisableRetry = false;
+        settings.CommandTimeout = 30; // seconds
+    });
+```
+
+The `settings` parameter is an instance of the `MySqlEntityFrameworkCoreSettings` class.
+
+#### Connection properties
+
+When you use the `WithReference` method to pass a MySQL server or database resource from the AppHost project to a consuming project, Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `ConnectionString` property of a resource called `mysqldb` becomes `MYSQLDB_CONNECTIONSTRING`.
+
+##### MySQL server
+
+The MySQL server resource exposes the following connection properties:
+
+| Property Name | Description |
+|---------------|-------------|
+| `Host` | The hostname or IP address of the MySQL server |
+| `Port` | The port number the MySQL server is listening on |
+| `Username` | The username for authentication (typically `root`) |
+| `Password` | The password for authentication |
+
+**Example connection properties:**
+
+```
+Host: localhost
+Port: 3306
+Username: root
+Password: <generated-password>
+```
+
+##### MySQL database
+
+The MySQL database resource inherits all properties from its parent `MySqlServerResource` and adds:
+
+| Property Name | Description |
+|---------------|-------------|
+| `DatabaseName` | The MySQL database name |
+| `ConnectionString` | The full connection string in the format `Server={Host};Port={Port};User ID={Username};Password={Password};Database={DatabaseName}` |
+
+**Example connection string:**
+
+```
+Server=localhost;Port=3306;User ID=root;Password=<generated-password>;Database=mysqldb
+```
+
+#### Configuration
+
+The Aspire MySQL Pomelo EF Core integration provides multiple configuration approaches and options to meet the requirements and conventions of your project.
+
+##### Use a connection string
+
+When using a connection string from the `ConnectionStrings` configuration section, you provide the name of the connection string when calling `builder.AddMySqlDbContext()`:
+
+```csharp title="C# — Program.cs"
+builder.AddMySqlDbContext<ExampleDbContext>(connectionName: "mysqldb");
+```
+
+The connection string is retrieved from the `ConnectionStrings` configuration section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "mysql": "Server=mysql;Database=mysqldb"
+  }
+}
+```
+
+For more information on how to format this connection string, see [MySqlConnector: ConnectionString documentation](https://mysqlconnector.net/connection-options/).
+
+##### Use configuration providers
+
+The Aspire MySQL EF Core integration supports `Microsoft.Extensions.Configuration` from configuration files such as `appsettings.json` by using the `Aspire:Pomelo:EntityFrameworkCore:MySql` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Pomelo": {
+      "EntityFrameworkCore": {
+        "MySql": {
+          "ConnectionString": "Server=myserver;Database=mysqldb",
+          "DisableHealthChecks": false,
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+##### Use inline delegates
+
+You can also pass the `Action<MySqlEntityFrameworkCoreSettings>` delegate to set up some or all the options inline, for example to disable health checks from code:
+
+```csharp title="C# — Program.cs"
+builder.AddMySqlDbContext<ExampleDbContext>(
+    "mysqldb",
+    static settings => settings.DisableHealthChecks = true);
+```
+
+##### Configuration options
+
+Here are the configurable options with corresponding default values:
+
+| Name | Description |
+|---|---|
+| `ConnectionString` | The connection string of the MySQL database to connect to |
+| `DisableHealthChecks` | A boolean value that indicates whether the database health check is disabled or not |
+| `DisableTracing` | A boolean value that indicates whether the OpenTelemetry tracing is disabled or not |
+
+#### Health checks
+
+By default, Aspire integrations enable [health checks](/fundamentals/health-checks/) for all services. For more information, see [Aspire integrations overview](/integrations/overview/).
+
+The Aspire MySQL EF Core integration handles the following:
+
+- Adds the health check when `MySqlEntityFrameworkCoreSettings.DisableHealthChecks` is `false`, which verifies that a connection can be made and commands can be run against the MySQL database.
+- Integrates with the `/health` HTTP endpoint, which specifies all registered health checks must pass for the app to be considered ready to accept traffic.
+
+#### Observability and telemetry
+
+Aspire integrations automatically set up logging, tracing, and metrics configurations, which are sometimes known as *the pillars of observability*. Telemetry features can be disabled using the techniques presented in the [Configuration](#configuration) section.
+
+##### Logging
+
+The Aspire MySQL EF Core client integration uses the following log categories:
+
+- `Microsoft.EntityFrameworkCore.ChangeTracking`
+- `Microsoft.EntityFrameworkCore.Database.Command`
+- `Microsoft.EntityFrameworkCore.Database.Connection`
+- `Microsoft.EntityFrameworkCore.Database.Transaction`
+- `Microsoft.EntityFrameworkCore.Infrastructure`
+- `Microsoft.EntityFrameworkCore.Migrations`
+- `Microsoft.EntityFrameworkCore.Model`
+- `Microsoft.EntityFrameworkCore.Model.Validation`
+- `Microsoft.EntityFrameworkCore.Query`
+- `Microsoft.EntityFrameworkCore.Update`
+
+##### Tracing
+
+The Aspire MySQL EF Core client integration emits the following tracing activities using OpenTelemetry:
+
+- `MySqlConnector`
+
+##### Metrics
+
+The Aspire MySQL EF Core integration emits the following metrics using OpenTelemetry:
+
+- `OpenTelemetry.Instrumentation.EntityFrameworkCore`
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [MySQL database](https://www.mysql.com/)
+- [MySqlConnector](https://mysqlconnector.net/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

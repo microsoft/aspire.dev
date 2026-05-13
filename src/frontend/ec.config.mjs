@@ -7,11 +7,7 @@ import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers';
 import ecTwoSlash from 'expressive-code-twoslash';
 import { pluginDisableCopy } from './src/expressive-code-plugins/disable-copy.mjs';
 
-// TEMP: expressive-code-twoslash is temporarily disabled. Flip
-// TWOSLASH_ENABLED back to `true` to restore type-aware hover tooltips
-// in docs TS samples — the rest of the configuration is preserved so
-// re-enabling is a one-line change.
-const TWOSLASH_ENABLED = false;
+const TWOSLASH_ENABLED = true;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASPIRE_TYPES_PATH = resolve(__dirname, 'src/data/twoslash/aspire.d.ts');

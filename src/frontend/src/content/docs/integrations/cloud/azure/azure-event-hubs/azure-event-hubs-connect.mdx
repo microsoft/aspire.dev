@@ -1,0 +1,517 @@
+---
+title: Connect to Azure Event Hubs
+description: Learn how to connect to Azure Event Hubs from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import eventHubsIcon from '@assets/icons/azure-eventhubs-icon.png';
+
+<Image
+  src={eventHubsIcon}
+  alt="Azure Event Hubs logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Event Hubs resource that's already modeled in your AppHost. For the AppHost API surface — adding a namespace, hubs, consumer groups, the emulator, and more — see [Azure Event Hubs Hosting integration](../azure-event-hubs-host/).
+
+When you reference an Azure Event Hubs resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Messaging Event Hubs client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `event-hubs` becomes `EVENT_HUBS_URI`.
+
+### Event Hubs namespace
+
+The Event Hubs namespace resource exposes the following connection properties:
+
+| Property Name      | Description |
+| ------------------ | ----------- |
+| `Host`             | The hostname of the Event Hubs namespace |
+| `Port`             | The port of the Event Hubs namespace (emulator only) |
+| `Uri`              | The connection URI, with the format `sb://myeventhubs.servicebus.windows.net` on Azure and `sb://localhost:62824` for the emulator |
+| `ConnectionString` | **Emulator only.** Full connection string including SAS key material for the local emulator |
+
+**Example connection strings:**
+
+```
+Uri: sb://myeventhubs.servicebus.windows.net
+ConnectionString: Endpoint=sb://localhost:62824;SharedAccessKeyName=...  (emulator only)
+```
+
+### Event Hub
+
+The Event Hub resource inherits all properties from its parent namespace and adds:
+
+| Property Name  | Description |
+| -------------- | ----------- |
+| `EventHubName` | The name of the Event Hub |
+
+### Event Hub consumer group
+
+The Event Hub consumer group resource inherits all properties from its parent hub and adds:
+
+| Property Name       | Description |
+| ------------------- | ----------- |
+| `ConsumerGroupName` | The name of the consumer group |
+
+For example, if you add a hub named `messages` and reference it from a consuming app, the following environment variables are available:
+
+- `MESSAGES_HOST`
+- `MESSAGES_URI`
+- `MESSAGES_EVENTHUBNAME`
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Azure Event Hubs namespace named `event-hubs` with a hub named `messages`, and references them from the consuming app.
+
+<Tabs syncKey="azure-event-hubs-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure Messaging Event Hubs client integration. It registers strongly-typed Event Hubs client instances through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Azure.Messaging.EventHubs](https://www.nuget.org/packages/Aspire.Azure.Messaging.EventHubs) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Azure.Messaging.EventHubs" />
+
+#### Supported client types
+
+The following Event Hubs client types are supported, along with their corresponding options and settings classes:
+
+| Azure client type                | Azure options class                     | Aspire settings class                              |
+| -------------------------------- | --------------------------------------- | -------------------------------------------------- |
+| `EventHubProducerClient`         | `EventHubProducerClientOptions`         | `AzureMessagingEventHubsProducerSettings`          |
+| `EventHubBufferedProducerClient` | `EventHubBufferedProducerClientOptions` | `AzureMessagingEventHubsBufferedProducerSettings`  |
+| `EventHubConsumerClient`         | `EventHubConsumerClientOptions`         | `AzureMessagingEventHubsConsumerSettings`          |
+| `EventProcessorClient`           | `EventProcessorClientOptions`           | `AzureMessagingEventHubsProcessorSettings`         |
+| `PartitionReceiver`              | `PartitionReceiverOptions`              | `AzureMessagingEventHubsPartitionReceiverSettings` |
+
+#### Add an Event Hubs producer client
+
+In _Program.cs_, call `AddAzureEventHubProducerClient` to register an `EventHubProducerClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureEventHubProducerClient(connectionName: "messages");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Event Hub resource name from the AppHost. For more information, see [Add an Azure Event Hubs resource](../azure-event-hubs-host/#add-an-azure-event-hubs-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(EventHubProducerClient producerClient)
+{
+    // Use producerClient...
+}
+```
+
+#### Add an Event Hubs processor client
+
+To consume events, register an `EventProcessorClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureEventProcessorClient(connectionName: "messages");
+```
+
+Resolve it through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(EventProcessorClient processorClient)
+{
+    // Use processorClient...
+}
+```
+
+#### All registration APIs
+
+When you need to register a different client type, use the corresponding API:
+
+| Azure client type                | Registration API                         |
+| -------------------------------- | ---------------------------------------- |
+| `EventHubProducerClient`         | `AddAzureEventHubProducerClient`         |
+| `EventHubBufferedProducerClient` | `AddAzureEventHubBufferedProducerClient` |
+| `EventHubConsumerClient`         | `AddAzureEventHubConsumerClient`         |
+| `EventProcessorClient`           | `AddAzureEventProcessorClient`           |
+| `PartitionReceiver`              | `AddAzurePartitionReceiverClient`        |
+
+#### Add keyed Event Hubs clients
+
+To register multiple client instances with different connection names, use the keyed APIs:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureEventHubProducerClient(name: "messages");
+builder.AddKeyedAzureEventHubProducerClient(name: "commands");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [KeyedService("messages")] EventHubProducerClient messagesClient,
+    [KeyedService("commands")] EventHubProducerClient commandsClient)
+{
+    // Use clients...
+}
+```
+
+The full set of keyed registration APIs:
+
+| Azure client type                | Keyed registration API                        |
+| -------------------------------- | --------------------------------------------- |
+| `EventHubProducerClient`         | `AddKeyedAzureEventHubProducerClient`         |
+| `EventHubBufferedProducerClient` | `AddKeyedAzureEventHubBufferedProducerClient` |
+| `EventHubConsumerClient`         | `AddKeyedAzureEventHubConsumerClient`         |
+| `EventProcessorClient`           | `AddKeyedAzureEventProcessorClient`           |
+| `PartitionReceiver`              | `AddKeyedAzurePartitionReceiverClient`        |
+
+For more information, see [Keyed services in .NET](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Azure Messaging Event Hubs library supports multiple configuration approaches. Either a `FullyQualifiedNamespace` or a `ConnectionString` is required.
+
+**Fully Qualified Namespace (recommended).** Use a fully qualified namespace with the default credential:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "messages": "{your_namespace}.servicebus.windows.net"
+  }
+}
+```
+
+If no credential is configured, a [default credential](/integrations/cloud/azure/azure-default-credential/) is used.
+
+**Connection string.** Alternatively, provide a full connection string:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "messages": "Endpoint=sb://mynamespace.servicebus.windows.net/;SharedAccessKeyName=accesskeyname;SharedAccessKey=accesskey;EntityPath=messages"
+  }
+}
+```
+
+**Configuration providers.** The library loads `AzureMessagingEventHubsSettings` and the associated client options from the `Aspire:Azure:Messaging:EventHubs:` key prefix, followed by the specific client name. For example, to configure an `EventProcessorClient`:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Messaging": {
+        "EventHubs": {
+          "EventProcessorClient": {
+            "EventHubName": "messages",
+            "ClientOptions": {
+              "Identifier": "PROCESSOR_ID"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**Named configuration.** To configure multiple instances of the same client type with different settings, use named configuration:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Azure": {
+      "Messaging": {
+        "EventHubs": {
+          "EventProcessorClient": {
+            "processor1": {
+              "EventHubName": "messages",
+              "ClientOptions": { "Identifier": "PROCESSOR_1" }
+            },
+            "processor2": {
+              "EventHubName": "commands",
+              "ClientOptions": { "Identifier": "PROCESSOR_2" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Then use the connection names when registering:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureEventProcessorClient("processor1");
+builder.AddAzureEventProcessorClient("processor2");
+```
+
+**Inline delegates.** Pass an `Action<IAzureClientBuilder<...>>` to configure the client builder inline:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureEventProcessorClient(
+    "messages",
+    configureClientBuilder: clientBuilder => clientBuilder.ConfigureOptions(
+        options => options.Identifier = "PROCESSOR_ID"));
+```
+
+For the complete JSON schema, see [Aspire.Azure.Messaging.EventHubs/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/main/src/Components/Aspire.Azure.Messaging.EventHubs/ConfigurationSchema.json).
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure Messaging Event Hubs client integration registers a health check that verifies connectivity to the namespace. The health check is wired into the `/health` HTTP endpoint.
+
+#### Observability and telemetry
+
+The Aspire Azure Messaging Event Hubs client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure.Core`
+- `Azure.Identity`
+
+**Tracing** activities:
+
+- `Azure.Messaging.EventHubs.*`
+
+**Metrics:** The Azure Messaging Event Hubs client integration currently doesn't support metrics by default due to limitations with the Azure SDK for .NET. This section will be updated if that changes.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the connection URI from the environment and use the Azure SDK directly:
+
+```csharp title="C# — Program.cs"
+using Azure.Messaging.EventHubs.Producer;
+
+var fullyQualifiedNamespace = Environment.GetEnvironmentVariable("EVENT_HUBS_HOST");
+var eventHubName = Environment.GetEnvironmentVariable("MESSAGES_EVENTHUBNAME");
+
+var producer = new EventHubProducerClient(fullyQualifiedNamespace, eventHubName, new DefaultAzureCredential());
+
+// Use producer to send events...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [Azure SDK for Go Event Hubs client](https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/messaging/azeventhubs):
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs
+go get github.com/Azure/azure-sdk-for-go/sdk/azidentity
+```
+
+Read the Aspire-injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "context"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
+)
+
+func main() {
+    // Read Aspire-injected connection properties
+    namespace := os.Getenv("EVENT_HUBS_HOST")
+    hubName   := os.Getenv("MESSAGES_EVENTHUBNAME")
+
+    cred, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    producer, err := azeventhubs.NewProducerClient(namespace, hubName, cred, nil)
+    if err != nil {
+        panic(err)
+    }
+    defer producer.Close(context.Background())
+
+    // Use producer to send events...
+}
+```
+
+To consume events, use the `EventProcessorClient` or `ConsumerClient`:
+
+```go title="Go — consumer.go"
+package main
+
+import (
+    "context"
+    "os"
+
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
+)
+
+func main() {
+    namespace         := os.Getenv("EVENT_HUBS_HOST")
+    hubName           := os.Getenv("MESSAGES_EVENTHUBNAME")
+    consumerGroupName := os.Getenv("MESSAGESCONSUMER_CONSUMERGROUPNAME")
+
+    cred, err := azidentity.NewDefaultAzureCredential(nil)
+    if err != nil {
+        panic(err)
+    }
+
+    consumer, err := azeventhubs.NewConsumerClient(
+        namespace, hubName, consumerGroupName, cred, nil)
+    if err != nil {
+        panic(err)
+    }
+    defer consumer.Close(context.Background())
+
+    // Receive events from partition "0"...
+    partitionClient, err := consumer.NewPartitionClient("0", nil)
+    if err != nil {
+        panic(err)
+    }
+    defer partitionClient.Close(context.Background())
+
+    events, err := partitionClient.ReceiveEvents(context.Background(), 10, nil)
+    if err != nil {
+        panic(err)
+    }
+    _ = events
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [azure-eventhub](https://pypi.org/project/azure-eventhub/) package:
+
+```bash title="Terminal"
+pip install azure-eventhub azure-identity
+```
+
+Read the Aspire-injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+from azure.eventhub import EventHubProducerClient, EventData
+from azure.identity import DefaultAzureCredential
+
+# Read Aspire-injected connection properties
+fully_qualified_namespace = os.getenv("EVENT_HUBS_HOST")
+eventhub_name = os.getenv("MESSAGES_EVENTHUBNAME")
+
+credential = DefaultAzureCredential()
+
+with EventHubProducerClient(
+    fully_qualified_namespace=fully_qualified_namespace,
+    eventhub_name=eventhub_name,
+    credential=credential,
+) as producer:
+    event_data_batch = producer.create_batch()
+    event_data_batch.add(EventData("First event"))
+    producer.send_batch(event_data_batch)
+```
+
+To consume events, use `EventHubConsumerClient`:
+
+```python title="Python — consumer.py"
+import os
+from azure.eventhub import EventHubConsumerClient
+from azure.identity import DefaultAzureCredential
+
+fully_qualified_namespace = os.getenv("EVENT_HUBS_HOST")
+eventhub_name = os.getenv("MESSAGES_EVENTHUBNAME")
+consumer_group = os.getenv("MESSAGESCONSUMER_CONSUMERGROUPNAME", "$Default")
+
+credential = DefaultAzureCredential()
+
+def on_event(partition_context, event):
+    print(f"Received: {event.body_as_str()}")
+    partition_context.update_checkpoint(event)
+
+with EventHubConsumerClient(
+    fully_qualified_namespace=fully_qualified_namespace,
+    eventhub_name=eventhub_name,
+    consumer_group=consumer_group,
+    credential=credential,
+) as consumer:
+    consumer.receive(on_event=on_event)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [@azure/event-hubs](https://www.npmjs.com/package/@azure/event-hubs) package:
+
+```bash title="Terminal"
+npm install @azure/event-hubs @azure/identity
+```
+
+Read the Aspire-injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { EventHubProducerClient } from '@azure/event-hubs';
+import { DefaultAzureCredential } from '@azure/identity';
+
+// Read Aspire-injected connection properties
+const fullyQualifiedNamespace = process.env.EVENT_HUBS_HOST!;
+const eventHubName = process.env.MESSAGES_EVENTHUBNAME!;
+
+const credential = new DefaultAzureCredential();
+const producer = new EventHubProducerClient(
+    fullyQualifiedNamespace,
+    eventHubName,
+    credential
+);
+
+const batch = await producer.createBatch();
+batch.tryAdd({ body: 'First event' });
+await producer.sendBatch(batch);
+
+await producer.close();
+```
+
+To consume events, use `EventHubConsumerClient`:
+
+```typescript title="TypeScript — consumer.ts"
+import { EventHubConsumerClient } from '@azure/event-hubs';
+import { DefaultAzureCredential } from '@azure/identity';
+
+const fullyQualifiedNamespace = process.env.EVENT_HUBS_HOST!;
+const eventHubName = process.env.MESSAGES_EVENTHUBNAME!;
+const consumerGroup = process.env.MESSAGESCONSUMER_CONSUMERGROUPNAME ?? '$Default';
+
+const credential = new DefaultAzureCredential();
+const consumer = new EventHubConsumerClient(
+    consumerGroup,
+    fullyQualifiedNamespace,
+    eventHubName,
+    credential
+);
+
+const subscription = consumer.subscribe({
+    processEvents: async (events, context) => {
+        for (const event of events) {
+            console.log(`Received: ${event.body}`);
+        }
+    },
+    processError: async (err, context) => {
+        console.error(err);
+    },
+});
+
+// Call subscription.close() when done
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost. See [Role-based access](../azure-event-hubs-host/#role-based-access) and [Connect to an existing Azure Event Hubs namespace](../azure-event-hubs-host/#connect-to-an-existing-azure-event-hubs-namespace) in the Hosting integration reference.
+</Aside>

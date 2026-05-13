@@ -1,0 +1,277 @@
+---
+title: Connect to SQLite
+description: Learn how to connect to SQLite from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import sqliteIcon from '@assets/icons/sqlite-icon.png';
+
+<Badge text="⭐ Community Toolkit" variant="tip" size="large" />
+
+<Image
+  src={sqliteIcon}
+  alt="SQLite logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to a SQLite resource that's already modeled in your AppHost. For the AppHost API surface — adding a SQLite resource, setting a custom database file path, the SQLiteWeb UI, SQLite extensions, and more — see [SQLite Hosting integration](../sqlite-host/).
+
+When you reference a SQLite resource from your AppHost, Aspire injects the database file path into the consuming app as an environment variable. Your app can either read that environment variable directly — the pattern works the same from any language — or, in C#, use the Aspire SQLite client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `DataSource` property of a resource called `sqlite` becomes `SQLITE_DATASOURCE`.
+
+The SQLite resource exposes the following connection property:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `DataSource`  | The file-system path to the SQLite database file |
+
+**Example value:**
+
+```
+DataSource: C:\Users\username\AppData\Local\Temp\sqlite.db
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a SQLite resource named `sqlite` and references it from the consuming app.
+
+<Tabs syncKey="sqlite-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire SQLite client integration (from the [.NET Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)). It registers a [`SqliteConnection`](https://learn.microsoft.com/dotnet/api/microsoft.data.sqlite.sqliteconnection) through dependency injection and adds health checks and telemetry automatically. If you'd rather read the environment variable directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 CommunityToolkit.Aspire.Microsoft.Data.Sqlite](https://www.nuget.org/packages/CommunityToolkit.Aspire.Microsoft.Data.Sqlite) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="CommunityToolkit.Aspire.Microsoft.Data.Sqlite" />
+
+#### Add the SQLite connection
+
+In _Program.cs_, call `AddSqliteConnection` on your `IHostApplicationBuilder` to register a `SqliteConnection`:
+
+```csharp title="C# — Program.cs"
+builder.AddSqliteConnection(connectionName: "sqlite");
+```
+
+<Aside type="tip">
+The `connectionName` must match the SQLite resource name from the AppHost. For more information, see [Add SQLite resource](../sqlite-host/#add-sqlite-resource).
+</Aside>
+
+Resolve the connection through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(SqliteConnection connection)
+{
+    // Use connection to query the database...
+}
+```
+
+#### Add keyed SQLite connections
+
+To register multiple `SqliteConnection` instances with different connection names, use `AddKeyedSqliteConnection`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedSqliteConnection(name: "chat");
+builder.AddKeyedSqliteConnection(name: "queue");
+```
+
+<Aside type="caution">
+  Your consuming app can only obtain two keyed SQLite connections if the AppHost project configures two SQLite resources — one named `chat` and one named `queue`.
+</Aside>
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("chat")] SqliteConnection chatConnection,
+    [FromKeyedServices("queue")] SqliteConnection queueConnection)
+{
+    // Use connections...
+}
+```
+
+#### Configuration
+
+The Aspire SQLite client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddSqliteConnection`:
+
+```csharp title="C# — Program.cs"
+builder.AddSqliteConnection("sqlite");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "sqlite": "Data Source=C:\\Database\\Location\\my-database.db"
+  }
+}
+```
+
+For more information, see [Microsoft.Data.Sqlite connection strings](https://learn.microsoft.com/dotnet/standard/data/sqlite/connection-strings).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads settings from the `Aspire:Sqlite:Client` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Sqlite": {
+      "Client": {
+        "ConnectionString": "Data Source=C:\\Database\\Location\\my-database.db",
+        "DisableHealthCheck": true
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<SqliteConnectionSettings>` to configure settings inline, for example to disable health checks:
+
+```csharp title="C# — Program.cs"
+builder.AddSqliteConnection(
+    "sqlite",
+    static settings => settings.DisableHealthCheck = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The SQLite client integration adds:
+
+- A health check that attempts to open a connection to the database file when `SqliteConnectionSettings.DisableHealthCheck` is `false`.
+- Integration with the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire SQLite client integration automatically configures logging, tracing, and metrics through OpenTelemetry. Because SQLite is an embedded database engine, telemetry support is more limited than server-based databases.
+
+**Logging** uses standard .NET logging mechanisms for database operations.
+
+**Tracing** emits activities for database operations via OpenTelemetry when configured.
+
+**Metrics** support is limited compared to server-based database integrations due to the nature of SQLite as an in-process engine.
+
+Any of these telemetry features can be disabled through the [configuration options](#configuration) above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected data source path from the environment and open a connection directly:
+
+```csharp title="C# — Program.cs"
+using Microsoft.Data.Sqlite;
+
+var dataSource = Environment.GetEnvironmentVariable("SQLITE_DATASOURCE");
+
+using var connection = new SqliteConnection($"Data Source={dataSource}");
+await connection.OpenAsync();
+
+// Use connection to query the database...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+SQLite libraries for Go typically require CGo. For a pure-Go alternative with no CGo dependency, use [`modernc.org/sqlite`](https://pkg.go.dev/modernc.org/sqlite):
+
+```bash title="Terminal"
+go get modernc.org/sqlite
+```
+
+<Aside type="note">
+    If you prefer [`mattn/go-sqlite3`](https://github.com/mattn/go-sqlite3), be aware that it uses CGo and requires a C compiler (GCC) in your build environment. The `modernc.org/sqlite` package is recommended for most Aspire deployments because it works without a CGo toolchain.
+</Aside>
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "os"
+    _ "modernc.org/sqlite"
+)
+
+func main() {
+    // Read the Aspire-injected data source path
+    dataSource := os.Getenv("SQLITE_DATASOURCE")
+
+    db, err := sql.Open("sqlite", dataSource)
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    if err := db.Ping(); err != nil {
+        panic(err)
+    }
+
+    fmt.Println("Connected to SQLite:", dataSource)
+    // Use db to query the database...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Python ships with a built-in `sqlite3` module — no additional installation is required:
+
+```python title="Python — app.py"
+import os
+import sqlite3
+
+# Read the Aspire-injected data source path
+data_source = os.getenv("SQLITE_DATASOURCE")
+
+connection = sqlite3.connect(data_source)
+cursor = connection.cursor()
+
+# Use cursor to query the database...
+connection.close()
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3), a synchronous SQLite client for Node.js:
+
+```bash title="Terminal"
+npm install better-sqlite3
+npm install --save-dev @types/better-sqlite3
+```
+
+<Aside type="note">
+    `better-sqlite3` provides a synchronous API well-suited to SQLite's single-writer model. For a WebAssembly-based alternative that requires no native compilation, consider [`node-sqlite3-wasm`](https://github.com/tndrle/node-sqlite3-wasm).
+</Aside>
+
+Read the injected environment variable and connect:
+
+```typescript title="TypeScript — index.ts"
+import Database from 'better-sqlite3';
+
+// Read the Aspire-injected data source path
+const dataSource = process.env.SQLITE_DATASOURCE!;
+
+const db = new Database(dataSource);
+
+// Use db to query the database...
+db.close();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [Pass connection information to app resources](../sqlite-host/#connection-properties) in the Hosting integration reference.
+</Aside>
