@@ -23,7 +23,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../frontend/frontend.esproj" />
+    <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The frontend ESProj produces wwwroot static assets at build time.
+      PrivateAssets="all" prevents MSBuild from propagating its output (the
+      `dist/` directory, which appears as a directory-shaped metadata
+      reference) to downstream consumers like test projects. Without this,
+      `dotnet build` of any project that transitively references StaticHost
+      fails with `error CS0006: Metadata file '.../frontend/dist' could not
+      be found` unless the frontend has already been built.
+    -->
+    <ProjectReference Include="../../frontend/frontend.esproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
   </ItemGroup>
 
   <Import Project="Caching.targets" />
