@@ -192,10 +192,10 @@ const builder = await createBuilder();
 
 const storage = await builder.addAzureStorage("storage");
 
-await storage.configureInfrastructure(infra => {
+await storage.configureInfrastructure(async (infra) => {
     // Strongly-typed Azure SDK types are not available in TypeScript.
     // Use getProvisionableResources() to access constructs dynamically.
-    const resources = infra.getProvisionableResources();
+    const resources = await infra.getProvisionableResources();
     // Work with resources generically as needed.
 });
 
@@ -539,10 +539,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const storage = await builder.addAzureBicepResource(
+const storage = await builder.addBicepTemplate(
     "storage",
     "./custom-storage.bicep");
-await storage.withParameter("storageAccountName", "mystorageaccount");
 
 const webapp = await builder.addProject("webapp", "../WebApp/WebApp.csproj");
 await webapp.withReference(storage);
