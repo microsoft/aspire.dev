@@ -1,16 +1,10 @@
 ---
-title: Get started with the MySQL Pomelo Entity Framework Core integrations
-description: Learn how to set up the Aspire MySQL Pomelo Entity Framework Core Hosting and Client integrations simply.
+title: Get started with the MySQL EF Core integration
+description: Understand why you use the Aspire MySQL Pomelo Entity Framework Core integration and how it fits together.
 ---
 
 import { Image } from 'astro:assets';
-import { Kbd } from 'starlight-kbd/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
-import ThemeImage from '@components/ThemeImage.astro';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
 
 <Image
@@ -22,103 +16,75 @@ import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
   data-zoom-off
 />
 
-[MySQL](https://www.mysql.com/) is an open-source Relational Database Management System (RDBMS) that uses Structured Query Language (SQL) to manage and manipulate data. It's employed in many different environments, from small projects to large-scale enterprise systems and it's a popular choice to host data that underpins microservices in a cloud-native application. The Aspire Pomelo MySQL Entity Framework Core integration enables you to connect to existing MySQL databases or create new instances from .NET with the [`mysql` container image](https://hub.docker.com/_/mysql). Entity Framework Core (EF Core) is an object-database mapper that simplifies data access by allowing developers to work with databases using .NET objects.
+[MySQL](https://www.mysql.com/) is an open-source relational database management system (RDBMS) that uses SQL to manage and manipulate data. It's widely used across environments ranging from small projects to large-scale enterprise systems, and is a popular choice for microservice data stores in cloud-native applications. The Aspire MySQL Pomelo Entity Framework Core (EF Core) integration lets you model a MySQL server and its databases as first-class resources in your AppHost, then connect to them from C# apps using EF Core.
 
-In this introduction, you'll see how to install and use the Aspire MySQL Pomelo Entity Framework Core integrations in a simple configuration. If you already have this knowledge, see [MySQL Hosting integration](/integrations/databases/mysql/mysql-host/) and [MySQL Pomelo Entity Framework Core Client integration reference](/integrations/databases/efcore/mysql/mysql-client/) for full reference details.
+## Why use MySQL EF Core with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding MySQL through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs MySQL from the [`docker.io/library/mysql`](https://hub.docker.com/_/mysql) container image with credentials generated automatically for you.
+- **Consistent connection info.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format.
+- **Built-in health checks.** The hosting integration registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource appears in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **First-class C# EF Core client integration.** C# apps use the `Aspire.Pomelo.EntityFrameworkCore.MySql` package for `DbContext` registration, health checks, and OpenTelemetry — all wired from the same resource name.
+- **An upgrade path to managed Azure.** The same AppHost model can be extended to managed MySQL offerings when you're ready to deploy.
 
-To begin, install the Aspire MySQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage MySQL database instances from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.MySql" shortName="mysql" />
+The MySQL EF Core integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **C# client integration** for consuming apps that register an EF Core `DbContext`.
 
-Next, in the AppHost project, create instances of MySQL server and database resources, then pass the database to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var mysql = builder.AddMySql("mysql")
-                   .WithLifetime(ContainerLifetime.Persistent);
+  service hosting(server)[Hosting integration] in apphost
+  service mysql(database)[MySQL server] in apphost
+  service db(database)[mysqldb] in apphost
 
-var mysqldb = mysql.AddDatabase("mysqldb");
+  service client(iconoir:server-connection)[EF Core client] in consumer
+  service app(server)[App] in consumer
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-                            .WaitFor(mysqldb)
-                            .WithReference(mysqldb);
+  hosting:R --> L:mysql
+  mysql:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="tip">
-    This is the simplest implementation of MySQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [MySQL Hosting integration](/integrations/databases/mysql/mysql-host/).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the MySQL server and databases as resources. The **client integration** lives in each consuming C# app and uses EF Core to talk to the database.
 
-## Use the integration in client projects
+Getting there is a two-step process: model the MySQL resources in your AppHost, then connect from each app that needs it.
 
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+<Steps>
 
-### Set up client projects
+1. ### Model MySQL in your AppHost
 
-In each of these consuming client projects, install the Aspire MySQL Pomelo EF Core client integration:
+    Add the MySQL hosting integration to your AppHost, then declare a MySQL server, one or more databases, and reference them from the apps that need to talk to the database. The [MySQL Hosting integration](/integrations/databases/mysql/mysql-host/) article walks through every capability — adding databases, phpMyAdmin, data volumes, init scripts, and more.
 
-<InstallDotNetPackage packageName="Aspire.Pomelo.EntityFrameworkCore.MySql" />
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/mysql/mysql-host/'>
+        Set up MySQL in the AppHost
+    </LinkButton>
 
-In the `Program.cs` file of your client-consuming project, call the `AddMySqlDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use through the dependency injection container. The method takes a connection name parameter.
+2. ### Connect from your C# app
 
-```csharp title="C# — Program.cs"
-builder.AddMySqlDbContext<MyDbContext>("mysqldb");
-```
+    When you reference a MySQL database from a consuming app, Aspire injects its connection information. See [Connect to MySQL with EF Core](/integrations/databases/efcore/mysql/mysql-connect/) for the connection properties reference, EF Core `DbContext` registration, configuration options, health checks, and telemetry.
 
-<Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the MySQL database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
-</Aside>
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/efcore/mysql/mysql-connect/'>
+        Connect to MySQL with EF Core
+    </LinkButton>
 
-### Use injected MySQL properties
+</Steps>
 
-In the AppHost, when you used the `WithReference` method to pass a MySQL database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
+## See also
 
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `mysqldb` becomes `MYSQLDB_URI`.
-
-Use the `GetValue()` method to obtain these environment variables in consuming projects:
-
-```csharp title="C# - Obtain configuration properties"
-var connectionUri = builder.Configuration.GetConnectionString("mysqldb");
-var host = builder.Configuration.GetValue<string>("MYSQLDB_HOST");
-var databaseName = builder.Configuration.GetValue<string>("MYSQLDB_DATABASENAME");
-```
-
-<Aside type="tip">
-    The full set of properties that Aspire injects depends on the MySQL resource configuration. For more information, see [Properties of the MySQL resources](/integrations/databases/efcore/mysql/mysql-client/#properties-of-the-mysql-resources).
-</Aside>
-
-### Use MySQL resources in client code
-
-Now that you've added the `DbContext` to the builder in the consuming project, you can use the MySQL database. Get the `DbContext` instance using dependency injection. For example, to retrieve your data source object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(MyDbContext context)
-{
-    // Use MySQL DB Context...
-}
-```
-
-Having obtained the data context, you can work with the MySQL database as you would in any other C# application using EF Core.
-
-## Next steps
-
-Now that you have an Aspire app with MySQL Pomelo EF Core integrations up and running, you can use the following reference documents to learn how to configure and interact with the MySQL resources:
-
-<CardGrid>
-  <LinkCard
-    title="Understand the MySQL hosting integration"
-    description="Discover how to configure data volumes, phpMyAdmin, and more."
-    href="/integrations/databases/mysql/mysql-host/"
-  />
-  <LinkCard
-    title="Understand the MySQL client integration"
-    description="Learn about the MySQL client integration, including connection strings and observability."
-    href="/integrations/databases/efcore/mysql/mysql-client/"
-  />
-</CardGrid>
+- [MySQL database](https://www.mysql.com/)
+- [MySQL community extensions](/integrations/databases/mysql/mysql-extensions/)

@@ -1,11 +1,11 @@
 ---
-title: Garnet hosting integration
-description: Learn how to use the Garnet hosting integration to add a Garnet resource to your AppHost.
+title: Set up Garnet in the AppHost
+description: Learn how to use the Aspire Garnet Hosting integration to orchestrate and configure a Garnet resource in an Aspire solution.
 ---
 
-import InstallPackage from '@components/InstallPackage.astro';
-import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import garnetIcon from '@assets/icons/garnet-icon.png';
 
 <Image
@@ -17,88 +17,346 @@ import garnetIcon from '@assets/icons/garnet-icon.png';
   data-zoom-off
 />
 
-The Garnet hosting integration models a Garnet resource as the `GarnetResource` type. To access this type and APIs, add the [📦 Aspire.Hosting.Garnet](https://www.nuget.org/packages/Aspire.Hosting.Garnet) NuGet package in your AppHost project:
+This article is the reference for the Aspire Garnet Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model a Garnet resource in your [`AppHost`](/get-started/app-host/) project.
 
-<InstallPackage packageName="Aspire.Hosting.Garnet" />
+If you're new to the Garnet integration, start with the [Get started with Garnet integrations](/integrations/caching/garnet/garnet-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Garnet](../garnet-connect/).
+
+## Installation
+
+To start building an Aspire app that uses Garnet, install the [📦 Aspire.Hosting.Garnet](https://www.nuget.org/packages/Aspire.Hosting.Garnet) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add garnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Garnet@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Garnet" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add garnet
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Garnet hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Garnet": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add Garnet resource
 
-In your AppHost project, call `AddGarnet` on the builder instance to add a Garnet resource:
+Once you've installed the hosting integration in your AppHost project, you can add a Garnet resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddGarnet("cache");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(cache);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-When Aspire adds a container image to the AppHost, it creates a new Garnet instance on your local machine.
+const builder = await createBuilder();
 
-<Aside type="tip">
-  If you'd rather connect to an existing Garnet instance, call
-  `AddConnectionString` instead. For more information on how to use
-  `WithReference`, see [Resource dependencies](/get-started/resources/).
+const cache = await builder.addGarnet("cache");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `ghcr.io/microsoft/garnet` image, it creates a new Garnet instance on your local machine.
+
+1. The Garnet resource is configured with a randomly generated password by default. To set an explicit password, see [Add Garnet resource with parameters](#add-garnet-resource-with-parameters).
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced Garnet resource, such as `cache` in the preceding example.
+
+</Steps>
+
+<Aside type="note">
+    When you reference a Garnet resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the password. For a complete list of these properties and per-language connection examples, see [Connect to Garnet](../garnet-connect/).
 </Aside>
 
 ## Add Garnet resource with data volume
 
-To add a data volume to the Garnet resource, call the `WithDataVolume` method:
+Add a data volume to the Garnet resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddGarnet("cache")
-                   .WithDataVolume(isReadOnly: false);
+    .WithDataVolume(isReadOnly: false);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
 
-The data volume is used to persist the Garnet data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Garnet container.
+const builder = await createBuilder();
+
+const cache = await builder.addGarnet("cache");
+await cache.withDataVolume({ isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The data volume is used to persist Garnet data outside the lifecycle of its container. The data volume is mounted at the `/data` path in the Garnet container, and when a `name` parameter isn't provided, the name is generated at random. Calling `WithDataVolume` (or `withDataVolume`) also enables Garnet persistence so the in-memory state survives container restarts. For more information on data volumes and details on why they're preferred over [bind mounts](#add-garnet-resource-with-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 ## Add Garnet resource with data bind mount
 
-To add a data bind mount to the Garnet resource, call the `WithDataBindMount` method:
+Add a data bind mount to the Garnet resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddGarnet("cache")
-                   .WithDataBindMount(
-                       source: @"C:\Garnet\Data",
-                       isReadOnly: false);
+    .WithDataBindMount(
+        source: "/Garnet/Data",
+        isReadOnly: false);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
 
-<Aside>
-  Data bind mounts have limited functionality compared to volumes, and when you
-  use a bind mount, a file or directory on the host machine is mounted into a
-  container.
+const builder = await createBuilder();
+
+const cache = await builder.addGarnet("cache");
+await cache.withDataBindMount("/Garnet/Data", { isReadOnly: false });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 </Aside>
+
+Data bind mounts rely on the host machine's filesystem to persist Garnet data across container restarts. The data bind mount is mounted at the `C:\Garnet\Data` on Windows (or `/Garnet/Data` on Unix) path on the host machine in the Garnet container. As with `WithDataVolume`, this call also enables persistence. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
 
 ## Add Garnet resource with persistence
 
-To add persistence to the Garnet resource, call the `WithPersistence` method with either the data volume or data bind mount:
+To configure Garnet snapshot persistence explicitly, call `WithPersistence` (or `withPersistence`) alongside a data volume or bind mount:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddGarnet("cache")
-                   .WithDataVolume()
-                   .WithPersistence(
-                       interval: TimeSpan.FromMinutes(5),
-                       keysChangedThreshold: 100);
+    .WithDataVolume()
+    .WithPersistence(
+        interval: TimeSpan.FromMinutes(5),
+        keysChangedThreshold: 100);
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
 
-The preceding code adds persistence to the Garnet resource by taking snapshots of the data at a specified interval and threshold.
+const builder = await createBuilder();
+
+const cache = await builder.addGarnet("cache");
+await cache.withDataVolume();
+await cache.withPersistence({
+    interval: 5 * 60 * 1000,
+});
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The preceding code adds explicit persistence to the Garnet resource by snapshotting data at the configured interval. The C# AppHost accepts a `TimeSpan` for `interval` and a `keysChangedThreshold` to also trigger snapshots when a minimum number of keys change; the TypeScript AppHost accepts the interval as milliseconds.
+
+:::note
+The TypeScript `WithPersistenceOptions` does not currently expose `keysChangedThreshold`. If you need threshold-based snapshotting, use the C# AppHost.
+:::
+
+## Add Garnet resource with parameters
+
+When you want to explicitly provide the port and password used by the Garnet container, you can pass them as parameters:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var password = builder.AddParameter("password", secret: true);
+
+var cache = builder.AddGarnet("cache", port: 6379, password: password);
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const password = await builder.addParameter("password", { secret: true });
+
+const cache = await builder.addGarnet("cache", { port: 6379, password });
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method.
+
+## Pass custom environment variables
+
+By default, Aspire injects the Garnet connection information using variable names derived from the resource name (for example, `CACHE_URI`, `CACHE_HOST`, `CACHE_PORT`, `CACHE_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddGarnet("cache");
+
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
+    .WithReference(cache)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["GARNET_HOST"] = cache.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["GARNET_PORT"] = cache.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["GARNET_PASSWORD"] = cache.Resource.PasswordParameter;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addGarnet("cache");
+const cacheEndpoint = await cache.getEndpoint("tcp");
+const cacheHost = await cacheEndpoint.property(EndpointProperty.Host);
+const cachePort = await cacheEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(cache)
+    .withEnvironment("GARNET_HOST", cacheHost)
+    .withEnvironment("GARNET_PORT", cachePort)
+    .withEnvironment("GARNET_PASSWORD", await cache.passwordParameter());
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Connect to an existing Garnet instance
+
+In C#, call `AsExisting` instead of `AddGarnet` to reference an externally managed Garnet instance:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddGarnet("cache")
+    .AsExisting(connectionStringParameter: builder.AddParameter("cache-cs", secret: true));
+
+var exampleProject = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(cache);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+The TypeScript AppHost doesn't currently expose an `asExisting(...)` API for Garnet. To connect to an existing Garnet instance from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with a parameter and reference that connection string from your consuming apps instead.
+</TabItem>
+</Tabs>
+
+## Connection properties
+
+For the full reference of Garnet connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Garnet](../garnet-connect/).
 
 ## Hosting integration health checks
 
 The Garnet hosting integration automatically adds a health check for the Garnet resource. The health check verifies that the Garnet instance is running and that a connection can be established to it.
+
+The hosting integration relies on the [📦 AspNetCore.HealthChecks.Redis](https://www.nuget.org/packages/AspNetCore.HealthChecks.Redis) NuGet package, which works for Garnet because it speaks the Redis serialization protocol.

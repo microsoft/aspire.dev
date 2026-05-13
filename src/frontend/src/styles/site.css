@@ -48,6 +48,23 @@
   --color-cyan: hsl(183, 55%, 75%);     /* catppuccin-aligned pastel teal */
   --color-yellow: hsl(50, 55%, 75%);    /* catppuccin-aligned pastel gold */
 
+  /* Inline code surface (dark theme).
+     bg uses currentColor (= the chip's text accent) mixed with #000 so the
+     chip surface always reads as a darker shade of the accent, regardless
+     of what surface it sits on (page bg, aside bg, etc.). Borders use
+     currentColor-on-transparent so they overlay whatever's behind them.
+     The 22% mix keeps text contrast > 6:1 (AAA) for every accent we use. */
+  --aspire-inline-code-bg: color-mix(in srgb, currentColor 22%, #000);
+  --aspire-inline-code-text: var(--sl-color-accent-high);
+  --aspire-inline-code-border: color-mix(in srgb, currentColor 35%, transparent);
+
+  /* Inline code inside an aside adopts the aside's accent so the chip
+     feels native to the alert. Only the text color needs to change —
+     bg and border use currentColor and follow automatically. */
+  .starlight-aside {
+    --aspire-inline-code-text: var(--sl-color-asides-text-accent);
+  }
+
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
   --gradient-flamingo-purple: linear-gradient(90deg, var(--color-flamingo), var(--color-purple));
@@ -135,6 +152,34 @@
   --color-cyan: hsl(183, 85%, 28%);     /* catppuccin-aligned deep teal */
   --color-yellow: hsl(50, 90%, 32%);    /* catppuccin-aligned deep gold */
 
+  /* Inline code surface (light theme).
+     Same currentColor + neutral pattern as dark mode, but mixed with #fff
+     so the chip is a lighter tint of the accent on any surface (page bg,
+     aside bg). The 11% mix keeps text contrast > 4.5:1 (AA) for every
+     accent and pins below cover the two Catppuccin Latte accents that
+     dip below AA on a self-tinted chip. */
+  --aspire-inline-code-bg: color-mix(in srgb, currentColor 11%, #fff);
+  --aspire-inline-code-text: var(--sl-color-accent-high);
+  --aspire-inline-code-border: color-mix(in srgb, currentColor 30%, transparent);
+
+  /* Inline code inside an aside adopts the aside's accent. */
+  .starlight-aside {
+    --aspire-inline-code-text: var(--sl-color-asides-text-accent);
+  }
+
+  /* Catppuccin Latte note blue (#1e66f4) drops below AA on a self-tinted
+     chip. Pin to a deeper blue. */
+  .starlight-aside--note {
+    --aspire-inline-code-text: #1e40af;
+  }
+
+  /* --sl-color-orange-high (#c08400) is too light to clear AA on a
+     white-ish chip, so caution uses the same darker orange (#ab3f00)
+     the site already uses for the caution title. */
+  .starlight-aside--caution {
+    --aspire-inline-code-text: #ab3f00;
+  }
+
   --gradient-purple-magenta: linear-gradient(90deg, var(--color-purple), var(--color-magenta));
   --gradient-magenta-flamingo: linear-gradient(90deg, var(--color-magenta), var(--color-flamingo));
   --gradient-flamingo-purple: linear-gradient(90deg, var(--color-flamingo), var(--color-purple));
@@ -213,6 +258,42 @@
 
 .sl-markdown-content code:not(:where(.not-content *)) {
   font-size: var(--sl-text-body);
+}
+
+/* Inline code: theme-aware accent surface with a hairline border.
+   - Background uses --aspire-inline-code-bg, which mixes currentColor with
+     #000/#fff (theme-dependent) to create a subtle shade/tint that stays
+     clearly distinct without depending on the surrounding surface.
+   - Text uses --sl-color-accent-high (or the aside's text-accent inside an
+     aside), which clears WCAG AA against the tinted surface.
+   - Border is a low-alpha accent so it reads as a hairline, not a frame.
+   - Padding is inherited from Starlight's base inline-code rule.
+   - Scoped to :not(pre) so fenced code blocks (handled by expressive-code)
+     are unaffected. */
+.sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+  background-color: var(--aspire-inline-code-bg);
+  color: var(--aspire-inline-code-text);
+  border: 1px solid var(--aspire-inline-code-border);
+}
+
+/* Inline code inside links keeps the link color so the affordance stays
+   obvious, while still sitting on the accent surface. */
+.sl-markdown-content a:not(:where(.not-content *)) > code {
+  color: inherit;
+}
+
+/* Aside links normally render as a tinted pill (padding + bg + radius),
+   but when the link's sole child is inline code the chip already carries
+   that styling — stacking both produces a wider link pill with a second,
+   lighter border around the code chip. Suppress the link pill in that
+   case so only the code chip is visible.
+   :is(:root[data-theme='light']) anchors specificity high enough to
+   beat both the dark (:root …) and light (:root[data-theme='light'] …)
+   variants of the aside-link rule. */
+:is(:root[data-theme='light'], :root) .starlight-aside__content a:not([role='tab']):has(> code:only-child) {
+  background: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 .poppins-light {

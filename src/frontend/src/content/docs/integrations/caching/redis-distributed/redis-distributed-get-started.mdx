@@ -1,91 +1,91 @@
 ---
-title: Get started with the Redis Distributed Caching integration
-description: Learn how to set up the Aspire Redis Distributed Caching hosting and client integrations simply.
-prev: false
+title: Get started with Redis distributed caching
+description: Understand why you use the Aspire Redis distributed caching integration and how it fits together.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import redisIcon from '@assets/icons/redis-icon.png';
 
 <Image
   src={redisIcon}
   alt="Redis logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The [Redis®](#registered-trademark) distributed caching integration is used to register an [IDistributedCache](https://learn.microsoft.com/dotnet/api/microsoft.extensions.caching.distributed.idistributedcache) provider backed by a [Redis](https://redis.io/) server with the [`docker.io/library/redis` container image](https://hub.docker.com/_/redis/).
+The [Redis®](#registered-trademark) distributed caching integration is the [`IDistributedCache`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.caching.distributed.idistributedcache) flavor of the Redis client integration for ASP.NET Core. It uses the same [Redis hosting integration](/integrations/caching/redis/redis-host/) (`Aspire.Hosting.Redis`) to model the Redis container in your AppHost, but the consuming-app side is provided by `Aspire.StackExchange.Redis.DistributedCaching` — a C#-only library that registers an `IDistributedCache` implementation backed by Redis. TypeScript, Go, and Python consumers should use the [regular Redis client integration](/integrations/caching/redis/redis-client/) directly.
 
-In this introduction, you'll see how to install and use the Aspire Redis Distributed Caching integrations in a simple configuration. If you already have this knowledge, see [Redis Distributed Caching hosting integration](/integrations/caching/redis-distributed/redis-distributed-host/) for full reference details.
+## Why use Redis distributed caching with Aspire
 
-<Aside type="note">
-  To follow this guide, you must have created an Aspire solution to work with.
-  To learn how to do that, see [Build your first Aspire
-  app](../../../../get-started/first-app/).
-</Aside>
+Adding the Redis distributed caching integration through Aspire — rather than wiring up connection strings and service registrations by hand — gives you:
 
-## Set up hosting integration
+- **Drop-in `IDistributedCache` implementation.** One line registers a fully functional `IDistributedCache` backed by Redis, compatible with session state, data protection, and `[OutputCache]`.
+- **Automatic service registration.** `AddRedisDistributedCache` handles `IDistributedCache`, the underlying `IConnectionMultiplexer`, and all required plumbing in a single call.
+- **Built-in health checks.** The integration registers a health check that verifies the Redis instance is reachable before your app reports healthy.
+- **OpenTelemetry out of the box.** Logging, distributed tracing, and metrics are wired up automatically through the standard Aspire telemetry pipeline.
+- **Works with ASP.NET Core higher-level abstractions.** Because `IDistributedCache` is the standard ASP.NET Core caching abstraction, this integration works transparently with output caching, session state, and ASP.NET Core Data Protection.
 
-To begin, install the Aspire Redis hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Redis" />
+The Redis distributed caching integration has two sides: the **hosting integration** in your AppHost that models the Redis resource, and the **C# client integration** in consuming apps that registers `IDistributedCache`.
 
-Next, in the AppHost project, create instances of Redis resources and pass them to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var cache = builder.AddRedis("cache");
+  service hosting(server)[Hosting integration] in apphost
+  service redis(server)[Redis server] in apphost
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
+  service client(iconoir:server-connection)[StackExchange Redis distributed cache client] in consumer
+  service app(server)[App] in consumer
 
-builder.Build().Run();
+  hosting:R --> L:redis
+  redis:R --> L:client
+  client:R --> L:app
 ```
 
-When Aspire adds a container image to the AppHost, it creates a new Redis instance on your local machine.
+The **hosting integration** lives in your AppHost project and models the Redis server as a resource. The **client integration** lives in each consuming C# app and uses the connection information Aspire injects to register `IDistributedCache`.
 
-<Aside type="tip">
-  If you'd rather connect to an existing Redis instance, call `AsExisting`
-  instead.
-</Aside>
+Getting there is a two-step process: model the Redis resource in your AppHost, then register `IDistributedCache` in your consuming app.
 
-## Set up client integration
+<Steps>
 
-To get started with the Redis distributed caching integration, install the package:
+1. ### Model Redis in your AppHost
 
-<InstallDotNetPackage packageName="Aspire.StackExchange.Redis.DistributedCaching" />
+    Add the Redis hosting integration to your AppHost, declare a Redis resource, and reference it from the apps that need distributed caching. The [Redis distributed caching AppHost](/integrations/caching/redis-distributed/redis-distributed-host/) article covers the installation and the basic `AddRedis` call. For the full AppHost API surface — data volumes, persistence, Redis Insight, Redis Commander, parameters, and more — see the [Redis Hosting integration](/integrations/caching/redis/redis-host/) reference.
 
-In the `Program.cs` file of your client-consuming project, call the `AddRedisDistributedCache` extension to register the required services for distributed caching:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/caching/redis-distributed/redis-distributed-host/'>
+        Set up Redis distributed caching in the AppHost
+    </LinkButton>
 
-```csharp
-builder.AddRedisDistributedCache(connectionName: "cache");
-```
+2. ### Connect from your consuming app
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the Redis
-  resource in the AppHost project.
-</Aside>
+    Once the Redis resource is referenced from your consuming project, Aspire injects the connection information. See [Connect to Redis distributed caching](/integrations/caching/redis-distributed/redis-distributed-connect/) for the connection properties reference, how to call `AddRedisDistributedCache`, keyed clients, configuration options, health checks, telemetry, and usage examples.
 
-You can then retrieve the `IDistributedCache` instance using dependency injection:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/caching/redis-distributed/redis-distributed-connect/'>
+        Connect to Redis distributed caching
+    </LinkButton>
 
-```csharp
-public class ExampleService(IDistributedCache cache)
-{
-    // Use cache...
-}
-```
+</Steps>
 
 ## See also
 
-- [Redis Distributed Caching hosting integration](/integrations/caching/redis-distributed/redis-distributed-host/)
-- [Redis Distributed Caching client integration](/integrations/caching/redis-distributed/redis-distributed-client/)
-- [Main Redis integration](/integrations/caching/redis/redis-get-started/)
+- [Redis integration](/integrations/caching/redis/redis-get-started/) — the primary Redis integration with `IConnectionMultiplexer`.
+- [Redis output caching](/integrations/caching/redis-output/redis-output-get-started/) — ASP.NET Core output caching backed by Redis.
+- [Redis hosting extensions](/integrations/caching/redis-extensions/) — community toolkit extensions for the Redis hosting integration.
 
 :::tip[Registered trademark]{icon="information"}
 

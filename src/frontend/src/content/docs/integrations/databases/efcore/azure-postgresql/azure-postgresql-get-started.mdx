@@ -1,14 +1,10 @@
 ---
 title: Get started with the Azure PostgreSQL EF Core integrations
-description: Learn how to set up the Aspire Azure PostgreSQL Hosting and EF Core Client integrations simply.
+description: Understand why you use the Aspire Azure PostgreSQL EF Core integrations and how they fit together.
 ---
 
 import { Image } from 'astro:assets';
-import { Kbd } from 'starlight-kbd/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import ThemeImage from '@components/ThemeImage.astro';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
 
 <Image
@@ -20,109 +16,69 @@ import postgresqlIcon from '@assets/icons/azure-postgresql-icon.png';
   data-zoom-off
 />
 
-[Azure Database for PostgreSQL](https://learn.microsoft.com/azure/postgresql/) Flexible Server is a relational database service based on the open-source Postgres database engine. It's a fully managed database-as-a-service that can handle mission-critical workloads with predictable performance, security, high availability, and dynamic scalability. The Aspire Azure PostgreSQL integration provides a way to connect to existing Azure PostgreSQL databases, or create new instances from .NET with the [`docker.io/library/postgres` container image](https://hub.docker.com/_/postgres). This client integration uses Entity Framework Core (EF Core) to provide a robust, type-safe way to interact with your Azure PostgreSQL databases using .NET objects.
+[Azure Database for PostgreSQL](https://learn.microsoft.com/azure/postgresql/) Flexible Server is a fully managed relational database service based on the open-source Postgres engine. It delivers predictable performance, built-in security, high availability, and dynamic scalability for mission-critical workloads. The Aspire Azure PostgreSQL EF Core integration lets you model an Azure PostgreSQL Flexible Server and its databases as first-class resources in your AppHost, then connect to them from C# consuming apps using Entity Framework Core.
 
-In this introduction, you'll see how to install and use the Aspire Azure PostgreSQL integrations in a simple configuration. If you already have this knowledge, see [Azure PostgreSQL Hosting integration](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/) for full reference details.
+## Why use Azure PostgreSQL with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding Azure PostgreSQL through Aspire — rather than wiring up connection strings and credentials by hand — gives you:
 
-## Set up hosting integration
+- **Zero-friction local development.** Aspire runs a local PostgreSQL container during development and automatically switches to Azure Database for PostgreSQL Flexible Server when you deploy — with no code changes.
+- **Azure-native authentication.** The integration uses Microsoft Entra ID by default, so you never have to manage passwords in configuration files.
+- **Consistent connection info.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format.
+- **Built-in EF Core features.** C# apps get an automatically pooled `DbContext`, health checks, OpenTelemetry tracing, and metrics — all registered from a single `AddAzureNpgsqlDbContext` call.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
 
-To begin, install the Aspire Azure PostgreSQL Hosting integration in your Aspire AppHost project. This integration allows you to create and manage Azure PostgreSQL flexible server instances from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Azure.PostgreSQL" shortName="azure-postgresql" />
+The Azure PostgreSQL EF Core integration has two sides: a **hosting integration** that you use in your AppHost to model the Azure PostgreSQL resource, and a **client integration** for C# consuming apps that reference it.
 
-Next, in the AppHost project, create instances of Azure PostgreSQL flexible server and database resources, then pass the database to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-var postgres = builder.AddAzurePostgresFlexibleServer("postgres");
-var postgresdb = postgres.AddDatabase("postgresdb");
+  service hosting(server)[Hosting integration] in apphost
+  service postgres(logos:postgresql)[Azure PostgreSQL Flexible Server] in apphost
+  service db(database)[postgresdb] in apphost
 
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-                            .WaitFor(postgresdb)
-                            .WithReference(postgresdb);
+  service client(iconoir:server-connection)[EF Core client integration] in consumer
+  service app(server)[App] in consumer
+
+  hosting:R --> L:postgres
+  postgres:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
 ```
 
-<Aside type="tip">
-    This is the simplest implementation of Azure PostgreSQL resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [Azure PostgreSQL Hosting integration](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/).
-</Aside>
+The **hosting integration** lives in your AppHost project and models the Azure PostgreSQL Flexible Server and databases as resources. The **EF Core client integration** lives in each C# consuming app and uses the connection information Aspire injects to interact with the database.
 
-<Aside type="caution">
-  When you call `AddAzurePostgresFlexibleServer`, it implicitly calls
-  `AddAzureProvisioning`, which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
-</Aside>
+Getting there is a two-step process: model the Azure PostgreSQL resources in your AppHost, then connect to the database from each C# app that needs it.
 
-## Use the integration in client projects
+<Steps>
 
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
+1. ### Model Azure PostgreSQL in your AppHost
 
-### Set up client projects
+    Add the Azure PostgreSQL hosting integration to your AppHost, then declare an Azure PostgreSQL Flexible Server, one or more databases, and reference them from the apps that need to talk to the database. The [Azure PostgreSQL Hosting integration](/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/) article walks through every capability — adding databases, configuring authentication, data volumes, and more.
 
-In each of these consuming client projects, install the Aspire Azure PostgreSQL Entity Framework Core client integration:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/'>
+        Set up Azure PostgreSQL in the AppHost
+    </LinkButton>
 
-<InstallDotNetPackage packageName="Aspire.Azure.Npgsql.EntityFrameworkCore.PostgreSQL" />
+2. ### Connect from your C# app using EF Core
 
-In the `Program.cs` file of your client-consuming project, call the `AddAzureNpgsqlDbContext` extension method on any `IHostApplicationBuilder` to register a `DbContext` for use via the dependency injection container. The method takes a connection name parameter.
+    When you reference an Azure PostgreSQL database from a consuming app, Aspire injects its connection information as environment variables. See [Connect to Azure PostgreSQL with EF Core](/integrations/databases/efcore/azure-postgresql/azure-postgresql-connect/) for the connection properties reference and the full C# EF Core client integration — including `AddAzureNpgsqlDbContext`, enrichment, configuration, and telemetry.
 
-```csharp title="C# — Program.cs"
-builder.AddAzureNpgsqlDbContext<ExampleDbContext>(connectionName: "postgresdb");
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/efcore/azure-postgresql/azure-postgresql-connect/'>
+        Connect to Azure PostgreSQL with EF Core
+    </LinkButton>
 
-<Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the Azure PostgreSQL database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
-</Aside>
-
-### Use injected Azure PostgreSQL properties
-
-In the AppHost, when you used the `WithReference` method to pass an Azure PostgreSQL database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
-
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `postgresdb` becomes `POSTGRESDB_URI`.
-
-Use the `GetValue()` method to obtain these environment variables in consuming projects:
-
-```csharp title="C# - Obtain configuration properties"
-string postgresHost = builder.Configuration.GetValue<string>("POSTGRESDB_HOST");
-string postgresPort = builder.Configuration.GetValue<string>("POSTGRESDB_PORT");
-string postgresJDBCConnectionString = builder.Configuration.GetValue<string>("POSTGRESDB_JDBCCONNECTIONSTRING");
-```
-
-<Aside type="tip">
-    The full set of properties that Aspire injects depends on the Azure PostgreSQL resource configuration. For more information, see [Properties of the Azure PostgreSQL resources](/integrations/databases/efcore/azure-postgresql/azure-postgresql-client/#properties-of-the-azure-postgresql-resources).
-</Aside>
-
-### Use Azure PostgreSQL resources in client code
-
-Now that you've added `DbContext` to the builder in the consuming project, you can use the Azure PostgreSQL database to get and store data. Get the `DbContext` instance using dependency injection. For example, to retrieve your context object from an example service define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(ExampleDbContext context)
-{
-    // Use database context...
-}
-```
-
-Having obtained the context, you can work with the Azure PostgreSQL database using Entity Framework Core as you would in any other C# application.
-
-## Next steps
-
-Now that you have an Aspire app with Azure PostgreSQL integrations up and running, you can use the following reference documents to learn how to configure and interact with the Azure PostgreSQL resources:
-
-<CardGrid>
-  <LinkCard
-    title="Understand the Azure PostgreSQL hosting integration"
-    description="Discover how to configure Azure resources, run as a container, and more."
-    href="/integrations/cloud/azure/azure-postgresql/azure-postgresql-host/"
-  />
-  <LinkCard
-    title="Understand the Azure PostgreSQL client integration"
-    description="Learn about the Azure PostgreSQL client integration, including connection strings and observability."
-    href="/integrations/databases/efcore/azure-postgresql/azure-postgresql-client/"
-  />
-</CardGrid>
+</Steps>

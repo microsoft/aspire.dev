@@ -1,0 +1,295 @@
+---
+title: Connect to Elasticsearch
+description: Learn how to connect to Elasticsearch from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import elasticIcon from '@assets/icons/elastic-icon.png';
+
+<Image
+  src={elasticIcon}
+  alt="Elasticsearch logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Elasticsearch resource that's already modeled in your AppHost. For the AppHost API surface — adding an Elasticsearch resource, data volumes, password parameters, and more — see [Elasticsearch Hosting integration](../elasticsearch-host/).
+
+When you reference an Elasticsearch resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Elasticsearch client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `elasticsearch` becomes `ELASTICSEARCH_URI`.
+
+The Elasticsearch resource exposes the following connection properties:
+
+| Property Name | Description |
+| ------------- | ----------- |
+| `Uri`         | The connection URI with format `http://elastic:{Password}@{Host}:{Port}` |
+
+**Example connection string:**
+
+```
+Uri: http://elastic:p%40ssw0rd1@localhost:9200
+```
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds an Elasticsearch resource named `elasticsearch` and references it from the consuming app.
+
+<Tabs syncKey="elasticsearch-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Elasticsearch client integration. It registers an [`ElasticsearchClient`](https://github.com/elastic/elasticsearch-net) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Elastic.Clients.Elasticsearch](https://www.nuget.org/packages/Aspire.Elastic.Clients.Elasticsearch) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Elastic.Clients.Elasticsearch" />
+
+#### Add the Elasticsearch client
+
+In _Program.cs_, call `AddElasticsearchClient` on your `IHostApplicationBuilder` to register an `ElasticsearchClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddElasticsearchClient(connectionName: "elasticsearch");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Elasticsearch resource name from the AppHost. For more information, see [Add Elasticsearch resource](../elasticsearch-host/#add-elasticsearch-resource).
+</Aside>
+
+Resolve the client through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(ElasticsearchClient client)
+{
+    // Use client...
+}
+```
+
+#### Add keyed Elasticsearch clients
+
+To register multiple `ElasticsearchClient` instances with different connection names, use `AddKeyedElasticsearchClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedElasticsearchClient(name: "products");
+builder.AddKeyedElasticsearchClient(name: "orders");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("products")] ElasticsearchClient productsClient,
+    [FromKeyedServices("orders")] ElasticsearchClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+For more information on keyed services, see [.NET dependency injection: Keyed services](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection#keyed-services).
+
+#### Configuration
+
+The Aspire Elasticsearch client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddElasticsearchClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddElasticsearchClient("elasticsearch");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "elasticsearch": "http://elastic:password@localhost:9200"
+  }
+}
+```
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `ElasticClientsElasticsearchSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Elastic:Clients:Elasticsearch` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Elastic": {
+      "Clients": {
+        "Elasticsearch": {
+          "DisableHealthChecks": false,
+          "DisableTracing": false,
+          "HealthCheckTimeout": "00:00:03",
+          "ApiKey": "<Valid ApiKey>",
+          "Endpoint": "http://elastic:password@localhost:9200",
+          "CloudId": "<Valid CloudId>"
+        }
+      }
+    }
+  }
+}
+```
+
+**Inline delegates.** Pass an `Action<ElasticClientsElasticsearchSettings>` to configure settings inline:
+
+```csharp title="C# — Program.cs"
+builder.AddElasticsearchClient(
+    "elasticsearch",
+    static settings =>
+        settings.Endpoint = new Uri("http://elastic:password@localhost:9200"));
+```
+
+**Elastic Cloud.** When using [Elastic Cloud](https://www.elastic.co/cloud), you can provide the `CloudId` and `ApiKey`:
+
+```csharp title="C# — Program.cs"
+builder.AddElasticsearchClient(
+    "elasticsearch",
+    static settings =>
+    {
+        settings.ApiKey = "<Valid ApiKey>";
+        settings.CloudId = "<Valid CloudId>";
+    });
+```
+
+Or via configuration providers:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Elastic": {
+      "Clients": {
+        "Elasticsearch": {
+          "ApiKey": "<Valid ApiKey>",
+          "CloudId": "<Valid CloudId>"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Elasticsearch client integration uses the configured client to perform a `PingAsync`. If the result is HTTP 200 OK, the health check is considered healthy; otherwise it's unhealthy. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Elasticsearch client integration automatically configures tracing through OpenTelemetry.
+
+**Tracing** activities:
+
+- `Elastic.Transport`
+
+Any of these telemetry features can be disabled through the configuration options above.
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection URI from the environment and pass it to the [📦 Elastic.Clients.Elasticsearch](https://www.nuget.org/packages/Elastic.Clients.Elasticsearch/) NuGet package directly:
+
+```csharp title="C# — Program.cs"
+using Elastic.Clients.Elasticsearch;
+
+var uri = Environment.GetEnvironmentVariable("ELASTICSEARCH_URI");
+
+var client = new ElasticsearchClient(new Uri(uri!));
+
+// Use client to interact with Elasticsearch...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use [`go-elasticsearch`](https://github.com/elastic/go-elasticsearch), the official Go client for Elasticsearch:
+
+```bash title="Terminal"
+go get github.com/elastic/go-elasticsearch/v8
+```
+
+Read the injected environment variable and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    elasticsearch8 "github.com/elastic/go-elasticsearch/v8"
+)
+
+func main() {
+    // Read the Aspire-injected connection URI
+    cfg := elasticsearch8.Config{
+        Addresses: []string{os.Getenv("ELASTICSEARCH_URI")},
+    }
+
+    es, err := elasticsearch8.NewClient(cfg)
+    if err != nil {
+        panic(err)
+    }
+
+    res, err := es.Info()
+    if err != nil {
+        panic(err)
+    }
+    defer res.Body.Close()
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Install [`elasticsearch`](https://github.com/elastic/elasticsearch-py), the official Python client for Elasticsearch:
+
+```bash title="Terminal"
+pip install elasticsearch
+```
+
+Read the injected environment variable and connect:
+
+```python title="Python — app.py"
+import os
+from elasticsearch import Elasticsearch
+
+# Read the Aspire-injected connection URI
+es = Elasticsearch(os.getenv("ELASTICSEARCH_URI"))
+
+# Use client to interact with Elasticsearch...
+response = es.ping()
+print(f"Elasticsearch connection status: {response}")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install [`@elastic/elasticsearch`](https://github.com/elastic/elasticsearch-js), the official Node.js client for Elasticsearch:
+
+```bash title="Terminal"
+npm install @elastic/elasticsearch
+```
+
+Read the injected environment variable and connect:
+
+```typescript title="TypeScript — index.ts"
+import { Client } from '@elastic/elasticsearch';
+
+// Read the Aspire-injected connection URI
+const client = new Client({
+    node: process.env.ELASTICSEARCH_URI,
+});
+
+// Use client to interact with Elasticsearch...
+const response = await client.ping();
+console.log('Elasticsearch connection status:', response);
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [External parameters](/get-started/resources/) for more information.
+</Aside>

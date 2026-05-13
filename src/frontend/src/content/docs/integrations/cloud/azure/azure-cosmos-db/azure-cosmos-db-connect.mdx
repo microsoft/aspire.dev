@@ -1,0 +1,358 @@
+---
+title: Connect to Azure Cosmos DB
+description: Learn how to connect to Azure Cosmos DB from C#, Go, Python, and TypeScript consuming apps in an Aspire solution.
+---
+
+import { Image } from 'astro:assets';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
+import cosmosDbIcon from '@assets/icons/azure-cosmosdb-icon.png';
+
+<Image
+  src={cosmosDbIcon}
+  alt="Azure Cosmos DB logo"
+  width={100}
+  height={100}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+This page describes how consuming apps connect to an Azure Cosmos DB resource that's already modeled in your AppHost. For the AppHost API surface — adding a Cosmos DB account, databases, containers, the emulator, and more — see [Azure Cosmos DB Hosting integration](../azure-cosmos-db-host/).
+
+When you reference an Azure Cosmos DB resource from your AppHost, Aspire injects the connection information into the consuming app as environment variables. Your app can either read those environment variables directly — the pattern works the same from any language — or, in C#, use the Aspire Azure Cosmos DB client integration for automatic dependency injection, health checks, and telemetry.
+
+## Connection properties
+
+Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `ConnectionString` property of a resource called `cosmos-db` becomes `COSMOS-DB_CONNECTIONSTRING`.
+
+### Cosmos DB account
+
+The Cosmos DB account resource exposes the following connection properties:
+
+| Property Name      | Description |
+| ------------------ | ----------- |
+| `ConnectionString` | The account endpoint URI, with the format `AccountEndpoint=https://{account}.documents.azure.com:443/`. When access key authentication is enabled, also includes `AccountKey={key};`. |
+| `AccountKey`       | The account key (only available when running the emulator or when access key authentication is enabled via `WithAccessKeyAuthentication`). |
+
+**Example (Entra ID / role-based access):**
+
+```
+ConnectionString: AccountEndpoint=https://mycosmosaccount.documents.azure.com:443/
+```
+
+**Example (emulator or access key authentication):**
+
+```
+ConnectionString: AccountEndpoint=https://localhost:8081/;AccountKey=C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==
+AccountKey: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==
+```
+
+### Cosmos DB database
+
+The Cosmos DB database resource inherits all properties from its parent Cosmos DB account and adds:
+
+| Property Name  | Description |
+| -------------- | ----------- |
+| `DatabaseName` | The name of the database |
+
+**Example:**
+
+```
+ConnectionString: AccountEndpoint=https://mycosmosaccount.documents.azure.com:443/
+DatabaseName: mydb
+```
+
+### Cosmos DB container
+
+The Cosmos DB container resource inherits all properties from its parent Cosmos DB database and adds:
+
+| Property Name   | Description |
+| --------------- | ----------- |
+| `ContainerName` | The name of the container |
+
+**Example:**
+
+```
+ConnectionString: AccountEndpoint=https://mycosmosaccount.documents.azure.com:443/
+DatabaseName: mydb
+ContainerName: mycontainer
+```
+
+<Aside type="note">
+  Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `DatabaseName` property of a resource called `cosmosdb` becomes `COSMOSDB_DATABASENAME`.
+</Aside>
+
+## Connect from your app
+
+Pick the language your consuming app is written in. Each example assumes your AppHost adds a Cosmos DB database resource named `cosmosdb` and references it from the consuming app.
+
+<Tabs syncKey="azure-cosmos-db-consuming-lang">
+<TabItem label="C#">
+
+For C# apps, the recommended approach is the Aspire Azure Cosmos DB client integration. It registers a [`CosmosClient`](https://learn.microsoft.com/dotnet/api/microsoft.azure.cosmos.cosmosclient) through dependency injection and adds health checks and telemetry automatically. If you'd rather read environment variables directly, see the [Read environment variables](#read-environment-variables-in-c) section at the end of this tab.
+
+#### Install the client integration
+
+Install the [📦 Aspire.Microsoft.Azure.Cosmos](https://www.nuget.org/packages/Aspire.Microsoft.Azure.Cosmos) NuGet package in the client-consuming project:
+
+<InstallDotNetPackage packageName="Aspire.Microsoft.Azure.Cosmos" />
+
+#### Add the Cosmos DB client
+
+In _Program.cs_, call `AddAzureCosmosClient` on your `IHostApplicationBuilder` to register a `CosmosClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureCosmosClient(connectionName: "cosmosdb");
+```
+
+<Aside type="tip">
+The `connectionName` must match the Azure Cosmos DB resource name from the AppHost. For more information, see [Add Azure Cosmos DB resource](../azure-cosmos-db-host/#add-azure-cosmos-db-resource).
+</Aside>
+
+Resolve the `CosmosClient` through dependency injection:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(CosmosClient cosmosClient)
+{
+    // Use cosmosClient...
+}
+```
+
+#### Add keyed Cosmos DB clients
+
+To register multiple `CosmosClient` instances with different connection names, use `AddKeyedAzureCosmosClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddKeyedAzureCosmosClient(name: "catalog");
+builder.AddKeyedAzureCosmosClient(name: "orders");
+```
+
+Then resolve each instance by key:
+
+```csharp title="C# — ExampleService.cs"
+public class ExampleService(
+    [FromKeyedServices("catalog")] CosmosClient catalogClient,
+    [FromKeyedServices("orders")] CosmosClient ordersClient)
+{
+    // Use clients...
+}
+```
+
+#### Configuration
+
+The Aspire Azure Cosmos DB client integration offers multiple ways to provide configuration.
+
+**Connection strings.** When using a connection string from the `ConnectionStrings` configuration section, pass the connection name to `AddAzureCosmosClient`:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureCosmosClient("cosmosdb");
+```
+
+The connection string is resolved from the `ConnectionStrings` section:
+
+```json title="JSON — appsettings.json"
+{
+  "ConnectionStrings": {
+    "cosmosdb": "AccountEndpoint=https://{account}.documents.azure.com:443/;AccountKey={key};"
+  }
+}
+```
+
+For more information, see the [ConnectionString documentation](https://learn.microsoft.com/azure/cosmos-db/nosql/how-to-dotnet-get-started#connect-with-a-connection-string).
+
+**Configuration providers.** The client integration supports `Microsoft.Extensions.Configuration`. It loads `MicrosoftAzureCosmosSettings` from _appsettings.json_ (or any other configuration source) by using the `Aspire:Microsoft:Azure:Cosmos` key:
+
+```json title="JSON — appsettings.json"
+{
+  "Aspire": {
+    "Microsoft": {
+      "Azure": {
+        "Cosmos": {
+          "DisableTracing": false
+        }
+      }
+    }
+  }
+}
+```
+
+For the complete Azure Cosmos DB client integration JSON schema, see [Aspire.Microsoft.Azure.Cosmos/ConfigurationSchema.json](https://github.com/microsoft/aspire/blob/main/src/Components/Aspire.Microsoft.Azure.Cosmos/ConfigurationSchema.json).
+
+**Inline delegates.** Pass an `Action<MicrosoftAzureCosmosSettings>` to configure settings inline, for example to disable tracing:
+
+```csharp title="C# — Program.cs"
+builder.AddAzureCosmosClient(
+    "cosmosdb",
+    static settings => settings.DisableTracing = true);
+```
+
+#### Client integration health checks
+
+Aspire client integrations enable health checks by default. The Azure Cosmos DB client integration adds a health check that verifies the account is reachable. The health check is wired into the `/health` HTTP endpoint, where all registered health checks must pass before the app is considered ready to accept traffic.
+
+#### Observability and telemetry
+
+The Aspire Azure Cosmos DB client integration automatically configures logging, tracing, and metrics through OpenTelemetry.
+
+**Logging** categories:
+
+- `Azure-Cosmos-Operation-Request-Diagnostics`
+
+**Tracing** activities:
+
+- `Azure.Cosmos.Operation`
+
+**Metrics** are emitted through OpenTelemetry. Any of these telemetry features can be disabled through the configuration options above.
+
+#### Entity Framework Core variant
+
+If you prefer Entity Framework Core over the direct `CosmosClient`, install the [📦 Aspire.Microsoft.EntityFrameworkCore.Cosmos](https://www.nuget.org/packages/Aspire.Microsoft.EntityFrameworkCore.Cosmos) package and call `AddCosmosDbContext` instead. For the full EF Core reference, see [Entity Framework Core — Azure Cosmos DB integration](/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-get-started/).
+
+#### Read environment variables in C\#
+
+If you prefer not to use the Aspire client integration, you can read the Aspire-injected connection string from the environment and construct a `CosmosClient` directly:
+
+```csharp title="C# — Program.cs"
+using Microsoft.Azure.Cosmos;
+
+var connectionString = Environment.GetEnvironmentVariable("COSMOSDB_CONNECTIONSTRING");
+
+var cosmosClient = new CosmosClient(connectionString);
+
+// Use cosmosClient to interact with Azure Cosmos DB...
+```
+
+</TabItem>
+<TabItem label="Go">
+
+Use the [Azure Cosmos DB SDK for Go](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos):
+
+```bash title="Terminal"
+go get github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos
+```
+
+Read the injected environment variables and connect:
+
+```go title="Go — main.go"
+package main
+
+import (
+    "os"
+    "github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+)
+
+func main() {
+    // Read Aspire-injected connection properties
+    connectionString := os.Getenv("COSMOSDB_CONNECTIONSTRING")
+    accountKey := os.Getenv("COSMOSDB_ACCOUNTKEY")
+
+    cred, err := azcosmos.NewKeyCredential(accountKey)
+    if err != nil {
+        panic(err)
+    }
+
+    // Extract endpoint from the connection string or use the env var directly
+    client, err := azcosmos.NewClientFromConnectionString(connectionString, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    _ = client
+    // Use client to interact with Azure Cosmos DB...
+}
+```
+
+<Aside type="note">
+    When using Microsoft Entra ID authentication (role-based access, the default), the `COSMOSDB_ACCOUNTKEY` environment variable is not injected. Use the [`azidentity`](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity) package and `azcosmos.NewClient` with a `TokenCredential` instead.
+</Aside>
+
+</TabItem>
+<TabItem label="Python">
+
+Install the [azure-cosmos](https://pypi.org/project/azure-cosmos/) package:
+
+```bash title="Terminal"
+pip install azure-cosmos
+```
+
+Read the injected environment variables and connect:
+
+```python title="Python — app.py"
+import os
+from azure.cosmos import CosmosClient
+
+# Read Aspire-injected connection string
+connection_string = os.getenv("COSMOSDB_CONNECTIONSTRING")
+database_name = os.getenv("COSMOSDB_DATABASENAME")
+
+client = CosmosClient.from_connection_string(connection_string)
+database = client.get_database_client(database_name)
+
+# Use database to interact with Azure Cosmos DB...
+```
+
+<Aside type="note">
+    When using Microsoft Entra ID authentication (role-based access, the default), the connection string does not include an account key. Use the [`azure-identity`](https://pypi.org/project/azure-identity/) package and pass a `DefaultAzureCredential` to `CosmosClient` instead:
+
+    ```python title="Python — app.py (Entra ID)"
+    import os
+    from azure.cosmos import CosmosClient
+    from azure.identity import DefaultAzureCredential
+
+    endpoint = os.getenv("COSMOSDB_CONNECTIONSTRING")  # Contains AccountEndpoint=... only
+    # Strip the "AccountEndpoint=" prefix if present
+    if endpoint and endpoint.startswith("AccountEndpoint="):
+        endpoint = endpoint.split("AccountEndpoint=")[1].rstrip(";")
+
+    client = CosmosClient(url=endpoint, credential=DefaultAzureCredential())
+    ```
+</Aside>
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Install the [`@azure/cosmos`](https://www.npmjs.com/package/@azure/cosmos) package:
+
+```bash title="Terminal"
+npm install @azure/cosmos
+```
+
+Read the injected environment variables and connect:
+
+```typescript title="TypeScript — index.ts"
+import { CosmosClient } from '@azure/cosmos';
+
+// Read Aspire-injected connection string
+const connectionString = process.env.COSMOSDB_CONNECTIONSTRING!;
+const databaseName = process.env.COSMOSDB_DATABASENAME;
+
+const client = new CosmosClient(connectionString);
+
+const database = client.database(databaseName!);
+// Use database to interact with Azure Cosmos DB...
+```
+
+<Aside type="note">
+    When using Microsoft Entra ID authentication (role-based access, the default), the connection string contains only the endpoint with no account key. Use the [`@azure/identity`](https://www.npmjs.com/package/@azure/identity) package and pass a `DefaultAzureCredential`:
+
+    ```typescript title="TypeScript — index.ts (Entra ID)"
+    import { CosmosClient } from '@azure/cosmos';
+    import { DefaultAzureCredential } from '@azure/identity';
+
+    // Extract the endpoint from the connection string
+    const cs = process.env.COSMOSDB_CONNECTIONSTRING!;
+    const endpoint = cs.replace('AccountEndpoint=', '').replace(/;$/, '');
+
+    const client = new CosmosClient({
+        endpoint,
+        aadCredentials: new DefaultAzureCredential(),
+    });
+    ```
+</Aside>
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+    If your app expects specific environment variable names different from the Aspire defaults, you can pass individual connection properties from the AppHost using `WithEnvironment`. See [Customize resources](/integrations/cloud/azure/customize-resources/) in the Azure integration reference.
+</Aside>

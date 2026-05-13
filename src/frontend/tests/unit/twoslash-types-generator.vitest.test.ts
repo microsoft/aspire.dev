@@ -22,6 +22,7 @@ beforeAll(() => {
 }, 60_000);
 
 describe('generate-twoslash-types', () => {
+
   test('writes aspire.d.ts to disk', () => {
     expect(existsSync(outputFile)).toBe(true);
     expect(statSync(outputFile).size).toBeGreaterThan(10_000);

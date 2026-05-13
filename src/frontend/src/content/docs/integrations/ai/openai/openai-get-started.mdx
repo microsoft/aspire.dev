@@ -1,99 +1,89 @@
 ---
-title: Get started with the OpenAI integration
-description: Learn how to set up the Aspire OpenAI hosting and client integrations simply.
+title: Get started with the OpenAI integrations
+description: Understand why you use the Aspire OpenAI integrations and how they fit together.
 prev: false
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import ThemeImage from '@components/ThemeImage.astro';
+import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import openaiIcon from '@assets/icons/openai-icon.png';
-import openaiLightIcon from '@assets/icons/openai-light-icon.png';
 
-<ThemeImage
-  light={openaiLightIcon}
-  dark={openaiIcon}
+<Image
+  src={openaiIcon}
   alt="OpenAI logo"
   width={100}
   height={100}
-  zoomable={false}
-  classOverride="float-inline-left icon"
+  class:list={'float-inline-left icon'}
+  data-zoom-off
 />
 
-[OpenAI](https://openai.com/) provides access to chat/completions, embeddings, image, and audio models via a REST API. The OpenAI integration lets you:
+[OpenAI](https://platform.openai.com/) provides access to chat/completions, embeddings, image, and audio models via a REST API. The Aspire OpenAI integration lets you model an OpenAI account (endpoint + API key) and one or more model resources as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-- Model an OpenAI account (endpoint + API key) once in the AppHost.
-- Add one or more model resources that compose their connection strings from the parent.
-- Reference those model resources from projects to get strongly-named connection strings.
-- Consume those connection strings with the `Aspire.OpenAI` component to obtain an `OpenAIClient` and (optionally) an `IChatClient`.
+## Why use OpenAI with Aspire
 
-In this introduction, you'll see how to install and use the Aspire OpenAI integrations in a simple configuration. If you already have this knowledge, see [OpenAI hosting integration](/integrations/ai/openai/openai-host/) for full reference details.
+Adding OpenAI through Aspire — rather than hard-coding API keys and endpoints in each service — gives you:
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+- **Centralized credential management.** The API key is stored once as a secret parameter in the AppHost and injected into each consuming app automatically.
+- **Model resources with typed connection strings.** Each model resource composes a connection string from the parent endpoint, API key, and model name, giving consuming apps a single named connection.
+- **Consistent connection info across languages.** Once you reference a model resource from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Endpoint override for compatible gateways.** Swap the default `https://api.openai.com/v1` endpoint for an Azure OpenAI endpoint or any OpenAI-compatible proxy without changing consuming apps.
+- **A first-class C# client integration.** C# apps can use the `Aspire.OpenAI` package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
 
-## Set up hosting integration
+## How the pieces fit together
 
-To begin, install the Aspire OpenAI hosting integration in your Aspire AppHost project:
+The OpenAI integration has two sides: a **hosting integration** that you use in your AppHost to model the OpenAI resource and its models, and a **connection story** for consuming apps that reference those model resources.
 
-<InstallPackage packageName="Aspire.Hosting.OpenAI" />
+```mermaid
+architecture-beta
 
-Next, in the AppHost project, create instances of OpenAI resources and pass them to the consuming client projects:
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service hosting(server)[Hosting integration] in apphost
+  service openai(internet)[OpenAI API] in apphost
+  service model(database)[chat model] in apphost
 
-var openai = builder.AddOpenAI("openai");
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-var chat = openai.AddModel("chat", "gpt-4o-mini");
-var embeddings = openai.AddModel("embeddings", "text-embedding-3-small");
-
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(chat);
-
-builder.Build().Run();
+  hosting:R --> L:openai
+  openai:R --> L:model
+  model:R --> L:client
+  client:R --> L:app
 ```
 
-The preceding code adds an OpenAI parent resource and two model resources. Referencing `chat` passes a connection string named `chat` to the project. Multiple models can share the single API key and endpoint via the parent resource.
+The **hosting integration** lives in your AppHost project and models the OpenAI parent resource and model resources. The **client integration** lives in each consuming app and uses the connection information Aspire injects to call the OpenAI API.
 
-### Configure authentication
+Getting there is a two-step process: model the OpenAI resources in your AppHost, then connect to the API from each app that needs it.
 
-The integration creates a secret parameter named `openai-openai-apikey` that automatically falls back to the `OPENAI_API_KEY` environment variable. Provide the key via the Aspire CLI:
+<Steps>
 
-```bash
-aspire secret set Parameters:openai-openai-apikey sk-your-api-key
-```
+1. ### Model OpenAI in your AppHost
 
-## Set up client integration
+    Add the OpenAI hosting integration to your AppHost, then declare an OpenAI parent resource and one or more model resources, and reference them from the apps that need to call the API. The [OpenAI hosting integration](/integrations/ai/openai/openai-host/) article walks through every capability — adding models, API key parameters, endpoint overrides, and health checks — with side-by-side C# and TypeScript examples.
 
-To get started with the Aspire OpenAI client integration, install the package:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/ai/openai/openai-host/'>
+        Set up OpenAI in the AppHost
+    </LinkButton>
 
-<InstallDotNetPackage packageName="Aspire.OpenAI" />
+2. ### Connect from your consuming app
 
-In the `Program.cs` file of your client-consuming project, use `AddOpenAIClient` to register an `OpenAIClient` for dependency injection:
+    When you reference an OpenAI model resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to OpenAI](/integrations/ai/openai/openai-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
 
-```csharp
-builder.AddOpenAIClient(connectionName: "chat");
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/ai/openai/openai-connect/'>
+        Connect to OpenAI
+    </LinkButton>
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the OpenAI
-  resource in the AppHost project.
-</Aside>
-
-After adding the `OpenAIClient`, you can retrieve the client instance using dependency injection:
-
-```csharp
-public class ExampleService(OpenAIClient client)
-{
-    // Use client...
-}
-```
+</Steps>
 
 ## See also
 
-- [OpenAI hosting integration](/integrations/ai/openai/openai-host/)
-- [OpenAI client integration](/integrations/ai/openai/openai-client/)
-- [OpenAI documentation](https://openai.com/)
+- [OpenAI API documentation](https://platform.openai.com/docs)

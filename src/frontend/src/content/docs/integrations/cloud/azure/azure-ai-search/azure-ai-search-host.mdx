@@ -1,57 +1,130 @@
 ---
-title: Azure AI Search hosting integration
-description: Learn how to use the Aspire Azure AI Search hosting integration to create Azure AI Search resources.
+title: Set up Azure AI Search in the AppHost
+description: Learn how to use the Aspire Azure AI Search Hosting integration to orchestrate and configure an Azure AI Search resource in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import searchIcon from '@assets/icons/azure-search-icon.png';
 
 <Image
   src={searchIcon}
   alt="Azure AI Search logo"
-  height={80}
-  width={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The Aspire Azure AI Search hosting integration models the search service as the `AzureSearchResource` type. To access this type and APIs for expressing them within your AppHost project, install the [📦 Aspire.Hosting.Azure.Search](https://www.nuget.org/packages/Aspire.Hosting.Azure.Search) NuGet package:
+This article is the reference for the Aspire Azure AI Search Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model an Azure AI Search resource in your [`AppHost`](/get-started/app-host/) project.
 
-<InstallPackage packageName="Aspire.Hosting.Azure.Search" />
+If you're new to the Azure AI Search integration, start with the [Get started with Azure AI Search integrations](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to Azure AI Search](../azure-ai-search-connect/).
 
-For an introduction to working with the Azure AI Search hosting integration, see [Get started with the Azure AI Search integration](/integrations/cloud/azure/azure-ai-search/azure-ai-search-get-started/).
+## Installation
 
-## Add an Azure AI Search resource
+To start building an Aspire app that uses Azure AI Search, install the [📦 Aspire.Hosting.Azure.Search](https://www.nuget.org/packages/Aspire.Hosting.Azure.Search) NuGet package:
 
-To add an Azure AI Search resource to your AppHost project, call the `AddAzureSearch` method providing a name:
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
+```bash title="Terminal"
+aspire add azure-search
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Azure.Search@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Azure.Search" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add azure-search
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Azure AI Search hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Azure.Search": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Azure AI Search resource
+
+Once you've installed the hosting integration in your AppHost project, you can add an Azure AI Search resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var search = builder.AddAzureSearch("search");
 
-builder.AddProject<Projects.ExampleProject>()
+builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(search);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The preceding code adds an Azure AI Search resource named `search` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
+const builder = await createBuilder();
 
-<Aside type="caution">
-  When you call `AddAzureSearch`, it implicitly calls
-  `AddAzureProvisioning`—which adds support for generating Azure resources
-  dynamically during app startup. The app must configure the appropriate
-  subscription and location. For more information, see [Local provisioning:
-  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+const search = await builder.addAzureSearch("search");
+
+await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+    .withReference(search);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. When Aspire adds an Azure AI Search resource, it implicitly calls `AddAzureProvisioning`, which adds support for generating Azure resources dynamically during app startup.
+
+1. The app must configure the appropriate Azure subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+
+1. The `withReference` call configures a connection in the consuming project named after the referenced search resource, such as `search` in the preceding example.
+
+</Steps>
+
+<Aside type="note">
+    When you reference an Azure AI Search resource from the AppHost, Aspire makes connection properties available to the consuming project. For a complete list of these properties and per-language connection examples, see [Connect to Azure AI Search](../azure-ai-search-connect/).
 </Aside>
 
 ## Connect to an existing Azure AI Search instance
 
-You might have an existing Azure AI Search service that you want to connect to. You can chain a call to annotate that your `AzureSearchResource` is an existing resource:
+You might have an existing Azure AI Search service that you want to connect to. Chain a call to mark the resource as existing rather than provisioning a new one:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -61,19 +134,34 @@ var existingSearchResourceGroup = builder.AddParameter("existingSearchResourceGr
 var search = builder.AddAzureSearch("search")
     .AsExisting(existingSearchName, existingSearchResourceGroup);
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(search);
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(search);
 
 // After adding all resources, run the app...
+builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const existingSearchName = await builder.addParameter("existingSearchName");
+
+const search = await builder.addAzureSearch("search");
+await search.asExisting(existingSearchName);
+
+await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+    .withReference(search);
+
+// After adding all resources, run the app...
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 For more information on treating Azure AI Search resources as existing resources, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
-
-<Aside type="note">
-  Alternatively, instead of representing an Azure AI Search resource, you can
-  add a connection string to the AppHost. This approach is weakly-typed and
-  doesn't work with role assignments or infrastructure customizations.
-</Aside>
 
 ## Provisioning-generated Bicep
 
@@ -105,7 +193,7 @@ output connectionString string = 'Endpoint=https://${search.name}.search.windows
 output name string = search.name
 ```
 
-The preceding Bicep is a module that provisions an Azure AI Search service resource. Additionally, role assignments are created for the Azure resource in a separate module:
+The preceding Bicep provisions an Azure AI Search service with `disableLocalAuth: true`, which means authentication uses role-based access (managed identity) rather than API keys by default. Role assignments are created in a separate module:
 
 ```bicep title="Generated Bicep — search-roles.bicep"
 @description('The location for the resource(s) to be deployed.')
@@ -144,10 +232,12 @@ resource search_SearchServiceContributor 'Microsoft.Authorization/roleAssignment
 
 The generated Bicep is a starting point and is influenced by changes to the provisioning infrastructure in C#. Customizations to the Bicep file directly will be overwritten, so make changes through the C# provisioning APIs to ensure they are reflected in the generated files.
 
-### Customize provisioning infrastructure
+## Customize provisioning infrastructure
 
 All Aspire Azure resources are subclasses of the `AzureProvisioningResource` type. This type enables the customization of the generated Bicep by providing a fluent API to configure the Azure resources using the `ConfigureInfrastructure` API:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -164,8 +254,26 @@ builder.AddAzureSearch("search")
         searchService.Tags.Add("ExampleKey", "Example value");
     });
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-The preceding code:
+const builder = await createBuilder();
+
+const search = await builder.addAzureSearch("search");
+await search.configureInfrastructure(async (infra) => {
+    // Customize the provisioning infrastructure here.
+    // Changes made via the C# AzureResourceInfrastructure API
+    // are accessible through the infra object.
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+The preceding C# code:
 
 - Chains a call to the `ConfigureInfrastructure` API:
   - The `infra` parameter is an instance of the `AzureResourceInfrastructure` type.
@@ -174,20 +282,65 @@ The preceding code:
     - The `PartitionCount` is set to `6`.
     - The `ReplicaCount` is set to `3`.
     - The `SearchSkuName` is set to `Standard3`.
-    - A tag is added to the Cognitive Services resource with a key of `ExampleKey` and a value of `Example value`.
+    - A tag is added to the search resource with a key of `ExampleKey` and a value of `Example value`.
 
-There are many more configuration options available to customize the Search resource. For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+For more information, see [Azure.Provisioning customization](/integrations/cloud/azure/customize-resources/#azureprovisioning-customization).
+
+## Role assignments
+
+By default, the Azure AI Search hosting integration generates role assignments for `SearchIndexDataContributor` and `SearchServiceContributor` in the provisioned Bicep. You can customize the roles assigned to a resource:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+Role assignments are generated automatically in the provisioned Bicep. To clear the default role assignments and assign custom ones, use `ClearDefaultRoleAssignments` and then configure via `ConfigureInfrastructure`:
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var search = builder.AddAzureSearch("search");
+
+builder.AddProject<Projects.ExampleProject>("apiservice")
+    .WithReference(search)
+    .WithRoleAssignments(search, AzureSearchRole.SearchIndexDataReader);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+Use `withRoleAssignments` to assign specific roles from the `AzureSearchRole` enum to a resource:
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, AzureSearchRole } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const search = await builder.addAzureSearch("search");
+
+const api = await builder.addProject("apiservice", "../ExampleProject/ExampleProject.csproj")
+    .withReference(search);
+
+// Assign only the data-reader role to the api project
+await search.withRoleAssignments(api, [AzureSearchRole.SearchIndexDataReader]);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The available roles are defined in the `AzureSearchRole` enum:
+
+| Role                          | Description                                                           |
+| ----------------------------- | --------------------------------------------------------------------- |
+| `SearchIndexDataContributor`  | Full access to Azure AI Search index data (read, write, and delete). |
+| `SearchIndexDataReader`       | Read-only access to Azure AI Search index data.                      |
+| `SearchServiceContributor`    | Manage search service resources (not data).                          |
 
 ## Connection properties
 
-When you reference an Azure AI Search service using `WithReference`, the following connection properties are made available to the consuming project:
+For the full reference of Azure AI Search connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to Azure AI Search](../azure-ai-search-connect/).
 
-| Property Name | Description                                                                                          |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| `Uri`         | The HTTPS endpoint of the Azure AI Search service in the format `https://{name}.search.windows.net`. |
+## Hosting integration health checks
 
-<Aside type="note">
-  Aspire exposes each property as an environment variable named
-  `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called
-  `search1` becomes `SEARCH1_URI`.
-</Aside>
+The Azure AI Search hosting integration doesn't register a standalone health check by default because Azure AI Search is a managed cloud service. Health verification happens through the C# client integration. For more information, see [Connect to Azure AI Search](../azure-ai-search-connect/).

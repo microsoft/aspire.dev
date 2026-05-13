@@ -1,12 +1,10 @@
 ---
 title: LavinMQ integration
+description: Learn how to use the Aspire LavinMQ Hosting integration to orchestrate and configure a LavinMQ resource in an Aspire solution.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { Aside, Badge, Tabs, TabItem } from '@astrojs/starlight/components';
 import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
 
 <Badge text="⭐ Community Toolkit" variant="tip" size="large" />
@@ -20,18 +18,49 @@ import lavinmqIcon from '@assets/icons/lavinmq-icon.png';
   data-zoom-off
 />
 
-[LavinMQ](https://lavinmq.com/) is a high-performance message broker that implements the AMQP 0.9.1 protocol and is wire-compatible with RabbitMQ. The Aspire LavinMQ integration provides a way to connect to existing LavinMQ instances or create new instances from Aspire with the `docker.io/cloudamqp/lavinmq` container image.
+This article is the reference for the Aspire LavinMQ Hosting integration. It enumerates the AppHost APIs that you use to model a LavinMQ resource in your [`AppHost`](/get-started/app-host/) project. [LavinMQ](https://lavinmq.com/) is a high-performance message broker that implements the AMQP 0.9.1 protocol and is wire-compatible with RabbitMQ. The integration provisions a LavinMQ instance using the `docker.io/cloudamqp/lavinmq` container image.
 
-## Hosting integration
+<Aside type="note">
+  TypeScript AppHost support for the LavinMQ integration is not yet available. The examples on this page use the C# AppHost only.
+</Aside>
 
-To get started with the Aspire LavinMQ hosting integration, install the [CommunityToolkit.Aspire.Hosting.LavinMQ](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.LavinMQ) NuGet package in the app host project.
+## Installation
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.LavinMQ" />
+To start building an Aspire app that uses LavinMQ, install the [📦 CommunityToolkit.Aspire.Hosting.LavinMQ](https://www.nuget.org/packages/CommunityToolkit.Aspire.Hosting.LavinMQ) NuGet package in the AppHost project:
 
-### Add LavinMQ resource
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-In your app host project, register and consume a LavinMQ server integration using the `AddLavinMQ` extension method to add the LavinMQ server resource to the builder:
+```bash title="Terminal"
+aspire add lavinmq
+```
 
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package CommunityToolkit.Aspire.Hosting.LavinMQ@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="CommunityToolkit.Aspire.Hosting.LavinMQ" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="caution">
+  TypeScript AppHost support (`addLavinMQ` and related APIs) is not yet available for this community integration. Use the C# AppHost tab for installation instructions.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+## Add LavinMQ resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a LavinMQ server resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -42,13 +71,24 @@ builder.AddProject<Projects.ExampleProject>()
 
 // After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
 
-When Aspire adds a container image to the app host, as shown in the preceding example with the `docker.io/cloudamqp/lavinmq` image, it creates a new LavinMQ instance. The default username is `guest`, and the password is a randomly generated string.
+<Aside type="caution">
+  TypeScript AppHost support for the LavinMQ integration is not yet available.
+</Aside>
 
-### Data persistence
+</TabItem>
+</Tabs>
+
+When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/cloudamqp/lavinmq` image, it creates a new LavinMQ instance. The default username is `guest`, and the password is a randomly generated string.
+
+## Add LavinMQ resource with data volume
 
 To add data volumes for persisting LavinMQ data, call the `WithDataVolume` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -57,12 +97,27 @@ var lavinmq = builder.AddLavinMQ("lavinmq")
 
 builder.AddProject<Projects.ExampleProject>()
        .WithReference(lavinmq);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="caution">
+  TypeScript AppHost support for the LavinMQ integration is not yet available.
+</Aside>
+
+</TabItem>
+</Tabs>
 
 The data volume is used to persist the LavinMQ data outside the lifecycle of the container.
 
+## Add LavinMQ resource with data bind mount
+
 For development scenarios, you may want to use bind mounts instead of data volumes. To add a data bind mount, call the `WithDataBindMount` method:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -71,17 +126,30 @@ var lavinmq = builder.AddLavinMQ("lavinmq")
 
 builder.AddProject<Projects.ExampleProject>()
        .WithReference(lavinmq);
-```
 
-### Management UI
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="caution">
+  TypeScript AppHost support for the LavinMQ integration is not yet available.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+## Management UI
 
 LavinMQ provides a management UI that you can use to monitor and manage your LavinMQ instance. The management UI is automatically exposed when you add a LavinMQ resource and is accessible through the Aspire dashboard.
 
 ## Client integration
 
-LavinMQ is wire-compatible with RabbitMQ and uses the AMQP 0.9.1 protocol. To connect to LavinMQ from your client application, use the [Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.RabbitMQ.Client) NuGet package:
+LavinMQ is wire-compatible with RabbitMQ and uses the AMQP 0.9.1 protocol. To connect to LavinMQ from your client application, install the [📦 Aspire.RabbitMQ.Client](https://www.nuget.org/packages/Aspire.RabbitMQ.Client) NuGet package:
 
-<InstallDotNetPackage packageName="Aspire.RabbitMQ.Client" />
+```bash title="Terminal"
+dotnet add package Aspire.RabbitMQ.Client
+```
 
 ### Add RabbitMQ client API
 

@@ -1,17 +1,120 @@
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// Matches versioned "What's new" release notes filenames such as
+// `aspire-13.mdx` (13.0), `aspire-13-3.mdx` (13.3), and `aspire-9-5.mdx` (9.5).
+// Excludes `upgrade-aspire.mdx` and other non-versioned pages.
+const whatsNewVersionPattern = /^aspire-(\d+)(?:-(\d+))?\.mdx$/;
+
+function getLatestWhatsNewSlug() {
+  const whatsNewDir = fileURLToPath(
+    new URL('../src/content/docs/whats-new/', import.meta.url)
+  );
+
+  let bestSlug = null;
+  let bestKey = -1;
+
+  for (const entry of readdirSync(whatsNewDir)) {
+    const match = whatsNewVersionPattern.exec(entry);
+    if (!match) continue;
+
+    const major = Number(match[1]);
+    const minor = Number(match[2] ?? 0);
+    const key = major * 1000 + minor;
+
+    if (key > bestKey) {
+      bestKey = key;
+      bestSlug = entry.replace(/\.mdx$/, '');
+    }
+  }
+
+  if (!bestSlug) {
+    throw new Error(
+      `No versioned "What's new" entries matched ${whatsNewVersionPattern} in ${whatsNewDir}. ` +
+        `The /whats-new/ redirect cannot be computed; check the file naming convention.`
+    );
+  }
+
+  return bestSlug;
+}
+
+const latestWhatsNewSlug = getLatestWhatsNewSlug();
+
 export const redirects = {
   // https://docs.astro.build/en/guides/routing/#configured-redirects
   // For example:
   // '/original/path/': '/new/path'
   '/cli/': '/reference/cli/overview/',
   '/compatibility/': '/whats-new/upgrade-aspire/',
+  // `/whats-new/` has no index page; redirect it to the latest release notes
+  // (computed from the filenames in src/content/docs/whats-new/). Uses 302
+  // because the destination changes when a new version ships.
+  '/whats-new/': {
+    status: 302,
+    destination: `/whats-new/${latestWhatsNewSlug}/`,
+  },
   '/configure-the-mcp-server/': '/get-started/aspire-mcp-server/',
   '/install-aspire-cli/': '/get-started/install-cli/',
   '/get-started/welcome/': '/docs/',
   '/get-started/installation/': '/get-started/install-cli/',
+  // Integration -client → -connect rename
+  '/integrations/ai/github-models/github-models-client/': '/integrations/ai/github-models/github-models-connect/',
+  '/integrations/ai/ollama/ollama-client/': '/integrations/ai/ollama/ollama-connect/',
+  '/integrations/ai/openai/openai-client/': '/integrations/ai/openai/openai-connect/',
+  '/integrations/caching/garnet/garnet-client/': '/integrations/caching/garnet/garnet-connect/',
+  '/integrations/caching/redis-distributed/redis-distributed-client/': '/integrations/caching/redis-distributed/redis-distributed-connect/',
+  '/integrations/caching/redis-output/redis-output-client/': '/integrations/caching/redis-output/redis-output-connect/',
+  '/integrations/caching/redis/redis-client/': '/integrations/caching/redis/redis-connect/',
+  '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-client/': '/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-connect/',
+  '/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-client/': '/integrations/cloud/azure/azure-ai-inference/azure-ai-inference-connect/',
+  '/integrations/cloud/azure/azure-ai-search/azure-ai-search-client/': '/integrations/cloud/azure/azure-ai-search/azure-ai-search-connect/',
+  '/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-client/': '/integrations/cloud/azure/azure-app-configuration/azure-app-configuration-connect/',
+  '/integrations/cloud/azure/azure-app-service/azure-app-service-client/': '/integrations/cloud/azure/azure-app-service/azure-app-service-connect/',
+  '/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-client/': '/integrations/cloud/azure/azure-cache-redis/azure-cache-redis-connect/',
+  '/integrations/cloud/azure/azure-container-registry/azure-container-registry-client/': '/integrations/cloud/azure/azure-container-registry/azure-container-registry-connect/',
+  '/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-client/': '/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect/',
+  '/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-client/': '/integrations/cloud/azure/azure-event-hubs/azure-event-hubs-connect/',
+  '/integrations/cloud/azure/azure-functions/azure-functions-client/': '/integrations/cloud/azure/azure-functions/azure-functions-connect/',
+  '/integrations/cloud/azure/azure-key-vault/azure-key-vault-client/': '/integrations/cloud/azure/azure-key-vault/azure-key-vault-connect/',
+  '/integrations/cloud/azure/azure-openai/azure-openai-client/': '/integrations/cloud/azure/azure-openai/azure-openai-connect/',
+  '/integrations/cloud/azure/azure-postgresql/azure-postgresql-client/': '/integrations/cloud/azure/azure-postgresql/azure-postgresql-connect/',
+  '/integrations/cloud/azure/azure-service-bus/azure-service-bus-client/': '/integrations/cloud/azure/azure-service-bus/azure-service-bus-connect/',
+  '/integrations/cloud/azure/azure-signalr/azure-signalr-client/': '/integrations/cloud/azure/azure-signalr/azure-signalr-connect/',
+  '/integrations/cloud/azure/azure-sql-database/azure-sql-database-client/': '/integrations/cloud/azure/azure-sql-database/azure-sql-database-connect/',
+  '/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-client/': '/integrations/cloud/azure/azure-storage-blobs/azure-storage-blobs-connect/',
+  '/integrations/cloud/azure/azure-storage-queues/azure-storage-queues-client/': '/integrations/cloud/azure/azure-storage-queues/azure-storage-queues-connect/',
+  '/integrations/cloud/azure/azure-storage-tables/azure-storage-tables-client/': '/integrations/cloud/azure/azure-storage-tables/azure-storage-tables-connect/',
+  '/integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-client/': '/integrations/cloud/azure/azure-web-pubsub/azure-web-pubsub-connect/',
+  '/integrations/databases/clickhouse/clickhouse-client/': '/integrations/databases/clickhouse/clickhouse-connect/',
+  '/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-client/': '/integrations/databases/efcore/azure-cosmos-db/azure-cosmos-db-connect/',
+  '/integrations/databases/efcore/azure-postgresql/azure-postgresql-client/': '/integrations/databases/efcore/azure-postgresql/azure-postgresql-connect/',
+  '/integrations/databases/efcore/azure-sql/azure-sql-client/': '/integrations/databases/efcore/azure-sql/azure-sql-connect/',
+  '/integrations/databases/efcore/mongodb/mongodb-efcore-client/': '/integrations/databases/efcore/mongodb/mongodb-efcore-connect/',
+  '/integrations/databases/efcore/mysql/mysql-client/': '/integrations/databases/efcore/mysql/mysql-connect/',
+  '/integrations/databases/efcore/oracle/oracle-client/': '/integrations/databases/efcore/oracle/oracle-connect/',
+  '/integrations/databases/efcore/postgres/postgresql-client/': '/integrations/databases/efcore/postgres/postgresql-connect/',
+  '/integrations/databases/efcore/sql-server/sql-server-client/': '/integrations/databases/efcore/sql-server/sql-server-connect/',
+  '/integrations/databases/elasticsearch/elasticsearch-client/': '/integrations/databases/elasticsearch/elasticsearch-connect/',
+  '/integrations/databases/kurrentdb/kurrentdb-client/': '/integrations/databases/kurrentdb/kurrentdb-connect/',
+  '/integrations/databases/meilisearch/meilisearch-client/': '/integrations/databases/meilisearch/meilisearch-connect/',
+  '/integrations/databases/milvus/milvus-client/': '/integrations/databases/milvus/milvus-connect/',
+  '/integrations/databases/mongodb/mongodb-client/': '/integrations/databases/mongodb/mongodb-connect/',
+  '/integrations/databases/mysql/mysql-client/': '/integrations/databases/mysql/mysql-connect/',
+  '/integrations/databases/qdrant/qdrant-client/': '/integrations/databases/qdrant/qdrant-connect/',
+  '/integrations/databases/ravendb/ravendb-client/': '/integrations/databases/ravendb/ravendb-connect/',
+  '/integrations/databases/sql-server/sql-server-client/': '/integrations/databases/sql-server/sql-server-connect/',
+  '/integrations/databases/sqlite/sqlite-client/': '/integrations/databases/sqlite/sqlite-connect/',
+  '/integrations/databases/surrealdb/surrealdb-client/': '/integrations/databases/surrealdb/surrealdb-connect/',
+  '/integrations/devtools/flagd/flagd-client/': '/integrations/devtools/flagd/flagd-connect/',
+  '/integrations/devtools/goff/goff-client/': '/integrations/devtools/goff/goff-connect/',
+  '/integrations/devtools/mailpit/mailpit-client/': '/integrations/devtools/mailpit/mailpit-connect/',
+  '/integrations/messaging/apache-kafka/apache-kafka-client/': '/integrations/messaging/apache-kafka/apache-kafka-connect/',
+  '/integrations/messaging/nats/nats-client/': '/integrations/messaging/nats/nats-connect/',
+  '/integrations/messaging/rabbitmq/rabbitmq-client/': '/integrations/messaging/rabbitmq/rabbitmq-connect/',
+  '/integrations/observability/seq/seq-client/': '/integrations/observability/seq/seq-connect/',
   '/integrations/postgres/': '/integrations/databases/postgres/postgres-get-started/',
   '/integrations/databases/postgres/': '/integrations/databases/postgres/postgres-get-started/',
   '/integrations/databases/sql-server/': '/integrations/databases/sql-server/sql-server-get-started/',
-  '/integrations/databases/postgres/postgres-client/': '/integrations/databases/postgres/postgres-connect/',
   '/integrations/databases/milvus/': '/integrations/databases/milvus/milvus-get-started/',
   '/integrations/databases/qdrant/': '/integrations/databases/qdrant/qdrant-get-started/',
   '/integrations/oracle/': '/integrations/databases/efcore/oracle/oracle-get-started/',

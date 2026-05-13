@@ -1,12 +1,11 @@
----
-title: MySQL Hosting integration reference
-description: Learn how to use the Aspire MySQL Hosting integration to create and manage MySQL server and database resources in your Aspire projects.
+﻿---
+title: Set up MySQL in the AppHost
+description: Learn how to use the Aspire MySQL Hosting integration to orchestrate and configure a MySQL database in an Aspire solution.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
-import { Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
 import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
 
 <Image
@@ -18,20 +17,65 @@ import mysqlIcon from '@assets/icons/mysqlconnector-icon.png';
   data-zoom-off
 />
 
-To get started with the Aspire MySQL integrations, follow the [Get started with MySQL integrations](/integrations/databases/mysql/mysql-get-started/) guide. If you prefer to use Entity Framework Core (EF Core) to interact with your MySQL database, see the [Get started with MySQL and EF Core](/integrations/databases/efcore/mysql/mysql-get-started/) guide.
+This article is the reference for the Aspire MySQL Hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to model MySQL server and database resources in your [`AppHost`](/get-started/app-host/) project.
 
-This article includes full details about the Aspire MySQL Hosting integration, which models the server as the `MySqlServerResource` type and the database as the `MySqlDatabaseResource` type. To access these types and APIs, you need to install the MySQL Hosting integration in your AppHost project.
+If you're new to the MySQL integration, start with the [Get started with MySQL integrations](/integrations/databases/mysql/mysql-get-started/) guide. For how consuming apps read the connection information this page exposes, see [Connect to MySQL](../mysql-connect/). For the MySQL Entity Framework Core (EF Core) client integration, see [Get started with the MySQL Entity Framework Core integrations](/integrations/databases/efcore/mysql/mysql-get-started/).
 
 ## Installation
 
-To get started with the Aspire MySQL hosting integration, install the [📦 Aspire.Hosting.MySql](https://www.nuget.org/packages/Aspire.Hosting.MySql) NuGet package in your AppHost project:
+To start building an Aspire app that uses MySQL, install the [📦 Aspire.Hosting.MySql](https://www.nuget.org/packages/Aspire.Hosting.MySql) NuGet package:
 
-<InstallPackage packageName="Aspire.Hosting.MySql" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
-## Add MySQL server resource and database resource
+```bash title="Terminal"
+aspire add mysql
+```
 
-In your AppHost project, call `AddMySql` to add and return a MySQL resource builder. Chain a call to the returned resource builder to `AddDatabase`, to add a MySQL database resource:
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
 
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.MySql@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.MySql" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add mysql
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the MySQL hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.MySql": "13.3.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add MySQL server resource
+
+Once you've installed the hosting integration in your AppHost project, you can add a MySQL server resource and then add a database resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -40,35 +84,57 @@ var mysql = builder.AddMySql("mysql")
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+const mysqldb = await mysql.addDatabase("mysqldb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Steps>
+
+1. When Aspire adds a container image to the AppHost, as shown in the preceding example with the `docker.io/library/mysql` image, it creates a new MySQL server instance on your local machine. A reference to the `mysqldb` database resource is used to add a dependency to the consuming project.
+
+1. The MySQL server resource includes default credentials with a `username` of `root` and a randomly generated `password` using the `CreateDefaultPasswordParameter` method.
+
+1. The AppHost reference call configures a connection in the consuming project named after the referenced database resource, such as `mysqldb` in the preceding example.
+
+</Steps>
 
 <Aside type="note">
-The MySQL container is slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+    The MySQL container can be slow to start, so it's best to use a _persistent_ lifetime to avoid unnecessary restarts. For more information, see [Container resource lifetime](/architecture/resource-model/#built-in-resources-and-lifecycle).
+
+    The TypeScript AppHost doesn't currently expose a `withLifetime(...)` API. Use the C# AppHost when persistent container lifetime is required.
 </Aside>
 
-When Aspire adds a container image to the AppHost, it creates a new MySQL instance on your local machine. The MySQL resource includes default credentials with a `username` of `root` and a random password generated using the default password parameter.
-
-When the AppHost runs, the password is stored in the AppHost's secret store in the `Parameters` section:
-
-```json
-{
-  "Parameters:mysql-password": "<THE_GENERATED_PASSWORD>"
-}
-```
-
-The `WithReference` method configures a connection in the `ExampleProject` named `mysqldb`.
-
-<Aside type="tip">
-If you'd rather connect to an existing MySQL server, call `AddConnectionString` instead. For more information, see [Reference existing resources](/get-started/resources/).
+<Aside type="note">
+    When you reference a MySQL resource from the AppHost, Aspire makes several properties available to the consuming project, such as connection URIs, hostnames, port numbers, and the password. For a complete list of these properties and per-language connection examples, see [Connect to MySQL](../mysql-connect/).
 </Aside>
 
-## Add MySQL server resource with database scripts
+## Add MySQL resource with database scripts
 
 You can use the `WithCreationScript` method to execute SQL scripts when the database is created. This is useful for initializing database schema or seeding data:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -87,30 +153,152 @@ var mysqldb = mysql.AddDatabase("mysqldb")
 var myService = builder.AddProject<Projects.ExampleProject>()
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+The TypeScript AppHost doesn't currently expose a `withCreationScript(...)` API for MySQL database resources. To initialize a MySQL database from a TypeScript AppHost, use [`withInitFiles(...)`](#add-mysql-resource-with-init-files) to copy SQL initialization scripts into the container's init directory instead.
+
+</TabItem>
+</Tabs>
 
 <Aside type="note">
-The script is executed only when the database is first created. If you need to run scripts on every startup, consider using init bind mounts or application-level migrations instead.
+The script is executed only when the database is first created. If you need to run scripts on every startup, consider using init files or application-level migrations instead.
 </Aside>
 
-## Add a MySQL resource with a data volume
+## Add MySQL resource with phpMyAdmin
 
-To add a data volume to the MySQL resource, call the `WithDataVolume` method on the MySQL resource:
+[**phpMyAdmin**](https://www.phpmyadmin.net/) is a popular web-based administration tool for MySQL. Call the `WithPhpMyAdmin` (or `withPhpMyAdmin`) method to add a phpMyAdmin container resource that connects to the MySQL container:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
-    .WithDataVolume();
+    .WithPhpMyAdmin();
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
 var myService = builder.AddProject<Projects.ExampleProject>()
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
-```
 
-The data volume is used to persist the MySQL server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/mysql` path in the MySQL container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over bind mounts, see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withPhpMyAdmin();
+
+const mysqldb = await mysql.addDatabase("mysqldb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When you run the solution, the Aspire dashboard displays the phpMyAdmin resource with an endpoint. Select the endpoint link to open phpMyAdmin in a new browser tab.
+
+### Configure the phpMyAdmin container name
+
+To set a custom container name for the phpMyAdmin resource in TypeScript:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql")
+    .WithPhpMyAdmin(phpMyAdmin => phpMyAdmin.WithHostPort(8080));
+
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(mysqldb)
+    .WaitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withPhpMyAdmin({
+    containerName: "phpmyadmin",
+    configureContainer: async phpMyAdmin => {
+        await phpMyAdmin.withHostPort(8080);
+    }
+});
+
+const mysqldb = await mysql.addDatabase("mysqldb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+## Add a MySQL resource with a data volume
+
+Add a data volume to the MySQL server resource as shown in the following examples:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql")
+    .WithDataVolume(isReadOnly: false);
+
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(mysqldb)
+    .WaitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withDataVolume({ isReadOnly: false });
+
+const mysqldb = await mysql.addDatabase("mysqldb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+The data volume is used to persist the MySQL server data outside the lifecycle of its container. The data volume is mounted at the `/var/lib/mysql` path in the MySQL container and when a `name` parameter isn't provided, the name is generated at random. For more information on data volumes and details on why they're preferred over [bind mounts](#add-a-mysql-resource-with-a-data-bind-mount), see [Docker docs: Volumes](https://docs.docker.com/engine/storage/volumes).
 
 <Aside type="caution">
 The password is stored in the data volume. When using a data volume and if the password changes, it will not work until you delete the volume.
@@ -124,31 +312,104 @@ You can resolve the problem by deploying to a Kubernetes cluster, such as Azure 
 
 ## Add a MySQL resource with a data bind mount
 
-To add a data bind mount to the MySQL resource, call the `WithDataBindMount` method:
+Add a data bind mount to the MySQL server resource as shown in the following examples:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var mysql = builder.AddMySql("mysql")
-    .WithDataBindMount(source: @"C:\MySql\Data");
+    .WithDataBindMount(
+        source: "/MySQL/Data",
+        isReadOnly: false);
 
 var mysqldb = mysql.AddDatabase("mysqldb");
 
 var myService = builder.AddProject<Projects.ExampleProject>()
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
-```
 
-<Aside>
-Data bind mounts have limited functionality compared to volumes, and when you use a bind mount, a file or directory on the host machine is mounted into a container.
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withDataBindMount("/MySQL/Data", { isReadOnly: false });
+
+const mysqldb = await mysql.addDatabase("mysqldb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+    Data [bind mounts](https://docs.docker.com/engine/storage/bind-mounts/) have limited functionality compared to [volumes](https://docs.docker.com/engine/storage/volumes/), which offer better performance, portability, and security, making them more suitable for production environments. However, bind mounts allow direct access and modification of files on the host system, ideal for development and testing where real-time changes are needed.
 </Aside>
 
-Data bind mounts rely on the host machine's filesystem to persist the MySQL data across container restarts. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+Data bind mounts rely on the host machine's filesystem to persist the MySQL server data across container restarts. The data bind mount is mounted at the `C:\MySQL\Data` on Windows (or `/MySQL/Data` on Unix) path on the host machine in the MySQL server container. For more information on data bind mounts, see [Docker docs: Bind mounts](https://docs.docker.com/engine/storage/bind-mounts).
+
+## Add MySQL resource with init files
+
+Use initialization files to seed or configure the MySQL server at startup. The C# AppHost exposes `WithInitBindMount(...)`, while the TypeScript AppHost exposes `withInitFiles(...)`.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var mysql = builder.AddMySql("mysql")
+    .WithInitBindMount(@"C:\MySQL\Init");
+
+var mysqldb = mysql.AddDatabase("mysqldb");
+
+var myService = builder.AddProject<Projects.ExampleProject>()
+    .WithReference(mysqldb)
+    .WaitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const mysql = await builder.addMySql("mysql");
+await mysql.withInitFiles("./mysql-init");
+
+const mysqldb = await mysql.addDatabase("mysqldb");
+
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+
+The TypeScript AppHost doesn't currently expose a `withInitBindMount(...)` API for MySQL. Use `withInitFiles(...)` to copy initialization files into the container instead.
+</TabItem>
+</Tabs>
+
+The init files are executed when the MySQL server container starts. Place executable shell scripts or `.sql` files in the directory to initialize the database schema, seed data, or perform other setup tasks.
 
 ## Add MySQL resource with parameters
 
-When you want to provide a root MySQL password explicitly, you can pass it as a parameter:
+When you want to provide a root MySQL password and optional port explicitly, you can pass them as parameters:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -162,30 +423,86 @@ var mysqldb = mysql.AddDatabase("mysqldb");
 var myService = builder.AddProject<Projects.ExampleProject>()
     .WithReference(mysqldb)
     .WaitFor(mysqldb);
+
+// After adding all resources, run the app...
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-For more information, see [External parameters](/get-started/resources/).
+const builder = await createBuilder();
 
-## Add a PhpMyAdmin resource
+const password = await builder.addParameter("password", { secret: true });
 
-[**phpMyAdmin**](https://www.phpmyadmin.net/) is a popular web-based administration tool for MySQL. To use phpMyAdmin within your Aspire solution, call the `WithPhpMyAdmin` method. This method adds a new container resource that hosts phpMyAdmin and connects it to the MySQL container:
+const mysql = await builder.addMySql("mysql", { password, port: 3306 });
+const mysqldb = await mysql.addDatabase("mysqldb");
 
+await builder.addNodeApp("api", "./api", "index.js")
+    .withReference(mysqldb)
+    .waitFor(mysqldb);
+
+// After adding all resources, run the app...
+```
+</TabItem>
+</Tabs>
+
+When no `password` parameter is provided, Aspire generates a strong password automatically using the `CreateDefaultPasswordParameter` method. For more information, see [External parameters](/get-started/resources/).
+
+## Pass custom environment variables
+
+By default, Aspire injects the MySQL connection information using variable names derived from the resource name (for example, `MYSQLDB_URI`, `MYSQLDB_HOST`, `MYSQLDB_PORT`, `MYSQLDB_PASSWORD`). If your consuming app expects a different set of environment variable names, pass individual connection properties from the AppHost:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var mysql = builder.AddMySql("mysql")
-    .WithPhpMyAdmin();
-
+var mysql = builder.AddMySql("mysql");
 var mysqldb = mysql.AddDatabase("mysqldb");
 
-var myService = builder.AddProject<Projects.ExampleProject>()
+var app = builder.AddExecutable("my-app", "node", "app.js", ".")
     .WithReference(mysqldb)
-    .WaitFor(mysqldb);
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["MYSQL_HOST"] = mysql.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["MYSQL_PORT"] = mysql.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+        context.EnvironmentVariables["MYSQL_PASSWORD"] = mysql.Resource.PasswordParameter;
+        context.EnvironmentVariables["MYSQL_DATABASE"] = mysqldb.Resource.DatabaseName;
+    });
+
+builder.Build().Run();
 ```
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
 
-When you run the solution, the Aspire dashboard displays the phpMyAdmin resources with an endpoint. Select the link to the endpoint to view phpMyAdmin in a new browser tab.
+const builder = await createBuilder();
 
-### Hosting integration health checks
+const mysql = await builder.addMySql("mysql");
+const mysqldb = await mysql.addDatabase("mysqldb");
+const mysqlEndpoint = await mysql.getEndpoint("tcp");
+const mysqlHost = await mysqlEndpoint.property(EndpointProperty.Host);
+const mysqlPort = await mysqlEndpoint.property(EndpointProperty.Port);
+
+await builder.addNodeApp("my-app", "./app", "index.js")
+    .withReference(mysqldb)
+    .withEnvironment("MYSQL_HOST", mysqlHost)
+    .withEnvironment("MYSQL_PORT", mysqlPort)
+    .withEnvironment("MYSQL_PASSWORD", await mysql.passwordParameter())
+    .withEnvironment("MYSQL_DATABASE", "mysqldb");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## Connection properties
+
+For the full reference of MySQL connection properties — and how consuming apps in C#, TypeScript, Python, and Go read them — see [Connect to MySQL](../mysql-connect/).
+
+## Hosting integration health checks
 
 The MySQL hosting integration automatically adds a health check for the MySQL resource. The health check verifies that the MySQL server is running and that a connection can be established to it.
 

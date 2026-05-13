@@ -1,15 +1,30 @@
 ---
 title: サービス検出
-description: Aspire における重要なサービス検出の概念を理解する
+description: Aspire における重要なサービス検出の概念を理解します。
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-この記事では、Aspire プロジェクト内でサービス検出がどのように動作するかを学びます。Aspire には、開発時およびテスト時にサービス検出を構成するための機能が含まれています。サービス検出の機能は、Aspire AppHost プロジェクトに含まれる _構成ベースのエンドポイント リゾルバー_ が期待する形式で構成情報を提供し、それをアプリケーション モデルに追加された各サービス プロジェクトへ渡すことで動作します。詳しくは、[.NET でのサービス検出](https://learn.microsoft.com/ja-jp/dotnet/core/extensions/service-discovery) をご参照ください。
+サービス検出は、サービス同士が互いを見つけるための仕組みです。`http://localhost:5001` のような URL をハードコーディングする代わりに、フロントエンドは `catalog` サービスを名前で参照するだけで、実際のアドレス解決は Aspire が担当します。
+
+## サービス検出の仕組み
+
+`WithReference()` を使ってサービスを接続すると、Aspire は自動的にサービス検出を構成します。
+
+1. **AppHost がリソースを宣言** してエンドポイントを割り当てる
+2. **構成が注入される** 各サービスに環境変数経由で構成が渡される
+3. **コードは論理名を使用** `https+http://catalog` のような論理名を使う
+4. **Aspire のリゾルバーが解決** 実行時に論理名を実アドレスへ変換する
+
+**重要なポイント**: コードでは `catalog` のような論理サービス名を使い、Aspire の構成ベースのエンドポイント リゾルバーが実行時に実アドレスへ変換します。
+
+<Aside type="tip" title="これが重要な理由">
+サービス検出により、「自分の環境では動くのに他では動かない」という問題を減らせます。同じコードをローカル環境（`catalog` が `localhost:5001` など）でも本番環境（`catalog.internal.cloudapp.net:443` など）でも、コード変更なしで利用できます。
+</Aside>
 
 ## 参照による暗黙的なサービス検出
 
-サービス検出用の構成は、あるプロジェクトから参照されているサービスに対してのみ追加されます。たとえば、次の AppHost プログラムを考えてみましょう:
+サービス検出用の構成は、あるプロジェクトから参照されているサービスに対してのみ追加されます。たとえば、次の AppHost プログラムを見てみましょう。
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -22,7 +37,14 @@ var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
                       .WithReference(catalog);
 ```
 
-この例では、_frontend_ プロジェクトが _catalog_ プロジェクトと _basket_ プロジェクトを参照しています。2 つの `WithReference` 呼び出しにより、Aspire プロジェクトは、参照されているプロジェクト（_catalog_ と _basket_）のサービス検出情報を _frontend_ プロジェクトへ渡すよう指示されます。
+この例では、_frontend_ プロジェクトが _catalog_ プロジェクトと _basket_ プロジェクトを参照しています。2 つの `WithReference` 呼び出しは、Aspire に次のことを指示します。
+
+1. **構成を注入する**: `catalog` と `basket` のサービス検出情報を `frontend` に渡す
+2. **解決を有効にする**: `frontend` で `https+http://catalog` のような URI を `HttpClient` から利用できるようにする
+
+<Aside type="note">
+`WithReference()` を呼び出さない場合、フロントエンドにはそのサービスを検出するための構成が渡されません。これは意図的な挙動で、サービスは明示的に宣言された依存関係だけを認識します。
+</Aside>
 
 ## 名前付きエンドポイント
 
@@ -36,7 +58,7 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https+http://_dashboard.basket"));
 ```
 
-この例では、basket サービス 用と、basket サービスのダッシュボード用の 2 つの `HttpClient` クラスが追加されています。
+この例では、basket サービス用と、basket サービスのダッシュボード用の 2 つの `HttpClient` クラスが追加されています。
 
 ### 構成を使用した名前付きエンドポイント
 
@@ -46,8 +68,8 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
 {
   "Services": {
     "basket": {
-      "https": "https://10.2.3.4:8080" /* the https endpoint, requested via https://basket */,
-      "dashboard": "https://10.2.3.4:9999" /* the "dashboard" endpoint, requested via https://_dashboard.basket */
+      "https": "https://10.2.3.4:8080" /* https://basket で要求される HTTPS エンドポイント */,
+      "dashboard": "https://10.2.3.4:9999" /* https://_dashboard.basket で要求される "dashboard" エンドポイント */
     }
   }
 }
@@ -55,12 +77,12 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
 
 この JSON では、次のように解決されます:
 
-- 既定エンドポイントである `https://basket` を解決した場合は `10.2.3.4:8080`です。
-- 「dashboard」エンドポイントである `https://_dashboard.basket` を解決した場合は `10.2.3.4:9999`.
+- 既定エンドポイントとして `https://basket` を解決すると `10.2.3.4:8080` になります。
+- `https://_dashboard.basket` で解決される「dashboard」エンドポイントは `10.2.3.4:9999` になります。
 
 ### Aspire における名前付きエンドポイント
 
-名前付きエンドポイントは、App Host のコードから公開することもできます。たとえば、先ほどの例は次のようにモデル化できます：
+名前付きエンドポイントは、AppHost のコードから公開することもできます。たとえば、先ほどの例は次のように表現できます。
 
 ```csharp
 var basket = builder.AddProject<Projects.BasketService>("basket")
@@ -87,7 +109,7 @@ spec:
       port: 9999
 ```
 
-「basket」サービスの「dashboard」エンドポイントを解決するように構成するには、次のように DNS SRV サービス エンドポイント リゾルバーをホスト ビルダーに追加します:
+「basket」サービスの「dashboard」エンドポイントを解決するように構成するには、次のように DNS SRV サービス エンドポイント リゾルバーをホスト ビルダーに追加します。
 
 ```csharp
 builder.Services.AddServiceDiscoveryCore();
@@ -96,7 +118,7 @@ builder.Services.AddDnsSrvServiceEndpointProvider();
 
 詳しくは、`AddServiceDiscoveryCore` および `AddDnsSrvServiceEndpointProvider` をご参照ください。
 
-特別なポート名である「default」は、`https://basket` という URI で解決される既定のエンドポイントを指定するために使用されます。
+特別なポート名である「default」は、`https://basket` という URI で解決される既定のエンドポイントを指定するために使われます。
 
 先ほどと同様に、バスケット サービス用の `HttpClient` にサービス ディスカバリーを追加するには、次のようにします:
 
@@ -105,9 +127,60 @@ builder.Services.AddHttpClient<BasketServiceClient>(
     static client => client.BaseAddress = new("https://basket"));
 ```
 
-同様に、「dashboard」エンドポイントは次のように指定できます:
+同様に、「dashboard」エンドポイントは次のように指定できます。
 
 ```csharp
 builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https://_dashboard.basket"));
 ```
+
+## トラブルシューティング
+
+### サービスが見つからない / "No endpoints resolved"
+
+**症状**: HttpClient が "No endpoints resolved for service 'myservice'" のような例外を投げる、または接続拒否が発生する。
+
+**よくある原因**:
+1. **`WithReference()` の不足**: 呼び出し元サービスが AppHost で対象サービスに接続されていない
+2. **サービス名の不一致**: URI 内の名前が `AddProject()` または `AddContainer()` の名前と一致していない
+3. **サービス未起動**: 対象サービスが起動に失敗している、または起動中である
+
+**対処方法**: AppHost でサービス同士が接続されていることを確認します。
+
+```csharp
+var api = builder.AddProject<Projects.Api>("api");
+var frontend = builder.AddProject<Projects.Frontend>("frontend")
+  .WithReference(api);  // ← これが必要です
+```
+
+### 名前付きエンドポイントを解決できない
+
+**症状**: `https://_endpointName.serviceName` を使うとエラーになる。
+
+**対処方法**: AppHost でそのエンドポイントに名前が設定されていることを確認します。
+
+```csharp
+var api = builder.AddProject<Projects.Api>("api")
+  .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← 名前を一致させる
+```
+
+次に、アンダースコア付きプレフィックスで正確に指定します。
+
+```csharp
+client.BaseAddress = new("https://_dashboard.api");
+```
+
+### URI 形式を理解する
+
+`https+http://` プレフィックスは「HTTPS を優先し、失敗時は HTTP にフォールバックする」ことを意味します。
+
+| URI 形式 | 意味 |
+|------------|---------|
+| `https://catalog` | 既定エンドポイントへ HTTPS のみで接続 |
+| `http://catalog` | 既定エンドポイントへ HTTP のみで接続 |
+| `https+http://catalog` | HTTPS を優先し、HTTP にフォールバック |
+| `https://_admin.catalog` | 名前付き "admin" エンドポイントへ HTTPS で接続 |
+
+<Aside type="note" title="アンダースコア プレフィックスについて">
+エンドポイント名の前に付く `_` は任意ではなく必須の構文です。これにより、サブドメインではなく名前付きエンドポイントを指定していることをリゾルバーに伝えます。
+</Aside>

@@ -1,16 +1,10 @@
 ---
 title: Get started with the MongoDB integrations
-description: Learn how to set up the Aspire MongoDB Hosting and Client integrations simply.
+description: Understand why you use the Aspire MongoDB integrations and how they fit together.
 ---
 
 import { Image } from 'astro:assets';
-import { Kbd } from 'starlight-kbd/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
-import { Aside, CardGrid, LinkCard, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
-import PivotSelector from '@components/PivotSelector.astro';
-import Pivot from '@components/Pivot.astro';
-import ThemeImage from '@components/ThemeImage.astro';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import mongodbIcon from '@assets/icons/mongodb-icon.png';
 
 <Image
@@ -22,287 +16,75 @@ import mongodbIcon from '@assets/icons/mongodb-icon.png';
   data-zoom-off
 />
 
-[MongoDB](https://www.mongodb.com) is a NoSQL database that provides high performance, high availability, and easy scalability. The MongoDB integration enables you to connect to existing MongoDB instances (including [MongoDB Atlas](https://mdb.link/atlas)) or create new instances from Aspire with the `docker.io/library/mongo` container image.
+[MongoDB](https://www.mongodb.com/) is a document-oriented NoSQL database that stores data in flexible, JSON-like documents, offering high performance, high availability, and easy horizontal scaling. The Aspire MongoDB integration lets you model a MongoDB server and its databases as first-class resources in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-In this introduction, you'll see how to install and use the Aspire MongoDB integrations in a simple configuration. If you already have this knowledge, see [MongoDB Hosting integration](/integrations/databases/mongodb/mongodb-host/) for full reference details.
+## Why use MongoDB with Aspire
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+Adding MongoDB through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-## Set up hosting integration
+- **Zero-config local development.** Aspire runs MongoDB from the [`docker.io/library/mongo`](https://hub.docker.com/_/mongo) container image with credentials generated automatically for you.
+- **Consistent connection info across languages.** Once you reference the database from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The database resource shows up in the Aspire dashboard with logs, status, and telemetry alongside your other services.
+- **A first-class C# client integration.** C# apps can use the `Aspire.MongoDB.Driver` (or `Aspire.MongoDB.Driver.v3`) package for dependency injection, health checks, and OpenTelemetry, all wired up from the same resource name.
+- **MongoDB Express.** Optionally spin up the [Mongo Express](https://github.com/mongo-express/mongo-express) web admin UI alongside your database with a single API call.
 
-To begin, install the Aspire MongoDB Hosting integration in your Aspire AppHost project. This integration allows you to create and manage MongoDB database instances from your Aspire hosting projects:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.MongoDB" shortName="mongodb" />
+The MongoDB integration has two sides: a **hosting integration** that you use in your AppHost to model the database resource, and a **connection story** for consuming apps that reference it.
 
-Next, in the AppHost project, create instances of MongoDB server and database resources, then pass the database to the consuming client projects:
+```mermaid
+architecture-beta
 
-<PivotSelector
-    title="Select your programming language to get started"
-    key="lang"
-    options={[
-        { id: "csharp", title: "C#" },
-        { id: "python", title: "Python" },
-        { id: "javascript", title: "JavaScript" },
-    ]}
-/>
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-<Pivot id="csharp">
+  service hosting(server)[Hosting integration] in apphost
+  service mongo(logos:mongodb)[MongoDB server] in apphost
+  service db(database)[mongodbname] in apphost
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service client(iconoir:server-connection)[Client integration] in consumer
+  service app(server)[App] in consumer
 
-var mongo = builder.AddMongoDB("mongo")
-                   .WithLifetime(ContainerLifetime.Persistent);
-
-var mongodb = mongo.AddDatabase("mongodb");
-
-var exampleProject = builder.AddProject<Projects.ExampleProject>("apiservice")
-                            .WaitFor(mongodb)
-                            .WithReference(mongodb);
+  hosting:R --> L:mongo
+  mongo:R --> L:db
+  db:R --> L:client
+  client:R --> L:app
 ```
 
-</Pivot>
+The **hosting integration** lives in your AppHost project and models the MongoDB server and databases as resources. The **client integration** lives in each C# consuming app and uses the connection information Aspire injects to talk to the database. Apps written in other languages read the same injected environment variables directly.
 
-<Pivot id="python">
+Getting there is a two-step process: model the MongoDB resources in your AppHost, then connect to the database from each app that needs it.
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+<Steps>
 
-var mongo = builder.AddMongoDB("mongo")
-                   .WithLifetime(ContainerLifetime.Persistent);
+1. ### Model MongoDB in your AppHost
 
-var mongodb = mongo.AddDatabase("mongodb");
+    Add the MongoDB hosting integration to your AppHost, then declare a MongoDB server, one or more databases, and reference them from the apps that need to talk to the database. The [MongoDB hosting integration](/integrations/databases/mongodb/mongodb-host/) article walks through every capability — adding databases, Mongo Express, data volumes, init files, custom parameters, and more — with side-by-side C# and TypeScript examples.
 
-var exampleProject = builder.AddUvicornApp("api", "./api", "main:app")
-                            .WithExternalHttpEndpoints()
-                            .WaitFor(mongodb)
-                            .WithReference(mongodb);
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/mongodb/mongodb-host/'>
+        Set up MongoDB in the AppHost
+    </LinkButton>
 
-</Pivot>
+2. ### Connect from your consuming app
 
-<Pivot id="javascript">
+    When you reference a MongoDB database from a consuming app, Aspire injects its connection information as environment variables. See [Connect to MongoDB](/integrations/databases/mongodb/mongodb-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — including the full C# client integration.
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/databases/mongodb/mongodb-connect/'>
+        Connect to MongoDB
+    </LinkButton>
 
-var mongo = builder.AddMongoDB("mongo")
-                   .WithLifetime(ContainerLifetime.Persistent);
+</Steps>
 
-var mongodb = mongo.AddDatabase("mongodb");
+## See also
 
-var api = builder.AddNodeApp("api", "./api", scriptPath: "index.js")
-                 .WithExternalHttpEndpoints()
-                 .WaitFor(mongodb)
-                 .WithReference(mongodb);
-```
-
-</Pivot>
-
-<Aside type="tip">
-    This is the simplest implementation of MongoDB resources in the AppHost. There are many more options you can choose from to address your requirements. For full details, see [MongoDB Hosting integration](/integrations/databases/mongodb/mongodb-host/).
-</Aside>
-
-## Use the integration in client projects
-
-Now that the hosting integration is ready, the next step is to install and configure the client integration in any projects that need to use it.
-
-### Set up client projects
-
-<Pivot id="csharp">
-
-In each of these consuming client projects, install the Aspire MongoDB client integration:
-
-<InstallDotNetPackage packageName="Aspire.MongoDB.Driver" />
-
-<Aside type="danger">
-The `Aspire.MongoDB.Driver` NuGet package depends on the `MongoDB.Driver` NuGet package. With the release of version 3.0.0 of `MongoDB.Driver`, a binary breaking change was introduced. To address this, a new client integration package, `Aspire.MongoDB.Driver.v3`, was created. The original `Aspire.MongoDB.Driver` package continues to reference `MongoDB.Driver` version 2.30.0. The new `Aspire.MongoDB.Driver.v3` package references `MongoDB.Driver` version 3.0.0. In a future version of Aspire, the `Aspire.MongoDB.Driver` will be updated to version 3.x and the `Aspire.MongoDB.Driver.v3` package will be deprecated. For more information, see [Upgrade to version 3.0](https://www.mongodb.com/docs/drivers/csharp/v3.0/upgrade/v3/).
-</Aside>
-
-In the `Program.cs` file of your client-consuming project, call the `AddMongoDBClient` extension method on any `IHostApplicationBuilder` to register a `IMongoClient` for use via the dependency injection container. The method takes a connection name parameter.
-
-```csharp title="C# — Program.cs"
-builder.AddMongoDBClient(connectionName: "mongodb");
-```
-
-<Aside type="tip">
-    The `connectionName` parameter must match the name used when adding the MongoDB database resource in the AppHost project. For more information, see [Set up hosting integration](#set-up-hosting-integration).
-</Aside>
-
-</Pivot>
-
-<Pivot id="python">
-
-To interact with MongoDB databases in your Python consuming projects, you need to include a MongoDB client library. The official option is `pymongo`, which is MongoDB's Python driver. You can install this library using pip:
-
-```bash
-pip install pymongo
-```
-
-Ensure that you import the `MongoClient` in code files that interact with the database. You should also import the `os` module to access environment variables:
-
-```python title="Python - Import pymongo"
-from pymongo import MongoClient
-import os
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-To interact with MongoDB databases in your JavaScript consuming projects, you need to include a MongoDB client library. The official option is `mongodb`, which is MongoDB's Node.js driver. You can install this library using npm:
-
-```bash
-npm install mongodb
-```
-
-Ensure that you import the `MongoClient` in code files that interact with the database:
-
-```javascript title="JavaScript - Import mongodb"
-const { MongoClient } = require('mongodb');
-```
-
-</Pivot>
-
-### Use injected MongoDB properties
-
-In the AppHost, when you used the `WithReference` method to pass a MongoDB database resource to a consuming client project, Aspire injects several configuration properties that you can use in the consuming project.
-
-Aspire exposes each property as an environment variable named `[RESOURCE]_[PROPERTY]`. For instance, the `Uri` property of a resource called `mongodb` becomes `MONGODB_URI`.
-
-<Pivot id="csharp">
-
-Use the `GetValue()` method to obtain these environment variables in consuming projects:
-
-```csharp title="C# - Obtain configuration properties"
-string connectionUri = builder.Configuration.GetConnectionString("mongodb");
-string host = builder.Configuration.GetValue<string>("MONGODB_HOST");
-string databaseName = builder.Configuration.GetValue<string>("MONGODB_DATABASENAME");
-```
-
-</Pivot>
-
-<Pivot id="python">
-
-Use the `os.getenv()` method to obtain these environment variables in consuming projects:
-
-```python title="Python - Obtain configuration properties"
-connection_uri = os.getenv("ConnectionStrings__mongodb")
-host = os.getenv("MONGODB_HOST")
-port = os.getenv("MONGODB_PORT")
-username = os.getenv("MONGODB_USERNAME")
-password = os.getenv("MONGODB_PASSWORD")
-database_name = os.getenv("MONGODB_DATABASENAME")
-```
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the `process.env` method to obtain these environment variables in consuming projects:
-
-```javascript title="JavaScript - Obtain configuration properties"
-const connectionUri = process.env.ConnectionStrings__mongodb;
-const host = process.env.MONGODB_HOST;
-const port = process.env.MONGODB_PORT;
-const username = process.env.MONGODB_USERNAME;
-const password = process.env.MONGODB_PASSWORD;
-const databaseName = process.env.MONGODB_DATABASENAME;
-```
-
-</Pivot>
-
-<Aside type="tip">
-    The full set of properties that Aspire injects depends on the MongoDB resource configuration. For more information, see [Properties of the MongoDB resources](/integrations/databases/mongodb/mongodb-client/#properties-of-the-mongodb-resources).
-</Aside>
-
-### Use MongoDB resources in client code
-
-<Pivot id="csharp">
-
-Now that you've added the `IMongoClient` to the builder in the consuming project, you can use the MongoDB database. Get the `IMongoClient` instance using dependency injection. For example, to retrieve your client object from an example service, define it as a constructor parameter and ensure the `ExampleService` class is registered with the dependency injection container:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(IMongoClient client)
-{
-    // Use MongoDB client...
-}
-```
-
-Alternatively, if you defined a MongoDB database resource in your AppHost, you can instead require that the dependency injection container provides an `IMongoDatabase` instance:
-
-```csharp title="C# — ExampleService.cs"
-public class ExampleService(IMongoDatabase database)
-{
-    // Use MongoDB database...
-}
-```
-
-Having obtained the client or database, you can work with the MongoDB database as you would in any other C# application.
-
-</Pivot>
-
-<Pivot id="python">
-
-Use the information you have obtained about the MongoDB resource to connect to the database. Here is an example of how to connect using `pymongo`:
-
-```python title="Python - Connect to MongoDB"
-# Create MongoDB client using connection URI
-client = MongoClient(connection_uri)
-
-# Get database
-db = client[database_name]
-
-# Verify connection
-print(f"Connected to MongoDB database: {database_name}")
-```
-
-Having obtained the client, you can work with the MongoDB database as you would in any other Python application.
-
-</Pivot>
-
-<Pivot id="javascript">
-
-Use the information you have obtained about the MongoDB resource to connect to the database. Here is an example of how to connect using the `mongodb` package:
-
-```javascript title="JavaScript - Connect to MongoDB"
-// Create MongoDB client using connection URI
-const client = new MongoClient(connectionUri);
-
-// Connect to MongoDB
-await client.connect();
-
-// Get database
-const db = client.db(databaseName);
-
-// Verify connection
-console.log(`Connected to MongoDB database: ${databaseName}`);
-```
-
-Having obtained the client, you can work with the MongoDB database as you would in any other JavaScript application.
-
-</Pivot>
-
-## Next steps
-
-Now, that you have an Aspire app with MongoDB integrations up and running, you can use the following reference documents to learn how to configure and interact with the MongoDB resources:
-
-<CardGrid>
-  <LinkCard
-    title="Understand the MongoDB hosting integration"
-    description="Discover how to configure data volumes, MongoDB Express, and more."
-    href="/integrations/databases/mongodb/mongodb-host/"
-  />
-  <LinkCard
-    title="Understand the MongoDB client integration"
-    description="Learn about the MongoDB client integration, including connection strings and observability."
-    href="/integrations/databases/mongodb/mongodb-client/"
-  />
-  <LinkCard
-    title="Community extensions"
-    description="Explore community-contributed extensions for MongoDB, including DbGate management UI."
-    href="/integrations/databases/mongodb/mongodb-extensions/"
-  />
-</CardGrid>
+- [MongoDB community extensions](/integrations/databases/mongodb/mongodb-extensions/)
+- [Get started with the MongoDB Entity Framework Core integrations](/integrations/databases/efcore/mongodb/mongodb-efcore-get-started/)

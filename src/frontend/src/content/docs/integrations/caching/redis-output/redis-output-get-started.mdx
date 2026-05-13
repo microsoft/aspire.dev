@@ -1,103 +1,91 @@
 ---
-title: Get started with the Redis Output Caching integration
-description: Learn how to set up the Aspire Redis Output Caching hosting and client integrations simply.
-prev: false
+title: Get started with Redis output caching
+description: Understand why you use the Aspire Redis output caching integration and how it fits together.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
-import InstallDotNetPackage from '@components/InstallDotNetPackage.astro';
 import { Image } from 'astro:assets';
+import { LinkButton, Steps } from '@astrojs/starlight/components';
 import redisIcon from '@assets/icons/redis-icon.png';
 
 <Image
   src={redisIcon}
   alt="Redis logo"
-  width={80}
-  height={80}
+  width={100}
+  height={100}
   class:list={'float-inline-left icon'}
   data-zoom-off
 />
 
-The [Redis®](#registered-trademark) output caching integration is used to register an [ASP.NET Core Output Caching](https://learn.microsoft.com/aspnet/core/performance/caching/output) provider backed by a [Redis](https://redis.io/) server with the [`docker.io/library/redis` container image](https://hub.docker.com/_/redis/).
+The [Redis®](#registered-trademark) output caching integration is the `[OutputCache]`-flavored layer over the [Redis hosting integration](/integrations/caching/redis/redis-get-started/). It registers an [ASP.NET Core Output Caching](https://learn.microsoft.com/aspnet/core/performance/caching/output) store backed by [Redis](https://redis.io/) using the `Aspire.StackExchange.Redis.OutputCaching` package — so your controllers and minimal API endpoints can use `[OutputCache]` or `services.AddOutputCache()` without any manual connection wiring.
 
-In this introduction, you'll see how to install and use the Aspire Redis Output Caching integrations in a simple configuration. If you already have this knowledge, see [Redis Output Caching hosting integration](/integrations/caching/redis-output/redis-output-host/) for full reference details.
+## Why use Redis output caching with Aspire
 
-<Aside type="note">
-  To follow this guide, you must have created an Aspire solution to work with.
-  To learn how to do that, see [Build your first Aspire
-  app](../../../../get-started/first-app/).
-</Aside>
+Adding Redis output caching through Aspire gives you:
 
-## Set up hosting integration
+- **Drop-in `IOutputCacheStore` implementation.** A single `AddRedisOutputCache` call replaces the default in-memory store with a Redis-backed one that works across app replicas.
+- **Automatic registration.** Aspire wires up the Redis connection from the AppHost reference — no connection strings to manage by hand.
+- **`[OutputCache]` attribute support.** Works with the standard `[OutputCache(Duration = 60)]` attribute, `CacheOutput()` extension, and `services.AddOutputCache()` — no special API needed.
+- **Built-in health checks.** The client integration registers a health check that verifies the Redis instance is reachable and command-ready.
+- **OpenTelemetry telemetry.** Logging, distributed tracing, and metrics are configured automatically through OpenTelemetry.
 
-To begin, install the Aspire Redis hosting integration in your Aspire AppHost project:
+## How the pieces fit together
 
-<InstallPackage packageName="Aspire.Hosting.Redis" />
+The Redis output caching integration has two sides: a **hosting integration** that you use in your AppHost to model the Redis resource, and a **client integration** that the consuming ASP.NET Core app uses to register the output cache store.
 
-Next, in the AppHost project, create instances of Redis resources and pass them to the consuming client projects:
+```mermaid
+architecture-beta
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  group apphost(server)[AppHost]
+  group consumer(server)[ASP NET Core app]
 
-var cache = builder.AddRedis("cache");
+  service hosting(server)[Hosting integration] in apphost
+  service redis(server)[Redis server] in apphost
 
-var myService = builder.AddProject<Projects.ExampleProject>()
-                       .WithReference(cache);
+  service client(iconoir:server-connection)[StackExchange Redis output cache client] in consumer
+  service app(server)[App] in consumer
 
-builder.Build().Run();
+  hosting:R --> L:redis
+  redis:R --> L:client
+  client:R --> L:app
 ```
 
-When Aspire adds a container image to the AppHost, it creates a new Redis instance on your local machine.
+The **hosting integration** lives in your AppHost project and models the Redis server as a resource. The **client integration** lives in your ASP.NET Core project and uses the connection information Aspire injects to register `IOutputCacheStore`.
 
-<Aside type="tip">
-  If you'd rather connect to an existing Redis instance, call `AsExisting`
-  instead.
-</Aside>
+Getting there is a two-step process: model the Redis resource in your AppHost, then connect to it from each app that needs output caching.
 
-## Set up client integration
+<Steps>
 
-To get started with the Redis output caching integration, install the package:
+1. ### Set up Redis in your AppHost
 
-<InstallDotNetPackage packageName="Aspire.StackExchange.Redis.OutputCaching" />
+    Add the Redis hosting integration to your AppHost, then declare a Redis resource and reference it from the apps that need it. See [Set up Redis output caching in the AppHost](/integrations/caching/redis-output/redis-output-host/) for the installation steps and basic resource declaration. For the full AppHost API surface — data volumes, persistence, parameters, Redis Insights, and more — refer to the main [Redis Hosting integration](/integrations/caching/redis/redis-host/).
 
-In the `Program.cs` file of your client-consuming project, call the `AddRedisOutputCache` extension method to register the required services for output caching:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/caching/redis-output/redis-output-host/'>
+        Set up Redis output caching in the AppHost
+    </LinkButton>
 
-```csharp
-builder.AddRedisOutputCache(connectionName: "cache");
-```
+2. ### Connect from your ASP.NET Core app
 
-<Aside type="tip">
-  The `connectionName` parameter must match the name used when adding the Redis
-  resource in the AppHost project.
-</Aside>
+    When you reference a Redis resource from a consuming project, Aspire injects its connection information as environment variables. See [Connect to Redis output caching](/integrations/caching/redis-output/redis-output-connect/) for the connection properties reference, the `AddRedisOutputCache` registration, configuration patterns, health checks, telemetry, and usage examples with `[OutputCache]`.
 
-Add the middleware to the request processing pipeline by calling `UseOutputCache`:
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/caching/redis-output/redis-output-connect/'>
+        Connect to Redis output caching
+    </LinkButton>
 
-```csharp
-var app = builder.Build();
-
-app.UseOutputCache();
-```
-
-For minimal API apps, configure an endpoint to do caching by calling `CacheOutput`, or by applying the `OutputCacheAttribute`:
-
-```csharp
-app.MapGet("/cached", () => "Hello world!")
-   .CacheOutput();
-
-app.MapGet(
-    "/attribute",
-    [OutputCache] () => "Hello world!");
-```
-
-For apps with controllers, apply the `[OutputCache]` attribute to the action method. For Razor Pages apps, apply the attribute to the Razor page class.
+</Steps>
 
 ## See also
 
-- [Redis Output Caching hosting integration](/integrations/caching/redis-output/redis-output-host/)
-- [Redis Output Caching client integration](/integrations/caching/redis-output/redis-output-client/)
-- [Main Redis integration](/integrations/caching/redis/redis-get-started/)
+- [Redis integration](/integrations/caching/redis/redis-get-started/) — the underlying hosting and client integration this builds on.
+- [Redis distributed caching](/integrations/caching/redis-distributed/redis-distributed-get-started/) — `IDistributedCache` variant backed by the same Redis resource.
+- [Redis hosting extensions](/integrations/caching/redis-extensions/) — community toolkit extensions for the Redis hosting integration.
 
 :::tip[Registered trademark]{icon="information"}
 

@@ -1,11 +1,11 @@
 ---
 title: Get started with the flagd integrations
-description: Learn how to set up the Aspire flagd hosting and client integrations simply.
+description: Understand why you use the Aspire flagd integrations and how they fit together.
 prev: false
 ---
 
-import { Badge, Aside } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
+import { Image } from 'astro:assets';
+import { Badge, LinkButton, Steps } from '@astrojs/starlight/components';
 import ThemeImage from '@components/ThemeImage.astro';
 import flagdIcon from '@assets/icons/flagd-icon.svg';
 import flagdLightIcon from '@assets/icons/flagd-light-icon.svg';
@@ -22,78 +22,72 @@ import flagdLightIcon from '@assets/icons/flagd-light-icon.svg';
   classOverride="float-inline-left icon"
 />
 
-[flagd](https://flagd.dev) is a feature flag evaluation engine that provides an OpenFeature-compliant backend system for managing and evaluating feature flags in real-time. The Aspire flagd integration enables you to create new container instances from Aspire with the `ghcr.io/open-feature/flagd` container image.
+[flagd](https://flagd.dev/) is a feature flag evaluation engine that provides an [OpenFeature](https://openfeature.dev/)-compliant backend for managing and evaluating feature flags in real-time. The Aspire flagd integration lets you model a flagd server as a first-class resource in your AppHost, then hand the connection information to any consuming app — regardless of language.
 
-flagd is designed to be a flexible, open-source feature flag evaluation engine. It enables real-time flag modifications, supports various flag types (boolean, string, number, JSON), uses context-sensitive rules for targeting, and performs pseudorandom assignments for experimentation. You can aggregate flag definitions from multiple sources and expose them through gRPC or OFREP services.
+## Why use flagd with Aspire
 
-In this introduction, you'll see how to install and use the Aspire flagd integrations in a simple configuration. If you already have this knowledge, see [flagd hosting integration](/integrations/devtools/flagd/flagd-host/) for full reference details.
+Adding flagd through Aspire — rather than wiring up containers and connection strings by hand — gives you:
 
-<Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
-</Aside>
+- **Zero-config local development.** Aspire runs flagd from the [`ghcr.io/open-feature/flagd`](https://github.com/open-feature/flagd/pkgs/container/flagd) container image with no manual container management required.
+- **Consistent connection info across languages.** Once you reference the flagd resource from a consuming app, Aspire injects connection properties as environment variables in a predictable format that works from C#, TypeScript, Python, Go, or any other language.
+- **Built-in health checks.** The hosting integration automatically registers a health check against the flagd `/healthz` endpoint so the dashboard and your orchestrator can tell when the server is ready.
+- **Dashboard observability.** The flagd resource shows up in the Aspire dashboard with logs and status alongside your other services.
+- **Multi-language OpenFeature clients.** Any OpenFeature-compatible SDK with a flagd provider — C#, Go, Python, or TypeScript — works with the injected connection information.
 
-## Set up hosting integration
+## How the pieces fit together
 
-To begin, install the Aspire flagd hosting integration in your Aspire AppHost project:
+The flagd integration has two sides: a **hosting integration** that you use in your AppHost to model the flagd resource, and a **connection story** for consuming apps that reference it.
 
-<InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Flagd" />
+```mermaid
+architecture-beta
 
-In your app host project, call `AddFlagd` on the builder instance to add a flagd container resource, and use `WithBindFileSync` to configure file-based flag synchronization:
+  group apphost(server)[AppHost]
+  group consumer(server)[Consuming app]
 
-```csharp title="C# — AppHost.cs"
-var builder = DistributedApplication.CreateBuilder(args);
+  service hosting(server)[Hosting integration] in apphost
+  service flagd(server)[flagd server] in apphost
 
-var flagd = builder.AddFlagd("flagd")
-                   .WithBindFileSync("./flags/");
+  service app(server)[App] in consumer
 
-builder.AddProject<Projects.ExampleProject>()
-       .WithReference(flagd);
-
-// After adding all resources, run the app...
+  hosting:R --> L:flagd
+  flagd:R --> L:app
 ```
 
-Flag definitions are stored in JSON files. Create a `flags` folder in your project root and add a `flagd.json` file with your flag configurations. For full details on the hosting integration, see [flagd hosting integration](/integrations/devtools/flagd/flagd-host/).
+The **hosting integration** lives in your AppHost project and models the flagd server as a resource. Consuming apps reference it and use the connection information Aspire injects to evaluate feature flags via the OpenFeature SDK.
 
-## Set up client integration
+Getting there is a two-step process: model the flagd resource in your AppHost, then connect to it from each app that needs it.
 
-To connect to flagd from a consuming project, install the OpenFeature flagd provider package:
+<Steps>
 
-```powershell
-dotnet add package OpenFeature.Contrib.Providers.Flagd
-```
+1. ### Model flagd in your AppHost
 
-In the `Program.cs` file of your client-consuming project, configure the OpenFeature SDK to use the flagd provider:
+    Add the flagd hosting integration to your AppHost, then declare a flagd resource and reference it from the apps that need feature flags. The [flagd Hosting integration](/integrations/devtools/flagd/flagd-host/) article walks through every capability — file-based flag sync, port customization, log levels, and health checks.
 
-```csharp
-using OpenFeature;
-using OpenFeature.Contrib.Providers.Flagd;
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/devtools/flagd/flagd-host/'>
+        Set up flagd in the AppHost
+    </LinkButton>
 
-var connectionString = builder.Configuration.GetConnectionString("flagd");
+2. ### Connect from your consuming app
 
-await OpenFeature.Api.Instance.SetProviderAsync(
-    new FlagdProvider(new Uri(connectionString)));
+    When you reference a flagd resource from a consuming app, Aspire injects its connection information as environment variables. See [Connect to flagd](/integrations/devtools/flagd/flagd-connect/) for the connection properties reference and per-language examples for C#, Go, Python, and TypeScript — using the OpenFeature SDK and flagd providers.
 
-var flagClient = OpenFeature.Api.Instance.GetClient();
-```
+    <LinkButton
+        variant='secondary'
+        iconPlacement='end'
+        icon='right-arrow'
+        href='/integrations/devtools/flagd/flagd-connect/'>
+        Connect to flagd
+    </LinkButton>
 
-You can then use the `flagClient` to evaluate feature flags:
-
-```csharp
-var welcomeBanner = await flagClient.GetBooleanValueAsync(
-    "welcome-banner",
-    defaultValue: false);
-
-var backgroundColor = await flagClient.GetStringValueAsync(
-    "background-color",
-    defaultValue: "#000000");
-```
-
-For full reference details, see [flagd hosting integration](/integrations/devtools/flagd/flagd-host/) and [flagd client integration](/integrations/devtools/flagd/flagd-client/).
+</Steps>
 
 ## See also
 
-- [flagd documentation](https://flagd.dev)
-- [OpenFeature documentation](https://openfeature.dev)
+- [flagd documentation](https://flagd.dev/)
+- [OpenFeature documentation](https://openfeature.dev/)
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
 - [Aspire integrations overview](/integrations/overview/)
-- [Aspire GitHub repo](https://github.com/microsoft/aspire)
