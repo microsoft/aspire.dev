@@ -1,0 +1,165 @@
+---
+title: Install external Helm charts
+description: Learn how to install external Helm charts alongside your Aspire application during Kubernetes deployment using AddHelmChart.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Install pre-existing Helm charts — such as cert-manager, NGINX ingress controller, or monitoring tools — as part of your Aspire Kubernetes deployment. Aspire runs `helm upgrade --install` for each configured external chart after deploying your application's own generated Helm chart.
+
+<LearnMore>
+For the core Kubernetes deployment setup, see [Deploy to Kubernetes clusters](/deployment/kubernetes/kubernetes/) or [Deploy to AKS](/deployment/kubernetes/aks/).
+</LearnMore>
+
+## Overview
+
+When you use `aspire deploy`, Aspire deploys your application as a Helm chart and then runs any additional install steps you have defined. `AddHelmChart` registers one of these post-deploy pipeline steps. The install order is:
+
+1. Aspire generates and deploys your application's own Helm chart (`helm-deploy-{environment}`).
+2. Each external chart registered with `AddHelmChart` is installed via `helm upgrade --install` (`helm-install-{name}`).
+
+## Add an external Helm chart
+
+Call `AddHelmChart` on a Kubernetes or AKS environment resource, passing the chart name (used as both the resource name and the default Helm release name), a chart reference, and a chart version:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "1.17.0");
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+</Tabs>
+
+The `chartReference` parameter accepts:
+
+- OCI URLs — `oci://registry.example.com/repo/chart`
+- HTTP(S) URLs — `https://charts.example.com/chart-1.0.0.tgz`
+- Local paths — `./charts/my-chart`
+- Packaged `.tgz` filenames — `my-chart-1.0.0.tgz`
+- Repository-qualified names — `stable/nginx-ingress`
+
+The `chartVersion` must be a valid semantic version (for example, `1.17.0`).
+
+## Configure Helm values
+
+Use `WithHelmValue` to pass `--set key=value` arguments to the Helm install command:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "1.17.0")
+    .WithHelmValue("crds.enabled", "true")
+    .WithHelmValue("config.enableGatewayAPI", "true");
+```
+</TabItem>
+</Tabs>
+
+Value keys support dot-notation (`config.enableGatewayAPI`) and indexed array paths (`args[0]`). Both key and value are validated to prevent shell metacharacters from being passed to Helm.
+
+## Configure the namespace and release name
+
+By default, the chart is installed using the environment's namespace and the chart's resource name as the release name. Use `WithNamespace` and `WithReleaseName` to override these:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+k8s.AddHelmChart("ingress-nginx", "oci://ghcr.io/nginx/helm/nginx-ingress", "2.0.0")
+    .WithNamespace("ingress-nginx")
+    .WithReleaseName("ingress-nginx");
+```
+</TabItem>
+</Tabs>
+
+- `WithNamespace` accepts a string that follows [RFC 1123 DNS label](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names) rules (lowercase alphanumerics and hyphens, max 63 characters).
+- `WithReleaseName` follows Helm's release-name rules (DNS label format, max 53 characters).
+
+## Uninstall on destroy
+
+By default, external charts are not uninstalled when you run `aspire destroy`. This is intentional: cluster-wide tools such as cert-manager or monitoring agents are often shared by multiple workloads and shouldn't be torn down when a single application is removed.
+
+To opt in to uninstall-on-destroy, call `WithDestroy()`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+k8s.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1")
+    .WithHelmValue("replicaCount", "2")
+    .WithDestroy();
+```
+</TabItem>
+</Tabs>
+
+When `WithDestroy()` is set, `aspire destroy` runs `helm uninstall` for the chart in addition to removing your application's resources.
+
+:::tip
+Use `WithDestroy()` for charts that are tightly coupled to the specific application — for example, a sidecar chart that has no value without the app — and omit it for shared infrastructure (cert-manager, observability stacks, etc.).
+:::
+
+## Deploy to AKS
+
+The same `AddHelmChart` API is available on AKS environments through the `Aspire.Hosting.Azure.Kubernetes` package:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var aks = builder.AddAzureKubernetesEnvironment("aks");
+
+aks.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1")
+    .WithHelmValue("replicaCount", "2")
+    .WithDestroy();
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+</Tabs>
+
+The AKS overload delegates to the inner Kubernetes environment, so all the same `WithHelmValue`, `WithNamespace`, `WithReleaseName`, and `WithDestroy` options apply.
+
+## Complete example
+
+The following example installs cert-manager and a custom podinfo chart alongside an Aspire application on Kubernetes:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+// cert-manager is a cluster-wide tool — don't uninstall it when the app is destroyed
+k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "1.17.0")
+    .WithHelmValue("crds.enabled", "true");
+
+// podinfo is specific to this app — uninstall it on destroy
+k8s.AddHelmChart("podinfo", "oci://ghcr.io/stefanprodan/charts/podinfo", "6.7.1")
+    .WithNamespace("podinfo")
+    .WithHelmValue("replicaCount", "2")
+    .WithDestroy();
+
+var api = builder.AddProject<Projects.MyApi>("api");
+
+builder.Build().Run();
+```
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Deploy to Kubernetes clusters](/deployment/kubernetes/kubernetes/)
+- [Deploy to AKS](/deployment/kubernetes/aks/)
+- [Kubernetes integration](/integrations/compute/kubernetes/)
+- [AKS integration](/integrations/cloud/azure/aks/)
+- [Pipelines and app topology](/deployment/pipelines/)

@@ -125,6 +125,10 @@ export const deploymentTopics: StarlightSidebarTopicsUserConfig = {
           slug: 'deployment/kubernetes/aks',
         },
         {
+          label: 'External Helm charts',
+          slug: 'deployment/kubernetes/helm-charts',
+        },
+        {
           label: 'Ingress & Gateway API',
           slug: 'deployment/kubernetes-ingress',
         },
