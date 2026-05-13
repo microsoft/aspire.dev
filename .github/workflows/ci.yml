@@ -6,11 +6,17 @@ on:
   pull_request:
     branches: [ main, release/* ]
 
-# Cancel superseded runs on the same PR branch. Pushes to main/release/* are
-# never cancelled — branch protection still needs the gate to pass on the
-# latest commit.
+# Concurrency strategy:
+# - On pull_request: group by PR number. New commits to the PR cancel the
+#   in-flight run for the same PR.
+# - On push (main/release/*): include `github.run_id` so every push gets a
+#   unique group. This guarantees pushes never cancel each other, even if
+#   several commits land while an earlier run is still in progress.
+#   (With a shared group, GHA cancels older *pending* runs even when
+#   `cancel-in-progress: false`, which would silently drop required CI on
+#   `main`.)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
