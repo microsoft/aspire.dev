@@ -1122,93 +1122,95 @@ To bridge this gap, pass the parameter to your API app as a standard environment
 
 1.  **Pass the parameter to the API in the AppHost**
 
-        Define the parameter in the AppHost and pass it to the API app using `WithEnvironment` / `withEnvironment`. Then reference the API from the frontend so it can call the endpoint:
+    Define the parameter in the AppHost and pass it to the API app using `WithEnvironment` / `withEnvironment`. Then reference the API from the frontend so it can call the endpoint:
 
-        <Tabs syncKey='aspire-lang'>
-        <TabItem id='csharp' label='C#'>
+          <Tabs syncKey='aspire-lang'>
 
-        ```csharp title="AppHost.cs"
-        var builder = DistributedApplication.CreateBuilder(args);
+    <TabItem id='csharp' label='C#'>
 
-        var googleClientId = builder.AddParameter("google-client-id");
+    ```csharp title="AppHost.cs"
+    var builder = DistributedApplication.CreateBuilder(args);
 
-        var api = builder
-            .AddNodeApp("api", "./api", "server.js")
-            .WithHttpEndpoint(port: 3001, env: "PORT")
-            .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
+    var googleClientId = builder.AddParameter("google-client-id");
 
-        var frontend = builder.AddViteApp("frontend", "./frontend")
-            .WithPnpm()
-            .WithReference(api);
+    var api = builder
+        .AddNodeApp("api", "./api", "server.js")
+        .WithHttpEndpoint(port: 3001, env: "PORT")
+        .WithEnvironment("GOOGLE_CLIENT_ID", googleClientId);
 
-        // After adding all resources, run the app...
-        ```
+    var frontend = builder.AddViteApp("frontend", "./frontend")
+        .WithPnpm()
+        .WithReference(api);
 
-        </TabItem>
-        <TabItem id='typescript' label='TypeScript'>
+    // After adding all resources, run the app...
+    ```
 
-        ```typescript title="apphost.ts"
-        import { createBuilder } from './.modules/aspire.js';
+          </TabItem>
 
-        const builder = await createBuilder();
+    <TabItem id='typescript' label='TypeScript'>
 
-        const googleClientId = await builder.addParameter('google-client-id');
+    ```typescript title="apphost.ts"
+    import { createBuilder } from './.modules/aspire.js';
 
-        const api = await builder
-          .addNodeApp('api', './api', 'server.js')
-          .withHttpEndpoint({ port: 3001, env: 'PORT' })
-          .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
+    const builder = await createBuilder();
 
-        const frontend = await builder
-          .addViteApp('frontend', './frontend')
-          .withPnpm()
-          .withReference(api);
+    const googleClientId = await builder.addParameter('google-client-id');
 
-        // After adding all resources, run the app...
-        ```
+    const api = await builder
+      .addNodeApp('api', './api', 'server.js')
+      .withHttpEndpoint({ port: 3001, env: 'PORT' })
+      .withEnvironment('GOOGLE_CLIENT_ID', googleClientId);
 
-        </TabItem>
+    const frontend = await builder
+      .addViteApp('frontend', './frontend')
+      .withPnpm()
+      .withReference(api);
 
-        </Tabs>
+    // After adding all resources, run the app...
+    ```
+
+          </TabItem>
+
+          </Tabs>
 
 2.  **Expose a config endpoint in the API**
 
-        Create an endpoint in your API app that reads the environment variable from `process.env` and returns it to the frontend:
+    Create an endpoint in your API app that reads the environment variable from `process.env` and returns it to the frontend:
 
-        ```javascript title="JavaScript — api/server.js"
-        import http from 'node:http';
+    ```javascript title="JavaScript — api/server.js"
+    import http from 'node:http';
 
-        const port = process.env.PORT ?? 3000;
-        const clientId = process.env.GOOGLE_CLIENT_ID;
+    const port = process.env.PORT ?? 3000;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
 
-        const server = http.createServer((request, response) => {
-          if (request.url !== '/api/config/google-client-id') {
-            response.writeHead(404).end();
-            return;
-          }
+    const server = http.createServer((request, response) => {
+      if (request.url !== '/api/config/google-client-id') {
+        response.writeHead(404).end();
+        return;
+      }
 
-          if (!clientId) {
-            response.writeHead(404).end();
-            return;
-          }
+      if (!clientId) {
+        response.writeHead(404).end();
+        return;
+      }
 
-          response.setHeader('content-type', 'application/json');
-          response.end(JSON.stringify({ clientId }));
-        });
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ clientId }));
+    });
 
-        server.listen(port);
-        ```
+    server.listen(port);
+    ```
 
-         <Aside type="caution" title="Only expose public configuration">
+    <Aside type="caution" title="Only expose public configuration">
 
     For multiple configuration values, consider grouping them under a single
     endpoint (such as `GET /api/config`) to reduce network requests.
 
-        Use this pattern only for non-secret/public configuration values (for
-        example OAuth client IDs). Do not expose secrets such as client secrets,
-        API keys, or connection strings via a frontend config endpoint.
+    Use this pattern only for non-secret/public configuration values (for
+    example OAuth client IDs). Do not expose secrets such as client secrets,
+    API keys, or connection strings via a frontend config endpoint.
 
-         </Aside>
+    </Aside>
 
 3.  **Fetch the config value in the SPA**
 
