@@ -3,7 +3,7 @@ title: External parameters
 description: Learn how to express parameters such as secrets, connection strings, and other configuration values that might vary between environments.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved-parameters-message.png';
 import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.png';
@@ -16,6 +16,9 @@ Parameter values are read from the `Parameters` section of the AppHost's configu
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -25,6 +28,26 @@ var parameter = builder.AddParameter("example-parameter-name");
 builder.AddProject<Projects.ApiService>("api")
        .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a parameter named "example-parameter-name"
+const parameter = await builder.addParameter("example-parameter-name");
+
+await builder.addProject("api", "./ApiService/ApiService.csproj")
+    .withEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code adds a parameter named `example-parameter-name` to the AppHost. The parameter is then passed to the `Projects.ApiService` project as an environment variable named `ENVIRONMENT_VARIABLE_NAME`.
 
@@ -44,12 +67,30 @@ Consider the following AppHost configuration file _appsettings.json_:
 
 The preceding JSON configures a parameter in the `Parameters` section of the AppHost configuration. In other words, that AppHost is able to find the parameter as it's configured. For example, you could walk up to the `IDistributedApplicationBuilder.Configuration` and access the value using the `Parameters:example-parameter-name` key:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
 var key = $"Parameters:example-parameter-name";
 var value = builder.Configuration[key]; // value = "local-value"
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const key = "Parameters:example-parameter-name";
+// Configuration access is handled internally by the Aspire runtime
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="caution">
   However, you don't need to access this configuration value yourself in the
@@ -70,6 +111,9 @@ Parameters can be set using environment variables, which is particularly useful 
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -81,6 +125,26 @@ builder.AddContainerRegistry("container-registry", endpoint, repository);
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Define container registry parameters
+const endpoint = await builder.addParameter("registry-endpoint");
+const repository = await builder.addParameter("registry-repository");
+
+await builder.addContainerRegistry("container-registry", endpoint, repository);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 These parameters can be provided via environment variables:
 
@@ -138,6 +202,9 @@ You can also control how the dashboard displays these parameters, by using these
 
 This code shows how to set a description and use the callback:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -158,6 +225,16 @@ var externalService = builder.AddExternalService("external-service", externalSer
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+The `withDescription` and `withCustomInput` APIs are not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
 
 The code renders this control in the dashboard:
 
@@ -191,6 +268,9 @@ Parameters can be used to model secrets. When a parameter is marked as a secret,
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -202,6 +282,26 @@ builder.AddProject<Projects.ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a secret parameter named "secret"
+const secret = await builder.addParameter("secret", { secret: true });
+
+await builder.addProject("api", "./ApiService/ApiService.csproj")
+    .withEnvironment("SECRET", secret);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Now consider the following AppHost configuration file _appsettings.json_:
 
@@ -238,6 +338,9 @@ In some scenarios, you might want to read parameter values directly from a speci
 
 ### API signature
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
     this IDistributedApplicationBuilder builder,
@@ -246,6 +349,16 @@ public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
     bool secret = false
 );
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+The `addParameterFromConfiguration` API is not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
 
 ### Parameters
 
@@ -256,6 +369,9 @@ public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
 ### Example usage
 
 Consider a scenario where you have configuration values stored in a custom section:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -271,6 +387,16 @@ builder.AddProject<Projects.ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+The `addParameterFromConfiguration` API is not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
 
 The corresponding configuration file would look like:
 
@@ -303,6 +429,9 @@ If you're connecting to a local database, and want to use Integrated Security or
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -314,6 +443,25 @@ builder.AddProject<Projects.WebApplication>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addConnectionString("redis");
+
+await builder.addProject("api", "./WebApplication/WebApplication.csproj")
+    .withReference(redis);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 <Aside type="note">
   Using `WaitFor` with a connection string will implicitly wait for the resource
@@ -336,6 +484,9 @@ If you want to construct a connection string from parameters and ensure that it'
 
 For example, if you have a secret parameter that stores a small part of a connection string, use this code to insert it:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var secretKey = builder.AddParameter("secretkey", secret: true);
 
@@ -348,7 +499,20 @@ builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
        .WaitFor(connectionString);
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+The `ReferenceExpression` API is not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
+
 You can also use reference expressions to append text to connection strings created by Aspire resources. For example, when you add a PostgreSQL resource to your Aspire solution, the database server runs in a container and a connection string is formulated for it. In the following code, the extra property `Include Error Details` is appended to that connection string before it's passed to consuming projects:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres");
@@ -363,9 +527,22 @@ builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi
        .WaitFor(pgConnectionString);
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+:::note
+The `ReferenceExpression` API is not yet available in the TypeScript AppHost SDK.
+:::
+
+</TabItem>
+</Tabs>
+
 ## Parameter example
 
 To express a parameter, consider the following example code:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -382,6 +559,29 @@ builder.AddProject<Projects.Parameters_ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = (await builder.addSqlServer("sql"))
+    .addDatabase("db");
+
+const insertionRows = await builder.addParameter("insertionRows");
+
+await builder.addProject("api", "./Parameters.ApiService/Parameters.ApiService.csproj")
+    .withEnvironment("InsertionRows", insertionRows)
+    .withReference(db);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The following steps are performed:
 
@@ -414,6 +614,9 @@ The value for the `insertionRows` parameter is read from the `Parameters` sectio
 ```
 
 The `Parameters_ApiService` project consumes the `insertionRows` parameter. Consider the _Program.cs_ example file:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp title="Program.cs"
 using Microsoft.EntityFrameworkCore;
@@ -453,3 +656,92 @@ app.MapGet("/", async (MyDbContext context) =>
 
 app.Run();
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "net/http"
+    "os"
+    "strconv"
+)
+
+func main() {
+    insertionRows, _ := strconv.Atoi(os.Getenv("InsertionRows"))
+    if insertionRows == 0 {
+        insertionRows = 1
+    }
+
+    connStr := os.Getenv("ConnectionStrings__db")
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        db, _ := sql.Open("sqlserver", connStr)
+        defer db.Close()
+
+        for i := 0; i < insertionRows; i++ {
+            db.Exec("INSERT INTO Entries DEFAULT VALUES")
+        }
+
+        rows, _ := db.Query("SELECT COUNT(*) FROM Entries")
+        var count int
+        rows.Next()
+        rows.Scan(&count)
+
+        fmt.Fprintf(w, `{"totalEntries": %d}`, count)
+    })
+
+    http.ListenAndServe(":8080", nil)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+import os
+from fastapi import FastAPI
+
+app = FastAPI()
+
+insertion_rows = int(os.getenv("InsertionRows", "1"))
+conn_str = os.getenv("ConnectionStrings__db")
+
+@app.get("/")
+async def root():
+    # Connect to the database using conn_str
+    # Insert insertion_rows entries
+    # Return the total count
+    return {
+        "totalEntries": insertion_rows,
+    }
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — index.ts"
+import express from 'express';
+
+const app = express();
+const insertionRows = parseInt(process.env.InsertionRows ?? '1', 10);
+const connStr = process.env.ConnectionStrings__db;
+
+app.get('/', async (req, res) => {
+    // Connect to the database using connStr
+    // Insert insertionRows entries
+    // Return the total count
+    res.json({
+        totalEntries: insertionRows,
+    });
+});
+
+app.listen(8080);
+```
+
+</TabItem>
+</Tabs>

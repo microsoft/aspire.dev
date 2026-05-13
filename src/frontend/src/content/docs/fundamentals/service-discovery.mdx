@@ -3,7 +3,7 @@ title: Service discovery
 description: Understand essential service discovery concepts in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Service discovery is how your services find each other. Instead of hardcoding URLs like `http://localhost:5001`, your frontend can simply reference the `catalog` service by name—and Aspire handles resolving the actual address.
 
@@ -26,6 +26,9 @@ Service discovery eliminates "works on my machine" problems. The same code works
 
 Configuration for service discovery is only added for services that are referenced by a given project. For example, consider the following AppHost program:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -36,6 +39,27 @@ var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
                       .WithReference(basket)
                       .WithReference(catalog);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addProject("catalog", "./CatalogService/CatalogService.csproj");
+const basket = await builder.addProject("basket", "./BasketService/BasketService.csproj");
+
+const frontend = await builder.addProject("frontend", "./MyFrontend/MyFrontend.csproj")
+    .withReference(basket)
+    .withReference(catalog);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 In the preceding example, the _frontend_ project references the _catalog_ project and the _basket_ project. The two `WithReference` calls instruct Aspire to:
 
@@ -50,6 +74,9 @@ If you don't call `WithReference()`, the frontend won't have the configuration n
 
 Some services expose multiple, named endpoints. Named endpoints can be resolved by specifying the endpoint name in the host portion of the HTTP request URI, following the format `scheme://_endpointName.serviceName`. For example, if a service named "basket" exposes an endpoint named "dashboard", then the URI `https+http://_dashboard.basket` can be used to specify this endpoint, for example:
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp
 builder.Services.AddHttpClient<BasketServiceClient>(
     static client => client.BaseAddress = new("https+http://basket"));
@@ -57,6 +84,60 @@ builder.Services.AddHttpClient<BasketServiceClient>(
 builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https+http://_dashboard.basket"));
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+package main
+
+import (
+    "net/http"
+    "os"
+)
+
+func main() {
+    // Aspire injects endpoint URLs as environment variables.
+    // Use the service name to construct the variable name.
+    basketURL := os.Getenv("services__basket__https__0")
+    dashboardURL := os.Getenv("services__basket__dashboard__0")
+
+    // Use the resolved URLs directly
+    resp, err := http.Get(basketURL + "/api/items")
+    // ...
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+import os
+import httpx
+
+# Aspire injects endpoint URLs as environment variables.
+# Use the service name to construct the variable name.
+basket_url = os.getenv("services__basket__https__0")
+dashboard_url = os.getenv("services__basket__dashboard__0")
+
+async with httpx.AsyncClient() as client:
+    response = await client.get(f"{basket_url}/api/items")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+// Aspire injects endpoint URLs as environment variables.
+// Use the service name to construct the variable name.
+const basketUrl = process.env.services__basket__https__0;
+const dashboardUrl = process.env.services__basket__dashboard__0;
+
+const response = await fetch(`${basketUrl}/api/items`);
+```
+
+</TabItem>
+</Tabs>
 
 In the preceding example, two `HttpClient` classes are added, one for the core basket service and one for the basket service's dashboard.
 
@@ -84,10 +165,24 @@ In the preceding JSON:
 
 Named endpoints can also be exposed by code in the App Host. For instance the previous example can be modeled as:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var basket = builder.AddProject<Projects.BasketService>("basket")
     .WithHttpsEndpoint(port: 9999, name: "dashboard");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const basket = await builder.addProject("basket", "./BasketService/BasketService.csproj")
+    .withHttpsEndpoint({ port: 9999, name: "dashboard" });
+```
+
+</TabItem>
+</Tabs>
 
 ### Named endpoints in Kubernetes using DNS SRV
 
@@ -111,10 +206,46 @@ spec:
 
 To configure a service to resolve the "dashboard" endpoint on the "basket" service, add the DNS SRV service endpoint resolver to the host builder as follows:
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp
 builder.Services.AddServiceDiscoveryCore();
 builder.Services.AddDnsSrvServiceEndpointProvider();
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+// In Go, use a DNS SRV lookup to resolve service endpoints
+import "net"
+
+_, addrs, err := net.LookupSRV("default", "tcp", "basket")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+# In Python, use dnspython for SRV record lookups
+import dns.resolver
+
+answers = dns.resolver.resolve("_default._tcp.basket", "SRV")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+// In Node.js, use the dns module for SRV lookups
+import { resolveSrv } from 'node:dns/promises';
+
+const records = await resolveSrv('_default._tcp.basket');
+```
+
+</TabItem>
+</Tabs>
 
 For more information, see `AddServiceDiscoveryCore` and `AddDnsSrvServiceEndpointProvider`.
 
@@ -122,17 +253,77 @@ The special port name "default" is used to specify the default endpoint, resolve
 
 As in the previous example, add service discovery to an `HttpClient` for the basket service:
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp
 builder.Services.AddHttpClient<BasketServiceClient>(
     static client => client.BaseAddress = new("https://basket"));
 ```
 
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+basketURL := os.Getenv("services__basket__https__0")
+resp, err := http.Get(basketURL + "/api/items")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+basket_url = os.getenv("services__basket__https__0")
+response = await client.get(f"{basket_url}/api/items")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+const basketUrl = process.env.services__basket__https__0;
+const response = await fetch(`${basketUrl}/api/items`);
+```
+
+</TabItem>
+</Tabs>
+
 Similarly, the "dashboard" endpoint can be targeted as follows:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp
 builder.Services.AddHttpClient<BasketServiceDashboardClient>(
     static client => client.BaseAddress = new("https://_dashboard.basket"));
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+dashboardURL := os.Getenv("services__basket__dashboard__0")
+resp, err := http.Get(dashboardURL + "/api/stats")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+dashboard_url = os.getenv("services__basket__dashboard__0")
+response = await client.get(f"{dashboard_url}/api/stats")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+const dashboardUrl = process.env.services__basket__dashboard__0;
+const response = await fetch(`${dashboardUrl}/api/stats`);
+```
+
+</TabItem>
+</Tabs>
 
 ## Troubleshooting
 
@@ -147,11 +338,26 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
 
 **Solution**: Verify your AppHost connects the services:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var api = builder.AddProject<Projects.Api>("api");
 var frontend = builder.AddProject<Projects.Frontend>("frontend")
     .WithReference(api);  // ← This is required!
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const api = await builder.addProject("api", "./Api/Api.csproj");
+const frontend = await builder.addProject("frontend", "./Frontend/Frontend.csproj")
+    .withReference(api);  // ← This is required!
+```
+
+</TabItem>
+</Tabs>
 
 ### Named endpoint doesn't resolve
 
@@ -159,16 +365,57 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
 
 **Solution**: Verify the endpoint is named in your AppHost:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var api = builder.AddProject<Projects.Api>("api")
     .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← Name must match
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+const api = await builder.addProject("api", "./Api/Api.csproj")
+    .withHttpEndpoint({ port: 9999, name: "dashboard" });  // ← Name must match
+```
+
+</TabItem>
+</Tabs>
+
 Then use the exact name with underscore prefix:
+
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
 
 ```csharp
 client.BaseAddress = new("https://_dashboard.api");
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+dashboardURL := os.Getenv("services__api__dashboard__0")
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+dashboard_url = os.getenv("services__api__dashboard__0")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — app.ts"
+const dashboardUrl = process.env.services__api__dashboard__0;
+```
+
+</TabItem>
+</Tabs>
 
 ### Understanding the URI format
 
