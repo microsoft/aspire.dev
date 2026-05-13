@@ -143,8 +143,13 @@ await builder
 ```
 
 ```javascript title="Angular — proxy.conf.js"
-const target =
-  process.env.API_HTTPS || process.env.API_HTTP || 'http://localhost:3001';
+const target = process.env.API_HTTPS || process.env.API_HTTP;
+
+if (!target) {
+  throw new Error(
+    'API endpoint is not configured. Run the app through Aspire.'
+  );
+}
 
 module.exports = {
   '/api': {
@@ -179,7 +184,12 @@ await builder
 
 ```tsx title="Next.js — app/page.tsx"
 export default async function Home() {
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`, {
     cache: 'no-store',
   });
@@ -216,7 +226,11 @@ export default defineNuxtConfig({
 ```typescript title="Nuxt — app/server/api/weather.ts"
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig();
-  const apiUrl = config.apiUrl || 'http://localhost:3001';
+  const apiUrl = config.apiUrl;
+
+  if (!apiUrl) {
+    throw new Error('NUXT_API_URL is not configured.');
+  }
 
   return $fetch(`${apiUrl}/api/weather`);
 });
@@ -238,7 +252,12 @@ await builder
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ fetch }) => {
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`);
 
   return {

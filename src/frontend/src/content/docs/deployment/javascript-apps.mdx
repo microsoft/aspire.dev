@@ -783,7 +783,11 @@ export default defineNuxtConfig({
 ```typescript title="Nuxt — server/api/weather.ts"
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig();
-  const apiUrl = config.apiUrl || 'http://localhost:3001';
+  const apiUrl = config.apiUrl;
+
+  if (!apiUrl) {
+    throw new Error('NUXT_API_URL is not configured.');
+  }
 
   return $fetch(`${apiUrl}/api/weather`);
 });
@@ -819,7 +823,12 @@ export default defineConfig({
 ---
 export const prerender = false;
 
-const apiUrl = process.env.API_URL || 'http://localhost:3001';
+const apiUrl = process.env.API_URL;
+
+if (!apiUrl) {
+  throw new Error('API_URL is not configured.');
+}
+
 const response = await fetch(`${apiUrl}/api/weather`);
 const weather = response.ok ? await response.json() : [];
 ---
@@ -859,7 +868,12 @@ export default config;
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ fetch }) => {
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`);
 
   return {
@@ -893,7 +907,12 @@ export default nextConfig;
 
 ```tsx title="Next.js — app/page.tsx"
 export default async function Home() {
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`, {
     cache: 'no-store',
   });
@@ -924,7 +943,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 const fetchWeather = createServerFn({ method: 'GET' }).handler(async () => {
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`);
 
   return response.json();
@@ -963,7 +987,12 @@ await builder
 
 ```tsx title="Remix — app/routes/home.tsx"
 export async function loader() {
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL;
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`);
 
   return {
@@ -1021,7 +1050,12 @@ export default extendConfig(baseConfig, () => ({
 import { routeLoader$ } from '@builder.io/qwik-city';
 
 export const useWeatherData = routeLoader$(async () => {
-  const apiUrl = process.env['API_URL'] || 'http://localhost:3001';
+  const apiUrl = process.env['API_URL'];
+
+  if (!apiUrl) {
+    throw new Error('API_URL is not configured.');
+  }
+
   const response = await fetch(`${apiUrl}/api/weather`);
 
   return response.json();
@@ -1042,8 +1076,13 @@ await builder
 ```
 
 ```javascript title="Angular — proxy.conf.js"
-const target =
-  process.env.API_HTTPS || process.env.API_HTTP || 'http://localhost:3001';
+const target = process.env.API_HTTPS || process.env.API_HTTP;
+
+if (!target) {
+  throw new Error(
+    'API endpoint is not configured. Run the app through Aspire.'
+  );
+}
 
 module.exports = {
   '/api': {
@@ -1094,8 +1133,13 @@ await builder
 ```typescript title="Vite / React / Vue — vite.config.ts"
 import { defineConfig } from 'vite';
 
-const apiTarget =
-  process.env.API_HTTPS || process.env.API_HTTP || 'http://localhost:3001';
+const apiTarget = process.env.API_HTTPS || process.env.API_HTTP;
+
+if (!apiTarget) {
+  throw new Error(
+    'API endpoint is not configured. Run the app through Aspire.'
+  );
+}
 
 export default defineConfig({
   server: {
