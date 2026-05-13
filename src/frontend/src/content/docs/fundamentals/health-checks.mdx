@@ -336,27 +336,49 @@ builder.AddNpgsqlDbContext<MyDbContext>(
 <TabItem label="Go">
 
 ```go title="Go — main.go"
-// Go apps connect directly using database drivers.
-// Health check behavior is controlled by your
-// application code, not an Aspire integration.
+connStr := os.Getenv("ConnectionStrings__postgresdb")
+conn, err := pgx.Connect(context.Background(), connStr)
+
+// Health endpoint returns healthy without checking
+// the database. In Go, health checks are explicit —
+// omit a database ping to disable them.
+http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Healthy"))
+})
 ```
 
 </TabItem>
 <TabItem label="Python">
 
 ```python title="Python — app.py"
-# Python apps connect directly using database drivers.
-# Health check behavior is controlled by your
-# application code, not an Aspire integration.
+conn_str = os.environ.get("ConnectionStrings__postgresdb")
+conn = psycopg2.connect(conn_str)
+
+# Health endpoint returns healthy without checking
+# the database. In Python, health checks are explicit —
+# omit a database ping to disable them.
+@app.get("/health")
+async def health():
+    return {"status": "Healthy"}
 ```
 
 </TabItem>
 <TabItem label="TypeScript">
 
 ```typescript title="TypeScript — app.ts"
-// TypeScript apps connect directly using database drivers.
-// Health check behavior is controlled by your
-// application code, not an Aspire integration.
+import pg from 'pg';
+
+const pool = new pg.Pool({
+    connectionString: process.env.ConnectionStrings__postgresdb,
+});
+
+// Health endpoint returns healthy without checking
+// the database. In TypeScript, health checks are explicit —
+// omit a database ping to disable them.
+app.get('/health', (req, res) => {
+    res.type('text/plain').send('Healthy');
+});
 ```
 
 </TabItem>
