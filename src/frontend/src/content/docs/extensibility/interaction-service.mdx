@@ -3,7 +3,7 @@ title: Interaction service (Preview)
 description: Use the interaction service API to prompt users for input, request confirmation, and display messages in the Aspire dashboard or CLI during publish and deploy.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Steps } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import messageDialog from '@assets/extensibility/interaction-service-message-dialog.png';
 import messageBar from '@assets/extensibility/interaction-service-message-bar.png';
@@ -19,14 +19,15 @@ The interaction service (`Aspire.Hosting.IInteractionService`) allows you to pro
 
 This is useful for scenarios where you need to gather information from the user or provide feedback on the status of operations, regardless of how the application is being launched or deployed.
 
+<Aside type="note">
+The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
+</Aside>
+
 ## The `IInteractionService` API
 
 The `IInteractionService` interface is retrieved from the `DistributedApplication` dependency injection container. `IInteractionService` can be injected into types created from DI or resolved from `IServiceProvider`, which is usually available on a context argument passed to events.
 
 When you request `IInteractionService`, be sure to check if it's available for usage. If you attempt to use the interaction service when it's not available (`IInteractionService.IsAvailable` returns `false`), an exception is thrown.
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 
 ```csharp
 var interactionService = serviceProvider.GetRequiredService<IInteractionService>();
@@ -42,16 +43,6 @@ if (interactionService.IsAvailable)
     }
 }
 ```
-
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
 
 The interaction service has several methods that you use to interact with users or display messages. The behavior of these methods depends on the execution context:
 
@@ -89,9 +80,6 @@ This article demonstrates the interaction service in the context of a `WithComma
 
 For example:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
-
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -105,16 +93,6 @@ builder.AddFakeResource("fake-resource")
     return CommandResults.Success();
 });
 ```
-
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
 
 For CLI specific contexts, the interaction service is retrieved from either the `PublishingContext` or `PipelineStepContext` depending on the operation being performed.
 </Aside>
@@ -135,9 +113,6 @@ Message display methods (`PromptMessageBoxAsync` and `PromptNotificationAsync`) 
 Dialog messages provide important information that requires user attention.
 
 The `IInteractionService.PromptMessageBoxAsync` method displays a message with customizable response options.
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
@@ -168,16 +143,6 @@ return result.Data
     : CommandResults.Failure("The user doesn't like the example");
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
-
 **Dashboard view:**
 
 <Image src={messageDialog} alt="Aspire dashboard interface showing a message dialog with a title, message, and buttons." />
@@ -195,9 +160,6 @@ In the dashboard, notification messages appear stacked at the top, so you can sh
 </Aside>
 
 The `PromptNotificationAsync` method displays informational messages with optional action links in the dashboard context. You don't have to await the result of a notification message if you don't need to. This is especially useful for notifications, since you might want to display a notification and continue without waiting for user to dismiss it.
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
@@ -254,16 +216,6 @@ await Task.WhenAll(tasks);
 return CommandResults.Success();
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
-
 The previous example demonstrates several ways to use the notification API. Each approach displays different types of notifications, all of which are invoked in parallel and displayed in the dashboard around the same time.
 
 **Dashboard view:**
@@ -281,9 +233,6 @@ Use the interaction service when you need the user to confirm an action before p
 ### Prompt for confirmation before destructive operations
 
 For operations that can't be undone, such as deleting resources, always prompt for confirmation:
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
@@ -311,16 +260,6 @@ else
     return CommandResults.Failure("Database reset canceled by user.");
 }
 ```
-
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
 
 **Dashboard view:**
 
@@ -351,9 +290,6 @@ It's possible to create wizard-like flows using the interaction service. By chai
 </Aside>
 
 Consider the following example, which prompts the user for multiple input values:
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var interactionService = context.ServiceProvider.GetRequiredService<IInteractionService>();
@@ -426,16 +362,6 @@ else
 }
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
-
 **Dashboard view:**
 
 This renders on the dashboard as shown in the following image:
@@ -497,9 +423,6 @@ To configure a dynamic input, set the `InteractionInput.DynamicLoading` property
 - **DependsOnInputs**: A list of input names that the dynamic input depends on. When any of these inputs change, the `LoadCallback` is triggered to refresh the options for the dynamic input. If no dependencies are specified then the callback is triggered when the interaction starts.
 - **AlwaysLoadOnStart**: If set to `true`, the `LoadCallback` is always called when the interaction starts, even if the dynamic input has dependencies.
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
-
 ```csharp
 var inputs = new List<InteractionInput>
 {
@@ -547,16 +470,6 @@ if (!result.Canceled)
 }
 ```
 
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
-
 In the preceding example, the `DatabaseVersion` input is dynamically populated based on the selected `DatabaseType`.
 
 #### Input validation
@@ -564,9 +477,6 @@ In the preceding example, the `DatabaseVersion` input is dynamically populated b
 Basic input validation is available by configuring `InteractionInput`. It provides options for requiring a value, or the maximum text length of `Text` or `SecretText` fields.
 
 For complex scenarios, you can provide custom validation logic using the `InputsDialogInteractionOptions.ValidationCallback` property:
-
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 
 ```csharp
 // Multiple inputs with custom validation
@@ -636,16 +546,6 @@ if (!dbResult.Canceled && dbResult.Data != null)
     // Use the validated configuration
 }
 ```
-
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-
-:::note
-The `IInteractionService` API is not yet available in the TypeScript AppHost SDK.
-:::
-
-</TabItem>
-</Tabs>
 
 Prompting the user for a password and confirming they match is referred to as "dual independent verification" input. This approach is common in scenarios where you want to ensure the user enters the same password twice to avoid typos or mismatches.
 
