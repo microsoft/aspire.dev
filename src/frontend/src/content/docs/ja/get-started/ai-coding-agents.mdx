@@ -1,0 +1,204 @@
+---
+title: AI コーディングエージェントを活用する
+description: Aspire 向けに最適化されたスキル、MCP サーバー、ブラウザー自動化で、AI コーディングエージェントをセットアップします。
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
+import LoopingVideo from '@components/LoopingVideo.astro';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire は AI コーディングエージェント向けに、優れた初期セットアップ体験を提供します。プロジェクトで `aspire agent init` を実行すると、AI アシスタントは GitHub Copilot、Claude Code、またはその他の <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> 対応ツールのいずれであっても、分散アプリをすぐに理解し、ビルドし、デバッグし、監視できるようになります。
+
+## Aspire がコーディングエージェントに適している理由
+
+Aspire は、コーディングエージェントに対して、開発者が持つのと同じ実行中アプリケーションの可視性を提供します。[Aspire Dashboard](/ja/dashboard/overview/) で確認できるリソースデータ、構造化ログ、分散トレースは、[Aspire MCP server](/ja/get-started/aspire-mcp-server/) と [Aspire CLI](/ja/get-started/install-cli/) を通じてエージェントにも公開されます。人がダッシュボードでデバッグする場合でも、エージェントが MCP 経由で診断する場合でも、見えている状況は同じです。
+
+Aspire CLI はエージェント主導のワークフロー向けに設計されています。コマンドはプロンプト待ちでブロックしないように非対話実行をサポートし、多くのコマンドで構造化されたプレーンテキスト出力向けに `--format Json` を利用できます。主なコマンドは `aspire start`（バックグラウンド実行）、`aspire start --isolated`（並列ワークツリー）、`aspire wait`（正常状態になるまで待機）、`aspire describe`、`aspire logs`、`aspire docs search` です。
+
+`aspire agent init` でインストールされる Aspire スキルファイルは、これらのパターンをエージェントに自動で教えます。
+
+## はじめに
+
+`aspire new` または `aspire init` で新しい Aspire プロジェクトを作成すると、AI エージェント環境の構成を求められます。構成のセットアップや更新は、いつでも `aspire agent init` を実行して行えます。
+
+<Steps>
+
+1. Aspire プロジェクトディレクトリ（AppHost を含むフォルダー）でターミナルを開きます。
+
+1. 次のコマンドを実行します:
+
+   ```bash title="Aspire CLI"
+   aspire agent init
+   ```
+
+1. ファイルをインストールする **スキル配置先** を選択します。既定では **Standard** が事前選択されています:
+
+   | Location | Directory | Notes |
+   |---|---|---|
+   | **Standard** | `.agents/skills/` | VS Code、GitHub Copilot、OpenCode でサポート |
+   | **Claude Code** | `.claude/skills/` | Claude Code 専用 |
+   | **GitHub Skills** | `.github/skills/` | VS Code / GitHub Copilot 向け |
+   | **OpenCode** | `.opencode/skill/` | OpenCode 専用 |
+
+1. それらの配置先にインストールする **スキルとツール** を選択します。すべてのオプションは既定で事前選択されています:
+
+   - **Aspire skill** — AI エージェントに Aspire CLI コマンドの使い方を教えます
+   - **Playwright CLI** — Web リソースをテストするためのブラウザー自動化を有効にします
+   - **dotnet-inspect skill** — AI エージェントに .NET API サーフェスのクエリ方法を教えます
+
+</Steps>
+
+<AsciinemaPlayer 
+  src="/casts/agent-init.cast" 
+  poster="npt:0:08" 
+  autoPlay={true}
+  cols={256}
+  rows={10} />
+
+## 構成される内容
+
+`aspire agent init` コマンドは AI 開発環境を検出し、適切な構成ファイルを作成します:
+
+### Aspire skill file
+
+スキルファイルは、AI コーディングエージェントが Aspire を扱う方法を教えます。CLI コマンドリファレンス、主要ワークフロー（アプリ起動、問題のデバッグ、統合の追加）、および従うべき重要なルールが含まれます。ファイルは、選択した各スキル配置先にインストールされます:
+
+<FileTree>
+
+- .agents/skills/aspire/
+  - SKILL.md  Standard（VS Code、GitHub Copilot、OpenCode）
+- .github/skills/aspire/
+  - SKILL.md  GitHub Copilot（旧来の配置先）
+- .claude/skills/aspire/
+  - SKILL.md  Claude Code
+- .opencode/skill/aspire/
+  - SKILL.md  OpenCode
+
+</FileTree>
+
+このスキルファイルは、次の方法をエージェントにガイドします:
+
+- Aspire アプリケーションの起動と管理（`aspire start`、`aspire stop`、`aspire describe`）
+- 構造化ログと分散トレースを使った問題のデバッグ
+- `aspire add` による統合追加と `aspire docs` によるドキュメント検索
+- データベースクエリなど、リソース固有の操作に向けたリソース MCP ツールの利用
+
+### dotnet-inspect skill
+
+`dotnet-inspect` スキルは、[`dotnet-inspect`](https://github.com/richlander/dotnet-inspect) ツールを使って .NET API サーフェスをクエリする方法を AI エージェントに教えます。これは選択した各配置先で Aspire スキルと並んでインストールされます:
+
+<FileTree>
+
+- .agents/skills/dotnet-inspect/
+  - SKILL.md
+- .github/skills/dotnet-inspect/
+  - SKILL.md
+- .claude/skills/dotnet-inspect/
+  - SKILL.md
+- .opencode/skill/dotnet-inspect/
+  - SKILL.md
+
+</FileTree>
+
+このスキルにより、エージェントは NuGet パッケージ API サーフェスの調査、パッケージバージョン間の API 変更比較、.NET の型とメンバーの探索が可能になります。
+
+:::note[スキル競合]
+`dotnet-inspect` スキルは Aspire スキルと併せてインストールしないでください。Aspire スキルにはすでに `aspire docs api` サブコマンドのサポートが含まれており、C# と TypeScript の両方で Aspire API を問い合わせる強力な手段を提供します。
+:::
+
+### Aspire MCP server
+
+MCP サーバーは、実行中の Aspire アプリケーションに対する直接的なランタイムアクセス（リソース状態、ログ、トレース、コマンド）を AI エージェントに提供します。構成の詳細、利用可能なツール、セキュリティモデルは [Aspire MCP server](/ja/get-started/aspire-mcp-server/) を参照してください。
+
+## AGENTS.md からの移行
+
+プロジェクトに旧バージョンの Aspire 由来の `AGENTS.md` ファイルがある場合、新しいスキルファイル形式へ移行できます。スキルファイルはより構造化されており、AI コーディングエージェントにネイティブ認識されます。
+
+<Steps>
+
+1. `aspire agent init` を実行し、**Install Aspire skill file** を選択します。
+
+2. スキルファイルは `.github/skills/aspire/SKILL.md` と `.claude/skills/aspire/SKILL.md` に作成されます。
+
+3. 旧 `AGENTS.md` ファイルを確認したうえで削除します。スキルファイルが置き換えます。
+
+</Steps>
+
+<Aside type="tip">
+スキルファイルは `AGENTS.md` よりも構造化されており、完全な CLI コマンド参照表、ワークフローパターン、エージェントが自動で従うルールを含みます。プロジェクト固有のニーズに合わせてカスタマイズできます。
+</Aside>
+
+## 最初のプロンプト
+
+構成が完了したら、好みの AI コーディング環境を起動します。次のようにエージェントへ依頼してみてください:
+
+> "Aspire アプリを起動して、リソースの状態を表示して。"
+
+> "API の HTTP リクエストパフォーマンスを分析して。"
+
+> "AppHost に Redis キャッシュを追加して。"
+
+<Tabs>
+  <TabItem label="VS Code" id="demo-vscode">
+    <LoopingVideo
+      aria-label="Aspire MCP を使ってリソース一覧を取得する GitHub Copilot と VS Code"
+      controls={true}
+      sources={[
+        {
+          src: "/mcp-vscode-list-resources.mp4",
+          type: "video/mp4",
+          title: "GitHub Copilot と統合した Aspire MCP を示す VS Code のデモ"
+        }
+      ]}
+    />
+  </TabItem>
+  <TabItem label="Claude Code" id="demo-claude">
+    <AsciinemaPlayer 
+      src="/casts/mcp-claudecode-cli.cast"
+      poster="npt:0:27"
+      autoPlay={true}
+      cols={256}
+      rows={28} />
+  </TabItem>
+  <TabItem label="Copilot CLI" id="demo-copilot">
+    <AsciinemaPlayer 
+      src="/casts/mcp-copilot-cli.cast"
+      poster="npt:0:22"
+      autoPlay={true}
+      cols={256}
+      rows={28} />
+  </TabItem>
+  <TabItem label="OpenCode" id="demo-opencode">
+    <AsciinemaPlayer 
+      src="/casts/mcp-opencode-cli.cast"
+      poster="npt:0:14"
+      autoPlay={true}
+      cols={256}
+      rows={28} />
+  </TabItem>
+</Tabs>
+
+## 対応している AI アシスタント
+
+`aspire agent init` コマンドは、次の AI アシスタントをサポートします:
+
+- [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) と GitHub Copilot
+- [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli#add-an-mcp-server)
+- [Claude Code](https://docs.claude.com/en/docs/claude-code/mcp)
+- [OpenCode](https://opencode.ai/docs/mcp-servers/)
+
+<Aside type="note">
+Aspire MCP サーバーは STDIO トランスポートプロトコルを使用しており、この MCP 通信プロトコルをサポートする他のエージェント型コーディング環境でも動作する可能性があります。
+</Aside>
+
+## 関連情報
+
+- [Aspire MCP server](/ja/get-started/aspire-mcp-server/) — MCP サーバー向けのツール、セキュリティ、トラブルシューティング
+- [aspire agent command](/ja/reference/cli/commands/aspire-agent/)
+- [aspire agent init command](/ja/reference/cli/commands/aspire-agent-init/)
+- [aspire agent mcp command](/ja/reference/cli/commands/aspire-agent-mcp/)
+- [Dashboard security considerations](/ja/dashboard/security-considerations/)
+- [Dashboard and AI coding agents](/ja/dashboard/ai-coding-agents/)
