@@ -9,6 +9,7 @@ sidebar:
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 This walkthrough shows how to use `AddIngress` to expose .NET Aspire services on
 Azure Kubernetes Service (AKS) with **Application Gateway for Containers (AGC)**
@@ -30,8 +31,8 @@ The following steps create all the Azure infrastructure needed for this walkthro
 
 Application Gateway for Containers requires several resource providers and preview features to be registered in your Azure subscription:
 
-<Tabs syncKey="shell-lang">
-<TabItem label="bash">
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
 # Register required resource providers
@@ -58,8 +59,8 @@ az extension add --name alb
 az extension add --name aks-preview
 ```
 
-</TabItem>
-<TabItem label="PowerShell">
+</div>
+<div slot="windows">
 
 ```powershell
 # Register required resource providers
@@ -86,8 +87,8 @@ az extension add --name alb
 az extension add --name aks-preview
 ```
 
-</TabItem>
-</Tabs>
+</div>
+</OsAwareTabs>
 
 <Aside type="note">
   Feature registration can take several minutes. Use `az feature show` to check
@@ -98,8 +99,8 @@ az extension add --name aks-preview
 
 ### Create the resource group and cluster
 
-<Tabs syncKey="shell-lang">
-<TabItem label="bash">
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
 # Variables — customize these for your environment
@@ -133,8 +134,8 @@ az aks get-credentials \
   --name $CLUSTER_NAME
 ```
 
-</TabItem>
-<TabItem label="PowerShell">
+</div>
+<div slot="windows">
 
 ```powershell
 # Variables — customize these for your environment
@@ -168,13 +169,13 @@ az aks get-credentials `
   --name $CLUSTER_NAME
 ```
 
-</TabItem>
-</Tabs>
+</div>
+</OsAwareTabs>
 
 ### Create and attach a container registry
 
-<Tabs syncKey="shell-lang">
-<TabItem label="bash">
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
 # Create Azure Container Registry
@@ -190,8 +191,8 @@ az aks update \
   --attach-acr $ACR_NAME
 ```
 
-</TabItem>
-<TabItem label="PowerShell">
+</div>
+<div slot="windows">
 
 ```powershell
 # Create Azure Container Registry
@@ -207,15 +208,15 @@ az aks update `
   --attach-acr $ACR_NAME
 ```
 
-</TabItem>
-</Tabs>
+</div>
+</OsAwareTabs>
 
 ### Create the ApplicationLoadBalancer
 
 Create a dedicated subnet for AGC in the cluster's VNet, then deploy the `ApplicationLoadBalancer` custom resource:
 
-<Tabs syncKey="shell-lang">
-<TabItem label="bash">
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
 # Get the managed cluster resource group and VNet
@@ -254,8 +255,8 @@ EOF
 kubectl get applicationloadbalancer alb-aspire --watch
 ```
 
-</TabItem>
-<TabItem label="PowerShell">
+</div>
+<div slot="windows">
 
 ```powershell
 # Get the managed cluster resource group and VNet
@@ -294,13 +295,13 @@ spec:
 kubectl get applicationloadbalancer alb-aspire --watch
 ```
 
-</TabItem>
-</Tabs>
+</div>
+</OsAwareTabs>
 
 ### Create an Azure DNS zone
 
-<Tabs syncKey="shell-lang">
-<TabItem label="bash">
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
 # Create the DNS zone
@@ -315,8 +316,8 @@ az network dns zone show \
   --query nameServers -o tsv
 ```
 
-</TabItem>
-<TabItem label="PowerShell">
+</div>
+<div slot="windows">
 
 ```powershell
 # Create the DNS zone
@@ -331,8 +332,8 @@ az network dns zone show `
   --query nameServers -o tsv
 ```
 
-</TabItem>
-</Tabs>
+</div>
+</OsAwareTabs>
 
 <Aside type="note">
   You need to add NS records for `$DNS_ZONE` at your domain registrar pointing
@@ -342,8 +343,8 @@ az network dns zone show `
 
 ### Install cert-manager with Azure DNS support
 
-<Tabs syncKey="shell-lang">
-<TabItem label="bash">
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
 
 ```bash
 # Install cert-manager with Gateway API support
@@ -445,8 +446,8 @@ EOF
 kubectl get clusterissuer letsencrypt-prod
 ```
 
-</TabItem>
-<TabItem label="PowerShell">
+</div>
+<div slot="windows">
 
 ```powershell
 # Install cert-manager with Gateway API support
@@ -548,8 +549,8 @@ spec:
 kubectl get clusterissuer letsencrypt-prod
 ```
 
-</TabItem>
-</Tabs>
+</div>
+</OsAwareTabs>
 
 ## Configure the AppHost
 

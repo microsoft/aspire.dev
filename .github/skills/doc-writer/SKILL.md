@@ -96,6 +96,7 @@ Additional commonly used imports:
 ```tsx
 import { Kbd } from "starlight-kbd/components";
 import LearnMore from "@components/LearnMore.astro";
+import OsAwareTabs from "@components/OsAwareTabs.astro";
 import PivotSelector from "@components/PivotSelector.astro";
 import Pivot from "@components/Pivot.astro";
 import ThemeImage from "@components/ThemeImage.astro";
@@ -182,6 +183,43 @@ Press F5 to start debugging.
 ```
 
 If a heading should appear in the **On this page** table of contents, keep that heading outside the `Tabs` component. Headings placed inside `TabItem` content may be skipped by the generated TOC.
+
+#### OsAwareTabs (Bash and PowerShell)
+
+When the **only** tab options are **Bash** and **PowerShell**, **always** use the `OsAwareTabs` custom component instead of bare `<Tabs>` / `<TabItem>`. `OsAwareTabs` wraps Starlight's synced `Tabs` and adds OS-aware behavior:
+
+- Detects the reader's operating system and defaults the active tab to **PowerShell** on Windows and **Bash** everywhere else.
+- Uses the canonical `seti:shell` and `seti:powershell` icons so the labels render consistently across the site.
+- Persists the reader's choice across pages via the standard Starlight `syncKey`. Use `syncKey="terminal"` so all OS-aware terminal blocks stay in sync.
+- Exposes two named slots — `unix` and `windows` — that contain the Bash and PowerShell content respectively.
+
+````mdx
+import OsAwareTabs from "@components/OsAwareTabs.astro";
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+az group create --name my-group --location westus3
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+az group create --name my-group --location westus3
+```
+
+</div>
+</OsAwareTabs>
+````
+
+A few rules to follow:
+
+- Do **not** wrap a Bash + PowerShell pairing in bare `<Tabs syncKey="shell-lang">` — convert it to `OsAwareTabs` instead. This is the canonical pattern used across the dashboard, install-cli, container-networking, and AKS deployment guides.
+- Always set `syncKey="terminal"` unless there is a specific reason to scope the persistence differently. The site-wide convention is a single shared key so a reader who picks PowerShell once continues to see PowerShell on every page that offers the choice.
+- Keep the leading and trailing blank lines around the inner code fences (as shown above). MDX requires the blank lines so the fenced code block is parsed correctly inside the slotted `<div>`.
+- `OsAwareTabs` is **only** for the Bash + PowerShell pairing. Continue to use bare `<Tabs>` / `<TabItem>` for non-OS choices such as C#/TypeScript AppHost samples (`syncKey='aspire-lang'`), CLI vs IDE, deployment targets, or package managers.
 
 #### Pivot/PivotSelector
 
