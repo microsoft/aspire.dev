@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ main, release/* ]
 
+# Cancel superseded runs on the same PR branch. Pushes to main/release/* are
+# never cancelled — branch protection still needs the gate to pass on the
+# latest commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   security-events: write
@@ -19,7 +26,18 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
+          # Shallow clone; the two PR SHAs we need to diff against are
+          # fetched explicitly below. This is much cheaper than `fetch-depth: 0`.
+          fetch-depth: 1
+
+      - name: Fetch PR base and head for diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --depth=1 origin "$BASE_SHA"
+          git fetch --depth=1 origin "$HEAD_SHA"
 
       - id: filter
         name: Detect changed areas
