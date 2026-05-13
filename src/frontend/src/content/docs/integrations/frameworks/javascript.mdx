@@ -143,11 +143,13 @@ await builder
 ```
 
 ```javascript title="Angular — proxy.conf.js"
-const api = process.env.API_HTTP;
+const target =
+  process.env.API_HTTPS || process.env.API_HTTP || 'http://localhost:3001';
 
 module.exports = {
   '/api': {
-    target: api,
+    target,
+    secure: false,
     changeOrigin: true,
   },
 };
@@ -175,12 +177,15 @@ await builder
   .withExternalHttpEndpoints();
 ```
 
-```typescript title="Next.js — app/api/weather/route.ts"
-export async function GET() {
-  const response = await fetch(`${process.env.API_URL}/api/weather`);
-  const weather = await response.json();
+```tsx title="Next.js — app/page.tsx"
+export default async function Home() {
+  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const response = await fetch(`${apiUrl}/api/weather`, {
+    cache: 'no-store',
+  });
+  const weather = response.ok ? await response.json() : [];
 
-  return Response.json(weather);
+  return <pre>{JSON.stringify(weather, null, 2)}</pre>;
 }
 ```
 
@@ -199,16 +204,21 @@ await builder
 
 ```typescript title="Nuxt — nuxt.config.ts"
 export default defineNuxtConfig({
+  nitro: {
+    preset: 'node-server',
+  },
   runtimeConfig: {
-    apiUrl: '',
+    apiUrl: '', // Overridden by NUXT_API_URL.
   },
 });
 ```
 
-```typescript title="Nuxt — server/api/weather.ts"
+```typescript title="Nuxt — app/server/api/weather.ts"
 export default defineEventHandler(async () => {
   const config = useRuntimeConfig();
-  return $fetch(`${config.apiUrl}/api/weather`);
+  const apiUrl = config.apiUrl || 'http://localhost:3001';
+
+  return $fetch(`${apiUrl}/api/weather`);
 });
 ```
 
@@ -224,15 +234,17 @@ await builder
   .withExternalHttpEndpoints();
 ```
 
-```typescript title="SvelteKit — src/routes/api/weather/+server.ts"
-import { env } from '$env/dynamic/private';
+```typescript title="SvelteKit — src/routes/+page.server.ts"
+import type { PageServerLoad } from './$types';
 
-export async function GET() {
-  const response = await fetch(`${env.API_URL}/api/weather`);
-  const weather = await response.json();
+export const load: PageServerLoad = async ({ fetch }) => {
+  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const response = await fetch(`${apiUrl}/api/weather`);
 
-  return Response.json(weather);
-}
+  return {
+    weather: response.ok ? await response.json() : [],
+  };
+};
 ```
 
 ### TanStack Start
