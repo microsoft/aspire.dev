@@ -63,7 +63,18 @@ jobs:
           cache-dependency-path: src/frontend/pnpm-lock.yaml
 
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        # `--prefer-offline` skips the registry staleness HEAD-request when
+        # the setup-node pnpm-store cache hits. pnpm falls back to network
+        # for anything missing, so cache misses still work.
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Cache Astro content layer
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: src/frontend/node_modules/.astro
+          key: astro-content-${{ runner.os }}-${{ hashFiles('src/frontend/src/content/**', 'src/frontend/src/content.config.*', 'src/frontend/astro.config.mjs') }}
+          restore-keys: |
+            astro-content-${{ runner.os }}-
 
       # Build BEFORE tests so that Lunaria (i18n status) runs against a
       # pristine working tree.  The lint step inside test:all calls
@@ -126,6 +137,9 @@ jobs:
           path: src/frontend/playwright-report
           if-no-files-found: warn
           retention-days: 7
+          # Reports include PNG screenshots, webm videos, and traces that are
+          # already compressed. Re-gzipping them just burns CPU.
+          compression-level: 0
 
       - name: Upload Playwright raw results
         if: ${{ always() }}
@@ -135,6 +149,7 @@ jobs:
           path: src/frontend/test-results
           if-no-files-found: warn
           retention-days: 7
+          compression-level: 0
 
       - name: Summarize frontend quality gates
         if: ${{ always() }}
