@@ -55,9 +55,19 @@ public static IResourceBuilder<TResource> AddX(
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-In the TypeScript SDK, resources are added using `async` builder methods like `builder.addRedis("name")`. The TypeScript SDK doesn't use extension methods or generics — resource creation methods are built into the builder object.
-:::
+```typescript
+// Resources are added via async builder methods:
+const resource = await builder.addRedis("name" /*, optional params */);
+
+// The builder handles validation, instantiation,
+// and registration internally. Optional wiring:
+//    .withEndpoint(...)
+//    .withHealthCheck(...)
+//    .withImage(...)
+//    .withEnvironment(...)
+//    .withArgs(...)
+//    builder.addEventingSubscriber(...)
+```
 
 </TabItem>
 </Tabs>
@@ -76,9 +86,9 @@ In the TypeScript SDK, resources are added using `async` builder methods like `b
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-In the TypeScript SDK, use `.withEndpoint({ port, targetPort, name })` with an options object instead of named parameters.
-:::
+```typescript
+resource.withEndpoint({ port: hostPort, targetPort: containerPort, name: endpointName });
+```
 
 </TabItem>
 </Tabs>
@@ -95,9 +105,9 @@ In the TypeScript SDK, use `.withEndpoint({ port, targetPort, name })` with an o
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-In the TypeScript SDK, use `.withHealthCheck("key")` with camelCase method naming.
-:::
+```typescript
+resource.withHealthCheck(healthCheckKey);
+```
 
 </TabItem>
 </Tabs>
@@ -115,9 +125,10 @@ In the TypeScript SDK, use `.withHealthCheck("key")` with camelCase method namin
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-In the TypeScript SDK, container image configuration is passed directly to methods like `builder.addContainer("name", "image:tag")`.
-:::
+```typescript
+resource.withImage(imageName, imageTag);
+resource.withImageRegistry(registryUrl);
+```
 
 </TabItem>
 </Tabs>
@@ -135,9 +146,10 @@ In the TypeScript SDK, container image configuration is passed directly to metho
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-The `withEntrypoint` and `withArgs` APIs are not yet available in the TypeScript AppHost SDK.
-:::
+```typescript
+resource.withEntrypoint("/bin/sh");
+resource.withArgs(["--flag", "value"]);
+```
 
 </TabItem>
 </Tabs>
@@ -154,9 +166,9 @@ The `withEntrypoint` and `withArgs` APIs are not yet available in the TypeScript
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-In the TypeScript SDK, use `.withEnvironment("ENV_VAR", value)` with camelCase method naming.
-:::
+```typescript
+resource.withEnvironment("ENV_VAR", value);
+```
 
 </TabItem>
 </Tabs>
@@ -173,9 +185,13 @@ builder.Eventing.Subscribe<EventType>(resource, handler);
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-The eventing subscription API is not yet available in the TypeScript AppHost SDK.
-:::
+```typescript
+builder.addEventingSubscriber(async (context) => {
+    context.onBeforeStart(async (event) => {
+        // Handle event
+    });
+});
+```
 
 </TabItem>
 </Tabs>
@@ -209,7 +225,7 @@ public static IResourceBuilder<TResource> WithX(
 <TabItem id="typescript" label="TypeScript">
 
 :::note
-In the TypeScript SDK, configuration methods use camelCase naming (e.g., `.withAnnotation(...)`) and accept options objects rather than using C# extension methods and generics.
+The TypeScript SDK doesn't expose `withAnnotation(...)` directly. Configuration methods like `withEndpoint(...)` and `withEnvironment(...)` handle annotation attachment internally.
 :::
 
 </TabItem>
@@ -249,7 +265,7 @@ builder.WithAnnotation(new PersistenceAnnotation(
 <TabItem id="typescript" label="TypeScript">
 
 :::note
-The TypeScript SDK doesn't use annotations or the `IResourceAnnotation` pattern. Resource metadata is managed through the TypeScript SDK's own configuration model.
+The TypeScript SDK doesn't expose annotations as a user-facing pattern. Resource metadata is managed internally by the SDK's configuration methods.
 :::
 
 </TabItem>
@@ -293,9 +309,9 @@ builder.WithEnvironment(context =>
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-In the TypeScript SDK, use `.withEnvironment("NAME", value)` where values are resolved by the runtime.
-:::
+```typescript
+resource.withEnvironment("REDIS_CONNECTION_STRING", redis);
+```
 
 </TabItem>
 </Tabs>
@@ -319,7 +335,7 @@ public sealed partial class BicepOutputReference :
 <TabItem id="typescript" label="TypeScript">
 
 :::note
-The TypeScript SDK doesn't use the `IManifestExpressionProvider`, `IValueProvider`, or `IValueWithReferences` interfaces. Value resolution is handled internally by the TypeScript runtime.
+In the TypeScript SDK, `BicepOutputReference` and the value provider interfaces exist as read-only types. Users consume these types (e.g., via `resource.getOutput("name")`) but don't implement custom value objects.
 :::
 
 </TabItem>
@@ -344,7 +360,7 @@ public static IResourceBuilder<T> WithEnvironment<T>(
 <TabItem id="typescript" label="TypeScript">
 
 :::note
-In the TypeScript SDK, environment variable binding is handled directly by the `.withEnvironment()` method without requiring custom annotation types.
+In the TypeScript SDK, `withEnvironment()` handles value binding directly without requiring custom annotation types.
 :::
 
 </TabItem>
