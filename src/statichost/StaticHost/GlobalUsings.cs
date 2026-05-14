@@ -1,6 +1,5 @@
 global using System.Diagnostics;
-
-global using StaticHost;
+global using StaticHost.Live;
 global using StaticHost.Telemetry;
 
 global using OpenTelemetry;

@@ -23,9 +23,11 @@ import jopSoftwarecookieconsent from '@jop-software/astro-cookieconsent';
 
 const modeArgIndex = process.argv.indexOf('--mode');
 const isSkipSearchBuild = modeArgIndex >= 0 && process.argv[modeArgIndex + 1] === 'skip-search';
+const outDir = process.env.ASTRO_OUT_DIR;
 
 // https://astro.build/config
 export default defineConfig({
+  ...(outDir ? { outDir } : {}),
   prefetch: true,
   site: 'https://aspire.dev',
   trailingSlash: 'always',

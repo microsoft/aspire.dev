@@ -3,7 +3,9 @@ import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
 import Search from 'virtual:starlight/components/Search';
 import { Icon } from '@astrojs/starlight/components';
 import InstallCliModal from '@components/InstallCliModal.astro';
+import LivePip from '@components/LivePip.astro';
 import CookiesSvg from '@assets/icons/cookies.svg';
+import LiveSvg from '@assets/icons/live.svg';
 import SiteNavHelpSvg from '@assets/icons/site-nav-help.svg';
 
 const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
@@ -32,6 +34,18 @@ const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
         </button>
       )
     }
+    <a
+      href="/community/videos/"
+      class="header-icon-btn live-btn"
+      data-live="false"
+      data-source="none"
+      data-tour-target="live-status"
+      aria-label="Watch Aspire live streams"
+    >
+      <span class="sr-only">Watch Aspire live streams</span>
+      <LiveSvg />
+      <span class="live-dot" aria-hidden="true"></span>
+    </a>
     <button
       type="button"
       class="header-icon-btn cookie-consent-btn"
@@ -72,6 +86,18 @@ const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
         </button>
       )
     }
+    <a
+      href="/community/videos/"
+      class="header-icon-btn live-btn"
+      data-live="false"
+      data-source="none"
+      data-tour-target="live-status"
+      aria-label="Watch Aspire live streams"
+    >
+      <span class="sr-only">Watch Aspire live streams</span>
+      <LiveSvg />
+      <span class="live-dot" aria-hidden="true"></span>
+    </a>
     <button
       type="button"
       class="header-icon-btn cookie-consent-btn"
@@ -98,6 +124,59 @@ const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
   </div>
 </div>
 <InstallCliModal />
+<LivePip />
+
+<script>
+  import '@components/live-status.ts';
+  import { showPreferences } from 'vanilla-cookieconsent';
+
+  declare global {
+    interface Window {
+      __aspireCookiePreferencesBound?: boolean;
+    }
+  }
+
+  function bindCookiePreferences(): void {
+    if (window.__aspireCookiePreferencesBound) return;
+    window.__aspireCookiePreferencesBound = true;
+
+    document.addEventListener('astro:before-swap', (event) => {
+      const cookieRoot = document.getElementById('cc-main');
+      const newDocument = (event as Event & { newDocument?: Document }).newDocument;
+      if (!cookieRoot || !newDocument) return;
+
+      // CookieConsent injects this root outside Astro markup, so preserve it when the client router swaps bodies.
+      const persistKey = 'cookie-consent';
+      cookieRoot.setAttribute('data-astro-transition-persist', persistKey);
+
+      const placeholder = newDocument.createElement('div');
+      placeholder.setAttribute('data-astro-transition-persist', persistKey);
+      newDocument.body.append(placeholder);
+    });
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const trigger = target.closest<HTMLElement>('[data-cc="show-preferencesModal"]');
+        if (!trigger) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        showPreferences();
+      },
+      { capture: true },
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindCookiePreferences, { once: true });
+  } else {
+    bindCookiePreferences();
+  }
+</script>
 
 <style>
   @layer starlight.core {
@@ -224,6 +303,58 @@ const isSiteTourEnabled = import.meta.env.PUBLIC_ENABLE_SITE_TOUR === 'true';
 
     .install-cli-btn :global(svg) {
       --sl-icon-size: 1.5rem !important;
+    }
+
+    .live-btn {
+      position: relative;
+      overflow: visible;
+    }
+
+    .live-btn .live-dot {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.3rem;
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: #ff3b3b;
+      box-shadow: 0 0 0 2px var(--sl-color-bg-nav);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .live-btn[data-live='true'] .live-dot {
+      opacity: 1;
+      animation: live-dot-pulse 1.4s ease-in-out infinite;
+    }
+
+    .live-btn[data-live='true'] {
+      animation: live-pulse 1.4s ease-in-out infinite;
+      border-radius: 0.375rem;
+    }
+
+    @keyframes live-pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 59, 59, 0.55);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(255, 59, 59, 0);
+      }
+    }
+
+    @keyframes live-dot-pulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.3); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .live-btn[data-live='true'],
+      .live-btn[data-live='true'] .live-dot {
+        animation: none;
+      }
+      .live-btn[data-live='true'] {
+        box-shadow: 0 0 0 2px rgba(255, 59, 59, 0.6);
+      }
     }
 
     .try-aspire-btn {

@@ -1,0 +1,14 @@
+global using System.Net;
+global using System.Security.Cryptography;
+global using System.Text;
+global using System.Text.Json;
+global using System.Threading.Channels;
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.Extensions.Options;
+global using Microsoft.Extensions.Time.Testing;
+global using StaticHost.Live;
+global using StaticHost.Live.Twitch;
+global using StaticHost.Live.YouTube;
+global using Xunit;

@@ -5,6 +5,8 @@ var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
 
 if (builder.ExecutionContext.IsRunMode)
 {
+    staticHostWebsite.WithLocalLiveStatusDevCommands();
+
     // For local development: Use ViteApp for hot reload and development experience
     builder.AddViteApp("frontend", "../../frontend")
            .WithPnpm()

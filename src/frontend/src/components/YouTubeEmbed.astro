@@ -1,9 +1,11 @@
 ---
 export interface Props {
   /** YouTube video or live stream ID (the ?v= value) */
-  videoId: string;
-  /** Accessible title for the iframe */
-  title?: string;
+  videoId?: string;
+  /** YouTube channel ID for the channel live-stream embed */
+  channelId?: string;
+  /** Accessible label for the iframe */
+  title?: string | null;
   /** Aspect ratio — default 16/9 */
   aspectRatio?: string;
   /** Autoplay the stream (muted, as browsers require) */
@@ -14,28 +16,37 @@ export interface Props {
 
 const {
   videoId,
+  channelId,
   title = 'YouTube video player',
   aspectRatio = '16 / 9',
   autoplay = false,
   maxWidth = '100%',
 } = Astro.props;
 
+if (!videoId && !channelId) {
+  throw new Error('YouTubeEmbed requires either a `videoId` or `channelId` prop.');
+}
+
 const params = new URLSearchParams({
   rel: '0',
   modestbranding: '1',
   playsinline: '1',
 });
+if (channelId) {
+  params.set('channel', channelId);
+}
 if (autoplay) {
   params.set('autoplay', '1');
   params.set('mute', '1');
 }
-const src = `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+const embedPath = channelId ? 'live_stream' : encodeURIComponent(videoId!);
+const src = `https://www.youtube-nocookie.com/embed/${embedPath}?${params.toString()}`;
 ---
 
 <div class="yt-embed not-content" style={`--aspect-ratio: ${aspectRatio}; --max-width: ${maxWidth};`}>
   <iframe
     src={src}
-    title={title}
+    aria-label={title}
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
     referrerpolicy="strict-origin-when-cross-origin"
     allowfullscreen
