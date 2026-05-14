@@ -3682,12 +3682,12 @@ export interface AzureBicepResource extends IAzureResource, IResource, IResource
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, options?: { value?: EndpointReference }): this;
+  withParameter(name: string, options?: { value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference }): this;
   /**
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, value?: EndpointReference): this;
+  withParameter(name: string, value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference): this;
 }
 
 /**
@@ -13757,12 +13757,12 @@ export interface AzureProvisioningResource {
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, options?: { value?: EndpointReference }): this;
+  withParameter(name: string, options?: { value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference }): this;
   /**
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, value?: EndpointReference): this;
+  withParameter(name: string, value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
@@ -14126,12 +14126,12 @@ export interface AzureUserAssignedIdentityResource {
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, options?: { value?: EndpointReference }): this;
+  withParameter(name: string, options?: { value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference }): this;
   /**
    * Adds a Bicep parameter
    */
 
-  withParameter(name: string, value?: EndpointReference): this;
+  withParameter(name: string, value?: string | string[] | ParameterResource | IResourceWithConnectionString | BicepOutputReference | ReferenceExpression | EndpointReference): this;
   /**
    * Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.
    */
