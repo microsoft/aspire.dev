@@ -171,10 +171,14 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
+      # Reporters (blob, github, junit, list) are configured in
+      # `playwright.config.mjs` so they apply to every shard. Avoid passing
+      # `--reporter=` here: that would override the config and silently drop
+      # GitHub workflow annotations and the JUnit XML artifact.
       - name: Run Playwright (${{ matrix.project }})
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm exec playwright test --project=${{ matrix.project }} --reporter=blob
+        run: pnpm exec playwright test --project=${{ matrix.project }}
 
       # Each shard publishes its blob report under a unique name so the
       # merge job below can stitch them back together into a single HTML
