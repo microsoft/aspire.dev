@@ -5,6 +5,7 @@ description: Learn how to deploy your Aspire application to Azure Kubernetes Ser
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 Deploy your Aspire application to Azure Kubernetes Service (AKS). Aspire provisions the AKS cluster, Azure Container Registry (ACR), and any Azure resources your app depends on — then deploys your application in a single command.
 
@@ -214,6 +215,157 @@ await api.publishAsKubernetesService(async (resource) => {
 </TabItem>
 </Tabs>
 
+## Expose services with Application Gateway for Containers (AGC)
+
+:::note[Preview]
+`AddLoadBalancer`, `WithLoadBalancer`, and the related Gateway API integration are preview features. The underlying AKS ingress profile APIs require the `ApplicationLoadBalancerPreview` and `ManagedGatewayAPIPreview` feature flags to be registered in your Azure subscription.
+:::
+
+When your application needs HTTP(S) ingress on AKS, Aspire can provision **Azure Application Gateway for Containers (AGC)** and configure **Kubernetes Gateway API** automatically as part of `aspire deploy`. This eliminates the need to set up the ALB controller or AGC subnets manually.
+
+### Register Azure preview features
+
+Before using `AddLoadBalancer`, register the required feature flags in your Azure subscription. These only need to be registered once per subscription.
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+# Register providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.NetworkFunction
+az provider register --namespace Microsoft.ServiceNetworking
+
+# Register preview features
+az feature register --namespace Microsoft.ContainerService \
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview
+
+# Wait until both show "Registered", then re-register the provider
+az feature show --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+az provider register --namespace Microsoft.ContainerService
+
+# Install required CLI extensions
+az extension add --name alb
+az extension add --name aks-preview
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+# Register providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.NetworkFunction
+az provider register --namespace Microsoft.ServiceNetworking
+
+# Register preview features
+az feature register --namespace Microsoft.ContainerService `
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview
+
+# Wait until both show "Registered", then re-register the provider
+az feature show --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+az provider register --namespace Microsoft.ContainerService
+
+# Install required CLI extensions
+az extension add --name alb
+az extension add --name aks-preview
+```
+
+</div>
+</OsAwareTabs>
+
+### Configure a VNet and AGC subnets
+
+AGC requires a delegated subnet (`/24` or larger) for each `ApplicationLoadBalancer`. The AKS node pool subnet and the AGC subnet must not overlap. Use `AddAzureVirtualNetwork` to declare the VNet layout in your AppHost:
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // AddSubnet is evaluation-only
+
+// VNet: 10.100.0.0/16 avoids the default AKS service CIDR (10.0.0.0/16).
+// AGC requires each ALB subnet to be /24 or larger and will delegate it to
+// Microsoft.ServiceNetworking/trafficControllers automatically.
+var vnet = builder.AddAzureVirtualNetwork("vnet", "10.100.0.0/16");
+var aksSubnet = vnet.AddSubnet("aks-nodes", "10.100.0.0/22");
+var albSubnet  = vnet.AddSubnet("alb-public", "10.100.4.0/24");
+```
+
+### Add a load balancer
+
+Call `AddLoadBalancer` on the AKS environment, passing the AGC frontend subnet. Aspire injects the AKS `ingressProfile` Bicep, grants the AGC managed identity `Network Contributor` on the subnet, and applies the `ApplicationLoadBalancer` custom resource during deployment:
+
+```csharp title="AppHost.cs"
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+                 .WithSubnet(aksSubnet);
+
+// Provision one AGC ApplicationLoadBalancer fronted by albSubnet.
+// Each AGC ALB supports up to 5 frontends; add more load balancers if needed.
+var lb = aks.AddLoadBalancer("public", albSubnet);
+```
+
+### Attach gateways to the load balancer
+
+Use `WithLoadBalancer` on a `AddGateway` or `AddIngress` resource to associate it with the AGC `ApplicationLoadBalancer`. This stamps the required `alb.networking.azure.io` annotations and defaults the `gatewayClassName` to `azure-alb-external`:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.MyApi>("api")
+                 .WithExternalHttpEndpoints();
+
+// Route /api traffic to the API service via the AGC gateway.
+aks.AddGateway("public-gw")
+   .WithLoadBalancer(lb)
+   .WithRoute("/api", api.GetEndpoint("http"));
+```
+
+### Enable TLS with cert-manager
+
+To terminate HTTPS at the AGC gateway, install cert-manager via Helm and add a `letsencrypt-prod` ClusterIssuer to your cluster. Aspire's `tls-fqdn-discovery` pipeline step automatically patches the Gateway listener with the AGC-assigned FQDN (`*.alb.azure.com`) once provisioning completes, and cert-manager issues the certificate via HTTP-01 challenge:
+
+```csharp title="AppHost.cs"
+// Enable TLS on the gateway. Aspire patches in the AGC FQDN automatically;
+// cert-manager.io/cluster-issuer triggers Let's Encrypt HTTP-01 cert issuance.
+aks.AddGateway("public-gw")
+   .WithLoadBalancer(lb)
+   .WithRoute("/api", api.GetEndpoint("http"))
+   .WithTls()
+   .WithGatewayAnnotation("cert-manager.io/cluster-issuer", "letsencrypt-prod");
+
+// Install cert-manager with Gateway API support.
+aks.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "v1.18.2")
+   .WithHelmValue("crds.enabled", "true")
+   .WithHelmValue("config.apiVersion", "controller.config.cert-manager.io/v1alpha1")
+   .WithHelmValue("config.kind", "ControllerConfiguration")
+   .WithHelmValue("config.enableGatewayAPI", "true")
+   .WithForceConflicts()
+   .WithDestroy();
+```
+
+:::note
+A `letsencrypt-prod` ClusterIssuer must be applied to the cluster before cert-manager can issue certificates. cert-manager does not ship a default ClusterIssuer. See the [cert-manager documentation](https://cert-manager.io/docs/configuration/acme/) for how to create one.
+:::
+
+## Resolve Helm SSA field-manager conflicts
+
+When an AKS cluster has the **Azure Policy** add-on or **Deployment Safeguards** enabled, the `admissionsenforcer` field manager mutates Helm-installed resources (such as cert-manager's `ValidatingWebhookConfiguration`) after the first install. Subsequent `helm upgrade --install` runs fail with a server-side apply (SSA) conflict.
+
+Call `WithForceConflicts()` on any Helm chart resource to pass `--force-conflicts` to `helm upgrade --install`. This tells SSA to take ownership of the conflicting field non-destructively — no resources are recreated:
+
+```csharp title="AppHost.cs"
+aks.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "v1.18.2")
+   .WithForceConflicts();
+```
+
+:::caution
+`WithForceConflicts` requires **Helm 4** (which adds `--force-conflicts` support). Helm version validation is tracked in [#16977](https://github.com/microsoft/aspire/issues/16977).
+:::
+
 ## Troubleshooting
 
 ### AKS cluster not reachable after deploy
@@ -237,6 +389,9 @@ az aks check-acr --resource-group <resource-group> --name <cluster-name> --acr <
 - [AKS integration](/integrations/cloud/azure/aks/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Configure Gateway API on AKS (bring-your-own-cluster)](/deployment/kubernetes-gateway-aks/)
+- [Configure Ingress on AKS (bring-your-own-cluster)](/deployment/kubernetes-ingress-aks/)
 - [Deploy to Azure](/deployment/azure/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Azure Kubernetes Service documentation](https://learn.microsoft.com/azure/aks/)
+- [Application Gateway for Containers documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/)
