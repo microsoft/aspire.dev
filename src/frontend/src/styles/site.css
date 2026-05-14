@@ -1077,20 +1077,19 @@ li a.external-link::after {
 }
 
 :root:has(.topics-sidebar[data-api-ref])[data-sidebar-collapsed] {
-  --sl-sidebar-width: 0rem;
+  --sl-sidebar-width: 3.5rem;
 }
 
 :root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
-  --sl-sidebar-width: 0rem;
+  --sl-sidebar-width: 3.5rem;
 }
 
 :root[data-has-toc] {
   --aspire-toc-panel-width: clamp(13.5rem, 16vw, 16rem);
 }
 
-/* Hide the entire sidebar content; the expand button is a sibling and stays visible.
-   Scoped to ≥ 72rem so the mobile overlay sidebar still works when
-   the user previously collapsed the desktop sidebar. */
+/* Collapsed sidebar = narrow "icon rail" showing just the topic icons.
+   The expand button still floats off the rail's right edge (left: var(--sl-sidebar-width)). */
 @media (min-width: 72rem) {
   :root[data-has-toc] .right-sidebar-panel {
     flex: 0 0 var(--aspire-toc-panel-width);
@@ -1102,30 +1101,56 @@ li a.external-link::after {
     max-width: var(--aspire-toc-panel-width);
   }
 
-  :root[data-sidebar-collapsed] .topics-sidebar[data-api-ref] {
-    display: none !important;
-  }
-
-  :root[data-topic-sidebar-collapsed] .topics-sidebar[data-topic-nav] {
-    display: none !important;
-  }
-
-  /* When fully collapsed, the sidebar pane has width 0 but must stay in
-     the DOM (display: block) so the floating expand button — which is a
-     descendant — continues to render. Drop the pane's right border and
-     padding so no residual chrome is visible. */
+  /* Strip the sidebar pane's chrome in rail mode but keep it visible. */
   :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar,
   :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
-    border-inline-end: none !important;
     background: transparent !important;
-    overflow: visible !important;
   }
 
+  /* In rail mode, hide everything inside the sidebar except the topics card. */
+  :root[data-sidebar-collapsed] .topics-sidebar[data-api-ref] > *:not(.api-sidebar-sticky),
+  :root[data-topic-sidebar-collapsed] .topics-sidebar[data-topic-nav] > *:not(.topic-sidebar-sticky) {
+    display: none !important;
+  }
+
+  :root[data-sidebar-collapsed] .topics-sidebar[data-api-ref] .api-sidebar-sticky > *:not(.starlight-sidebar-topics),
+  :root[data-topic-sidebar-collapsed] .topics-sidebar[data-topic-nav] .topic-sidebar-sticky > *:not(.starlight-sidebar-topics) {
+    display: none !important;
+  }
+
+  /* Shrink the sidebar content's horizontal padding so the topics card
+     fits comfortably in the narrow rail. */
   :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content,
   :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar .sidebar-content {
-    padding: 0 !important;
+    padding-inline: 0.25rem !important;
   }
 
+  /* Topics card in rail mode: tighter padding, centred icons, no labels. */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .starlight-sidebar-topics,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) .starlight-sidebar-topics {
+    padding: 0.25rem;
+  }
+
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .starlight-sidebar-topics a,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) .starlight-sidebar-topics a {
+    justify-content: center;
+    gap: 0;
+    padding: 0.3em 0;
+  }
+
+  /* Hide the label sibling (the <div> that isn't the icon box). */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .starlight-sidebar-topics a > div:not(.starlight-sidebar-topics-icon),
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) .starlight-sidebar-topics a > div:not(.starlight-sidebar-topics-icon) {
+    display: none;
+  }
+
+  /* Drop the floating toggle's overlap-shoulder when collapsed — the rail
+     leaves enough room on its own (and the toggle still floats off the
+     rail's right edge thanks to left: var(--sl-sidebar-width)). */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) .content-panel > .sl-container,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) .content-panel > .sl-container {
+    padding-inline-start: 3.5rem;
+  }
 }
 
 /* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
