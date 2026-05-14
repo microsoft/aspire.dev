@@ -114,13 +114,13 @@ await cache.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("redis");
 });
 
-const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.withReference(cache);
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("api");
 });
 
-const web = await builder.addProject("web", "../Web/Web.csproj", "http");
+const web = await builder.addProject("web", "../Web/Web.csproj");
 await web.withReference(cache);
 await web.withReference(api);
 await web.publishAsDockerComposeService(async (resource, service) => {
@@ -494,7 +494,7 @@ import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const container = await builder.addContainer("mycontainer", "myimage:latest");
+const container = await builder.addContainer("mycontainer", { image: "myimage", tag: "latest" });
 await container.withImagePullPolicy(ImagePullPolicy.Always);
 
 await builder.build().run();
@@ -521,7 +521,7 @@ import { createBuilder, ImagePullPolicy } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const app = await builder.addContainer("myapp", "my-local-image:dev");
+const app = await builder.addContainer("myapp", { image: "my-local-image", tag: "dev" });
 await app.withImagePullPolicy(ImagePullPolicy.Never);
 
 await builder.build().run();
@@ -577,7 +577,7 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("api");
 });
@@ -692,14 +692,14 @@ import { createBuilder } from './.modules/aspire.js';
 const builder = await createBuilder();
 
 // Add a container registry
-const registry = await builder.addContainerRegistryFromString(
+const registry = await builder.addContainerRegistry(
   "ghcr",
   "ghcr.io",
   { repository: "your-github-username/your-repo" }
 );
 
 // Associate resources with the registry
-const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("api");
 });
@@ -760,7 +760,7 @@ const registry = await builder.addContainerRegistry(
   registryRepository
 );
 
-const api = await builder.addProject("api", "../Api/Api.csproj", "http");
+const api = await builder.addProject("api", "../Api/Api.csproj");
 await api.publishAsDockerComposeService(async (resource, service) => {
   await service.name.set("api");
 });

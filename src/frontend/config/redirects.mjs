@@ -45,6 +45,7 @@ export const redirects = {
   // For example:
   // '/original/path/': '/new/path'
   '/cli/': '/reference/cli/overview/',
+  '/deployment/overview/': '/deployment/deploy-with-aspire/',
   '/compatibility/': '/whats-new/upgrade-aspire/',
   // `/whats-new/` has no index page; redirect it to the latest release notes
   // (computed from the filenames in src/content/docs/whats-new/). Uses 302

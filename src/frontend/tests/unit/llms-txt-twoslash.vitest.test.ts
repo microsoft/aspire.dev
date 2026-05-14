@@ -52,6 +52,8 @@ const patchedTypesPath = path.join(patchedPluginRoot, 'types.ts');
 const patchedIndexPath = path.join(patchedPluginRoot, 'index.ts');
 const astroConfigPath = path.join(frontendRoot, 'astro.config.mjs');
 const ecConfigPath = path.join(frontendRoot, 'ec.config.mjs');
+const twoslashConfigPath = path.join(frontendRoot, 'config', 'twoslash.config.mjs');
+const auditHelperPath = path.join(frontendRoot, 'tests', 'unit', 'twoslash-blocks-audit.ts');
 
 // The behavior tests further down inline a copy of the patched plugin's
 // HTML → Markdown pipeline so they can run without Astro/Starlight's full
@@ -152,19 +154,48 @@ describe('expressive-code-twoslash enabled sentinel', () => {
    * The tests above confirm those annotations are stripped before the Markdown reaches
    * `llms.txt` / `llms-full.txt` / `llms-small.txt`. Both contracts must hold together:
    * annotations render on the site → annotations are stripped from the published .md.
+   *
+   * The toggle lives in `config/twoslash.config.mjs` (shared with the
+   * `tests/unit/twoslash-blocks-audit.ts` audit helper so render and audit stay
+   * in lock-step).
    */
-  test('ec.config.mjs has TWOSLASH_ENABLED = true so annotations render on hover', () => {
-    const source = readFileSync(ecConfigPath, 'utf8');
+  test('config/twoslash.config.mjs has TWOSLASH_ENABLED = true so annotations render on hover', () => {
+    const twoslashSource = readFileSync(twoslashConfigPath, 'utf8');
 
     expect(
-      source,
-      'ec.config.mjs must set TWOSLASH_ENABLED to true — flip it back and remove this sentinel if twoslash is intentionally removed',
-    ).toMatch(/const TWOSLASH_ENABLED\s*=\s*true/);
+      twoslashSource,
+      'config/twoslash.config.mjs must export TWOSLASH_ENABLED = true — flip it back and remove this sentinel if twoslash is intentionally removed',
+    ).toMatch(/export\s+const\s+TWOSLASH_ENABLED\s*=\s*true/);
 
     expect(
-      source,
+      twoslashSource,
       'TEMP disable comment should not be present when twoslash is enabled',
     ).not.toMatch(/TEMP.*disabled/i);
+
+    // ec.config.mjs must consume the shared toggle (not re-define it locally,
+    // and not bypass the gate when wiring `ecTwoSlash`).
+    const ecSource = readFileSync(ecConfigPath, 'utf8');
+    expect(
+      ecSource,
+      'ec.config.mjs must import TWOSLASH_ENABLED from config/twoslash.config.mjs so render and audit can never disagree',
+    ).toMatch(/from\s+['"]\.\/config\/twoslash\.config\.mjs['"]/);
+    expect(
+      ecSource,
+      'ec.config.mjs must gate ecTwoSlash on the shared TWOSLASH_ENABLED flag',
+    ).toMatch(/TWOSLASH_ENABLED\s*\?\s*\[/);
+
+    // The audit helper must also consume the shared toggle so flipping
+    // TWOSLASH_ENABLED off short-circuits the audit instead of forcing it
+    // to require a regenerated aspire.d.ts.
+    const auditSource = readFileSync(auditHelperPath, 'utf8');
+    expect(
+      auditSource,
+      'tests/unit/twoslash-blocks-audit.ts must import TWOSLASH_ENABLED from config/twoslash.config.mjs',
+    ).toMatch(/TWOSLASH_ENABLED[\s\S]*from\s+['"][^'"]*config\/twoslash\.config\.mjs['"]/);
+    expect(
+      auditSource,
+      'tests/unit/twoslash-blocks-audit.ts runAudit() must short-circuit when TWOSLASH_ENABLED is false',
+    ).toMatch(/if\s*\(\s*!\s*TWOSLASH_ENABLED\s*\)/);
   });
 });
 

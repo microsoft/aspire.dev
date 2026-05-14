@@ -6,6 +6,19 @@ on:
   pull_request:
     branches: [ main, release/* ]
 
+# Concurrency strategy:
+# - On pull_request: group by PR number. New commits to the PR cancel the
+#   in-flight run for the same PR.
+# - On push (main/release/*): include `github.run_id` so every push gets a
+#   unique group. This guarantees pushes never cancel each other, even if
+#   several commits land while an earlier run is still in progress.
+#   (With a shared group, GHA cancels older *pending* runs even when
+#   `cancel-in-progress: false`, which would silently drop required CI on
+#   `main`.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   security-events: write
@@ -19,7 +32,18 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
+          # Shallow clone; the two PR SHAs we need to diff against are
+          # fetched explicitly below. This is much cheaper than `fetch-depth: 0`.
+          fetch-depth: 1
+
+      - name: Fetch PR base and head for diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --depth=1 origin "$BASE_SHA"
+          git fetch --depth=1 origin "$HEAD_SHA"
 
       - id: filter
         name: Detect changed areas
