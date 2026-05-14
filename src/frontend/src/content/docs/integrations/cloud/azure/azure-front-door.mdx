@@ -151,6 +151,10 @@ Front Door uses health probes to determine which origins are healthy. By default
 
 When you publish your app, Aspire generates Bicep alongside the manifest. A Front Door resource with a single origin generates Bicep similar to the following:
 
+<Aside type="caution">
+  **Upgrading from .NET Aspire 13.3.0-preview:** The resource names generated for Front Door profiles, endpoints, origin groups, origins, and routes changed in .NET Aspire 13.4. This can result in duplicate Azure resources (profiles, endpoints, origin groups, routes, and origins) during an upgrade. To avoid duplicates, either remove the existing Azure resources before redeploying, or set resource names explicitly using `ConfigureInfrastructure`.
+</Aside>
+
 ```bicep title="Generated Bicep — frontdoor.bicep"
 @description('The location for the resource(s) to be deployed.')
 param location string = resourceGroup().location
@@ -158,7 +162,7 @@ param location string = resourceGroup().location
 param my_api_host string
 
 resource frontdoor 'Microsoft.Cdn/profiles@2025-06-01' = {
-  name: take('frontdoor-${uniqueString(resourceGroup().id)}', 90)
+  name: take('frontdoor-${uniqueString(resourceGroup().id)}', 260)
   location: 'Global'
   sku: {
     name: 'Standard_AzureFrontDoor'
@@ -169,13 +173,13 @@ resource frontdoor 'Microsoft.Cdn/profiles@2025-06-01' = {
 }
 
 resource my_apiEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-06-01' = {
-  name: take('my-api-${uniqueString(resourceGroup().id)}', 46)
+  name: take('myapiEndpoint-${uniqueString(resourceGroup().id)}', 46)
   location: 'Global'
   parent: frontdoor
 }
 
 resource my_apiOriginGroup 'Microsoft.Cdn/profiles/originGroups@2025-06-01' = {
-  name: take('my-api-og-${uniqueString(resourceGroup().id)}', 90)
+  name: take('myapiOriginGroup-${uniqueString(resourceGroup().id)}', 90)
   properties: {
     healthProbeSettings: {
       probePath: '/'
@@ -191,7 +195,7 @@ resource my_apiOriginGroup 'Microsoft.Cdn/profiles/originGroups@2025-06-01' = {
 }
 
 resource my_apiOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01' = {
-  name: take('my-api-origin-${uniqueString(resourceGroup().id)}', 90)
+  name: take('myapiOrigin-${uniqueString(resourceGroup().id)}', 90)
   properties: {
     hostName: my_api_host
     originHostHeader: my_api_host
@@ -200,7 +204,7 @@ resource my_apiOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2025-06-01' =
 }
 
 resource my_apiRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2025-06-01' = {
-  name: take('my-api-route-${uniqueString(resourceGroup().id)}', 90)
+  name: take('myapiRoute-${uniqueString(resourceGroup().id)}', 90)
   properties: {
     forwardingProtocol: 'HttpsOnly'
     httpsRedirect: 'Enabled'
