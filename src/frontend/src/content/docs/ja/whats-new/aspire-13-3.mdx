@@ -1,0 +1,1309 @@
+---
+title: Aspire 13.3 の新機能
+description: Aspire 13.3 は新しい aspire destroy コマンド、ダッシュボードでのブラウザコンソールログとスクリーンショットキャプチャ、aspire deploy による エンドツーエンドの Helm ベースの Kubernetes デプロイメント、Next.js/Vite/SSR フレームワーク向けの JavaScript パブリッシング、デフォルトで有効化されたコンテナトンネル、より深い TypeScript AppHost パリティ、および更新された Azure 統合スイートをもたらします。
+sidebar:
+  label: Aspire 13.3
+  order: 0
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import {
+  Steps,
+  Aside,
+  Icon,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import azureFrontDoorIcon from '@assets/icons/azure-front-door-icon.png';
+import notificationCenterBell from '@assets/whats-new/aspire-13.3/notification-center-bell.png';
+import notificationCenterOpen from '@assets/whats-new/aspire-13.3/notification-center-open.png';
+import extensionSidebar from '@assets/get-started/code-extension-sidebar.png';
+import extensionSidebarLight from '@assets/get-started/code-extension-sidebar-light.png';
+import ThemeImage from '@components/ThemeImage.astro';
+
+Aspire 13.3 がリリースされました。今回は盛りだくさんの内容です。新しい **`aspire destroy`** コマンドでデプロイメントを破棄し、**ブラウザコンソールログ、ネットワークリクエスト、スクリーンショット** を Aspire ダッシュボードにキャプチャし、サーバー側のテレメトリと並べて表示し、**`aspire deploy` から Kubernetes** へのエンドツーエンドデプロイメントを Helm ベースのエンジンと Ingress / Gateway API ルーティングで実現し、Next.js、Vite、SSR フレームワーク向けの **JavaScript パブリッシング** をファーストクラスサポートし、Docker Desktop、Docker Engine、Podman 全体で **コンテナトンネル** をデフォルトで有効化し、より深い **TypeScript AppHost** パリティと C# を実現します。
+
+皆様のご意見をお聞かせください。[<Icon name="discord" class='d-inline' /> Discord](https://aka.ms/aspire-discord) にお立ち寄りいただき、チームとコミュニティとチャットするか、[<Icon name="github" class='d-inline' /> GitHub](https://github.com/microsoft/aspire/issues) で フィードバックと問題を報告してください。
+
+このリリースでは以下が導入されます：
+
+- Azure、Kubernetes、Compose 全体でプロビジョニングされたリソースを破棄する新しい **`aspire destroy`** コマンド、および **`aspire dashboard`** CLI をスタンドアロンで実行します。Aspire CLI は `dotnet tool` として利用可能になりました。
+- **ブラウザログとスクリーンショット** — 新しい `Aspire.Hosting.Browsers` 統合はフロントエンドコンソールログ、ネットワークリクエスト、スクリーンショットをキャプチャし、ダッシュボードのサーバー側テレメトリの横に表示します。
+- **`aspire deploy` から Kubernetes** (プレビュー) — `AddKubernetesEnvironment` を宣言すると、Aspire は Helm チャートを生成し、エンドツーエンドのデプロイメントパイプラインを実行します。新しい **Ingress** と **Gateway API ルーティング** リソースは AppHost レベルでトラフィックを記述します。
+- **JavaScript パブリッシュメソッド** (プレビュー) — 静的 SPA、SSR Node サーバー、npm スクリプトベースのデプロイメント向けの統合された `PublishAs*` ファミリ、および新しい `AddNextJsApp` ヘルパーと Bun、Yarn、pnpm の ファーストクラスサポート。
+- **コンテナトンネル** がデフォルトで有効化され、Docker Desktop、Docker Engine、Podman 全体で均一なホスト接続性を提供します。
+- 大部分の残された C# AppHost とのギャップを閉じる **TypeScript AppHost** パリティの大規模な作業。
+- **`aspire init`** (プレビュー) — 新しい `aspireify` エージェントスキルで既存リポジトリに AppHost をブートストラップします。
+- **Azure Front Door**、**Network Security Perimeter**、**Azure Kubernetes Service (AKS)** ホスティング統合、および **Foundry Prompt Agent** サポート。
+- …他にもたくさんあります。
+
+## 🆙 Aspire 13.3 にアップグレード
+
+<span id="upgrade-to-aspire-13-3"></span>
+<br />
+
+<Aside type="caution">
+  Aspire 13.3 には複数の破壊的な変更が含まれています。特に `--log-level` を
+  `--pipeline-log-level` に変更、ダッシュボード MCP サーバーを削除、Azure
+  Network リソースと AKS SKU API で名前を変更しました。アップグレード前に
+  [破壊的な変更](#breaking-changes) セクションを確認してください。
+</Aside>
+
+<Aside type="note">
+  Aspire CLI のバージョンが 13 未満の場合は、[インストール手順](/ja/get-started/install-cli/)
+  を使用して最新の安定版を
+  インストールしてください。
+</Aside>
+
+一般的なアップグレードガイダンスについては、[Aspire のアップグレード](/ja/whats-new/upgrade-aspire/)を参照してください。
+
+Aspire 13.3 にアップグレードする最も簡単な方法は、[`aspire update` コマンド](/ja/reference/cli/commands/aspire-update/)を使用することです:
+
+<Steps>
+
+1. Aspire CLI 自体をアップデートします：
+
+   ```bash title="Aspire CLI — CLI を更新"
+   aspire update --self
+   ```
+
+1. プロジェクトを更新します (リポジトリのルートから実行)：
+
+   ```bash title="Aspire CLI — Aspire パッケージをすべて更新"
+   aspire update
+   ```
+
+</Steps>
+
+または CLI をスクラッチからインストールします：
+
+<OsAwareTabs>
+  <Fragment slot="unix">
+
+    ```bash title="Aspire CLI — Aspire CLI をインストール"
+    curl -sSL https://aspire.dev/install.sh | bash
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+
+    ```powershell title="Aspire CLI — Aspire CLI をインストール"
+    irm https://aspire.dev/install.ps1 | iex
+    ```
+
+  </Fragment>
+</OsAwareTabs>
+
+<LearnMore>
+  Aspire CLI のインストールの詳細については、[CLI をインストール](/ja/get-started/install-cli/) を参照してください。
+
+</LearnMore>
+
+## 🛠️ CLI の強化
+
+### NativeAOT dotnet ツールとしての Aspire CLI
+
+Aspire 13.3 は Aspire CLI を **NativeAOT .NET グローバルツール** として公開します。CLI は常に `dotnet tool` として出荷されていますが、13.3 では .NET 10 の新しいサポートを活用して NativeAOT コンパイルされたツールを配布します — つまり、JIT またはランタイムウォームアップなしでの瞬時のスタートアップ、およびツールパッケージ内のマネージドランタイム依存性がありません。既に .NET 10 をインストール している場合、curl/PowerShell インストーラーなしで CLI をインストール できます：
+
+```bash title="Bash — dotnet tool でインストール"
+dotnet tool install -g Aspire.Cli
+```
+
+<LearnMore>
+  詳細については、[Aspire CLI をインストール](/ja/get-started/install-cli/) を参照してください。
+</LearnMore>
+
+### スタンドアロンダッシュボード用の `aspire dashboard`
+
+新しい `aspire dashboard` コマンドは、Aspire ダッシュボードをスタンドアロンモード (AppHost なし) で実行し、OTLP を発行する任意のアプリケーション — お客様のサービス、サードパーティツール、または Aspire アプリモデルの外で実行されているアプリから テレメトリを簡単に消費できます。
+
+以前は、AppHost の外でダッシュボードを実行する唯一の方法は、[スタンドアロンコンテナイメージ](/ja/dashboard/standalone/)をプルし、ポート、証明書、OTLP エンドポイントを手動で設定することでした。`aspire dashboard run` を使用すると、CLI は SDK にバンドルされているのと同じダッシュボードバイナリを使用して、すべてを処理します — Docker またはコンテナランタイムは必要ありません。
+
+```bash title="Aspire CLI — スタンドアロンダッシュボードを実行"
+aspire dashboard run
+```
+
+```text frame="terminal" title="Output"
+   Dashboard:  http://localhost:18888/login?t=a360442eeb99c38fe60954dc4f045acc
+
+   OTLP/gRPC:  http://localhost:4317
+
+   OTLP/HTTP:  http://localhost:4318
+
+        Logs:  ~/.aspire/logs/cli_20260506T065505_02e43b93.log
+```
+
+コマンドはインタラクティブでブロッキングです — ダッシュボードの実行中はフォアグラウンドに留まります。ブラウザで **Dashboard** URL を開き、OTLP 互換アプリケーションを **OTLP/gRPC** または **OTLP/HTTP** エンドポイントに向けると、ログ、トレース、メトリクスがライブで表示されます。コンテナイメージは、CLI の実行がオプションでない環境の場合にも利用可能です。
+
+<LearnMore>
+  コマンドリファレンス: [`aspire
+  dashboard`](/ja/reference/cli/commands/aspire-dashboard/) および [スタンドアロン
+  ダッシュボード](/ja/dashboard/standalone/)。
+</LearnMore>
+
+### `aspire docs api` — CLI からの API リファレンス検索
+
+ターミナルから直接 Aspire API リファレンスを検索して読み込みます：
+
+```bash title="Aspire CLI — API ドキュメントを検索して表示"
+aspire docs api list typescript
+aspire docs api search "WithReference"
+aspire docs api get typescript/aspire.hosting/withreference
+```
+
+<LearnMore>
+  コマンドリファレンス: [`aspire docs api
+  list`](/ja/reference/cli/commands/aspire-docs-api-list/)、[`aspire docs api
+  search`](/ja/reference/cli/commands/aspire-docs-api-search/)、および [`aspire 
+  docs api get`](/ja/reference/cli/commands/aspire-docs-api-get/)。
+</LearnMore>
+
+### CLI をスタンドアロンダッシュボードに接続する
+
+`aspire otel logs` コマンドと `aspire otel traces` コマンドが `--dashboard-url` と `--api-key` オプションを受け入れるようになったため、AppHost を起動せずに [スタンドアロンダッシュボード](/ja/dashboard/standalone/)から テレメトリをクエリできます。
+
+`aspire dashboard run` でダッシュボードを起動するか、ダッシュボードのコンテナイメージからダッシュボードを実行し、CLI をそれに向けます：
+
+```bash title="Aspire CLI — スタンドアロンダッシュボードを照会"
+# スタンドアロンダッシュボードから構造化ログをストリーミング
+aspire otel logs --dashboard-url https://localhost:18888/login?t=TOKEN -f
+
+# スタンドアロンダッシュボードで最近のトレースを検索
+aspire otel traces --dashboard-url https://localhost:18888/login?t=TOKEN
+```
+
+`--dashboard-url` はダッシュボードのベース URL またはログイン URL を受け入れます — ログイン URL は自動的に正規化されます。
+
+### `aspire init` が `aspireify` エージェントスキルをインストール
+
+<Aside type="note">新しい `aspire init` フローは 13.3 では **プレビュー** です。</Aside>
+
+`aspire init` は最小限の AppHost スケルトンと `aspire.config.json` ファイルを既存リポジトリにドロップし、それと一緒に **aspireify** エージェントスキルをインストールします。`aspire init` 自体はリソース、プロジェクト、または統合をワイヤアップしません — `aspireify` スキルを AI エージェントの選択 (GitHub Copilot CLI、Claude Code など) から起動することで、ワイヤアップを完了します。
+
+<Aside type="caution">
+  これは以前のリリースからの動作変更です — `aspire init` はもはや自身で
+  AppHost を完全にワイヤアップしません。新しいフローについては [`aspire
+  init`](/ja/reference/cli/commands/aspire-init/) を参照してください。
+</Aside>
+
+### 隠しリソースはデフォルトでフィルタリング
+
+`aspire ps`、`aspire describe`、およびその他の CLI コマンドは、AppHost でマークされている隠しリソース (プロキシ、ヘルパーコンテナ、マイグレーションなど) を非表示にするようになりました。これらを含めるには `--include-hidden` を使用します。
+
+### パイプラインステップサマリ
+
+`aspire do`、`aspire publish`、`aspire deploy`、および `aspire destroy` 実行の終了時に、CLI はパイプライン実行ステップのサマリーを出力し、どのステップが実行されたか、その期間、成功したか失敗したかを表示します。
+
+これにより、ボトルネックを特定し、複数ステップのパイプラインでどのステップが失敗したかを特定し、概要でエンドツーエンドの実行フローを理解することが簡単になります。特に CI/CD 環境では、詳細ログを掘り下げることなく迅速にデプロイメント障害をトリアージする必要があります。
+
+```text title="Output"
+------------------------------------------------------------
+✅ 5/5 steps succeeded • Total time: 0.43s
+
+Steps Summary:
+                Step timeline:                 0s                       0.41s
+                                               │───────┬──────┬─────┬───────│
+      0.73ms  ✓ validate-compute-environments  │╴                           │
+      0.21ms  ✓   before-start                 │╴                           │
+       0.41s  ✓ pipeline-execution             │╶──────────────────────────╴│
+       0.41s  ✓ custom-deploy-prereq           │╶──────────────────────────╴│
+      0.33ms  ✓   deploy                       │                           ╴│
+
+✅ Pipeline succeeded
+------------------------------------------------------------
+```
+
+### `aspire do` 改善
+
+- **`--list-steps`** は `aspire do`、`aspire publish`、`aspire deploy`、または `aspire destroy` に対して実行されるパイプラインステップのリストを出力し、実際に実行せずに表示します。
+- **`check-container-runtime`** はコンテナランタイムが利用できない場合に高速で失敗する組み込みパイプラインステップで、遅延段階のビルド/パブリッシュ失敗を防ぎます。
+- **独立ステップは兄弟の失敗で継続します** — 1 つの失敗したステップは同じパイプライン実行の無関連な作業をブロックしなくなります。
+
+### AI エージェント初期化の改善
+
+`aspire agent init` は **ロケーション選択** ステップを獲得し、更新された標準スキルセットをインストールします：
+
+- **`aspire` スキル** は CLI を介して Aspire アプリを調整します — AppHost の開始と停止、リソースの検査、ログとテレメトリの表示、統合の追加。
+- **`aspireify` スキル** は `aspire init` が既存リポジトリにスケルトンをドロップした後、ワンタイム AppHost ワイヤアップを完了します。
+- ブラウザテストと .NET API 検出用に `playwright-cli` と `dotnet-inspect` をペアリングします。
+
+`--skills aspire,aspireify,...` でインストールするスキルを選択するか、`aspire agent init` をインタラクティブに実行します。
+
+### CLI ライフクオリティー
+
+- **AppHost パスガードレール** — CLI のグローバル設定は AppHost パスを検証して、誤ったプロジェクトを指すことを防ぎます。
+- **コンテナランタイムヘルスチェック** は `aspire deploy` の前に実行され、不足している/壊れている Docker または Podman セットアップを早期に検出します。
+- **`aspire ps`** は実行中の AppHost とともにダッシュボード URL を表示します。
+- **非インタラクティブ CLI モード** が改善されました。多くの CLI コマンドには `--non-interactive` で使用をサポートする新しいオプションがあります。
+
+## 🚢 デプロイメント改善
+
+### 新しい `aspire destroy` コマンド
+
+`aspire destroy` は `aspire deploy` の逆です — `aspire deploy` がプロビジョニングしたものを破棄し、AppHost で宣言された同じコンピューティング環境を使用します。つまり、1 つのコマンドがすべてのデプロイメントターゲットで動作します：
+
+- **Azure** — プロビジョニングされたリソースは Azure Resource Manager を介して削除されます。
+- **Kubernetes** — デプロイ中に作成された Helm リリースとネームスペースはアンインストールされます。
+- **Docker Compose** — 公開された Compose スタックは停止され、削除されます。
+
+これは特に CI 環境、一時的なプレビューデプロイメント、および デプロイされたものを手動で追跡することなくリソースを整理してクレームバックしたいデブサンドボックスに役立ちます。
+
+```bash title="Aspire CLI — デプロイを破棄"
+aspire destroy
+```
+
+<LearnMore>
+  コマンドリファレンス: [`aspire
+  destroy`](/ja/reference/cli/commands/aspire-destroy/)。
+</LearnMore>
+
+## 🐳 コンテナ、Kubernetes、Compose
+
+### 🔗 コンテナトンネルはデフォルトで有効化
+
+Aspire 13.3 は **Aspire コンテナトンネル** をデフォルトで有効化し、コンテナオーケストレータに関係なく、均一なコンテナ間ホスト接続を提供します。
+
+Aspire 13.0 では実験的なオプトイン機能として導入されたコンテナトンネルにより、コンテナはホストベースのサービス (Aspire ダッシュボード、OTEL コレクタ、その他のプロジェクト) と確実に通信できます。この変更の前に、Docker Desktop ユーザーは組み込みのホスト接続 (`host.docker.internal`) から利益を得ていましたが、Linux 上の Docker Engine または Podman などの他のコンテナランタイムは手動の回避策が必要でした。
+
+トンネルがデフォルトで有効化されたため、すべてのサポートされているコンテナオーケストレータが追加の設定なしで一貫して動作するようになりました。
+
+<Aside type="note" title="スタートアップ遅延">
+  ホストベースのエンドポイントを参照するコンテナは、トンネルプロキシコンテナが
+  開始してエンドポイントを割り当てる必要があるため、以前よりも少し後で (~3–4
+  秒) 開始します。これはアプリケーション実行ごとの 1 回限りのコストであり、
+  永続的なトンネルサポートが将来のリリースで登場するまで改善されます。
+</Aside>
+
+#### コンテナトンネルの無効化
+
+オプトアウトが必要な場合は、AppHost を開始する前に `ASPIRE_ENABLE_CONTAINER_TUNNEL` 環境変数を `false` に設定します：
+
+<OsAwareTabs>
+  <Fragment slot="unix">
+
+    ```bash title="Bash — コンテナトンネルを無効化"
+    # この aspire 実行呼び出しにのみ環境変数を設定してから、AppHost を起動します。
+    ASPIRE_ENABLE_CONTAINER_TUNNEL=false aspire run
+    ```
+
+  </Fragment>
+  <Fragment slot="windows">
+
+    ```powershell title="PowerShell — コンテナトンネルを無効化"
+    # この aspire 実行呼び出しにのみ環境変数を設定してから、AppHost を起動します。
+    $env:ASPIRE_ENABLE_CONTAINER_TUNNEL = "false"; aspire run
+    ```
+
+  </Fragment>
+</OsAwareTabs>
+
+`launchSettings.json` の既存 AppHost ローンチプロファイルに変数を追加することで、無効化することもできます：
+
+```json title="launchSettings.json"
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPIRE_ENABLE_CONTAINER_TUNNEL": "false"
+      }
+    }
+  }
+}
+```
+
+<LearnMore>
+  コンテナネットワークについて詳しくは、[内部ループネットワーク概要](/ja/fundamentals/networking-overview/) を参照してください。
+
+</LearnMore>
+
+### Helm エンジンを使用した Kubernetes デプロイメント
+
+<Aside type="note">
+  ネイティブ Kubernetes デプロイメント (および以下の新しい Ingress / Gateway
+  ルーティングリソース) は 13.3 では **プレビュー** です。
+</Aside>
+
+Aspire 13.3 は Helm ベースの Kubernetes デプロイメントエンジンをシップします。AppHost で Kubernetes 環境を宣言し、`aspire deploy` を実行すると、Aspire は完全な Helm チャートを生成し、クラスタに対してエンドツーエンドで適用します — 別々の `helm install`、`kustomize`、または手書きのマニフェストは必要ありません。`aspire destroy` は Helm リリースとネームスペースをクリーンに削除します。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+// Kubernetes 環境を宣言します。Aspire が Helm チャートを生成します。
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+// その環境にデプロイされるよう、プロジェクトを Kubernetes 環境に関連付けます。
+builder.AddProject<Projects.Api>("api")
+    .WithComputeEnvironment(k8s);
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Kubernetes 環境を宣言します。Aspire が Helm チャートを生成します。
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+// その環境にデプロイされるよう、プロジェクトを Kubernetes 環境に関連付けます。
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withComputeEnvironment(k8s);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  詳細については、[Kubernetes にデプロイ](/ja/deployment/kubernetes/kubernetes/) を参照してください。
+
+</LearnMore>
+
+### Kubernetes Ingress と Gateway API ルーティング
+
+新しいファーストクラスの **Ingress** と **Gateway API** ルーティングリソースにより、AppHost から Kubernetes クラスタへのトラフィック受信方法を直接宣言できます。Aspire は対応する Ingress、IngressClass、Gateway、HTTPRoute、および (該当する場合) cert-manager `Certificate` リソースを生成します。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — cert-manager を使った Ingress"
+// Kubernetes 環境を宣言します。
+var k8s = builder.AddKubernetesEnvironment("k8s");
+
+// Ingress の背後で公開されるプロジェクト。
+var api = builder.AddProject<Projects.Api>("api")
+    .WithComputeEnvironment(k8s);
+
+// TLS 証明書付きで nginx ingress class を前段にした Ingress を追加します。
+var ingress = k8s.AddIngress("public")
+    .WithIngressClass("nginx")
+    .WithHostname("api.example.com")
+    .WithTls("api-cert");
+
+// "/" へのリクエストをこのプロジェクトの HTTP エンドポイントへルーティングします。
+ingress.WithRoute("/", api.GetEndpoint("http"));
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — cert-manager を使った Ingress"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Kubernetes 環境を宣言します。
+const k8s = await builder.addKubernetesEnvironment('k8s');
+
+// TLS 証明書付きの Ingress を追加します。
+const ingress = await k8s.addIngress('public');
+await ingress.withHostname('api.example.com');
+await ingress.withTls('api-cert');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  詳細については、[Kubernetes Ingress
+  ルーティング](/ja/deployment/kubernetes-ingress/) および [AKS Gateway API 
+  ルーティング](/ja/deployment/kubernetes-gateway-aks/)を参照してください。
+</LearnMore>
+
+### Docker Compose での Podman サポート
+
+Docker Compose デプロイメントエンジンは、手動の回避策なしで **Podman** をコンテナランタイムとしてサポートするようになりました。Aspire は Podman を検出し、`podman-compose` と互換性のある Compose ファイルを生成し、Docker で使用するのと同じライフサイクルコマンドを公開します。
+
+### Docker Compose パブリッシング用の特権モード
+
+Docker Compose をターゲットにしている場合、`privileged` フラグを有効にしてコンテナを公開できるようになりました。これは一部のワークロード (低レベルネットワークユーティリティ、ネストされたコンテナなど) に必要です。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — 特権モードの Docker Compose サービス"
+// netshoot 診断コンテナを追加し、Docker Compose に公開します。
+// privileged mode を有効化して公開します（低レベルのネットワークツールで必要）。
+builder.AddContainer("netshoot", "nicolaka/netshoot")
+    .PublishAsDockerComposeService((resource, service) =>
+    {
+        service.Privileged = true;
+    });
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — 特権モードの Docker Compose サービス"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// netshoot 診断コンテナを追加し、Docker Compose に公開します。
+// privileged mode を有効化して公開します（低レベルのネットワークツールで必要）。
+await builder
+  .addContainer('netshoot', 'nicolaka/netshoot')
+  .publishAsDockerComposeService(async (resource, service) => {
+    await service.privileged.set(true);
+  });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### TypeScript AppHosts 用の Dockerfile ビルダー API
+
+TypeScript AppHosts は `WithDockerfileBuilder` / `AddDockerfileBuilder` を使用して Dockerfile をプログラム的に構築できるようになり、C# `WithDockerfile` 拡張をミラーリングします。診断 [`ASPIREDOCKERFILEBUILDER001`](/ja/diagnostics/aspiredockerfilebuilder001/)は実験的警告をカバーします。
+
+<LearnMore>
+  詳細については、[Dockerfile ビルドのカスタマイズ](/ja/app-host/withdockerfile/)
+  を参照してください。
+</LearnMore>
+
+## 🧩 アプリモデルと AppHost
+
+### HTTP コマンド結果モード
+
+`HttpCommand` は **結果モード** をサポートするようになり、応答本体をダッシュボードの通知センターに返すため、HTTP トリガーコマンドは単なる成功/失敗ではなく構造化ペイロードを返すことができます：
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — 結果ボディ付き HTTP コマンド"
+// POST /admin/sync をダッシュボードコマンドとして公開します。ResultMode = Auto では
+// HTTP 応答ボディがダッシュボードの通知センターに返されます。
+builder.AddProject<Projects.Api>("api")
+    .WithHttpCommand("/admin/sync", "Sync now", commandOptions: new()
+    {
+        ResultMode = HttpCommandResultMode.Auto
+    });
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — 結果ボディ付き HTTP コマンド"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// POST /admin/sync をダッシュボードコマンドとして公開します。resultMode "Auto" では
+// HTTP 応答ボディがダッシュボードの通知センターに返されます。
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withHttpCommand('/admin/sync', 'Sync now', { resultMode: 'Auto' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+`HttpCommandResultMode` は `None`、`Auto` (応答コンテンツタイプから推測)、`Json`、または `Text` を受け入れます。
+
+<LearnMore>
+  詳細については、[HTTP コマンド](/ja/fundamentals/http-commands/)を参照してください。
+</LearnMore>
+
+### リソースコマンドは構造化結果を返す
+
+カスタムリソースコマンドは `ExecuteCommandResult` を構造化 `Message` ペイロード で返すことができるようになり、ダッシュボードは通知センターで レンダリングします。`ExecuteCommandContext` の新しい `Logger` プロパティにより、コマンド実装はリソースのログストリームに直接ログできます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — リソースコマンドでアクセストークンを発行"
+using System.Security.Cryptography;
+using Aspire.Hosting.ApplicationModel;
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
+        {
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: token,
+                resultFormat: CommandResultFormat.Text));
+        });
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — リソースコマンドでアクセストークンを発行"
+import {
+  createBuilder,
+  CommandResultFormat,
+  type ExecuteCommandContext,
+  type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+  .addNodeApp('myservice', './myservice', 'src/server.ts')
+  .withCommand(
+    'issue-access-token',
+    'Issue Access Token',
+    async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+      const token = crypto.randomUUID().replace(/-/g, '');
+
+      return {
+        success: true,
+        message: 'Access token issued.',
+        data: {
+          value: token,
+          format: CommandResultFormat.Text,
+        },
+      };
+    }
+  );
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+ダッシュボードは成功トーストで **View response** アクションを表示し、CLI はステータスメッセージを `stderr`、ペイロードを `stdout` に分割し、パイプが安全です (`aspire resource myservice issue-access-token | pbcopy`)。
+
+<LearnMore>
+  詳細については、[カスタムリソース 
+  コマンド](/ja/fundamentals/custom-resource-commands/)を参照してください。
+</LearnMore>
+
+### BeforeStart パイプラインステップ
+
+新しい **BeforeStart** パイプラインフェーズは、Kubernetes、Docker Compose、および AKS デプロイメントエンジンで使用される煩雑なイベント購読者クラスに置き換わります。コンピューティング環境の作成者は、カスタムサブスクライバーではなく標準パイプラインステップを介して順序付けされた スタートアップロジックを追加できるようになりました。
+
+### ライフサイクルイベント購読拡張
+
+`IDistributedApplicationBuilder` の 2 つの新しい便利な拡張メソッドにより、`.Eventing.Subscribe(...)` 配管なしでライフサイクルイベントハンドラをワイヤアップしやすくなります：
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — ライフサイクルイベントを購読"
+// AppHost がリソースの起動を開始する直前にコールバックを実行します。
+builder.SubscribeBeforeStart(async e => { /* ... */ });
+// すべてのリソース作成が完了したらコールバックを実行します。
+builder.SubscribeAfterResourcesCreated(async e => { /* ... */ });
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — ライフサイクルイベントを購読"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// AppHost がリソースの起動を開始する直前にコールバックを実行します。
+await builder.subscribeBeforeStart(async (e) => {
+  /* ... */
+});
+// すべてのリソース作成が完了したらコールバックを実行します。
+await builder.subscribeAfterResourcesCreated(async (e) => {
+  /* ... */
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+コミュニティ貢献者 [@afscrome](https://github.com/afscrome) によるこの追加に感謝します。
+
+<LearnMore>詳細については、[イベント処理](/ja/app-host/eventing/)を参照してください。</LearnMore>
+
+### `WithEndpoint` は既存のエンドポイントを更新
+
+`WithEndpoint` は同じ名前のエンドポイントが既に存在する場合、エラーをスローしなくなりました。2 回目の呼び出しは既存のエンドポイントを更新します — 拡張メソッド全体でエンドポイント設定をレイヤリングしやすくなります。
+
+### `WithReference()` から管理エンドポイントを除外
+
+エンドポイント注釈には `ExcludeReferenceEndpoint` フラグがあります。`true` に設定すると、エンドポイント (管理またはヘルスエンドポイントなど) はデフォルトの `WithReference()` 注入から除外されるため、コンシューマーが誤って管理 URL を受け取りません：
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — WithReference からエンドポイントを除外"
+// "admin" エンドポイントが WithReference() 経由でコンシューマーに注入されないようにします。
+builder.AddProject<Projects.Api>("api")
+    .WithEndpoint("admin", e => e.ExcludeReferenceEndpoint = true);
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — withReference からエンドポイントを除外"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// "admin" エンドポイントが withReference() 経由でコンシューマーに注入されないようにします。
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withEndpoint('admin', { excludeReferenceEndpoint: true });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### `ASPIRE_ENVIRONMENT` 変数
+
+AppHost は環境固有の設定プロファイルを選択するトップレベルの `ASPIRE_ENVIRONMENT` 環境変数をサポートするようになり、`appsettings.{environment}.json` をロードし、ダッシュボードテレメトリで報告される環境を制御します。
+
+### すべての場所で Aspire 信頼デベロッパー証明書を使用
+
+Aspire 信頼デベロッパー証明書は、より多くの場所で使用されるようになりました — Windows 上の Microsoft Developer Control Plane (DCP) を含め、DCP が以前生成した一時的な証明書に置き換わります。必要に応じて `ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE` をオプトアウトに設定します。
+
+## 🌐 TypeScript AppHost パリティ
+
+Aspire 13.3 は、C# AppHost と TypeScript AppHost SDK 間の機能的ギャップのほぼすべてを閉じます：
+
+- **統合 `withEnvironment` API** — すべての環境変数値の種類 (エンドポイント、パラメータ、接続文字列、式) を処理する単一のメソッド。以前の種類ごとのヘルパーは非推奨になります。
+- **エンドポイントプロパティ式** (`endpoint.url`、`endpoint.host`、`endpoint.port`) は TypeScript AppHost 式内で使用できるようになりました。
+- **Docker Compose API パリティ**: `PublishAsDockerComposeService` 等価フック とポスト処理が TypeScript で公開されます。
+- **Azure Container Apps のカスタムドメイン設定** は TypeScript AppHost SDK で公開されます。
+- **統合 YARP TS ルートヘルパー** — `addRoute(...)`と `addCatchAllRoute(...)` が以前のアドホックヘルパーに置き換わります。
+- **`WithAdminDeploymentScriptSubnet`** は TypeScript AppHost 向けにエクスポートされます。
+- **イメージプッシュオプション**、**エンドポイント変更コールバック**、**`ConfigureEnvFile`**、および **ビルダーパイプライン** API がすべて TypeScript パリティに達しています。
+- **定義済み値カタログ** — 新しい `[AspireValue]` 属性と定義済みカタログ (例、`FoundryModels.OpenAI.Gpt41Mini`) を使用すると、TypeScript AppHost から既知の値を参照しやすくなります。
+- **ビルド時重複機能 ID 検出** — 診断 [`ASPIREEXPORT013`](/ja/diagnostics/aspireexport013/)はコンパイル時に重複した エクスポート機能 ID をキャッチします。
+
+### 統合 `withEnvironment` API
+
+Aspire 13.3 は、ポリグロット AppHost (TypeScript、Java、Python、Go、Rust) 向けに統合 `withEnvironment(name, value)` API を導入します。以前は、環境変数注入には値の種類ごとに別々のメソッド (`withEnvironmentEndpoint`、`withEnvironmentParameter`、`withEnvironmentConnectionString` など) が必要でした。現在、1 つの呼び出しですべての値タイプを処理します：
+
+```typescript title="TypeScript — apphost.ts の例"
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api
+  .withEnvironment('SERVICE_URL', cache.primaryEndpoint)
+  .withEnvironment('API_KEY', apiKeyParam)
+  .withEnvironment('DB', database);
+```
+
+`value` 引数は次のいずれかを受け入れます：プレーン `string`、`ReferenceExpression`、`EndpointReference`、パラメータビルダー、接続文字列リソースビルダー、または `IExpressionValue`。
+
+以前の種類ごとのヘルパーは下位互換性のために生成されますが、SDK で `@deprecated` とマークされています。移行の詳細については [破壊的な変更](#breaking-changes) セクションを参照してください。
+
+<LearnMore>
+  詳細については、[マルチ言語 統合の執筆](/ja/extensibility/multi-language-integration-authoring/)を参照してください。
+
+</LearnMore>
+
+## 🟨 JavaScript と TypeScript アプリ
+
+Aspire 13.3 は、C# と TypeScript AppHost の両方にファーストクラスの **JavaScript パブリッシング** をもたらします。新しい `PublishAs*` 拡張メソッドファミリは、最も一般的な JS デプロイメント形式の手巻き `Dockerfile` 配管に置き換わります：
+
+- **`PublishAsStaticWebsite`** (プレビュー) — JS アプリを YARP イメージで提供される静的ウェブサイトとして公開し、オプションでバックエンドリソースへの API リバースプロキシを追加します。SPA (Vite、プレーン Next.js エクスポート) に最適です。
+- **`PublishAsNodeServer`** — `node_modules` をランタイムでコピーしない自己完結型 Node エントリポイント (例、`server.js`) を公開します。事前バンドルされた Node サーバーに最適です。
+- **`PublishAsNpmScript`** — ランタイムで npm スクリプト (`start`/`serve`) を実行し、`package.json` と本番依存関係をコピーする Node アプリを公開します。完全な Nitro Next.js、Remix、Astro SSR に最適です。
+
+Aspire 13.3 は、既存の `AddViteApp` および `AddNodeApp` と共にファーストクラスの Next.js ヘルパーとしても **`AddNextJsApp`** を追加し、TypeScript AppHost での **Bun、Yarn、pnpm** のファーストクラスサポート (npm がデフォルト) を追加します。
+
+<Aside type="caution">
+  `PublishAsStaticWebsite` メソッドは 13.3 では実験的です。診断コード
+  [`ASPIREJAVASCRIPT001`](/ja/diagnostics/aspirejavascript001/) を使用して
+  実験的警告を抑制します。Next.js、Vite、Node アプリヘルパー自体は安定しています。
+
+</Aside>
+
+### Next.js
+
+`AddNextJsApp` は開発中に Next.js を実行し、Next.js _standalone_ パブリッシングを自動的に設定します — 明示的な `PublishAs*` 呼び出しは必要ありません。`next.config.js` が `output: "standalone"` を設定していることを確認し、ビルドがスタンドアロンサーバーを出力します。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddNextJsApp("web", "./web");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addNextJsApp('web', './web');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Vite
+
+`AddViteApp` は開発中に Vite を実行します；`PublishAsStaticWebsite` は本番ビルドを YARP 提供の静的サイトとして出荷し、バックエンドリソースへのオプション API リバースプロキシを追加し、同じ `/api` パスが開発と本番で動作します。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+#pragma warning disable ASPIREEXTENSION001
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+builder.AddViteApp("web", "./web")
+    .WithReference(api)
+    .PublishAsStaticWebsite(apiPath: "/api", apiTarget: api);
+
+builder.Build().Run();
+#pragma warning restore ASPIREEXTENSION001
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+
+await builder
+  .addViteApp('web', './web')
+  .withReference(api)
+  .publishAsStaticWebsite({ apiPath: '/api', apiTarget: api });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### TanStack Start (SSR)
+
+[TanStack Start](https://tanstack.com/start) や SvelteKit のように Node のエントリポイントへバンドルされる SSR フレームワークでは、`AddViteApp` (開発用) と `PublishAsNodeServer` を組み合わせることで、ビルド済みの `.output/server/index.mjs` を `node_modules` をコピーせずにスリムなランタイムコンテナとして公開できます。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddViteApp("web", "./web")
+    .PublishAsNodeServer(entryPoint: ".output/server/index.mjs",
+        outputPath: ".output");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+  .addViteApp('web', './web')
+  .publishAsNodeServer('.output/server/index.mjs', {
+    outputPath: '.output',
+  });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  ランタイムで `node_modules` が必要な SSR フレームワーク (Nuxt、Remix、Astro
+  SSR、Qwik) については、代わりに `PublishAsNpmScript` を使用してください — これは
+  `package.json` をコピーし、`npm start` を実行します。
+</Aside>
+
+<LearnMore>
+  詳細については、[JavaScript/TypeScript アプリ](/ja/integrations/frameworks/javascript/)、[JavaScript アプリをパブリッシュ](/ja/deployment/javascript-apps/)、および [TypeScript AppHost](/ja/app-host/typescript-apphost/)を参照してください。
+
+
+
+</LearnMore>
+
+## 📊 ダッシュボード改善
+
+### コマンド結果の通知センター
+
+ダッシュボードは、ログパネルをスクレイプすることなく、リソースコマンドとライフサイクルイベントの結果を表示する **通知センター** を備えるようになりました。コマンドは [構造化結果](#リソースコマンドは構造化結果を返す) を返し、ダッシュボードはインラインでレンダリングします。
+
+通知センターは、ヘッダーの右上隅のベルアイコンを使用してアクセスできます。未読の通知があると、未読数を持つバッジがアイコンに表示されます。
+
+<Image
+  src={notificationCenterBell}
+  alt="Aspire ダッシュボードの右上隅に通知ベルアイコンとバッジを表示している画面"
+/>
+
+ベルアイコンを選択すると、すべての通知をリストする **Notifications** ダイアログが開きます。ここからコマンド応答を表示できます。
+
+<Image
+  src={notificationCenterOpen}
+  alt="Aspire ダッシュボード通知パネルが開いており、'Rebuild succeeded' 通知とビューレスポンスボタンを表示している画面"
+/>
+
+### リソースコマンドをリビルド
+
+ダッシュボードには、コンテナおよびプロジェクトリソースで使用可能な組み込み **Rebuild** コマンドがあります。トリガーされると、リソースイメージをリビルドし、リソースを再開始し、AppHost 全体を停止して再開始することなく、コードまたは Dockerfile の変更をピックアップしやすくなります。結果 (成功または失敗) は通知センターに表示されます。
+
+<Aside type="caution">
+  Aspire 13.3 はダッシュボード内の GitHub Copilot UI を削除します。アップグレード前に
+  [破壊的な変更](#breaking-changes) セクションを確認してください。
+</Aside>
+
+## 🧰 VS Code 拡張機能
+
+### VS Code Simple Browser でダッシュボードを開く
+
+VS Code から Aspire アプリを起動すると、ダッシュボード は **VS Code の Simple Browser** でデフォルトで開き、外部ブラウザウィンドウを起動しません。動作は `aspire.dashboardBrowser` 設定で制御されます。
+
+### AppHost CodeLens とガター装飾
+
+拡張機能は、エディタに直接ライブリソース状態をレンダリングします。各リソース定義の上の **CodeLens** は、1 クリックの `Start`、`Stop`、`Restart`、および `View Logs` アクションを公開し、左マージンの **ガター装飾** は、各リソースの現在の正常性をひとめで反映します。同じヘルス状態アイコンは **Aspire** アクティビティバーのリソースの横に表示されます。
+
+<ThemeImage
+  dark={extensionSidebar}
+  light={extensionSidebarLight}
+  alt="VS Code の Aspire ビューでは、各リソースの状態を反映するヘルス状態アイコンを持つリソースのツリーを表示しています。"
+/>
+
+### その他の拡張機能の変更
+
+- **自動復元** — `aspire.enableAutoRestore` を設定して、ワークスペースが開くか設定が変わるときに拡張機能が `aspire restore` を自動的に実行するようにします。
+- **起動設定** エントリは AppHost の `env` と `args` を指定できるようになり、通常の .NET 起動設定と同じです。
+- **AppHost ソースを開く** ← _実行中 AppHost_ ビューから。
+- **Aspire ダッシュボードを開く** ← VS Code コマンドパレットから。
+- リソースエンドポイント URL での **右クリックコンテキストメニュー** (開く、コピーなど)。
+- ウォークスルーは TypeScript AppHost をカバーするように更新されました。
+- 拡張機能は、`PATH` にない場合でもデフォルトインストールパスで Aspire CLI を自動検出します。
+
+<LearnMore>
+  詳細については、[Aspire VS Code
+  拡張機能](/ja/get-started/aspire-vscode-extension/)を参照してください。
+</LearnMore>
+
+## 📦 統合更新
+
+### 🔍 ブラウザログとスクリーンショット
+
+新しい **Aspire.Hosting.Browsers** 統合は、開発中にフロントエンドリソースからブラウザコンソールログ、ネットワークリクエスト、スクリーンショットをキャプチャし、ダッシュボードにサーバー側テレメトリと共に表示します。フロントエンドリソースに `WithBrowserLogs()` を追加してこれを有効にします。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+// この Vite フロントエンドからブラウザーコンソールログ、ネットワークリクエスト、
+// スクリーンショットを収集し、サーバーテレメトリと並べてダッシュボードに表示します。
+builder.AddViteApp("frontend")
+    .WithBrowserLogs();
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// この Vite フロントエンドからブラウザーコンソールログ、ネットワークリクエスト、
+// スクリーンショットを収集し、サーバーテレメトリと並べてダッシュボードに表示します。
+const frontend = await builder.addViteApp('frontend', './frontend');
+await frontend.withBrowserLogs();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  この統合は 13.3 では実験的です。診断コード
+  [`ASPIREBROWSERLOGS001`](/ja/diagnostics/aspirebrowserlogs001/) を使用して
+  実験的警告を抑制します。
+</Aside>
+
+<LearnMore>
+  詳細については、[ブラウザログ](/ja/integrations/devtools/browser-logs/)を参照してください。
+</LearnMore>
+
+### Azure Functions 用 Durable Task Scheduler
+
+Azure Functions は、AppHost から直接 **Durable Task Scheduler** 依存関係を宣言できるようになり、完全なローカルおよび Azure デプロイサポートがあります。API は [`ASPIREDURABLETASK001`](/ja/diagnostics/aspiredurabletask001/) の下で実験的としてリリースされています。
+
+<LearnMore>
+  詳細については、[Azure Functions ホスティング](/ja/integrations/cloud/azure/azure-functions/azure-functions-host/)を参照してください。
+
+</LearnMore>
+
+### RabbitMQ v7 とパブリッシャー、サブスクライバートレーシング
+
+RabbitMQ クライアント統合が RabbitMQ.Client v7 をサポートするように更新されました。パブリッシャーとサブスクライバーの両方の OpenTelemetry トレーシングがあります。
+
+### `Aspire.Microsoft.Azure.StackExchangeRedis` は安定
+
+[📦 Aspire.Microsoft.Azure.StackExchangeRedis](https://www.nuget.org/packages/Aspire.Microsoft.Azure.StackExchangeRedis) パッケージはプレビュー段階を脱出しました。Entra 認証 Azure Cache for Redis および Azure Managed Redis アクセスに使用します。
+
+### Npgsql メトリクスが .NET 10 に合致
+
+Npgsql クライアント統合が .NET 10 メトリック命名仕様に合致する OpenTelemetry メトリクスを出力します。
+
+## ☁️ Azure の改善
+
+### Azure Front Door 統合 — グローバルエッジを 1 つの API 呼び出しで
+
+<Image
+  src={azureFrontDoorIcon}
+  alt="Azure Front Door ロゴ"
+  height={80}
+  width={80}
+  class:list={'float-inline-left icon'}
+  data-zoom-off
+/>
+
+アプリの前に CDN を取得するために ARM テンプレートを ステッチしたり、ポータルブレードをクリックしたりする必要がなくなりました。Aspire 13.3 は [Azure Front Door](https://learn.microsoft.com/ja-jp/azure/frontdoor/) の新しいホスティング統合を追加します。これは、高速で安全で高度に利用可能なウェブアプリのための Microsoft のグローバルエッジネットワークです。`AddAzureFrontDoor` でバックエンドの前に Front Door プロファイルを追加し、`WithOrigin` で オリジンを接続します：
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+// 外部 HTTP エンドポイントとして公開する 2 つのバックエンドプロジェクト。
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+
+var web = builder.AddProject<Projects.Web>("web")
+    .WithExternalHttpEndpoints();
+
+// Azure Front Door プロファイルをプロビジョニングし、各バックエンドをオリジンとして接続します。
+// WithOrigin の各呼び出しで、専用のエンドポイント、オリジングループ、オリジン、ルートが作成されます。
+builder.AddAzureFrontDoor("frontdoor")
+    .WithOrigin(api)
+    .WithOrigin(web);
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 外部 HTTP エンドポイントとして公開する 2 つのバックエンドプロジェクト。
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withExternalHttpEndpoints();
+
+const web = await builder.addProject('web', '../Web/Web.csproj');
+await web.withExternalHttpEndpoints();
+
+// Azure Front Door プロファイルをプロビジョニングし、各バックエンドをオリジンとして接続します。
+// withOrigin の各呼び出しで、専用のエンドポイント、オリジングループ、オリジン、ルートが作成されます。
+const frontDoor = await builder.addAzureFrontDoor('frontdoor');
+await frontDoor.withOrigin(api);
+await frontDoor.withOrigin(web);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+各 `withOrigin` 呼び出しは、独自の Front Door エンドポイント、オリジングループ、オリジン、ルートをプロビジョニングし、すべてのバックエンドが独自の `*.azurefd.net` ホスト名を介して独立してルーティング可能です。統合は標準 SKU でデフォルトの Front Door をプロビジョニングします；`ConfigureInfrastructure` を使用して、Front Door、たとえば SKU の変更、Web Application Firewall (WAF) ポリシーの接続、キャッシング有効化などをカスタマイズします。
+
+<LearnMore>
+  詳細については、[Azure Front Door 
+  統合](/ja/integrations/cloud/azure/azure-front-door/)を参照してください。
+</LearnMore>
+
+### 🌐 Azure Network Security Perimeter サポート
+
+Aspire 13.3 は [Azure Network Security Perimeters (NSPs)](https://learn.microsoft.com/ja-jp/azure/private-link/network-security-perimeter-concepts) のサポートを追加します。NSP は Azure PaaS サービスのための論理セキュリティ境界を提供します。既存仮想ネットワークおよびプライベートエンドポイントサポートを補完することで、PaaS レイヤーで動作します — Storage、Key Vault、Cosmos DB、SQL などのリソースをグループ化し、相互に通信できます。同時にアクセスルールを介して公開アクセスを制限します。
+
+#### Perimeter を作成し、リソースを関連付け
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+// Network Security Perimeter を宣言し、受信アクセスルールを追加します。
+var nsp = builder.AddNetworkSecurityPerimeter("my-nsp")
+    .WithAccessRule(new AzureNspAccessRule
+    {
+        Name = "allow-my-ip",
+        Direction = NetworkSecurityPerimeterAccessRuleDirection.Inbound,
+        AddressPrefixes = { "203.0.113.0/24" }
+    });
+
+// Azure リソースを perimeter に関連付けます。相互到達性は維持されますが、
+// 外部トラフィックは perimeter のアクセスルールの対象になります。
+var storage = builder.AddAzureStorage("storage")
+    .WithNetworkSecurityPerimeter(nsp);
+var keyVault = builder.AddAzureKeyVault("kv")
+    .WithNetworkSecurityPerimeter(nsp);
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+import { NetworkSecurityPerimeterAccessRuleDirection } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Network Security Perimeter を宣言し、受信アクセスルールを追加します。
+const nsp = await builder.addNetworkSecurityPerimeter('my-nsp');
+await nsp.withAccessRule({
+  name: 'allow-my-ip',
+  direction: NetworkSecurityPerimeterAccessRuleDirection.Inbound,
+  addressPrefixes: ['203.0.113.0/24'],
+});
+
+// Azure リソースを perimeter に関連付けます。相互到達性は維持されますが、
+// 外部トラフィックは perimeter のアクセスルールの対象になります。
+const storage = await builder.addAzureStorage('storage');
+await storage.withNetworkSecurityPerimeter(nsp);
+const keyVault = await builder.addAzureKeyVault('kv');
+await keyVault.withNetworkSecurityPerimeter(nsp);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+NSP は **Enforced** モード (ルール違反トラフィックをブロック) および **Learning** モード (ログ違反ブロックなし) をサポートし、アクセスを ロックダウンする前にトラフィックを簡単に監査できます。
+
+<LearnMore>
+  詳細については、[Azure Virtual Network 
+  統合](/ja/integrations/cloud/azure/azure-virtual-network/#add-a-network-security-perimeter)を参照してください。
+</LearnMore>
+
+### Azure Kubernetes Service (AKS) ホスティング統合 — YAML なし Kubernetes
+
+<Aside type="note">
+  AKS ホスティング統合は **プレビュー** であり、安定としてマークされる前に
+  進化する可能性があります。
+</Aside>
+
+Kubernetes にデプロイしたいが、手書きでマニフェストを書くことを避けたい場合、これはあなたのためです。Aspire 13.3 は **Azure Kubernetes Service のプロビジョニングとデプロイ** にファーストクラスサポートを追加します。`AddAzureKubernetesEnvironment` を使用して AKS 環境を宣言し、ノードプールをカスタマイズし、AppHost を Bicep + Helm ベースのデプロイメントパイプライン を生成させます — すべてタイプセーフ、すべてコードから。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='AppHost.cs'>
+
+```csharp title="C# — AppHost.cs の例"
+// AKS 環境を宣言し、system node pool をカスタマイズします。
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+    .WithSystemNodePool("Standard_D2s_v5", minCount: 1, maxCount: 3);
+
+// その環境にデプロイされるよう、プロジェクトを AKS 環境に関連付けます。
+builder.AddProject<Projects.Api>("api")
+    .WithComputeEnvironment(aks);
+```
+
+</TabItem>
+<TabItem id='typescript' label='apphost.ts'>
+
+```typescript title="TypeScript — apphost.ts の例"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// AKS 環境を宣言し、system node pool をカスタマイズします。
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSystemNodePool('Standard_D2s_v5', { minCount: 1, maxCount: 3 });
+
+// その環境にデプロイされるよう、プロジェクトを AKS 環境に関連付けます。
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withComputeEnvironment(aks);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+`WithSystemNodePool` により、システムノードプールの VM サイズと自動スケーリング境界をカスタマイズできます。デフォルトでは AKS クラスタは **Free** コントロールプレーン SKU を使用します；`AksSkuTier` enum はもはや公開 API の一部ではありません。
+
+<LearnMore>
+  詳細については、[Azure Kubernetes Service 
+  統合](/ja/integrations/cloud/azure/aks/) および [Aspire アプリを AKS
+  にデプロイ](/ja/deployment/kubernetes/aks/)を参照してください。
+</LearnMore>
+
+### Azure Container Registry、OpenAI、Foundry 用プライベートエンドポイントサポート
+
+`WithPrivateEndpoint` は追加 Azure リソースで現在サポートされており、Azure Container Registry、Azure OpenAI、Azure AI Foundry リソースのプロビジョニングと接続を、公開せずに仮想ネットワークを超えて接続できます。
+
+### Azure AI Foundry Prompt Agent
+
+Aspire 13.3 は **Azure AI Foundry Prompt Agent** サポート `AddPromptAgent` の新しい作業実装をシップします。以前の `AddAndPublishPromptAgent` API および `AzurePromptAgentResource` の元の形 (エンドツーエンドで機能しなかった) は置き換わりました — `AddPromptAgent` は現在作業 `AzurePromptAgentResource` を返します。
+
+Foundry モデルカタログは 2 つの新しいモデル も獲得しました：**GPT-5.4** と **Qwen3 VL**。
+
+<LearnMore>
+  詳細については、[Azure AI Foundry 
+  統合](/ja/integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-get-started/)を参照してください。
+</LearnMore>
+
+### Azure App Service 用の自動 HTTPS アップグレード
+
+Azure App Service 環境にデプロイされたエンドポイントは、HTTP から HTTPS へのリダイレクトをサービスで手動設定する必要を排除して、自動的に HTTPS にアップグレードされます。
+
+### カスタマイズ可能な Azure 認証プロセスタイムアウト
+
+新しい `Azure:CredentialProcessTimeoutSeconds` 設定値により、デプロイメント中の Azure 認証ラウンドトリップが標準値より長くかかることがある環境で、Azure 認証取得のタイムアウトをチューニングできます。
+
+```json title="appsettings.json"
+{
+  "Azure": {
+    "CredentialProcessTimeoutSeconds": 60
+  }
+}
+```
+
+### Azure デプロイメントの QOL
+
+- デプロイメントサマリーには、プロビジョニングされたリソース用の **Azure ポータルへのクリック可能なリンク** が含まれます。
+- マルチ環境デプロイメントは **明示的なコンピューティング環境バインディングを強制** するようになります：すべてのリソースは、デプロイまたはその環境を指定し、誤ったクロス環境漏洩を防ぎます。
+
+## 🏗️ テンプレート
+
+### 🐍 Python スターターが TypeScript AppHost に移行
+
+`aspire-py-starter` テンプレート (FastAPI と React を使用したスターターアプリ) は `dotnet new` テンプレートシステムから Aspire CLI テンプレートシステムに移動され、C# AppHost の代わりに **TypeScript AppHost** を使用します。これは `aspire-ts-starter` テンプレートと同じパターンに統一します。
+
+**あなたにとって変わったこと:**
+
+- `dotnet new aspire-py-starter` の代わりに `aspire new aspire-py-starter` を使用します。
+- AppHost は TypeScript で執筆されるようになりました — **.NET SDK はもはや必要ありません** scaffold または Python スターターを実行します。
+- 生成される TypeScript AppHost は `addUvicornApp` を使用して FastAPI バックエンドを実行します。
+- 新しい `--use-redis-cache` オプションはオプションの Redis キャッシュリソースを持つテンプレートを scaffold する場合に使用可能です。
+
+```bash title="Aspire CLI — Python スターターを作成"
+# 基本的な Python スターター
+aspire new aspire-py-starter
+
+# Redis キャッシュ付きの Python スターター
+aspire new aspire-py-starter --use-redis-cache true
+```
+
+<Aside type="caution" title="破壊的な変更">
+  `dotnet new aspire-py-starter` はもはや利用可能ではありません。
+  古いテンプレートで作成された既存のプロジェクトは機能し続けますが、
+  新しいプロジェクトは今後 `aspire new aspire-py-starter` を使用する必要があります。
+</Aside>
+
+<LearnMore>
+  `aspire new` コマンドと使用可能なすべてのテンプレートの詳細は、
+  [aspire new コマンド](/ja/reference/cli/commands/aspire-new/)を参照してください。
+</LearnMore>
+
+## 🐛 バグ修正と完全な変更ログ
+
+このリリースでのバグ修正と小さな変更の完全なリストについては、[GitHub の Aspire 13.3 リリースノート](https://github.com/microsoft/aspire/releases/tag/v13.3.0)を参照してください。
+
+## 🙏 コミュニティ貢献
+
+Aspire はオープンに構築され、このリリースはあなたなしでは不可能でした。Aspire 13.3 を可能にするのに役立ったすべてのコミュニティ貢献者へ大きな感謝 — ライフサイクル Subscribe 拡張メソッドの [@afscrome](https://github.com/afscrome)、ドキュメントとテンプレートポーリッシュの [@spboyer](https://github.com/spboyer)、[@holystix04](https://github.com/holystix04)、[@tranhoangtu-it](https://github.com/tranhoangtu-it)。私たちは常に [コミュニティ貢献](/ja/community/contributors/)を見て興奮します！関心がある場合は、[貢献ガイド](/ja/community/contributor-guide/)をチェックしてください。
+
+## ⚠️ 破壊的な変更
+
+<span id="breaking-changes"></span>
+
+| 変更                                                                                                           | 移行                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `aspire publish` および `aspire deploy` での `--log-level` を `--pipeline-log-level` に改名                          | スクリプト/CI を `--pipeline-log-level` を使用するように更新します。                                                    |
+| `package.json` `engines.node` はもはや生成 Dockerfile Node イメージを選択するために使用されません                  | `WithDockerfile` またはプロジェクトの Dockerfile ベースイメージで Node バージョンを明示的に指定します。   |
+| Azure Network リソースで `NameOutput` を `NameOutputReference` に改名                                         | `*.NameOutput` を `*.NameOutputReference` に置き換えます。                                   |
+| `OtlpEndpointEnvironmentVariableName` プロパティを削除                                                           | 参照を削除します；OTLP エンドポイント env var は自動的に管理されます。                          |
+| **ダッシュボード MCP サーバーを削除** (`ASPIRE_DASHBOARD_MCP_ENDPOINT_URL` とともに)                                | `aspire agent init` で AppHost レベルの MCP サーバーを使用します。                                          |
+| `AksSkuTier` enum はもはや公開 AKS API の一部ではありません                                              | AKS コントロールプレーン SKU レベルはデフォルトで **Free**；`AksSkuTier` への参照を削除します。     |
+| `ASPIREEXTENSION001` JavaScript 診断 ID の名前を変更                                                     | [`ASPIREJAVASCRIPT001`](/ja/diagnostics/aspirejavascript001/) を使用します。                        |
+| Docker Swarm `UpdateConfig` プロパティタイプの変更                                                            | 生成/手書きの Compose オーバーライドを適宜更新します。                                        |
+| 非機能 `AddAndPublishPromptAgent` API および元の `AzurePromptAgentResource` の形式を削除                | 新しい `AddPromptAgent` API を使用 (作業中の `AzurePromptAgentResource` を返す)。              |
+| CLI テレメトリ JSON 出力スキーマが MCP ツール形式に準拠                                                | テレメトリ関連 CLI コマンドで `--format json` を利用している側の処理を更新します。                        |
+| `aspire init` はもはや AppHost をそれ自身で完全にワイヤアップしません                                                   | `aspire init` の後、AppHost ワイヤアップを完了するために `aspireify` エージェントスキルを実行します (例、Copilot CLI 経由)。      |
+| Kubernetes Ingress と Gateway ルーティングタイプが名前空間を移動                                                    | 直接参照する場合は `using` ディレクティブを更新します。                                           |
+| `dotnet new aspire-py-starter` を削除                                                           | Aspire CLI から `aspire new aspire-py-starter` を使用します。                             |
+| TypeScript AppHost `withEnvironment*` ヘルパーメソッドは非推奨                                                  | グループ化ヘルパーを統合 `withEnvironment(name, value)` API で置き換えます — 以下の表を参照。 |
+
+#### TypeScript `withEnvironment` 移行
+
+次のグループ化 `withEnvironment*` ヘルパーは統合 `withEnvironment(name, value)` API が非推奨です：
+
+| 古いメソッド (非推奨)                           | 置き換え                       |
+| ------------------------------------------------- | --------------------------------- |
+| `withEnvironmentExpression(name, expr)`           | `withEnvironment(name, expr)`     |
+| `withEnvironmentEndpoint(name, endpoint)`         | `withEnvironment(name, endpoint)` |
+| `withEnvironmentParameter(name, param)`           | `withEnvironment(name, param)`    |
+| `withEnvironmentConnectionString(name, resource)` | `withEnvironment(name, resource)` |
+| `withEnvironmentFromOutput(name, output)`         | `withEnvironment(name, output)`   |
+| `withEnvironmentFromKeyVaultSecret(name, secret)` | `withEnvironment(name, secret)`   |
+
+古いメソッドはまだ存在し `@deprecated` とマークされています — これらは今後のリリースで削除されます。
+
+#### ダッシュボード内 GitHub Copilot UI をエージェント開発に置き換え
+
+<span id="dashboard-ghcp-replacement"></span>
+<br />
+
+Aspire ダッシュボードに以前組み込まれていた GitHub Copilot チャット UI は、エージェント開発モデルに置き換わりました。ダッシュボード内の Copilot チャットは無効化され、代わりに AI コーディングエージェントは CLI と MCP ツールを介してあなたの Aspire アプリ全体に接続するようになりました。これはエージェント構造化ログ、分散トレース、リソースステータス、コンソール出力、ソースコード全体に完全なコンテキストを提供します。
+
+エージェントはエンドツーエンド問題を診断し、実際のコードベースに修正を提案し、テレメトリを基にアクションを実行できるようになりました。古いダッシュボード UI は GitHub Copilot in Visual Studio と VS Code のみをサポートしていました；新しいアプローチは **GitHub Copilot、Claude、Cursor**、およびスキルまたは MCP をサポートする他の AI コーディングエージェントと動作します。
+
+単一のコマンドでエージェント開発を設定します：
+
+```bash title="Aspire CLI — AI エージェント設定を初期化"
+aspire agent init
+```
+
+`aspire agent init` コマンドは開発環境を検出し、サポートされた AI コーディングエージェント向けのスキルと MCP ツールを設定します。エージェントは、どのように AppHost を起動したかに関係なく — `aspire run`、VS Code、Visual Studio のいずれかで — CLI を介してダッシュボードに接続し、同じ AI 支援デバッグ体験を得られます。
+
+詳細設定手順については、[AI コーディングエージェントを使用](/ja/get-started/ai-coding-agents/) および [ダッシュボードと AI コーディングエージェント](/ja/dashboard/ai-coding-agents/)を参照してください。以前の特定の Copilot ダッシュボードシナリオに依存していて、新しいアプローチで何ら対応されない場合は、[GitHub で問題を報告](https://github.com/dotnet/aspire/issues) してください。
+
+### Aspire 13.2 から 13.3 への移行
+
+<Steps>
+
+1. **CLI を更新** — `aspire update --self` を実行します。
+2. **プロジェクトを更新** — リポジトリのルートから `aspire update` を実行します。
+3. **`--log-level` 使用法を監査** CI/CD パイプラインで `--pipeline-log-level` に改名します。
+4. **`NameOutput`、`AddAndPublishPromptAgent`、`AksSkuTier` を AppHost コードで検索** し、上の表に従って更新します。
+5. **`dotnet new aspire-py-starter`を置き換える** 新しい Python スターター `aspire new aspire-py-starter` プロジェクト。
+6. **`aspire agent init` を再実行** 以前ダッシュボード MCP サーバーに依存していた場合。
+7. **Node バージョンを Dockerfile で再固定** `package.json` `engines.node` に依存していた場合。
+
+</Steps>
+
+**何か素晴らしいものを作成してください。** Aspire 13.3 でのあなたの経験についてお聞かせください — [GitHub](https://github.com/microsoft/aspire/issues) で作ったものを共有するか、[Discord](https://aka.ms/aspire-discord) で交流しましょう。
