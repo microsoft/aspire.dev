@@ -219,6 +219,26 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
     messageContains: "'\"openai/gpt-4o-mini\"' is not assignable to parameter of type 'GitHubModelName'",
     label: 'GitHubModelName literal union outdated',
   },
+
+  // 5. AzureBicepResource.withParameter only emits the last overload
+  // (`{ value?: EndpointReference }`), so calls with string / string[] /
+  // ParameterResource / BicepOutputReference / ReferenceExpression / connection-string
+  // values fail twoslash even though the runtime API supports them
+  // (verified by tests/PolyglotAppHosts/Aspire.Hosting.Azure/TypeScript/apphost.ts).
+  {
+    page: 'integrations/cloud/azure/customize-resources.mdx',
+    blockIndex: 5,
+    code: 2769,
+    messageContains: 'No overload matches this call',
+    label: 'withParameter overloads collapsed (string value)',
+  },
+  {
+    page: 'integrations/cloud/azure/customize-resources.mdx',
+    blockIndex: 6,
+    code: 2769,
+    messageContains: 'No overload matches this call',
+    label: 'withParameter overloads collapsed (ParameterResource value)',
+  },
 ];
 
 /** Match a diagnostic against the allowlist. */
