@@ -1,10 +1,9 @@
 ---
-title: Go integration
-description: Learn how to use the Aspire Go hosting integration to orchestrate Go applications in an Aspire solution.
+title: Set up Go apps in the AppHost
+description: Learn how to use the Aspire Go hosting integration to orchestrate and configure Go applications in an Aspire solution.
 ---
 
 import { TabItem, Tabs } from '@astrojs/starlight/components';
-import InstallPackage from '@components/InstallPackage.astro';
 import LearnMore from '@components/LearnMore.astro';
 import ThemeImage from '@components/ThemeImage.astro';
 import goIcon from '@assets/icons/go-icon.png';
@@ -20,7 +19,9 @@ import goLightIcon from '@assets/icons/go-light-icon.png';
   classOverride="float-inline-left icon"
 />
 
-The Aspire Go hosting integration enables you to run Go applications alongside your Aspire projects in the AppHost. The integration runs Go apps with the local Go toolchain, wires them into the Aspire app model, supports service discovery and endpoint configuration, and can generate publish-time Dockerfiles for deployment.
+This article is the reference for the Aspire Go hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to orchestrate Go applications in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Go integration, start with the [Get started with the Go integration](/integrations/frameworks/go/go-get-started/) guide.
 
 :::caution[Community Toolkit package deprecated]
 As of Aspire 13.4, Go hosting support is available in the official `Aspire.Hosting.Go` package. The previous `CommunityToolkit.Aspire.Hosting.Golang` package is deprecated because Go support has graduated into core Aspire. Use `Aspire.Hosting.Go` and `AddGoApp` / `addGoApp` for new Aspire 13.4+ applications.
@@ -30,11 +31,56 @@ As of Aspire 13.4, Go hosting support is available in the official `Aspire.Hosti
 Install the [Go toolchain](https://go.dev/dl/) and make sure the `go` command is available on your `PATH`. Install [Delve](https://github.com/go-delve/delve) and make sure the `dlv` command is available on your `PATH` when you use headless Delve debugging.
 :::
 
-## Hosting integration
+## Installation
 
-To access the types and APIs for expressing Go resources in your [`AppHost`](/get-started/app-host/) project, install the [📦 Aspire.Hosting.Go](https://www.nuget.org/packages/Aspire.Hosting.Go) NuGet package:
+To start building an Aspire app that uses Go, install the [📦 Aspire.Hosting.Go](https://www.nuget.org/packages/Aspire.Hosting.Go) NuGet package:
 
-<InstallPackage packageName="Aspire.Hosting.Go" />
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add go
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Go@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Go" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add go
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Go hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Go": "13.4.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Add Go app
 
@@ -43,7 +89,7 @@ Use `AddGoApp` / `addGoApp` to add a Go application to your AppHost. By default,
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
@@ -56,7 +102,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -74,7 +120,7 @@ await builder.build().run();
 The method accepts the following common parameters:
 
 - **name**: The name of the resource in the Aspire dashboard.
-- **appDirectory**: The path to the Go module root. This directory usually contains `go.mod` and is also the Docker build context for `aspire publish`.
+- **appDirectory**: The path to the Go module root. This directory usually contains `go.mod` and is also the Docker build context for deployment targets that emit container build artifacts.
 - **packagePath**: The Go package to run or build relative to `appDirectory`. Defaults to `"."`.
 
 Go applications commonly read the `PORT` environment variable set by `WithHttpEndpoint` / `withHttpEndpoint`:
@@ -124,7 +170,7 @@ Configure the AppHost to run `go run ./cmd/server` from `./api`:
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp(
@@ -139,7 +185,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -164,7 +210,7 @@ Go build-time options are parameters on `AddGoApp` / `addGoApp`. Aspire passes t
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp(
@@ -182,7 +228,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -215,7 +261,7 @@ Use `WithAppArgs` / `withAppArgs` to pass arguments to the Go program after the 
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
@@ -228,7 +274,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -252,7 +298,7 @@ The Go integration can run common module and static analysis commands before the
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
@@ -268,7 +314,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -304,7 +350,7 @@ For GoLand, VS Code attach mode, or another Delve-compatible client, use `WithDe
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
@@ -317,7 +363,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -361,7 +407,7 @@ For private modules, use `WithGoPrivate` / `withGoPrivate` to configure the gene
 <Tabs syncKey='aspire-lang'>
 <TabItem id='csharp' label='C#'>
 
-```csharp title="AppHost.cs"
+```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddGoApp("api", "./api")
@@ -373,7 +419,7 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="apphost.ts"
+```typescript title="TypeScript — apphost.ts"
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -417,5 +463,6 @@ aspire new aspire-go-starter
 
 - [Go documentation](https://go.dev/doc/)
 - [Delve debugger](https://github.com/go-delve/delve)
+- [Get started with the Go integration](/integrations/frameworks/go/go-get-started/)
 - [Aspire integrations overview](/integrations/overview/)
 - [Aspire GitHub repo](https://github.com/microsoft/aspire)
