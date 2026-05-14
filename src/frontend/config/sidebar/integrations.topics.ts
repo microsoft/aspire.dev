@@ -1248,7 +1248,7 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
             },
           ],
         },
-        { 
+        {
           label: 'SQLite',
           collapsed: true,
           items: [
@@ -1338,7 +1338,20 @@ export const integrationTopics: StarlightSidebarTopicsUserConfig = {
           ],
         },
         { label: 'Dapr', slug: 'integrations/frameworks/dapr' },
-        { label: 'Go', slug: 'integrations/frameworks/go-apps' },
+        {
+          label: 'Go',
+          collapsed: true,
+          items: [
+            {
+              label: 'Get started',
+              slug: 'integrations/frameworks/go/go-get-started',
+            },
+            {
+              label: 'Set up Go apps in the AppHost',
+              slug: 'integrations/frameworks/go/go-host',
+            },
+          ],
+        },
         { label: 'Java', slug: 'integrations/frameworks/java' },
         {
           label: 'JavaScript and Node.js',
