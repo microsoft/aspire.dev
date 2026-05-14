@@ -33,6 +33,7 @@ The `aspire doctor` command runs a series of diagnostic checks to verify that yo
 
 This command is useful for troubleshooting when you encounter issues with Aspire or when setting up a new development environment. The checks are grouped by category:
 
+- **Aspire checks**: Reports the current Aspire CLI version, whether a newer CLI version is available (and suggests `aspire update` when one is), and the AppHost Aspire SDK version when an AppHost project is present in the current directory
 - **SDK checks**: Verifies .NET SDK installation and version requirements
 - **Container checks**: Validates container runtime (Docker and/or Podman) availability, running status, and version. Reports which runtime is active and why (explicit configuration, auto-detected default, or auto-detected only runtime running)
 - **Environment checks**: Validates environment variables and other settings, including the JavaScript toolchain required by TypeScript AppHosts (npm, pnpm, Yarn, or Bun)
@@ -81,21 +82,38 @@ The following options are available:
 
 ## Sample output
 
-When you run `aspire doctor`, you see output similar to the following:
+When you run `aspire doctor` from a directory containing a .NET AppHost project, you see output similar to the following:
 
 ```bash title="Aspire CLI"
+Checking Aspire environment...
+
 Aspire Environment Check
 ========================
 
+Aspire
+  ✅ Aspire CLI version 13.4.0
+  ✅ AppHost version 13.4.0 (MyApp.AppHost.csproj)
+
 .NET SDK
-✅ .NET SDK 10.0.100 or later is installed
+  ✅ .NET 10.0.203 installed (arm64)
 
 Container Runtime
-  ✅ Docker v27.3.1: running (auto-detected (default)) ← active
-  ✅ Podman v5.3.0: installed (available)
+  ✅ Docker v28.5.1: running (auto-detected (default)) ← active
 
 Environment
-✅ HTTPS development certificate is trusted
+  ✅ HTTPS development certificate is trusted
+
+Summary: 4 passed, 0 warnings, 0 failed
+For detailed prerequisites: https://aka.ms/aspire-prerequisites
+```
+
+When the CLI is out of date, the Aspire section shows a warning with the latest available version and a suggestion to run `aspire update`:
+
+```bash title="Aspire CLI"
+Aspire
+  ⚠️ Aspire CLI version 13.4.0-dev is out of date. Latest version is 13.4.0-preview.1.26262.10
+       Run 'aspire update' to update Aspire CLI.
+  ✅ AppHost version 13.4.0 (MyApp.AppHost.csproj)
 ```
 
 When only Podman is running:
@@ -135,6 +153,25 @@ When using the `--format Json` option, the output includes a structured response
 {
   "checks": [
     {
+      "category": "aspire",
+      "name": "cli-version",
+      "status": "pass",
+      "message": "Aspire CLI version 13.4.0",
+      "metadata": {
+        "currentVersion": "13.4.0"
+      }
+    },
+    {
+      "category": "apphost",
+      "name": "apphost-version",
+      "status": "pass",
+      "message": "AppHost version 13.4.0 (MyApp.AppHost.csproj)",
+      "metadata": {
+        "appHostPath": "MyApp.AppHost.csproj",
+        "version": "13.4.0"
+      }
+    },
+    {
       "category": "sdk",
       "message": ".NET SDK 10.0.100 or later is installed",
       "status": "Pass"
@@ -147,6 +184,23 @@ When using the `--format Json` option, the output includes a structured response
   }
 }
 ```
+
+When the CLI is out of date, the `cli-version` check has `"status": "warn"` and the `metadata` includes the latest available version:
+
+```json
+{
+  "category": "aspire",
+  "name": "cli-version",
+  "status": "warn",
+  "message": "Aspire CLI version 13.4.0-dev is out of date. Latest version is 13.4.0-preview.1.26262.10",
+  "metadata": {
+    "currentVersion": "13.4.0-dev",
+    "latestVersion": "13.4.0-preview.1.26262.10"
+  }
+}
+```
+
+The `apphost-version` check is only present in the JSON output when an AppHost project is discovered in the current directory.
 
 ## See also
 
