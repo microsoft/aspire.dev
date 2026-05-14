@@ -115,7 +115,7 @@ const currentTopic = effectiveTopics.find((topic) => topic.isCurrent) ?? effecti
 const hasTopicSidebar = Boolean(
   !isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic
 );
-const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 0);
+const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 ---
 
 <div
@@ -128,177 +128,92 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     isApiRefPage ? (
       <>
         <div class="api-sidebar-sticky not-content">
-          <div
-            class:list={[
-              'sidebar-sticky-toolbar',
-              'api-sidebar-toolbar',
-              { 'sidebar-sticky-toolbar-topic-stack': hasSharedTopicDropdown },
-            ]}
-          >
-            <div class="sidebar-filter">
-              <div class="sidebar-filter-wrap">
+          {hasTopicsList && (
+            <ul
+              class="starlight-sidebar-topics topics-sidebar-list"
+              data-tour-target="topics-dropdown"
+              data-tour-step="topics-dropdown"
+            >
+              {effectiveTopics.map((topic) => (
+                <li>
+                  <a
+                    href={topic.link}
+                    class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                  >
+                    {topic.icon && (
+                      <div class="starlight-sidebar-topics-icon">
+                        <Icon name={topic.icon as any} />
+                      </div>
+                    )}
+                    <div>
+                      {topic.label}
+                      {topic.badge && (
+                        <Badge
+                          class="starlight-sidebar-topics-badge"
+                          text={topic.badge.text}
+                          variant={topic.badge.variant}
+                        />
+                      )}
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div class="sidebar-filter sidebar-filter-row">
+            <div class="sidebar-filter-wrap">
+              <svg
+                class="sidebar-filter-icon"
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <label class="sr-only" for="sidebar-filter-input">
+                Filter sidebar
+              </label>
+              <input
+                type="text"
+                id="sidebar-filter-input"
+                class="sidebar-filter-input"
+                placeholder="Filter sidebar…"
+                autocomplete="off"
+                aria-label="Filter sidebar entries"
+              />
+              <button
+                type="button"
+                id="sidebar-filter-clear"
+                class="sidebar-filter-clear"
+                aria-label="Clear filter"
+                hidden
+              >
                 <svg
-                  class="sidebar-filter-icon"
                   aria-hidden="true"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="2.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-                <label class="sr-only" for="sidebar-filter-input">
-                  Filter sidebar
-                </label>
-                <input
-                  type="text"
-                  id="sidebar-filter-input"
-                  class="sidebar-filter-input"
-                  placeholder="Filter sidebar…"
-                  autocomplete="off"
-                  aria-label="Filter sidebar entries"
-                />
-                <button
-                  type="button"
-                  id="sidebar-filter-clear"
-                  class="sidebar-filter-clear"
-                  aria-label="Clear filter"
-                  hidden
-                >
-                  <svg
-                    aria-hidden="true"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
-            </div>
-            <button
-              type="button"
-              class="sidebar-collapse-btn"
-              id="sidebar-collapse-btn"
-              data-tour-target="sidebar-toggle"
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <>
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="M9 3v18m7-6l-3-3l3-3" />
-                </>
-              </svg>
-            </button>
-          </div>
-          {hasSharedTopicDropdown && (
-            <div
-              class="sidebar-dropdown-shell topic-selector-dropdown"
-              data-sidebar-dropdown
-              data-tour-target="topics-dropdown"
-              data-tour-step="topics-dropdown"
-            >
-              <button
-                type="button"
-                class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
-                id="topic-sidebar-trigger"
-                aria-haspopup="menu"
-                aria-expanded="false"
-                data-dropdown-trigger
-              >
-                {currentTopic?.icon && (
-                  <span class="starlight-sidebar-topics-icon topic-selector-icon">
-                    <Icon name={currentTopic.icon as any} />
-                  </span>
-                )}
-                <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
-                  <span class="sidebar-dropdown-trigger-label topic-selector-label">
-                    {currentTopic?.label}
-                  </span>
-                  {currentTopic?.badge && (
-                    <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
-                      <Badge
-                        class="starlight-sidebar-topics-badge"
-                        text={currentTopic.badge.text}
-                        variant={currentTopic.badge.variant}
-                      />
-                    </span>
-                  )}
-                </span>
-                <svg
-                  class="sidebar-dropdown-caret"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 7.5L10 12.5L15 7.5" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
-              <div
-                class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
-                hidden
-                data-dropdown-panel
-              >
-                <ul
-                  class="starlight-sidebar-topics starlight-sidebar-topics-menu"
-                  role="menu"
-                  aria-labelledby="topic-sidebar-trigger"
-                >
-                  {effectiveTopics.map((topic) => (
-                    <li role="none">
-                      <a
-                        href={topic.link}
-                        class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
-                        role="menuitem"
-                      >
-                        {topic.icon && (
-                          <div class="starlight-sidebar-topics-icon">
-                            <Icon name={topic.icon as any} />
-                          </div>
-                        )}
-                        <div>
-                          {topic.label}
-                          {topic.badge && (
-                            <Badge
-                              class="starlight-sidebar-topics-badge"
-                              text={topic.badge.text}
-                              variant={topic.badge.variant}
-                            />
-                          )}
-                        </div>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
-          )}
+            <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+          </div>
           <div
-            class="sidebar-filter-empty sidebar-filter-empty-below-dropdown"
+            class="sidebar-filter-empty"
             id="sidebar-filter-empty"
             aria-labelledby="sidebar-filter-empty-copy"
             hidden
@@ -323,170 +238,90 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     ) : hasTopicSidebar ? (
       <>
         <div class="topic-sidebar-sticky not-content">
-          <div class="topic-sidebar-toolbar">
-            <div class="sidebar-filter">
-              <div class="sidebar-filter-wrap">
+          <ul
+            class="starlight-sidebar-topics topics-sidebar-list"
+            data-tour-target="topics-dropdown"
+            data-tour-step="topics-dropdown"
+          >
+            {effectiveTopics.map((topic) => (
+              <li>
+                <a
+                  href={topic.link}
+                  class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                >
+                  {topic.icon && (
+                    <div class="starlight-sidebar-topics-icon">
+                      <Icon name={topic.icon as any} />
+                    </div>
+                  )}
+                  <div>
+                    {topic.label}
+                    {topic.badge && (
+                      <Badge
+                        class="starlight-sidebar-topics-badge"
+                        text={topic.badge.text}
+                        variant={topic.badge.variant}
+                      />
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div class="sidebar-filter sidebar-filter-row">
+            <div class="sidebar-filter-wrap">
+              <svg
+                class="sidebar-filter-icon"
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <label class="sr-only" for="sidebar-filter-input">
+                Filter sidebar
+              </label>
+              <input
+                type="text"
+                id="sidebar-filter-input"
+                class="sidebar-filter-input"
+                placeholder="Filter sidebar…"
+                autocomplete="off"
+                aria-label="Filter sidebar entries"
+              />
+              <button
+                type="button"
+                id="sidebar-filter-clear"
+                class="sidebar-filter-clear"
+                aria-label="Clear filter"
+                hidden
+              >
                 <svg
-                  class="sidebar-filter-icon"
                   aria-hidden="true"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="2.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-                <label class="sr-only" for="sidebar-filter-input">
-                  Filter sidebar
-                </label>
-                <input
-                  type="text"
-                  id="sidebar-filter-input"
-                  class="sidebar-filter-input"
-                  placeholder="Filter sidebar…"
-                  autocomplete="off"
-                  aria-label="Filter sidebar entries"
-                />
-                <button
-                  type="button"
-                  id="sidebar-filter-clear"
-                  class="sidebar-filter-clear"
-                  aria-label="Clear filter"
-                  hidden
-                >
-                  <svg
-                    aria-hidden="true"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+              </button>
             </div>
-            <button
-              type="button"
-              class="sidebar-collapse-btn"
-              id="topic-sidebar-collapse-btn"
-              data-tour-target="sidebar-toggle"
-              data-tour-step="sidebar-toggle"
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <>
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="M9 3v18m7-6l-3-3l3-3" />
-                </>
-              </svg>
-            </button>
+            <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
           </div>
           <div
-            class="sidebar-dropdown-shell topic-selector-dropdown"
-            data-sidebar-dropdown
-            data-tour-target="topics-dropdown"
-            data-tour-step="topics-dropdown"
-          >
-            <button
-              type="button"
-              class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
-              id="topic-sidebar-trigger"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              data-dropdown-trigger
-            >
-              {currentTopic?.icon && (
-                <span class="starlight-sidebar-topics-icon topic-selector-icon">
-                  <Icon name={currentTopic.icon as any} />
-                </span>
-              )}
-              <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
-                <span class="sidebar-dropdown-trigger-label topic-selector-label">
-                  {currentTopic?.label}
-                </span>
-                {currentTopic?.badge && (
-                  <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
-                    <Badge
-                      class="starlight-sidebar-topics-badge"
-                      text={currentTopic.badge.text}
-                      variant={currentTopic.badge.variant}
-                    />
-                  </span>
-                )}
-              </span>
-              <svg
-                class="sidebar-dropdown-caret"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M5 7.5L10 12.5L15 7.5" />
-              </svg>
-            </button>
-            <div
-              class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
-              hidden
-              data-dropdown-panel
-            >
-              <ul
-                class="starlight-sidebar-topics starlight-sidebar-topics-menu"
-                role="menu"
-                aria-labelledby="topic-sidebar-trigger"
-              >
-                {effectiveTopics.map((topic) => (
-                  <li role="none">
-                    <a
-                      href={topic.link}
-                      class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
-                      role="menuitem"
-                    >
-                      {topic.icon && (
-                        <div class="starlight-sidebar-topics-icon">
-                          <Icon name={topic.icon as any} />
-                        </div>
-                      )}
-                      <div>
-                        {topic.label}
-                        {topic.badge && (
-                          <Badge
-                            class="starlight-sidebar-topics-badge"
-                            text={topic.badge.text}
-                            variant={topic.badge.variant}
-                          />
-                        )}
-                      </div>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div
-            class="sidebar-filter-empty sidebar-filter-empty-below-dropdown"
+            class="sidebar-filter-empty"
             id="sidebar-filter-empty"
             aria-labelledby="sidebar-filter-empty-copy"
             hidden
@@ -524,58 +359,109 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
 </div>
 {
   isApiRefPage && (
-    <button
-      type="button"
-      class="sidebar-expand-btn"
-      id="sidebar-expand-btn"
-      data-tour-target="sidebar-toggle"
-      aria-label="Expand sidebar"
-      title="Expand sidebar"
-      hidden
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        aria-hidden="true"
+    <>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        id="sidebar-collapse-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Collapse sidebar"
+        title="Collapse sidebar"
       >
-        <>
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18m5-12l3 3l-3 3" />
-        </>
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m7-6l-3-3l3-3" />
+          </>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="sidebar-expand-btn"
+        id="sidebar-expand-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        hidden
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m5-12l3 3l-3 3" />
+          </>
+        </svg>
+      </button>
+    </>
   )
 }
 {
   hasTopicSidebar && (
-    <button
-      type="button"
-      class="sidebar-expand-btn"
-      id="topic-sidebar-expand-btn"
-      data-tour-target="sidebar-toggle"
-      aria-label="Expand sidebar"
-      title="Expand sidebar"
-      hidden
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        aria-hidden="true"
+    <>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        id="topic-sidebar-collapse-btn"
+        data-tour-target="sidebar-toggle"
+        data-tour-step="sidebar-toggle"
+        aria-label="Collapse sidebar"
+        title="Collapse sidebar"
       >
-        <>
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18m5-12l3 3l-3 3" />
-        </>
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m7-6l-3-3l3-3" />
+          </>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="sidebar-expand-btn"
+        id="topic-sidebar-expand-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        hidden
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m5-12l3 3l-3 3" />
+          </>
+        </svg>
+      </button>
+    </>
   )
 }
 
@@ -657,46 +543,83 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     --sidebar-control-height: 2.5rem;
   }
 
-  /* Sidebar sticky wrappers */
-  .api-sidebar-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--sl-color-bg-sidebar);
-    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
-    padding-inline: var(--sl-sidebar-pad-x);
-  }
-
-  .sidebar-sticky-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--sl-color-hairline-light);
-  }
-
-  .sidebar-sticky-toolbar-topic-stack {
-    padding-bottom: 0.35rem;
-    border-bottom: 0;
-  }
-
+  /* Sidebar header wrappers — topics list + filter scroll along with the
+     rest of the sidebar content (no sticky positioning). */
+  .api-sidebar-sticky,
   .topic-sidebar-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--sl-color-bg-sidebar);
-    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
-    padding-inline: var(--sl-sidebar-pad-x);
+    padding-top: 0.75rem;
   }
 
-  .topic-sidebar-toolbar {
+  /* Always-visible topics list sitting at the top of the sidebar. */
+  .topics-sidebar-list {
+    list-style: none;
+    margin: 0 0 0.75rem 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .topics-sidebar-list :global(li) {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .topics-sidebar-list :global(a) {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    padding: 0.75rem 0 0.35rem;
+    padding: 0.35rem 0.8rem;
+    font-size: var(--sl-text-sm, 0.875rem);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--sl-color-white);
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+  }
+
+  .topics-sidebar-list :global(a:hover),
+  .topics-sidebar-list :global(a:focus-visible) {
+    color: var(--sl-color-accent-high);
+    background-color: var(--sl-color-gray-6);
+  }
+
+  .topics-sidebar-list :global(a.starlight-sidebar-topics-current) {
+    color: var(--sl-color-accent-high);
+    background: var(--sidebar-dropdown-selected-bg);
+    border-color: var(--sidebar-dropdown-selected-border);
+  }
+
+  :global([data-theme='light']) .topics-sidebar-list :global(a.starlight-sidebar-topics-current) {
+    color: var(--sl-color-accent);
+  }
+
+  .topics-sidebar-list :global(.starlight-sidebar-topics-icon) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem;
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .topics-sidebar-list :global(a:hover) :global(.starlight-sidebar-topics-icon),
+  .topics-sidebar-list :global(a:focus-visible) :global(.starlight-sidebar-topics-icon),
+  .topics-sidebar-list :global(a.starlight-sidebar-topics-current) :global(.starlight-sidebar-topics-icon) {
+    background-color: var(--sl-color-text-accent);
+    border-color: var(--sl-color-text-accent);
+    color: var(--sl-color-text-invert);
+  }
+
+  .topics-sidebar-list :global(.starlight-sidebar-topics-badge) {
+    margin-inline-start: 0.25em;
+  }
+
+  /* Filter row sits full-width directly below the topics list. */
+  .sidebar-filter-row {
+    margin-bottom: 0.75rem;
   }
 
   .sidebar-dropdown-shell {
@@ -1084,10 +1007,6 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     color: var(--sl-color-text);
   }
 
-  .sidebar-filter-empty-below-dropdown {
-    margin-top: 0;
-  }
-
   .sidebar-filter-empty[hidden] {
     display: none;
   }
@@ -1178,60 +1097,71 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
 
   /* ── Sidebar collapse / expand ────────────────────────────────── */
 
-  .sidebar-collapse-btn {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 0.5rem;
-    background: none;
-    border: none;
-    border-radius: 0.375rem;
-    color: var(--sl-color-text-accent);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition:
-      color 0.15s,
-      background-color 0.15s;
-  }
-  .sidebar-collapse-btn:hover {
-    color: var(--sl-color-text);
-    background-color: var(--sl-color-gray-6);
-  }
-  .sidebar-collapse-btn svg {
-    width: 100%;
-    height: 100%;
-  }
-
+  /* Anchor the collapse/expand toggle to the sidebar's right edge so it
+     reads as a tab projecting from the sidebar. The button stays visible
+     (position: fixed) while the sidebar's own contents (topics, filter,
+     entries) scroll independently. When the sidebar is collapsed
+     (--sl-sidebar-width: 0), the button slides flush to the viewport
+     edge. When an announcement banner is visible the JS controller
+     writes --aspire-banner-height on <html>, pushing the button below
+     the banner. */
+  .sidebar-collapse-btn,
   .sidebar-expand-btn {
+    position: fixed;
+    top: calc(
+      var(--sl-nav-height, 3.5rem) + var(--aspire-banner-height, 0px) + 0.75rem
+    );
+    left: var(--sl-sidebar-width);
     display: flex;
     align-items: center;
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    margin: 0.75rem auto 0;
-    padding: 0.5rem;
-    background: none;
-    border: none;
-    border-radius: 0.375rem;
+    padding: 0.55rem;
+    background: var(--sl-color-bg-sidebar);
+    border: 1px solid var(--sl-color-hairline-light);
+    /* Project from the sidebar's right edge — flat on the left, rounded
+       on the right. When collapsed the button sits at left:0 and the
+       flat left edge butts cleanly against the viewport border. */
+    border-left-color: transparent;
+    border-radius: 0 0.375rem 0.375rem 0;
     color: var(--sl-color-text-accent);
     cursor: pointer;
+    z-index: 20;
+    box-shadow: 2px 1px 3px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
     transition:
       color 0.15s,
-      background-color 0.15s;
+      background-color 0.15s,
+      box-shadow 0.15s,
+      left 0.25s ease,
+      top 0.25s ease;
   }
-  .sidebar-expand-btn[hidden] {
-    display: none;
-  }
+  .sidebar-collapse-btn:hover,
   .sidebar-expand-btn:hover {
     color: var(--sl-color-text);
     background-color: var(--sl-color-gray-6);
+    box-shadow: 2px 2px 6px color-mix(in srgb, var(--sl-color-black) 22%, transparent);
   }
+  .sidebar-collapse-btn:focus-visible,
+  .sidebar-expand-btn:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .sidebar-collapse-btn svg,
   .sidebar-expand-btn svg {
     width: 100%;
     height: 100%;
+  }
+  .sidebar-collapse-btn[hidden],
+  .sidebar-expand-btn[hidden] {
+    display: none;
+  }
+
+  /* When the sidebar is collapsed, hide the collapse button (the expand
+     button takes its place). The data-* attributes live on <html>. */
+  :global(html[data-sidebar-collapsed]) #sidebar-collapse-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-collapse-btn {
+    display: none !important;
   }
 
   /* Hide collapse/expand on mobile-style sidebar (< 72rem for API pages) */
@@ -1243,10 +1173,6 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
   }
 
   @media (max-width: 50rem) {
-    .topic-sidebar-toolbar {
-      gap: 0.5rem;
-    }
-
     .sidebar-dropdown-trigger,
     .sidebar-dropdown-option {
       padding-inline: 0.7rem;
@@ -1800,13 +1726,57 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     document.addEventListener('DOMContentLoaded', initTopicSidebarUi);
     document.addEventListener('astro:after-swap', initTopicSidebarUi);
     document.addEventListener('astro:page-load', focusSidebarFilter);
+    document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
+    document.addEventListener('astro:after-swap', initBannerHeightTracking);
   }
   // Also init immediately in case DOMContentLoaded already fired
   if (document.readyState !== 'loading') initSidebarFilter();
   if (document.readyState !== 'loading') initSidebarCollapse();
   if (document.readyState !== 'loading') initTopicSidebarUi();
+  if (document.readyState !== 'loading') initBannerHeightTracking();
   // Defer focus slightly to run after Astro/Starlight's own DOM setup
   requestAnimationFrame(() => focusSidebarFilter());
+
+  /* ── Banner height tracking ───────────────────────────────────── */
+
+  /**
+   * Measure the announcement banner's height (if present and open) and
+   * write it to `--aspire-banner-height` on the root element so floating
+   * UI (the sidebar collapse/expand toggle) can offset itself below it.
+   * Updates on dismiss/state changes and on window resize.
+   */
+  function initBannerHeightTracking() {
+    const root = document.documentElement;
+    const update = () => {
+      const banner = document.querySelector('.sl-banner') as HTMLElement | null;
+      const open = banner && banner.dataset.bannerState !== 'closing' && !banner.hidden;
+      const height = open ? Math.round(banner.getBoundingClientRect().height) : 0;
+      if (height > 0) {
+        root.style.setProperty('--aspire-banner-height', `${height}px`);
+      } else {
+        root.style.removeProperty('--aspire-banner-height');
+      }
+    };
+
+    update();
+
+    const banner = document.querySelector('.sl-banner') as HTMLElement | null;
+    if (banner) {
+      // Track state changes (open → closing) emitted by Banner.astro's controller
+      const mo = new MutationObserver(update);
+      mo.observe(banner, { attributes: true, attributeFilter: ['data-banner-state', 'hidden'] });
+      // Track size changes too (e.g. responsive line-wrap)
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(update);
+        ro.observe(banner);
+      }
+    }
+
+    if (!(window as any).__bannerHeightResizeBound) {
+      (window as any).__bannerHeightResizeBound = true;
+      window.addEventListener('resize', update);
+    }
+  }
 
   /* ── Sticky sidebar offsets & auto-scroll ─────────────────────── */
 

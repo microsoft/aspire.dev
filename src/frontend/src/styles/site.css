@@ -1072,11 +1072,11 @@ li a.external-link::after {
 }
 
 :root:has(.topics-sidebar[data-api-ref])[data-sidebar-collapsed] {
-  --sl-sidebar-width: 3.75rem;
+  --sl-sidebar-width: 0rem;
 }
 
 :root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
-  --sl-sidebar-width: 3.75rem;
+  --sl-sidebar-width: 0rem;
 }
 
 :root[data-has-toc] {
@@ -1105,22 +1105,20 @@ li a.external-link::after {
     display: none !important;
   }
 
-  /* Remove internal padding so the expand button can center in the full strip */
-  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content {
-    padding-inline: 0;
-  }
-
-  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar .sidebar-content {
-    padding-inline: 0;
-  }
-
-  /* The sidebar border when collapsed */
-  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar {
-    border-inline-end: 1px solid var(--sl-color-hairline-light);
-  }
-
+  /* When fully collapsed, the sidebar pane has width 0 but must stay in
+     the DOM (display: block) so the floating expand button — which is a
+     descendant — continues to render. Drop the pane's right border and
+     padding so no residual chrome is visible. */
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar,
   :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
-    border-inline-end: 1px solid var(--sl-color-hairline-light);
+    border-inline-end: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  :root[data-sidebar-collapsed]:has(.topics-sidebar[data-api-ref]) #starlight__sidebar .sidebar-content,
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar .sidebar-content {
+    padding: 0 !important;
   }
 
 }
@@ -1246,6 +1244,19 @@ it configures at which point the mobile toc should be replaced with the normal t
 @media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
+  }
+
+  /* Give the sidebar its own view-transition group and disable its animation
+     so it doesn't participate in the cross-fade between topic pages. Without
+     this, sidebar items briefly flash an unstyled border during the swap. */
+  nav.sidebar {
+    view-transition-name: aspire-sidebar;
+  }
+
+  ::view-transition-old(aspire-sidebar),
+  ::view-transition-new(aspire-sidebar) {
+    animation: none !important;
+    mix-blend-mode: normal;
   }
 }
 
