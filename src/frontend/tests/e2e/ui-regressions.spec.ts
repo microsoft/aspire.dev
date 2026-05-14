@@ -341,7 +341,7 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
 });
 
-test('API sidebar filter empty state and topic dropdown controls respond correctly', async ({
+test('API sidebar filter empty state and topics list controls respond correctly', async ({
   page,
 }) => {
   test.slow();
@@ -361,16 +361,14 @@ test('API sidebar filter empty state and topic dropdown controls respond correct
   const emptyState = page.locator('#sidebar-filter-empty');
   const emptyCopy = page.locator('#sidebar-filter-empty-copy');
   const emptyAction = page.locator('#sidebar-filter-empty-action');
-  const topicTrigger = page.locator('#topic-sidebar-trigger');
-  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+  const topicsList = page.locator('.topics-sidebar .starlight-sidebar-topics').first();
 
-  await topicTrigger.click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(topicPanel).toBeVisible();
-
-  await page.keyboard.press('Escape');
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(topicPanel).toBeHidden();
+  // Topics are now always visible as a list at the top of the sidebar
+  // (the previous dropdown trigger/panel were removed in the layout
+  // restructure). The list itself should be present and contain at least
+  // one topic link.
+  await expect(topicsList).toBeVisible();
+  await expect(topicsList.locator('a')).not.toHaveCount(0);
 
   await filterInput.fill('zzzz-sidebar-no-match');
 
@@ -403,16 +401,14 @@ test('topic sidebar custom controls persist collapse state and filter reset on r
   const emptyState = page.locator('#sidebar-filter-empty');
   const collapseButton = page.locator('#topic-sidebar-collapse-btn');
   const expandButton = page.locator('#topic-sidebar-expand-btn');
-  const topicTrigger = page.locator('#topic-sidebar-trigger');
-  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+  const topicsList = page.locator('.topics-sidebar .starlight-sidebar-topics').first();
 
-  await topicTrigger.click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(topicPanel).toBeVisible();
-
-  await page.locator('main').click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(topicPanel).toBeHidden();
+  // Topics are now always visible as a list at the top of the sidebar
+  // (the previous dropdown trigger/panel were removed in the layout
+  // restructure). The list itself should be present and contain at least
+  // one topic link.
+  await expect(topicsList).toBeVisible();
+  await expect(topicsList.locator('a')).not.toHaveCount(0);
 
   await filterInput.fill('zzzz-topic-no-match');
   await expect(clearButton).toBeVisible();

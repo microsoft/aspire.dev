@@ -70,7 +70,6 @@ export async function waitForTopicSidebarReady(page: Page): Promise<void> {
     .toBe(true);
   await expect(page.locator('#topic-sidebar-collapse-btn')).toBeAttached();
   await expect(page.locator('#topic-sidebar-expand-btn')).toBeAttached();
-  await expect(page.locator('#topic-sidebar-trigger')).toBeAttached();
   await expect(page.locator('#sidebar-filter-input')).toBeAttached();
   await expect
     .poll(async () => {

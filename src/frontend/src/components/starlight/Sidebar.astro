@@ -353,9 +353,9 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   }
   <div class="divider"></div>
   <div class="sidebar-bottom">
-    <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal">
+    <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal" title="aspire.dev">
       <Icon name="github" />
-      aspire.dev
+      <span>aspire.dev</span>
     </LinkButton>
   </div>
 </div>
@@ -1059,7 +1059,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   .sidebar-expand-btn {
     position: fixed;
     top: calc(
-      var(--sl-nav-height, 3.5rem) + var(--aspire-banner-height, 0px) + 0.75rem
+      var(--sl-nav-height, 3.5rem) + var(--aspire-banner-height, 0px) +
+        var(--sl-mobile-toc-height, 0px) + 0.75rem
     );
     left: var(--sl-sidebar-width);
     display: flex;
@@ -1553,6 +1554,15 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   const SIDEBAR_READY_ATTR = 'data-api-sidebar-ready';
   const TOPIC_SIDEBAR_READY_ATTR = 'data-topic-sidebar-ready';
 
+  /* Briefly tagging <html> with `data-sidebar-expanding` /
+     `data-topic-sidebar-expanding` while the rail → expanded transition
+     plays lets the filter and sidebar entries run a subtle blur-in
+     animation as they re-enter the layout. The flag clears just after
+     the underlying width transition (250ms) finishes. */
+  const SIDEBAR_EXPAND_ANIMATION_MS = 320;
+  let sidebarExpandTimer = 0;
+  let topicSidebarExpandTimer = 0;
+
   function setSidebarReady(ready: boolean): void {
     if (ready) {
       document.documentElement.setAttribute(SIDEBAR_READY_ATTR, '');
@@ -1632,9 +1642,16 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
   function setTopicSidebarCollapsed(collapsed: boolean, _expandBtn: HTMLElement): void {
     if (collapsed) {
+      window.clearTimeout(topicSidebarExpandTimer);
+      document.documentElement.removeAttribute('data-topic-sidebar-expanding');
       document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
     } else {
+      document.documentElement.setAttribute('data-topic-sidebar-expanding', '');
       document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
+      window.clearTimeout(topicSidebarExpandTimer);
+      topicSidebarExpandTimer = window.setTimeout(() => {
+        document.documentElement.removeAttribute('data-topic-sidebar-expanding');
+      }, SIDEBAR_EXPAND_ANIMATION_MS);
     }
   }
 
@@ -1649,9 +1666,16 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     _collapseBtn: HTMLElement
   ) {
     if (collapsed) {
+      window.clearTimeout(sidebarExpandTimer);
+      document.documentElement.removeAttribute('data-sidebar-expanding');
       document.documentElement.setAttribute('data-sidebar-collapsed', '');
     } else {
+      document.documentElement.setAttribute('data-sidebar-expanding', '');
       document.documentElement.removeAttribute('data-sidebar-collapsed');
+      window.clearTimeout(sidebarExpandTimer);
+      sidebarExpandTimer = window.setTimeout(() => {
+        document.documentElement.removeAttribute('data-sidebar-expanding');
+      }, SIDEBAR_EXPAND_ANIMATION_MS);
     }
   }
 
