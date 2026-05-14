@@ -92,8 +92,6 @@ package main
 
 import (
     "net/http"
-    "sync"
-    "time"
 )
 
 // healthHandler returns HTTP 200 when the app is healthy.
@@ -191,6 +189,13 @@ public static WebApplication MapDefaultEndpoints(
 <TabItem label="Go">
 
 ```go title="Go — health.go"
+package main
+
+import (
+    "net/http"
+    "time"
+)
+
 func main() {
     mux := http.NewServeMux()
     mux.HandleFunc("/health", healthHandler)
@@ -264,10 +269,19 @@ app.Run();
 <TabItem label="Go">
 
 ```go title="Go — main.go"
+import (
+ 	"context"
+ 	"net/http"
+ 	"time"
+ )
+
 // In Go, use context timeouts for request timeout control
-ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-defer cancel()
-// Use the ctx for your health check logic
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+ 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+ 	defer cancel()
+ 	// Use the ctx for your health check logic
+ 	_ = ctx
+ }
 ```
 
 </TabItem>
@@ -336,6 +350,15 @@ builder.AddNpgsqlDbContext<MyDbContext>(
 <TabItem label="Go">
 
 ```go title="Go — main.go"
+package main
+
+import (
+    "net/http"
+    "os"
+    "context"
+    "github.com/jackc/pgx/v4"
+)
+
 connStr := os.Getenv("ConnectionStrings__postgresdb")
 conn, err := pgx.Connect(context.Background(), connStr)
 
@@ -352,6 +375,12 @@ http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 <TabItem label="Python">
 
 ```python title="Python — app.py"
+import os
+import psycopg2
+
+if __name__ == "__main__":
+    uvicorn.run("health:app", host="0.0.0.0", port=8080)
+
 conn_str = os.environ.get("ConnectionStrings__postgresdb")
 conn = psycopg2.connect(conn_str)
 
@@ -368,6 +397,9 @@ async def health():
 
 ```typescript title="TypeScript — app.ts"
 import pg from 'pg';
+import express from 'express';
+
+const app = express();
 
 const pool = new pg.Pool({
     connectionString: process.env.ConnectionStrings__postgresdb,
@@ -512,7 +544,9 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const pg = await builder.addPostgres('pg').withHealthCheck('mycheck');
+const pg = await builder
+  .addPostgres('pg')
+  .withHttpHealthCheck('/health');
 
 await builder
   .addProject('myapp', './MyApp/MyApp.csproj')

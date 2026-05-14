@@ -101,9 +101,14 @@ func main() {
     // Use the service name to construct the variable name.
     basketURL := os.Getenv("services__basket__https__0")
     dashboardURL := os.Getenv("services__basket__dashboard__0")
+    _ = dashboardURL
 
     // Use the resolved URLs directly
     resp, err := http.Get(basketURL + "/api/items")
+    if err != nil {
+         panic(err)
+     }
+     defer resp.Body.Close()
     // ...
 }
 ```
@@ -112,16 +117,20 @@ func main() {
 <TabItem label="Python">
 
 ```python title="Python — app.py"
+import asyncio
 import os
 import httpx
 
-# Aspire injects endpoint URLs as environment variables.
-# Use the service name to construct the variable name.
-basket_url = os.getenv("services__basket__https__0")
-dashboard_url = os.getenv("services__basket__dashboard__0")
+async def main():
+    # Aspire injects endpoint URLs as environment variables.
+    # Use the service name to construct the variable name.
+    basket_url = os.getenv("services__basket__https__0")
+    dashboard_url = os.getenv("services__basket__dashboard__0")
 
-async with httpx.AsyncClient() as client:
-    response = await client.get(f"{basket_url}/api/items")
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{basket_url}/api/items")
+
+asyncio.run(main())
 ```
 
 </TabItem>
