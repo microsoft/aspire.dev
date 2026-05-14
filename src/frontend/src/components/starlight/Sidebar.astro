@@ -550,71 +550,11 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     padding-top: 0.75rem;
   }
 
-  /* Always-visible topics list sitting at the top of the sidebar. */
+  /* The visual styling for `.starlight-sidebar-topics` lives globally in
+     `site.css` (mirroring the original plugin look). The scoped class here
+     only adds a small bottom margin so the filter row beneath sits flush. */
   .topics-sidebar-list {
-    list-style: none;
-    margin: 0 0 0.75rem 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .topics-sidebar-list :global(li) {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .topics-sidebar-list :global(a) {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.8rem;
-    font-size: var(--sl-text-sm, 0.875rem);
-    font-weight: 600;
-    line-height: 1.3;
-    color: var(--sl-color-white);
-    text-decoration: none;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
-  }
-
-  .topics-sidebar-list :global(a:hover),
-  .topics-sidebar-list :global(a:focus-visible) {
-    color: var(--sl-color-accent-high);
-    background-color: var(--sl-color-gray-6);
-  }
-
-  .topics-sidebar-list :global(a.starlight-sidebar-topics-current) {
-    color: var(--sl-color-accent-high);
-    background: var(--sidebar-dropdown-selected-bg);
-    border-color: var(--sidebar-dropdown-selected-border);
-  }
-
-  :global([data-theme='light']) .topics-sidebar-list :global(a.starlight-sidebar-topics-current) {
-    color: var(--sl-color-accent);
-  }
-
-  .topics-sidebar-list :global(.starlight-sidebar-topics-icon) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.2rem;
-    border: 1px solid var(--sl-color-gray-4);
-    border-radius: 0.25rem;
-    flex-shrink: 0;
-  }
-
-  .topics-sidebar-list :global(a:hover) :global(.starlight-sidebar-topics-icon),
-  .topics-sidebar-list :global(a:focus-visible) :global(.starlight-sidebar-topics-icon),
-  .topics-sidebar-list :global(a.starlight-sidebar-topics-current) :global(.starlight-sidebar-topics-icon) {
-    background-color: var(--sl-color-text-accent);
-    border-color: var(--sl-color-text-accent);
-    color: var(--sl-color-text-invert);
-  }
-
-  .topics-sidebar-list :global(.starlight-sidebar-topics-badge) {
-    margin-inline-start: 0.25em;
+    margin-bottom: 0.75rem;
   }
 
   /* Filter row sits full-width directly below the topics list. */
@@ -1728,14 +1668,45 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     document.addEventListener('astro:page-load', focusSidebarFilter);
     document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
     document.addEventListener('astro:after-swap', initBannerHeightTracking);
+    document.addEventListener('DOMContentLoaded', teleportSidebarToggles);
+    document.addEventListener('astro:after-swap', teleportSidebarToggles);
   }
   // Also init immediately in case DOMContentLoaded already fired
   if (document.readyState !== 'loading') initSidebarFilter();
   if (document.readyState !== 'loading') initSidebarCollapse();
   if (document.readyState !== 'loading') initTopicSidebarUi();
   if (document.readyState !== 'loading') initBannerHeightTracking();
+  if (document.readyState !== 'loading') teleportSidebarToggles();
   // Defer focus slightly to run after Astro/Starlight's own DOM setup
   requestAnimationFrame(() => focusSidebarFilter());
+
+  /* ── Sidebar toggle teleport ──────────────────────────────────── */
+
+  /**
+   * Move the floating sidebar collapse/expand toggle buttons to
+   * `<body>` so they escape the sidebar's stacking context. The
+   * sidebar pane lives in its own flex column; its descendants —
+   * even those with `position: fixed` — are still painted within
+   * the sidebar's flex item, which the main content area paints
+   * over. Reparenting to `<body>` puts the toggle in the root
+   * stacking context where its `z-index` actually wins, so mouse
+   * clicks reach the button instead of the page content beneath.
+   */
+  function teleportSidebarToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    for (const id of ids) {
+      const btn = document.getElementById(id);
+      if (btn && btn.parentElement !== document.body) {
+        document.body.appendChild(btn);
+      }
+    }
+  }
+
 
   /* ── Banner height tracking ───────────────────────────────────── */
 
