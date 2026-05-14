@@ -3,6 +3,7 @@ title: Aspire dashboard security considerations
 description: Security considerations for running the Aspire dashboard
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 The [Aspire dashboard](/dashboard/overview/) offers powerful insights to your apps. The dashboard displays information about resources, including their configuration, console logs and in-depth telemetry.
@@ -82,14 +83,67 @@ The preceding Docker command:
 - Configures the OTLP endpoint to use `ApiKey` authentication. This requires that incoming telemetry has a valid `x-otlp-api-key` header value.
 - Configures the expected API key. `{MY_APIKEY}` in the example value should be replaced with a real API key. The API key can be any text, but a value with at least 128 bits of entropy is recommended.
 
-When API key authentication is configured, the dashboard validates incoming telemetry has a required API key. Apps that send the dashboard telemetry must be configured to send the API key. This can be configured in .NET with `OtlpExporterOptions.Headers`:
+When API key authentication is configured, the dashboard validates incoming telemetry has a required API key. Apps that send the dashboard telemetry must be configured to send the API key. The following examples show how to configure the API key header in each language:
 
-```csharp
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
+Configure the header using `OtlpExporterOptions.Headers`:
+
+```csharp title="C# — Program.cs"
 builder.Services.Configure<OtlpExporterOptions>(
     o => o.Headers = $"x-otlp-api-key={MY_APIKEY}");
 ```
 
-Other languages have different OpenTelemetry APIs. Passing the [`OTEL_EXPORTER_OTLP_HEADERS` environment variable](https://opentelemetry.io/docs/specs/otel/protocol/exporter/) to apps is a universal way to configure the header.
+</TabItem>
+<TabItem label="Go">
+
+Set the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, or configure the header on the OTLP exporter directly:
+
+```go title="Go — main.go"
+import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+
+client := otlptracegrpc.NewClient(
+    otlptracegrpc.WithHeaders(map[string]string{
+        "x-otlp-api-key": apiKey,
+    }),
+)
+```
+
+</TabItem>
+<TabItem label="Python">
+
+Set the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, or configure the header in code:
+
+```python title="Python — app.py"
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+    OTLPSpanExporter,
+)
+
+exporter = OTLPSpanExporter(
+    headers={"x-otlp-api-key": api_key},
+)
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+Set the `OTEL_EXPORTER_OTLP_HEADERS` environment variable, or configure the header in code:
+
+```typescript title="TypeScript — tracing.ts"
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+
+const exporter = new OTLPTraceExporter({
+    headers: {
+        'x-otlp-api-key': apiKey,
+    },
+});
+```
+
+</TabItem>
+</Tabs>
+
+Passing the [`OTEL_EXPORTER_OTLP_HEADERS` environment variable](https://opentelemetry.io/docs/specs/otel/protocol/exporter/) to apps is a universal way to configure the header across all languages.
 
 ### Telemetry API endpoint
 
