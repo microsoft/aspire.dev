@@ -66,9 +66,75 @@ export async function renderOgImagePng(input: RenderOgImageInput): Promise<Buffe
       { name: 'Outfit', data: regularFont, weight: 400, style: 'normal' },
       { name: 'Outfit', data: boldFont, weight: 700, style: 'normal' },
     ],
+    loadAdditionalAsset: async (code, segment) => {
+      if (code === 'emoji') {
+        return loadEmojiSvgDataUri(segment);
+      }
+      return [];
+    },
   });
 
   return sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
+}
+
+const TWEMOJI_BASE = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg';
+
+const emojiSvgCache = new Map<string, Promise<string>>();
+
+/**
+ * Converts an emoji grapheme into a Twemoji SVG data URI so that satori can
+ * render it via `<img>` instead of asking the Outfit font for a glyph it
+ * doesn't have (which is what produced the tofu "X-in-a-box" character for
+ * `Contributors 🤝` and `Community Videos 📺`).
+ *
+ * Results are memoised per Node process so repeated builds within the same
+ * `astro build` only fetch each emoji once. On failure (e.g. offline build
+ * with no jsdelivr access) we silently swallow the emoji rather than break
+ * the entire image — a stripped emoji is much less jarring in a social
+ * preview than a missing glyph.
+ */
+function loadEmojiSvgDataUri(emoji: string): Promise<string> {
+  let cached = emojiSvgCache.get(emoji);
+  if (cached) return cached;
+
+  cached = (async () => {
+    const codepoint = emojiToTwemojiCodepoint(emoji);
+    if (!codepoint) return '';
+
+    try {
+      const response = await fetch(`${TWEMOJI_BASE}/${codepoint}.svg`);
+      if (!response.ok) return '';
+      const svg = await response.text();
+      return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+    } catch {
+      return '';
+    }
+  })();
+
+  emojiSvgCache.set(emoji, cached);
+  return cached;
+}
+
+/**
+ * Convert a Unicode emoji grapheme to the Twemoji file-name codepoint
+ * format: a dash-separated list of hex codepoints. The `U+FE0F` variation
+ * selector is dropped unless the emoji is a single-codepoint keycap-style
+ * sequence (matches Twemoji's own naming convention).
+ */
+function emojiToTwemojiCodepoint(emoji: string): string {
+  const codepoints: number[] = [];
+  for (const char of emoji) {
+    const cp = char.codePointAt(0);
+    if (cp !== undefined) codepoints.push(cp);
+  }
+
+  const hasZwj = codepoints.includes(0x200d);
+  const stripped = hasZwj ? codepoints : codepoints.filter((cp) => cp !== 0xfe0f);
+
+  return stripped
+    .map((cp) => cp.toString(16))
+    .filter((s) => s.length > 0)
+    .join('-');
 }
 
 function loadRegularFont(): Promise<Buffer> {
