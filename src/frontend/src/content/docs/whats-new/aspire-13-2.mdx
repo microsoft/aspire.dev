@@ -1224,7 +1224,76 @@ The `BeforeResourceStartedEvent` now only fires when actually starting a resourc
 
 ### Connection property suffix
 
-A connection property suffix has been added which may require updates to code that accesses connection properties directly.
+Several connection properties for "named entity" resources gained an explicit `Name` suffix so the property clearly refers to the entity's name rather than the entity itself. This affects both the connection-property API (`GetConnectionProperty`) and the environment variables Aspire injects via `WithReference(...)` and `ReferenceEnvironmentInjectionFlags.ConnectionProperties`.
+
+A subset of these renames first shipped in 13.1; 13.2 completes the rollout across the remaining built-in resources. The full list of renamed properties as of 13.2 is:
+
+| Old property name | New property name | Affected resources |
+| ----------------- | ----------------- | ------------------ |
+| `Database`        | `DatabaseName`    | `PostgresDatabase`, `AzurePostgresFlexibleServerDatabase`, `MySqlDatabase`, `SqlServerDatabase`, `AzureSqlDatabase`, `OracleDatabase`, `MongoDBDatabase`, `MilvusDatabase`, `AzureCosmosDBDatabase`, `AzureKustoReadWriteDatabase` |
+| `Model`           | `ModelName`       | `OpenAIModel`, `AzureOpenAIDeployment`, `FoundryDeployment`, `GitHubModel` |
+| `ConsumerGroup`   | `ConsumerGroupName` | `AzureEventHubConsumerGroup` |
+
+Aspire serializes property names directly into environment variable names with the `[RESOURCE]_[PROPERTY]` pattern, so any consuming app that reads the renamed properties from the environment must use the new uppercase names. For example, a SQL Server database resource named `sqldb`:
+
+```diff title="Bash — Environment variable"
+- SQLDB_DATABASE=catalog
++ SQLDB_DATABASENAME=catalog
+```
+
+Update consuming app code that reads the variable directly:
+
+<Tabs syncKey="aspire-consuming-lang">
+<TabItem label="C#">
+
+```diff lang="csharp" title="C# — Read injected connection property"
+- var database = Environment.GetEnvironmentVariable("SQLDB_DATABASE");
++ var database = Environment.GetEnvironmentVariable("SQLDB_DATABASENAME");
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```diff lang="python" title="Python — Read injected connection property"
+- database = os.getenv("SQLDB_DATABASE")
++ database = os.getenv("SQLDB_DATABASENAME")
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```diff lang="typescript" title="TypeScript — Read injected connection property"
+- const database = process.env.SQLDB_DATABASE;
++ const database = process.env.SQLDB_DATABASENAME;
+```
+
+</TabItem>
+<TabItem label="Go">
+
+```diff lang="go" title="Go — Read injected connection property"
+- database := os.Getenv("SQLDB_DATABASE")
++ database := os.Getenv("SQLDB_DATABASENAME")
+```
+
+</TabItem>
+</Tabs>
+
+If your AppHost code reads connection properties through the `IResourceWithConnectionString` API, update those calls as well:
+
+```diff lang="csharp" title="C# — AppHost.cs"
+- var database = sqldb.Resource.GetConnectionProperty("Database");
++ var database = sqldb.Resource.GetConnectionProperty("DatabaseName");
+```
+
+To migrate, search your solution for the affected uppercase environment variable names (for example, `_DATABASE`, `_MODEL`, and `_CONSUMERGROUP`) along with `GetConnectionProperty("Database")`, `GetConnectionProperty("Model")`, and `GetConnectionProperty("ConsumerGroup")`, and apply the rename. Properties not listed in the table — for example, `Endpoint`, `Host`, `Port`, `Username`, `Password`, `Uri`, and `Key` — are unchanged.
+
+<Aside type="note">
+  Properties that don't refer to a named entity were not renamed. For example, the
+  `AuthenticationDatabase` property on `MongoDBServerResource` and the
+  `Organization` property on `GitHubModelResource` keep their existing names.
+</Aside>
+
+For the full per-resource property catalog, see the **Connection properties** section on each integration's *connect* page — for example, [Connect to Azure Cosmos DB](/integrations/cloud/azure/azure-cosmos-db/azure-cosmos-db-connect/#connection-properties), [Connect to SQL Server](/integrations/databases/sql-server/sql-server-connect/#connection-properties), or [Connect to GitHub Models](/integrations/ai/github-models/github-models-connect/#connection-properties).
 
 ### AIFoundry to Foundry transition
 
