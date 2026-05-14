@@ -139,6 +139,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
                   <a
                     href={topic.link}
                     title={topic.label}
+                    aria-label={topic.label}
+                    aria-current={topic.isCurrent ? 'page' : undefined}
                     class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
                   >
                     {topic.icon && (
@@ -249,6 +251,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
                 <a
                   href={topic.link}
                   title={topic.label}
+                  aria-label={topic.label}
+                  aria-current={topic.isCurrent ? 'page' : undefined}
                   class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
                 >
                   {topic.icon && (
@@ -353,7 +357,11 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   }
   <div class="divider"></div>
   <div class="sidebar-bottom">
-    <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal" title="aspire.dev">
+    <LinkButton
+      href={'https://github.com/microsoft/aspire.dev'}
+      variant="minimal"
+      title="aspire.dev"
+    >
       <Icon name="github" />
       <span>aspire.dev</span>
     </LinkButton>
@@ -369,6 +377,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Collapse sidebar"
         title="Collapse sidebar"
+        aria-expanded="true"
+        aria-controls="starlight__sidebar"
       >
         <svg
           viewBox="0 0 24 24"
@@ -392,6 +402,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
+        aria-expanded="false"
+        aria-controls="starlight__sidebar"
       >
         <svg
           viewBox="0 0 24 24"
@@ -422,6 +434,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-step="sidebar-toggle"
         aria-label="Collapse sidebar"
         title="Collapse sidebar"
+        aria-expanded="true"
+        aria-controls="starlight__sidebar"
       >
         <svg
           viewBox="0 0 24 24"
@@ -445,6 +459,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
+        aria-expanded="false"
+        aria-controls="starlight__sidebar"
       >
         <svg
           viewBox="0 0 24 24"
@@ -1079,34 +1095,68 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     cursor: pointer;
     z-index: 20;
     box-shadow: 2px 1px 3px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
-    /* Match the sidebar's width transition so the button slides with it. */
+    /* Match the sidebar's width transition so the button slides with it.
+       `visibility` flips instantly when becoming active so the button is
+       focusable mid-fade, and is delayed by the opacity duration when
+       deactivating so the fade-out can play. */
     transition:
       color 0.15s,
       background-color 0.15s,
       box-shadow 0.15s,
       opacity 0.25s ease,
       left 0.25s ease,
-      top 0.25s ease;
+      top 0.25s ease,
+      visibility 0s linear 0s;
   }
 
   /* Expand button starts hidden in the expanded state; collapse button
      starts hidden in the collapsed state. Both reside in the DOM and
-     transition opacity together with the sidebar width. */
+     transition opacity together with the sidebar width. `visibility:
+     hidden` is paired with the opacity fade so the inactive button is
+     truly inert — neither receivable to assistive tech nor reported as
+     visible to test runners like Playwright. */
   .sidebar-expand-btn {
     opacity: 0;
     pointer-events: none;
+    visibility: hidden;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0.25s;
   }
 
   :global(html[data-sidebar-collapsed]) #sidebar-collapse-btn,
   :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-collapse-btn {
     opacity: 0;
     pointer-events: none;
+    visibility: hidden;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0.25s;
   }
 
   :global(html[data-sidebar-collapsed]) #sidebar-expand-btn,
   :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-expand-btn {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0s;
   }
 
   .sidebar-collapse-btn:hover,
@@ -1432,9 +1482,13 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         return;
       }
 
-      this.emptyCopyEl.textContent = query
+      const message = query
         ? `No sidebar article titles match "${query}".`
         : 'No matching sidebar article titles.';
+      this.emptyCopyEl.textContent = message;
+      // Also surface the message through the polite live region so screen
+      // readers hear *why* the list is empty, not just "0 matches".
+      this.updateStatus(message);
     }
   }
 
@@ -1563,6 +1617,22 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   let sidebarExpandTimer = 0;
   let topicSidebarExpandTimer = 0;
 
+  // Module-scoped observers so we can disconnect previous instances on
+  // re-init (astro:after-swap) instead of leaking one per navigation.
+  let bannerMutationObserver: MutationObserver | null = null;
+  let bannerResizeObserver: ResizeObserver | null = null;
+
+  function safeSetItem(key: string, value: string): void {
+    // localStorage can throw in private browsing / quota-exceeded /
+    // sandboxed iframes. Failing silently is the right call here — the
+    // in-memory DOM state still works, we just won't persist.
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* noop */
+    }
+  }
+
   function setSidebarReady(ready: boolean): void {
     if (ready) {
       document.documentElement.setAttribute(SIDEBAR_READY_ATTR, '');
@@ -1579,8 +1649,22 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
+  function syncAriaExpanded(
+    collapseBtn: HTMLElement,
+    expandBtn: HTMLElement,
+    isCollapsed: boolean
+  ): void {
+    const value = isCollapsed ? 'false' : 'true';
+    collapseBtn.setAttribute('aria-expanded', value);
+    expandBtn.setAttribute('aria-expanded', value);
+  }
+
   function initSidebarCollapse() {
     setSidebarReady(false);
+    // Clear any pending expand-animation flag carried over from the
+    // previous page so it can't fire on the next page mid-navigation.
+    window.clearTimeout(sidebarExpandTimer);
+    document.documentElement.removeAttribute('data-sidebar-expanding');
 
     const container = document.querySelector('.topics-sidebar[data-api-ref]');
     if (!container) {
@@ -1593,21 +1677,37 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     const expandBtn = document.getElementById('sidebar-expand-btn');
     if (!collapseBtn || !expandBtn) return;
 
-    collapseBtn.addEventListener('click', () => {
-      setSidebarCollapsed(true, expandBtn, collapseBtn);
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
-    });
+    // Sync aria-expanded with the data-sidebar-collapsed attribute that
+    // Head.astro set from localStorage before this script ran.
+    syncAriaExpanded(
+      collapseBtn,
+      expandBtn,
+      document.documentElement.hasAttribute('data-sidebar-collapsed')
+    );
 
-    expandBtn.addEventListener('click', () => {
-      setSidebarCollapsed(false, expandBtn, collapseBtn);
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '0');
-    });
+    if (collapseBtn.dataset.bound !== 'true') {
+      collapseBtn.dataset.bound = 'true';
+      collapseBtn.addEventListener('click', () => {
+        setSidebarCollapsed(true, expandBtn, collapseBtn);
+        safeSetItem(SIDEBAR_COLLAPSED_KEY, '1');
+      });
+    }
+
+    if (expandBtn.dataset.bound !== 'true') {
+      expandBtn.dataset.bound = 'true';
+      expandBtn.addEventListener('click', () => {
+        setSidebarCollapsed(false, expandBtn, collapseBtn);
+        safeSetItem(SIDEBAR_COLLAPSED_KEY, '0');
+      });
+    }
 
     setSidebarReady(true);
   }
 
   function initTopicSidebarCollapse() {
     setTopicSidebarReady(false);
+    window.clearTimeout(topicSidebarExpandTimer);
+    document.documentElement.removeAttribute('data-topic-sidebar-expanding');
 
     const container = document.querySelector('.topics-sidebar[data-topic-nav]');
     if (!container) {
@@ -1621,37 +1721,71 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       return;
     }
 
+    syncAriaExpanded(
+      collapseBtn,
+      expandBtn,
+      document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
+    );
+
     if (collapseBtn.dataset.bound !== 'true') {
       collapseBtn.dataset.bound = 'true';
       collapseBtn.addEventListener('click', () => {
-        setTopicSidebarCollapsed(true, expandBtn);
-        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
+        setTopicSidebarCollapsed(true, expandBtn, collapseBtn);
+        safeSetItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
       });
     }
 
     if (expandBtn.dataset.bound !== 'true') {
       expandBtn.dataset.bound = 'true';
       expandBtn.addEventListener('click', () => {
-        setTopicSidebarCollapsed(false, expandBtn);
-        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
+        setTopicSidebarCollapsed(false, expandBtn, collapseBtn);
+        safeSetItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
       });
     }
 
     setTopicSidebarReady(true);
   }
 
-  function setTopicSidebarCollapsed(collapsed: boolean, _expandBtn: HTMLElement): void {
+  function setTopicSidebarCollapsed(
+    collapsed: boolean,
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement
+  ): void {
+    const root = document.documentElement;
+    const wasCollapsed = root.hasAttribute('data-topic-sidebar-collapsed');
+
     if (collapsed) {
       window.clearTimeout(topicSidebarExpandTimer);
-      document.documentElement.removeAttribute('data-topic-sidebar-expanding');
-      document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
+      root.removeAttribute('data-topic-sidebar-expanding');
+      root.setAttribute('data-topic-sidebar-collapsed', '');
+      collapseBtn.setAttribute('aria-expanded', 'false');
+      expandBtn.setAttribute('aria-expanded', 'false');
+      // Focus the now-visible button so keyboard users stay anchored.
+      try {
+        expandBtn.focus({ preventScroll: true });
+      } catch {
+        expandBtn.focus();
+      }
     } else {
-      document.documentElement.setAttribute('data-topic-sidebar-expanding', '');
-      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
-      window.clearTimeout(topicSidebarExpandTimer);
-      topicSidebarExpandTimer = window.setTimeout(() => {
-        document.documentElement.removeAttribute('data-topic-sidebar-expanding');
-      }, SIDEBAR_EXPAND_ANIMATION_MS);
+      // Only run the blur-in animation when actually transitioning from
+      // a collapsed state — not on initial load when we're already expanded.
+      if (wasCollapsed) {
+        root.setAttribute('data-topic-sidebar-expanding', '');
+        window.clearTimeout(topicSidebarExpandTimer);
+        topicSidebarExpandTimer = window.setTimeout(() => {
+          root.removeAttribute('data-topic-sidebar-expanding');
+        }, SIDEBAR_EXPAND_ANIMATION_MS);
+      }
+      root.removeAttribute('data-topic-sidebar-collapsed');
+      collapseBtn.setAttribute('aria-expanded', 'true');
+      expandBtn.setAttribute('aria-expanded', 'true');
+      if (wasCollapsed) {
+        try {
+          collapseBtn.focus({ preventScroll: true });
+        } catch {
+          collapseBtn.focus();
+        }
+      }
     }
   }
 
@@ -1662,20 +1796,41 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
   function setSidebarCollapsed(
     collapsed: boolean,
-    _expandBtn: HTMLElement,
-    _collapseBtn: HTMLElement
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement
   ) {
+    const root = document.documentElement;
+    const wasCollapsed = root.hasAttribute('data-sidebar-collapsed');
+
     if (collapsed) {
       window.clearTimeout(sidebarExpandTimer);
-      document.documentElement.removeAttribute('data-sidebar-expanding');
-      document.documentElement.setAttribute('data-sidebar-collapsed', '');
+      root.removeAttribute('data-sidebar-expanding');
+      root.setAttribute('data-sidebar-collapsed', '');
+      collapseBtn.setAttribute('aria-expanded', 'false');
+      expandBtn.setAttribute('aria-expanded', 'false');
+      try {
+        expandBtn.focus({ preventScroll: true });
+      } catch {
+        expandBtn.focus();
+      }
     } else {
-      document.documentElement.setAttribute('data-sidebar-expanding', '');
-      document.documentElement.removeAttribute('data-sidebar-collapsed');
-      window.clearTimeout(sidebarExpandTimer);
-      sidebarExpandTimer = window.setTimeout(() => {
-        document.documentElement.removeAttribute('data-sidebar-expanding');
-      }, SIDEBAR_EXPAND_ANIMATION_MS);
+      if (wasCollapsed) {
+        root.setAttribute('data-sidebar-expanding', '');
+        window.clearTimeout(sidebarExpandTimer);
+        sidebarExpandTimer = window.setTimeout(() => {
+          root.removeAttribute('data-sidebar-expanding');
+        }, SIDEBAR_EXPAND_ANIMATION_MS);
+      }
+      root.removeAttribute('data-sidebar-collapsed');
+      collapseBtn.setAttribute('aria-expanded', 'true');
+      expandBtn.setAttribute('aria-expanded', 'true');
+      if (wasCollapsed) {
+        try {
+          collapseBtn.focus({ preventScroll: true });
+        } catch {
+          collapseBtn.focus();
+        }
+      }
     }
   }
 
@@ -1728,7 +1883,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
-
   /* ── Banner height tracking ───────────────────────────────────── */
 
   /**
@@ -1754,14 +1908,27 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
     const banner = document.querySelector('.sl-banner') as HTMLElement | null;
     if (banner) {
+      // Disconnect any prior observers before re-attaching so we don't
+      // accumulate one set per client-side navigation.
+      bannerMutationObserver?.disconnect();
+      bannerResizeObserver?.disconnect();
+
       // Track state changes (open → closing) emitted by Banner.astro's controller
-      const mo = new MutationObserver(update);
-      mo.observe(banner, { attributes: true, attributeFilter: ['data-banner-state', 'hidden'] });
+      bannerMutationObserver = new MutationObserver(update);
+      bannerMutationObserver.observe(banner, {
+        attributes: true,
+        attributeFilter: ['data-banner-state', 'hidden'],
+      });
       // Track size changes too (e.g. responsive line-wrap)
       if (typeof ResizeObserver !== 'undefined') {
-        const ro = new ResizeObserver(update);
-        ro.observe(banner);
+        bannerResizeObserver = new ResizeObserver(update);
+        bannerResizeObserver.observe(banner);
       }
+    } else {
+      bannerMutationObserver?.disconnect();
+      bannerResizeObserver?.disconnect();
+      bannerMutationObserver = null;
+      bannerResizeObserver = null;
     }
 
     if (!(window as any).__bannerHeightResizeBound) {
