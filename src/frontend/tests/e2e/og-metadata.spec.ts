@@ -32,37 +32,56 @@ function escape(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Build an order- and whitespace-agnostic matcher for a `<meta>` tag with a
+ * specific attribute (`property` or `name`) and `content` value. HTML
+ * attribute order is not significant, so the regex accepts either ordering
+ * and any amount of internal whitespace.
+ */
+function metaTagPattern(
+  attribute: 'property' | 'name',
+  attrValue: string,
+  contentValue: string
+): RegExp {
+  const attrChunk = `${attribute}="${escape(attrValue)}"`;
+  const contentChunk = `content="${escape(contentValue)}"`;
+  return new RegExp(
+    `<meta\\b[^>]*(?:` +
+      `${attrChunk}[^>]*${contentChunk}|` +
+      `${contentChunk}[^>]*${attrChunk}` +
+      `)[^>]*\\/?>`,
+    'i'
+  );
+}
+
 for (const page of PAGES) {
   test(`emits page-specific Open Graph metadata for ${page.url}`, async ({ request, baseURL }) => {
     const response = await request.get(page.url);
     expect(response.ok(), `${page.url} should return 200`).toBe(true);
     const html = await response.text();
 
-    // Starlight emits the per-page og:title and og:description, so we assert
-    // those are present (and accurate) regardless of the order they appear in.
-    expect(html).toMatch(
-      new RegExp(`<meta\\s+property="og:title"\\s+content="${escape(page.ogTitle)}"`, 'i')
-    );
-    expect(html).toMatch(
-      new RegExp(
-        `<meta\\s+property="og:description"\\s+content="${escape(page.ogDescription)}"`,
-        'i'
-      )
-    );
+    // Starlight emits the per-page og:title and og:description. Match the
+    // attribute order both ways so the test does not depend on the HTML
+    // serializer's attribute order or whitespace.
+    expect(html).toMatch(metaTagPattern('property', 'og:title', page.ogTitle));
+    expect(html).toMatch(metaTagPattern('property', 'og:description', page.ogDescription));
 
     // Our Head.astro emits the per-page og:image, dimensions, and the full
     // twitter:* card metadata.
-    expect(html).toContain(`<meta property="og:image" content="`);
     expect(html).toMatch(
-      new RegExp(`<meta\\s+property="og:image"\\s+content="[^"]*${escape(page.ogImagePath)}"`, 'i')
+      new RegExp(
+        `<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape(page.ogImagePath)}"`,
+        'i'
+      )
     );
-    expect(html).toContain('<meta property="og:image:width" content="1200">');
-    expect(html).toContain('<meta property="og:image:height" content="630">');
+    expect(html).toMatch(metaTagPattern('property', 'og:image:width', '1200'));
+    expect(html).toMatch(metaTagPattern('property', 'og:image:height', '630'));
+    expect(html).toMatch(metaTagPattern('name', 'twitter:title', `${page.ogTitle} · Aspire`));
     expect(html).toMatch(
-      new RegExp(`<meta\\s+name="twitter:title"\\s+content="${escape(page.ogTitle)} · Aspire"`, 'i')
-    );
-    expect(html).toMatch(
-      new RegExp(`<meta\\s+name="twitter:image"\\s+content="[^"]*${escape(page.ogImagePath)}"`, 'i')
+      new RegExp(
+        `<meta\\b[^>]*name="twitter:image"[^>]*content="[^"]*${escape(page.ogImagePath)}"`,
+        'i'
+      )
     );
 
     // The per-page image must actually resolve.
@@ -79,7 +98,10 @@ test('falls back to the site-wide image for the home page', async ({ request, ba
   const html = await response.text();
 
   expect(html).toMatch(
-    new RegExp(`<meta\\s+property="og:image"\\s+content="[^"]*${escape('/og-image.png')}"`, 'i')
+    new RegExp(
+      `<meta\\b[^>]*property="og:image"[^>]*content="[^"]*${escape('/og-image.png')}"`,
+      'i'
+    )
   );
 
   const imageResponse = await request.get(new URL('/og-image.png', baseURL).toString());

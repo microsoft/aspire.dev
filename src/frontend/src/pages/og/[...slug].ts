@@ -1,19 +1,22 @@
-import { OGImageRoute } from 'astro-og-canvas';
+import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 
 import {
   isDefaultLocaleEntry,
   shouldSkipDynamicOgImage,
 } from '@utils/page-metadata';
+import { renderOgImagePng } from '@utils/og-image-renderer';
+import { getTopicForEntry } from '@utils/topic-resolver';
 
 /**
  * Per-page Open Graph image endpoint.
  *
- * Emits one PNG per default-locale docs entry at `/og/<slug>.png`. The
- * rendered image deliberately omits the page description — social-card
- * previews already show the description text next to the image, so
- * duplicating it inside the PNG hurts legibility at the small preview sizes
- * used by Discord, Slack, Twitter, and LinkedIn.
+ * Emits one PNG per default-locale docs entry at `/og/<slug>.png`. Each image
+ * uses the site's marketing `og-image.png` as the full-bleed background and
+ * layers a translucent overlay card containing the topic pill, the page
+ * title, and (when present) a short page description. The same layout is
+ * produced for every page so previews on Discord, Slack, Twitter, and
+ * LinkedIn all read identically.
  *
  * Non-default-locale entries reuse the site-wide `og-image.png` (see
  * `src/utils/page-metadata.ts`), so they aren't enumerated here.
@@ -22,104 +25,70 @@ import {
  * so that meta-tag URLs always resolve to real files at build time.
  */
 
-interface PageData {
+interface OgEntryProps {
   title: string;
-  topic?: string;
-  category?: 'conceptual' | 'quickstart' | 'tutorial' | 'blog' | 'reference' | 'sample';
+  description?: string;
+  topicId: string;
+  topicLabel: string;
+  topicIconSvg: string;
 }
 
-const FONTS_DIR = './src/assets/fonts';
-const LOGO_PATH = './src/assets/aspire-logo-og.png';
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  const paths: Array<{ params: { slug: string }; props: OgEntryProps }> = [];
 
-const docs = await getCollection('docs');
+  for (const entry of docs) {
+    if (!isDefaultLocaleEntry(entry.id)) continue;
 
-const pages: Record<string, PageData> = {};
-for (const entry of docs) {
-  if (!isDefaultLocaleEntry(entry.id)) continue;
+    const contentBasePath = entry.id.replace(/\\/g, '/').replace(/\.mdx?$/i, '');
+    if (
+      shouldSkipDynamicOgImage(
+        {
+          entry: {
+            id: entry.id,
+            data: entry.data as unknown as Record<string, unknown>,
+          },
+        } as unknown as Parameters<typeof shouldSkipDynamicOgImage>[0],
+        contentBasePath
+      )
+    ) {
+      continue;
+    }
 
-  const contentBasePath = entry.id.replace(/\\/g, '/').replace(/\.mdx?$/i, '');
-  if (
-    shouldSkipDynamicOgImage(
-      {
-        entry: {
-          id: entry.id,
-          data: entry.data as unknown as Record<string, unknown>,
-        },
-      } as unknown as Parameters<typeof shouldSkipDynamicOgImage>[0],
-      contentBasePath
-    )
-  ) {
-    continue;
+    const topic = getTopicForEntry(contentBasePath);
+
+    paths.push({
+      params: { slug: `${contentBasePath}.png` },
+      props: {
+        title: entry.data.title,
+        description: entry.data.description,
+        topicId: topic.id,
+        topicLabel: topic.label,
+        topicIconSvg: topic.iconSvg,
+      },
+    });
   }
 
-  pages[contentBasePath] = {
-    title: entry.data.title,
-    topic: entry.data.topic,
-    category: entry.data.category,
-  };
+  return paths;
 }
 
-/**
- * Aspire brand palette taken from `src/styles/site.css`. Values mirror
- * `--aspire-color-*` so the generated cards feel like part of the site.
- */
-const COLORS = {
-  black: [31, 30, 51] as [number, number, number], // --aspire-color-black
-  purple: [81, 43, 212] as [number, number, number], // --aspire-color-purple
-  primary: [116, 85, 221] as [number, number, number], // --aspire-color-primary
-  secondary: [185, 170, 238] as [number, number, number], // --aspire-color-secondary
+export const GET: APIRoute = async ({ props }) => {
+  const data = props as OgEntryProps;
+  const png = await renderOgImagePng({
+    title: data.title,
+    description: data.description,
+    topic: {
+      id: data.topicId,
+      label: data.topicLabel,
+      iconName: data.topicId,
+      iconSvg: data.topicIconSvg,
+    },
+  });
+
+  return new Response(new Uint8Array(png), {
+    headers: {
+      'content-type': 'image/png',
+      'cache-control': 'public, max-age=31536000, immutable',
+    },
+  });
 };
-
-function formatBadge(page: PageData): string | undefined {
-  if (page.topic) return page.topic;
-  if (page.category) {
-    return page.category.charAt(0).toUpperCase() + page.category.slice(1);
-  }
-  return undefined;
-}
-
-export const { getStaticPaths, GET } = await OGImageRoute({
-  param: 'slug',
-
-  pages,
-
-  getImageOptions: (_path, page: PageData) => {
-    const badge = formatBadge(page);
-    // We render the title only — the badge is appended as a separate line of
-    // smaller text via the `description` slot supplied by astro-og-canvas, so
-    // we don't need to pull a description into the image. Social cards show
-    // the page description as adjacent text.
-    return {
-      title: page.title,
-      description: badge,
-      logo: {
-        path: LOGO_PATH,
-        size: [120, 120] as [number, number],
-      },
-      bgGradient: [COLORS.black, COLORS.purple],
-      border: {
-        color: COLORS.primary,
-        width: 12,
-        side: 'block-end' as const,
-      },
-      padding: 80,
-      font: {
-        title: {
-          color: [255, 255, 255] as [number, number, number],
-          size: 84,
-          weight: 'Bold' as const,
-          lineHeight: 1.1,
-          families: ['Outfit'],
-        },
-        description: {
-          color: COLORS.secondary,
-          size: 32,
-          weight: 'Normal' as const,
-          lineHeight: 1.4,
-          families: ['Outfit'],
-        },
-      },
-      fonts: [`${FONTS_DIR}/Outfit-Regular.ttf`, `${FONTS_DIR}/Outfit-Bold.ttf`],
-    };
-  },
-});

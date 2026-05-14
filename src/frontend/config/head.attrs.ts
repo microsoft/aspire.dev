@@ -42,7 +42,7 @@ export const headAttrs: HeadAttr[] = [
   // (see `src/utils/page-metadata.ts` for the resolution logic).
   { tag: 'meta', attrs: { property: 'og:site_name', content: 'Aspire' } },
   { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
-  { tag: 'meta', attrs: { property: 'twitter:domain', content: 'aspire.dev' } },
+  { tag: 'meta', attrs: { name: 'twitter:domain', content: 'aspire.dev' } },
 
   // Favicons and icons (ordered: SVG → PNG → ICO → Apple Touch Icon)
   { tag: 'link', attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' } },
