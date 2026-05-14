@@ -1224,7 +1224,78 @@ The `BeforeResourceStartedEvent` now only fires when actually starting a resourc
 
 ### Connection property suffix
 
-A connection property suffix has been added which may require updates to code that accesses connection properties directly.
+Connection property keys exposed by built-in resources have been normalized so that keys that **name an entity** end in `Name`. This disambiguates a property key (the schema label) from the property value (the actual name being communicated) and gives consuming apps a consistent shape across every built-in integration.
+
+The renames follow three patterns:
+
+- **Database identifier**: `Database` → `DatabaseName`
+- **Model identifier**: `Model` → `ModelName`
+- **Consumer group identifier**: `ConsumerGroup` → `ConsumerGroupName`
+
+The affected built-in resources are:
+
+| Resource                                            | Old property    | New property         |
+| --------------------------------------------------- | --------------- | -------------------- |
+| Azure AI Foundry / Foundry deployment               | `Model`         | `ModelName`          |
+| Azure Cognitive Services / Azure OpenAI deployment  | `Model`         | `ModelName`          |
+| Azure Cosmos DB database                            | `Database`      | `DatabaseName`       |
+| Azure Event Hubs consumer group                     | `ConsumerGroup` | `ConsumerGroupName`  |
+| Azure Kusto read/write database                     | `Database`      | `DatabaseName`       |
+| Azure PostgreSQL database                           | `Database`      | `DatabaseName`       |
+| Azure SQL database                                  | `Database`      | `DatabaseName`       |
+| GitHub Models                                       | `Model`         | `ModelName`          |
+| Milvus database                                     | `Database`      | `DatabaseName`       |
+| MongoDB database                                    | `Database`      | `DatabaseName`       |
+| MySQL database                                      | `Database`      | `DatabaseName`       |
+| OpenAI model                                        | `Model`         | `ModelName`          |
+| Oracle database                                     | `Database`      | `DatabaseName`       |
+| PostgreSQL database                                 | `Database`      | `DatabaseName`       |
+| SQL Server database                                 | `Database`      | `DatabaseName`       |
+
+Your AppHost code is unaffected — the rename is on the **keys** that resources publish, not on the AppHost APIs you call. What changes is the value Aspire projects to consuming apps that `WithReference` one of these resources.
+
+```text title="Environment variables — Before (13.0)"
+DB1_DATABASE=orders
+CHAT_MODEL=gpt-4o-mini
+EVENTS_CONSUMERGROUP=$Default
+```
+
+```text title="Environment variables — After (13.2)"
+DB1_DATABASENAME=orders
+CHAT_MODELNAME=gpt-4o-mini
+EVENTS_CONSUMERGROUPNAME=$Default
+```
+
+For C# consumers that read the property directly, update the trailing token of the variable name:
+
+```csharp title="C# — Migration example"
+// Before
+var dbName = Environment.GetEnvironmentVariable("DB1_DATABASE");
+var model  = Environment.GetEnvironmentVariable("CHAT_MODEL");
+
+// After
+var dbName = Environment.GetEnvironmentVariable("DB1_DATABASENAME");
+var model  = Environment.GetEnvironmentVariable("CHAT_MODELNAME");
+```
+
+Polyglot SDKs that look up the property by name (for example `getConnectionProperty("chat", "Model")` in TypeScript or the Java/Python equivalents) need the same change.
+
+To migrate:
+
+1. Search consuming projects and deployment manifests for any of the old keys — `_DATABASE`, `_MODEL`, or `_CONSUMERGROUP` in environment-variable reads, and `"Database"`, `"Model"`, or `"ConsumerGroup"` arguments passed to polyglot connection-property helpers.
+2. Rename the trailing segment to the new name (`DatabaseName`, `ModelName`, or `ConsumerGroupName`). The resource name prefix doesn't change.
+3. Run your AppHost (`aspire run`) and confirm consumers receive the renamed property at startup. Other properties such as `Uri`, `Host`, `Port`, and `Key` aren't affected.
+
+For the complete connection-property reference of each integration — including how C#, TypeScript, Python, and Go consumers read the renamed properties — see the per-resource pages under [Integrations](/integrations/).
+
+<Aside type="note">
+  The same rename was also backported to a 13.1 patch release for the MongoDB, MySQL,
+  Milvus, Oracle, GitHub Models, and OpenAI resources. If you already updated those
+  property names during an Aspire 13.1.x upgrade, only the remaining resources in the
+  table above need attention when moving to 13.2. See the [Connection Properties
+  rename](/whats-new/aspire-13-1/#connection-properties-rename) note in the 13.1
+  release notes for context.
+</Aside>
 
 ### AIFoundry to Foundry transition
 
