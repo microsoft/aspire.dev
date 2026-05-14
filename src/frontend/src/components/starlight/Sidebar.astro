@@ -390,7 +390,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
-        hidden
       >
         <svg
           viewBox="0 0 24 24"
@@ -444,7 +443,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
-        hidden
       >
         <svg
           viewBox="0 0 24 24"
@@ -1045,6 +1043,16 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
      edge. When an announcement banner is visible the JS controller
      writes --aspire-banner-height on <html>, pushing the button below
      the banner. */
+  /* Floating sidebar collapse/expand toggle. Both the collapse and the
+     expand button live at `left: var(--sl-sidebar-width)`, anchored to
+     the sidebar's right edge. When --sl-sidebar-width animates to 0,
+     the button slides flush to the viewport edge alongside the sidebar.
+
+     Both buttons share the same position. Visibility is driven by an
+     opacity crossfade keyed off `[data-sidebar-collapsed]` /
+     `[data-topic-sidebar-collapsed]` on <html>, with `pointer-events`
+     ensuring only the active button receives clicks. This keeps the
+     swap synchronised with the sidebar's width transition. */
   .sidebar-collapse-btn,
   .sidebar-expand-btn {
     position: fixed;
@@ -1055,31 +1063,52 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 0.55rem;
-    background: var(--sl-color-bg-sidebar);
-    border: 1px solid var(--sl-color-hairline-light);
+    width: 3rem;
+    height: 3rem;
+    padding: 0.7rem;
+    background: var(--sl-color-bg);
+    border: none;
     /* Project from the sidebar's right edge — flat on the left, rounded
        on the right. When collapsed the button sits at left:0 and the
        flat left edge butts cleanly against the viewport border. */
-    border-left-color: transparent;
     border-radius: 0 0.375rem 0.375rem 0;
     color: var(--sl-color-text-accent);
     cursor: pointer;
     z-index: 20;
     box-shadow: 2px 1px 3px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+    /* Match the sidebar's width transition so the button slides with it. */
     transition:
       color 0.15s,
       background-color 0.15s,
       box-shadow 0.15s,
+      opacity 0.25s ease,
       left 0.25s ease,
       top 0.25s ease;
   }
+
+  /* Expand button starts hidden in the expanded state; collapse button
+     starts hidden in the collapsed state. Both reside in the DOM and
+     transition opacity together with the sidebar width. */
+  .sidebar-expand-btn {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :global(html[data-sidebar-collapsed]) #sidebar-collapse-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-collapse-btn {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :global(html[data-sidebar-collapsed]) #sidebar-expand-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-expand-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .sidebar-collapse-btn:hover,
   .sidebar-expand-btn:hover {
     color: var(--sl-color-text);
-    background-color: var(--sl-color-gray-6);
     box-shadow: 2px 2px 6px color-mix(in srgb, var(--sl-color-black) 22%, transparent);
   }
   .sidebar-collapse-btn:focus-visible,
@@ -1091,17 +1120,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   .sidebar-expand-btn svg {
     width: 100%;
     height: 100%;
-  }
-  .sidebar-collapse-btn[hidden],
-  .sidebar-expand-btn[hidden] {
-    display: none;
-  }
-
-  /* When the sidebar is collapsed, hide the collapse button (the expand
-     button takes its place). The data-* attributes live on <html>. */
-  :global(html[data-sidebar-collapsed]) #sidebar-collapse-btn,
-  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-collapse-btn {
-    display: none !important;
   }
 
   /* Hide collapse/expand on mobile-style sidebar (< 72rem for API pages) */
@@ -1563,11 +1581,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     const expandBtn = document.getElementById('sidebar-expand-btn');
     if (!collapseBtn || !expandBtn) return;
 
-    // Sync expand button visibility with the collapsed state
-    // (the data-sidebar-collapsed attribute is set early in Head.astro)
-    const isCollapsed = document.documentElement.hasAttribute('data-sidebar-collapsed');
-    expandBtn.hidden = !isCollapsed;
-
     collapseBtn.addEventListener('click', () => {
       setSidebarCollapsed(true, expandBtn, collapseBtn);
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
@@ -1596,9 +1609,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       return;
     }
 
-    const isCollapsed = document.documentElement.hasAttribute('data-topic-sidebar-collapsed');
-    expandBtn.hidden = !isCollapsed;
-
     if (collapseBtn.dataset.bound !== 'true') {
       collapseBtn.dataset.bound = 'true';
       collapseBtn.addEventListener('click', () => {
@@ -1618,13 +1628,11 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     setTopicSidebarReady(true);
   }
 
-  function setTopicSidebarCollapsed(collapsed: boolean, expandBtn: HTMLElement): void {
+  function setTopicSidebarCollapsed(collapsed: boolean, _expandBtn: HTMLElement): void {
     if (collapsed) {
       document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
-      expandBtn.hidden = false;
     } else {
       document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
-      expandBtn.hidden = true;
     }
   }
 
@@ -1635,24 +1643,14 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
   function setSidebarCollapsed(
     collapsed: boolean,
-    expandBtn: HTMLElement,
-    collapseBtn: HTMLElement
+    _expandBtn: HTMLElement,
+    _collapseBtn: HTMLElement
   ) {
     if (collapsed) {
       document.documentElement.setAttribute('data-sidebar-collapsed', '');
-      expandBtn.hidden = false;
     } else {
       document.documentElement.removeAttribute('data-sidebar-collapsed');
-      expandBtn.hidden = true;
     }
-  }
-
-  /** Auto-focus the sidebar filter input on API reference pages.
-   *  Skips if the page-level search input exists (it gets focus instead). */
-  function focusSidebarFilter() {
-    if (document.getElementById('api-search-input')) return;
-    const filterInput = document.getElementById('sidebar-filter-input') as HTMLInputElement | null;
-    filterInput?.focus();
   }
 
   // Guard against registering duplicate listeners on client-side navigation
@@ -1665,7 +1663,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     document.addEventListener('astro:after-swap', initSidebarCollapse);
     document.addEventListener('DOMContentLoaded', initTopicSidebarUi);
     document.addEventListener('astro:after-swap', initTopicSidebarUi);
-    document.addEventListener('astro:page-load', focusSidebarFilter);
     document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
     document.addEventListener('astro:after-swap', initBannerHeightTracking);
     document.addEventListener('DOMContentLoaded', teleportSidebarToggles);
@@ -1677,8 +1674,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   if (document.readyState !== 'loading') initTopicSidebarUi();
   if (document.readyState !== 'loading') initBannerHeightTracking();
   if (document.readyState !== 'loading') teleportSidebarToggles();
-  // Defer focus slightly to run after Astro/Starlight's own DOM setup
-  requestAnimationFrame(() => focusSidebarFilter());
 
   /* ── Sidebar toggle teleport ──────────────────────────────────── */
 
