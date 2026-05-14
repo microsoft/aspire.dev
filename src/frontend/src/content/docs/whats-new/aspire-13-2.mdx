@@ -1227,7 +1227,7 @@ The `BeforeResourceStartedEvent` now only fires when actually starting a resourc
 
 Several connection properties for "named entity" resources gained an explicit `Name` suffix so the property clearly refers to the entity's name rather than the entity itself. This affects both the connection-property API (`GetConnectionProperty`) and the environment variables Aspire injects via `WithReference(...)` and `ReferenceEnvironmentInjectionFlags.ConnectionProperties`.
 
-A subset of these renames first shipped in 13.1; 13.2 completes the rollout across the remaining built-in resources. The full list of renamed properties as of 13.2 is:
+A subset of these renames first shipped in [13.1](/whats-new/aspire-13-1/#connection-properties-rename); 13.2 completes the rollout across the remaining built-in resources, so apps upgrading directly from 13.0 to 13.2 encounter all of them at once. The full list of renamed properties as of 13.2 is:
 
 | Old property name | New property name | Affected resources |
 | ----------------- | ----------------- | ------------------ |
@@ -1235,12 +1235,14 @@ A subset of these renames first shipped in 13.1; 13.2 completes the rollout acro
 | `Model`           | `ModelName`       | `OpenAIModel`, `AzureOpenAIDeployment`, `FoundryDeployment`, `GitHubModel` |
 | `ConsumerGroup`   | `ConsumerGroupName` | `AzureEventHubConsumerGroup` |
 
-Aspire serializes property names directly into environment variable names with the `[RESOURCE]_[PROPERTY]` pattern, so any consuming app that reads the renamed properties from the environment must use the new uppercase names. For example, a SQL Server database resource named `sqldb`:
+Aspire serializes property names directly into environment variable names with the `[RESOURCE]_[PROPERTY]` pattern — the resource name is uppercased and any hyphens or dots in it are replaced with underscores — so any consuming app that reads the renamed properties from the environment must use the new names. For example, a SQL Server database resource named `sqldb`:
 
 ```diff title="Environment variable"
 - SQLDB_DATABASE=catalog
 + SQLDB_DATABASENAME=catalog
 ```
+
+The renamed suffix flows through that same transformation, so an Event Hubs consumer group resource named `orders-cg` surfaces its `ConsumerGroupName` property as the `ORDERS_CG_CONSUMERGROUPNAME` environment variable.
 
 Update consuming app code that reads the variable directly:
 
@@ -1286,7 +1288,9 @@ If your AppHost code reads connection properties through the `IResourceWithConne
 + var database = sqldb.Resource.GetConnectionProperty("DatabaseName");
 ```
 
-To migrate, search your solution for the affected uppercase environment variable names (for example, `_DATABASE`, `_MODEL`, and `_CONSUMERGROUP`) along with `GetConnectionProperty("Database")`, `GetConnectionProperty("Model")`, and `GetConnectionProperty("ConsumerGroup")`, and apply the rename. Properties not listed in the table — for example, `Endpoint`, `Host`, `Port`, `Username`, `Password`, `Uri`, and `Key` — are unchanged.
+To migrate, search your solution for the affected uppercase environment variable names (for example, `_DATABASE`, `_MODEL`, and `_CONSUMERGROUP`) along with `GetConnectionProperty("Database")`, `GetConnectionProperty("Model")`, and `GetConnectionProperty("ConsumerGroup")`, and apply the rename. Also update any custom Bicep, Helm, or other deployment templates that hard-code the old property keys when emitting connection metadata. Properties not listed in the table — for example, `Endpoint`, `Host`, `Port`, `Username`, `Password`, `Uri`, and `Key` — are unchanged.
+
+C# apps that consume the Aspire client integrations (for example, `AddNpgsqlDataSource`, `AddAzureOpenAIClient`, or `AddMongoDBClient`) don't need source changes. Those packages resolve the connection string through `ConnectionStrings:<resource-name>`, which is unaffected by this rename.
 
 <Aside type="note">
   Properties that don't refer to a named entity were not renamed. For example, the
