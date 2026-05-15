@@ -1870,13 +1870,6 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
   /* ── Sidebar toggle teleport ──────────────────────────────────── */
 
-  const TOGGLE_BUTTON_IDS = [
-    'sidebar-collapse-btn',
-    'sidebar-expand-btn',
-    'topic-sidebar-collapse-btn',
-    'topic-sidebar-expand-btn',
-  ] as const;
-
   /**
    * Remove any toggle buttons that were previously teleported to
    * `<body>`. Called as an `astro:before-swap` listener so stale
@@ -1886,7 +1879,13 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
    * re-teleported by `initSidebarCollapse` / `teleportSidebarToggles`.
    */
   function cleanupTeleportedToggles() {
-    for (const id of TOGGLE_BUTTON_IDS) {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    for (const id of ids) {
       // querySelectorAll guards against the (invalid but possible) case
       // where a stale teleported button and a fresh in-sidebar button
       // briefly share the same id during a swap.
@@ -1910,10 +1909,16 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
    * clicks reach the button instead of the page content beneath.
    */
   function teleportSidebarToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
     // Defensive sweep: if any stale teleported buttons survived the
     // last swap (e.g. an aborted view transition), drop them so they
     // can't shadow the fresh in-sidebar buttons via getElementById.
-    for (const id of TOGGLE_BUTTON_IDS) {
+    for (const id of ids) {
       const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
       if (matches.length <= 1) continue;
       matches.forEach((btn) => {
@@ -1923,7 +1928,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       });
     }
 
-    for (const id of TOGGLE_BUTTON_IDS) {
+    for (const id of ids) {
       const btn = document.getElementById(id);
       if (btn && btn.parentElement !== document.body) {
         document.body.appendChild(btn);
