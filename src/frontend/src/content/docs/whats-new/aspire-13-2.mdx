@@ -1224,7 +1224,68 @@ The `BeforeResourceStartedEvent` now only fires when actually starting a resourc
 
 ### Connection property suffix
 
-A connection property suffix has been added which may require updates to code that accesses connection properties directly.
+Aspire normalizes the keys returned by `IResourceWithConnectionString.GetConnectionProperties()` so that any property whose value is the *name* of a sub-entity now ends with `Name`. The rename first shipped in `13.1.0` and is called out again here because apps upgrading directly from 13.0 to 13.2 still encounter it.
+
+The rename is consistent across all affected resources:
+
+| Old key | New key | Resource types |
+|---|---|---|
+| `Database` | `DatabaseName` | `PostgresDatabaseResource`, `MySqlDatabaseResource`, `SqlServerDatabaseResource`, `OracleDatabaseResource`, `MongoDBDatabaseResource`, `MilvusDatabaseResource`, `AzureSqlDatabaseResource`, `AzureCosmosDBDatabaseResource`, `AzurePostgresFlexibleServerDatabaseResource`, `AzureKustoReadWriteDatabaseResource` |
+| `Model` | `ModelName` | `AzureOpenAIDeploymentResource`, `OpenAIModelResource`, `GitHubModelResource`, `FoundryDeploymentResource` |
+| `ConsumerGroup` | `ConsumerGroupName` | `AzureEventHubConsumerGroupResource` |
+
+#### Environment variable impact
+
+When you wire a resource into a consuming app with `WithReference(..., ReferenceEnvironmentInjectionFlags.ConnectionProperties)`, Aspire projects each property as `[RESOURCE]_[PROPERTY]` — uppercased, with hyphens and dots in the resource name replaced by underscores. Renaming the property key therefore renames the environment variable that downstream apps observe.
+
+For a Postgres database resource named `appdb`, an OpenAI model resource named `chat`, and an Event Hubs consumer group resource named `orders-cg`:
+
+```bash title="Environment variables — Before (13.0)"
+APPDB_DATABASE=catalog
+CHAT_MODEL=gpt-4o-mini
+ORDERS_CG_CONSUMERGROUP=worker
+```
+
+```bash title="Environment variables — After (13.1.0+, 13.2)"
+APPDB_DATABASENAME=catalog
+CHAT_MODELNAME=gpt-4o-mini
+ORDERS_CG_CONSUMERGROUPNAME=worker
+```
+
+#### AppHost code impact
+
+The same keys back the `GetConnectionProperty` API on `IResourceWithConnectionString`. Update any AppHost code that resolves a property by string key:
+
+```csharp title="C# — Before (13.0)"
+var apphost = builder
+    .AddProject<Projects.Api>("api")
+    .WithEnvironment("APP_DB", appdb.Resource.GetConnectionProperty("Database"))
+    .WithEnvironment("AI_MODEL", chat.Resource.GetConnectionProperty("Model"));
+```
+
+```csharp title="C# — After (13.1.0+, 13.2)"
+var apphost = builder
+    .AddProject<Projects.Api>("api")
+    .WithEnvironment("APP_DB", appdb.Resource.GetConnectionProperty("DatabaseName"))
+    .WithEnvironment("AI_MODEL", chat.Resource.GetConnectionProperty("ModelName"));
+```
+
+#### Identify affected code
+
+Search your solution for the following patterns and update each match:
+
+- Calls to `GetConnectionProperty("Database")`, `GetConnectionProperty("Model")`, or `GetConnectionProperty("ConsumerGroup")` in your AppHost.
+- App code that reads environment variables ending in `_DATABASE`, `_MODEL`, or `_CONSUMERGROUP` for any of the resource types in the table above. This is most common in Python, JavaScript, and Go apps that read configuration directly from `process.env`, `os.environ`, or `os.Getenv` instead of through an Aspire client integration.
+- Custom Bicep, Helm, or other deployment templates that hard-code the old property keys when emitting connection metadata.
+
+C# apps that consume the Aspire client integrations (for example, `AddNpgsqlDataSource`, `AddAzureOpenAIClient`, `AddMongoDBClient`) don't need source changes. Those packages resolve the connection string through `ConnectionStrings:<resource-name>`, which is unaffected by this rename.
+
+<Aside type="note">
+  Apps already running on a `13.1.x` build use the new property names today and
+  need no further migration when upgrading to 13.2. The 13.1 release notes
+  cover a [partial list](/whats-new/aspire-13-1/#connection-properties-rename)
+  of the renames; the table above is the canonical reference.
+</Aside>
 
 ### AIFoundry to Foundry transition
 
