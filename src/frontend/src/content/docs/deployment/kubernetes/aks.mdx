@@ -5,6 +5,7 @@ description: Learn how to deploy your Aspire application to Azure Kubernetes Ser
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 Deploy your Aspire application to Azure Kubernetes Service (AKS). Aspire provisions the AKS cluster, Azure Container Registry (ACR), and any Azure resources your app depends on — then deploys your application in a single command.
 
@@ -154,6 +155,307 @@ Aspire performs the following steps:
 The first deployment may take several minutes while the AKS cluster and ACR are provisioned. Subsequent deployments are faster as Aspire reuses existing infrastructure.
 :::
 
+## Expose your app to the internet
+
+By default, the services Aspire deploys to AKS are reachable only from inside the cluster. To accept traffic from the public internet — for example a web frontend or a public API — you add an **Application Gateway for Containers (AGC)** load balancer and a **Gateway API** `Gateway` to your AppHost, then opt into automatic HTTPS with **cert-manager**. Everything in this section is provisioned by `aspire deploy` alongside the rest of your infrastructure; you don't run any `az aks`, `az network alb`, or `helm install` commands by hand.
+
+<LearnMore>
+This walkthrough uses the integrated AGC + cert-manager APIs that ship with [📦 Aspire.Hosting.Azure.Kubernetes](https://www.nuget.org/packages/Aspire.Hosting.Azure.Kubernetes) and require no additional package. If you have a pre-existing AKS cluster that wasn't provisioned by Aspire, see the bring-your-own-cluster walkthroughs for [Gateway API on AKS](/deployment/kubernetes-gateway-aks/) and [Ingress on AKS](/deployment/kubernetes-ingress-aks/) instead.
+</LearnMore>
+
+### How AGC ingress fits together
+
+When you opt in via `AddLoadBalancer`, Aspire flips the AKS cluster's Bicep to enable the AKS-managed Gateway API and Application Load Balancer ingress profiles. After deploy, the cluster runs the Microsoft-managed AGC controller, which watches for Aspire's generated `Gateway` and `HTTPRoute` resources and programs an Azure-hosted HTTPS frontend automatically.
+
+The pieces fit together like this:
+
+| Aspire AppHost call | What it produces in Azure / Kubernetes |
+|---|---|
+| `AddAzureKubernetesEnvironment` | AKS cluster (with Gateway API + ALB ingress profile when an LB is added) and ACR |
+| `AddAzureVirtualNetwork` + `AddSubnet` | A VNet and subnets — one for AKS nodes, one (or more) delegated to AGC |
+| `AddLoadBalancer(name, subnet)` | An AGC `ApplicationLoadBalancer` CR plus role assignments on the subnet |
+| `AddGateway(name).WithLoadBalancer(lb)` | A Gateway API `Gateway` resource attached to the AGC frontend |
+| `WithRoute(path, endpoint)` | An `HTTPRoute` that points the path at your service |
+| `AddCertManager(name).AddIssuer(...)` | cert-manager Helm release plus a `ClusterIssuer` |
+| `WithTls(issuer)` | An HTTPS listener and a cert-manager-issued certificate per gateway hostname |
+
+### Prerequisites for AGC
+
+Application Gateway for Containers ingress on AKS uses preview Azure features that need to be registered once per subscription. Run these commands and wait for both feature registrations to report `Registered`:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.ServiceNetworking
+
+az feature register --namespace Microsoft.ContainerService \
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview
+
+# Wait until both features are Registered before deploying
+az feature show --namespace Microsoft.ContainerService \
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+
+az provider register --namespace Microsoft.ContainerService
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.ServiceNetworking
+
+az feature register --namespace Microsoft.ContainerService `
+  --name ManagedGatewayAPIPreview
+az feature register --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview
+
+# Wait until both features are Registered before deploying
+az feature show --namespace Microsoft.ContainerService `
+  --name ApplicationLoadBalancerPreview --query properties.state -o tsv
+
+az provider register --namespace Microsoft.ContainerService
+```
+
+</div>
+</OsAwareTabs>
+
+<Aside type="note">
+Feature registration can take several minutes the first time. For the latest prerequisites and supported regions, see the [Application Gateway for Containers documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/).
+</Aside>
+
+### Add a virtual network and subnets
+
+AGC requires a dedicated subnet for its frontend that is delegated to `Microsoft.ServiceNetworking/trafficControllers`. The AKS node subnet and the AGC subnet must not overlap, and the AKS service CIDR defaults to `10.0.0.0/16` — pick a VNet range that avoids it.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREAZURE003 // AddSubnet is evaluation-only
+
+var vnet = builder.AddAzureVirtualNetwork("vnet", "10.100.0.0/16");
+var aksSubnet = vnet.AddSubnet("aks-nodes", "10.100.0.0/22");
+var albSubnet = vnet.AddSubnet("alb-public", "10.100.4.0/24");
+
+var aks = builder.AddAzureKubernetesEnvironment("aks")
+                 .WithSubnet(aksSubnet);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const vnet = await builder.addAzureVirtualNetwork('vnet', '10.100.0.0/16');
+const aksSubnet = await vnet.addSubnet('aks-nodes', '10.100.0.0/22');
+const albSubnet = await vnet.addSubnet('alb-public', '10.100.4.0/24');
+
+const aks = await builder.addAzureKubernetesEnvironment('aks');
+await aks.withSubnet(aksSubnet);
+```
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+The AGC frontend subnet must be **/24 or larger**. The AKS node pool subnet should be **/22 or larger** to leave room for pods and scale-out. `AddSubnet` is currently evaluation-only and lives behind the `ASPIREAZURE003` diagnostic — suppress it as shown above.
+</Aside>
+
+### Add an Application Gateway for Containers load balancer
+
+`AddLoadBalancer` returns a typed handle that gateways and ingresses attach to. Behind the scenes it delegates the supplied subnet to AGC, grants the controller's managed identity `Network Contributor` on the subnet, and applies the `ApplicationLoadBalancer` custom resource once the `azure-alb-external` GatewayClass is ready in the cluster.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var publicLb = aks.AddLoadBalancer("public", albSubnet);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const publicLb = await aks.addLoadBalancer('public', albSubnet);
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+Each AGC `ApplicationLoadBalancer` caps at five frontends (Gateways or Ingresses). Larger applications can call `AddLoadBalancer` multiple times — for example one `public` LB for customer traffic and a separate `admin` LB for an internal portal — and attach gateways to whichever LB they belong on.
+</Aside>
+
+### Add a Gateway with a route to your service
+
+`AddGateway` declares a Kubernetes Gateway API `Gateway`. `WithLoadBalancer` attaches it to the AGC ALB you just created and defaults the `gatewayClassName` to `azure-alb-external`. `WithRoute` adds an `HTTPRoute` that forwards a path to the named endpoint on one of your services.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.MyApi>("api")
+                 .WithExternalHttpEndpoints();
+
+aks.AddGateway("storefront")
+   .WithLoadBalancer(publicLb)
+   .WithRoute("/", api.GetEndpoint("http"));
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const api = await builder
+    .addNodeApp('api', './api', 'src/index.ts')
+    .withHttpEndpoint({ env: 'PORT' })
+    .withExternalHttpEndpoints();
+
+const storefront = await aks.addGateway('storefront');
+await storefront.withLoadBalancer(publicLb);
+await storefront.withRoute('/', api.getEndpoint('http'));
+```
+</TabItem>
+</Tabs>
+
+Use the host overload of `WithRoute` when you need to send different hostnames to different backends — for example `WithRoute("api.contoso.com", "/", api.GetEndpoint("http"))`.
+
+### First deploy: HTTP on the AGC FQDN
+
+Run `aspire deploy`. After it finishes, AGC assigns the gateway a frontend FQDN of the form `<random>.fz<n>.alb.azure.com`. Read it from the deployed `Gateway` and curl your service to confirm the load balancer and route are wired up before adding TLS:
+
+```bash title="Read the AGC FQDN and curl the gateway"
+kubectl get gateway storefront -o jsonpath='{.status.addresses[0].value}'
+curl http://<the-fqdn-printed-above>/
+```
+
+<Aside type="caution">
+This first deploy serves plain HTTP only. Continue to the next step before exposing the FQDN to real users.
+</Aside>
+
+### Add automatic HTTPS with cert-manager
+
+`AddCertManager` installs the upstream cert-manager Helm chart with the CRDs and Gateway API watcher enabled and the `--force-conflicts` flag set so AKS's Azure Policy add-on doesn't break subsequent upgrades. `AddIssuer` adds a typed `ClusterIssuer` parented to that installation, and `WithTls(issuer)` on a gateway adds an HTTPS listener that cert-manager will populate with a real certificate.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var certManager = aks.AddCertManager("cert-manager");
+
+var letsencrypt = certManager.AddIssuer("letsencrypt-prod")
+    .WithLetsEncryptProduction("ops@contoso.com")
+    .WithHttp01Solver();
+
+aks.AddGateway("storefront")
+   .WithLoadBalancer(publicLb)
+   .WithRoute("/", api.GetEndpoint("http"))
+   .WithTls(letsencrypt);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const certManager = await aks.addCertManager('cert-manager');
+
+const letsencrypt = await certManager.addIssuer('letsencrypt-prod');
+await letsencrypt.withLetsEncryptProduction('ops@contoso.com');
+await letsencrypt.withHttp01Solver();
+
+const storefront = await aks.addGateway('storefront');
+await storefront.withLoadBalancer(publicLb);
+await storefront.withRoute('/', api.getEndpoint('http'));
+await storefront.withTls(letsencrypt);
+```
+</TabItem>
+</Tabs>
+
+`WithTls(issuer)` is the strongly-typed overload — it validates at AppHost-build time that the gateway and the issuer's cert-manager installation belong to the same Kubernetes environment. There is also a no-argument `WithTls()` (auto-generated secret name, no issuer annotation) and a `WithTls(secretName)` overload for cases where you manage the certificate yourself.
+
+<Aside type="tip">
+Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, swap `WithLetsEncryptProduction` for `WithLetsEncryptStaging` so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
+</Aside>
+
+#### How the certificate gets issued
+
+cert-manager validates domain ownership using the **HTTP-01** challenge configured by `WithHttp01Solver` — it asks the gateway to serve a token at `/.well-known/acme-challenge/<token>` and verifies the response. There is no DNS API access required, so this works for the auto-assigned `*.alb.azure.com` FQDN out of the box.
+
+To break the chicken-and-egg problem where AGC won't program a Gateway whose HTTPS listener references a missing secret, Aspire pre-creates a self-signed bootstrap secret on the first deploy. Once AGC publishes the gateway's FQDN, Aspire patches the listener with the real hostname and cert-manager swaps the bootstrap certificate for a Let's Encrypt one. You may briefly see a self-signed certificate during the first deploy — this is expected.
+
+### Verify the certificate
+
+After the deploy completes, watch the `Certificate` resource transition to `Ready=True`:
+
+```bash title="Inspect the cert-manager Certificate"
+kubectl get certificate
+kubectl describe certificate storefront-tls
+```
+
+Then curl the gateway over HTTPS and confirm the certificate chain comes from Let's Encrypt:
+
+```bash title="Verify TLS"
+curl -v https://<the-fqdn>/ 2>&1 | grep -i "issuer:"
+```
+
+## Use a custom domain
+
+The `*.alb.azure.com` FQDN is fine for testing but real applications need a hostname customers can remember. Adding a custom domain is a small change to the AppHost plus a DNS record at your registrar.
+
+### Tell the gateway about your hostname
+
+`WithHostname` adds the hostname to the gateway's `HTTPRoute`s and to the HTTPS listener so cert-manager issues the certificate for the right name. Use the parameter overload when the hostname differs across deployment environments.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var hostname = builder.AddParameter("hostname"); // e.g. "api.contoso.com"
+
+aks.AddGateway("storefront")
+   .WithLoadBalancer(publicLb)
+   .WithHostname(hostname)
+   .WithRoute("/", api.GetEndpoint("http"))
+   .WithTls(letsencrypt);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const hostname = builder.addParameter('hostname'); // e.g. "api.contoso.com"
+
+const storefront = await aks.addGateway('storefront');
+await storefront.withLoadBalancer(publicLb);
+await storefront.withHostname(hostname);
+await storefront.withRoute('/', api.getEndpoint('http'));
+await storefront.withTls(letsencrypt);
+```
+</TabItem>
+</Tabs>
+
+Provide the hostname value at deploy time:
+
+```bash title="Deploy with the hostname parameter"
+aspire deploy --parameter hostname=api.contoso.com
+```
+
+### Point your DNS at the AGC frontend
+
+Read the AGC FQDN from the deployed gateway, then create a `CNAME` record at your DNS provider that points your custom hostname at it. The DNS provider doesn't matter — Azure DNS, Cloudflare, Route 53, GoDaddy, anything that supports `CNAME` records will work.
+
+```bash title="Get the AGC FQDN to CNAME against"
+kubectl get gateway storefront -o jsonpath='{.status.addresses[0].value}'
+# 8a3...cd.fz12.alb.azure.com
+```
+
+```text title="Example DNS record"
+api.contoso.com.   CNAME   8a3...cd.fz12.alb.azure.com.
+```
+
+<Aside type="note">
+Apex domains (e.g. `contoso.com` with no subdomain) can't use `CNAME` records. Either use a subdomain like `www` or `api`, or use a DNS provider that supports `ALIAS`/`ANAME`-style records that resolve a CNAME at the apex (Azure DNS, Cloudflare, Route 53 all do).
+</Aside>
+
+### Re-deploy and verify
+
+Re-running `aspire deploy` is idempotent. Once your DNS record propagates, cert-manager's HTTP-01 challenge will succeed against the new hostname and a fresh certificate is issued automatically:
+
+```bash title="Verify the custom domain"
+curl -v https://api.contoso.com/ 2>&1 | grep -i "issuer:\|subject:"
+```
+
+<Aside type="tip">
+HTTP-01 keeps DNS configuration entirely outside your AppHost — there's no Azure DNS zone to provision and no managed identity to wire up to a DNS API. If you have a hard requirement to issue certificates without serving HTTP traffic (for example, a wildcard certificate or a domain that can't be reached over HTTP), see the [Ingress on AKS](/deployment/kubernetes-ingress-aks/) walkthrough for the cert-manager DNS-01 + Azure DNS setup.
+</Aside>
+
 ## Publish AKS artifacts
 
 To generate deployment artifacts without deploying, use `aspire publish`:
@@ -232,11 +534,46 @@ If pods fail with `ImagePullBackOff`, verify that the AKS cluster has the correc
 az aks check-acr --resource-group <resource-group> --name <cluster-name> --acr <acr-name>.azurecr.io
 ```
 
+### Certificate stays `Ready=False`
+
+If `kubectl get certificate` reports the certificate as not ready for more than a few minutes, describe it and the cert-manager `Order`/`Challenge` resources to see what failed:
+
+```bash title="Diagnose a stuck certificate"
+kubectl describe certificate storefront-tls
+kubectl describe challenge -A
+```
+
+Common causes:
+
+- **DNS hasn't propagated yet** when using a custom domain — Let's Encrypt fetches `http://<your-host>/.well-known/acme-challenge/...` and that has to resolve to the AGC frontend.
+- **HTTP traffic is blocked** between Let's Encrypt and the gateway — HTTP-01 needs port 80 open. AGC keeps the HTTP listener that `AddGateway` generates open by default; don't remove it.
+- **Production rate limit hit** while iterating — switch the issuer to `WithLetsEncryptStaging` until everything else works, then flip back to production.
+
+### Gateway never gets an FQDN
+
+If `kubectl get gateway` shows no address after `aspire deploy` succeeds, check that the AGC ingress profile actually came up on the cluster:
+
+```bash title="Check the AGC controller and GatewayClass"
+kubectl get gatewayclass azure-alb-external
+kubectl get pods -n kube-system -l app=alb-controller
+```
+
+If the `azure-alb-external` GatewayClass doesn't exist, the most common cause is that the `ManagedGatewayAPIPreview` and `ApplicationLoadBalancerPreview` features aren't registered on the subscription — re-run the `az feature register` commands from [Prerequisites for AGC](#prerequisites-for-agc), then `aspire deploy` again.
+
+### `helm upgrade` fails on cert-manager SSA conflicts
+
+`AddCertManager` already passes `--force-conflicts` to `helm upgrade` to handle the field-manager conflict that AKS's Azure Policy add-on creates against cert-manager's `ValidatingWebhookConfiguration`. If you install cert-manager yourself with raw `AddHelmChart` instead, add `.WithForceConflicts()` to the chart resource, otherwise the second deploy will fail with a server-side-apply conflict on `.webhooks[*].namespaceSelector`.
+
 ## See also
 
 - [AKS integration](/integrations/cloud/azure/aks/)
 - [Kubernetes integration](/integrations/compute/kubernetes/)
 - [Deploy to Kubernetes](/deployment/kubernetes/)
+- [Expose services with Ingress and Gateway API](/deployment/kubernetes-ingress/)
+- [Gateway API on AKS (bring-your-own cluster)](/deployment/kubernetes-gateway-aks/)
+- [Ingress on AKS (bring-your-own cluster)](/deployment/kubernetes-ingress-aks/)
 - [Deploy to Azure](/deployment/azure/)
 - [Pipelines and app topology](/deployment/pipelines/)
 - [Azure Kubernetes Service documentation](https://learn.microsoft.com/azure/aks/)
+- [Application Gateway for Containers documentation](https://learn.microsoft.com/azure/application-gateway/for-containers/)
+- [cert-manager documentation](https://cert-manager.io/)
