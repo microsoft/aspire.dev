@@ -115,7 +115,7 @@ const currentTopic = effectiveTopics.find((topic) => topic.isCurrent) ?? effecti
 const hasTopicSidebar = Boolean(
   !isApiRefPage && routeData?.hasSidebar && topicState?.isPageWithTopic && currentTopic
 );
-const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 0);
+const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 ---
 
 <div
@@ -128,177 +128,95 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     isApiRefPage ? (
       <>
         <div class="api-sidebar-sticky not-content">
-          <div
-            class:list={[
-              'sidebar-sticky-toolbar',
-              'api-sidebar-toolbar',
-              { 'sidebar-sticky-toolbar-topic-stack': hasSharedTopicDropdown },
-            ]}
-          >
-            <div class="sidebar-filter">
-              <div class="sidebar-filter-wrap">
+          {hasTopicsList && (
+            <ul
+              class="starlight-sidebar-topics topics-sidebar-list"
+              data-tour-target="topics-dropdown"
+              data-tour-step="topics-dropdown"
+            >
+              {effectiveTopics.map((topic) => (
+                <li>
+                  <a
+                    href={topic.link}
+                    title={topic.label}
+                    aria-label={topic.label}
+                    aria-current={topic.isCurrent ? 'page' : undefined}
+                    class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                  >
+                    {topic.icon && (
+                      <div class="starlight-sidebar-topics-icon">
+                        <Icon name={topic.icon as any} />
+                      </div>
+                    )}
+                    <div>
+                      {topic.label}
+                      {topic.badge && (
+                        <Badge
+                          class="starlight-sidebar-topics-badge"
+                          text={topic.badge.text}
+                          variant={topic.badge.variant}
+                        />
+                      )}
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div class="sidebar-filter sidebar-filter-row">
+            <div class="sidebar-filter-wrap">
+              <svg
+                class="sidebar-filter-icon"
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <label class="sr-only" for="sidebar-filter-input">
+                Filter sidebar
+              </label>
+              <input
+                type="text"
+                id="sidebar-filter-input"
+                class="sidebar-filter-input"
+                placeholder="Filter sidebar…"
+                autocomplete="off"
+                aria-label="Filter sidebar entries"
+              />
+              <button
+                type="button"
+                id="sidebar-filter-clear"
+                class="sidebar-filter-clear"
+                aria-label="Clear filter"
+                hidden
+              >
                 <svg
-                  class="sidebar-filter-icon"
                   aria-hidden="true"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="2.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-                <label class="sr-only" for="sidebar-filter-input">
-                  Filter sidebar
-                </label>
-                <input
-                  type="text"
-                  id="sidebar-filter-input"
-                  class="sidebar-filter-input"
-                  placeholder="Filter sidebar…"
-                  autocomplete="off"
-                  aria-label="Filter sidebar entries"
-                />
-                <button
-                  type="button"
-                  id="sidebar-filter-clear"
-                  class="sidebar-filter-clear"
-                  aria-label="Clear filter"
-                  hidden
-                >
-                  <svg
-                    aria-hidden="true"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
-            </div>
-            <button
-              type="button"
-              class="sidebar-collapse-btn"
-              id="sidebar-collapse-btn"
-              data-tour-target="sidebar-toggle"
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <>
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="M9 3v18m7-6l-3-3l3-3" />
-                </>
-              </svg>
-            </button>
-          </div>
-          {hasSharedTopicDropdown && (
-            <div
-              class="sidebar-dropdown-shell topic-selector-dropdown"
-              data-sidebar-dropdown
-              data-tour-target="topics-dropdown"
-              data-tour-step="topics-dropdown"
-            >
-              <button
-                type="button"
-                class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
-                id="topic-sidebar-trigger"
-                aria-haspopup="menu"
-                aria-expanded="false"
-                data-dropdown-trigger
-              >
-                {currentTopic?.icon && (
-                  <span class="starlight-sidebar-topics-icon topic-selector-icon">
-                    <Icon name={currentTopic.icon as any} />
-                  </span>
-                )}
-                <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
-                  <span class="sidebar-dropdown-trigger-label topic-selector-label">
-                    {currentTopic?.label}
-                  </span>
-                  {currentTopic?.badge && (
-                    <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
-                      <Badge
-                        class="starlight-sidebar-topics-badge"
-                        text={currentTopic.badge.text}
-                        variant={currentTopic.badge.variant}
-                      />
-                    </span>
-                  )}
-                </span>
-                <svg
-                  class="sidebar-dropdown-caret"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 7.5L10 12.5L15 7.5" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
-              <div
-                class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
-                hidden
-                data-dropdown-panel
-              >
-                <ul
-                  class="starlight-sidebar-topics starlight-sidebar-topics-menu"
-                  role="menu"
-                  aria-labelledby="topic-sidebar-trigger"
-                >
-                  {effectiveTopics.map((topic) => (
-                    <li role="none">
-                      <a
-                        href={topic.link}
-                        class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
-                        role="menuitem"
-                      >
-                        {topic.icon && (
-                          <div class="starlight-sidebar-topics-icon">
-                            <Icon name={topic.icon as any} />
-                          </div>
-                        )}
-                        <div>
-                          {topic.label}
-                          {topic.badge && (
-                            <Badge
-                              class="starlight-sidebar-topics-badge"
-                              text={topic.badge.text}
-                              variant={topic.badge.variant}
-                            />
-                          )}
-                        </div>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
-          )}
+            <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+          </div>
           <div
-            class="sidebar-filter-empty sidebar-filter-empty-below-dropdown"
+            class="sidebar-filter-empty"
             id="sidebar-filter-empty"
             aria-labelledby="sidebar-filter-empty-copy"
             hidden
@@ -323,170 +241,93 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     ) : hasTopicSidebar ? (
       <>
         <div class="topic-sidebar-sticky not-content">
-          <div class="topic-sidebar-toolbar">
-            <div class="sidebar-filter">
-              <div class="sidebar-filter-wrap">
+          <ul
+            class="starlight-sidebar-topics topics-sidebar-list"
+            data-tour-target="topics-dropdown"
+            data-tour-step="topics-dropdown"
+          >
+            {effectiveTopics.map((topic) => (
+              <li>
+                <a
+                  href={topic.link}
+                  title={topic.label}
+                  aria-label={topic.label}
+                  aria-current={topic.isCurrent ? 'page' : undefined}
+                  class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
+                >
+                  {topic.icon && (
+                    <div class="starlight-sidebar-topics-icon">
+                      <Icon name={topic.icon as any} />
+                    </div>
+                  )}
+                  <div>
+                    {topic.label}
+                    {topic.badge && (
+                      <Badge
+                        class="starlight-sidebar-topics-badge"
+                        text={topic.badge.text}
+                        variant={topic.badge.variant}
+                      />
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div class="sidebar-filter sidebar-filter-row">
+            <div class="sidebar-filter-wrap">
+              <svg
+                class="sidebar-filter-icon"
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <label class="sr-only" for="sidebar-filter-input">
+                Filter sidebar
+              </label>
+              <input
+                type="text"
+                id="sidebar-filter-input"
+                class="sidebar-filter-input"
+                placeholder="Filter sidebar…"
+                autocomplete="off"
+                aria-label="Filter sidebar entries"
+              />
+              <button
+                type="button"
+                id="sidebar-filter-clear"
+                class="sidebar-filter-clear"
+                aria-label="Clear filter"
+                hidden
+              >
                 <svg
-                  class="sidebar-filter-icon"
                   aria-hidden="true"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="2.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-                <label class="sr-only" for="sidebar-filter-input">
-                  Filter sidebar
-                </label>
-                <input
-                  type="text"
-                  id="sidebar-filter-input"
-                  class="sidebar-filter-input"
-                  placeholder="Filter sidebar…"
-                  autocomplete="off"
-                  aria-label="Filter sidebar entries"
-                />
-                <button
-                  type="button"
-                  id="sidebar-filter-clear"
-                  class="sidebar-filter-clear"
-                  aria-label="Clear filter"
-                  hidden
-                >
-                  <svg
-                    aria-hidden="true"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
+              </button>
             </div>
-            <button
-              type="button"
-              class="sidebar-collapse-btn"
-              id="topic-sidebar-collapse-btn"
-              data-tour-target="sidebar-toggle"
-              data-tour-step="sidebar-toggle"
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <>
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="M9 3v18m7-6l-3-3l3-3" />
-                </>
-              </svg>
-            </button>
+            <div id="sidebar-filter-status" class="sr-only" aria-live="polite" />
           </div>
           <div
-            class="sidebar-dropdown-shell topic-selector-dropdown"
-            data-sidebar-dropdown
-            data-tour-target="topics-dropdown"
-            data-tour-step="topics-dropdown"
-          >
-            <button
-              type="button"
-              class="sidebar-dropdown-trigger sidebar-dropdown-trigger-topic"
-              id="topic-sidebar-trigger"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              data-dropdown-trigger
-            >
-              {currentTopic?.icon && (
-                <span class="starlight-sidebar-topics-icon topic-selector-icon">
-                  <Icon name={currentTopic.icon as any} />
-                </span>
-              )}
-              <span class="sidebar-dropdown-trigger-copy topic-selector-copy">
-                <span class="sidebar-dropdown-trigger-label topic-selector-label">
-                  {currentTopic?.label}
-                </span>
-                {currentTopic?.badge && (
-                  <span class="sidebar-dropdown-trigger-meta topic-selector-meta">
-                    <Badge
-                      class="starlight-sidebar-topics-badge"
-                      text={currentTopic.badge.text}
-                      variant={currentTopic.badge.variant}
-                    />
-                  </span>
-                )}
-              </span>
-              <svg
-                class="sidebar-dropdown-caret"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M5 7.5L10 12.5L15 7.5" />
-              </svg>
-            </button>
-            <div
-              class="sidebar-dropdown-panel sidebar-dropdown-panel-topics"
-              hidden
-              data-dropdown-panel
-            >
-              <ul
-                class="starlight-sidebar-topics starlight-sidebar-topics-menu"
-                role="menu"
-                aria-labelledby="topic-sidebar-trigger"
-              >
-                {effectiveTopics.map((topic) => (
-                  <li role="none">
-                    <a
-                      href={topic.link}
-                      class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
-                      role="menuitem"
-                    >
-                      {topic.icon && (
-                        <div class="starlight-sidebar-topics-icon">
-                          <Icon name={topic.icon as any} />
-                        </div>
-                      )}
-                      <div>
-                        {topic.label}
-                        {topic.badge && (
-                          <Badge
-                            class="starlight-sidebar-topics-badge"
-                            text={topic.badge.text}
-                            variant={topic.badge.variant}
-                          />
-                        )}
-                      </div>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div
-            class="sidebar-filter-empty sidebar-filter-empty-below-dropdown"
+            class="sidebar-filter-empty"
             id="sidebar-filter-empty"
             aria-labelledby="sidebar-filter-empty-copy"
             hidden
@@ -516,66 +357,127 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
   }
   <div class="divider"></div>
   <div class="sidebar-bottom">
-    <LinkButton href={'https://github.com/microsoft/aspire.dev'} variant="minimal">
+    <LinkButton
+      href={'https://github.com/microsoft/aspire.dev'}
+      variant="minimal"
+      title="GitHub: microsoft/aspire.dev"
+    >
       <Icon name="github" />
-      aspire.dev
+      <span>aspire.dev</span>
     </LinkButton>
   </div>
 </div>
 {
   isApiRefPage && (
-    <button
-      type="button"
-      class="sidebar-expand-btn"
-      id="sidebar-expand-btn"
-      data-tour-target="sidebar-toggle"
-      aria-label="Expand sidebar"
-      title="Expand sidebar"
-      hidden
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        aria-hidden="true"
+    <>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        id="sidebar-collapse-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Collapse sidebar"
+        title="Collapse sidebar"
+        aria-expanded="true"
+        aria-controls="starlight__sidebar"
       >
-        <>
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18m5-12l3 3l-3 3" />
-        </>
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m7-6l-3-3l3-3" />
+          </>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="sidebar-expand-btn"
+        id="sidebar-expand-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        aria-expanded="false"
+        aria-controls="starlight__sidebar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m5-12l3 3l-3 3" />
+          </>
+        </svg>
+      </button>
+    </>
   )
 }
 {
   hasTopicSidebar && (
-    <button
-      type="button"
-      class="sidebar-expand-btn"
-      id="topic-sidebar-expand-btn"
-      data-tour-target="sidebar-toggle"
-      aria-label="Expand sidebar"
-      title="Expand sidebar"
-      hidden
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        aria-hidden="true"
+    <>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        id="topic-sidebar-collapse-btn"
+        data-tour-target="sidebar-toggle"
+        data-tour-step="sidebar-toggle"
+        aria-label="Collapse sidebar"
+        title="Collapse sidebar"
+        aria-expanded="true"
+        aria-controls="starlight__sidebar"
       >
-        <>
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18m5-12l3 3l-3 3" />
-        </>
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m7-6l-3-3l3-3" />
+          </>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="sidebar-expand-btn"
+        id="topic-sidebar-expand-btn"
+        data-tour-target="sidebar-toggle"
+        aria-label="Expand sidebar"
+        title="Expand sidebar"
+        aria-expanded="false"
+        aria-controls="starlight__sidebar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18m5-12l3 3l-3 3" />
+          </>
+        </svg>
+      </button>
+    </>
   )
 }
 
@@ -657,46 +559,23 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     --sidebar-control-height: 2.5rem;
   }
 
-  /* Sidebar sticky wrappers */
-  .api-sidebar-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--sl-color-bg-sidebar);
-    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
-    padding-inline: var(--sl-sidebar-pad-x);
-  }
-
-  .sidebar-sticky-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--sl-color-hairline-light);
-  }
-
-  .sidebar-sticky-toolbar-topic-stack {
-    padding-bottom: 0.35rem;
-    border-bottom: 0;
-  }
-
+  /* Sidebar header wrappers — topics list + filter scroll along with the
+     rest of the sidebar content (no sticky positioning). */
+  .api-sidebar-sticky,
   .topic-sidebar-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--sl-color-bg-sidebar);
-    margin-inline: calc(-1 * var(--sl-sidebar-pad-x));
-    padding-inline: var(--sl-sidebar-pad-x);
+    padding-top: 0.75rem;
   }
 
-  .topic-sidebar-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    padding: 0.75rem 0 0.35rem;
+  /* The visual styling for `.starlight-sidebar-topics` lives globally in
+     `site.css` (mirroring the original plugin look). The scoped class here
+     only adds a small bottom margin so the filter row beneath sits flush. */
+  .topics-sidebar-list {
+    margin-bottom: 0.75rem;
+  }
+
+  /* Filter row sits full-width directly below the topics list. */
+  .sidebar-filter-row {
+    margin-bottom: 0.75rem;
   }
 
   .sidebar-dropdown-shell {
@@ -1084,10 +963,6 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     color: var(--sl-color-text);
   }
 
-  .sidebar-filter-empty-below-dropdown {
-    margin-top: 0;
-  }
-
   .sidebar-filter-empty[hidden] {
     display: none;
   }
@@ -1178,57 +1053,123 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
 
   /* ── Sidebar collapse / expand ────────────────────────────────── */
 
-  .sidebar-collapse-btn {
-    margin-left: auto;
+  /* Anchor the collapse/expand toggle to the sidebar's right edge so it
+     reads as a tab projecting from the sidebar. The button stays visible
+     (position: fixed) while the sidebar's own contents (topics, filter,
+     entries) scroll independently. When the sidebar is collapsed
+     (--sl-sidebar-width: 0), the button slides flush to the viewport
+     edge. When an announcement banner is visible the JS controller
+     writes --aspire-banner-height on <html>, pushing the button below
+     the banner. */
+  /* Floating sidebar collapse/expand toggle. Both the collapse and the
+     expand button live at `left: var(--sl-sidebar-width)`, anchored to
+     the sidebar's right edge. When --sl-sidebar-width animates to 0,
+     the button slides flush to the viewport edge alongside the sidebar.
+
+     Both buttons share the same position. Visibility is driven by an
+     opacity crossfade keyed off `[data-sidebar-collapsed]` /
+     `[data-topic-sidebar-collapsed]` on <html>, with `pointer-events`
+     ensuring only the active button receives clicks. This keeps the
+     swap synchronised with the sidebar's width transition. */
+  .sidebar-collapse-btn,
+  .sidebar-expand-btn {
+    position: fixed;
+    top: calc(
+      var(--sl-nav-height, 3.5rem) + var(--aspire-banner-height, 0px) +
+        var(--sl-mobile-toc-height, 0px) + 0.75rem
+    );
+    left: var(--sl-sidebar-width);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 0.5rem;
-    background: none;
+    width: 3rem;
+    height: 3rem;
+    padding: 0.7rem;
+    background: var(--sl-color-bg);
     border: none;
-    border-radius: 0.375rem;
+    /* Project from the sidebar's right edge — flat on the left, rounded
+       on the right. When collapsed the button sits at left:0 and the
+       flat left edge butts cleanly against the viewport border. */
+    border-radius: 0 0.375rem 0.375rem 0;
     color: var(--sl-color-text-accent);
     cursor: pointer;
-    flex-shrink: 0;
+    z-index: 20;
+    box-shadow: 2px 1px 3px color-mix(in srgb, var(--sl-color-black) 14%, transparent);
+    /* Match the sidebar's width transition so the button slides with it.
+       `visibility` flips instantly when becoming active so the button is
+       focusable mid-fade, and is delayed by the opacity duration when
+       deactivating so the fade-out can play. */
     transition:
       color 0.15s,
-      background-color 0.15s;
-  }
-  .sidebar-collapse-btn:hover {
-    color: var(--sl-color-text);
-    background-color: var(--sl-color-gray-6);
-  }
-  .sidebar-collapse-btn svg {
-    width: 100%;
-    height: 100%;
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0s;
   }
 
+  /* Expand button starts hidden in the expanded state; collapse button
+     starts hidden in the collapsed state. Both reside in the DOM and
+     transition opacity together with the sidebar width. `visibility:
+     hidden` is paired with the opacity fade so the inactive button is
+     truly inert — neither receivable to assistive tech nor reported as
+     visible to test runners like Playwright. */
   .sidebar-expand-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    margin: 0.75rem auto 0;
-    padding: 0.5rem;
-    background: none;
-    border: none;
-    border-radius: 0.375rem;
-    color: var(--sl-color-text-accent);
-    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
     transition:
       color 0.15s,
-      background-color 0.15s;
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0.25s;
   }
-  .sidebar-expand-btn[hidden] {
-    display: none;
+
+  :global(html[data-sidebar-collapsed]) #sidebar-collapse-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-collapse-btn {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0.25s;
   }
+
+  :global(html[data-sidebar-collapsed]) #sidebar-expand-btn,
+  :global(html[data-topic-sidebar-collapsed]) #topic-sidebar-expand-btn {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition:
+      color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s,
+      opacity 0.25s ease,
+      left 0.25s ease,
+      top 0.25s ease,
+      visibility 0s linear 0s;
+  }
+
+  .sidebar-collapse-btn:hover,
   .sidebar-expand-btn:hover {
     color: var(--sl-color-text);
-    background-color: var(--sl-color-gray-6);
+    box-shadow: 2px 2px 6px color-mix(in srgb, var(--sl-color-black) 22%, transparent);
   }
+  .sidebar-collapse-btn:focus-visible,
+  .sidebar-expand-btn:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .sidebar-collapse-btn svg,
   .sidebar-expand-btn svg {
     width: 100%;
     height: 100%;
@@ -1243,10 +1184,6 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
   }
 
   @media (max-width: 50rem) {
-    .topic-sidebar-toolbar {
-      gap: 0.5rem;
-    }
-
     .sidebar-dropdown-trigger,
     .sidebar-dropdown-option {
       padding-inline: 0.7rem;
@@ -1545,9 +1482,13 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
         return;
       }
 
-      this.emptyCopyEl.textContent = query
+      const message = query
         ? `No sidebar article titles match "${query}".`
         : 'No matching sidebar article titles.';
+      this.emptyCopyEl.textContent = message;
+      // Also surface the message through the polite live region so screen
+      // readers hear *why* the list is empty, not just "0 matches".
+      this.updateStatus(message);
     }
   }
 
@@ -1667,6 +1608,31 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
   const SIDEBAR_READY_ATTR = 'data-api-sidebar-ready';
   const TOPIC_SIDEBAR_READY_ATTR = 'data-topic-sidebar-ready';
 
+  /* Briefly tagging <html> with `data-sidebar-expanding` /
+     `data-topic-sidebar-expanding` while the rail → expanded transition
+     plays lets the filter and sidebar entries run a subtle blur-in
+     animation as they re-enter the layout. The flag clears just after
+     the underlying width transition (250ms) finishes. */
+  const SIDEBAR_EXPAND_ANIMATION_MS = 320;
+  let sidebarExpandTimer = 0;
+  let topicSidebarExpandTimer = 0;
+
+  // Module-scoped observers so we can disconnect previous instances on
+  // re-init (astro:after-swap) instead of leaking one per navigation.
+  let bannerMutationObserver: MutationObserver | null = null;
+  let bannerResizeObserver: ResizeObserver | null = null;
+
+  function safeSetItem(key: string, value: string): void {
+    // localStorage can throw in private browsing / quota-exceeded /
+    // sandboxed iframes. Failing silently is the right call here — the
+    // in-memory DOM state still works, we just won't persist.
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* noop */
+    }
+  }
+
   function setSidebarReady(ready: boolean): void {
     if (ready) {
       document.documentElement.setAttribute(SIDEBAR_READY_ATTR, '');
@@ -1683,8 +1649,22 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     }
   }
 
+  function syncAriaExpanded(
+    collapseBtn: HTMLElement,
+    expandBtn: HTMLElement,
+    isCollapsed: boolean
+  ): void {
+    const value = isCollapsed ? 'false' : 'true';
+    collapseBtn.setAttribute('aria-expanded', value);
+    expandBtn.setAttribute('aria-expanded', value);
+  }
+
   function initSidebarCollapse() {
     setSidebarReady(false);
+    // Clear any pending expand-animation flag carried over from the
+    // previous page so it can't fire on the next page mid-navigation.
+    window.clearTimeout(sidebarExpandTimer);
+    document.documentElement.removeAttribute('data-sidebar-expanding');
 
     const container = document.querySelector('.topics-sidebar[data-api-ref]');
     if (!container) {
@@ -1697,26 +1677,37 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     const expandBtn = document.getElementById('sidebar-expand-btn');
     if (!collapseBtn || !expandBtn) return;
 
-    // Sync expand button visibility with the collapsed state
-    // (the data-sidebar-collapsed attribute is set early in Head.astro)
-    const isCollapsed = document.documentElement.hasAttribute('data-sidebar-collapsed');
-    expandBtn.hidden = !isCollapsed;
+    // Sync aria-expanded with the data-sidebar-collapsed attribute that
+    // Head.astro set from localStorage before this script ran.
+    syncAriaExpanded(
+      collapseBtn,
+      expandBtn,
+      document.documentElement.hasAttribute('data-sidebar-collapsed')
+    );
 
-    collapseBtn.addEventListener('click', () => {
-      setSidebarCollapsed(true, expandBtn, collapseBtn);
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
-    });
+    if (collapseBtn.dataset.bound !== 'true') {
+      collapseBtn.dataset.bound = 'true';
+      collapseBtn.addEventListener('click', () => {
+        setSidebarCollapsed(true, expandBtn, collapseBtn);
+        safeSetItem(SIDEBAR_COLLAPSED_KEY, '1');
+      });
+    }
 
-    expandBtn.addEventListener('click', () => {
-      setSidebarCollapsed(false, expandBtn, collapseBtn);
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '0');
-    });
+    if (expandBtn.dataset.bound !== 'true') {
+      expandBtn.dataset.bound = 'true';
+      expandBtn.addEventListener('click', () => {
+        setSidebarCollapsed(false, expandBtn, collapseBtn);
+        safeSetItem(SIDEBAR_COLLAPSED_KEY, '0');
+      });
+    }
 
     setSidebarReady(true);
   }
 
   function initTopicSidebarCollapse() {
     setTopicSidebarReady(false);
+    window.clearTimeout(topicSidebarExpandTimer);
+    document.documentElement.removeAttribute('data-topic-sidebar-expanding');
 
     const container = document.querySelector('.topics-sidebar[data-topic-nav]');
     if (!container) {
@@ -1730,35 +1721,71 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
       return;
     }
 
-    const isCollapsed = document.documentElement.hasAttribute('data-topic-sidebar-collapsed');
-    expandBtn.hidden = !isCollapsed;
+    syncAriaExpanded(
+      collapseBtn,
+      expandBtn,
+      document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
+    );
 
     if (collapseBtn.dataset.bound !== 'true') {
       collapseBtn.dataset.bound = 'true';
       collapseBtn.addEventListener('click', () => {
-        setTopicSidebarCollapsed(true, expandBtn);
-        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
+        setTopicSidebarCollapsed(true, expandBtn, collapseBtn);
+        safeSetItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '1');
       });
     }
 
     if (expandBtn.dataset.bound !== 'true') {
       expandBtn.dataset.bound = 'true';
       expandBtn.addEventListener('click', () => {
-        setTopicSidebarCollapsed(false, expandBtn);
-        localStorage.setItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
+        setTopicSidebarCollapsed(false, expandBtn, collapseBtn);
+        safeSetItem(TOPIC_SIDEBAR_COLLAPSED_KEY, '0');
       });
     }
 
     setTopicSidebarReady(true);
   }
 
-  function setTopicSidebarCollapsed(collapsed: boolean, expandBtn: HTMLElement): void {
+  function setTopicSidebarCollapsed(
+    collapsed: boolean,
+    expandBtn: HTMLElement,
+    collapseBtn: HTMLElement
+  ): void {
+    const root = document.documentElement;
+    const wasCollapsed = root.hasAttribute('data-topic-sidebar-collapsed');
+
     if (collapsed) {
-      document.documentElement.setAttribute('data-topic-sidebar-collapsed', '');
-      expandBtn.hidden = false;
+      window.clearTimeout(topicSidebarExpandTimer);
+      root.removeAttribute('data-topic-sidebar-expanding');
+      root.setAttribute('data-topic-sidebar-collapsed', '');
+      collapseBtn.setAttribute('aria-expanded', 'false');
+      expandBtn.setAttribute('aria-expanded', 'false');
+      // Focus the now-visible button so keyboard users stay anchored.
+      try {
+        expandBtn.focus({ preventScroll: true });
+      } catch {
+        expandBtn.focus();
+      }
     } else {
-      document.documentElement.removeAttribute('data-topic-sidebar-collapsed');
-      expandBtn.hidden = true;
+      // Only run the blur-in animation when actually transitioning from
+      // a collapsed state — not on initial load when we're already expanded.
+      if (wasCollapsed) {
+        root.setAttribute('data-topic-sidebar-expanding', '');
+        window.clearTimeout(topicSidebarExpandTimer);
+        topicSidebarExpandTimer = window.setTimeout(() => {
+          root.removeAttribute('data-topic-sidebar-expanding');
+        }, SIDEBAR_EXPAND_ANIMATION_MS);
+      }
+      root.removeAttribute('data-topic-sidebar-collapsed');
+      collapseBtn.setAttribute('aria-expanded', 'true');
+      expandBtn.setAttribute('aria-expanded', 'true');
+      if (wasCollapsed) {
+        try {
+          collapseBtn.focus({ preventScroll: true });
+        } catch {
+          collapseBtn.focus();
+        }
+      }
     }
   }
 
@@ -1772,21 +1799,39 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     expandBtn: HTMLElement,
     collapseBtn: HTMLElement
   ) {
-    if (collapsed) {
-      document.documentElement.setAttribute('data-sidebar-collapsed', '');
-      expandBtn.hidden = false;
-    } else {
-      document.documentElement.removeAttribute('data-sidebar-collapsed');
-      expandBtn.hidden = true;
-    }
-  }
+    const root = document.documentElement;
+    const wasCollapsed = root.hasAttribute('data-sidebar-collapsed');
 
-  /** Auto-focus the sidebar filter input on API reference pages.
-   *  Skips if the page-level search input exists (it gets focus instead). */
-  function focusSidebarFilter() {
-    if (document.getElementById('api-search-input')) return;
-    const filterInput = document.getElementById('sidebar-filter-input') as HTMLInputElement | null;
-    filterInput?.focus();
+    if (collapsed) {
+      window.clearTimeout(sidebarExpandTimer);
+      root.removeAttribute('data-sidebar-expanding');
+      root.setAttribute('data-sidebar-collapsed', '');
+      collapseBtn.setAttribute('aria-expanded', 'false');
+      expandBtn.setAttribute('aria-expanded', 'false');
+      try {
+        expandBtn.focus({ preventScroll: true });
+      } catch {
+        expandBtn.focus();
+      }
+    } else {
+      if (wasCollapsed) {
+        root.setAttribute('data-sidebar-expanding', '');
+        window.clearTimeout(sidebarExpandTimer);
+        sidebarExpandTimer = window.setTimeout(() => {
+          root.removeAttribute('data-sidebar-expanding');
+        }, SIDEBAR_EXPAND_ANIMATION_MS);
+      }
+      root.removeAttribute('data-sidebar-collapsed');
+      collapseBtn.setAttribute('aria-expanded', 'true');
+      expandBtn.setAttribute('aria-expanded', 'true');
+      if (wasCollapsed) {
+        try {
+          collapseBtn.focus({ preventScroll: true });
+        } catch {
+          collapseBtn.focus();
+        }
+      }
+    }
   }
 
   // Guard against registering duplicate listeners on client-side navigation
@@ -1799,14 +1844,98 @@ const hasSharedTopicDropdown = Boolean(currentTopic && effectiveTopics.length > 
     document.addEventListener('astro:after-swap', initSidebarCollapse);
     document.addEventListener('DOMContentLoaded', initTopicSidebarUi);
     document.addEventListener('astro:after-swap', initTopicSidebarUi);
-    document.addEventListener('astro:page-load', focusSidebarFilter);
+    document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
+    document.addEventListener('astro:after-swap', initBannerHeightTracking);
+    document.addEventListener('DOMContentLoaded', teleportSidebarToggles);
+    document.addEventListener('astro:after-swap', teleportSidebarToggles);
   }
   // Also init immediately in case DOMContentLoaded already fired
   if (document.readyState !== 'loading') initSidebarFilter();
   if (document.readyState !== 'loading') initSidebarCollapse();
   if (document.readyState !== 'loading') initTopicSidebarUi();
-  // Defer focus slightly to run after Astro/Starlight's own DOM setup
-  requestAnimationFrame(() => focusSidebarFilter());
+  if (document.readyState !== 'loading') initBannerHeightTracking();
+  if (document.readyState !== 'loading') teleportSidebarToggles();
+
+  /* ── Sidebar toggle teleport ──────────────────────────────────── */
+
+  /**
+   * Move the floating sidebar collapse/expand toggle buttons to
+   * `<body>` so they escape the sidebar's stacking context. The
+   * sidebar pane lives in its own flex column; its descendants —
+   * even those with `position: fixed` — are still painted within
+   * the sidebar's flex item, which the main content area paints
+   * over. Reparenting to `<body>` puts the toggle in the root
+   * stacking context where its `z-index` actually wins, so mouse
+   * clicks reach the button instead of the page content beneath.
+   */
+  function teleportSidebarToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    for (const id of ids) {
+      const btn = document.getElementById(id);
+      if (btn && btn.parentElement !== document.body) {
+        document.body.appendChild(btn);
+      }
+    }
+  }
+
+  /* ── Banner height tracking ───────────────────────────────────── */
+
+  /**
+   * Measure the announcement banner's height (if present and open) and
+   * write it to `--aspire-banner-height` on the root element so floating
+   * UI (the sidebar collapse/expand toggle) can offset itself below it.
+   * Updates on dismiss/state changes and on window resize.
+   */
+  function initBannerHeightTracking() {
+    const root = document.documentElement;
+    const update = () => {
+      const banner = document.querySelector('.sl-banner') as HTMLElement | null;
+      const open = banner && banner.dataset.bannerState !== 'closing' && !banner.hidden;
+      const height = open ? Math.round(banner.getBoundingClientRect().height) : 0;
+      if (height > 0) {
+        root.style.setProperty('--aspire-banner-height', `${height}px`);
+      } else {
+        root.style.removeProperty('--aspire-banner-height');
+      }
+    };
+
+    update();
+
+    const banner = document.querySelector('.sl-banner') as HTMLElement | null;
+    if (banner) {
+      // Disconnect any prior observers before re-attaching so we don't
+      // accumulate one set per client-side navigation.
+      bannerMutationObserver?.disconnect();
+      bannerResizeObserver?.disconnect();
+
+      // Track state changes (open → closing) emitted by Banner.astro's controller
+      bannerMutationObserver = new MutationObserver(update);
+      bannerMutationObserver.observe(banner, {
+        attributes: true,
+        attributeFilter: ['data-banner-state', 'hidden'],
+      });
+      // Track size changes too (e.g. responsive line-wrap)
+      if (typeof ResizeObserver !== 'undefined') {
+        bannerResizeObserver = new ResizeObserver(update);
+        bannerResizeObserver.observe(banner);
+      }
+    } else {
+      bannerMutationObserver?.disconnect();
+      bannerResizeObserver?.disconnect();
+      bannerMutationObserver = null;
+      bannerResizeObserver = null;
+    }
+
+    if (!(window as any).__bannerHeightResizeBound) {
+      (window as any).__bannerHeightResizeBound = true;
+      window.addEventListener('resize', update);
+    }
+  }
 
   /* ── Sticky sidebar offsets & auto-scroll ─────────────────────── */
 

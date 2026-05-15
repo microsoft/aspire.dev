@@ -168,7 +168,9 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
                 }
               }
 
-              return element.getAttribute('aria-label')?.trim() || element.textContent?.trim() || '';
+              return (
+                element.getAttribute('aria-label')?.trim() || element.textContent?.trim() || ''
+              );
             })
         )
       )
@@ -191,9 +193,11 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
       banner.getByRole('button', { name: /open cookie preferences dialog/i }).first()
     ).toBeVisible();
 
-    const installButton = banner.getByRole('button', {
-      name: /open install aspire cli dialog/i,
-    }).first();
+    const installButton = banner
+      .getByRole('button', {
+        name: /open install aspire cli dialog/i,
+      })
+      .first();
     await expect(installButton).toBeVisible();
     await installButton.click();
 
@@ -215,7 +219,10 @@ test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page.getByRole('button', { name: /reject all/i }).last().click();
+  await page
+    .getByRole('button', { name: /reject all/i })
+    .last()
+    .click();
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
@@ -341,7 +348,7 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
 });
 
-test('API sidebar filter empty state and topic dropdown controls respond correctly', async ({
+test('API sidebar filter empty state and topics list controls respond correctly', async ({
   page,
 }) => {
   test.slow();
@@ -361,16 +368,17 @@ test('API sidebar filter empty state and topic dropdown controls respond correct
   const emptyState = page.locator('#sidebar-filter-empty');
   const emptyCopy = page.locator('#sidebar-filter-empty-copy');
   const emptyAction = page.locator('#sidebar-filter-empty-action');
-  const topicTrigger = page.locator('#topic-sidebar-trigger');
-  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+  const topicsList = page
+    .locator('.topics-sidebar[data-api-ref] .starlight-sidebar-topics')
+    .first();
 
-  await topicTrigger.click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(topicPanel).toBeVisible();
-
-  await page.keyboard.press('Escape');
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(topicPanel).toBeHidden();
+  // Topics are now always visible as a list at the top of the sidebar
+  // (the previous dropdown trigger/panel were removed in the layout
+  // restructure). At least one topic link should be present, the current
+  // topic must be marked with `aria-current="page"`, and the filter still
+  // owns the no-match empty state.
+  await expect(topicsList.locator('a')).not.toHaveCount(0);
+  await expect(topicsList.locator('a[aria-current="page"]')).toHaveCount(1);
 
   await filterInput.fill('zzzz-sidebar-no-match');
 
@@ -403,16 +411,17 @@ test('topic sidebar custom controls persist collapse state and filter reset on r
   const emptyState = page.locator('#sidebar-filter-empty');
   const collapseButton = page.locator('#topic-sidebar-collapse-btn');
   const expandButton = page.locator('#topic-sidebar-expand-btn');
-  const topicTrigger = page.locator('#topic-sidebar-trigger');
-  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+  const topicsList = page
+    .locator('.topics-sidebar[data-topic-nav] .starlight-sidebar-topics')
+    .first();
 
-  await topicTrigger.click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(topicPanel).toBeVisible();
-
-  await page.locator('main').click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(topicPanel).toBeHidden();
+  // Topics are now always visible as a list at the top of the sidebar
+  // (the previous dropdown trigger/panel were removed in the layout
+  // restructure). At least one topic link, exactly one current-topic
+  // indicator, and the filter empty state are the same invariants the
+  // old dropdown test checked — just without the dropdown wrapper.
+  await expect(topicsList.locator('a')).not.toHaveCount(0);
+  await expect(topicsList.locator('a[aria-current="page"]')).toHaveCount(1);
 
   await filterInput.fill('zzzz-topic-no-match');
   await expect(clearButton).toBeVisible();
