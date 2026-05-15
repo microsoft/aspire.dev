@@ -1,5 +1,5 @@
 ---
-description: Daily update of integration data, sample metadata, and GitHub statistics by running pnpm update:all and creating a PR with the changes.
+description: Daily update of integration data, sample metadata, and GitHub statistics by running pnpm update:all and creating a PR with the changes. When integration package versions change, also regenerates the C# and TypeScript API reference JSON files (and the twoslash bundle) and includes them in the same PR.
 on:
   schedule: daily on weekdays
 permissions:
@@ -9,6 +9,14 @@ runtimes:
   node:
     version: "24"
 steps:
+  - name: Setup .NET SDK
+    uses: actions/setup-dotnet@v5
+    with:
+      global-json-file: global.json
+  - name: Install Aspire CLI
+    run: |
+      dotnet tool install -g Aspire.Cli
+      echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
   - name: Setup pnpm
     run: corepack enable && corepack install
     working-directory: src/frontend
@@ -36,6 +44,9 @@ safe-outputs:
       - "src/frontend/src/data/github-stats.json"
       - "src/frontend/src/data/samples.json"
       - "src/frontend/src/assets/samples/**"
+      - "src/frontend/src/data/pkgs/**"
+      - "src/frontend/src/data/ts-modules/**"
+      - "src/frontend/src/data/twoslash/aspire.d.ts"
   close-pull-request:
     required-labels: [":octocat: auto-merge"]
     required-title-prefix: "chore: Update integration data"
@@ -53,9 +64,57 @@ You are an automation agent that updates integration data and GitHub statistics 
 1. Run the update script from the repository root: `pnpm update:all`
 2. Check if any files were modified using `git diff --stat`
 3. Review the generated integration data for official Aspire package icon warnings
-4. Check for existing open PRs created by this workflow
-5. If there are changes, create a pull request with the updated data files
-6. If there are no changes, call the `noop` safe output explaining that integration data is already up to date
+4. **Detect integration package version changes** in `src/frontend/src/data/aspire-integrations.json` (see "Version-change detection" below)
+5. **If version changes were detected, run the API reference regeneration branch** (see "API reference regeneration" below)
+6. Check for existing open PRs created by this workflow
+7. If there are changes, create a single pull request with the updated data files (and, when triggered, the regenerated API reference files)
+8. If there are no changes, call the `noop` safe output explaining that integration data is already up to date
+
+## Version-change detection
+
+After `pnpm update:all` completes, determine whether any package version field in `src/frontend/src/data/aspire-integrations.json` changed. The C# and TypeScript API reference data are keyed by package + version, so we only regenerate them when a version actually moves — metadata-only changes (icons, descriptions, download counts) must **not** trigger the regen branch.
+
+Run this from the repository root:
+
+```bash
+git diff --unified=0 -- src/frontend/src/data/aspire-integrations.json \
+  | grep -E '^[+-][[:space:]]*"version":' \
+  | sort -u
+```
+
+Treat it as a version change when **any** matching `+/-` `"version":` line exists (a value moved up, was added for a new package, or was removed for a deprecated package). Capture the affected package titles for the PR body — read each diff hunk and extract the `"title"` field of the surrounding entry so the PR body can list the packages that triggered the regen.
+
+If `git diff` shows no `"version":` lines, skip the regeneration branch and record "no version changes — API regen skipped" in the PR body.
+
+## API reference regeneration
+
+This branch only runs when version-change detection found at least one changed `"version":` line. When triggered:
+
+1. **Regenerate C# API reference JSON** for every package in `aspire-integrations.json`:
+
+   ```bash
+   pwsh src/tools/PackageJsonGenerator/generate-package-json.ps1
+   ```
+
+   The script writes `src/frontend/src/data/pkgs/{Package}.{Version}.json` files. Capture the script's success/failure summary for the PR body — successes, failures, and skipped packages (meta-packages without `lib/` content typically appear as skipped).
+
+2. **Regenerate TypeScript API reference JSON and the twoslash bundle**:
+
+   ```bash
+   pnpm --filter ./src/frontend run update:ts-api
+   ```
+
+   This script reads the C# package JSON from step 1, selects the `Aspire.Hosting` and `Aspire.Hosting.*` packages, and runs `aspire sdk dump` for each. It writes `src/frontend/src/data/ts-modules/{Package}.{Version}.json` files and then automatically chains `scripts/generate-twoslash-types.ts` to rebuild `src/frontend/src/data/twoslash/aspire.d.ts`. Capture any per-package failures for the PR body.
+
+3. **Verify the regen diff is well-scoped.** After both scripts complete, run `git status` and confirm changes are limited to:
+
+   - `src/frontend/src/data/pkgs/**`
+   - `src/frontend/src/data/ts-modules/**`
+   - `src/frontend/src/data/twoslash/aspire.d.ts`
+
+   plus the metadata files already produced by `pnpm update:all`. If the diff includes anything outside these paths, stop and report a `missing_tool` or `missing_data` safe output explaining the unexpected file.
+
+4. **File-count summary for the PR body.** Use `git diff --name-status` to count added (`A`), modified (`M`), and removed (`D`) files under `src/frontend/src/data/pkgs/`, `src/frontend/src/data/ts-modules/`, and whether `src/frontend/src/data/twoslash/aspire.d.ts` changed.
 
 ## Existing PR Handling
 
@@ -104,6 +163,10 @@ The update script should resolve official Aspire package icons to package-specif
   - `github-stats.json` — repository star counts, descriptions, and license info
   - `samples.json` — Aspire sample metadata
 - `pnpm update:all` can also refresh sample thumbnail assets under `src/frontend/src/assets/samples/`
+- When the API reference regeneration branch runs, additional files change under:
+  - `src/frontend/src/data/pkgs/` — per-package C# API JSON
+  - `src/frontend/src/data/ts-modules/` — per-package TypeScript API JSON
+  - `src/frontend/src/data/twoslash/aspire.d.ts` — consolidated twoslash type bundle
 - Use today's date in the PR title formatted as `M/D/YY` (e.g., `2/24/26`)
 - When creating a PR, first create a local branch, add only the allowed generated files, and commit the changes locally. Then call `create-pull-request` with `branch` set to the exact output of `git branch --show-current`.
 - Never include workflow files, package manifests, lockfiles, source files, or documentation edits in the generated data PR.
@@ -112,7 +175,7 @@ The update script should resolve official Aspire package icons to package-specif
 
 **Title**: `Update integration data and GitHub stats (DATE)`
 
-**Body** (use this template):
+**Body** (use this template; include the **API reference regeneration** section only when that branch actually ran):
 
 ```markdown
 ## Automated Integration Data Update - DATE
@@ -128,15 +191,43 @@ This PR contains automated updates to:
 - `src/frontend/src/data/samples.json` — Sample metadata, when changed
 - `src/frontend/src/assets/samples/` — Sample thumbnails, when changed
 
+### API reference regeneration
+
+<!-- Only include this section when version-change detection triggered the regen branch. -->
+<!-- Otherwise replace the entire section body with: -->
+<!-- _No integration package versions changed in this run — API reference regeneration was skipped._ -->
+
+Versions changed for the following packages, so the C# and TypeScript API reference data and the twoslash bundle were regenerated:
+
+- `<Aspire.Hosting.Foo>` `<old>` → `<new>`
+- `<Aspire.Hosting.Bar>` `<old>` → `<new>`
+- _(list truncated to first 10; full list visible in the diff)_
+
+| Area | Added | Modified | Removed |
+|---|---|---|---|
+| `src/frontend/src/data/pkgs/**` | _N_ | _N_ | _N_ |
+| `src/frontend/src/data/ts-modules/**` | _N_ | _N_ | _N_ |
+| `src/frontend/src/data/twoslash/aspire.d.ts` | — | _yes/no_ | — |
+
+Generator summary:
+
+- C# (`generate-package-json.ps1`): _S_ succeeded, _F_ failed, _K_ skipped
+- TS (`pnpm update:ts-api`): _S_ succeeded, _F_ failed
+- Failures (if any): `<Package@Version>` — _reason_
+
 ### Review Checklist
+
 - [ ] Verify integration data looks reasonable
 - [ ] Check for any suspicious changes or anomalies
 - [ ] Ensure package counts and versions are updated appropriately
 - [ ] Confirm official Aspire package icons still use package-specific NuGet icon URLs
+- [ ] (If regen ran) The set of new/removed `pkgs/` and `ts-modules/` files matches the version changes — no orphaned files for packages that didn't change
+- [ ] (If regen ran) `src/frontend/src/data/twoslash/aspire.d.ts` was committed (the diff must include this file or hover tooltips fall back to `any`)
+- [ ] (If regen ran) Generator failure list is empty or limited to known meta-packages
 ```
 
 ## Safe Outputs
 
-- If files were modified and no existing PR: use `create-pull-request` with the title and body above
+- If files were modified and no existing PR: use `create-pull-request` with the title and body above. The PR body must include the **API reference regeneration** section, populated when the regen branch ran or marked as skipped otherwise.
 - If files were modified and existing workflow-created PRs were found: use `create-pull-request` for the replacement and `close-pull-request` for the superseded PRs
 - If no files were modified: use `noop` with a clear explanation
