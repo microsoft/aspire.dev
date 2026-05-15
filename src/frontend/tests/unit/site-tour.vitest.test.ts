@@ -46,7 +46,7 @@ const siteTourStrings: SiteTourStrings = {
   },
   steps: {
     sidebarToggle: { title: 'Show or hide the sidebar', body: 'Sidebar body' },
-    topicsDropdown: { title: 'Jump to another doc area', body: 'Topics body' },
+    topicsList: { title: 'Jump to another doc area', body: 'Topics body' },
     search: { title: 'Search the docs', body: 'Search body' },
     installCli: { title: 'View CLI install commands', body: 'Install body' },
     cookiePreferences: { title: 'Manage cookie consent', body: 'Cookie body' },
@@ -94,19 +94,19 @@ describe('site tour helpers', () => {
 
     expect(filterStepDefinitions(steps, ['search'], 'new', null).map((step) => step.id)).toEqual([
       'sidebar-toggle',
-      'topics-dropdown',
+      'topics-list',
       'install-cli',
     ]);
     expect(
-      filterStepDefinitions(steps, [], 'single', 'topics-dropdown').map((step) => step.id)
-    ).toEqual(['topics-dropdown']);
+      filterStepDefinitions(steps, [], 'single', 'topics-list').map((step) => step.id)
+    ).toEqual(['topics-list']);
   });
 
   it('resolves the nearest next available step when the stored step is missing', () => {
     const steps = [{ id: 'search' }, { id: 'edit-page' }];
 
     expect(resolveStoredStepIndex(steps, 'search')).toBe(0);
-    expect(resolveStoredStepIndex(steps, 'topics-dropdown')).toBe(0);
+    expect(resolveStoredStepIndex(steps, 'topics-list')).toBe(0);
     expect(resolveStoredStepIndex(steps, 'footer-preferences')).toBe(1);
     expect(resolveStoredStepIndex(steps, 'unknown-step')).toBe(0);
   });
