@@ -121,6 +121,9 @@ The preceding code adds an Azure Log Analytics workspace resource named `log-ana
 
 A common pattern is to use a Log Analytics workspace with Application Insights for centralized telemetry collection. You can link an Application Insights resource to a Log Analytics workspace:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -135,10 +138,27 @@ builder.Build().Run();
 
 ````
 
-<Aside type="note">
-  TypeScript AppHost support for linking an Application Insights resource to a
-  Log Analytics workspace isn't yet available.
-</Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const logAnalytics =
+  await builder.addAzureLogAnalyticsWorkspace('log-analytics');
+const appInsights = await builder.addAzureApplicationInsights('app-insights');
+await appInsights.withLogAnalyticsWorkspace(logAnalytics);
+
+const api = await builder.addNodeApp('api', './api', 'index.js');
+await api.withReference(appInsights);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code:
 

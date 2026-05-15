@@ -311,24 +311,46 @@ Any resource that implements the `IResourceWithEndpoints` interface can use the 
 
 There's also an overload that allows you to specify a delegate to configure the endpoint. This is useful when you need to configure the endpoint based on the environment or other factors. Consider the following code:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 builder.AddContainer("apiService", "nginx")
-       .WithEndpoint(
-             endpointName: "admin",
-             callback: static endpoint =>
+    .WithEndpoint(
+        endpointName: "admin",
+        callback: static endpoint =>
         {
             endpoint.Port = 17003;
-           endpoint.UriScheme = "http";
-           endpoint.Transport = "http";
-       });
+            endpoint.UriScheme = "http";
+            endpoint.Transport = "http";
+        });
 ```
 
-The preceding code provides a callback delegate to configure the endpoint. The endpoint is named `admin` and configured to use the `http` scheme and transport, as well as the 17003 host port. Consumers can reference this endpoint by name with a URI such as `http://_admin.apiservice`. The `_` sentinel indicates that the `admin` segment is the endpoint name belonging to the `apiservice` service. For more information, see [Service discovery](/fundamentals/service-discovery/).
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-<Aside type="note">
-  TypeScript AppHost supports configuring endpoints with option objects, but the
-  callback overload that mutates `EndpointAnnotation` isn't yet available.
-</Aside>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const apiService = await builder.addContainer('apiService', {
+  image: 'nginx',
+  tag: 'latest',
+});
+await apiService.withEndpointCallback(
+  'admin',
+  async (endpoint) => {
+    endpoint.setPort(17003).setUriScheme('http').setTransport('http');
+  },
+  { createIfNotExists: true }
+);
+```
+
+</TabItem>
+</Tabs>
+
+The preceding code provides a callback delegate to configure the endpoint. The endpoint is named `admin` and configured to use the `http` scheme and transport, as well as the 17003 host port. Consumers can reference this endpoint by name with a URI such as `http://_admin.apiservice`. The `_` sentinel indicates that the `admin` segment is the endpoint name belonging to the `apiservice` service. For more information, see [Service discovery](/fundamentals/service-discovery/).
 
 ### Additional considerations
 
@@ -355,18 +377,40 @@ For project-resource-specific endpoint filtering, see [Project resources](/integ
 
 By default, every endpoint on a resource is included when another resource references it via `WithReference(resource)`. Some resources expose auxiliary endpoints—such as admin dashboards or health-check ports—that consumer services should not discover automatically. Use the `ExcludeReferenceEndpoint` property on `EndpointAnnotation` to opt an endpoint out of the default reference set:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 builder.AddContainer("myservice", "myimage")
     .WithHttpEndpoint(name: "management", port: 8080)
     .WithEndpoint("management", ep => ep.ExcludeReferenceEndpoint = true);
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for setting `ExcludeReferenceEndpoint` isn't yet
-  available.
-</Aside>
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const myService = await builder.addContainer('myservice', {
+  image: 'myimage',
+  tag: 'latest',
+});
+await myService.withHttpEndpoint({ name: 'management', port: 8080 });
+await myService.withEndpointCallback('management', async (endpoint) => {
+  endpoint.setExcludeReferenceEndpoint(true);
+});
+```
+
+</TabItem>
+</Tabs>
 
 When `ExcludeReferenceEndpoint` is `true`, the endpoint is **not** injected into dependent services by a plain `WithReference(resource)` call. It can still be referenced explicitly by name:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var myService = builder.AddContainer("myservice", "myimage")
@@ -383,10 +427,33 @@ var adminApp = builder.AddProject<Projects.Admin>("admin")
     .WithReference(myService.GetEndpoint("management"));
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for resolving a specific named endpoint with
-  `GetEndpoint` isn't yet available.
-</Aside>
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const myService = await builder.addContainer('myservice', {
+  image: 'myimage',
+  tag: 'latest',
+});
+await myService.withHttpEndpoint({ name: 'api', port: 5000 });
+await myService.withHttpEndpoint({ name: 'management', port: 8080 });
+await myService.withEndpointCallback('management', async (endpoint) => {
+  endpoint.setExcludeReferenceEndpoint(true);
+});
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(myService);
+
+const adminApp = await builder.addProject('admin', '../Admin/Admin.csproj');
+await adminApp.withReference(myService.getEndpoint('management'));
+```
+
+</TabItem>
+</Tabs>
 
 The following built-in Aspire integrations already apply this pattern to their auxiliary endpoints:
 

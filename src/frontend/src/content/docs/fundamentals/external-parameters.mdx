@@ -63,20 +63,36 @@ Consider the following AppHost configuration file _appsettings.json_:
 }
 ```
 
-The preceding JSON configures a parameter in the `Parameters` section of the AppHost configuration. In other words, that AppHost is able to find the parameter as it's configured. For example, you could walk up to the `IDistributedApplicationBuilder.Configuration` and access the value using the `Parameters:example-parameter-name` key:
+The preceding JSON configures a parameter in the `Parameters` section of the AppHost configuration. In other words, that AppHost is able to find the parameter as it's configured. For example, you could access the value using the `Parameters:example-parameter-name` key:
 
-```csharp
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var key = $"Parameters:example-parameter-name";
 var value = builder.Configuration[key]; // value = "local-value"
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const key = 'Parameters:example-parameter-name';
+const value = builder.getConfiguration().getConfigValue(key); // value = "local-value"
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="note">
-  TypeScript AppHost support for reading AppHost configuration directly through
-  `IDistributedApplicationBuilder.Configuration` isn't available. In TypeScript
-  AppHosts, pass parameter resources to dependent resources instead of reading
-  configuration values directly.
+  You usually don't need to read this value yourself. Prefer passing parameter
+  resources to dependent resources, as shown in the examples in this article.
 </Aside>
 
 <Aside type="caution">
