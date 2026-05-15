@@ -1,0 +1,50 @@
+diff --git a/dist/core/build/static-build.js b/dist/core/build/static-build.js
+index 48ac5357202ed7b516441e8e0b45794f44091755..f69d01c3649d371f47993f353bc43922527d418a 100644
+--- a/dist/core/build/static-build.js
++++ b/dist/core/build/static-build.js
+@@ -3,6 +3,27 @@ import path from "node:path";
+ import { fileURLToPath, pathToFileURL } from "node:url";
+ import colors from "piccolore";
+ import * as vite from "vite";
++
++// Retries `fs.promises.rename` on Windows when a freshly-written file is still
++// being held by another handle (typically a virus scanner or the file-system
++// indexer). Without retries, the very next `astro build` after a fresh write
++// can fail with EBUSY/EPERM during the asset-move phase of the build, which
++// makes back-to-back rebuilds on Windows unreliable. The retry is a no-op on
++// platforms that don't surface these errors.
++async function renameWithRetry(from, to) {
++  const transient = new Set(["EBUSY", "EPERM", "ENOTEMPTY"]);
++  const maxAttempts = 8;
++  let delay = 25;
++  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
++    try {
++      return await fs.promises.rename(from, to);
++    } catch (err) {
++      if (attempt === maxAttempts || !transient.has(err && err.code)) throw err;
++      await new Promise((r) => setTimeout(r, delay));
++      delay = Math.min(delay * 2, 500);
++    }
++  }
++}
+ import { LINKS_PLACEHOLDER } from "../../content/consts.js";
+ import { contentAssetsBuildPostHook } from "../../content/vite-plugin-content-assets.js";
+ import { createBuildInternals } from "../../core/build/internal.js";
+@@ -400,7 +421,7 @@ async function ssrMoveAssets(opts, internals, prerenderOutputDir) {
+         if (!fs.existsSync(currentUrl)) return;
+         const dir = new URL(path.parse(clientUrl.href).dir);
+         if (!fs.existsSync(dir)) await fs.promises.mkdir(dir, { recursive: true });
+-        return fs.promises.rename(currentUrl, clientUrl);
++        return renameWithRetry(currentUrl, clientUrl);
+       })
+     );
+   }
+@@ -416,7 +437,7 @@ async function ssrMoveAssets(opts, internals, prerenderOutputDir) {
+         if (!fs.existsSync(currentUrl)) return;
+         const dir = new URL(path.parse(clientUrl.href).dir);
+         if (!fs.existsSync(dir)) await fs.promises.mkdir(dir, { recursive: true });
+-        return fs.promises.rename(currentUrl, clientUrl);
++        return renameWithRetry(currentUrl, clientUrl);
+       })
+     );
+     removeEmptyDirs(fileURLToPath(serverRoot));
