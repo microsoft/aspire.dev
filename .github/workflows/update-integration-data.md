@@ -88,25 +88,27 @@ If `git diff` shows no `"version":` lines, skip the regeneration branch and reco
 
 ## API reference regeneration
 
-This branch only runs when version-change detection found at least one changed `"version":` line. When triggered:
+This branch only runs when version-change detection found at least one changed `"version":` line. The three phases below **must run in order** — each phase depends on the output of the previous one. Phases 2 and 3 happen to be wired together inside the same `pnpm` script (`scripts/update-ts-api.ts` chains the twoslash generator after the TS API generator), but they are described separately so the dependency chain is explicit and so per-phase failures can be reported in the PR body.
 
-1. **Regenerate C# API reference JSON** for every package in `aspire-integrations.json`:
+1. **Regenerate C# API reference JSON.** Produces the per-package JSON that the TS API phase depends on for package discovery.
 
    ```bash
    pwsh src/tools/PackageJsonGenerator/generate-package-json.ps1
    ```
 
-   The script writes `src/frontend/src/data/pkgs/{Package}.{Version}.json` files. Capture the script's success/failure summary for the PR body — successes, failures, and skipped packages (meta-packages without `lib/` content typically appear as skipped).
+   The script writes `src/frontend/src/data/pkgs/{Package}.{Version}.json` files for every package in `aspire-integrations.json`. Capture the script's success/failure summary for the PR body — successes, failures, and skipped packages (meta-packages without `lib/` content typically appear as skipped).
 
-2. **Regenerate TypeScript API reference JSON and the twoslash bundle**:
+2. **Regenerate TypeScript API reference JSON.** Depends on the C# package JSON from phase 1.
 
    ```bash
    pnpm --filter ./src/frontend run update:ts-api
    ```
 
-   This script reads the C# package JSON from step 1, selects the `Aspire.Hosting` and `Aspire.Hosting.*` packages, and runs `aspire sdk dump` for each. It writes `src/frontend/src/data/ts-modules/{Package}.{Version}.json` files and then automatically chains `scripts/generate-twoslash-types.ts` to rebuild `src/frontend/src/data/twoslash/aspire.d.ts`. Capture any per-package failures for the PR body.
+   `scripts/update-ts-api.ts` reads the freshly written `pkgs/*.json`, selects the `Aspire.Hosting` and `Aspire.Hosting.*` packages, runs `aspire sdk dump` for each via `src/tools/AtsJsonGenerator/generate-ts-api-json.ps1`, and writes `src/frontend/src/data/ts-modules/{Package}.{Version}.json` files. Capture any per-package failures for the PR body. Once the TS API JSON is written, the same script automatically continues into phase 3 — do not invoke it a second time.
 
-3. **Verify the regen diff is well-scoped.** After both scripts complete, run `git status` and confirm changes are limited to:
+3. **Regenerate the twoslash `.d.ts` bundle.** Depends on the TS API JSON from phase 2. This phase is **chained automatically** by `pnpm update:ts-api`; it runs `scripts/generate-twoslash-types.ts` against the freshly written `ts-modules/*.json` and rewrites `src/frontend/src/data/twoslash/aspire.d.ts`. If `pnpm update:ts-api` fails partway through the chain, distinguish in the PR body between a phase-2 failure (TS API generation) and a phase-3 failure (twoslash bundle) using the script's `❌ Generation failed:` vs `❌ Twoslash type generation failed:` log markers.
+
+4. **Verify the regen diff is well-scoped.** After all three phases complete, run `git status` and confirm changes are limited to:
 
    - `src/frontend/src/data/pkgs/**`
    - `src/frontend/src/data/ts-modules/**`
@@ -114,7 +116,7 @@ This branch only runs when version-change detection found at least one changed `
 
    plus the metadata files already produced by `pnpm update:all`. If the diff includes anything outside these paths, stop and report a `missing_tool` or `missing_data` safe output explaining the unexpected file.
 
-4. **File-count summary for the PR body.** Use `git diff --name-status` to count added (`A`), modified (`M`), and removed (`D`) files under `src/frontend/src/data/pkgs/`, `src/frontend/src/data/ts-modules/`, and whether `src/frontend/src/data/twoslash/aspire.d.ts` changed.
+5. **File-count summary for the PR body.** Use `git diff --name-status` to count added (`A`), modified (`M`), and removed (`D`) files under `src/frontend/src/data/pkgs/`, `src/frontend/src/data/ts-modules/`, and whether `src/frontend/src/data/twoslash/aspire.d.ts` changed.
 
 ## Existing PR Handling
 
@@ -211,8 +213,9 @@ Versions changed for the following packages, so the C# and TypeScript API refere
 
 Generator summary:
 
-- C# (`generate-package-json.ps1`): _S_ succeeded, _F_ failed, _K_ skipped
-- TS (`pnpm update:ts-api`): _S_ succeeded, _F_ failed
+- C# API JSON (`generate-package-json.ps1` → `pkgs/`): _S_ succeeded, _F_ failed, _K_ skipped
+- TS API JSON (`update-ts-api.ts` → `ts-modules/`): _S_ succeeded, _F_ failed
+- Twoslash bundle (`generate-twoslash-types.ts` → `twoslash/aspire.d.ts`): _succeeded / failed_
 - Failures (if any): `<Package@Version>` — _reason_
 
 ### Review Checklist
