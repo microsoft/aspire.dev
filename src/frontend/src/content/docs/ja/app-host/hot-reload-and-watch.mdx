@@ -1,0 +1,193 @@
+---
+title: Hot Reload と watch
+description: Aspire で hot reload がどのように機能するかを学びます。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
+
+Aspire には、watch の動作に 2 つのレベルがあります:
+
+1. **AppHost watch** - AppHost 自体を監視し、アプリケーション モデルの変更によって AppHost 管理アプリケーションを再起動します。
+2. **リソース watch と hot reload** - 各リソースを支えるアプリケーションまたはフレームワークに依存します。
+
+Aspire の CLI における watch サポートは AppHost を中心としています。Aspire は C# と TypeScript の 2 つの AppHost 言語をサポートしており、`defaultWatchEnabled` は、使用する AppHost 言語にかかわらず AppHost 管理アプリケーションに適用されます。
+
+watch モードが有効な場合、Aspire は AppHost 管理アプリケーションのファイル監視ループを管理します。ファイル変更が発生すると、更新された AppHost モデルとリソースを適用するために、Aspire がアプリケーション トポロジを再起動します。
+
+AppHost の変更に対して hot reload のような動作を求める場合、Aspire の watch モードが推奨される CLI ワークフローです。これは再起動ベースです: すべてのリソース プロセス内でランタイム固有の hot reload セマンティクスを適用するのではなく、変更後に Aspire が AppHost 管理アプリケーションを再起動します。
+
+## Aspire の既定の動作
+
+既定では、`aspire run` と `aspire start` は Aspire アプリケーションを 1 回起動します。AppHost やリソースのソース ファイルは監視しません。
+
+AppHost コードを変更したら、Aspire アプリケーションを手動で再起動します:
+
+- `aspire run` の場合は、<Kbd windows="Ctrl+C" mac="⌃+C" /> でプロセスを停止し、再度 `aspire run` を実行します。
+- `aspire start` の場合は、再度 `aspire start` を実行します。このコマンドは前のデタッチ済みインスタンスを停止し、新しいインスタンスを開始します。
+
+## 既定の watch モードを有効化する
+
+Aspire には、オプトインの `defaultWatchEnabled` 機能フラグがあります。有効にすると、Aspire は既定で watch モードを使用し、サポートされている AppHost またはリソース ファイルの変更後に Aspire アプリケーションを自動的に再起動します:
+
+```bash title="Aspire CLI"
+aspire config set features.defaultWatchEnabled true
+```
+
+マシン上のすべての Aspire プロジェクトで watch モードを有効にするには、値をグローバルに設定します:
+
+```bash title="Aspire CLI"
+aspire config set features.defaultWatchEnabled true --global
+```
+
+現在の値と利用可能な機能フラグを確認するには、次を実行します:
+
+```bash title="Aspire CLI"
+aspire config list --all
+```
+
+watch モードは、AppHost の変更後に AppHost 管理アプリケーションを Aspire に再起動させたい場合に有用です。C# と TypeScript の両方の AppHost をサポートし、再起動ベースのワークフローであり、ランタイム固有または IDE 固有の hot reload と同じ体験ではありません。
+
+## AppHost 言語ごとのガイダンス
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+C# の AppHost では、`defaultWatchEnabled` が AppHost プロジェクトを監視します。AppHost コードが変更されると、更新されたモデルを適用するために Aspire が AppHost 管理アプリケーションを再起動します。
+
+現在は、C# プロジェクト リソースもこの設定によって制御されます。つまり、C# プロジェクト リソースの変更でも、Aspire による AppHost 管理アプリケーションの再起動がトリガーされる可能性があります。
+
+このワークフローは、次の変更に影響する場合に使用します:
+
+- `AppHost.cs` 内の AppHost モデル。
+- AppHost の一部である C# プロジェクト リソース。
+- リソース構成、エンドポイント、パラメーター、または統合セットアップ。
+- Aspire のオーケストレーション配下で一緒に再起動する必要がある複数のサービス。
+
+```bash title="Aspire CLI"
+aspire config set features.defaultWatchEnabled true
+aspire run
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+TypeScript の AppHost では、`defaultWatchEnabled` が AppHost を監視します。AppHost コードが変更されると、更新されたモデルを適用するために Aspire が AppHost 管理アプリケーションを再起動します。
+
+TypeScript の AppHost watch は、アプリケーション内のすべてのリソースに対して自動的に hot reload を提供するわけではありません。個々のリソース内の変更には、リソース固有の watch、reload、restart、または rebuild ワークフローを使用してください。
+
+このワークフローは、次の変更に影響する場合に使用します:
+
+- `apphost.ts` 内の AppHost モデル。
+- リソース構成、エンドポイント、パラメーター、または統合セットアップ。
+- Aspire のオーケストレーション配下で一緒に再起動する必要がある複数のサービス。
+
+```bash title="Aspire CLI"
+aspire config set features.defaultWatchEnabled true
+aspire run
+```
+
+</TabItem>
+</Tabs>
+
+## Aspire リソースの hot reload
+
+AppHost watch とリソースの hot reload は別の関心事です。AppHost はアプリケーション トポロジを記述して起動しますが、各リソースはそれぞれ独自の開発ループを持つフレームワークまたはランタイムに支えられています。
+
+一般には、個々のリソースを作業している間は AppHost を実行したままにします。1 つのリソースが変更されたという理由だけで AppHost を停止して再起動しないでください。リソースの再起動または再ビルドが必要な場合は、Aspire CLI または Aspire Dashboard からそのリソース個別に実行します。
+
+CLI から個々のリソースを制御するには、`aspire resource` コマンドを使います:
+
+```bash title="Aspire CLI"
+aspire resource <resource-name> stop
+aspire resource <resource-name> start
+```
+
+C# プロジェクト リソースでは、プロジェクトの再ビルドが必要なときに個々のリソースを再ビルドします:
+
+```bash title="Aspire CLI"
+aspire resource <resource-name> rebuild
+```
+
+<Tabs syncKey='resource-watch'>
+<TabItem label='C# projects'>
+
+`dotnet watch` は C# の Aspire AppHost をネイティブにサポートし、アプリケーション内の .NET プロジェクトを推移的に監視します:
+
+- AppHost への変更は AppHost を再起動します。
+- 個々の .NET プロジェクト、またはその依存関係への変更は、そのプロジェクトを再起動します。
+- Rude edit はアプリケーションを再起動します。
+
+AppHost とその C# プロジェクトに対して .NET SDK の watch ループを使いたい場合は、AppHost プロジェクトに対して `dotnet watch` を実行します:
+
+```bash title=".NET CLI"
+dotnet watch --project './src/MyApp.AppHost/MyApp.AppHost.csproj'
+```
+
+:::note[Important]
+この体験には、現時点でいくつかの癖があります。変更が適用されても明示的な再起動が必要になる場合があり、それが起きたかどうかを常に判断しやすいとは限りません。期待した変更が反映されない場合は、`aspire resource <resource-name> stop` と `aspire resource <resource-name> start` でリソースを再起動するか、`aspire resource <resource-name> rebuild` で C# プロジェクト リソースを再ビルドしてください。
+:::
+
+代わりに Aspire の watch モードを使用する場合、C# プロジェクト リソースは現在特別です: `defaultWatchEnabled` が C# の AppHost と C# プロジェクト リソースの両方を制御します。
+
+</TabItem>
+<TabItem label='Vite resources'>
+
+Vite リソースは Vite の開発サーバー動作を使用します。Vite はフロントエンド アプリケーションに対してブラウザー更新や Hot Module Replacement を提供できますが、その動作は AppHost watch とは別です。
+
+変更が AppHost モデルに影響する場合は Aspire watch を使用してください。変更がフロントエンド アプリケーションに影響し、Vite のブラウザー更新や Hot Module Replacement の動作が必要な場合は、Vite の開発ループを使用してください。
+
+Vite リソースの再起動が必要な場合は、AppHost を再起動するのではなく、Aspire CLI またはダッシュボードから Vite リソースを再起動してください。
+
+</TabItem>
+<TabItem label='Other resources'>
+
+その他の Aspire リソースは、そのリソースを支えるランタイムまたはフレームワークの watch、reload、または restart の動作に従います。たとえば、コンテナー リソース、実行可能ファイルリソース、またはフレームワーク固有のリソースは、hot reload をまったくサポートしない場合や、独自の watch コマンドを必要とする場合があります。
+
+AppHost モデルを再評価すべき変更には Aspire watch を使用してください。リソースに対して最短のインナーループが必要な場合は、そのリソースのネイティブ開発コマンドを使用してください。リソースの再起動または再ビルドが必要な場合は、Aspire CLI またはダッシュボードからそのリソースを個別に再起動または再ビルドします。
+
+</TabItem>
+</Tabs>
+
+## 推奨ワークフロー
+
+編集対象に応じて次のワークフローを使用します:
+
+| 目的                                                      | 推奨コマンド                                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 分散アプリ全体を 1 回実行する                               | `aspire run`                                                                               |
+| 分散アプリ全体をバックグラウンドで実行する                     | `aspire start`                                                                             |
+| CLI から C# または TypeScript の AppHost を watch する      | `aspire config set features.defaultWatchEnabled true` を設定し、`aspire run` または `aspire start` を実行 |
+| Aspire 経由で C# プロジェクト リソースを watch する           | `aspire config set features.defaultWatchEnabled true` を設定し、`aspire run` または `aspire start` を実行 |
+| 1 つのリソースを再起動する                                  | `aspire resource <resource-name> stop` を実行し、その後 `aspire resource <resource-name> start` を実行       |
+| 1 つの C# プロジェクト リソースを再ビルドする                 | `aspire resource <resource-name> rebuild`                                                  |
+| 1 つのリソースにランタイム固有の hot reload ループを使う      | そのリソースのネイティブな watch、reload、または開発サーバー コマンド                                  |
+
+Aspire CLI は現在、AppHost 管理の分散アプリケーション全体に対して各ランタイムの hot reload セマンティクスを適用する単一の hot reload コマンドを提供していません。Aspire の既定の watch は、AppHost 変更後に AppHost 管理アプリケーションを再起動することで、両方の AppHost 言語をサポートします。現在は C# プロジェクト リソースもこの設定で制御されます。その他のリソースについては、AppHost を実行したまま、リソース固有の reload、restart、rebuild には、そのリソースのフレームワーク、ランタイム、CLI アクション、またはダッシュボード アクションを使用してください。
+
+## IDE の hot reload とデバッグ
+
+Visual Studio、Visual Studio Code、JetBrains Rider は、それぞれ独自の hot reload とデバッグ体験を提供します。これらの IDE のいずれかで AppHost をデバッガー下で実行すると、Aspire はデバッグと IDE 管理の hot reload 動作をその IDE に委ねます。これは Aspire の CLI による restart、rebuild、watch の動作とは統合されず、重複もしません。
+
+:::note[Important]
+サポート対象リソースに対して IDE にデバッグや hot reload を管理させたい場合は IDE ワークフローを使用します。AppHost 管理アプリケーションとそのリソースを Aspire で restart、rebuild、watch したい場合は、Aspire CLI とダッシュボード アクションを使用します。
+:::
+
+### Visual Studio Code
+
+Visual Studio Code で AppHost を開始し、デバッガーをアタッチし、サポート対象リソースのデバッグ体験を管理したい場合は、Aspire の Visual Studio Code 拡張機能を使用します。VS Code の hot reload やフレームワーク固有の更新動作は、依然としてデバッガーまたはリソースを支えるフレームワークに属し、Aspire の restart、rebuild、watch の動作には属しません。
+
+### Visual Studio
+
+サポート対象リソースに対して Visual Studio の組み込みデバッグと hot reload 体験を使いたい場合は、Visual Studio を使用します。Visual Studio で Aspire アプリを実行してデバッグできますが、IDE の hot reload は依然として Aspire の restart、rebuild、watch の動作とは別です。
+
+### JetBrains Rider
+
+サポート対象リソースに対して Rider のデバッグと hot reload 体験を使いたい場合は、JetBrains Rider を使用します。Rider の IDE 管理 hot reload 動作は、Aspire の restart、rebuild、watch の動作とは別です。
+
+## 関連項目
+
+- [`aspire run`](/ja/reference/cli/commands/aspire-run/)
+- [`aspire start`](/ja/reference/cli/commands/aspire-start/)
+- [`aspire config set`](/ja/reference/cli/commands/aspire-config-set/)
+- [Aspire VS Code 拡張機能](/ja/get-started/aspire-vscode-extension/)

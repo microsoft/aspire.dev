@@ -1,0 +1,434 @@
+---
+title: コンテナー ファイル
+description: Aspire のコンテナー ファイル API を使用して、開発時と発行時にファイルやディレクトリをコンテナーへ挿入する方法を学びます。
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Aspire には、ファイルやディレクトリをコンテナーへ挿入する API が用意されており、カスタムの構成ファイル、スクリプト、証明書、その他のアセットを使用してコンテナー化されたリソースを構成できます。相補的な API が 2 つあります:
+
+- **`WithContainerFiles`**: `aspire run` 実行時に、コンテナーの起動時点で開発用のファイルをコンテナーへ挿入します。
+- **`PublishWithContainerFiles`**: `aspire publish` 実行時に、発行用のビルド成果物として、あるリソースのコンテナーから別のリソースのコンテナーへファイルをコピーします。
+
+## 開発時にファイルを挿入する
+
+`WithContainerFiles` 拡張メソッドは、指定した宛先パスにあるコンテナー内のファイルやディレクトリを作成または更新します。ニーズに応じて、宣言的にファイルを定義するインライン エントリ、ホスト ファイル システムからコピーするためのソース パス、動的にファイルを生成する非同期コールバックという 3 つの方法をサポートします。
+
+<Aside type="caution">
+`WithContainerFiles` は主に開発時の構成を目的としており、発行時はサポートされません。発行時にコンテナーへファイルを挿入するには、代わりに [`PublishWithContainerFiles`](#発行時にファイルを挿入する) を使用してください。
+</Aside>
+
+### インライン エントリ
+
+インライン エントリのオーバーロードを使用すると、`ContainerFileSystemItem` オブジェクトを使ってファイルやディレクトリを宣言的に定義できます。これは、ファイル内容がビルド時点で分かっている場合や、文字列リテラルとして表現できる場合に便利です。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "myapp:latest")
+    .WithContainerFiles("/app/config", [
+        new ContainerFile
+        {
+            Name = "appsettings.json",
+            Contents = """
+                {
+                    "Logging": {
+                        "LogLevel": {
+                            "Default": "Information"
+                        }
+                    }
+                }
+                """
+        },
+        new ContainerDirectory
+        {
+            Name = "scripts",
+            Entries = [
+                new ContainerFile
+                {
+                    Name = "init.sh",
+                    Contents = "#!/bin/bash\necho 'Initializing...'",
+                    Mode = UnixFileMode.UserRead
+                        | UnixFileMode.UserWrite
+                        | UnixFileMode.UserExecute
+                }
+            ]
+        }
+    ]);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+前の例では:
+
+- 指定した内容を持つ JSON 構成ファイルが `/app/config/appsettings.json` に作成されます。
+- 実行可能なシェル スクリプトを含む入れ子の `scripts` ディレクトリが `/app/config/scripts/` に作成されます。
+
+### ソース パス
+
+ソース パスのオーバーロードを使用すると、ホスト マシン上のディレクトリからコンテナーへファイルをコピーできます。これは、既存の構成ファイルやアセットがディスク上にある場合に便利です。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("myapp", "myapp:latest")
+    .WithContainerFiles("/app/config", "./config-files");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+ソース パスがルート化された絶対パスでない限り、AppHost プロジェクト ディレクトリからの相対パスとして解釈されます。ソース ディレクトリ内のすべてのファイルは、起動時にコンテナー内の宛先パスへコピーされます。
+
+### 非同期コールバック
+
+コールバック オーバーロードを使用すると、コンテナーの起動時に動的にファイルを生成できます。このコールバックは `ContainerFileSystemCallbackContext` を受け取り、`IServiceProvider` とリソースの `IResource` モデルにアクセスできるため、サービスを解決したりアプリ モデルを検査したりできます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("worker", "worker:latest")
+    .WithContainerFiles("/app/config",
+        async (context, cancellationToken) =>
+        {
+            var config = new
+            {
+                MachineName = Environment.MachineName,
+                Timestamp = DateTime.UtcNow
+            };
+
+            return
+            [
+                new ContainerFile
+                {
+                    Name = "runtime-config.json",
+                    Contents = JsonSerializer.Serialize(config)
+                }
+            ];
+        });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+このコールバックはコンテナーが起動するたびに呼び出されるため、生成されるファイルには常に現在の状態が反映されます。
+
+## ファイルの種類
+
+`WithContainerFiles` API は、抽象 `ContainerFileSystemItem` クラスを基底とする型階層を使用します。各型は、異なる種類のファイル システム エントリを表します。
+
+### ContainerFile
+
+`ContainerFile` は標準的なファイルを表します。ファイル データを指定するには、`Contents` (文字列) または `SourcePath` (ホスト上の絶対パス) のいずれかを設定します。両方を同時に設定することはできません。
+
+```csharp title="AppHost.cs"
+// インライン内容を持つファイル
+var configYaml = new ContainerFile
+{
+    Name = "config.yaml",
+    Contents = "key: value"
+};
+
+// ホスト ファイル システムから取得するファイル
+var dataCsv = new ContainerFile
+{
+    Name = "data.csv",
+    SourcePath = "/path/to/data.csv"
+};
+```
+
+この特定のファイルの作成に失敗してもコンテナーを起動できるようにするには、`ContinueOnError` を `true` に設定します:
+
+```csharp title="AppHost.cs"
+var optionalJson = new ContainerFile
+{
+    Name = "optional-config.json",
+    Contents = "{}",
+    ContinueOnError = true
+};
+```
+
+### ContainerDirectory
+
+`ContainerDirectory` は、入れ子にした `ContainerFileSystemItem` エントリを含められるディレクトリを表し、任意のディレクトリ ツリーを構築できます。
+
+```csharp title="AppHost.cs"
+var certsDir = new ContainerDirectory
+{
+    Name = "certs",
+    Entries = [
+        new ContainerFile
+        {
+            Name = "ca.pem",
+            SourcePath = "/path/to/ca.pem"
+        },
+        new ContainerDirectory
+        {
+            Name = "private",
+            Entries = [
+                new ContainerFile
+                {
+                    Name = "server.key",
+                    SourcePath = "/path/to/server.key",
+                    Mode = UnixFileMode.UserRead
+                }
+            ]
+        }
+    ]
+};
+```
+
+静的な `GetFileSystemItemsFromPath` メソッドを使用して、ディスク上のファイルから `ContainerDirectory` を構築することもできます:
+
+```csharp title="AppHost.cs"
+var assetsDir = new ContainerDirectory
+{
+    Name = "assets",
+    Entries = ContainerDirectory.GetFileSystemItemsFromPath(
+        "/path/to/assets",
+        searchOptions: SearchOption.AllDirectories)
+};
+```
+
+### ContainerOpenSSLCertificateFile
+
+`ContainerOpenSSLCertificateFile` は、PEM エンコードされた公開証明書を表します。Aspire は、証明書ファイルをコンテナーへ配置するだけでなく、同じディレクトリ内に OpenSSL 互換のシンボリック リンク (`[subject hash].[n]`) も自動で作成します。これは `openssl rehash` の実行と同等です。これにより、証明書の検証に OpenSSL を使用するコンテナーが、この証明書を自動的に検出できるようになります。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddContainer("myapp", "myapp:latest")
+    .WithContainerFiles("/certs", [
+        new ContainerOpenSSLCertificateFile
+        {
+            Name = "ca-cert.pem",
+            Contents = pemCertificateString
+        }
+    ]);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+## ファイルのアクセス許可と所有者
+
+`WithContainerFiles` のすべてのオーバーロードは、ファイルの所有者とアクセス許可を制御するための省略可能なパラメーターを受け取ります。
+
+### 所有者とグループ
+
+`defaultOwner` と `defaultGroup` パラメーターは、作成されるすべてのファイルとディレクトリに適用される既定の UID と GID を設定します。どちらも指定しない場合は `0` (root) が既定値です。任意の `ContainerFileSystemItem` にある `Owner` および `Group` プロパティを使用して、個々の項目の所有者を上書きできます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddContainer("myapp", "myapp:latest")
+    .WithContainerFiles("/app/data",
+        [
+            new ContainerFile
+            {
+                Name = "shared.txt",
+                Contents = "shared data"
+            },
+            new ContainerFile
+            {
+                Name = "user-only.txt",
+                Contents = "private data",
+                Owner = 1000,
+                Group = 1000
+            }
+        ],
+        defaultOwner: 33,   // www-data
+        defaultGroup: 33);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+この例では、`shared.txt` は既定の owner/group である `33` を継承し、`user-only.txt` は UID/GID `1000` で上書きします。
+
+### Umask
+
+`umask` パラメーターは、既定の権限から権限ビットを差し引くことで、既定のアクセス許可を制御します。項目に明示的な `Mode` が設定されていない場合は次のようになります:
+
+- **ディレクトリ**: `0777` (全員に読み取り、書き込み、実行) から開始し、そこから umask が差し引かれます
+- **ファイル**: `0666` (全員に読み取り、書き込み) から開始し、そこから umask が差し引かれます
+
+既定の umask は `0022` で、結果は次のとおりです:
+
+- ディレクトリ: `0755` (owner: rwx、group: r-x、others: r-x)
+- ファイル: `0644` (owner: rw-、group: r--、others: r--)
+
+umask ベースの既定値を上書きするには、個々の項目で `Mode` を直接設定できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+builder.AddContainer("myapp", "myapp:latest")
+    .WithContainerFiles("/app/scripts",
+        [
+            new ContainerFile
+            {
+                Name = "run.sh",
+                Contents = "#!/bin/bash\necho 'Running'",
+                Mode = UnixFileMode.UserRead
+                    | UnixFileMode.UserWrite
+                    | UnixFileMode.UserExecute
+            }
+        ],
+        umask: UnixFileMode.OtherRead
+            | UnixFileMode.OtherWrite
+            | UnixFileMode.OtherExecute);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+### 永続コンテナー
+
+`ContainerLifetime.Persistent` を持つコンテナーでは、コンテナー ファイル エントリの内容を変更するとコンテナーが再作成されます。意図しないコンテナー再起動を避けるため、`WithContainerFiles` で書き込まれるデータは、特定のアプリ モデル構成に対して冪等になるようにしてください。
+
+## 発行時にファイルを挿入する
+
+`PublishWithContainerFiles` メソッドは、`aspire publish` の実行中に、あるリソースのコンテナーから別のリソースのコンテナーへファイルをコピーします。これは、発行時にコンテナーへファイルを挿入するための推奨アプローチです。
+
+代表的なユース ケースは、シングルページ アプリケーション (SPA) や静的な JavaScript フロントエンドを、本番デプロイ用のリバース プロキシまたは Web サーバー コンテナーに埋め込むことです。開発時には、Vite や React のようなフロントエンド アプリは通常、スタンドアロンの開発サーバーとして実行されます。一方、本番環境では、コンパイル済みの静的アセットはバックエンド API や Nginx のような専用 Web サーバーから配信されることが一般的です。`PublishWithContainerFiles` は、ビルド済みのフロントエンド出力を発行プロセスの一部として配信先コンテナーへコピーすることで、このギャップを埋めます。手動でのファイル コピーやマルチステージ Dockerfile は不要です。
+
+### バックエンドにフロントエンドを埋め込む
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddViteApp("frontend", "../frontend");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishWithContainerFiles(frontend, "./wwwroot");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addViteApp("frontend", "../frontend");
+
+const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+    .publishWithContainerFiles(frontend, "./wwwroot");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+この例では:
+
+1. `frontend` リソースはコンテナー内でビルドされ、コンパイル済みの JavaScript、CSS、HTML を生成します。
+2. 発行時に、Aspire はそれらのファイルを `frontend` コンテナーから `api` コンテナー内の `./wwwroot` へコピーします。
+3. 結果として得られる `api` コンテナーには API コードとフロントエンドの静的アセットの両方が含まれ、アプリケーション全体を配信する準備が整います。
+
+### YARP からフロントエンドを配信する
+
+フロントエンド アセットを専用のリバース プロキシ コンテナーへ埋め込むこともできます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddViteApp("frontend", "../frontend");
+
+var nginx = builder.AddYarp("gateway")
+    .PublishWithStaticFiles(frontend);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addViteApp("frontend", "../frontend");
+
+const nginx = await builder.addYarp("gateway")
+    .publishWithStaticFiles(frontend);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+これにより、外部ボリューム マウントや実行時のファイル コピーを必要としない、フロントエンド アプリケーションを配信する自己完結型の Nginx コンテナーが生成されます。
+
+`PublishWithContainerFiles` は発行モードでのみ適用され、`aspire run` 中は効果がありません。宛先リソースは `IContainerFilesDestinationResource` (例: `ProjectResource`) を実装し、ソース リソースは `IResourceWithContainerFiles` を実装している必要があります。
+
+### ソース パスをカスタマイズする
+
+既定では、ソース リソースは構成済みの出力パスに基づいて、自身のコンテナーからファイルをエクスポートします。ソース コンテナー内のどのパスからコピーするかを指定するには、`WithContainerFilesSource` を使用します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var frontend = builder.AddViteApp("frontend", "../frontend")
+    .WithContainerFilesSource("/app/dist");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .PublishWithContainerFiles(frontend, "./wwwroot");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+:::note
+`withContainerFiles` API は、TypeScript AppHost SDK ではまだ利用できません。
+:::
+</TabItem>
+</Tabs>
+
+以前に構成したソース パスを削除してから新しいものを追加するには、`ClearContainerFilesSources` を使用します。
+
+## 関連項目
+
+- [証明書の設定](/ja/app-host/certificate-configuration/)
+- [アプリモデルに Dockerfile を追加する](/ja/app-host/withdockerfile/)
+- [コンテナの永続的なライフタイム](/ja/app-host/persistent-containers/)

@@ -1,0 +1,749 @@
+---
+title: 証明書の設定
+description: Aspire でリソースの HTTPS エンドポイントと証明書の信頼を設定して、安全な通信を実現する方法について説明します。
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Aspire は、2 つの補完的な証明書 API セットを提供します:
+
+1. **HTTPS エンドポイント API**: リソースが自身の HTTPS エンドポイントで使用する証明書を設定します（サーバー認証）
+2. **証明書信頼 API**: リソースが送信 HTTPS 接続を行う際に信頼する証明書を設定します（クライアント認証）
+
+これらの API セットはともに動作し、ローカル開発中に安全な HTTPS 通信を実現します。たとえば、Vite フロントエンドは `WithHttpsDeveloperCertificate` を使用して HTTPS トラフィックを提供しながら、`WithDeveloperCertificateTrust` を使用してダッシュボードの <abbr title="OpenTelemetry Protocol" data-tooltip-placement="top">OTLP</abbr> エンドポイント証明書を信頼することもできます。
+
+<Aside type="caution">
+  証明書のカスタマイズは実行時にのみ適用されます。カスタム証明書は
+  発行やデプロイの成果物には含まれません。
+</Aside>
+
+### HTTPS が重要な理由
+
+HTTPS はサービス間で送信されるデータのセキュリティとプライバシーを保護するために不可欠です。トラフィックを暗号化して盗聴、改ざん、中間者攻撃を防ぎます。本番環境では、HTTPS は基本的なセキュリティ要件です。
+
+ただし、本番環境の構成に合わせてローカル開発中に HTTPS を有効にするには、固有の課題があります。開発環境では通常、ブラウザやアプリケーションがデフォルトで信頼しない自己署名証明書が使用されます。複数のサービス、コンテナ、異なる言語ランタイムにわたってこれらの証明書を管理するのは複雑で時間がかかり、開発ワークフローに摩擦を生じさせることがよくあります。
+
+Aspire は、次の API を提供することでローカル開発の HTTPS 設定を簡素化します:
+
+- サーバー認証に適した証明書で HTTPS エンドポイントを設定する
+- リソースが自己署名証明書を使用するサービスと通信できるよう証明書の信頼を管理する
+- 開発証明書（ローカルドメインにのみ有効なユーザーごとの自己署名証明書）をさまざまなリソースタイプにわたって自動的に処理する
+
+## 開発証明書の信頼
+
+Aspire の多くの証明書機能は開発証明書に依存しています。これらの機能を使用する前に、信頼された開発証明書がマシンにインストールされていることを確認する必要があります。
+
+### Aspire CLI を使用する（推奨）
+
+開発証明書を管理するための推奨方法は、[Aspire CLI](/ja/get-started/install-cli/) を使用することです。`aspire run` を実行すると、CLI は開発証明書が作成・信頼されていることを自動的に確認します。追加の手動手順は必要ありません。
+
+Aspire CLI を使用して証明書を明示的に管理することもできます:
+
+```bash title="開発証明書を信頼する"
+aspire certs trust
+```
+
+```bash title="削除して再信頼する（更新）"
+aspire certs clean
+aspire certs trust
+```
+
+<Aside type="tip">
+  ローカル開発中に予期しない HTTPS または証明書信頼エラーが発生した場合は、
+  `aspire certs clean` を実行してから `aspire certs trust` を実行することが
+  最初のトラブルシューティング手順として有効です。
+</Aside>
+
+<Aside type="note" title="Linux の証明書信頼">
+  Linux では、開発証明書は `~/.aspnet/dev-certs/trust` にエクスポートされますが、`SSL_CERT_DIR` 環境変数にそのパスが含まれていないと、OpenSSL を使用するアプリケーションは証明書を検出できません。シェルプロファイル（~/.bashrc、~/.zshrc、~/.profile など）で `SSL_CERT_DIR` を設定できます:
+
+  ```bash title="~/.bashrc, ~/.zshrc, or ~/.profile"
+  # お使いの Linux ディストリビューションの正しい証明書ディレクトリが
+  # /usr/lib/ssl/certs であることを確認してください。一般的な代替パス:
+  #   /etc/ssl/certs
+  #   /etc/pki/tls/certs
+  if [ -z "$SSL_CERT_DIR" ]; then
+      export SSL_CERT_DIR="/usr/lib/ssl/certs:$HOME/.aspnet/dev-certs/trust"
+  else
+      export SSL_CERT_DIR="$SSL_CERT_DIR:$HOME/.aspnet/dev-certs/trust"
+  fi
+  ```
+
+  変更を有効にするには、プロファイルを再読み込みするか、新しいターミナルセッションを開始する必要があります。
+</Aside>
+
+### DCP 通信用の開発者証明書（Windows）
+
+デフォルトでは、Aspire の内部 Developer Control Plane (DCP) サーバーは TLS 用に自身で生成する一時的なローカルホスト証明書を使用します。Windows では、代わりに信頼された Aspire 開発者証明書を DCP 通信に使用することを選択できます。これにより、一時的な証明書がシステム信頼ストアにないことで発生する信頼の問題を回避できます。
+
+AppHost の `launchSettings.json` またはシステム/ユーザー環境変数として `ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE` 環境変数を `true` に設定します:
+
+```json title="Properties/launchSettings.json"
+{
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE": "true"
+      }
+    }
+  }
+}
+```
+
+この設定が有効な場合:
+
+- Aspire は信頼された開発者証明書を確認します。
+- 信頼された証明書が見つかった場合、それを使用して DCP サーバーをセキュリティで保護します。
+- 信頼された証明書が見つからない場合、Aspire は DCP が生成する一時的な証明書にフォールバックします。
+- この設定は Windows でのみサポートされています。他のプラットフォームでは、警告がログに記録され、DCP はデフォルトの一時的な証明書にフォールバックします。
+
+<Aside type="note">
+  この設定は DCP に関連する証明書信頼エラーが発生した場合にのみ必要です。
+  ほとんどのユーザーはデフォルト（`false`）から変更する必要はありません。
+</Aside>
+
+## HTTPS エンドポイントの設定
+
+HTTPS エンドポイントの設定は、リソースが HTTPS トラフィックを提供する際に提示する証明書を決定します。これは HTTPS/TLS エンドポイントをホストするリソースのサーバー側証明書設定です。
+
+### デフォルトの動作
+
+`WithHttpsCertificateConfiguration` で証明書設定が定義されているリソースの場合、Aspire は利用可能であれば開発証明書を使用するように設定しようとします。この自動設定は、YARP、Redis、Keycloak コンテナ、Vite ベースの JavaScript アプリ、Uvicorn を使用する Python アプリなど、多くの一般的なリソースタイプで機能します。
+
+この動作は、以下で説明する HTTPS エンドポイント API を使用して制御できます。
+
+### 開発証明書を使用する
+
+リソースの HTTPS エンドポイントに開発証明書を使用するよう明示的に設定するには:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 開発者証明書を明示的に使用する
+var nodeApp = builder.AddViteApp("frontend", "../frontend")
+    .WithHttpsDeveloperCertificate();
+
+// 暗号化された秘密キーを持つ開発者証明書を使用する
+var certPassword = builder.AddParameter("cert-password", secret: true);
+var pythonApp = builder.AddUvicornApp("api", "../api", "app:main")
+    .WithHttpsDeveloperCertificate(certPassword);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 開発者証明書を明示的に使用する
+const nodeApp = await builder.addViteApp("frontend", "../frontend")
+    .withHttpsDeveloperCertificate();
+
+// 暗号化された秘密キーを持つ開発者証明書を使用する
+const certPassword = await builder.addParameter("cert-password", { secret: true });
+const pythonApp = await builder.addUvicornApp("api", "../api", "app:main")
+    .withHttpsDeveloperCertificate({ password: certPassword });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithHttpsDeveloperCertificate` メソッドは:
+
+- リソースを開発証明書を使用するよう設定する
+- 実行モード（ローカル開発）にのみ適用される
+- 必要に応じて、暗号化された証明書の秘密キー用のパスワードパラメーターを受け取る
+- コンテナ、Node.js、Python、その他のリソースタイプで動作する
+
+### カスタム証明書を使用する
+
+HTTPS エンドポイントに特定の X.509 証明書を使用するようにリソースを設定するには:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using System.Security.Cryptography.X509Certificates;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 証明書を読み込む
+var certificate = new X509Certificate2("path/to/certificate.pfx", "password");
+
+// HTTPS エンドポイントに証明書を使用する
+builder.AddContainer("api", "my-api:latest")
+    .WithHttpsCertificate(certificate);
+
+// パスワードパラメーターを使用して証明書を使用する
+var certPassword = builder.AddParameter("cert-password", secret: true);
+builder.AddNpmApp("frontend", "../frontend")
+    .WithHttpsCertificate(certificate, certPassword);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+</TabItem>
+</Tabs>
+
+証明書の要件:
+
+- 秘密キーが含まれていること
+- 有効な X.509 証明書であること
+- サーバー認証に適していること
+
+### HTTPS 証明書設定を無効にする
+
+リソースに対して Aspire が HTTPS 証明書を設定しないようにするには:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// HTTPS 証明書の自動設定を無効にする
+var redis = builder.AddRedis("cache")
+    .WithoutHttpsCertificate();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// HTTPS 証明書の自動設定を無効にする
+const redis = await builder.addRedis("cache")
+    .withoutHttpsCertificate();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithoutHttpsCertificate` を使用するケース:
+
+- リソースが HTTPS をサポートしていない場合
+- 手動で証明書を設定したい場合
+- リソースが独自の証明書管理を持っている場合
+
+### 証明書設定をカスタマイズする
+
+カスタム証明書設定ロジックが必要なリソースの場合、`WithHttpsCertificateConfiguration` を使用して証明書ファイルをリソースに渡す方法を指定します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("api", "my-api:latest")
+    .WithHttpsCertificateConfiguration(ctx =>
+    {
+        // 証明書パスをコマンドライン引数として渡す
+        ctx.Arguments.Add("--tls-cert");
+        ctx.Arguments.Add(ctx.CertificatePath);
+        ctx.Arguments.Add("--tls-key");
+        ctx.Arguments.Add(ctx.KeyPath);
+
+        // または環境変数を設定する
+        ctx.EnvironmentVariables["TLS_CERT_FILE"] = ctx.CertificatePath;
+        ctx.EnvironmentVariables["TLS_KEY_FILE"] = ctx.KeyPath;
+
+        // リソースが必要とする場合は PFX 形式を使用する
+        ctx.EnvironmentVariables["TLS_PFX_FILE"] = ctx.PfxPath;
+
+        // 必要な場合はパスワードを含める
+        if (ctx.Password is not null)
+        {
+            ctx.EnvironmentVariables["TLS_KEY_PASSWORD"] = ctx.Password;
+        }
+
+        return Task.CompletedTask;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+</TabItem>
+</Tabs>
+
+コールバックは `HttpsCertificateConfigurationCallbackAnnotationContext` を受け取り、以下を提供します:
+
+- `CertificatePath`: PEM 形式の証明書ファイルへのパス
+- `KeyPath`: PEM 形式の秘密キーファイルへのパス
+- `PfxPath`: PFX/PKCS#12 形式の証明書へのパス
+- `Password`: 設定されている場合、秘密キーのパスワード
+- `Arguments`: 変更するコマンドライン引数のリスト
+- `EnvironmentVariables`: 変更する環境変数のディクショナリ
+- `ExecutionContext`: 現在の実行コンテキスト
+- `Resource`: 設定対象のリソース
+
+## 証明書信頼の設定
+
+証明書信頼の設定は、リソースが送信 HTTPS 接続を行う際に信頼する証明書を決定します。これはクライアント側の証明書設定です。
+
+### 証明書信頼を使用するケース
+
+証明書信頼のカスタマイズが有効なケース:
+
+- リソースがローカル HTTPS 通信のために開発証明書を信頼する必要がある場合
+- コンテナ化されたサービスが HTTPS 経由でダッシュボードと通信する必要がある場合
+- Python または Node.js アプリケーションがカスタム証明機関を信頼する必要がある場合
+- 特定の証明書信頼要件を持つサービスを扱っている場合
+- リソースが Aspire ダッシュボードへの安全なテレメトリ接続を確立する必要がある場合
+
+### 開発証明書の信頼
+
+デフォルトでは、Aspire は開発証明書を信頼しないリソースに対して、開発証明書の信頼を追加しようとします。これにより、リソースは HTTPS 経由でダッシュボード OTLP コレクターエンドポイントや、開発証明書で保護されたその他の HTTPS エンドポイントと通信できます。
+
+この動作は、`WithDeveloperCertificateTrust` API または AppHost 設定を通じてリソースごとに制御できます。
+
+#### リソースごとに開発証明書の信頼を設定する
+
+特定のリソースの開発証明書の信頼を明示的に有効または無効にするには:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 開発証明書の信頼を明示的に有効にする
+var nodeApp = builder.AddNpmApp("frontend", "../frontend")
+    .WithDeveloperCertificateTrust(trust: true);
+
+// 開発証明書の信頼を無効にする
+var pythonApp = builder.AddPythonApp("api", "../api", "main.py")
+    .WithDeveloperCertificateTrust(trust: false);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 開発証明書の信頼を明示的に有効にする
+const nodeApp = await builder.addNodeApp("frontend", "../frontend", "index.js")
+    .withDeveloperCertificateTrust(true);
+
+// 開発証明書の信頼を無効にする
+const pythonApp = await builder.addPythonApp("api", "../api", "main.py")
+    .withDeveloperCertificateTrust(false);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### 証明機関コレクション
+
+証明機関コレクションを使用すると、カスタム証明書をバンドルしてリソースで利用できるようになります。`AddCertificateAuthorityCollection` メソッドを使用してコレクションを作成し、それらの証明書を信頼する必要があるリソースから参照します。
+
+#### 証明機関コレクションを作成して使用する
+
+```csharp title="AppHost.cs"
+using System.Security.Cryptography.X509Certificates;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// カスタム証明書を読み込む
+var certificates = new X509Certificate2Collection();
+certificates.ImportFromPemFile("path/to/certificate.pem");
+
+// 証明機関コレクションを作成する
+var certBundle = builder.AddCertificateAuthorityCollection("my-bundle")
+    .WithCertificates(certificates);
+
+// 証明書バンドルをリソースに適用する
+builder.AddNpmApp("my-project", "../myapp")
+    .WithCertificateAuthorityCollection(certBundle);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+
+上記の例では、カスタム証明書で証明書バンドルを作成し、Node.js アプリケーションに適用してそれらの証明書を信頼できるようにしています。
+
+### 証明書信頼スコープ
+
+証明書信頼スコープは、カスタム証明書がリソースのデフォルト信頼証明書とどのように連携するかを制御します。スコープごとに異なる設定により、アプリケーションの要件に応じた証明書信頼の管理が柔軟に行えます。
+
+`WithCertificateTrustScope` API は、信頼動作を指定する `CertificateTrustScope` 値を受け取ります。
+
+#### 利用可能な信頼スコープ
+
+Aspire がサポートする証明書信頼スコープは以下のとおりです:
+
+- **Append**: カスタム証明書をデフォルトの信頼済み証明書に追加する
+- **Override**: デフォルトの信頼済み証明書を設定された証明書のみに置き換える
+- **System**: カスタム証明書とシステムルート証明書を組み合わせてデフォルトを上書きする
+- **None**: すべてのカスタム証明書信頼設定を無効にする
+
+#### Append モード
+
+指定されたリソースのデフォルト信頼済み証明書にカスタム証明書を追加しようとします。このモードは、システムのデフォルト証明書の信頼を維持しながら、追加の証明書の信頼を加えたい場合に便利です。
+
+ほとんどのリソースのデフォルトスコープです。Python リソースでは、このモードでは <abbr title="OpenTelemetry" data-tooltip-placement="top">OTEL</abbr> 信頼設定のみが適用されます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddNodeApp("api", "../api")
+    .WithCertificateTrustScope(CertificateTrustScope.Append);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, CertificateTrustScope } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addNodeApp("api", "../api", "index.js")
+    .withCertificateTrustScope(CertificateTrustScope.Append);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  すべての言語とランタイムが Append モードをサポートしているわけではありません。たとえば、Python は
+  デフォルトの信頼ストアへの証明書の追加をネイティブにサポートしていません。
+</Aside>
+
+#### Override モード
+
+リソースを設定された証明書のみを信頼するよう上書きしようとし、デフォルトの信頼済み証明書を完全に置き換えます。このモードは、信頼する証明書を厳密に制御する必要がある場合に便利です。
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var certBundle = builder.AddCertificateAuthorityCollection("custom-certs")
+    .WithCertificates(myCertificates);
+
+builder.AddPythonModule("api", "./api", "uvicorn")
+    .WithCertificateAuthorityCollection(certBundle)
+    .WithCertificateTrustScope(CertificateTrustScope.Override);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+
+#### System モード
+
+設定された証明書とデフォルトのシステムルート証明書を組み合わせて、リソースのデフォルト信頼済み証明書を上書きしようとします。このモードは、Append モードとうまく動作しない Python や類似のランタイムをサポートするために設計されています。
+
+Python は証明書信頼を完全に上書きするメカニズムしか持っていないため、Python プロジェクトのデフォルトスコープです。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddPythonApp("worker", "../worker", "main.py")
+    .WithCertificateTrustScope(CertificateTrustScope.System);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, CertificateTrustScope } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addPythonApp("worker", "../worker", "main.py")
+    .withCertificateTrustScope(CertificateTrustScope.System);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+#### None モード
+
+リソースのすべてのカスタム証明書信頼を無効にし、デフォルトの証明書信頼動作のみに依存させます。
+
+デフォルトのシステムストアのソースを自動的に変更する方法がないため、Windows 上の .NET プロジェクトのデフォルトスコープです。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("service", "myimage")
+    .WithCertificateTrustScope(CertificateTrustScope.None);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, CertificateTrustScope } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.addContainer("service", "myimage")
+    .withCertificateTrustScope(CertificateTrustScope.None);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### カスタム証明書信頼の設定
+
+高度なシナリオでは、コールバック API を使用してカスタム証明書信頼動作を指定できます。このコールバックにより、さまざまなリソースタイプの証明書信頼設定に必要なコマンドライン引数と環境変数をカスタマイズできます。
+
+#### コールバックを使用して証明書信頼を設定する
+
+`WithCertificateTrustConfiguration` を使用して、リソースの証明書信頼の設定方法をカスタマイズします:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("api", "myimage")
+    .WithCertificateTrustConfiguration(ctx =>
+    {
+        // コマンドライン引数を追加する
+        ctx.Arguments.Add("--use-system-ca");
+
+        // 証明書パスを含む環境変数を設定する
+        // CertificateBundlePath はカスタム証明書バンドルファイルのパスに解決される
+        ctx.EnvironmentVariables["MY_CUSTOM_CERT_VAR"] = ctx.CertificateBundlePath;
+
+        // CertificateDirectoriesPath は個別の証明書を含むパスに解決される
+        ctx.EnvironmentVariables["CERTS_DIR"] = ctx.CertificateDirectoriesPath;
+
+        return Task.CompletedTask;
+    });
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+</TabItem>
+</Tabs>
+
+コールバックは `CertificateTrustConfigurationCallbackAnnotationContext` を受け取り、以下を提供します:
+
+- `Scope`: リソースの `CertificateTrustScope`。
+- `Arguments`: リソースのコマンドライン引数。値は文字列または `CertificateBundlePath`、`CertificateDirectoriesPath` などのパスプロバイダーを指定できます。
+- `EnvironmentVariables`: 証明書信頼を設定するための環境変数。ディクショナリキーは環境変数名で、値は文字列またはパスプロバイダーを指定できます。デフォルトでは `SSL_CERT_DIR` が含まれ、Override または System スコープが設定されている場合は `SSL_CERT_FILE` も含まれることがあります。
+- `CertificateBundlePath`: カスタム証明書バンドルファイルのパスに解決される値プロバイダー。
+- `CertificateDirectoriesPath`: 個別の証明書を含むパスに解決される値プロバイダー。
+
+Node.js、Python、コンテナリソース用のデフォルト実装が提供されています。コンテナリソースは標準の OpenSSL 設定オプションに依存しており、デフォルト値は大多数の一般的な Linux ディストリビューションをサポートしています。
+
+#### コンテナ証明書パスを設定する
+
+コンテナリソースでは、`WithContainerCertificatePaths` を使用して証明書の保存場所とアクセス場所をカスタマイズできます:
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddContainer("api", "myimage")
+    .WithContainerCertificatePaths(
+        customCertificatesDestination: "/custom/certs/path",
+        defaultCertificateBundlePaths: ["/etc/ssl/certs/ca-certificates.crt"],
+        defaultCertificateDirectoryPaths: ["/etc/ssl/certs"]);
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+
+`WithContainerCertificatePaths` API は 3 つのオプションパラメーターを受け取ります:
+
+- `customCertificatesDestination`: カスタム証明書ファイルが配置されるコンテナ内のベースパスを上書きします。設定しないか `null` に設定した場合、デフォルトパス `/usr/lib/ssl/aspire` が使用されます。
+- `defaultCertificateBundlePaths`: デフォルトの証明機関バンドルファイルが格納されているコンテナ内のパスを上書きします。`CertificateTrustScope` が Override または System の場合、カスタム証明書バンドルはこれらのパスにも追加書き込みされます。設定しないか `null` に設定した場合、一般的な Linux ディストリビューション用のデフォルト証明書パスが使用されます。
+- `defaultCertificateDirectoryPaths`: 個別の信頼済み証明書ファイルが格納されているコンテナ内のパスを上書きします。`CertificateTrustScope` が Append の場合、これらのパスはアップロードされた証明書アーティファクトのパスと連結されます。設定しないか `null` に設定した場合、一般的な Linux ディストリビューション用のデフォルト証明書パスが使用されます。
+
+<Aside type="note">
+  必要なパスはすべて `WithContainerCertificatePaths` への
+  1 回の呼び出しで設定する必要があります。API への最後の呼び出しのみが
+  反映されます。
+</Aside>
+
+## 一般的なシナリオ
+
+このセクションでは、HTTPS エンドポイントと証明書信頼を一緒に設定するための一般的なパターンを示します。
+
+### HTTPS を持つサービスの設定とダッシュボードテレメトリの有効化
+
+典型的なシナリオは、Node.js サービスが HTTPS トラフィックを提供しながら、ダッシュボードにテレメトリを送信できるように設定することです:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// HTTPS エンドポイントに開発者証明書を使用するようにサービスを設定する
+// また、送信接続（ダッシュボードテレメトリなど）のために開発者証明書を信頼する
+var frontend = builder.AddNpmApp("frontend", "../frontend")
+    .WithHttpsDeveloperCertificate()      // HTTPS エンドポイント用サーバー証明書
+    .WithDeveloperCertificateTrust(true); // ダッシュボード用クライアント信頼
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// HTTPS エンドポイントに開発者証明書を使用するようにサービスを設定する
+// また、送信接続（ダッシュボードテレメトリなど）のために開発者証明書を信頼する
+const frontend = await builder.addNodeApp("frontend", "../frontend", "index.js")
+    .withHttpsDeveloperCertificate()         // HTTPS エンドポイント用サーバー証明書
+    .withDeveloperCertificateTrust(true);    // ダッシュボード用クライアント信頼
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### カスタム証明書を使用した HTTPS の有効化
+
+企業またはカスタム CA 証明書を使用する場合、サーバーとクライアントの両方の証明書を設定できます:
+
+```csharp title="AppHost.cs"
+using System.Security.Cryptography.X509Certificates;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// カスタム証明書を読み込む
+var serverCert = new X509Certificate2("server-cert.pfx", "password");
+var customCA = new X509Certificate2Collection();
+customCA.Import("corporate-ca.pem");
+
+var caBundle = builder.AddCertificateAuthorityCollection("corporate-certs")
+    .WithCertificates(customCA);
+
+// カスタムサーバー証明書と CA 信頼でサービスを設定する
+builder.AddContainer("api", "my-api:latest")
+    .WithHttpsCertificate(serverCert)           // HTTPS 用サーバー証明書
+    .WithCertificateAuthorityCollection(caBundle); // 企業 CA を信頼する
+
+builder.Build().Run();
+```
+
+<Aside type="note">
+  この API はまだ TypeScript AppHost では利用できません。
+</Aside>
+
+### Redis を TLS で設定する
+
+Redis リソースは、安全な接続のために HTTPS (TLS) を使用するよう設定できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// TLS に開発者証明書を使用するよう Redis を設定する
+var redis = builder.AddRedis("cache")
+    .WithHttpsDeveloperCertificate();
+
+// または TLS を完全に無効にする
+var redisNoTls = builder.AddRedis("cache-notls")
+    .WithoutHttpsCertificate();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// TLS に開発者証明書を使用するよう Redis を設定する
+const redis = await builder.addRedis("cache")
+    .withHttpsDeveloperCertificate();
+
+// または TLS を完全に無効にする
+const redisNoTls = await builder.addRedis("cache-notls")
+    .withoutHttpsCertificate();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+### 特定のリソースの証明書設定を無効にする
+
+独自の証明書を管理するリソースに対して、HTTPS エンドポイント設定と証明書信頼の両方を無効にするには:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// すべての自動証明書設定を無効にする
+builder.AddPythonModule("api", "./api", "uvicorn")
+    .WithoutHttpsCertificate()                    // サーバー証明書設定なし
+    .WithCertificateTrustScope(CertificateTrustScope.None); // クライアント信頼設定なし
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, CertificateTrustScope } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// すべての自動証明書設定を無効にする
+await builder.addPythonModule("api", "./api", "uvicorn")
+    .withoutHttpsCertificate()             // サーバー証明書設定なし
+    .withCertificateTrustScope(CertificateTrustScope.None);    // クライアント信頼設定なし
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## 制限事項
+
+証明書設定には次の制限事項があります:
+
+- 現在、実行モードのみサポートされており、発行モードではサポートされていない
+- すべての言語とランタイムがすべての信頼スコープモードをサポートしているわけではない
+- Python アプリケーションは証明書信頼の Append モードをネイティブにサポートしていない
+- カスタム証明書設定にはリソース内での適切なランタイムサポートが必要
+- HTTPS エンドポイント API は試験的（`ASPIRECERTIFICATES001`）としてマークされている

@@ -1,0 +1,355 @@
+---
+title: Aspire で外部実行可能ファイルをホストする
+description: AddExecutable を使用して Aspire AppHost で外部の実行可能アプリケーションをホストする方法を学びます。
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Aspire では、`AddExecutable` メソッドを使用して、プロジェクトと一緒に外部の実行可能アプリケーションをホストできます。この機能は、Node.js アプリケーション、Python スクリプト、特殊な CLI ツールなどの実行可能アプリケーションやツールを分散アプリケーションに統合する必要がある場合に役立ちます。
+
+## 実行可能リソースを使用する場合
+
+実行可能リソースは、次のような場合に使用します:
+
+- コンテナーではなくホスト上でアプリケーションやツールを直接実行する。
+- コマンドライン ツールやユーティリティをアプリケーションに統合する。
+- 他のリソースが依存する外部プロセスを実行する。
+- ローカル開発サーバーを提供するツールを使って開発する。
+
+一般的な例は次のとおりです:
+
+- **フロントエンド開発サーバー**: [Vercel CLI](https://vercel.com/docs/cli) や webpack dev server のようなツール。
+- **言語固有のアプリケーション**: Node.js アプリ、Python スクリプト、Go アプリケーション。
+- **データベース ツール**: マイグレーション ユーティリティやデータベース シーダー。
+- **ビルド ツール**: アセット プロセッサーやコード ジェネレーター。
+
+## 基本的な使用方法
+
+`AddExecutable` メソッドでは、リソース名、実行可能ファイルのパス、そして必要に応じてコマンドライン引数と作業ディレクトリが必要です:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 引数なしの基本的な実行可能ファイル
+var nodeApp = builder.AddExecutable("frontend", "node", ".", "server.js");
+
+// コマンドライン引数付きの実行可能ファイル
+var pythonApp = builder.AddExecutable(
+        "api", "python", ".", "-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 引数なしの基本的な実行可能ファイル
+const nodeApp = await builder.addExecutable("frontend", "node", ".", ["server.js"]);
+
+// コマンドライン引数付きの実行可能ファイル
+const pythonApp = await builder.addExecutable("api", "python", ".", ["-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+このコードは、基本的な実行可能リソースの設定方法を示しています。最初の例は Node.js サーバー スクリプトを実行し、2 つ目の例は特定の構成オプションを `AddExecutable` メソッドに引数として直接渡して、Uvicorn を使用する Python アプリケーションを起動します。
+
+## リソース依存関係と環境構成
+
+コマンドライン引数は `AddExecutable` 呼び出しで直接指定でき、リソース依存関係の環境変数も構成できます。実行可能リソースは他のリソースを参照し、その接続情報にアクセスできます。
+
+### AddExecutable 呼び出しで引数を指定する
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 引数を AddExecutable で直接指定します
+var app = builder.AddExecutable(
+    "vercel-dev", "vercel", ".", "dev", "--listen", "3000");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 引数を addExecutable で直接指定します
+const app = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--listen", "3000"]);
+```
+</TabItem>
+</Tabs>
+
+### 環境変数を使ったリソース依存関係
+
+他のリソースに依存する引数には、環境変数を使用します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+var postgres = builder.AddPostgres("postgres").AddDatabase("appdb");
+
+var app = builder.AddExecutable("worker", "python", ".", "worker.py")
+    .WithReference(redis)      // ConnectionStrings__cache を提供します
+    .WithReference(postgres);  // ConnectionStrings__appdb を提供します
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis("cache");
+const postgres = (await builder.addPostgres("postgres")).addDatabase("appdb");
+
+const app = await builder.addExecutable("worker", "python", ".", ["worker.py"])
+    .withReference(redis)      // ConnectionStrings__cache を提供します
+    .withReference(postgres);  // ConnectionStrings__appdb を提供します
+```
+</TabItem>
+</Tabs>
+
+1 つのリソースが別のリソースに依存している場合、`WithReference` は依存先リソースの接続詳細を含む環境変数を渡します。たとえば、`worker` 実行可能ファイルが `redis` と `postgres` を参照すると、これらのリソースへの接続文字列を含む `ConnectionStrings__cache` および `ConnectionStrings__appdb` 環境変数が提供されます。
+
+### 特定のエンドポイント情報にアクセスする
+
+実行可能ファイルに接続情報を渡す方法をさらに細かく制御するには、次のようにします:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var redis = builder.AddRedis("cache");
+
+var app = builder.AddExecutable("app", "node", ".", "app.js")
+    .WithReference(redis)
+    .WithEnvironment(context =>
+    {
+        // 個別の接続詳細を提供します
+        context.EnvironmentVariables["REDIS_HOST"] = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Host);
+        context.EnvironmentVariables["REDIS_PORT"] = redis.Resource.PrimaryEndpoint.Property(EndpointProperty.Port);
+    });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, EndpointProperty } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis("cache");
+const redisEndpoint = await redis.getEndpoint("tcp");
+const redisHost = await redisEndpoint.property(EndpointProperty.Host);
+const redisPort = await redisEndpoint.property(EndpointProperty.Port);
+
+const app = await builder.addExecutable("app", "node", ".", ["app.js"])
+    .withReference(redis)
+    .withEnvironment("REDIS_HOST", redisHost)
+    .withEnvironment("REDIS_PORT", redisPort);
+```
+</TabItem>
+</Tabs>
+
+## 実践例: Vercel CLI
+
+次は、[Vercel CLI](https://vercel.com/docs/cli) を使用して、バックエンド API とともにフロントエンド アプリケーションをホストする完全な例です:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// バックエンド API
+var api = builder.AddProject<Projects.Api>("api")
+    .WithExternalHttpEndpoints();
+
+// Vercel CLI を使用するフロントエンド
+var frontend = builder.AddExecutable(
+        "vercel-dev", "vercel", ".", "dev", "--listen", "3000")
+    .WithEnvironment("API_URL", api.GetEndpoint("http"))
+    .WithHttpEndpoint(port: 3000, name: "http");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// バックエンド API
+const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+    .withExternalHttpEndpoints();
+
+// Vercel CLI を使用するフロントエンド
+const frontend = await builder.addExecutable("vercel-dev", "vercel", ".", ["dev", "--listen", "3000"])
+    .withEnvironment("API_URL", api.getEndpoint("http"))
+    .withHttpEndpoint({ port: 3000, name: "http" });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## エンドポイントを構成する
+
+実行可能リソースは、他のリソースが参照できる HTTP エンドポイントを公開できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var frontend = builder.AddExecutable(
+        "webpack-dev", "npx", ".", "webpack", "serve", "--port", "8080", "--host", "0.0.0.0")
+    .WithHttpEndpoint(port: 8080, name: "http");
+
+// 別のサービスがフロントエンドを参照できます
+var e2eTests = builder.AddExecutable("playwright", "npx", ".", "playwright", "test")
+    .WithEnvironment("BASE_URL", frontend.GetEndpoint("http"));
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addExecutable("webpack-dev", "npx", ".", ["webpack", "serve", "--port", "8080", "--host", "0.0.0.0"])
+    .withHttpEndpoint({ port: 8080, name: "http" });
+
+// 別のサービスがフロントエンドを参照できます
+const e2eTests = await builder.addExecutable("playwright", "npx", ".", ["playwright", "test"])
+    .withEnvironment("BASE_URL", frontend.getEndpoint("http"));
+```
+</TabItem>
+</Tabs>
+
+## 環境構成
+
+実行可能ファイルの環境変数を構成します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddExecutable(
+        "api", "uvicorn", ".", "main:app", "--reload", "--host", "0.0.0.0")
+    .WithEnvironment("DEBUG", "true")
+    .WithEnvironment("LOG_LEVEL", "info")
+    .WithEnvironment(context =>
+    {
+        // 動的な環境変数
+        context.EnvironmentVariables["START_TIME"] = DateTimeOffset.UtcNow.ToString();
+    });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const app = await builder.addExecutable("api", "uvicorn", ".", ["main:app", "--reload", "--host", "0.0.0.0"])
+    .withEnvironment("DEBUG", "true")
+    .withEnvironment("LOG_LEVEL", "info")
+    .withEnvironment("START_TIME", new Date().toISOString());
+```
+</TabItem>
+</Tabs>
+
+## PublishAsDockerFile を使った発行
+
+本番環境へデプロイするには、実行可能リソースをコンテナー化する必要があります。実行可能ファイルをどのようにパッケージ化するかを指定するには、`PublishAsDockerFile` メソッドを使用します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddExecutable(
+        "frontend", "npm", ".", "start", "--port", "3000")
+    .PublishAsDockerFile();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const app = await builder.addExecutable("frontend", "npm", ".", ["start", "--port", "3000"])
+    .publishAsDockerFile();
+```
+</TabItem>
+</Tabs>
+
+`PublishAsDockerFile()` を呼び出すと、Aspire は発行プロセス中に Dockerfile を生成します。独自の Dockerfile を指定して、この動作をカスタマイズすることもできます:
+
+### 発行用のカスタム Dockerfile
+
+実行可能ファイルの作業ディレクトリに `Dockerfile` を作成します:
+
+```dockerfile title="Dockerfile"
+FROM node:22-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+次に、AppHost でそれを参照します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var app = builder.AddExecutable("frontend", "npm", ".", "start")
+    .PublishAsDockerFile([new DockerfileBuildArg("NODE_ENV", "production")]);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const app = await builder.addExecutable("frontend", "npm", ".", ["start"])
+    .publishAsDockerFile();
+```
+</TabItem>
+</Tabs>
+
+## ベスト プラクティス
+
+実行可能リソースを扱う際は、次の点を意識してください:
+
+<Steps>
+
+1. **明示的なパスを使用する**: 信頼性を高めるため、可能な場合は実行可能ファイルへの完全パスを使用します。
+1. **依存関係を処理する**: `WithReference` を使用して適切な依存関係を確立します。
+1. **明示的な開始を構成する**: 自動的に開始すべきでない実行可能ファイルには `WithExplicitStart()` を使用します。
+1. **デプロイに備える**: 本番シナリオでは常に `PublishAsDockerFile()` を使用します。
+1. **環境を分離する**: 機密な構成にはコマンドライン引数ではなく環境変数を使用します。
+1. **リソース名を工夫する**: 実行可能ファイルの目的が明確に分かる説明的な名前を使用します。
+
+</Steps>
