@@ -548,6 +548,43 @@ Common causes:
 - **DNS hasn't propagated yet** when using a custom domain — Let's Encrypt fetches `http://<your-host>/.well-known/acme-challenge/...` and that has to resolve to the AGC frontend.
 - **HTTP traffic is blocked** between Let's Encrypt and the gateway — HTTP-01 needs port 80 open. AGC keeps the HTTP listener that `AddGateway` generates open by default; don't remove it.
 - **Production rate limit hit** while iterating — switch the issuer to `WithLetsEncryptStaging` until everything else works, then flip back to production.
+- **The contact email was rejected by ACME** — see [Let's Encrypt rejects the contact email](#lets-encrypt-rejects-the-contact-email).
+- **The bootstrap TLS secret is missing** — see [Gateway HTTPS listener reports `InvalidCertificateRef`](#gateway-https-listener-reports-invalidcertificateref).
+
+### Let's Encrypt rejects the contact email
+
+The first time you `aspire deploy` with `WithLetsEncryptProduction(email)` or `WithLetsEncryptStaging(email)`, cert-manager creates an ACME account using that email. Let's Encrypt validates the address and refuses to register accounts whose email uses a reserved or forbidden domain. The `ClusterIssuer` will report `Ready=False` and `kubectl describe clusterissuer <name>` will show one of:
+
+- `Domain name does not end with a valid public suffix` — the TLD isn't a registered public suffix. Reserved TLDs from RFC 2606 (`.test`, `.example`, `.invalid`, `.localhost`) are common offenders.
+- `contact email has forbidden domain example.com` — Let's Encrypt explicitly blocks the IANA example domains (`example.com`, `example.net`, `example.org`).
+
+Use a real address on a registered public domain (your corporate domain, or a personal mailbox like `you@gmail.com`). The address must be syntactically valid, but Let's Encrypt does not send mail to it during provisioning — it's the contact for expiry warnings.
+
+### Gateway HTTPS listener reports `InvalidCertificateRef`
+
+If `kubectl describe gateway storefront` shows `Secret default/storefront-tls does not exist` on the HTTPS listener, AGC will refuse to program the HTTPS frontend and any in-flight cert-manager `Challenge` will stall because its solver `HTTPRoute` can't be attached. This typically happens if you delete the `storefront-tls` secret manually to "force a reissue" — the bootstrap self-signed secret Aspire pre-creates is also wiped, breaking the chicken-and-egg pattern described in [How the certificate gets issued](#how-the-certificate-gets-issued).
+
+Recover by recreating a placeholder secret so AGC can program the listener again — cert-manager will overwrite it with a real certificate within a minute:
+
+```bash title="Restore the bootstrap secret"
+TMPDIR=$(mktemp -d)
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+    -keyout "$TMPDIR/key.pem" -out "$TMPDIR/cert.pem" \
+    -subj "/CN=bootstrap.invalid"
+kubectl create secret tls storefront-tls \
+    --cert="$TMPDIR/cert.pem" --key="$TMPDIR/key.pem" -n default
+rm -rf "$TMPDIR"
+```
+
+To force a legitimate reissue without removing the secret, annotate the `Certificate` instead:
+
+```bash title="Force cert-manager to reissue"
+kubectl cert-manager renew storefront-tls
+```
+
+### Plain HTTP returns 404 after adding `WithTls`
+
+This is expected. Once a gateway has both an HTTP and HTTPS listener and the route resolves to the HTTPS path on the AGC frontend, AGC stops serving the route on plain HTTP. Use `https://` (and `curl -k` while on a staging certificate) to verify the gateway. If you want to keep an HTTP-only path for health probes, add a second route bound explicitly to the HTTP listener with `sectionName: http` in the generated `HTTPRoute`.
 
 ### Gateway never gets an FQDN
 
