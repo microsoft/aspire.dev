@@ -3,7 +3,7 @@ title: Container networking
 description: Learn how the DCP container tunnel enables reliable container-to-host communication in Aspire.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import OsAwareTabs from '@components/OsAwareTabs.astro';
 
 During local development, your Aspire app model often includes a mix of container resources and host-based services (such as C#, Python, or TypeScript projects). Container-to-container communication works naturally over the bridge network, but containers that need to reach services running on the host require a different approach. Aspire solves this with the **container tunnel**, a [Developer Control Plane (DCP)](/architecture/overview/#developer-control-plane) capability that provides reliable, transparent container-to-host connectivity.
@@ -40,7 +40,10 @@ At a high level, the tunnel works as follows:
 
 This means that when you write code like the following, the container tunnel ensures `mycontainer` can reach the `api` project regardless of your operating system or container runtime:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var api = builder.AddProject<Projects.Api>("api");
@@ -50,6 +53,28 @@ builder.AddContainer("mycontainer", "myimage")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addNodeApp('api', './api', 'index.js');
+
+const container = await builder.addContainer('mycontainer', {
+  image: 'myimage',
+  tag: 'latest',
+});
+await container.withReference(api);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 ## Network identifiers
 
@@ -80,7 +105,14 @@ builder.Build().Run();
 ```
 
 <Aside type="note">
-In most cases you don't need to use network identifiers directly. When you call `WithReference`, Aspire automatically resolves endpoints using the correct network context for the consuming resource.
+  TypeScript AppHost support for resolving endpoints with explicit network
+  identifiers isn't yet available.
+</Aside>
+
+<Aside type="note">
+  In most cases you don't need to use network identifiers directly. When you
+  call `WithReference`, Aspire automatically resolves endpoints using the
+  correct network context for the consuming resource.
 </Aside>
 
 ## Disable the container tunnel

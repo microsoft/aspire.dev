@@ -33,7 +33,8 @@ aspire add azure-operational-insights
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -54,7 +55,8 @@ aspire add azure-operational-insights
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure Log Analytics hosting integration package:
@@ -76,6 +78,7 @@ The Aspire Azure Log Analytics hosting integration models the Log Analytics work
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -83,10 +86,12 @@ var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
 
 // After adding all resources, run the app...
 builder.Build().Run();
+
 ```
+
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
@@ -95,22 +100,27 @@ const logAnalytics = await builder.addAzureLogAnalyticsWorkspace("log-analytics"
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+
+````
+
 </TabItem>
 </Tabs>
 
 The preceding code adds an Azure Log Analytics workspace resource named `log-analytics` to the application model.
 
 <Aside type="caution">
-When you call `AddAzureLogAnalyticsWorkspace` (or `addAzureLogAnalyticsWorkspace`), it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddAzureLogAnalyticsWorkspace` (or
+  `addAzureLogAnalyticsWorkspace`), it implicitly calls
+  `AddAzureProvisioning`—which adds support for generating Azure resources
+  dynamically during app startup. The app must configure the appropriate
+  subscription and location. For more information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 ## Use with Application Insights
 
 A common pattern is to use a Log Analytics workspace with Application Insights for centralized telemetry collection. You can link an Application Insights resource to a Log Analytics workspace:
 
-<Tabs syncKey="aspire-lang">
-<TabItem id="csharp" label="C#">
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -118,29 +128,17 @@ var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics");
 var appInsights = builder.AddAzureApplicationInsights("app-insights", logAnalytics);
 
 builder.AddProject<Projects.ExampleProject>()
-    .WithReference(appInsights);
+.WithReference(appInsights);
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
-</TabItem>
-<TabItem id="typescript" label="TypeScript">
-```typescript title="TypeScript — apphost.ts"
-import { createBuilder } from './.modules/aspire.js';
 
-const builder = await createBuilder();
+````
 
-const logAnalytics = await builder.addAzureLogAnalyticsWorkspace("log-analytics");
-const appInsights = await builder.addAzureApplicationInsights("app-insights", logAnalytics);
-
-await builder.addNodeApp("api", "./api", "index.js")
-    .withReference(appInsights);
-
-// After adding all resources, run the app...
-await builder.build().run();
-```
-</TabItem>
-</Tabs>
+<Aside type="note">
+  TypeScript AppHost support for linking an Application Insights resource to a
+  Log Analytics workspace isn't yet available.
+</Aside>
 
 The preceding code:
 
@@ -154,8 +152,8 @@ For more information, see [Azure Application Insights integration](/integrations
 
 The Azure Log Analytics workspace resource exposes the following connection property:
 
-| Property name | Description |
-|---------------|-------------|
+| Property name             | Description                                     |
+| ------------------------- | ----------------------------------------------- |
 | `logAnalyticsWorkspaceId` | The resource ID of the Log Analytics workspace. |
 
 ## Provisioning-generated Bicep
@@ -209,6 +207,11 @@ var logAnalytics = builder.AddAzureLogAnalyticsWorkspace("log-analytics")
 var appInsights = builder.AddAzureApplicationInsights("app-insights", logAnalytics);
 ```
 
+<Aside type="note">
+  TypeScript AppHost support for strongly-typed Azure provisioning customization
+  APIs is not yet available.
+</Aside>
+
 The preceding code:
 
 - Chains a call to the `ConfigureInfrastructure` API:
@@ -221,7 +224,10 @@ For more information, see [Customize Azure resources](/integrations/cloud/azure/
 ## Client integration
 
 <Aside type="note">
-  The Azure Log Analytics hosting integration does not include a corresponding client integration package. Use the [Azure Monitor Query client library](https://learn.microsoft.com/dotnet/api/overview/azure/monitor.query-readme) to query logs programmatically.
+  The Azure Log Analytics hosting integration does not include a corresponding
+  client integration package. Use the [Azure Monitor Query client
+  library](https://learn.microsoft.com/dotnet/api/overview/azure/monitor.query-readme)
+  to query logs programmatically.
 </Aside>
 
 ## See also

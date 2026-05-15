@@ -4,7 +4,7 @@ description: Learn how to configure Azure role-based access control (RBAC) for A
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 import azureIcon from '@assets/icons/azure-icon.png';
 
 <Image
@@ -17,10 +17,6 @@ import azureIcon from '@assets/icons/azure-icon.png';
 />
 
 All Aspire Azure hosting integrations define Azure resources. These resources come with default role assignments. You can replace these default role assignments with built-in roles or [custom role assignments](/integrations/cloud/azure/customize-resources/). In this article, you learn how to manage Azure role assignments on Aspire resources.
-
-<Aside type="note">
-Role assignment APIs (`WithRoleAssignments`) are currently only available in the C# AppHost. TypeScript AppHost support is not yet implemented.
-</Aside>
 
 ## Default built-in role assignments
 
@@ -36,13 +32,23 @@ var builder = DistributedApplication.CreateBuilder(args);
 var search = builder.AddAzureSearch("search");
 
 var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(search);
-```
+.WithReference(search);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-<Aside type="note">
-The TypeScript AppHost does not yet support `WithRoleAssignments`. Default role assignments are applied automatically when you reference an Azure resource.
-</Aside>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const search = await builder.addAzureSearch("search");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(search);
+````
+
 </TabItem>
 </Tabs>
 
@@ -65,14 +71,25 @@ var builder = DistributedApplication.CreateBuilder(args);
 var search = builder.AddAzureSearch("search");
 
 var api = builder.AddProject<Projects.Api>("api")
-    .WithRoleAssignments(search, SearchBuiltInRole.SearchIndexDataReader)
-    .WithReference(search);
-```
+.WithRoleAssignments(search, SearchBuiltInRole.SearchIndexDataReader)
+.WithReference(search);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
-<Aside type="note">
-The TypeScript AppHost does not yet support `WithRoleAssignments`. Role assignments cannot be overridden in a TypeScript AppHost at this time.
-</Aside>
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { AzureSearchRole, createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const search = await builder.addAzureSearch("search");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withRoleAssignments(search, [AzureSearchRole.SearchIndexDataReader]);
+await api.withReference(search);
+````
+
 </TabItem>
 </Tabs>
 
@@ -88,11 +105,11 @@ Aspire represents each set of role assignments as an `AzureRoleAssignmentResourc
 
 `AzureRoleAssignmentResource` exposes three properties:
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `TargetAzureResource` | `AzureProvisioningResource` | The Azure resource that the roles are assigned on (the scope, for example, a Key Vault or Storage account). |
-| `OwnerResource` | `IResource?` | The Aspire resource whose managed identity receives the role assignments (the resource on which `WithRoleAssignments` was called). `null` for global role assignments granted to the deployment principal. |
-| `IdentityResource` | `AzureUserAssignedIdentityResource?` | The user-assigned managed identity whose principal receives the role assignments. `null` for global role assignments granted to the deployment principal. |
+| Property              | Type                                 | Description                                                                                                                                                                                                |
+| --------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TargetAzureResource` | `AzureProvisioningResource`          | The Azure resource that the roles are assigned on (the scope, for example, a Key Vault or Storage account).                                                                                                |
+| `OwnerResource`       | `IResource?`                         | The Aspire resource whose managed identity receives the role assignments (the resource on which `WithRoleAssignments` was called). `null` for global role assignments granted to the deployment principal. |
+| `IdentityResource`    | `AzureUserAssignedIdentityResource?` | The user-assigned managed identity whose principal receives the role assignments. `null` for global role assignments granted to the deployment principal.                                                  |
 
 The following example shows how to add a pipeline step that runs during `WellKnownPipelineSteps.BeforeStart` and enumerates all `AzureRoleAssignmentResource` instances that target a specific Azure resource:
 
@@ -125,6 +142,11 @@ builder.Pipeline.AddStep(
 
 builder.Build().Run();
 ```
+
+:::note
+TypeScript AppHost support for inspecting role assignments through pipeline
+steps isn't yet available.
+:::
 
 :::note
 `OwnerResource` and `IdentityResource` are both `null` for global role assignments granted to the deployment principal. When either property is non-`null`, both are non-`null`.

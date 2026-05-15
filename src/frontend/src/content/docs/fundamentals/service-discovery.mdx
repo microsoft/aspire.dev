@@ -3,7 +3,7 @@ title: Service discovery
 description: Understand essential service discovery concepts in Aspire.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Service discovery is how your services find each other. Instead of hardcoding URLs like `http://localhost:5001`, your frontend can simply reference the `catalog` service by name—and Aspire handles resolving the actual address.
 
@@ -19,23 +19,48 @@ When you connect services using `WithReference()`, Aspire sets up automatic serv
 **The key insight**: Your code uses logical service names (like `catalog`), and Aspire's configuration-based endpoint resolver translates those to actual addresses at runtime.
 
 <Aside type="tip" title="Why this matters">
-Service discovery eliminates "works on my machine" problems. The same code works locally (where `catalog` might be `localhost:5001`) and in production (where it might be `catalog.internal.cloudapp.net:443`)—without any code changes.
+  Service discovery eliminates "works on my machine" problems. The same code
+  works locally (where `catalog` might be `localhost:5001`) and in production
+  (where it might be `catalog.internal.cloudapp.net:443`)—without any code
+  changes.
 </Aside>
 
 ## Implicit service discovery by reference
 
 Configuration for service discovery is only added for services that are referenced by a given project. For example, consider the following AppHost program:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalog = builder.AddProject<Projects.CatalogService>("catalog");
 var basket = builder.AddProject<Projects.BasketService>("basket");
 
 var frontend = builder.AddProject<Projects.MyFrontend>("frontend")
-                      .WithReference(basket)
-                      .WithReference(catalog);
+                       .WithReference(basket)
+                       .WithReference(catalog);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const catalog = await builder.addNodeApp('catalog', './catalog', 'index.js');
+const basket = await builder.addNodeApp('basket', './basket', 'index.js');
+
+const frontend = await builder.addNodeApp('frontend', './frontend', 'index.js');
+await frontend.withReference(basket);
+await frontend.withReference(catalog);
+```
+
+</TabItem>
+</Tabs>
 
 In the preceding example, the _frontend_ project references the _catalog_ project and the _basket_ project. The two `WithReference` calls instruct Aspire to:
 
@@ -43,7 +68,9 @@ In the preceding example, the _frontend_ project references the _catalog_ projec
 2. **Enable resolution** - Allow `frontend` to use URIs like `https+http://catalog` in HttpClient
 
 <Aside type="note">
-If you don't call `WithReference()`, the frontend won't have the configuration needed to discover that service. This is intentional—services only know about their explicit dependencies.
+  If you don't call `WithReference()`, the frontend won't have the configuration
+  needed to discover that service. This is intentional—services only know about
+  their explicit dependencies.
 </Aside>
 
 ## Named endpoints
@@ -82,12 +109,29 @@ In the preceding JSON:
 
 ### Named endpoints in Aspire
 
-Named endpoints can also be exposed by code in the App Host. For instance the previous example can be modeled as:
+Named endpoints can also be exposed by code in the AppHost. For instance, the previous example can be modeled as:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp
 var basket = builder.AddProject<Projects.BasketService>("basket")
     .WithHttpsEndpoint(port: 9999, name: "dashboard");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript
+const basket = await builder.addProject(
+  'basket',
+  '../BasketService/BasketService.csproj'
+);
+await basket.withHttpsEndpoint({ port: 9999, name: 'dashboard' });
+```
+
+</TabItem>
+</Tabs>
 
 ### Named endpoints in Kubernetes using DNS SRV
 
@@ -141,17 +185,36 @@ builder.Services.AddHttpClient<BasketServiceDashboardClient>(
 **Symptoms**: HttpClient throws an exception like "No endpoints resolved for service 'myservice'" or connection is refused.
 
 **Common causes**:
+
 1. **Missing `WithReference()`** - The calling service wasn't connected to the target service in AppHost
 2. **Wrong service name** - The name in your URI doesn't match the name in `AddProject()` or `AddContainer()`
 3. **Service not started** - The target service failed to start or is still starting
 
 **Solution**: Verify your AppHost connects the services:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var api = builder.AddProject<Projects.Api>("api");
 var frontend = builder.AddProject<Projects.Frontend>("frontend")
-    .WithReference(api);  // ← This is required!
+    .WithReference(api);  // This is required!
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript
+const api = await builder.addProject('api', '../Api/Api.csproj');
+const frontend = await builder.addProject(
+  'frontend',
+  '../Frontend/Frontend.csproj'
+);
+await frontend.withReference(api); // This is required!
+```
+
+</TabItem>
+</Tabs>
 
 ### Named endpoint doesn't resolve
 
@@ -159,10 +222,24 @@ var frontend = builder.AddProject<Projects.Frontend>("frontend")
 
 **Solution**: Verify the endpoint is named in your AppHost:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var api = builder.AddProject<Projects.Api>("api")
-    .WithHttpEndpoint(port: 9999, name: "dashboard");  // ← Name must match
+    .WithHttpEndpoint(port: 9999, name: "dashboard");  // Name must match
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withHttpEndpoint({ port: 9999, name: 'dashboard' }); // Name must match
+```
+
+</TabItem>
+</Tabs>
 
 Then use the exact name with underscore prefix:
 
@@ -174,13 +251,15 @@ client.BaseAddress = new("https://_dashboard.api");
 
 The `https+http://` prefix means "prefer HTTPS, fall back to HTTP". Here's the breakdown:
 
-| URI Format | Meaning |
-|------------|---------|
-| `https://catalog` | HTTPS only to default endpoint |
-| `http://catalog` | HTTP only to default endpoint |
-| `https+http://catalog` | Prefer HTTPS, fall back to HTTP |
+| URI Format               | Meaning                         |
+| ------------------------ | ------------------------------- |
+| `https://catalog`        | HTTPS only to default endpoint  |
+| `http://catalog`         | HTTP only to default endpoint   |
+| `https+http://catalog`   | Prefer HTTPS, fall back to HTTP |
 | `https://_admin.catalog` | HTTPS to named "admin" endpoint |
 
 <Aside type="note" title="The underscore prefix">
-The `_` prefix before an endpoint name is not arbitrary—it's required syntax that tells the resolver you're specifying a named endpoint rather than a subdomain.
+  The `_` prefix before an endpoint name is not arbitrary—it's required syntax
+  that tells the resolver you're specifying a named endpoint rather than a
+  subdomain.
 </Aside>

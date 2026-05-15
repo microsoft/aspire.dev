@@ -4,7 +4,13 @@ description: Learn how to use the Aspire Azure App Service Hosting integration t
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, Badge, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import {
+  Aside,
+  Badge,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import InstallPackage from '@components/InstallPackage.astro';
 import appServiceIcon from '@assets/icons/azure-app-services.svg';
@@ -36,7 +42,8 @@ aspire add Aspire.Hosting.Azure.AppService
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -57,7 +64,8 @@ aspire add Aspire.Hosting.Azure.AppService
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the hosting integration package:
@@ -99,9 +107,10 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const appServiceEnv = await builder.addAzureAppServiceEnvironment("app-service-env");
+const appServiceEnv =
+  await builder.addAzureAppServiceEnvironment('app-service-env');
 
-await builder.addProject("api", "../WebApi/WebApi.csproj");
+await builder.addProject('api', '../WebApi/WebApi.csproj');
 
 await builder.build().run();
 ```
@@ -120,11 +129,19 @@ await builder.build().run();
 </Steps>
 
 <Aside type="caution">
-  Calling `AddAzureAppServiceEnvironment` (or `addAzureAppServiceEnvironment` in TypeScript) implicitly calls `AddAzureProvisioning`, which adds support for generating Azure resources dynamically during app startup. The app must configure an Azure subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  Calling `AddAzureAppServiceEnvironment` (or `addAzureAppServiceEnvironment` in
+  TypeScript) implicitly calls `AddAzureProvisioning`, which adds support for
+  generating Azure resources dynamically during app startup. The app must
+  configure an Azure subscription and location. For more information, see [Local
+  provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 <Aside type="note">
-  Backing services such as databases, caches, and message brokers should use their own managed Azure services rather than App Service websites. Only web-facing compute resources — project resources and Dockerfile-backed containers — are deployed as App Service websites.
+  Backing services such as databases, caches, and message brokers should use
+  their own managed Azure services rather than App Service websites. Only
+  web-facing compute resources — project resources and Dockerfile-backed
+  containers — are deployed as App Service websites.
 </Aside>
 
 When the App Service environment is provisioned in Azure, the following resources are created:
@@ -159,9 +176,29 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-:::note
-The TypeScript AppHost doesn't currently expose an `asExisting` API for `AzureAppServiceEnvironmentResource`. To target an existing App Service plan from a TypeScript AppHost, use [`builder.addConnectionString(...)`](/get-started/app-host/) with the necessary parameters.
-:::
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const existingAppServicePlanName = await builder.addParameter(
+  'existingAppServicePlanName'
+);
+const existingResourceGroup = await builder.addParameter(
+  'existingResourceGroup'
+);
+
+const appServiceEnv =
+  await builder.addAzureAppServiceEnvironment('app-service-env');
+await appServiceEnv.asExisting(
+  existingAppServicePlanName,
+  existingResourceGroup
+);
+
+await builder.addProject('api', '../WebApi/WebApi.csproj');
+
+await builder.build().run();
+```
 
 </TabItem>
 </Tabs>
@@ -199,18 +236,18 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-await builder.addAzureAppServiceEnvironment("app-service-env");
+await builder.addAzureAppServiceEnvironment('app-service-env');
 
-const api = await builder.addProject("api", "../WebApi/WebApi.csproj");
+const api = await builder.addProject('api', '../WebApi/WebApi.csproj');
 await api.publishAsAzureAppServiceWebsite({
-    configure: async (infra, website) => {
-        // Customize infrastructure here using Azure Provisioning APIs
-    },
+  configure: async (infra, website) => {
+    // Customize infrastructure here using Azure Provisioning APIs
+  },
 });
 
 await builder.build().run();
@@ -226,7 +263,14 @@ The preceding code:
 - In C#, adds an application setting for `ASPNETCORE_ENVIRONMENT` and metadata tags.
 
 <Aside type="note">
-  When App Service deployment configures a managed identity for a resource, Aspire automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable to `ManagedIdentityCredential`. This ensures that `DefaultAzureCredential` uses only `ManagedIdentityCredential` for authentication, following [Azure SDK best practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments). If you need a different credential type, remove this app setting by customizing the generated website with `PublishAsAzureAppServiceWebsite`.
+  When App Service deployment configures a managed identity for a resource,
+  Aspire automatically sets the `AZURE_TOKEN_CREDENTIALS` environment variable
+  to `ManagedIdentityCredential`. This ensures that `DefaultAzureCredential`
+  uses only `ManagedIdentityCredential` for authentication, following [Azure SDK
+  best
+  practices](https://learn.microsoft.com/dotnet/azure/sdk/authentication/best-practices?tabs=aspdotnet#use-deterministic-credentials-in-production-environments).
+  If you need a different credential type, remove this app setting by
+  customizing the generated website with `PublishAsAzureAppServiceWebsite`.
 </Aside>
 
 ## Deployment slots
@@ -258,19 +302,24 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-await (await builder.addAzureAppServiceEnvironment("appservice"))
-    .withDeploymentSlot("staging");
+await (
+  await builder.addAzureAppServiceEnvironment('appservice')
+).withDeploymentSlot('staging');
 
-const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+const apiService = await builder.addProject(
+  'apiservice',
+  '../ApiService/ApiService.csproj'
+);
 
-await builder.addProject("webfrontend", "../Web/Web.csproj")
-    .withReference(apiService)
-    .waitFor(apiService);
+await builder
+  .addProject('webfrontend', '../Web/Web.csproj')
+  .withReference(apiService)
+  .waitFor(apiService);
 
 await builder.build().run();
 ```
@@ -310,15 +359,16 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const slotName = await builder.addParameter("deploymentSlot");
+const slotName = await builder.addParameter('deploymentSlot');
 
-await (await builder.addAzureAppServiceEnvironment("appservice"))
-    .withDeploymentSlot(slotName);
+await (
+  await builder.addAzureAppServiceEnvironment('appservice')
+).withDeploymentSlot(slotName);
 
 // Add your projects and other resources...
 
@@ -333,7 +383,9 @@ With this configuration, provide a value for the `deploymentSlot` parameter when
 ### Applying customizations to slots
 
 <Aside type="caution">
-  Customizations applied to the production App Service are not automatically applied to deployment slots. You must explicitly apply customizations to the slot when needed.
+  Customizations applied to the production App Service are not automatically
+  applied to deployment slots. You must explicitly apply customizations to the
+  slot when needed.
 </Aside>
 
 When you customize App Service resources using `PublishAsAzureAppServiceWebsite` (or `publishAsAzureAppServiceWebsite`) or `ConfigureInfrastructure`, those customizations apply to the production slot by default. Apply them separately to each slot when needed using the `configureSlot` option:
@@ -353,14 +405,14 @@ builder.AddProject<Projects.WebApi>("api")
 <TabItem id="typescript" label="TypeScript">
 
 ```typescript title="apphost.ts"
-const api = await builder.addProject("api", "../WebApi/WebApi.csproj");
+const api = await builder.addProject('api', '../WebApi/WebApi.csproj');
 await api.publishAsAzureAppServiceWebsite({
-    configure: async (infra, website) => {
-        // Production website customizations
-    },
-    configureSlot: async (infra, slot) => {
-        // Deployment slot customizations
-    },
+  configure: async (infra, website) => {
+    // Production website customizations
+  },
+  configureSlot: async (infra, slot) => {
+    // Deployment slot customizations
+  },
 });
 ```
 
@@ -399,15 +451,16 @@ builder.Build().Run();
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 
-```typescript title="apphost.ts"
+```typescript title="apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-await (await builder.addAzureAppServiceEnvironment("app-service-env"))
-    .configureInfrastructure(async (infra) => {
-        // Customize Azure Provisioning resources here
-    });
+await (
+  await builder.addAzureAppServiceEnvironment('app-service-env')
+).configureInfrastructure(async (infra) => {
+  // Customize Azure Provisioning resources here
+});
 
 await builder.build().run();
 ```

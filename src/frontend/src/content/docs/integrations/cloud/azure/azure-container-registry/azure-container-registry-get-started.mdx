@@ -4,7 +4,15 @@ description: Understand why you use the Aspire Azure Container Registry integrat
 ---
 
 import { Image } from 'astro:assets';
-import { Aside, CardGrid, LinkButton, LinkCard, Steps } from '@astrojs/starlight/components';
+import {
+  Aside,
+  CardGrid,
+  LinkButton,
+  LinkCard,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import containerRegistryIcon from '@assets/icons/azure-container-registry-icon.svg';
 
@@ -58,27 +66,29 @@ Getting there is a two-step process: model the registry in your AppHost, then un
 
 1. ### Model Azure Container Registry in your AppHost
 
-    Add the Azure Container Registry hosting integration to your AppHost, then declare a registry resource and wire it to a compute environment. The [Azure Container Registry Hosting integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) article walks through every capability — provisioning a new registry, referencing an existing one, scheduling image cleanup with purge tasks, role assignments, and customizing the generated Bicep — with side-by-side C# and TypeScript examples.
+   Add the Azure Container Registry hosting integration to your AppHost, then declare a registry resource and wire it to a compute environment. The [Azure Container Registry Hosting integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) article walks through every capability — provisioning a new registry, referencing an existing one, scheduling image cleanup with purge tasks, role assignments, and customizing the generated Bicep — with side-by-side C# and TypeScript examples.
 
-    <LinkButton
-        variant='secondary'
-        iconPlacement='end'
-        icon='right-arrow'
-        href='/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/'>
-        Set up Azure Container Registry in the AppHost
-    </LinkButton>
+   <LinkButton
+     variant="secondary"
+     iconPlacement="end"
+     icon="right-arrow"
+     href="/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/"
+   >
+     Set up Azure Container Registry in the AppHost
+   </LinkButton>
 
 2. ### Use the registry at deploy time
 
-    When your app deploys, Aspire uses the registry resource to wire up image push and pull workflows. See [Connect to Azure Container Registry](/integrations/cloud/azure/azure-container-registry/azure-container-registry-connect/) for the registry outputs reference — including `loginServer` — and guidance on integrating the registry into your deployment pipeline.
+   When your app deploys, Aspire uses the registry resource to wire up image push and pull workflows. See [Connect to Azure Container Registry](/integrations/cloud/azure/azure-container-registry/azure-container-registry-connect/) for the registry outputs reference — including `loginServer` — and guidance on integrating the registry into your deployment pipeline.
 
-    <LinkButton
-        variant='secondary'
-        iconPlacement='end'
-        icon='right-arrow'
-        href='/integrations/cloud/azure/azure-container-registry/azure-container-registry-connect/'>
-        Use Azure Container Registry at deploy time
-    </LinkButton>
+   <LinkButton
+     variant="secondary"
+     iconPlacement="end"
+     icon="right-arrow"
+     href="/integrations/cloud/azure/azure-container-registry/azure-container-registry-connect/"
+   >
+     Use Azure Container Registry at deploy time
+   </LinkButton>
 
 </Steps>
 
@@ -101,7 +111,9 @@ Getting there is a two-step process: model the registry in your AppHost, then un
 In this introduction, you'll see how to install and use the Aspire Azure Container Registry integration in a simple configuration. If you already have this knowledge, see [Azure Container Registry Hosting integration](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) for full reference details.
 
 <Aside type="note">
-    To follow this guide, you must have created an Aspire solution to work with. To learn how to do that, see [Build your first Aspire app](/get-started/first-app/).
+  To follow this guide, you must have created an Aspire solution to work with.
+  To learn how to do that, see [Build your first Aspire
+  app](/get-started/first-app/).
 </Aside>
 
 ## Key capabilities
@@ -129,6 +141,9 @@ To begin, install the Aspire Azure Container Registry Hosting integration in you
 
 Next, in the AppHost project, create an Azure Container Registry resource and wire it to a compute environment:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -142,6 +157,27 @@ builder.AddAzureContainerAppEnvironment("env")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add (or reference) the registry
+const acr = await builder.addAzureContainerRegistry('my-acr');
+
+// Wire an environment to that registry
+const env = await builder.addAzureContainerAppEnvironment('env');
+await env.withAzureContainerRegistry(acr);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 The preceding code:
 
 - Creates a new Azure Container Registry named `my-acr`.
@@ -152,8 +188,9 @@ The preceding code:
 For more information on how the Azure Container Registry integration works, see:
 
 <CardGrid>
-    <LinkCard
-        href="/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/"
-        title="Hosting integration"
-        description="Learn more about the Hosting integration" />
+  <LinkCard
+    href="/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/"
+    title="Hosting integration"
+    description="Learn more about the Hosting integration"
+  />
 </CardGrid>

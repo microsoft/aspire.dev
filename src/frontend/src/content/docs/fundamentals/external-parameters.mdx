@@ -3,7 +3,7 @@ title: External parameters
 description: Learn how to express parameters such as secrets, connection strings, and other configuration values that might vary between environments.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import dashboardUnresolvedParams from '@assets/fundamentals/dashboard-unresolved-parameters-message.png';
 import customizedParameterUi from '@assets/fundamentals/customized-parameter-ui.png';
@@ -16,6 +16,9 @@ Parameter values are read from the `Parameters` section of the AppHost's configu
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -25,6 +28,24 @@ var parameter = builder.AddParameter("example-parameter-name");
 builder.AddProject<Projects.ApiService>("api")
        .WithEnvironment("ENVIRONMENT_VARIABLE_NAME", parameter);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a parameter named "example-parameter-name"
+const parameter = await builder.addParameter('example-parameter-name');
+
+const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+await api.withEnvironment('ENVIRONMENT_VARIABLE_NAME', parameter);
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code adds a parameter named `example-parameter-name` to the AppHost. The parameter is then passed to the `Projects.ApiService` project as an environment variable named `ENVIRONMENT_VARIABLE_NAME`.
 
@@ -51,6 +72,13 @@ var key = $"Parameters:example-parameter-name";
 var value = builder.Configuration[key]; // value = "local-value"
 ```
 
+<Aside type="note">
+  TypeScript AppHost support for reading AppHost configuration directly through
+  `IDistributedApplicationBuilder.Configuration` isn't available. In TypeScript
+  AppHosts, pass parameter resources to dependent resources instead of reading
+  configuration values directly.
+</Aside>
+
 <Aside type="caution">
   However, you don't need to access this configuration value yourself in the
   AppHost. Instead, the `ParameterResource` is used to pass the parameter value
@@ -70,6 +98,9 @@ Parameters can be set using environment variables, which is particularly useful 
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -81,6 +112,26 @@ builder.AddContainerRegistry("container-registry", endpoint, repository);
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Define container registry parameters
+const endpoint = await builder.addParameter('registry-endpoint');
+const repository = await builder.addParameter('registry-repository');
+
+await builder.addContainerRegistry('container-registry', endpoint, repository);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 These parameters can be provided via environment variables:
 
@@ -159,6 +210,10 @@ var externalService = builder.AddExternalService("external-service", externalSer
 builder.Build().Run();
 ```
 
+<Aside type="note">
+  TypeScript AppHost support for `withCustomInput` is not yet available.
+</Aside>
+
 The code renders this control in the dashboard:
 
 <Image
@@ -167,15 +222,23 @@ The code renders this control in the dashboard:
 />
 
 <Aside type="caution" title="WithCustomInput is an experimental API">
-  The `WithCustomInput` method uses the experimental interaction service APIs, which are marked with the `[Experimental("ASPIREINTERACTION001")]` attribute. If you have `TreatWarningsAsErrors` enabled (or prefer warning-free builds), suppress this warning with `#pragma warning disable ASPIREINTERACTION001` when using the API. The `WithDescription` method is _not_ experimental and doesn't require this pragma. For more information about the diagnostic and other ways to suppress it, see [ASPIREINTERACTION001](/diagnostics/aspireinteraction001/).
+  The `WithCustomInput` method uses the experimental interaction service APIs,
+  which are marked with the `[Experimental("ASPIREINTERACTION001")]` attribute.
+  If you have `TreatWarningsAsErrors` enabled (or prefer warning-free builds),
+  suppress this warning with `#pragma warning disable ASPIREINTERACTION001` when
+  using the API. The `WithDescription` method is _not_ experimental and doesn't
+  require this pragma. For more information about the diagnostic and other ways
+  to suppress it, see
+  [ASPIREINTERACTION001](/diagnostics/aspireinteraction001/).
 </Aside>
 
 <Aside type="note">
-  When using `WithCustomInput`, the `InteractionInput` object you create replaces the default input generation. To preserve markdown rendering in the parameter dialog, copy `EnableDescriptionMarkdown = p.EnableDescriptionMarkdown` from the parameter. The `enableMarkdown: true` parameter in `WithDescription` sets this property on the parameter resource, but you must explicitly copy it to your custom `InteractionInput` object.
-</Aside>
-
-<Aside type="note">
-  When using `WithCustomInput`, the `InteractionInput` object you create replaces the default input generation. To preserve markdown rendering in the parameter dialog, copy `EnableDescriptionMarkdown = p.EnableDescriptionMarkdown` from the parameter. The `enableMarkdown: true` parameter in `WithDescription` sets this property on the parameter resource, but you must explicitly copy it to your custom `InteractionInput` object.
+  When using `WithCustomInput`, the `InteractionInput` object you create
+  replaces the default input generation. To preserve markdown rendering in the
+  parameter dialog, copy `EnableDescriptionMarkdown =
+  p.EnableDescriptionMarkdown` from the parameter. The `enableMarkdown: true`
+  parameter in `WithDescription` sets this property on the parameter resource,
+  but you must explicitly copy it to your custom `InteractionInput` object.
 </Aside>
 
 <Aside type="note">
@@ -191,6 +254,9 @@ Parameters can be used to model secrets. When a parameter is marked as a secret,
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -202,6 +268,26 @@ builder.AddProject<Projects.ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Add a secret parameter named "secret"
+const secret = await builder.addParameter('secret', { secret: true });
+
+const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+await api.withEnvironment('SECRET', secret);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 Now consider the following AppHost configuration file _appsettings.json_:
 
@@ -257,6 +343,9 @@ public static IResourceBuilder<ParameterResource> AddParameterFromConfiguration(
 
 Consider a scenario where you have configuration values stored in a custom section:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -271,6 +360,30 @@ builder.AddProject<Projects.ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// Read from a custom configuration key
+const dbPassword = await builder.addParameterFromConfiguration(
+  'db-password',
+  'CustomConfig:Database:Password',
+  { secret: true }
+);
+
+const api = await builder.addProject('api', '../ApiService/ApiService.csproj');
+await api.withEnvironment('DB_PASSWORD', dbPassword);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The corresponding configuration file would look like:
 
@@ -303,6 +416,9 @@ If you're connecting to a local database, and want to use Integrated Security or
 
 Consider the following example AppHost _AppHost.cs_ file:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -315,9 +431,36 @@ builder.AddProject<Projects.WebApplication>("api")
 builder.Build().Run();
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addConnectionString('redis');
+
+const api = await builder.addProject(
+  'api',
+  '../WebApplication/WebApplication.csproj'
+);
+await api.withReference(redis);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
 <Aside type="note">
   Using `WaitFor` with a connection string will implicitly wait for the resource
   that the connection string connects to.
+</Aside>
+
+<Aside type="note">
+  TypeScript AppHost support for `waitFor` with connection string resources
+  isn't yet available.
 </Aside>
 
 Now consider the following AppHost configuration file _appsettings.json_:
@@ -348,6 +491,11 @@ builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
        .WaitFor(connectionString);
 ```
 
+<Aside type="note">
+  TypeScript AppHost support for constructing connection strings with
+  `ReferenceExpression.Create(...)` is not yet available.
+</Aside>
+
 You can also use reference expressions to append text to connection strings created by Aspire resources. For example, when you add a PostgreSQL resource to your Aspire solution, the database server runs in a container and a connection string is formulated for it. In the following code, the extra property `Include Error Details` is appended to that connection string before it's passed to consuming projects:
 
 ```csharp title="AppHost.cs"
@@ -363,9 +511,17 @@ builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi
        .WaitFor(pgConnectionString);
 ```
 
+<Aside type="note">
+  TypeScript AppHost support for appending to generated connection strings with
+  `ReferenceExpression.Create(...)` is not yet available.
+</Aside>
+
 ## Parameter example
 
 To express a parameter, consider the following example code:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
@@ -382,6 +538,33 @@ builder.AddProject<Projects.Parameters_ApiService>("api")
 
 builder.Build().Run();
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const sql = await builder.addSqlServer('sql');
+await sql.publishAsConnectionString();
+const db = await sql.addDatabase('db');
+
+const insertionRows = await builder.addParameter('insertionRows');
+
+const api = await builder.addProject(
+  'api',
+  '../Parameters.ApiService/Parameters.ApiService.csproj'
+);
+await api.withEnvironment('InsertionRows', insertionRows);
+await api.withReference(db);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The following steps are performed:
 
