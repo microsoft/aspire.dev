@@ -1,0 +1,81 @@
+---
+title: aspire render command
+description: Learn about the hidden aspire render command, a debug-only tool for CLI contributors to smoke test terminal rendering in the Aspire CLI.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Name
+
+`aspire render` - Smoke test terminal rendering in the Aspire CLI (debug builds only).
+
+## Synopsis
+
+```bash title="Aspire CLI"
+aspire render [--scenario <scenario>] [--console-width <width>]
+```
+
+## Description
+
+The `aspire render` command is a **hidden, debug-only** command used by CLI contributors to smoke test
+the Aspire CLI's terminal rendering helpers — such as `MarkupHelpers`, `MarkdownHelpers`, and
+`InteractionService` — without needing a full AppHost or project. It is not surfaced in
+`aspire --help` output and is only available in debug builds of the CLI.
+
+<Aside type="caution">
+  The `aspire render` command is intended for CLI contributors and maintainers only.
+  It is a debug tool and is not part of the stable Aspire CLI API. Its behavior,
+  scenarios, and options may change without notice.
+</Aside>
+
+When run without `--scenario`, the command enters an interactive loop that prompts you
+to select a scenario from the available list. After each scenario completes, a blank
+separator line is inserted before the prompt reappears, making repeated passes easier
+to scan.
+
+## Options
+
+- **`--scenario <scenario>`**
+
+  Run a specific rendering scenario non-interactively and exit. If omitted, the command
+  enters the interactive scenario selector.
+
+- **`--console-width <width>`**
+
+  Override the detected console width used when rendering. Useful for testing how output
+  wraps at specific widths.
+
+## Scenarios
+
+The following rendering scenarios are available in debug builds:
+
+| Scenario | Description |
+|---|---|
+| `links` | Render terminal hyperlinks with `SafeLink` and `SafeFileLink`. Creates a temporary file named `safe file link sample.txt` and renders it as a clickable file link alongside a URL link to Aspire documentation. |
+| `markdown-interactive` | Render Markdown with `DisplayMarkdown` (interactive mode). |
+| `markdown-plain` | Render Markdown as plain text with `DisplayRawText` (non-interactive mode). |
+| `markdown-renderable` | Render Markdown via `ConvertToRenderable` with ANSI disabled. |
+| `debug-activities` | Debug pipeline activities by calling `ProcessPublishingActivitiesDebugAsync`. |
+| `pipeline-activities` | Pipeline activities with a spinner via `ProcessAndDisplayPublishingActivitiesAsync`. |
+| `publish-summary-all` | Publish summary timeline stress scenarios. |
+
+### Example: smoke test terminal hyperlink rendering
+
+The `links` scenario exercises both `MarkupHelpers.SafeLink` (for clickable URLs) and
+`MarkupHelpers.SafeFileLink` (for clickable file-system paths, including paths with
+spaces). It creates a real temporary file so that the file link points to a valid path
+on disk:
+
+```bash title="Aspire CLI (debug build)"
+aspire render --scenario links
+```
+
+Example output (terminals that support OSC 8 hyperlinks will render the link text as
+a clickable hyperlink; others show the raw URL or path):
+
+```text
+Temporary file created at /tmp/aspire-render-links-XXXX/safe file link sample.txt
+Supports links: True
+SafeLink: Aspire documentation
+SafeFileLink: /tmp/aspire-render-links-XXXX/safe file link sample.txt
+```
