@@ -76,19 +76,18 @@ jobs:
           restore-keys: |
             astro-content-${{ runner.os }}-
 
-      # Build BEFORE tests so that Lunaria (i18n status) runs against a
-      # pristine working tree.  The lint step inside test:all calls
-      # `astro sync` which can leave generated artifacts on disk; when
-      # the build ran second, Lunaria would see those as uncommitted
-      # changes and fail with a doubled rootDir path
-      # (src/frontend/src/frontend/…).
+      # Build BEFORE lint+unit so that Lunaria (i18n status) runs against a
+      # pristine working tree.  The lint step calls `astro sync` which can
+      # leave generated artifacts on disk; when the build ran second,
+      # Lunaria would see those as uncommitted changes and fail with a
+      # doubled rootDir path (src/frontend/src/frontend/…).
       - name: Build frontend
         env:
           MODE: production
           ASTRO_TELEMETRY_DISABLED: 1
           # The built artifact is consumed by `astro preview` during the
-          # e2e step below. `config/cookie.config.ts` reads `E2E_TESTS`
-          # at build time to disable the cookie-consent bot check; without
+          # e2e shards. `config/cookie.config.ts` reads `E2E_TESTS` at
+          # build time to disable the cookie-consent bot check; without
           # this, the preview serves a production-configured modal that
           # playwright is mistaken for a bot and never opens.
           E2E_TESTS: 1
@@ -121,13 +120,130 @@ jobs:
 
           ls -la dist
 
+      - name: Lint
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+        run: pnpm lint
+
+      - name: Run unit tests
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+        run: pnpm test:unit
+
+  e2e:
+    name: E2E (${{ matrix.project }})
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    strategy:
+      # One viewport failure shouldn't cancel the others - we want every
+      # shard's report so we can see the whole picture in the merged HTML.
+      fail-fast: false
+      matrix:
+        project:
+          - desktop-chromium
+          - tablet-chromium
+          - mobile-chromium
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 10
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frontend-dist
+          path: src/frontend/dist
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run frontend all tests
+      # Reporters (blob, github, junit, list) are configured in
+      # `playwright.config.mjs` so they apply to every shard. Avoid passing
+      # `--reporter=` here: that would override the config and silently drop
+      # GitHub workflow annotations and the JUnit XML artifact.
+      - name: Run Playwright (${{ matrix.project }})
         env:
           ASTRO_TELEMETRY_DISABLED: 1
-        run: pnpm test:all
+        run: pnpm exec playwright test --project=${{ matrix.project }}
+
+      # Each shard publishes its blob report under a unique name so the
+      # merge job below can stitch them back together into a single HTML
+      # report identical to the unsharded output.
+      - name: Upload Playwright blob report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: frontend-blob-report-${{ matrix.project }}
+          path: src/frontend/blob-report
+          if-no-files-found: warn
+          retention-days: 7
+          # Blob reports contain pre-compressed PNG/webm/trace assets; the
+          # default gzip layer just burns CPU for no size reduction.
+          compression-level: 0
+
+      - name: Upload Playwright raw results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: frontend-test-results-${{ matrix.project }}
+          path: src/frontend/test-results
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 0
+
+  report:
+    name: Merge Playwright reports
+    # Run even when one or more e2e shards failed, so reviewers always
+    # get a merged HTML report with the failure context.
+    if: ${{ always() && needs.e2e.result != 'skipped' }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 10
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Download blob reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          # Each shard uploads under `frontend-blob-report-<project>`;
+          # the pattern collects all of them into one tree under
+          # `all-blob-reports/`.
+          path: src/frontend/all-blob-reports
+          pattern: frontend-blob-report-*
+          merge-multiple: true
+
+      - name: Merge into HTML report
+        run: |
+          pnpm exec playwright merge-reports --reporter=html ./all-blob-reports
 
       - name: Upload Playwright HTML report
         if: ${{ always() }}
@@ -135,18 +251,6 @@ jobs:
         with:
           name: frontend-playwright-report
           path: src/frontend/playwright-report
-          if-no-files-found: warn
-          retention-days: 7
-          # Reports include PNG screenshots, webm videos, and traces that are
-          # already compressed. Re-gzipping them just burns CPU.
-          compression-level: 0
-
-      - name: Upload Playwright raw results
-        if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: frontend-test-results
-          path: src/frontend/test-results
           if-no-files-found: warn
           retention-days: 7
           compression-level: 0
@@ -159,13 +263,13 @@ jobs:
             echo ''
             echo '- Lint gate: ESLint runs before browser and unit coverage.'
             echo '- Unit contracts: static analytics delivery and route regressions.'
-            echo '- Browser coverage: Playwright runs on desktop, tablet, and mobile Chromium profiles.'
+            echo '- Browser coverage: Playwright runs on desktop, tablet, and mobile Chromium profiles (sharded in parallel).'
             echo '- Accessibility gate: WCAG 2.0 A/AA audit, including color-contrast.'
             echo '- Responsive gate: viewport-specific UI behavior is asserted in Playwright.'
             echo '- GitHub diagnostics: Playwright github reporter emits workflow annotations.'
-            echo '- Artifacts: HTML report, JUnit XML, screenshots, traces, videos, and raw test outputs.'
+            echo '- Artifacts: merged HTML report, JUnit XML, screenshots, traces, videos, and raw test outputs.'
             echo ''
             echo 'Artifacts:'
-            echo '- `frontend-playwright-report`'
-            echo '- `frontend-test-results`'
+            echo '- `frontend-playwright-report` (merged across all viewports)'
+            echo '- `frontend-test-results-<project>` (per shard)'
           } >> "$GITHUB_STEP_SUMMARY"
