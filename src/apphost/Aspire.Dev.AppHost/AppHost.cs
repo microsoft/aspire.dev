@@ -1,7 +1,12 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+// For deployment: We want to pick AppService as the environment to publish to.
+builder.AddAzureAppServiceEnvironment("production");
+
 var staticHostWebsite = builder.AddProject<Projects.StaticHost>("aspiredev")
     .WithExternalHttpEndpoints();
+
+builder.AddAzureFrontDoor(staticHostWebsite);
 
 if (builder.ExecutionContext.IsRunMode)
 {
@@ -10,13 +15,6 @@ if (builder.ExecutionContext.IsRunMode)
            .WithPnpm()
            .WithUrlForEndpoint("http", static url => url.DisplayText = "aspire.dev (Local)")
            .WithExternalHttpEndpoints();
-}
-else
-{
-    // For deployment: We want to pick ACA as the environment to publish to.
-    var appService = builder.AddAzureAppServiceEnvironment("production");
-
-    builder.AddAzureFrontDoor("frontdoor", staticHostWebsite);
 }
 
 builder.Build().Run();
