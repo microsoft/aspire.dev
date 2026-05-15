@@ -256,6 +256,27 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
           slug: 'reference/cli/microsoft-collected-cli-telemetry',
         },
         {
+          label: 'Startup profiling',
+          translations: {
+            da: 'Opstartsprofilering',
+            de: 'Startprofilerstellung',
+            en: 'Startup profiling',
+            es: 'Creación de perfiles de inicio',
+            fr: 'Profilage au démarrage',
+            hi: 'स्टार्टअप प्रोफाइलिंग',
+            id: 'Pembuatan profil startup',
+            it: 'Profilatura all\'avvio',
+            ja: 'スタートアップ プロファイリング',
+            ko: '시작 프로파일링',
+            'pt-BR': 'Criação de perfil de inicialização',
+            ru: 'Профилирование запуска',
+            tr: 'Başlangıç profili oluşturma',
+            uk: 'Профілювання запуску',
+            'zh-CN': '启动分析',
+          },
+          slug: 'reference/cli/startup-profiling',
+        },
+        {
           label: 'Commands',
           translations: {
             da: 'Kommandoer',

@@ -1,0 +1,84 @@
+---
+title: CLI startup profiling
+description: Learn how to capture an end-to-end OpenTelemetry startup trace from the Aspire CLI using the ASPIRE_PROFILING_ENABLED environment variable.
+---
+
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+import { Aside } from '@astrojs/starlight/components';
+
+The Aspire CLI can export an end-to-end OpenTelemetry trace of its startup sequence to any OTLP-compatible backend. This lets you identify which phase of startup — TypeScript guest compilation, `npm install`, AppHost server startup, or DCP initialization — is taking the most wall-clock time.
+
+Startup profiling works in release CLI builds. It uses a dedicated OTLP exporter that is separate from the [Microsoft-collected CLI telemetry](/reference/cli/microsoft-collected-cli-telemetry/), so enabling profiling does not affect the reported telemetry stream and does not send data to Microsoft.
+
+## How to enable
+
+Set `ASPIRE_PROFILING_ENABLED=true` together with `OTEL_EXPORTER_OTLP_ENDPOINT` pointing at a running OTLP collector:
+
+<OsAwareTabs syncKey="terminal">
+<div slot="unix">
+
+```bash
+export ASPIRE_PROFILING_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+aspire start
+```
+
+</div>
+<div slot="windows">
+
+```powershell
+$env:ASPIRE_PROFILING_ENABLED = "true"
+$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317"
+$env:OTEL_EXPORTER_OTLP_PROTOCOL = "grpc"
+aspire start
+```
+
+</div>
+</OsAwareTabs>
+
+:::note
+`ASPIRE_STARTUP_PROFILING_ENABLED` is a legacy alias for `ASPIRE_PROFILING_ENABLED` and remains supported for existing scripts.
+:::
+
+## What is captured
+
+The profiling trace spans the full `aspire start` lifetime and includes spans for each subprocess the CLI launches:
+
+| Span | Description |
+|------|-------------|
+| `aspire/cli/run` | Child CLI `run` command lifetime during `aspire start`. |
+| `aspire/cli/start_apphost.wait_for_backchannel` | Parent `start` command waiting for the child CLI and AppHost backchannel metadata. |
+| `aspire/cli/run_apphost.wait_for_backchannel` | Child CLI waiting for the AppHost server backchannel connection. |
+| `aspire/cli/run_apphost.get_dashboard_urls` | Child CLI retrieving dashboard URLs. |
+| `aspire.hosting.dcp.run_application` | Hosting DCP startup work. |
+| `process aspire.exe` | Parent CLI spawning the detached child `run` process. |
+| `process aspire-managed.exe` | AppHost server process. |
+| `process npm.CMD` | `npm install` runs (restore and start-time). |
+| `process npx.CMD` | TypeScript guest execution phases (pre-execute type check and execute). |
+
+Process spans include the following OpenTelemetry tags:
+
+| Tag | Description |
+|-----|-------------|
+| `process.executable.name` | The short executable name (for example, `npm.CMD`). |
+| `process.executable.path` | The resolved executable path. |
+| `process.command_args` | The command-line arguments passed to the process. |
+| `process.command_args.count` | The number of command-line arguments. |
+
+## Telemetry stream separation
+
+The CLI maintains three separate OpenTelemetry `TracerProvider` pipelines:
+
+| Stream | Activity source | Exporter | Enabled by |
+|--------|----------------|----------|------------|
+| Reported telemetry | `Aspire.Cli.Reported` | Azure Monitor | On by default; disable with `ASPIRE_CLI_TELEMETRY_OPTOUT=true`. |
+| Startup profiling | `Aspire.Cli.Profiling` | OTLP | `ASPIRE_PROFILING_ENABLED=true` plus `OTEL_EXPORTER_OTLP_ENDPOINT`. |
+| DEBUG diagnostics | `Aspire.Cli.Diagnostics` | OTLP or console | `ASPIRE_CLI_CONSOLE_EXPORTER_LEVEL=Diagnostic`, or `OTEL_EXPORTER_OTLP_ENDPOINT` without profiling enabled (DEBUG builds only). |
+
+When `ASPIRE_PROFILING_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` are both set, the OTLP endpoint is reserved exclusively for the profiling provider. The reported and diagnostic streams are kept separate so that startup profiling exports contain only profiling spans.
+
+## See also
+
+- [Microsoft-collected CLI telemetry](/reference/cli/microsoft-collected-cli-telemetry/)
+- [Aspire CLI overview](/reference/cli/overview/)
