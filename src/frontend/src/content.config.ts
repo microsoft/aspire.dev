@@ -31,6 +31,12 @@ export const collections = {
            * site-wide `og-image.png` is used in social cards instead.
            */
           og: z.boolean().optional(),
+          /**
+           * The date the release was published to NuGet. Used on What's New
+           * pages to display the release date near the top of the page.
+           * Accepts an ISO 8601 date string (e.g. `2026-05-07`).
+           */
+          publishDate: z.coerce.date().optional(),
         }),
     }),
   }),

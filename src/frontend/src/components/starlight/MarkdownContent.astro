@@ -5,12 +5,30 @@ import Breadcrumb from '@components/Breadcrumb.astro';
 import { getContentBreadcrumbs } from '@utils/content-breadcrumbs';
 
 const routeData = Astro.locals.starlightRoute;
-const pageData = routeData?.entry?.data as { crumbs?: boolean } | undefined;
+const pageData = routeData?.entry?.data as { crumbs?: boolean; publishDate?: Date } | undefined;
 const crumbs = pageData?.crumbs === false
 	? undefined
 	: getContentBreadcrumbs(routeData);
+
+const publishDate = pageData?.publishDate;
+const formattedDate = publishDate
+	? publishDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+	: undefined;
 ---
 
 <StarlightImageZoom />
 {crumbs && <Breadcrumb crumbs={crumbs} />}
+{formattedDate && (
+	<p class="publish-date">
+		<time datetime={publishDate!.toISOString().slice(0, 10)}>Released {formattedDate}</time>
+	</p>
+)}
 <DefaultMarkdownContent><slot /></DefaultMarkdownContent>
+
+<style>
+	.publish-date {
+		margin-block: 0 1.5rem;
+		font-size: var(--sl-text-sm);
+		color: var(--sl-color-gray-3);
+	}
+</style>
