@@ -43,57 +43,60 @@ public static class RedisResourceExtensions
         // Variable to hold the resolved connection string at runtime.
         string? connectionString = null;
 
-        // 4. Subscribe to ConnectionStringAvailableEvent to capture the connection string at runtime
-        // This event hook allows capturing the connection string *after* it has been resolved
-        // by the Aspire runtime, including potentially allocated ports and resolved parameter values.
-        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(redis, async (@event, ct) =>
-        {
-            // Resolve the connection string using the resource's method.
-            connectionString = await redis.GetConnectionStringAsync(ct).ConfigureAwait(false);
-            // Ensure the connection string was actually resolved.
-            if (connectionString == null)
-            {
-                throw new DistributedApplicationException(
-                    $"Connection string for '{redis.Name}' was unexpectedly null.");
-            }
-        });
-
-        // 5. Register a health check that uses the connection string once it becomes available
+        // 4. Register a health check that uses the connection string once it becomes available
         // Define a unique key for the health check.
         var healthCheckKey = $"{name}_check";
         // Add a Redis-specific health check to the application's health check services.
         // The lambda `_ => connectionString ?? ...` ensures the health check uses the
-        // connection string *after* it has been resolved by the event handler above.
+        // connection string *after* the ConnectionStringAvailable event handler resolves it
+        // (registered as step 5.a below).
         builder.Services
             .AddHealthChecks()
             .AddRedis(_ => connectionString
                                 ?? throw new InvalidOperationException("Connection string is unavailable"), // Throw if accessed too early.
                         name: healthCheckKey); // Name the health check for identification.
 
-        // 6. Add & configure container using the fluent builder pattern
+        // 5. Add & configure the resource using the fluent builder pattern
         // Add the RedisResource instance to the application model.
         return builder.AddResource(redis)
-                    // 6.a Expose the Redis TCP endpoint
+                    // 5.a Capture the connection string when it becomes available
+                    // OnConnectionStringAvailable is the resource-level helper for
+                    // ConnectionStringAvailableEvent. It's equivalent to the lower-level
+                    // `builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(resource, handler)`,
+                    // but reads more fluently and stays colocated with the rest of the
+                    // resource configuration.
+                    .OnConnectionStringAvailable(async (resource, @event, ct) =>
+                    {
+                        // Resolve the connection string using the resource's method.
+                        connectionString = await resource.GetConnectionStringAsync(ct).ConfigureAwait(false);
+                        // Ensure the connection string was actually resolved.
+                        if (connectionString == null)
+                        {
+                            throw new DistributedApplicationException(
+                                $"Connection string for '{resource.Name}' was unexpectedly null.");
+                        }
+                    })
+                    // 5.b Expose the Redis TCP endpoint
                     // Map the host port (if provided) to the container's default Redis port (6379).
                     // Name the endpoint "tcp" for reference.
                     .WithEndpoint(
                         port: port,                             // Optional host port.
                         targetPort: 6379,                       // Default Redis port inside the container.
                         name: RedisResource.PrimaryEndpointName) // Use the constant defined in RedisResource.
-                    // 6.b Specify container image and tag
+                    // 5.c Specify container image and tag
                     // Define the Docker image to use for the Redis container.
                     .WithImage(RedisContainerImageTags.Image, RedisContainerImageTags.Tag)
-                    // 6.c Configure container registry if needed
+                    // 5.d Configure container registry if needed
                     // Specify a container registry if the image is not on Docker Hub.
                     .WithImageRegistry(RedisContainerImageTags.Registry)
-                    // 6.d Wire the health check into the resource
+                    // 5.e Wire the health check into the resource
                     // Associate the previously defined health check with this resource.
                     // Aspire uses this for dashboard status and orchestration.
                     .WithHealthCheck(healthCheckKey)
-                    // 6.e Define the container's entrypoint
+                    // 5.f Define the container's entrypoint
                     // Override the default container entrypoint if necessary. Here, it's set to use shell.
                     .WithEntrypoint("/bin/sh")
-                    // 6.f Pass the password ParameterResource into an environment variable
+                    // 5.g Pass the password ParameterResource into an environment variable
                     // Set environment variables for the container. This uses a callback to access
                     // the resource instance (`redis`) and its properties.
                     .WithEnvironment(context =>
@@ -105,7 +108,7 @@ public static class RedisResourceExtensions
                             context.EnvironmentVariables["REDIS_PASSWORD"] = pwd;
                         }
                     })
-                    // 6.g Build the container arguments lazily, preserving annotations
+                    // 5.h Build the container arguments lazily, preserving annotations
                     // Define the command-line arguments for the container. This also uses a callback
                     // to allow dynamic argument construction based on resource state or annotations.
                     .WithArgs(context =>
