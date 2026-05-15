@@ -26,6 +26,7 @@
  */
 
 import { appendFileSync } from 'node:fs';
+import os from 'node:os';
 import { resolve } from 'node:path';
 
 /**
@@ -99,14 +100,7 @@ export default function buildTiming() {
     hooks: {
       'astro:config:setup'({ command }) {
         meta.command = command;
-        try {
-          // os import is dynamic to avoid pulling node:os on the worker side.
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const os = require('node:os');
-          meta.cpuCount = os.availableParallelism?.() ?? os.cpus().length;
-        } catch {
-          meta.cpuCount = -1;
-        }
+        meta.cpuCount = os.availableParallelism?.() ?? os.cpus().length;
         mark('astro:config:setup');
       },
       'astro:config:done'() {
@@ -142,7 +136,6 @@ export default function buildTiming() {
 
 function emitReport(samples, meta, kind = 'final') {
   if (samples.length < 2) return;
-  const isPartial = kind === 'partial';
 
   const t0 = samples[0].t;
   const cpu0 = samples[0].cpu;
@@ -174,7 +167,6 @@ function emitReport(samples, meta, kind = 'final') {
   const totalCpuPct = totalWall > 0 ? ((totalUser + totalSys) / totalWall) * 100 : 0;
 
   // Pretty stdout block
-  // eslint-disable-next-line no-console
   console.log(`\n${TAG} ============================================================`);
   console.log(`${TAG} summary  label=${meta.label || '(none)'}  kind=${kind}`);
   console.log(`${TAG}   node=${meta.nodeVersion}  cores=${meta.cpuCount}  UV_THREADPOOL_SIZE=${meta.uvThreadpoolSize}`);
