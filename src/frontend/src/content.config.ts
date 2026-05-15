@@ -34,7 +34,8 @@ export const collections = {
           /**
            * The date the release was published to NuGet. Used on What's New
            * pages to display the release date near the top of the page.
-           * Accepts an ISO 8601 date string (e.g. `2026-05-07`).
+           * Accepts values that can be coerced to a JavaScript Date; use
+           * `YYYY-MM-DD` in frontmatter (e.g. `2026-05-07`).
            */
           publishDate: z.coerce.date().optional(),
         }),
