@@ -777,7 +777,7 @@ return {
 
 ### Auto-open the result dialog in the dashboard
 
-By default, the dashboard surfaces the payload as a **View response** action on the notification in the [notification center](/dashboard/explore/#notification-center). Set `DisplayImmediately` on `CommandResultData` to open the visualizer the moment the command completes — useful for short commands where the response _is_ the point:
+By default, the dashboard surfaces the payload as a **View response** action on the notification in the [notification center](/dashboard/explore/#notification-center). Pass `displayImmediately: true` to `CommandResults.Success` to open the visualizer the moment the command completes — useful for short commands where the response _is_ the point:
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
@@ -785,12 +785,9 @@ By default, the dashboard surfaces the payload as a **View response** action on 
 ```csharp title="C# — AppHost.cs"
 return CommandResults.Success(
     message: "Access token issued.",
-    value: new CommandResultData
-    {
-        Value = json,
-        Format = CommandResultFormat.Json,
-        DisplayImmediately = true,
-    });
+    result: json,
+    resultFormat: CommandResultFormat.Json,
+    displayImmediately: true);
 ```
 
 </TabItem>
@@ -846,3 +843,524 @@ else
     exit 1
 fi
 ```
+
+## Command arguments
+
+Commands can declare input arguments that the dashboard renders as a prompt dialog before execution and that the CLI accepts as ordered positional values. Arguments are defined by setting `CommandOptions.Arguments` to an array of `InteractionInput` objects.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "send-message",
+        displayName: "Send Message",
+        executeCommand: context =>
+        {
+            var text = context.Arguments.GetString("text")!;
+            var repeat = int.TryParse(context.Arguments.GetString("repeat"), out var r) ? r : 1;
+
+            for (var i = 0; i < repeat; i++)
+            {
+                context.Logger.LogInformation("{Text}", text);
+            }
+
+            return Task.FromResult(CommandResults.Success($"Sent '{text}' {repeat} time(s)."));
+        },
+        commandOptions: new CommandOptions
+        {
+            Arguments =
+            [
+                new InteractionInput { Name = "text",   Label = "Message",  InputType = InputType.Text,    Required = true, MaxLength = 200 },
+                new InteractionInput { Name = "repeat", Label = "Repeat",   InputType = InputType.Number,  Value = "1" },
+            ]
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    InputType,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand(
+        "send-message",
+        "Send Message",
+        async (context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const args = await context.arguments();
+            const text = await args.requiredValue("text");
+            const repeat = Number(await args.value("repeat") ?? "1");
+
+            return { success: true, message: `Sent '${text}' ${repeat} time(s).` };
+        },
+        {
+            commandOptions: {
+                arguments: [
+                    { name: "text",   label: "Message", inputType: InputType.Text,   required: true, maxLength: 200 },
+                    { name: "repeat", label: "Repeat",  inputType: InputType.Number, value: "1" },
+                ]
+            }
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### InteractionInput properties
+
+Each `InteractionInput` object in the `Arguments` array configures one input field in the dashboard prompt and one positional argument for the CLI:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Name` / `name` | `string` | Unique identifier used to read the value at runtime. |
+| `Label` / `label` | `string?` / `string \| undefined` | Optional human-readable label shown in the dashboard input dialog. When omitted, the name is used as the label. |
+| `InputType` / `inputType` | `InputType` | Controls the widget type. See the table below. |
+| `Value` / `value` | `string?` | Default value pre-filled in the dialog. |
+| `Required` / `required` | `bool` | When `true`, the built-in validator rejects empty submissions. |
+| `MaxLength` / `maxLength` | `int?` | Optional maximum character length for `Text` and `SecretText` inputs. |
+| `Options` / `options` | `IReadOnlyList<KeyValuePair<string,string>>?` / `InteractionInputOption[] \| undefined` | Required for `Choice` inputs. Each option provides the submitted key and display value. |
+
+The `InputType` enum controls how the dashboard renders the field and how built-in validation works:
+
+| Value | Dashboard widget | CLI behavior | Built-in validation |
+|-------|-----------------|--------------|---------------------|
+| `Text` | Single-line text box | Positional string value | `Required`, `MaxLength` |
+| `Number` | Number input | Positional string parsed as number | Must be a valid number |
+| `Boolean` | Checkbox | `true` or `false` string | Must be `true` or `false` |
+| `Choice` | Drop-down list | String must match one of `Options` | Must be a member of `Options` |
+| `SecretText` | Masked text box | Positional string value | `Required`, `MaxLength` |
+
+### Read argument values at runtime
+
+The `ExecuteCommandContext` exposes an `Arguments` property (C#) / `arguments()` method (TypeScript) that returns an `InteractionInputCollection` for reading submitted values.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+`InteractionInputCollection` provides typed convenience accessors for common argument reads:
+
+```csharp
+var text    = context.Arguments.GetString("text");    // string? — null when absent or empty
+var repeat  = context.Arguments.GetInt32("repeat");   // int    — throws when absent or unparseable
+var shout   = context.Arguments.GetBoolean("shout");  // bool   — throws when absent or unparseable
+var amount  = context.Arguments.GetDouble("amount");  // double — throws when absent or unparseable
+```
+
+`GetString` returns `null` when the argument is absent or empty. The numeric and boolean accessors throw `InvalidOperationException` when the value is missing and `FormatException` (or `OverflowException` for `GetInt32` and `GetDouble`) when the value can't be parsed. Use `Required = true` on `InteractionInput` to enforce presence before the callback runs, or call `GetString` first and parse the result manually if you need a fallback.
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+`InteractionInputCollection` (returned by `await context.arguments()`) provides idiomatic async helpers:
+
+```typescript
+const args = await context.arguments();
+
+const all    = await args.toArray();                 // InteractionInput[]
+const input  = await args.required("text");          // InteractionInput (throws if absent)
+const text   = await args.value("text");             // string | undefined
+const must   = await args.requiredValue("text");     // string (throws if absent or empty)
+```
+
+Use `requiredValue` for arguments declared with `required: true` to get a non-nullable string directly. Use `value` when the argument is optional and you want to handle the absent case yourself.
+
+</TabItem>
+</Tabs>
+
+### Pass arguments from the CLI
+
+When invoking a command from the CLI, supply argument values as ordered positional tokens after the command name. The CLI maps them onto the declared `Arguments` array by position:
+
+```bash title="Terminal"
+aspire resource myservice send-message "Hello world" 3 --apphost MyApp.AppHost.csproj
+```
+
+In the example above, `"Hello world"` maps to the first argument (`text`) and `3` maps to the second (`repeat`).
+
+<Aside type="note">
+The CLI passes all positional values as strings; the AppHost performs type coercion and built-in validation before invoking the command callback. If a required argument is missing or a value fails validation, the CLI receives a structured error instead of invoking the callback.
+</Aside>
+
+## Argument validation
+
+Commands can run server-side validation before the callback executes. Declare a `ValidateArguments` callback on `CommandOptions` to add custom rules on top of the built-in required, max-length, and type checks.
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "deploy",
+        displayName: "Deploy",
+        executeCommand: context =>
+        {
+            var target = context.Arguments.GetString("target")!;
+            // ... perform deployment ...
+            return Task.FromResult(CommandResults.Success($"Deployed to {target}."));
+        },
+        commandOptions: new CommandOptions
+        {
+            Arguments =
+            [
+                new InteractionInput { Name = "target", Label = "Target", InputType = InputType.Text, Required = true },
+            ],
+            ValidateArguments = context =>
+            {
+                var target = context.Inputs.GetString("target");
+                if (string.Equals(target, "prod", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.AddValidationError("target", "Target must not be 'prod'.");
+                }
+
+                return Task.CompletedTask;
+            }
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    InputType,
+    type ExecuteCommandContext,
+    type InputsDialogValidationContext,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand(
+        "deploy",
+        "Deploy",
+        async (context: ExecuteCommandContext) => {
+            const args = await context.arguments();
+            const target = await args.requiredValue("target");
+            // ... perform deployment ...
+            return { success: true, message: `Deployed to ${target}.` };
+        },
+        {
+            commandOptions: {
+                arguments: [
+                    { name: "target", label: "Target", inputType: InputType.Text, required: true }
+                ],
+                validateArguments: async (context: InputsDialogValidationContext) => {
+                    const inputs = await context.inputs();
+                    const target = await inputs.value("target");
+
+                    if (target?.toLowerCase() === "prod") {
+                        await context.addValidationError("target", "Target must not be 'prod'.");
+                    }
+                }
+            }
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Built-in validation runs first (required fields, max length, choice membership, and type coercion). If built-in validation passes, the `ValidateArguments` callback runs next. Either kind of validation failure prevents the command callback from executing and returns structured field errors to the caller:
+
+- **Dashboard**: The input dialog stays open with inline field-level error messages.
+- **CLI / MCP**: The command exits with a non-zero status and prints the field errors to stderr.
+
+The `ValidateArguments` context exposes the same `Inputs`/`inputs()` surface as `ExecuteCommandContext.Arguments`/`arguments()`, so the same typed accessors work in both places.
+
+## Command visibility
+
+By default, commands registered with `WithCommand` are visible to both the Aspire dashboard and to API/MCP callers. The `ResourceCommandVisibility` enum is bit-combinable, so you can restrict or expand where a command appears by setting `CommandOptions.Visibility`:
+
+| Value | Where the command is available |
+|-------|-------------------------------|
+| `ResourceCommandVisibility.UI` | Dashboard and other UI clients only |
+| `ResourceCommandVisibility.Api` | API and MCP clients only |
+| `ResourceCommandVisibility.UI \| ResourceCommandVisibility.Api` | Both UI and API/MCP (default) |
+| `ResourceCommandVisibility.None` | Hidden from all clients |
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    // Only exposed through the API/MCP — not shown in the dashboard
+    .WithCommand(
+        name: "get-metrics",
+        displayName: "Get Metrics",
+        executeCommand: context =>
+        {
+            // ... collect and return metrics ...
+            return Task.FromResult(CommandResults.Success(
+                message: "Metrics collected.",
+                value: new CommandResultData { Value = "{}", Format = CommandResultFormat.Json }));
+        },
+        commandOptions: new CommandOptions
+        {
+            Visibility = ResourceCommandVisibility.Api,
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    ResourceCommandVisibility,
+    CommandResultFormat,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    // Only exposed through the API/MCP — not shown in the dashboard
+    .withCommand(
+        "get-metrics",
+        "Get Metrics",
+        async (_context) => {
+            return {
+                success: true,
+                message: "Metrics collected.",
+                data: { value: "{}", format: CommandResultFormat.Json },
+            };
+        },
+        {
+            commandOptions: {
+                visibility: ResourceCommandVisibility.Api,
+            }
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+Use `ResourceCommandVisibility.Api` for automation-only commands (diagnostics, scripting, CI integration) that you don't want to clutter the dashboard UI. Use `ResourceCommandVisibility.UI` for interactive commands that only make sense when a developer is watching the results.
+</Aside>
+
+## Process-backed resource commands
+
+:::caution[Experimental API]
+`WithProcessCommand` is experimental and requires opting in to the [`ASPIREPROCESSCOMMAND001`](/diagnostics/aspireprocesscommand001/) diagnostic suppression. The API shape may change before it stabilizes.
+:::
+
+The `WithProcessCommand` API provides a reusable helper for the common pattern of exposing a local-tool invocation as a resource command. Instead of managing process start, stdout/stderr capture, and cancellation yourself inside a `WithCommand` callback, `WithProcessCommand` does that for you:
+
+- Starts a local process from the AppHost machine using the provided executable path and arguments.
+- Passes arguments as an argument list (not through a shell), so no shell-quoting is needed.
+- Streams stdout and stderr to the command logger (visible in the [Aspire dashboard](/dashboard/explore/#console-logs-page) and via `aspire logs <resource>`).
+- Returns the captured output as bounded text (configurable via `MaxOutputLineCount`).
+- Maps non-zero exit codes and cancellation to appropriate `ExecuteCommandResult` values automatically.
+
+:::note
+`WithProcessCommand` runs processes on the **AppHost machine** — not inside a container. Use it for local tools such as `dotnet`, `node`, `docker`, custom CLIs, and scripts.
+:::
+
+### Static process command
+
+The simplest form takes the executable and an argument array directly:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPROCESSCOMMAND001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache")
+    .WithProcessCommand(
+        name: "dotnet-version",
+        displayName: "Show .NET version",
+        executablePath: "dotnet",
+        arguments: ["--version"]);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+await cache.withProcessCommand(
+    "node-version",
+    "Show Node.js version",
+    {
+        executablePath: "node",
+        arguments: ["--version"],
+    });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+When the command runs in the dashboard or CLI, `dotnet --version` (C#) or `node --version` (TypeScript) executes on the AppHost machine, and the version string is captured and displayed as the command output.
+
+### Dynamic process command
+
+When the command arguments depend on runtime context — for example, a dataset name supplied by the user through the dashboard's argument dialog — build the process specification from the command execution context:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREPROCESSCOMMAND001
+#pragma warning disable ASPIREINTERACTION001
+
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddRedis("cache")
+    .WithProcessCommand(
+        name: "seed-data",
+        displayName: "Seed data",
+        createProcessSpec: context => new ProcessCommandSpec("dotnet")
+        {
+            Arguments =
+            [
+                "run",
+                "--project",
+                "tools/SeedData",
+                "--",
+                context.Arguments.GetString("dataset") ?? "small",
+            ],
+            EnvironmentVariables = { ["ConnectionStrings__db"] = "Host=localhost;Database=db" },
+        },
+        options: new ProcessCommandOptions
+        {
+            MaxOutputLineCount = 20,
+            Arguments =
+            [
+                new InteractionInput { Name = "dataset", Label = "Dataset", InputType = InputType.Text, Required = true },
+            ],
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts"
+import {
+  createBuilder,
+  type ExecuteCommandContext,
+  InputType,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis('cache');
+
+await cache.withProcessCommandFactory(
+  'seed-data',
+  'Seed data',
+  async (context: ExecuteCommandContext) => {
+    const args = await context.arguments();
+    const dataset = await args.requiredValue('dataset');
+
+    return {
+      executablePath: 'node',
+      arguments: ['./scripts/seed-data.js', '--dataset', dataset],
+      environmentVariables: {
+        NODE_ENV: 'development',
+      },
+    };
+  },
+  {
+    commandOptions: {
+      arguments: [
+        {
+          name: 'dataset',
+          label: 'Dataset',
+          inputType: InputType.Text,
+          required: true,
+        },
+      ],
+    },
+    maxOutputLineCount: 20,
+  }
+);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In C#, the callback overload receives an `ExecuteCommandContext`. In TypeScript, `withProcessCommandFactory` receives the same execution context and returns the process specification. The dashboard renders the configured arguments as a prompt dialog before starting the process, and the entered values are available through the command context.
+
+### `ProcessCommandSpec` properties
+
+The following configuration options are available for the process to run. In C#, these map to `ProcessCommandSpec` properties. In TypeScript, provide them as fields in the options object passed to `withProcessCommand`, or return them from the `withProcessCommandFactory` callback.
+
+- **Executable path** — the path to the process to launch. Short names (no directory separator) are resolved from the AppHost's `PATH`.
+- **Arguments** — a list of arguments passed to the process. Each entry is treated as a separate argument, so no shell quoting or escaping is needed.
+- **Environment variables** — additional key/value pairs set in the child process's environment.
+- **Inherit environment variables** — whether the child process inherits the AppHost process's environment variables. Defaults to `true`.
+- **Standard input content** — optional text written to the process's stdin immediately after it starts.
+- **Working directory** — the directory the process starts in. Defaults to the AppHost directory if not specified.
+- **Kill entire process tree** — whether cancellation and disposal should terminate the whole child process tree. Defaults to `true`.
+
+### `ProcessCommandOptions`
+
+The following options control how `WithProcessCommand` handles the process result. In C#, set them on `ProcessCommandOptions`. In TypeScript, provide them in the same options object as the process configuration for `withProcessCommand`, or in the fourth argument to `withProcessCommandFactory`.
+
+- **Max output line count** — the maximum number of combined stdout/stderr lines captured and returned as the command result. Defaults to 50. Lines beyond this limit are silently discarded (oldest lines first).
+- **Display immediately** — when `true` (the default), the captured output is automatically shown in the dashboard as soon as the command finishes.
+- **Success exit codes** — the list of process exit codes that are treated as a successful command invocation. Defaults to `[0]`.
+
+### Executable path resolution
+
+`WithProcessCommand` resolves the executable using the following rules:
+
+1. If `ExecutablePath` is an absolute path or contains a path separator, it is used as-is.
+2. Otherwise, the AppHost process's `PATH` is searched for the named executable. On Windows, `PATHEXT` extensions are also tried.
+
+This means you can reference tools such as `dotnet`, `node`, or `docker` by short name as long as they are on the AppHost's PATH when the app starts.

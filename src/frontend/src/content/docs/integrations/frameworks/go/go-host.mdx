@@ -1,0 +1,468 @@
+---
+title: Set up Go apps in the AppHost
+description: Learn how to use the Aspire Go hosting integration to orchestrate and configure Go applications in an Aspire solution.
+---
+
+import { TabItem, Tabs } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+import ThemeImage from '@components/ThemeImage.astro';
+import goIcon from '@assets/icons/go-icon.png';
+import goLightIcon from '@assets/icons/go-light-icon.png';
+
+<ThemeImage
+  light={goLightIcon}
+  dark={goIcon}
+  alt="Go logo"
+  width={100}
+  height={100}
+  zoomable={false}
+  classOverride="float-inline-left icon"
+/>
+
+This article is the reference for the Aspire Go hosting integration. It enumerates the AppHost APIs — with examples for both `AppHost.cs` and `apphost.ts` — that you use to orchestrate Go applications in your [`AppHost`](/get-started/app-host/) project.
+
+If you're new to the Go integration, start with the [Get started with the Go integration](/integrations/frameworks/go/go-get-started/) guide.
+
+:::caution[Community Toolkit package deprecated]
+As of Aspire 13.4, Go hosting support is available in the official `Aspire.Hosting.Go` package. The previous `CommunityToolkit.Aspire.Hosting.Golang` package is deprecated because Go support has graduated into core Aspire. Use `Aspire.Hosting.Go` and `AddGoApp` / `addGoApp` for new Aspire 13.4+ applications.
+:::
+
+:::note[Prerequisites]
+Install the [Go toolchain](https://go.dev/dl/) and make sure the `go` command is available on your `PATH`. Install [Delve](https://github.com/go-delve/delve) and make sure the `dlv` command is available on your `PATH` when you use headless Delve debugging.
+:::
+
+## Installation
+
+To start building an Aspire app that uses Go, install the [📦 Aspire.Hosting.Go](https://www.nuget.org/packages/Aspire.Hosting.Go) NuGet package:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```bash title="Terminal"
+aspire add go
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+Or, choose a manual installation approach:
+
+```csharp title="C# — AppHost.cs"
+#:package Aspire.Hosting.Go@*
+```
+
+```xml title="XML — AppHost.csproj"
+<PackageReference Include="Aspire.Hosting.Go" Version="*" />
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```bash title="Terminal"
+aspire add go
+```
+
+<LearnMore>
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
+</LearnMore>
+
+This updates your `aspire.config.json` with the Go hosting integration package:
+
+```json title="aspire.config.json" ins={3}
+{
+  "packages": {
+    "Aspire.Hosting.Go": "13.4.0"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Add Go app
+
+Use `AddGoApp` / `addGoApp` to add a Go application to your AppHost. By default, Aspire runs `go run .` from the application directory.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp("api", "./api")
+    .WithHttpEndpoint(port: 8080, env: "PORT")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api');
+await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
+await api.withExternalHttpEndpoints();
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The method accepts the following common parameters:
+
+- **name**: The name of the resource in the Aspire dashboard.
+- **appDirectory**: The path to the Go module root. This directory usually contains `go.mod` and is also the Docker build context for deployment targets that emit container build artifacts.
+- **packagePath**: The Go package to run or build relative to `appDirectory`. Defaults to `"."`.
+
+Go applications commonly read the `PORT` environment variable set by `WithHttpEndpoint` / `withHttpEndpoint`:
+
+```go title="main.go"
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+)
+
+func main() {
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintln(w, "Hello from Go!")
+    })
+
+    log.Printf("Listening on :%s", port)
+    log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+```
+
+## Configure app directory and package path
+
+Use `appDirectory` for the Go module root, and use `packagePath` when the `main` package is under a subdirectory such as `cmd/server`.
+
+For a common layout like this:
+
+```text title="Go app layout"
+api/
+|-- go.mod
+|-- internal/
+`-- cmd/
+    `-- server/
+        `-- main.go
+```
+
+Configure the AppHost to run `go run ./cmd/server` from `./api`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp(
+    name: "api",
+    appDirectory: "./api",
+    packagePath: "./cmd/server")
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api', {
+  packagePath: './cmd/server',
+});
+await api.withHttpEndpoint({ env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The same `packagePath` is used for local run mode, headless Delve debugging, and publish-time `go build`.
+
+## Configure build options
+
+Go build-time options are parameters on `AddGoApp` / `addGoApp`. Aspire passes them to `go run` during local development and to `go build` when it generates a Dockerfile for publish.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp(
+    name: "api",
+    appDirectory: "./api",
+    packagePath: "./cmd/server",
+    buildTags: ["netgo", "integration"],
+    ldFlags: "-X main.version=1.2.3 -s -w",
+    gcFlags: "all=-N -l",
+    raceDetector: true);
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api', {
+  packagePath: './cmd/server',
+  buildTags: ['netgo', 'integration'],
+  ldFlags: '-X main.version=1.2.3 -s -w',
+  gcFlags: 'all=-N -l',
+  raceDetector: true,
+});
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The options map to Go command-line flags:
+
+- `buildTags`: Adds `-tags=<tag1>,<tag2>`.
+- `ldFlags`: Adds `-ldflags=<value>`.
+- `gcFlags`: Adds `-gcflags=<value>`.
+- `raceDetector`: Adds `-race` in local run mode. The generated Dockerfile excludes `-race` because race detection requires CGO and publish builds create a static Linux binary.
+
+## Pass app arguments
+
+Use `WithAppArgs` / `withAppArgs` to pass arguments to the Go program after the package path.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp("api", "./api")
+    .WithAppArgs("--config", "dev.yaml")
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api');
+await api.withAppArgs(['--config', 'dev.yaml']);
+await api.withHttpEndpoint({ env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+In normal run mode, this produces a command like `go run . --config dev.yaml`. In headless Delve mode, Aspire passes the app arguments after Delve's `--` separator.
+
+## Run Go module helper commands
+
+The Go integration can run common module and static analysis commands before the app starts. These helpers create setup resources in run mode and make the Go app wait for them to complete.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp("api", "./api")
+    .WithModTidy()
+    .WithModVendor()
+    .WithModDownload()
+    .WithVetTool()
+    .WithHttpEndpoint(env: "PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api');
+await api.withModTidy();
+await api.withModVendor();
+await api.withModDownload();
+await api.withVetTool();
+await api.withHttpEndpoint({ env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+The helper methods run these commands:
+
+- `WithModTidy` / `withModTidy`: Runs `go mod tidy -e`.
+- `WithModVendor` / `withModVendor`: Runs `go mod vendor`.
+- `WithModDownload` / `withModDownload`: Runs `go mod download`.
+- `WithVetTool` / `withVetTool`: Runs `go vet ./...`.
+
+When multiple module helpers are configured, Aspire orders them so dependency-changing steps complete before later module cache or vendor steps.
+
+## Debug Go apps with Delve
+
+Go app resources enable VS Code Go debugging support by default. Install the [Go extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=golang.go), then use the normal Aspire debugging workflow.
+
+For GoLand, VS Code attach mode, or another Delve-compatible client, use `WithDelveServer` / `withDelveServer`. This replaces the application command with a headless Delve server, such as `dlv --headless=true --listen=127.0.0.1:2345 --api-version=2 debug .`.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp("api", "./api")
+    .WithDelveServer(port: 2345)
+    .WithHttpEndpoint(port: 8080, env: "PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api');
+await api.withDelveServer({ port: 2345 });
+await api.withHttpEndpoint({ port: 8080, env: 'PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Start your attach configuration after the Go resource is running in the Aspire dashboard. For GoLand, create a **Go Remote** configuration with host `localhost` and port `2345`. For VS Code attach mode, add a launch configuration like this:
+
+```json title=".vscode/launch.json"
+{
+  "name": "Attach to api",
+  "type": "go",
+  "request": "attach",
+  "mode": "remote",
+  "host": "localhost",
+  "port": 2345
+}
+```
+
+## Publish Go apps
+
+When a publisher or deployment target emits container build artifacts for a Go app, Aspire uses the `appDirectory` as the Docker build context:
+
+- If the app directory already contains a `Dockerfile`, Aspire uses it.
+- If no `Dockerfile` exists, Aspire generates a multi-stage Dockerfile.
+- The generated Dockerfile uses a `golang:<version>-alpine` build image by default. Aspire detects the Go version from `go.mod`, preferring a `toolchain` directive over the `go` directive when both are present.
+- The build stage runs `go mod download`, caches the module and build caches, and builds a static Linux binary with `CGO_ENABLED=0` and `GOOS=linux`.
+- The runtime stage uses a small runtime image, installs certificate and time zone data for Alpine-based images, creates a non-root `app` user, and starts the compiled binary.
+- The generated `go build` command uses the same `packagePath`, `buildTags`, `ldFlags`, and `gcFlags` configured on the Go app resource. It intentionally excludes `raceDetector` for publish builds.
+
+For private modules, use `WithGoPrivate` / `withGoPrivate` to configure the generated Dockerfile with `GOPRIVATE` and BuildKit secret-based authentication. This setting only affects generated Dockerfiles; local run mode continues to use the developer's local Go and Git credentials.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddGoApp("api", "./api")
+    .WithGoPrivate(["github.com/myorg"], "github.com");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder.addGoApp('api', './api');
+await api.withGoPrivate(['github.com/myorg'], 'github.com');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  For more information about publishing Aspire apps, see [Deployment
+  overview](/deployment/overview/).
+</LearnMore>
+
+## Experimental Go AppHost templates
+
+The `Aspire.Hosting.Go` integration can be used from C# and TypeScript AppHosts. Aspire also includes experimental Go AppHost and Go starter template support in the Aspire CLI. The Go AppHost templates use experimental Go AppHost APIs instead of the `Aspire.Hosting.Go` package. To enable Go AppHost language support for CLI templates, enable the Go polyglot feature flag:
+
+```bash title="Aspire CLI"
+aspire config set features:experimentalPolyglot:go true --global
+```
+
+After enabling the feature, you can create a Go starter app with:
+
+```bash title="Aspire CLI"
+aspire new aspire-go-starter
+```
+
+<LearnMore>
+  For more information about feature flags, see [Aspire CLI
+  configuration](/reference/cli/configuration/#toggle-preview-feature-experiences).
+  For template command details, see [`aspire
+  new`](/reference/cli/commands/aspire-new/).
+</LearnMore>
+
+## See also
+
+- [Go documentation](https://go.dev/doc/)
+- [Delve debugger](https://github.com/go-delve/delve)
+- [Get started with the Go integration](/integrations/frameworks/go/go-get-started/)
+- [Aspire integrations overview](/integrations/overview/)
+- [Aspire GitHub repo](https://github.com/microsoft/aspire)

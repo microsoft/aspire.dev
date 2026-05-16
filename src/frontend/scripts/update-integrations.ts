@@ -21,6 +21,7 @@ const EXCLUDED_PACKAGES = [
   'Aspire.RabbitMQ.Client.v7',
   'CommunityToolkit.Aspire.Hosting.Azure.StaticWebApps',
   'CommunityToolkit.Aspire.Hosting.EventStore',
+  'CommunityToolkit.Aspire.Hosting.Golang',
   'CommunityToolkit.Aspire.EventStore',
 ];
 const OUTPUT_PATH = './src/data/aspire-integrations.json';

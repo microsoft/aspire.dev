@@ -667,6 +667,10 @@ export const referenceTopics: StarlightSidebarTopicsUserConfig[number] = {
               link: '/diagnostics/aspirepostgres001',
             },
             {
+              label: 'ASPIREPROCESSCOMMAND001',
+              link: '/diagnostics/aspireprocesscommand001',
+            },
+            {
               label: 'ASPIREUSERSECRETS001',
               link: '/diagnostics/aspireusersecrets001',
             },

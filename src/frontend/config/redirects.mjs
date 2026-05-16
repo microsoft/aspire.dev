@@ -175,6 +175,8 @@ export const redirects = {
   '/integrations/devtools/flagd/': '/integrations/devtools/flagd/flagd-get-started/',
   '/integrations/devtools/goff/': '/integrations/devtools/goff/goff-get-started/',
   '/integrations/devtools/mailpit/': '/integrations/devtools/mailpit/mailpit-get-started/',
+  '/integrations/frameworks/go/': '/integrations/frameworks/go/go-get-started/',
+  '/integrations/frameworks/go-apps/': '/integrations/frameworks/go/go-get-started/',
   '/integrations/frameworks/csharp-file-based-apps/': '/integrations/dotnet/csharp-file-based-apps/',
   '/integrations/frameworks/maui/': '/integrations/dotnet/maui/',
   '/fundamentals/service-defaults/': '/get-started/csharp-service-defaults/',

@@ -219,6 +219,15 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
     messageContains: "'\"openai/gpt-4o-mini\"' is not assignable to parameter of type 'GitHubModelName'",
     label: 'GitHubModelName literal union outdated',
   },
+
+  // 5. Foundry role-assignment helper missing from generated TypeScript declarations
+  {
+    page: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host.mdx',
+    blockIndex: 9,
+    code: 2551,
+    messageContains: "Property 'withFoundryRoleAssignments' does not exist on type 'ProjectResource'",
+    label: 'withFoundryRoleAssignments missing',
+  },
 ];
 
 /** Match a diagnostic against the allowlist. */
