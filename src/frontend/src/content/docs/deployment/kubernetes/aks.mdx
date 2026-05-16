@@ -363,6 +363,35 @@ await storefront.withTls(letsencrypt);
 
 `WithTls(issuer)` is the strongly-typed overload — it validates at AppHost-build time that the gateway and the issuer's cert-manager installation belong to the same Kubernetes environment. There is also a no-argument `WithTls()` (auto-generated secret name, no issuer annotation) and a `WithTls(secretName)` overload for cases where you manage the certificate yourself.
 
+Calling `WithTls` flips the gateway to an HTTPS-first posture:
+
+- A `301 Moved Permanently` redirect is added to the HTTP listener so requests on port 80 are upgraded to `https://` automatically. The cert-manager HTTP-01 solver registers an exact-match route for `/.well-known/acme-challenge/<token>` and wins over the redirect's `/` prefix, so ACME continues to work.
+- A `Strict-Transport-Security: max-age=31536000` response header is emitted on HTTPS responses so returning browsers refuse plain HTTP for a year.
+
+To tune or disable these defaults, pass an options callback. The `includeSubDomains` and `preload` HSTS flags are off by default because they're hard to reverse once browsers cache them — opt in explicitly when you're ready to commit to the hostname:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+aks.AddGateway("storefront")
+   .WithLoadBalancer(publicLb)
+   .WithRoute("/", api.GetEndpoint("http"))
+   .WithTls(letsencrypt, options =>
+   {
+       options.Hsts.IncludeSubDomains = true;
+       options.Hsts.Preload = true;
+   });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+await storefront.withTls(letsencrypt, {
+    hsts: { includeSubDomains: true, preload: true },
+});
+```
+</TabItem>
+</Tabs>
+
 <Aside type="tip">
 Let's Encrypt's production endpoint enforces strict rate limits. While iterating on your AppHost, swap `WithLetsEncryptProduction` for `WithLetsEncryptStaging` so failed attempts don't cost you your weekly quota. Browsers will warn on staging certificates — flip back to production once everything works end-to-end.
 </Aside>
@@ -382,10 +411,20 @@ kubectl get certificate
 kubectl describe certificate storefront-tls
 ```
 
-Then curl the gateway over HTTPS and confirm the certificate chain comes from Let's Encrypt:
+Confirm port 80 is now redirecting to HTTPS:
 
-```bash title="Verify TLS"
-curl -v https://<the-fqdn>/ 2>&1 | grep -i "issuer:"
+```bash title="Verify the HTTP→HTTPS redirect"
+curl -i http://<the-fqdn>/
+# HTTP/1.1 301 Moved Permanently
+# Location: https://<the-fqdn>/
+```
+
+Then curl the gateway over HTTPS and confirm the certificate chain comes from Let's Encrypt and the `Strict-Transport-Security` header is present:
+
+```bash title="Verify TLS and HSTS"
+curl -sIv https://<the-fqdn>/ 2>&1 | grep -iE "issuer:|strict-transport-security:"
+# *  issuer: C=US; O=Let's Encrypt; CN=R10
+# strict-transport-security: max-age=31536000
 ```
 
 ## Use a custom domain
@@ -581,10 +620,6 @@ To force a legitimate reissue without removing the secret, annotate the `Certifi
 ```bash title="Force cert-manager to reissue"
 kubectl cert-manager renew storefront-tls
 ```
-
-### Plain HTTP returns 404 after adding `WithTls`
-
-This is expected. Once a gateway has both an HTTP and HTTPS listener and the route resolves to the HTTPS path on the AGC frontend, AGC stops serving the route on plain HTTP. Use `https://` (and `curl -k` while on a staging certificate) to verify the gateway. If you want to keep an HTTP-only path for health probes, add a second route bound explicitly to the HTTP listener with `sectionName: http` in the generated `HTTPRoute`.
 
 ### Gateway never gets an FQDN
 
