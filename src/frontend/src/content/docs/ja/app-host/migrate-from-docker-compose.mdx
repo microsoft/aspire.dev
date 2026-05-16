@@ -136,14 +136,14 @@ const database = (await builder.addPostgres("postgres")
     .addDatabase("myapp");
 
 // 適切な依存関係を備えた API プロジェクトを追加
-const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj", "https")
+const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
     .withHttpEndpoint({ port: 5000 })
     .withHttpHealthCheck("/health")
     .withReference(database, "DefaultConnection")
     .waitFor(database);
 
 // 依存関係を備えたフロントエンドプロジェクトを追加
-const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj", "https")
+const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
     .withHttpEndpoint({ port: 3000 })
     .withReference(api)
     .withEnvironment("API_URL", api.getEndpoint("http"))
@@ -342,7 +342,7 @@ const database = (await builder.addPostgres("db"))
 
 const cache = await builder.addRedis("cache");
 
-const app = await builder.addContainer("app", "myapp:latest")
+const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
     .withReference(database)
     .withReference(cache)
     .withEnvironment("API_KEY", apiKey)
@@ -445,11 +445,11 @@ import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
-const app = await builder.addContainer("app", "myapp:latest")
+const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
     .withVolume("/data", { name: "app-data", isReadOnly: true })
     .withBindMount("./config", "/app/config", { isReadOnly: true });
 
-const worker = await builder.addContainer("worker", "myworker:latest")
+const worker = await builder.addContainer("worker", { image: "myworker", tag: "latest" })
     .withVolume("/shared", { name: "app-data" });
 
 await builder.build().run();
