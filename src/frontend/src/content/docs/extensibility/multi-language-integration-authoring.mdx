@@ -39,15 +39,14 @@ When a TypeScript AppHost adds your integration, the Aspire CLI:
 
 Your C# code runs as-is — the TypeScript SDK is a thin client that calls into it. You don't need to rewrite anything in TypeScript.
 
-## Install the analyzer
+## Enable the analyzer
 
-The [`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) package provides build-time validation that catches common export mistakes. Add it to your integration project:
+The integration analyzer provides build-time validation that catches common export mistakes. It ships **inside the [`📦 Aspire.Hosting`](https://www.nuget.org/packages/Aspire.Hosting) package** — you don't install a separate analyzer package. Because hosting integrations already reference `Aspire.Hosting`, all you need to do is opt in to the analyzer by setting the `EnableAspireIntegrationAnalyzers` MSBuild property in your integration project:
 
 ```xml title="XML — MyIntegration.csproj"
-<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.3.0">
-    <PrivateAssets>all</PrivateAssets>
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-</PackageReference>
+<PropertyGroup>
+    <EnableAspireIntegrationAnalyzers>true</EnableAspireIntegrationAnalyzers>
+</PropertyGroup>
 ```
 
 The analyzer reports diagnostics that help you get your exports right before users encounter runtime errors. Common scenarios include detecting incompatible parameter types, missing export annotations on public methods, duplicate export or capability IDs, and synchronous callbacks that could deadlock in multi-language app hosts.
@@ -497,7 +496,7 @@ All types in the union must be ATS-compatible. The analyzer (ASPIREEXPORT005, AS
 
 ## Analyzer diagnostics
 
-The `Aspire.Hosting.Integration.Analyzers` package reports these diagnostics:
+The integration analyzer reports these diagnostics when `EnableAspireIntegrationAnalyzers` is set to `true`:
 
 | ID              | Severity | Description                                                                                 |
 | --------------- | -------- | ------------------------------------------------------------------------------------------- |
