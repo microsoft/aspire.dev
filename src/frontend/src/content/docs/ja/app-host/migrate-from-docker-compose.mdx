@@ -1,0 +1,711 @@
+---
+title: Docker Compose から Aspire への移行
+description: Docker Compose アプリケーションを Aspire に移行する方法を学び、主要な概念的違いを理解します。
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+本ガイドは、Docker Compose から Aspire へのアプリケーション移行方法を理解し、主要な概念的違いを強調し、一般的な移行シナリオに対する正確で実践的な例を提供します。
+
+## 違いを理解する
+
+Docker Compose と Aspire は一見似ているかもしれませんが、異なる目的に対応し、異なる抽象化レベルで動作します。
+
+### Docker Compose 対 Aspire
+
+|  | Docker Compose | Aspire |
+|--|--|--|
+| **主な目的** | コンテナオーケストレーション | 開発時のオーケストレーションとアプリケーション構成 |
+| **スコープ** | コンテナ中心 | マルチリソース (.NET プロジェクト、クラウドリソース) |
+| **構成** | YAML ベース | C# ベース、強く型付けされた |
+| **ターゲット環境** | あらゆる Docker ランタイム | 開発およびクラウドデプロイメント |
+| **サービス検知** | DNS ベースのコンテナ検知 | 環境変数による組み込みサービス検知 |
+| **開発体験** | 手動でのコンテナ管理 | 統合ツーリング、ダッシュボード、テレメトリー |
+
+### 主要な概念的シフト
+
+Docker Compose から Aspire に移行する際は、以下の概念的違いを検討してください:
+
+- **YAML から C# へ** — 構成が宣言的 YAML から命令的で強く型付けされた C# コードに移行します
+- **コンテナからリソースへ** — Aspire はコンテナだけでなく、.NET プロジェクト、実行可能ファイル、パラメーター、クラウドリソースを管理します
+- **手動ネットワークから自動サービス検知へ** — Aspire は自動的にサービス検知と接続文字列を構成します
+- **開発ギャップから統合体験へ** — Aspire はダッシュボード、テレメトリー、デバッグ統合を提供します
+- **スタートアップオーケストレーションの違い** — Docker Compose の `depends_on` はスタートアップ順序を制御しますが、Aspire の `WithReference` はサービス検知のみを構成します。スタートアップ順序には `WaitFor` を使用してください
+
+<LearnMore>
+詳細な API マッピングについては、[Docker Compose to Aspire AppHost API reference](/ja/app-host/docker-compose-to-apphost-reference/) を参照してください。
+</LearnMore>
+
+## 一般的な移行パターン
+
+このセクションでは、Docker Compose から Aspire に移行する際に遭遇する可能性のある実際の移行シナリオを示します。各パターンは、完全な Docker Compose の例とそれに対応する正確な Aspire の例を示しています。
+
+### マルチサービス Web アプリケーション
+
+この例は、フロントエンド、API、データベースを備えた典型的な 3 層アプリケーションを示しています。
+
+**Docker Compose の例:**
+
+```yaml title="compose.yaml"
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - API_URL=http://api:5000
+
+  api:
+    build: ./api
+    ports:
+      - "5000:5000"
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=database;Database=myapp;Username=postgres;Password=secret
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=myapp
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  postgres_data:
+```
+
+**Aspire 相当:**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 明示的なバージョンと永続ストレージを備えた PostgreSQL を追加
+var database = builder.AddPostgres("postgres")
+    .WithImageTag("15")
+    .WithDataVolume()
+    .AddDatabase("myapp");
+
+// 適切な依存関係を備えた API プロジェクトを追加
+var api = builder.AddProject<Projects.MyApp_Api>("api")
+    .WithHttpEndpoint(port: 5000)
+    .WithHttpHealthCheck("/health")
+    .WithReference(database, "DefaultConnection")
+    .WaitFor(database);
+
+// 依存関係を備えたフロントエンドプロジェクトを追加
+var frontend = builder.AddProject<Projects.MyApp_Frontend>("frontend")
+    .WithHttpEndpoint(port: 3000)
+    .WithReference(api)
+    .WithEnvironment("API_URL", api.GetEndpoint("http"))
+    .WaitFor(api);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 明示的なバージョンと永続ストレージを備えた PostgreSQL を追加
+const database = (await builder.addPostgres("postgres")
+    .withImageTag("15")
+    .withDataVolume())
+    .addDatabase("myapp");
+
+// 適切な依存関係を備えた API プロジェクトを追加
+const api = await builder.addProject("api", "./MyApp.Api/MyApp.Api.csproj")
+    .withHttpEndpoint({ port: 5000 })
+    .withHttpHealthCheck("/health")
+    .withReference(database, "DefaultConnection")
+    .waitFor(database);
+
+// 依存関係を備えたフロントエンドプロジェクトを追加
+const frontend = await builder.addProject("frontend", "./MyApp.Frontend/MyApp.Frontend.csproj")
+    .withHttpEndpoint({ port: 3000 })
+    .withReference(api)
+    .withEnvironment("API_URL", api.getEndpoint("http"))
+    .waitFor(api);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note" title="build: サービスはプロジェクトまたは Dockerfile リソースに変わります">
+Docker Compose では、`build:` ディレクティブは Dockerfile からコンテナイメージを作成します。Aspire では、.NET サービスは `AddProject<T>()` で直接プロジェクト参照として追加され、より優れたデバッグ、ホットリロード、テレメトリー統合を提供します。それでも Dockerfile からビルドするサービスについては、既存の Dockerfile に `AddDockerfile()` を使用するか、AppHost が Dockerfile をプログラムで生成する必要がある場合は `AddDockerfileBuilder()` を使用します。
+</Aside>
+
+**主な違いの説明:**
+
+- **Build 対 プロジェクト** — Docker Compose の `build:` サービスは .NET アプリの `AddProject<T>()` になり、コンテナ内ではなく直接実行します
+- **ポート** — どちらの例もポート (3000 と 5000) を明示的にマップします
+- **スタートアップ順序** — Docker Compose は正常性チェック条件付きの `depends_on` を使用します。Aspire はスタートアップ順序に `WaitFor()` を使用します
+- **サービス検知** — `WithReference()` はサービス検知と接続文字列のみを構成します。スタートアップ順序を制御しません
+- **接続文字列** — デフォルトでは、`WithReference(database)` は `AddDatabase()` のリソース名を使用して `ConnectionStrings__myapp` を提供します。`DefaultConnection` などの異なる名前に一致させるには、名前付き参照を使用します: `.WithReference(database, "DefaultConnection")`
+- **ボリューム** — `WithDataVolume()` は明示的に呼び出す必要があります。自動的ではありません
+- **イメージバージョン** — `WithImageTag("15")` は PostgreSQL をバージョン 15 にピン止めします
+
+### コンテナベースのサービス
+
+この例は、既存のコンテナイメージと Dockerfile ビルドサービスの混在をオーケストレーションしています。
+
+**Docker Compose の例:**
+
+```yaml title="compose.yaml"
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:secret@postgres:5432/main
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+
+volumes:
+  postgres_data:
+```
+
+**Aspire 相当:**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// 明示的なバージョンを備えたバッキングサービスを追加
+var redis = builder.AddRedis("redis")
+    .WithImageTag("7")
+    .WithHostPort(6379);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithImageTag("15")
+    .WithDataVolume()
+    .AddDatabase("main");
+
+// Dockerfile から Web アプリをビルド (Docker Compose の "build: ." に対応)
+var web = builder.AddDockerfile("web", ".")
+    .WithHttpEndpoint(port: 8080, targetPort: 8080)
+    .WithReference(redis)
+    .WithReference(postgres)
+    .WaitFor(redis)
+    .WaitFor(postgres);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// 明示的なバージョンを備えたバッキングサービスを追加
+const redis = await builder.addRedis("redis")
+    .withImageTag("7")
+    .withHostPort(6379);
+
+const postgres = (await builder.addPostgres("postgres")
+    .withImageTag("15")
+    .withDataVolume())
+    .addDatabase("main");
+
+// Dockerfile から Web アプリをビルド (Docker Compose の "build: ." に対応)
+const web = await builder.addDockerfile("web", ".")
+    .withHttpEndpoint({ port: 8080, targetPort: 8080 })
+    .withReference(redis)
+    .withReference(postgres)
+    .waitFor(redis)
+    .waitFor(postgres);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="接続文字列フォーマットの違い">
+Aspire は .NET フォーマットの接続文字列を生成しており、Docker Compose の URL フォーマットとは異なります:
+
+- Docker Compose: `REDIS_URL=redis://redis:6379`
+- Aspire: `ConnectionStrings__redis=localhost:54321`
+
+- Docker Compose: `DATABASE_URL=postgresql://postgres:secret@postgres:5432/main`
+- Aspire: `ConnectionStrings__main=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=main`
+
+アプリケーションが URL フォーマットの環境変数を期待する場合は、`WithEnvironment()` で手動で構築してください。詳細は [環境変数と構成](#環境変数と構成) を参照してください。
+</Aside>
+
+**主な違いの説明:**
+
+- **イメージバージョン** — `WithImageTag()` で明示的に指定して Docker Compose と一致させます
+- **Dockerfile ビルド** — Docker Compose の `build: .` は `AddDockerfile("web", ".")` にマップしており、Dockerfile からコンテナイメージをビルドします。Docker Compose で `image:` を使用する事前ビルドイメージには `AddContainer()` を使用します
+- **ポート** — `WithHostPort()` は静的ホストポートにマップしており、なければ Aspire がランダムポートを割り当てます
+- **ボリューム** — `WithDataVolume()` は明示的に呼び出す必要があります
+- **スタートアップ順序** — `WaitFor()` はスタートアップ順序を制御し、Docker Compose の `depends_on` の条件に似ています
+- **接続文字列** — `WithReference()` は Aspire フォーマットの接続文字列 (`ConnectionStrings__*`) を提供しており、URL フォーマットの変数ではありません
+
+### 環境変数と構成
+
+この例は異なる構成管理アプローチを示しています。
+
+**Docker Compose アプローチ:**
+
+```yaml title="compose.yaml"
+services:
+  app:
+    image: myapp:latest
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/myapp
+      - REDIS_URL=redis://cache:6379
+      - API_KEY=${API_KEY}
+      - LOG_LEVEL=info
+```
+
+**Aspire アプローチ:**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// シークレット用の外部パラメーターを追加
+var apiKey = builder.AddParameter("apiKey", secret: true);
+
+var database = builder.AddPostgres("db")
+    .AddDatabase("myapp");
+
+var cache = builder.AddRedis("cache");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithReference(database)
+    .WithReference(cache)
+    .WithEnvironment("API_KEY", apiKey)
+    .WithEnvironment("LOG_LEVEL", "info");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// シークレット用の外部パラメーターを追加
+const apiKey = builder.addParameter("apiKey", { secret: true });
+
+const database = (await builder.addPostgres("db"))
+    .addDatabase("myapp");
+
+const cache = await builder.addRedis("cache");
+
+const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
+    .withReference(database)
+    .withReference(cache)
+    .withEnvironment("API_KEY", apiKey)
+    .withEnvironment("LOG_LEVEL", "info");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="Aspire 接続文字列は Docker Compose URL と異なります">
+`WithReference()` は URL フォーマットではなく .NET フォーマットで接続文字列を提供します:
+
+- `ConnectionStrings__myapp=Host=localhost;Port=12345;Username=postgres;Password=<generated>;Database=myapp`
+- `ConnectionStrings__cache=localhost:54321`
+
+アプリケーションが `DATABASE_URL` または `REDIS_URL` のような URL フォーマットの変数を期待する場合は、`WithEnvironment` コールバックを使用して手動で構築してください:
+</Aside>
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var dbPassword = builder.AddParameter("dbPassword", secret: true);
+
+var db = builder.AddPostgres("db", password: dbPassword)
+    .AddDatabase("myapp");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithReference(db)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["DATABASE_URL"] =
+            ReferenceExpression.Create(
+                $"postgresql://postgres:{dbPassword}@db:5432/myapp");
+        context.EnvironmentVariables["REDIS_URL"] = "redis://cache:6379";
+    });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const dbPassword = builder.addParameter("dbPassword", { secret: true });
+
+const db = (await builder.addPostgres("db", { password: dbPassword }))
+    .addDatabase("myapp");
+
+const app = await builder.addContainer("app", "myapp:latest")
+    .withReference(db)
+    .withEnvironment("DATABASE_URL",
+        builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`)
+    .withEnvironment("REDIS_URL", "redis://cache:6379");
+```
+</TabItem>
+</Tabs>
+
+### カスタムボリュームとバインドマウント
+
+**Docker Compose の例:**
+
+```yaml title="compose.yaml"
+version: '3.8'
+services:
+  app:
+    image: myapp:latest
+    volumes:
+      - app_data:/data
+      - ./config:/app/config:ro
+
+  worker:
+    image: myworker:latest
+    volumes:
+      - app_data:/shared
+
+volumes:
+  app_data:
+```
+
+**Aspire 相当:**
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// データ共有用の名前付きボリュームを作成
+var appData = builder.AddVolume("app-data");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithVolume(appData, "/data")
+    .WithBindMount("./config", "/app/config", isReadOnly: true);
+
+var worker = builder.AddContainer("worker", "myworker", "latest")
+    .WithVolume(appData, "/shared");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const app = await builder.addContainer("app", { image: "myapp", tag: "latest" })
+    .withVolume("/data", { name: "app-data", isReadOnly: true })
+    .withBindMount("./config", "/app/config", { isReadOnly: true });
+
+const worker = await builder.addContainer("worker", { image: "myworker", tag: "latest" })
+    .withVolume("/shared", { name: "app-data" });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+**主な違い:**
+
+- **名前付きボリューム** — `AddVolume()` で作成され、コンテナ間で共有されます
+- **バインドマウント** — ホストディレクトリアクセス用に `WithBindMount()` を使用します
+
+### ネットワーキング
+
+Docker Compose は、サービスのグループを相互に分離するカスタムネットワークをサポートしています:
+
+```yaml title="compose.yaml"
+services:
+  proxy:
+    build: ./proxy
+    networks:
+      - frontend
+  app:
+    build: ./app
+    networks:
+      - frontend
+      - backend
+  db:
+    image: postgres
+    networks:
+      - backend
+
+networks:
+  frontend:
+  backend:
+```
+
+Aspire にはカスタムネットワーク分離に相当するものがありません。代わりに、Aspire はすべてのコンテナリソース用の共有コンテナネットワークを自動的に作成し、サービス検知を使用してサービス間通信を管理します。Aspire AppHost 内のすべてのコンテナはリソース名でお互いに到達できます。.NET プロジェクトと実行可能ファイルはホスト上で実行され、注入されたホスト/ポートエンドポイントを通じてコンテナにアクセスします。
+
+<Aside type="note">
+Docker Compose セットアップがネットワーク分離に依存している場合 (例えば、フロントエンドサービスがデータベースに直接アクセスすることを防ぐ場合)、Aspire には直接的な等価物がありません。代わりに、アプリケーションレベルのアクセス制御またはデプロイメント環境のファイアウォールルールを検討してください。
+</Aside>
+
+## 移行戦略
+
+Docker Compose から Aspire への正常な移行には体系的なアプローチが必要です。
+
+<Steps>
+
+1. ### 現在のセットアップを評価する
+
+   移行前に、Docker Compose セットアップをインベントリします:
+
+   - **サービス** — データベース、キャッシュ、API、Web アプリケーションを含むすべてのサービスを識別します
+   - **依存関係** — `depends_on` 宣言からサービス依存関係をマップします
+   - **データ永続性** — データストレージに使用されるすべてのボリュームとバインドマウントをカタログします
+   - **環境変数** — すべての構成変数とシークレットをリストします
+   - **正常性チェック** — カスタム正常性チェックコマンドを文書化します
+   - **イメージバージョン** — 本番環境で使用される特定のバージョンをメモします
+
+2. ### Aspire AppHost を作成する
+
+   新しい Aspire プロジェクトを作成することから始めます:
+
+   ```bash
+   aspire new aspire-starter -o MyApp
+   ```
+
+3. ### サービスを段階的に移行する
+
+   バッキングサービスから始めて、サービスを 1 つずつ移行します:
+
+   - **PostgreSQL、Redis などのバッキングサービスを追加** し、`WithImageTag()` で特定のバージョンを指定します
+   - **`WithDataVolume()` を使用して永続ストレージを追加** します (必要な場合)
+   - **.NET アプリケーションを変換** して、より優れた統合のために `AddProject<T>()` でプロジェクト参照にします
+   - **Dockerfile ビルドコンテナを `AddDockerfile()` で変換** して `build:` ディレクティブと一致させます
+   - **事前ビルドイメージを `AddContainer()` で変換** して `image:` ディレクティブと一致させます
+   - **`WithReference()` で依存関係を構成** してサービス検知のために
+   - **`WaitFor()` でスタートアップ順序を追加** して `depends_on` の動作と一致させます
+   - **環境変数を設定** — 接続文字列フォーマットが異なることに注意してください
+   - **正常性チェックを移行** — `WithHttpHealthCheck()` またはカスタムチェック用 `WithHealthCheck()` を使用します
+
+4. ### データ移行を処理する
+
+   永続データについて:
+
+   - `WithDataVolume()` をインテグレーションで自動ボリューム管理に使用します
+   - `WithVolume()` をデータを永続化する必要があるという名前付きボリュームに使用します
+   - `WithBindMount()` をホスト直接アクセスが必要な場合のホストディレクトリマウントに使用します
+
+5. ### テストと検証
+
+   - Aspire AppHost を開始し、すべてのサービスが正しく開始することを確認します
+   - ダッシュボードをチェックしてサービスの健全性と接続状態を確認します
+   - サービス間通信が期待どおりに機能することを検証します
+   - **接続文字列を検証** — アプリが特定の URL フォーマットを期待する場合、環境変数を調整する必要があるかもしれません
+
+</Steps>
+
+## 移行のトラブルシューティング
+
+### 一般的な問題と解決策
+
+#### 接続文字列フォーマットの不一致
+
+Aspire は URL フォーマット (`postgresql://` または `redis://`) ではなく、.NET スタイルの接続文字列 (`ConnectionStrings__*`) を生成します。
+
+**解決策**: アプリケーションが特定の URL フォーマットを期待する場合は、`WithEnvironment()` を使用して手動で構築してください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var dbPassword = builder.AddParameter("dbPassword", secret: true);
+
+var postgres = builder.AddPostgres("db", password: dbPassword)
+    .AddDatabase("myapp");
+
+var app = builder.AddContainer("app", "myapp", "latest")
+    .WithReference(postgres)
+    .WithEnvironment(context =>
+    {
+        context.EnvironmentVariables["DATABASE_URL"] =
+            ReferenceExpression.Create(
+                $"postgresql://postgres:{dbPassword}@db:5432/myapp");
+    });
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const dbPassword = builder.addParameter("dbPassword", { secret: true });
+
+const postgres = (await builder.addPostgres("db", { password: dbPassword }))
+    .addDatabase("myapp");
+
+const app = await builder.addContainer("app", "myapp:latest")
+    .withReference(postgres)
+    .withEnvironment("DATABASE_URL",
+        builder.createReferenceExpression`postgresql://postgres:${dbPassword}@db:5432/myapp`);
+```
+</TabItem>
+</Tabs>
+
+#### サービススタートアップ順序の問題
+
+`WithReference()` はサービス検知のみを構成し、スタートアップ順序は構成しません。
+
+**解決策**: 依存関係が準備できていることを確認するために `WaitFor()` を使用してください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(database)  // サービス検知
+    .WaitFor(database);       // スタートアップ順序
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+    .withReference(database)  // サービス検知
+    .waitFor(database);       // スタートアップ順序
+```
+</TabItem>
+</Tabs>
+
+#### ボリュームマウントの問題
+
+- バインドマウントにはパス解決の問題を回避するため絶対パスを使用してください
+- ホストディレクトリが存在し、適切なアクセス許可を持つことを確認してください
+- データベースインテグレーション用に `WithDataVolume()` を使用してください — これは明示的に呼び出す必要があります
+
+#### ポート競合
+
+Aspire はデフォルトでランダムポートを自動的に割り当てます。
+
+**解決策**: 静的ポートマッピングに `WithHostPort()` または `WithHttpEndpoint(port:)` を使用してください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var redis = builder.AddRedis("cache")
+    .WithHostPort(6379);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const redis = await builder.addRedis("cache")
+    .withHostPort(6379);
+```
+</TabItem>
+</Tabs>
+
+#### 正常性チェック移行
+
+Docker Compose の正常性チェックはシェルコマンドを使用します。Aspire インテグレーション (PostgreSQL および Redis など) には組み込み正常性チェックが自動的に含まれています。カスタム正常性チェックについて、Aspire はリソースタイプに応じて異なるアプローチを提供します。
+
+**解決策**: HTTP エンドポイント付きリソースについて、`WithHttpHealthCheck()` を使用してください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api")
+    .WithHttpHealthCheck("/health");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const api = await builder.addProject("api", "./Api/Api.csproj", "https")
+    .withHttpHealthCheck("/health");
+```
+</TabItem>
+</Tabs>
+
+シェルコマンドが必要なカスタムコンテナ正常性チェック (RabbitMQ など) については、カスタム正常性チェックを登録してリソースに関連付けてください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="C# — AppHost.cs"
+builder.Services.AddHealthChecks()
+    .AddCheck("rabbitmq-health", () =>
+    {
+        // カスタム正常性チェックロジックをここに実装してください。
+        // 例えば、サービスへの TCP 接続を試みます
+        return HealthCheckResult.Healthy();
+    });
+
+var rabbit = builder.AddContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
+    .WithHealthCheck("rabbitmq-health");
+
+// WaitFor は登録された正常性チェックを使用してレディネスを決定します
+var app = builder.AddProject<Projects.App>("app")
+    .WaitFor(rabbit);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const rabbit = await builder.addContainer("rabbitmq", "rabbitmq", "4.1.4-management-alpine")
+    .withHealthCheck("rabbitmq-health");
+
+// WaitFor は登録された正常性チェックを使用してレディネスを決定します
+const app = await builder.addProject("app", "./App/App.csproj", "https")
+    .waitFor(rabbit);
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+Aspire インテグレーションパッケージ (`Aspire.Hosting.PostgreSQL` または `Aspire.Hosting.Redis` など) には組み込み正常性チェックが含まれています。これらのサービスのカスタム正常性チェックを定義する必要はありません — `WaitFor()` は自動的に組み込み正常性チェックが成功するまで待機します。
+</Aside>
+
+## 次のステップ
+
+Aspire への移行後:
+
+- [Aspire インテグレーション](/ja/integrations/overview/) を探索してカスタムコンテナ構成を置き換えます
+- [正常性チェック](/ja/fundamentals/health-checks/) を設定してより良い監視を実現します
+- 本番環境向けの [デプロイメントオプション](/ja/deployment/deploy-with-aspire/) について学びます
+- 分散アプリケーション [テスト](/ja/testing/overview/) を検討します
+- [テレメトリー構成](/ja/fundamentals/telemetry/) をレビューして可観測性を実現します

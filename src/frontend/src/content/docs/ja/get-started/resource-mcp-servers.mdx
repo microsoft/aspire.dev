@@ -1,0 +1,135 @@
+---
+title: リソース MCP サーバー
+description: Aspire リソースから MCP ツールを公開し、CLI を使用して操作する方法について学びます。
+---
+
+import { Aside, Code, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire リソースは、独自の <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> (Model Context Protocol) サーバーを公開でき、AI コーディング エージェントがデータベース、API、その他のサービスと直接対話できるようにします。例えば、PostgreSQL リソースは SQL クエリ ツールを公開でき、エージェントが会話を終了することなくクエリを実行できます。
+
+## 仕組み
+
+AppHost で `WithMcpServer()` で注釈が付けられたリソースの場合、Aspire は MCP エンドポイントを検出し、そのツールを 2 つの方法で利用可能にします。
+
+- **Aspire MCP サーバーを通じて** — リソース ツールが、組み込みの [Aspire MCP サーバー](/ja/get-started/aspire-mcp-server/) ツールと共に自動的にプロキシされます。AI エージェントは追加の構成なしでツール リストにそれらを表示します。
+- **CLI を通じて** — `aspire mcp tools` と `aspire mcp call` を使用してリソース ツールをターミナルから直接検出して呼び出します。
+
+## リソースに MCP サーバーを追加する
+
+`WithMcpServer()` 拡張メソッドを使用して、リソースが MCP サーバーをホストしていることを宣言します。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREMCP001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var db = builder.AddPostgres("db")
+    .AddDatabase("appdata");
+
+// PostgreSQL MCP ツール (SQL クエリ、スキーマ検査など) を公開します
+db.WithPostgresMcp();
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = await builder
+  .addPostgres("db")
+  .addDatabase("appdata");
+
+// PostgreSQL MCP ツール (SQL クエリ、スキーマ検査など) を公開します
+await db.withPostgresMcp();
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+`WithMcpServer()` と `WithPostgresMcp()` は実験的な API です。これらを使用するには `ASPIREMCP001` または `ASPIREPOSTGRES001` の診断を抑制します。
+</Aside>
+
+## 利用可能なツールを検出する
+
+`aspire mcp tools` を使用して、実行中のリソースによって公開されているすべての MCP ツールをリスト表示します。
+
+```bash title="Aspire CLI"
+aspire mcp tools
+```
+
+入力スキーマを含むマシン読み取り可能な出力の場合:
+
+```bash title="Aspire CLI — JSON 出力"
+aspire mcp tools --format Json
+```
+
+## ツールを呼び出す
+
+`aspire mcp call` を使用して、リソース上の特定のツールを呼び出します。
+
+```bash title="Aspire CLI"
+aspire mcp call <resource> <tool> --input '{"key": "value"}'
+```
+
+例えば、PostgreSQL リソースで SQL クエリを実行するには:
+
+```bash title="Aspire CLI — クエリの例"
+aspire mcp call appdata query --input '{"sql": "SELECT * FROM users LIMIT 5"}'
+```
+
+## カスタム MCP サーバー リソース
+
+MCP プロトコルを実装するコンテナーを MCP 対応リソースとして追加できます。`WithMcpServer()` を使用して、Aspire に MCP エンドポイントの場所を指示します。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+#pragma warning disable ASPIREMCP001
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// カスタム MCP サーバー コンテナーを追加します
+var myMcpServer = builder.AddContainer("my-mcp", "myregistry/my-mcp-server")
+    .WithHttpEndpoint(targetPort: 8080)
+    .WithMcpServer("/mcp");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// カスタム MCP サーバー コンテナーを追加します
+const myMcpServer = await builder
+  .addContainer("my-mcp", { image: "myregistry/my-mcp-server", tag: "latest" })
+  .withHttpEndpoint({ targetPort: 8080 })
+  .withMcpServer("/mcp");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithMcpServer()` メソッドはオプションのパスとエンドポイント名を受け入れます。
+
+- `WithMcpServer()` — ルート パスでデフォルトの HTTP エンドポイントを使用します
+- `WithMcpServer("/mcp")` — `/mcp` でデフォルトの HTTP エンドポイントを使用します
+- `WithMcpServer("/sse", endpointName: "https")` — `/sse` で名前付きエンドポイントを使用します
+
+## 関連項目
+
+- [AI コーディング エージェントを使用する](/ja/get-started/ai-coding-agents/) — プロジェクトを AI エージェント用に設定します
+- [Aspire MCP サーバー](/ja/get-started/aspire-mcp-server/) — 組み込みの MCP サーバー ツール
+- [ASPIREMCP001 診断](/ja/diagnostics/aspiremcp001/) — 実験的な MCP サーバー API 警告
+- [ASPIREPOSTGRES001 診断](/ja/diagnostics/aspirepostgres001/) — 実験的な PostgreSQL MCP 警告

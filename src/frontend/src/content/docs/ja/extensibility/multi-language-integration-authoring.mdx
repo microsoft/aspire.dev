@@ -1,0 +1,614 @@
+---
+title: 多言語統合
+description: TypeScript、Python、Java、その他の言語の AppHost で動作するように Aspire hosting integration に注釈を付ける方法を学びます。
+---
+
+import {
+  Aside,
+  Badge,
+  Code,
+  Steps,
+  Tabs,
+  TabItem,
+} from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+<Badge
+  text="プレビュー機能"
+  variant="danger"
+  size="large"
+  class:list={'mb-4'}
+/>
+
+Aspire hosting integration は、新しいリソース型で AppHost を拡張する C# ライブラリです。既定では、これらの統合は C# AppHost でのみ利用できます。TypeScript AppHost で利用可能にするには、ATS（Aspire Type System）属性で API に注釈を付けます。
+
+このガイドでは、統合を多言語で利用できるようにエクスポートする手順を説明します。
+
+## 仕組み
+
+TypeScript AppHost が統合を追加すると、Aspire CLI は次を実行します:
+
+<Steps>
+
+1. 統合アセンブリを読み込みます
+2. メソッド、型、プロパティ上の ATS 属性（`[AspireExport]` など）をスキャンします。
+3. 対応するメソッドを持つ型付き TypeScript SDK を生成します
+4. 生成された SDK は、実行時に JSON-RPC 経由で C# コードと通信します
+
+</Steps>
+
+C# コードはそのまま実行され、TypeScript SDK はそれを呼び出す薄いクライアントです。TypeScript に書き直す必要はありません。
+
+## Analyzer をインストールする
+
+[`📦 Aspire.Hosting.Integration.Analyzers`](https://www.nuget.org/packages/Aspire.Hosting.Integration.Analyzers) パッケージは、よくあるエクスポート ミスをビルド時に検出する検証を提供します。統合プロジェクトに追加してください:
+
+```xml title="XML — MyIntegration.csproj"
+<PackageReference Include="Aspire.Hosting.Integration.Analyzers" Version="13.3.0">
+    <PrivateAssets>all</PrivateAssets>
+    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+</PackageReference>
+```
+
+Analyzer は、ユーザーがランタイム エラーに遭遇する前にエクスポートを正しく整えるのに役立つ診断を報告します。代表的なシナリオには、互換性のないパラメーター型の検出、公開メソッド上のエクスポート注釈不足、重複する export または capability ID、多言語 AppHost でデッドロックを引き起こす可能性がある同期コールバックの検出が含まれます。
+
+## 拡張メソッドをエクスポートする
+
+プロジェクト ファイルで実験的診断を抑制します:
+
+```xml title="XML — MyIntegration.csproj"
+<PropertyGroup>
+    <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
+</PropertyGroup>
+```
+
+次に、拡張メソッドに `[AspireExport]` を付けます:
+
+```csharp title="C# — MyDatabaseBuilderExtensions.cs"
+[AspireExport("addMyDatabase", Description = "Adds a MyDatabase container resource")]
+public static IResourceBuilder<MyDatabaseResource> AddMyDatabase(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name,
+    int? port = null)
+{
+    // 既存の実装...
+}
+
+[AspireExport("addDatabase", Description = "Adds a database to the MyDatabase server")]
+public static IResourceBuilder<MyDatabaseDatabaseResource> AddDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    [ResourceName] string name,
+    string? databaseName = null)
+{
+    // 既存の実装...
+}
+
+[AspireExport("withDataVolume", Description = "Adds a data volume to the MyDatabase server")]
+public static IResourceBuilder<MyDatabaseResource> WithDataVolume(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string? name = null)
+{
+    // 既存の実装...
+}
+```
+
+これにより、次の TypeScript API が生成されます:
+
+```typescript title="TypeScript — 生成された SDK" {5-8}
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const db = await builder
+    .addMyDatabase("db", { port: 5432 })
+    .addDatabase("mydata")
+    .withDataVolume();
+
+const app = await builder.build();
+await app.run();
+```
+
+<Aside type="tip" title="命名規則">
+エクスポート ID は通常、生成される SDK でメソッド名になります。camelCase（例: `addMyDatabase`、`withDataVolume`）を使うか、ランタイム capability ID と SDK メソッド名を分ける必要がある場合は `MethodName` を設定してください。静的エクスポートの場合、完全な capability ID は `{AssemblyName}/{exportId}` として計算されます。例えば `MyCompany.Hosting.MyDatabase/addMyDatabase` です。
+</Aside>
+
+### capability ID を一意に保つ
+
+ランタイムは **capability ID** によって多言語呼び出しをディスパッチします。capability ID は C# のメソッド シグネチャより制約が厳しく、C# のレシーバー型、パラメーター一覧、オーバーロード シグネチャを含みません。Aspire 13.3 以降では、同じアセンブリ内の 2 つのエクスポートが同じ capability ID を生成すると、Analyzer が `ASPIREEXPORT013` を報告します。
+
+静的エクスポートでは、生成される capability ID はアセンブリ名と有効な export ID を使用します。次のメソッドは、異なる C# 型を対象にしていても衝突します:
+
+```csharp title="C# — 重複する capability ID"
+[AspireExport("configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+ランタイム capability には異なる export ID を使い、異なる対象型上でも生成される SDK メソッド名を簡潔に保ちたい場合は `MethodName` を使います:
+
+```csharp title="C# — SDK メソッド名付きの一意な capability ID"
+[AspireExport("configureBuilder", MethodName = "configure")]
+public static void ConfigureBuilder(
+    this IDistributedApplicationBuilder builder,
+    string name)
+{
+    // ...
+}
+
+[AspireExport("configureDatabase", MethodName = "configure")]
+public static IResourceBuilder<MyDatabaseResource> ConfigureDatabase(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    string value)
+{
+    return builder;
+}
+```
+
+コンテキスト型に対して `ExposeMethods = true` または `ExposeProperties = true` を設定すると、Analyzer は公開インスタンス メンバーから生成される capability も確認します。同名のオーバーロードされたインスタンス メソッドは既定で同じ capability ID を生成するため、ATS 対応オーバーロードを 1 つだけ公開するか、未対応オーバーロードに `[AspireExportIgnore]` を付けるか、各エクスポート メンバーに一意の `[AspireExport]` ID と生成用 `MethodName` を与えてください。
+
+## リソース型をエクスポートする
+
+TypeScript SDK が型付きハンドルとして参照できるように、リソース型に `[AspireExport]` を付けます。すべての公開プロパティを capability として公開するには `ExposeProperties = true` を設定し、より細かく制御したい場合は各プロパティに `[AspireExport]` を付けます:
+
+```csharp title="C# — MyDatabaseResource.cs"
+[AspireExport(ExposeProperties = true)]
+public sealed class MyDatabaseResource(string name)
+    : ContainerResource(name), IResourceWithConnectionString
+{
+    /// <summary>
+    /// データベースのプライマリ エンドポイントを取得します。
+    /// </summary>
+    public EndpointReference PrimaryEndpoint => new(this, "tcp");
+
+    /// <summary>
+    /// 内部実装の詳細。エクスポートされません。
+    /// </summary>
+    [AspireExportIgnore]
+    public string InternalConnectionPool { get; set; } = "";
+}
+
+[AspireExport]
+public sealed class MyDatabaseDatabaseResource(string name, MyDatabaseResource parent)
+    : Resource(name)
+{
+    // 既存の実装...
+}
+```
+
+`ExposeProperties = true` の場合、各公開プロパティは生成される SDK で capability になります。公開したくないプロパティには `[AspireExportIgnore]` を使用してください。
+
+`ExposeMethods = true` を設定して、プロパティに加えて公開インスタンス メソッドも capability としてエクスポートできます。
+
+### getter のみのプロパティが TypeScript でどう見えるか
+
+コード ジェネレーターは、読み取り専用（getter のみ）プロパティと、読み書き可能または可変コレクション プロパティを区別します:
+
+- **getter のみのプロパティ**（setter がなく、可変コレクション型でもないもの）は、TypeScript で async メソッドとして生成されます: `property(): Promise<T>`。
+- **読み書き可能プロパティ** と **可変コレクション プロパティ**（`AspireList<T>` や `AspireDict<K,V>` など）は、`readonly` getter プロパティとして生成されます。
+
+例えば、両方の種類のプロパティを持つ C# クラス:
+
+```csharp title="C# — 混在するプロパティ種別"
+[AspireExport(ExposeProperties = true)]
+public class MyCallbackContext
+{
+    /// <summary>getter のみ。TypeScript では async メソッドになります。</summary>
+    public IResource Resource => _resource;
+
+    /// <summary>可変コレクション。TypeScript では readonly getter のままです。</summary>
+    public AspireList<string> Tags { get; } = new();
+}
+```
+
+これにより、次の TypeScript インターフェイスが生成されます:
+
+```typescript title="TypeScript — 生成されたインターフェイス"
+export interface MyCallbackContext {
+    toJSON(): MarshalledHandle;
+    resource(): Promise<IResourceHandle>;   // getter のみ → async メソッド
+    readonly tags: AspireList<string>;       // 可変コレクション → readonly getter
+}
+```
+
+TypeScript AppHost の作成者は、getter のみのプロパティを関数として呼び出します:
+
+```typescript title="TypeScript — 生成された API の利用"
+const resource = await context.resource();
+const tags = context.tags; // 可変コレクションでは await は不要
+```
+
+:::tip
+TypeScript 側で値を一度読み取る async 操作として扱いたい場合は、getter のみのプロパティ（`=> value;` または setter のない `{ get; }`）を優先してください。TypeScript コードから直接追加、削除、反復処理を行う必要がある場合は `AspireList<T>` と `AspireDict<K,V>` を使用します。
+:::
+
+## コールバック コンテキスト型と ATS-first の editor パターン
+
+`withEnvironmentCallback`、`withArgsCallback`、`withUrls` など、コールバックを受け取るメソッドをエクスポートする場合、コールバックは *context* オブジェクトを受け取ります。TypeScript 互換性のため、コンテキスト型は ATS-first 設計に従う必要があります:
+
+1. コンテキスト クラスには `[AspireExport]` を使用します（`ExposeProperties = true` ではありません）。
+2. TypeScript 呼び出し元に必要なプロパティだけを個別の `[AspireExport]` 属性で注釈します。
+3. 可変状態（環境変数、コマンド ライン引数、URL リスト）には、生のコレクションではなく小さな *editor* クラスを公開します。
+
+### editor クラスを定義する
+
+editor は可変コレクションをラップし、生のコレクションを TypeScript に渡す代わりに、通常は `add`、`set`、`remove` などの特定操作を公開します:
+
+```csharp title="C# — EnvironmentEditor.cs"
+/// <summary>
+/// polyglot コールバック内の環境変数に対する ATS-first editor を提供します。
+/// </summary>
+[AspireExport]
+internal sealed class EnvironmentEditor(Dictionary<string, object> environmentVariables)
+{
+    /// <summary>環境変数を設定します。</summary>
+    [AspireExport(Description = "Sets an environment variable")]
+    public void Set(
+        string name,
+        [AspireUnion(
+            typeof(string),
+            typeof(ReferenceExpression),
+            typeof(EndpointReference),
+            typeof(IResourceBuilder<ParameterResource>),
+            typeof(IResourceBuilder<IResourceWithConnectionString>))]
+        object value)
+    {
+        environmentVariables[name] = value;
+    }
+}
+```
+
+### コールバック コンテキストを定義する
+
+TypeScript 呼び出し元に必要な各プロパティへ個別に `[AspireExport]` を付けます。editor は getter のみのプロパティとして渡し、TypeScript 呼び出し元が async メソッドとして受け取れるようにします:
+
+```csharp title="C# — MyCallbackContext.cs"
+[AspireExport]
+public sealed class MyCallbackContext(
+    DistributedApplicationExecutionContext executionContext,
+    IResource resource,
+    Dictionary<string, object> environmentVariables)
+{
+    /// <summary>このコールバックに関連付けられたリソースを取得します。</summary>
+    [AspireExport(Description = "Gets the resource associated with this callback")]
+    public IResource Resource => resource;
+
+    /// <summary>実行コンテキストを取得します。</summary>
+    [AspireExport(Description = "Gets the execution context")]
+    public DistributedApplicationExecutionContext ExecutionContext => executionContext;
+
+    /// <summary>環境変数 editor を取得します。</summary>
+    [AspireExport(Description = "Gets the environment variable editor")]
+    internal EnvironmentEditor Environment => new(environmentVariables);
+}
+```
+
+### コールバック メソッドをエクスポートする
+
+`Action<MyCallbackContext>` をパラメーター型として使用し、コールバックを受け取る拡張メソッドをエクスポートします:
+
+```csharp title="C# — MyResourceBuilderExtensions.cs"
+[AspireExport("withMyCallback", Description = "Configures the resource using a callback")]
+public static IResourceBuilder<MyResource> WithMyCallback(
+    this IResourceBuilder<MyResource> builder,
+    Action<MyCallbackContext> configure)
+{
+    return builder.WithAnnotation(new MyCallbackAnnotation(configure));
+}
+```
+
+生成される TypeScript API は async アロー関数を受け取ります:
+
+```typescript title="TypeScript — コールバック API の利用"
+await myResource.withMyCallback(async (context) => {
+    const resource = await context.resource();
+    const env = await context.environment();
+    await env.set("MY_KEY", "my-value");
+});
+```
+
+:::note
+`Action<T>` デリゲート型は ATS 互換です。TypeScript 側は async 関数を受け取り、Aspire ランタイムは async な TypeScript 呼び出しをバックグラウンド スレッド上の同期 C# デリゲートへ橋渡しします。
+:::
+
+## 構成 DTO をエクスポートする
+
+統合が構造化された構成を受け入れる場合は、オプション クラスに `[AspireDto]` を付けます。DTO は TypeScript AppHost と .NET ランタイムの間で JSON としてシリアル化されます:
+
+```csharp title="C# — MyDatabaseOptions.cs"
+[AspireDto]
+public sealed class AddMyDatabaseOptions
+{
+    public required string Name { get; init; }
+    public int? Port { get; init; }
+    public string? ImageTag { get; init; }
+}
+```
+
+<Aside type="note">
+DTO には、JSON との相互シリアル化が可能なプロパティだけを含める必要があります。`IConfiguration`、`ILogger`、`Action` や `Func<T>` などのデリゲート型といった複雑な .NET 型は、シリアル化できないため DTO には適していません。
+</Aside>
+
+## 値カタログをエクスポートする
+
+`[AspireValue]` を使うと、統合に含まれる不変の事前定義値を、型付きカタログ オブジェクトとしてゲスト SDK にエクスポートできます。これは、対応モデル名一覧やリージョン識別子など、polyglot AppHost 作成者が自分で組み立て直さずに参照できる既知の定数や構成プリセットを統合に含める場合に便利です。
+
+`[AspireValue]` は `ASPIREATS001` 診断によって保護される実験的 API です。ほかの ATS 属性と同様に、プロジェクト ファイルで抑制してください:
+
+```xml title="XML — MyIntegration.csproj"
+<PropertyGroup>
+    <NoWarn>$(NoWarn);ASPIREATS001</NoWarn>
+</PropertyGroup>
+```
+
+### 値カタログを定義する
+
+型上の `static readonly` フィールドまたは `static` プロパティに `[AspireValue]` を適用します。必須の `catalogName` 引数で、ゲスト SDK で生成されるカタログのルート名を設定します:
+
+```csharp title="C# — MyModels.cs"
+using Aspire.Hosting;
+
+[AspireDto]
+public sealed class MyModel
+{
+    public required string Name { get; init; }
+    public required string Version { get; init; }
+}
+
+public static class MyModels
+{
+    public static class FastModels
+    {
+        /// <summary>単純なタスク向けの高速で軽量なモデル。</summary>
+        [AspireValue("MyModels")]
+        public static readonly MyModel Lite = new() { Name = "my-model-lite", Version = "1" };
+
+        /// <summary>拡張コンテキスト サポートを備えた高速モデル。</summary>
+        [AspireValue("MyModels")]
+        public static readonly MyModel LiteLong = new() { Name = "my-model-lite-long", Version = "1" };
+    }
+
+    public static class PowerModels
+    {
+        /// <summary>複雑なタスク向けの高機能モデル。</summary>
+        [AspireValue("MyModels")]
+        public static readonly MyModel Pro = new() { Name = "my-model-pro", Version = "2" };
+    }
+}
+```
+
+スキャナーは、各フィールドまたはプロパティを JSON にシリアル化することで、スキャン時点の値を固定します。さらに XML ドキュメント コメントを読み取り、生成されるカタログに説明を含めます。
+
+### ゲスト SDK でカタログ値を使用する
+
+SDK を生成した後（例えば `aspire run` で）、カタログは各サポート言語で入れ子になったオブジェクトとして利用できます。入れ子構造は C# ソースの static クラス階層を反映します:
+
+```typescript title="TypeScript — apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import { MyModels } from './.modules/my-integration.js';
+
+const builder = await createBuilder();
+
+// 事前定義されたカタログ値を直接使用する
+await builder
+  .addMyService('svc', { model: MyModels.FastModels.Lite })
+  .build()
+  .run();
+```
+
+```python title="Python — apphost.py"
+from modules.my_integration import MyModels
+
+builder = await create_builder()
+
+await (
+    builder
+    .add_my_service("svc", model=MyModels.FastModels.Lite)
+    .build()
+    .run()
+)
+```
+
+### エクスポート名を上書きする
+
+既定では、エクスポート名はフィールド名またはプロパティ名と一致します。上書きするには `Name` プロパティを使用します:
+
+```csharp title="C# — エクスポート名を上書き"
+[AspireValue("MyModels", Name = "lite")]
+public static readonly MyModel Lite = new() { Name = "my-model-lite", Version = "1" };
+```
+
+### 値カタログの制約
+
+- エクスポートされるフィールドとプロパティは **static** でなければなりません。
+- 値は JSON にシリアル化可能である必要があります。ランタイム ハンドル、デリゲート、その他の非シリアル化状態を保持する型は避けてください。
+- ハンドル（`IResourceBuilder<T>`、リソース インスタンス）は、エクスポート値として **無効** です。
+- 値はスキャン時に **1 回だけ** 固定されます。生成される SDK ではコンパイル時定数として出力され、実行時に更新されることはありません。
+
+:::note
+`[AspireValue]` は事前定義された定数を生成 SDK にエクスポートするものです。ライブな実行時状態を共有する仕組みではありません。実行時の対話には、代わりに `[AspireExport]` メソッドを使用してください。
+:::
+
+## 互換性のないオーバーロードを扱う
+
+一部の C# オーバーロードでは、TypeScript で表現できない型（例: 非シリアル化コンテキストを持つ `Action<T>` デリゲート、補間文字列ハンドラー、C# 固有の型）を使用します。こうしたものには `[AspireExportIgnore]` を付けます:
+
+```csharp title="C# — 互換性のないオーバーロードを除外"
+// このオーバーロードは TypeScript で動作する。単純なパラメーター
+[AspireExport("withConnectionStringLimit", Description = "Sets connection limit")]
+public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    int maxConnections)
+{
+    // ...
+}
+
+// このオーバーロードは C# 固有型を使うので除外する
+[AspireExportIgnore(Reason = "ForwarderConfig is not ATS-compatible. Use the DTO-based overload.")]
+public static IResourceBuilder<MyDatabaseResource> WithConnectionStringLimit(
+    this IResourceBuilder<MyDatabaseResource> builder,
+    ForwarderConfig config)
+{
+    // ...
+}
+```
+
+<Aside type="caution">
+  Analyzer（ASPIREEXPORT008）は、エクスポートされた型上の公開拡張メソッドに
+  `[AspireExport]` または `[AspireExportIgnore]` のいずれも付いていないと警告します。すべての公開
+  メソッドは明示的にエクスポートするか除外する必要があります。
+</Aside>
+
+## Union 型
+
+パラメーターが複数型を受け入れる場合は、`[AspireUnion]` を使って有効な選択肢を宣言します:
+
+```csharp title="C# — Union 型パラメーター"
+[AspireExport("withEnvironment", Description = "Sets an environment variable")]
+public static IResourceBuilder<T> WithEnvironment<T>(
+    this IResourceBuilder<T> builder,
+    string name,
+    [AspireUnion(
+        typeof(string),
+        typeof(ReferenceExpression),
+        typeof(EndpointReference),
+        typeof(IResourceBuilder<ParameterResource>),
+        typeof(IResourceBuilder<IResourceWithConnectionString>),
+        typeof(IExpressionValue))]
+    object value)
+    where T : IResourceWithEnvironment
+{
+    // ...
+}
+```
+
+Union に含まれるすべての型は ATS 互換である必要があります。Analyzer（ASPIREEXPORT005、ASPIREEXPORT006）は、ビルド時に Union 宣言を検証します。
+
+## Analyzer 診断
+
+`Aspire.Hosting.Integration.Analyzers` パッケージは次の診断を報告します:
+
+| ID              | 重大度   | 説明                                                                                        |
+| --------------- | -------- | ------------------------------------------------------------------------------------------- |
+| ASPIREEXPORT001 | Error    | `[AspireExport]` メソッドは static でなければなりません                                    |
+| ASPIREEXPORT002 | Error    | 無効な export ID 形式（`[a-zA-Z][a-zA-Z0-9.]*` に一致する必要があります）                  |
+| ASPIREEXPORT003 | Error    | 戻り値型が ATS 互換ではありません                                                           |
+| ASPIREEXPORT004 | Error    | パラメーター型が ATS 互換ではありません                                                     |
+| ASPIREEXPORT005 | Warning  | `[AspireUnion]` には少なくとも 2 つの型が必要です                                           |
+| ASPIREEXPORT006 | Warning  | Union 型が ATS 互換ではありません                                                           |
+| ASPIREEXPORT007 | Warning  | 同じ対象型に対して export ID が重複しています                                               |
+| ASPIREEXPORT008 | Warning  | エクスポート型上の公開拡張メソッドに `[AspireExport]` または `[AspireExportIgnore]` がありません |
+| ASPIREEXPORT009 | Warning  | export 名がほかの統合と衝突する可能性があります                                             |
+| ASPIREEXPORT010 | Warning  | 同期コールバックがインラインで呼び出されています。多言語 AppHost でデッドロックする可能性があります |
+| ASPIREEXPORT011 | Warning  | 明示的な export ID が規約由来の名前と一致しています                                        |
+| ASPIREEXPORT012 | Warning  | コールバック コンテキスト型に `[AspireExport]` がありません                                 |
+| ASPIREEXPORT013 | Warning  | 同じアセンブリ内のエクスポート間で polyglot capability ID が重複しています                 |
+
+Analyzer 警告が 1 つもないクリーン ビルドであれば、統合は多言語利用の準備ができています。
+
+## プロジェクト参照によるローカル開発
+
+NuGet フィードに公開しなくても、統合をローカルでテストできます。TypeScript AppHost の `aspire.config.json` で、package 値にバージョン番号の代わりに `.csproj` パスを設定します:
+
+```json title="JSON — aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.ts",
+    "language": "typescript/nodejs"
+  },
+  "packages": {
+    "Aspire.Hosting.Redis": "13.3.0",
+    "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
+  }
+}
+```
+
+CLI が `.csproj` パスを検出すると、プロジェクトをローカルでビルドし、生成されたアセンブリから TypeScript SDK を生成します。これにより、フィードへ公開せずにエクスポートを反復できます。
+
+<Aside type="note">
+  プロジェクト参照には .NET SDK のインストールが必要です（`dotnet build` 用）。
+  NuGet のみのパス（バージョン文字列）では .NET SDK は不要です。
+</Aside>
+
+## エクスポートをテストする
+
+<Steps>
+
+1. テスト用の TypeScript AppHost を作成します:
+
+    ```bash title="テスト用 AppHost を作成"
+   mkdir test-apphost && cd test-apphost
+   aspire init --language typescript
+   ```
+
+2. `aspire.config.json` にプロジェクト参照として統合を追加します:
+
+    ```json title="JSON — aspire.config.json（packages セクション）"
+   {
+     "packages": {
+       "MyCompany.Hosting.MyDatabase": "../src/MyCompany.Hosting.MyDatabase/MyCompany.Hosting.MyDatabase.csproj"
+     }
+   }
+   ```
+
+3. `aspire run` を実行して TypeScript SDK を生成します:
+
+    ```bash title="SDK を生成して開始"
+   aspire run
+   ```
+
+4. 生成された `.modules/` ディレクトリで、統合の TypeScript 型を確認します。エクスポートしたメソッドが正しいシグネチャで現れることを検証してください。
+
+5. `apphost.ts` で生成された API を使用します:
+
+   ```typescript title="TypeScript — apphost.ts"
+   import { createBuilder } from './.modules/aspire.js';
+
+   const builder = await createBuilder();
+
+   const db = await builder
+     .addMyDatabase('db', { port: 5432 })
+     .addDatabase('mydata')
+     .withDataVolume();
+
+   await builder.build().run();
+   ```
+
+</Steps>
+
+## サポートされる型
+
+次の型は ATS 互換であり、エクスポート メソッド シグネチャで使用できます:
+
+| カテゴリ        | 型                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| **Primitives**  | `string`、`bool`、`int`、`long`、`float`、`double`、`decimal`                                         |
+| **Value types** | `DateTime`、`TimeSpan`、`Guid`、`Uri`                                                                 |
+| **Enums**       | 任意の enum 型                                                                                       |
+| **Handles**     | `IResourceBuilder<T>`、`IDistributedApplicationBuilder`、`[AspireExport]` が付いたリソース型        |
+| **DTOs**        | `[AspireDto]` が付いたクラス/構造体                                                                  |
+| **Exported values** | `[AspireValue]` が付いた static フィールド/プロパティ（ゲスト SDK ではカタログ定数として出力） |
+| **Collections** | `List<T>`、`Dictionary<string, T>`、配列。`T` は ATS 互換である必要があります                        |
+| **Delegates**   | `Action<T>`、`Func<T>`、その他のデリゲート型（インラインで呼ばれる同期デリゲートには `RunSyncOnBackgroundThread = true` を使用） |
+| **Services**    | `ILogger`、`IServiceProvider`、`IConfiguration`（コア フレームワークですでにエクスポート済み）      |
+| **Special**     | `ParameterResource`、`ReferenceExpression`、`EndpointReference`、`IExpressionValue`、`CancellationToken` |
+| **Nullable**    | 上記の nullable 版（`T?`）                                                                           |
+
+ATS 互換 **ではない** 型には、補間文字列ハンドラーや、`[AspireExport]` または `[AspireDto]` を持たないカスタム複合型が含まれます。
+
+## 関連情報
+
+- [Build your first app](/ja/get-started/first-app/?lang=typescript) — TypeScript AppHost を使い始める
+- [Custom resources](/ja/extensibility/custom-resources/) — カスタム リソース型の作成
+- [Integrations overview](/ja/integrations/overview/) — 利用可能な統合

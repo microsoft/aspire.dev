@@ -1,0 +1,191 @@
+---
+title: コンテナの永続的なライフタイム
+description: Aspire AppHost の実行をまたいでコンテナを永続化し再利用する方法を学びます。
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import persistentContainer from '@assets/whats-new/aspire-9/persistent-container.png';
+import persistentContainerDocker from '@assets/whats-new/aspire-9/persistent-container-docker-desktop.png';
+
+Aspire では、コンテナは典型的なライフサイクルに従い、AppHost の起動時に作成され停止時に破棄されます。ただし、この標準ライフサイクルから外れる**永続コンテナ**を使用するよう指定できます。永続コンテナは Aspire オーケストレーターによって作成・起動されますが、AppHost の停止時に破棄されず、実行をまたいで存続できます。
+
+この機能は、データベースなど起動時間が長いコンテナにとって特に有益で、AppHost を再起動するたびにサービスの初期化を待つ必要がなくなります。
+
+<Aside type="caution" title="永続コンテナ ≠ 永続データ">
+  `ContainerLifetime.Persistent` は AppHost の実行をまたいで**コンテナ**を存続させますが、**データの永続性**は**保証しません**。コンテナが再作成された場合（設定変更、`docker system prune`、またはイメージ更新による）、コンテナファイルシステム内のデータはすべて失われます。データがコンテナの再作成後も残るようにするには、`WithDataVolume()` も使用してください。詳細については、[ボリュームを使用したデータの永続化](/ja/fundamentals/persist-data-volumes/)を参照してください。
+</Aside>
+
+## 永続コンテナを設定する
+
+永続的なライフタイムを持つコンテナリソースを設定するには、 `WithLifetime` メソッドを使用して `ContainerLifetime.Persistent` を渡します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume();
+
+var db = postgres.AddDatabase("inventorydb");
+
+builder.AddProject<Projects.InventoryService>("inventory")
+       .WithReference(db);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres")
+    .withLifetime(ContainerLifetime.Persistent)
+    .withDataVolume();
+
+const db = postgres.addDatabase("inventorydb");
+
+await builder.addProject("inventory", "./InventoryService/InventoryService.csproj")
+    .withReference(db);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+上記の例では、 PostgreSQL コンテナが AppHost の実行をまたいで永続化されるよう設定されており、 `WithDataVolume()` によりデータベースのデータがコンテナ再作成後も存続する名前付きボリュームに保存されます。 `inventory` プロジェクトは通常どおりデータベースを参照します。
+
+## ダッシュボードの視覚化
+
+Aspire ダッシュボードでは、永続コンテナに特徴的なピンアイコン（📌）が表示され、識別しやすくなっています:
+
+<Image
+  src={persistentContainer}
+  alt="ピンアイコン付きの永続コンテナを表示した Aspire ダッシュボードのスクリーンショット。"
+/>
+
+AppHost が停止した後も、永続コンテナは動作し続け、コンテナランタイム（ Docker Desktop など）で確認できます:
+
+<Image
+  src={persistentContainerDocker}
+  alt="AppHost が停止した後も永続 RabbitMQ コンテナが動作している様子を示す Docker Desktop のスクリーンショット。"
+/>
+
+## 設定変更の検知
+
+永続コンテナは、 AppHost が重要な設定変更を検知した際に自動的に再作成されます。 Aspire は各コンテナの作成に使用した設定のハッシュを追跡し、その後の実行で現在の設定と比較します。設定が異なる場合、コンテナは新しい設定で再作成されます。
+
+このメカニズムにより、手動での操作を必要とせず、永続コンテナが AppHost の設定と同期し続けることが保証されます。
+
+## コンテナの命名と一意性
+
+デフォルトでは、永続コンテナは以下を組み合わせた命名パターンを使用します:
+
+- AppHost で指定したサービス名。
+- AppHost プロジェクトパスのハッシュに基づくポストフィックス。
+
+この命名スキームにより、永続コンテナが各 AppHost プロジェクトに固有のものとなり、複数の Aspire プロジェクトが同じサービス名を使用する際の競合を防ぎます。
+
+例えば、 `/path/to/MyApp.AppHost` にある AppHost プロジェクトで `"postgres"` という名前のサービスがある場合、コンテナ名は `postgres-abc123def` のようになります。 `abc123def` はプロジェクトパスのハッシュから導出されます。
+
+### カスタムコンテナ名
+
+高度なシナリオでは、 `WithContainerName` メソッドを使用してカスタムコンテナ名を設定できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres")
+                      .WithLifetime(ContainerLifetime.Persistent)
+                      .WithContainerName("my-shared-postgres");
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder, ContainerLifetime } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres("postgres")
+    .withLifetime(ContainerLifetime.Persistent)
+    .withContainerName("my-shared-postgres");
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+カスタムコンテナ名を指定した場合、 Aspire はまずその名前のコンテナが既に存在するかどうかを確認します。その名前のコンテナが存在し、 Aspire によって以前に作成されたものであれば、通常の永続コンテナの動作に従い、設定が変更された際に自動的に再作成されます。その名前のコンテナが存在するが Aspire によって作成されたものでない場合、 AppHost によって管理または再作成されません。カスタム名のコンテナが存在しない場合、 Aspire が新たに作成します。
+
+## 手動クリーンアップ
+
+<Aside type="caution">
+  AppHost を停止しても、永続コンテナは自動的に削除されません。
+  これらのコンテナを削除するには、ご使用のコンテナランタイムを使用して
+  手動で停止・削除する必要があります。
+</Aside>
+
+Docker CLI コマンドを使用して永続コンテナをクリーンアップできます:
+
+```bash
+# コンテナを停止する
+docker stop my-container-name
+
+# コンテナを削除する
+docker rm my-container-name
+```
+
+または、 Docker Desktop やお好みのコンテナ管理ツールを使用して永続コンテナを停止・削除することもできます。
+
+## ユースケースとメリット
+
+永続コンテナに最適なシナリオ:
+
+- **データベースサービス**: PostgreSQL、SQL Server、MySQL など、初期化とデータ読み込みに時間がかかるデータベース。
+- **メッセージブローカー**: RabbitMQ、Redis など、実行をまたいで状態を保持することで恩恵を受けるサービス。
+- **開発データ**: 開発の反復中に保持したいテストデータや設定を含むコンテナ。
+- **共有サービス**: 複数の AppHost または開発チームメンバーが共有できるサービス。
+
+## コンテナのライフタイムとデータの永続性
+
+`ContainerLifetime.Persistent` と `WithDataVolume()` はそれぞれ異なる目的を持ち、多くの場合組み合わせて使用されます。次の表は各組み合わせの動作をまとめたものです:
+
+| 設定 | コンテナの動作 | データの動作 |
+|---|---|---|
+| なし（デフォルト） | 起動時に作成、停止時に破棄 | AppHost が停止するたびに失われる |
+| `WithLifetime(ContainerLifetime.Persistent)` のみ | AppHost の実行をまたいで動作し続ける | AppHost の再起動後も存続するが、**コンテナが再作成された場合は失われる**（設定変更、プルーニング、イメージ更新） |
+| `WithDataVolume()` のみ | 起動時に作成、停止時に破棄 | 名前付きボリュームに永続化—**コンテナ再作成後も存続** |
+| 両方（データベースに推奨） | AppHost の実行をまたいで動作し続ける | 名前付きボリュームに永続化—コンテナ再作成後も存続 |
+
+**データベースやその他のステートフルなサービス**では、高速な起動（コンテナが動作し続ける）_と_データの安全性（コンテナが再作成されてもボリュームがデータを保護する）を両立するために、両方の API を組み合わせて使用してください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+const postgres = await builder.addPostgres("postgres")
+    .withLifetime(ContainerLifetime.Persistent)
+    .withDataVolume();
+```
+</TabItem>
+</Tabs>
+
+**キャッシュやその他のエフェメラルな状態**の場合、コンテナ再作成時にデータが失われても問題ないため、 `WithLifetime(ContainerLifetime.Persistent)` 単独でも十分な場合があります。
+
+<Aside type="tip">
+  ボリュームとバインドマウントの詳細については、[ボリュームを使用したデータの永続化](/ja/fundamentals/persist-data-volumes/)を参照してください。
+</Aside>

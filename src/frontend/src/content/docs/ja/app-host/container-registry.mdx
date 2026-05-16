@@ -1,0 +1,592 @@
+---
+title: コンテナーレジストリの設定
+description: Aspire アプリケーションのコンテナーレジストリを設定する方法について説明します。汎用レジストリと Azure Container Registry を対象としています。
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+Aspire 13.1 では明示的なコンテナーレジストリ設定が導入され、デプロイ時にコンテナーイメージをどこへいつプッシュするかを開発者が制御できるようになりました。この記事では、Aspire アプリケーションのコンテナーレジストリを設定する方法について説明します。
+
+## コンテナーレジストリの設定
+
+Aspire アプリケーションを本番環境にデプロイする際、コンテナー化されたサービスをコンテナーレジストリにプッシュする必要があります。Aspire 13.1 以前は、レジストリ設定が暗黙的であることが多く、デプロイプロセスの制御や把握が困難でした。新しい `ContainerRegistryResource` では、次の項目を明示的に設定できます:
+
+- **汎用コンテナーレジストリ** — DockerHub、GitHub Container Registry (GHCR)、Harbor、またはその他の Docker 互換レジストリ
+- **Azure Container Registry** — 自動認証情報管理による第一級サポート
+- **パイプライン統合** — `aspire do push` を使用してイメージのビルドとプッシュのタイミングを制御
+- **認証** — レジストリの認証情報を安全に設定
+
+## 汎用コンテナーレジストリ
+
+<Aside type="caution">
+  この API は試験的であり、将来のリリースで変更される可能性があります。試験的な警告を抑制するには、診断コード `ASPIRECOMPUTE003` を使用してください。詳細については、[ASPIRECOMPUTE003](/ja/diagnostics/aspirecompute003/) を参照してください。
+</Aside>
+
+`AddContainerRegistry` メソッドを使用して、アプリケーションの汎用コンテナーレジストリを設定します。DockerHub、GitHub Container Registry、Harbor、プライベートレジストリなど、あらゆる Docker 互換レジストリで使用できます。
+
+### 基本的な使い方
+
+次の例では、コンテナーレジストリを設定し、プロジェクトリソースに関連付けます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// コンテナーレジストリを追加する
+var registry = builder.AddContainerRegistry("myregistry", "registry.example.com");
+
+// レジストリをプロジェクトに関連付ける
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// コンテナーレジストリを追加する
+const registry = await builder.addContainerRegistry("myregistry", "registry.example.com");
+
+// レジストリをプロジェクトに関連付ける
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+上記のコードについて:
+
+- `registry.example.com` を指すコンテナーレジストリリソースを作成します。
+- レジストリを `api` プロジェクトに関連付けます。
+- デプロイ時に、`api` プロジェクトはコンテナーイメージとしてビルドされ、指定されたレジストリにプッシュされます。
+
+### DockerHub の例
+
+DockerHub にイメージをプッシュするには、レジストリエンドポイントとして `docker.io` を指定します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry("dockerhub", "docker.io");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistry("dockerhub", "docker.io");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
+
+### GitHub Container Registry の例
+
+GitHub Container Registry (GHCR) にイメージをプッシュするには:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry("ghcr", "ghcr.io");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistry("ghcr", "ghcr.io");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
+
+### プライベートレジストリの例
+
+プライベートレジストリの場合は、完全なレジストリ URL を指定します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registry = builder.AddContainerRegistry(
+    "private-registry", 
+    "registry.mycompany.com:5000");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registry = await builder.addContainerRegistry(
+    "private-registry",
+    "registry.mycompany.com:5000");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
+
+## 認証と認証情報
+
+コンテナーレジストリには通常、イメージをプッシュするための認証が必要です。パラメーターとシークレットを使用して認証情報を設定できます。
+
+### パラメーターを使用したレジストリ認証情報の設定
+
+パラメーターを使用すると、レジストリ設定を動的に提供できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryEndpoint = builder.AddParameter("registry-endpoint");
+var registryRepository = builder.AddParameter("registry-repository");
+
+var registry = builder.AddContainerRegistry(
+    "myregistry", 
+    registryEndpoint, 
+    registryRepository);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryEndpoint = await builder.addParameter("registry-endpoint");
+const registryRepository = await builder.addParameter("registry-repository");
+
+const registry = await builder.addContainerRegistry(
+    "myregistry",
+    registryEndpoint,
+    registryRepository);
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+```
+</TabItem>
+</Tabs>
+
+<LearnMore>
+  パラメーターの詳細については、[外部パラメーター](/ja/fundamentals/external-parameters/) を参照してください。
+</LearnMore>
+
+### 認証情報の設定
+
+レジストリの認証情報は、デプロイ環境を通じて設定する必要があります:
+
+#### Docker ログイン
+
+イメージをプッシュする前に、レジストリへの認証を確認してください:
+
+```bash title="Bash — Docker ログイン"
+docker login registry.example.com
+```
+
+DockerHub の場合:
+
+```bash title="Bash — DockerHub ログイン"
+docker login docker.io -u username
+```
+
+GitHub Container Registry の場合:
+
+```bash title="Bash — GHCR ログイン"
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+```
+
+#### CI/CD の設定
+
+CI/CD 環境 (GitHub Actions、Azure Pipelines など) では、シークレットを使用して認証情報を設定します:
+
+```yaml title="YAML — GitHub Actions の例"
+- name: Login to GitHub Container Registry
+  uses: docker/login-action@v3
+  with:
+    registry: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Push images
+  run: aspire do push
+```
+
+## Azure Container Registry
+
+Azure Container Registry (ACR) は、自動認証情報管理と並列プロビジョニングにより、Aspire との第一級の統合を提供します。
+
+### 明示的な ACR 設定
+
+Aspire 13.1 では、Azure Container Apps 環境向けの明示的なコンテナーレジストリ設定が導入されました:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var environment = builder.AddAzureContainerAppEnvironment("myenv");
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(environment);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const environment = await builder.addAzureContainerAppEnvironment("myenv");
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(environment);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+上記の例について:
+
+- コードは ACR が関連付けられた Azure Container Apps 環境を作成します。
+- ACR はその環境と並列にプロビジョニングされます。
+- レジストリが使用可能になるとすぐにイメージがプッシュされます。
+- 認証情報は Azure 認証を通じて自動的に管理されます。
+
+<Aside type="note">
+  Aspire 13.1 以前は、ACR は Container Apps 環境の一部として暗黙的にプロビジョニングされていました。明示的な設定によって、デプロイプロセスの制御と可視性が向上します。
+</Aside>
+
+<LearnMore>
+  詳細については、[Azure Container Registry 統合](/ja/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/) を参照してください。
+</LearnMore>
+
+### 既存の ACR を使用する
+
+既存の Azure Container Registry を使用するには、ACR を追加する際に `PublishAsExisting` メソッドを呼び出します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryName = builder.AddParameter("registryName");
+var rgName = builder.AddParameter("rgName");
+
+var acr = builder.AddAzureContainerRegistry("my-acr")
+    .PublishAsExisting(registryName, rgName);
+
+builder.AddAzureContainerAppEnvironment("env")
+    .WithAzureContainerRegistry(acr);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(acr);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryName = await builder.addParameter("registryName");
+const rgName = await builder.addParameter("rgName");
+
+const acr = await builder.addAzureContainerRegistry("my-acr");
+await acr.publishAsExisting(registryName, rgName);
+
+const environment = await builder.addAzureContainerAppEnvironment("env");
+await environment.withAzureContainerRegistry(acr);
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(acr);
+```
+</TabItem>
+</Tabs>
+
+## パイプライン統合
+
+Aspire のデプロイパイプラインには、コンテナーイメージをレジストリにプッシュするための専用の `push` ステップが含まれています。
+
+### aspire do push の使い方
+
+`aspire do push` コマンドは、コンテナーイメージをビルドし、設定されたレジストリにプッシュします:
+
+```bash title="Aspire CLI — イメージのプッシュ"
+aspire do push
+```
+
+このコマンドは以下を実行します:
+
+<Steps>
+
+1. コンピューティングリソースのすべてのコンテナーイメージをビルドします
+2. 適切なレジストリとリポジトリ名でイメージにタグを付けます
+3. 設定されたレジストリにイメージをプッシュします
+
+</Steps>
+
+出力例:
+
+```plaintext title="出力" data-disable-copy
+16:03:38 (pipeline-execution) → Starting pipeline-execution...
+16:03:38 (build-api) → Starting build-api...
+16:03:43 (push-api) → Starting push-api...
+16:03:43 (push-api) → Pushing api to container-registry
+16:03:44 (push-api) i [INF] Docker tag for api -> docker.io/username/api:latest succeeded.
+16:04:05 (push-api) i [INF] Docker push for docker.io/username/api:latest succeeded.
+16:04:05 (push-api) ✓ Successfully pushed api to docker.io/username/api:latest (21.3s)
+16:04:05 (push-api) ✓ push-api completed successfully
+```
+
+<LearnMore>
+  パイプラインコマンドの詳細については、[`aspire do` コマンド](/ja/reference/cli/commands/aspire-do/) を参照してください。
+</LearnMore>
+
+### パイプラインステップの依存関係
+
+`push` ステップは依存関係を自動的に処理します:
+
+- **`build-prereq`** — ビルド前に前提条件を確認します
+- **`build-<resource>`** — 各リソースのコンテナーイメージをビルドします
+- **`push-<resource>`** — レジストリにイメージをプッシュします
+
+個々のステップまたはパイプライン全体を実行できます:
+
+```bash title="Aspire CLI — ビルドのみ"
+aspire do build
+```
+
+```bash title="Aspire CLI — 完全デプロイ"
+aspire do deploy
+```
+
+`deploy` ステップには、すべてのリソースのビルド、プッシュ、デプロイが含まれます。
+
+## 完全な例
+
+### マルチレジストリデプロイ
+
+リソースごとに異なるレジストリを設定できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var publicRegistry = builder.AddContainerRegistry("dockerhub", "docker.io");
+var privateRegistry = builder.AddContainerRegistry(
+    "private", 
+    "registry.company.com");
+
+var publicApi = builder.AddProject<Projects.PublicApi>("public-api")
+    .WithContainerRegistry(publicRegistry);
+
+var internalApi = builder.AddProject<Projects.InternalApi>("internal-api")
+    .WithContainerRegistry(privateRegistry);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const publicRegistry = await builder.addContainerRegistry("dockerhub", "docker.io");
+const privateRegistry = await builder.addContainerRegistry(
+    "private",
+    "registry.company.com");
+
+const publicApi = await builder.addProject("public-api", "../PublicApi/PublicApi.csproj");
+await publicApi.withContainerRegistry(publicRegistry);
+
+const internalApi = await builder.addProject("internal-api", "../InternalApi/InternalApi.csproj");
+await internalApi.withContainerRegistry(privateRegistry);
+```
+</TabItem>
+</Tabs>
+
+### パラメーター化されたレジストリ設定
+
+環境をまたいで柔軟なデプロイが必要な場合にパラメーターを使用できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var registryEndpoint = builder.AddParameter("registry-endpoint");
+var registryRepository = builder.AddParameter("registry-repository");
+
+var registry = builder.AddContainerRegistry(
+    "container-registry", 
+    registryEndpoint, 
+    registryRepository);
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithContainerRegistry(registry);
+
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithContainerRegistry(registry);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const registryEndpoint = await builder.addParameter("registry-endpoint");
+const registryRepository = await builder.addParameter("registry-repository");
+
+const registry = await builder.addContainerRegistry(
+    "container-registry",
+    registryEndpoint,
+    registryRepository);
+
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withContainerRegistry(registry);
+
+const worker = await builder.addProject("worker", "../Worker/Worker.csproj");
+await worker.withContainerRegistry(registry);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+AppHost の設定でパラメーターを設定します:
+
+```json title="JSON — appsettings.json"
+{
+  "Parameters": {
+    "registry-endpoint": "ghcr.io",
+    "registry-repository": "myorg"
+  }
+}
+```
+
+または、環境変数を使用して設定することもできます:
+
+```bash title="Bash — 環境変数"
+export Parameters__registry_endpoint="ghcr.io"
+export Parameters__registry_repository="myorg"
+```
+
+### ACR を使用した Azure デプロイ
+
+次のコードは、Azure Container Apps と ACR を使用した完全な AppHost の例です:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// ACR を含む Azure Container Apps 環境を作成する
+var acaEnv = builder.AddAzureContainerAppEnvironment("production");
+
+// Redis キャッシュを追加する
+var cache = builder.AddRedis("cache");
+
+// レジストリ設定付きで API を追加する
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithContainerRegistry(acaEnv);
+
+// レジストリ設定付きでフロントエンドを追加する
+var web = builder.AddProject<Projects.Web>("web")
+    .WithReference(api)
+    .WithContainerRegistry(acaEnv);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+// ACR を含む Azure Container Apps 環境を作成する
+const environment = await builder.addAzureContainerAppEnvironment("production");
+
+// Redis キャッシュを追加する
+const cache = await builder.addRedis("cache");
+
+// レジストリ設定付きで API を追加する
+const api = await builder.addProject("api", "../Api/Api.csproj");
+await api.withReference(cache);
+await api.withContainerRegistry(environment);
+
+// レジストリ設定付きでフロントエンドを追加する
+const web = await builder.addProject("web", "../Web/Web.csproj");
+await web.withReference(api);
+await web.withContainerRegistry(environment);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## 明示的な設定のメリット
+
+Aspire 13.1 で導入された明示的なコンテナーレジストリ設定には、次のようなメリットがあります:
+
+- **可視性** — イメージのプッシュ先を明確に把握できます
+- **制御性** — レジストリエンドポイントと認証情報を明示的に設定できます
+- **並列処理** — レジストリのプロビジョニングが他のリソースと並列で実行されます
+- **早期フィードバック** — レジストリが準備でき次第イメージがプッシュされ、デプロイが高速化されます
+- **柔軟性** — あらゆる Docker 互換レジストリをサポートします
+
+<LearnMore>
+  コンテナーレジストリの改善についての詳細は、[Safia Abdalla のブログ投稿「Aspire のイメージ問題を修正する」](https://blog.safia.rocks/2025/12/15/aspire-image-push/) を参照してください。
+</LearnMore>
+
+## 関連項目
+
+- [Azure Container Registry 統合](/ja/integrations/cloud/azure/azure-container-registry/azure-container-registry-get-started/)
+- [Azure Container Apps 環境の設定](/ja/integrations/cloud/azure/configure-container-apps/)
+- [`aspire do` コマンド](/ja/reference/cli/commands/aspire-do/)
+- [外部パラメーター](/ja/fundamentals/external-parameters/)
+- [パイプラインとアプリトポロジー](/ja/deployment/pipelines/)

@@ -1,0 +1,365 @@
+---
+title: アプリモデルに Dockerfile を追加する
+description: アプリモデルに Dockerfile を追加する方法について説明します。
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Aspire では、`AddDockerfile` または `WithDockerfile` 拡張メソッドを使用して、[AppHost](/ja/get-started/app-host/) の起動時にビルドする _Dockerfile_ を指定できます。
+
+この 2 つのメソッドは異なる目的に使用します:
+
+- **`AddDockerfile`**: 既存の Dockerfile から新しいコンテナーリソースを作成します。カスタムのコンテナー化サービスをアプリモデルに追加したい場合に使用します。
+- **`WithDockerfile`**: 既存のコンテナーリソース (データベースやキャッシュなど) をカスタマイズして別の Dockerfile を使用するようにします。Aspire コンポーネントのデフォルトコンテナーイメージを変更したい場合に使用します。
+
+いずれのメソッドも、指定したコンテキストパスに既存の Dockerfile があることを前提としています。どちらのメソッドも Dockerfile を新規作成しません。AppHost コードから Dockerfile を生成するには、代わりに [Dockerfile ビルダー API](#dockerfile-をプログラムで生成する) を使用してください。
+
+## AddDockerfile と WithDockerfile の使い分け
+
+シナリオに応じて適切なメソッドを選択してください:
+
+**`AddDockerfile` を使用する場合:**
+
+- カスタムのコンテナー化サービスをアプリモデルに追加したい場合。
+- カスタムアプリケーションまたはサービス用の既存の Dockerfile がある場合。
+- Aspire コンポーネントが提供していない新しいコンテナーリソースを作成する必要がある場合。
+
+**`WithDockerfile` を使用する場合:**
+
+- 既存の Aspire コンポーネント (PostgreSQL、Redis など) をカスタマイズしたい場合。
+- デフォルトのコンテナーイメージをカスタムのものに置き換える必要がある場合。
+- 厳密に型指定されたリソースビルダーとその拡張メソッドを引き続き使用したい場合。
+- デフォルトのコンテナーイメージでは対応できない要件がある場合。
+
+## アプリモデルに Dockerfile を追加する
+
+次の例では、`AddDockerfile` 拡張メソッドを使用して、コンテナービルドのコンテキストパスを参照することでコンテナーを指定しています。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var container = builder.AddDockerfile(
+    "mycontainer", "relative/context/path");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const container = await builder.addDockerfile(
+    "mycontainer", "relative/context/path");
+```
+</TabItem>
+</Tabs>
+
+コンテキストパスの引数がルートパスでない場合、コンテキストパスは AppHost プロジェクトディレクトリからの相対パスとして解釈されます。
+
+デフォルトでは使用される _Dockerfile_ の名前は `Dockerfile` であり、コンテキストパスディレクトリ内に存在することが期待されます。_Dockerfile_ の名前は絶対パスまたはコンテキストパスへの相対パスとして明示的に指定することもできます。
+
+これは、ローカルで実行する場合や AppHost がデプロイする際に使用する特定の _Dockerfile_ を変更したい場合に便利です。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var container = builder.ExecutionContext.IsRunMode
+    ? builder.AddDockerfile(
+          "mycontainer", "relative/context/path", "Dockerfile.debug")
+    : builder.AddDockerfile(
+          "mycontainer", "relative/context/path", "Dockerfile.release");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const container = (await builder.executionContext.isRunMode())
+    ? await builder.addDockerfile(
+          "mycontainer", "relative/context/path", "Dockerfile.debug")
+    : await builder.addDockerfile(
+          "mycontainer", "relative/context/path", "Dockerfile.release");
+```
+</TabItem>
+</Tabs>
+
+## 既存のコンテナーリソースをカスタマイズする
+
+`AddDockerfile` を使用する場合、戻り値は `IResourceBuilder<ContainerResource>` です。Aspire には `ContainerResource` から派生した多くのカスタムリソース型が含まれています。
+
+`WithDockerfile` 拡張メソッドを使用すると、既存の Aspire コンポーネント (PostgreSQL、Redis、SQL Server など) のデフォルトコンテナーイメージを、独自の Dockerfile からビルドしたカスタムイメージに置き換えることができます。これにより、基盤となるコンテナーをカスタマイズしながら、厳密に型指定されたリソース型とその固有の拡張メソッドを引き続き使用できます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+// デフォルトの PostgreSQL コンテナーイメージをカスタムイメージに置き換えます
+// Dockerfile からビルドしたものを使用し、PostgreSQL 固有の機能は維持されます
+var pgsql = builder.AddPostgres("pgsql")
+    .WithDockerfile("path/to/context")
+    .WithPgAdmin(); // PostgreSQL リソースであることに変わりないため、引き続き動作します
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const pgsql = await builder.addPostgres("pgsql");
+
+// デフォルトの PostgreSQL コンテナーイメージをカスタムイメージに置き換えます
+// Dockerfile からビルドしたものを使用し、PostgreSQL 固有の機能は維持されます。
+await pgsql.withDockerfile("path/to/context");
+await pgsql.withPgAdmin(); // PostgreSQL リソースであることに変わりないため、引き続き動作します。
+```
+</TabItem>
+</Tabs>
+
+## Dockerfile をプログラムで生成する
+
+`AddDockerfileBuilder` または `WithDockerfileBuilder` は、AppHost コードから Dockerfile を生成する必要がある場合に使用します。これらの API は、Dockerfile が AppHost の設定に依存する場合、Dockerfile フラグメントを組み合わせたい場合、またはマルチステージイメージのビルドロジックをリソース定義の近くに保ちたい場合に便利です。
+
+<Aside type="caution">
+  Dockerfile ビルダー API は実験的であり、将来の
+  リリースで変更される可能性があります。C# の AppHost では、使用する際に診断
+  [`ASPIREDOCKERFILEBUILDER001`](/ja/diagnostics/aspiredockerfilebuilder001/) を抑制してください。
+</Aside>
+
+`AddDockerfileBuilder` は、新しいコンテナーリソースを作成し、生成された Dockerfile を 1 ステップで設定します:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddDockerfileBuilder("frontend", "../frontend", context =>
+{
+    var build = context.Builder.From("node:22-alpine", "build");
+    build.WorkDir("/app")
+        .Copy("package*.json", "./")
+        .Run("npm ci")
+        .Copy(".", ".")
+        .Run("npm run build");
+
+    var runtime = context.Builder.From("nginx:alpine", "runtime");
+    runtime.CopyFrom("build", "/app/dist", "/usr/share/nginx/html")
+        .Expose(80);
+
+    return Task.CompletedTask;
+}, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+
+  await dockerfile
+    .from("node:22-alpine", { stageName: "build" })
+    .workDir("/app")
+    .copy("package*.json", "./")
+    .run("npm ci")
+    .copy(".", ".")
+    .run("npm run build");
+
+  await dockerfile
+    .from("nginx:alpine", { stageName: "runtime" })
+    .copyFrom("build", "/app/dist", "/usr/share/nginx/html")
+    .expose(80);
+};
+
+await builder.addDockerfileBuilder("frontend", "../frontend", configureDockerfile, {
+  stage: "runtime",
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+`WithDockerfileBuilder` は、既存のコンテナーリソースに生成された Dockerfile を適用します。リソースの作成時に指定されたイメージ名は、パブリッシュ時に生成された Dockerfile のビルドに置き換えられます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel.Docker;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+#pragma warning disable ASPIREDOCKERFILEBUILDER001
+builder.AddContainer("frontend", "nginx:alpine")
+    .WithDockerfileBuilder("../frontend", context =>
+    {
+        var stage = context.Builder.From("nginx:alpine", "runtime");
+        stage.Copy(".", "/usr/share/nginx/html")
+            .Expose(80);
+
+        return Task.CompletedTask;
+    }, stage: "runtime");
+#pragma warning restore ASPIREDOCKERFILEBUILDER001
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+import type { DockerfileBuilderCallbackContext } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const configureDockerfile = async (context: DockerfileBuilderCallbackContext) => {
+  const dockerfile = await context.builder();
+  await dockerfile
+    .from("nginx:alpine", { stageName: "runtime" })
+    .copy(".", "/usr/share/nginx/html")
+    .expose(80);
+};
+
+await builder
+  .addContainer("frontend", "nginx:alpine")
+  .withDockerfileBuilder("../frontend", configureDockerfile, {
+    stage: "runtime",
+  });
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## ビルド引数を渡す
+
+`WithBuildArg` メソッドを使用して、コンテナーイメージのビルドに引数を渡すことができます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var container = builder.AddDockerfile("mygoapp", "relative/context/path")
+    .WithBuildArg("GO_VERSION", "1.22");
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const container = await builder.addDockerfile("mygoapp", "relative/context/path");
+await container.withBuildArg("GO_VERSION", "1.22");
+```
+</TabItem>
+</Tabs>
+
+`WithBuildArg` メソッドの値パラメーターには、リテラル値 (`boolean`、`string`、`int`) またはパラメーターリソースのリソースビルダーを指定できます ([パラメーターリソース](/ja/fundamentals/external-parameters/) を参照)。次のコードでは、`GO_VERSION` をデプロイ時に指定できるパラメーター値に置き換えます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var goVersion = builder.AddParameter("goversion");
+
+var container = builder.AddDockerfile("mygoapp", "relative/context/path")
+    .WithBuildArg("GO_VERSION", goVersion);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const goVersion = await builder.addParameter("goversion");
+
+const container = await builder.addDockerfile("mygoapp", "relative/context/path");
+await container.withBuildArg("GO_VERSION", goVersion);
+```
+</TabItem>
+</Tabs>
+
+ビルド引数は _Dockerfiles_ の [`ARG` コマンド](https://docs.docker.com/build/guide/build-args/) に対応します。前述の例を拡張したマルチステージ _Dockerfile_ では、使用するコンテナーイメージのバージョンをパラメーターとして指定しています。
+
+```dockerfile title="Dockerfile"
+# Stage 1: Go プログラムをビルドする
+ARG GO_VERSION=1.22
+FROM golang:${GO_VERSION} AS builder
+WORKDIR /build
+COPY . .
+RUN go build mygoapp.go
+
+# Stage 2: Go プログラムを実行する
+FROM mcr.microsoft.com/cbl-mariner/base/core:2.0
+WORKDIR /app
+COPY --from=builder /build/mygoapp .
+CMD ["./mygoapp"]
+```
+
+<Aside type="note">
+  コンテナーイメージに値をハードコーディングする代わりに、頻繁に変更される値には
+  環境変数を使用することをお勧めします。これにより、変更のたびに
+  コンテナーイメージを再ビルドする必要がなくなります。
+</Aside>
+
+## ビルドシークレットを渡す
+
+ビルド引数に加え、`WithBuildSecret` を使用してビルドシークレットを指定できます。シークレットは、`RUN` コマンドの `--mount=type=secret` 構文を使用して _Dockerfile_ 内の個別のコマンドに選択的に公開されます。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var accessToken = builder.AddParameter("accesstoken", secret: true);
+
+var container = builder.AddDockerfile("myapp", "relative/context/path")
+    .WithBuildSecret("ACCESS_TOKEN", accessToken);
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const accessToken = await builder.addParameter("accesstoken", { secret: true });
+
+const container = await builder.addDockerfile("myapp", "relative/context/path");
+await container.withBuildSecret("ACCESS_TOKEN", accessToken);
+```
+</TabItem>
+</Tabs>
+
+たとえば、_Dockerfile_ の `RUN` コマンドで指定したシークレットを特定のコマンドに公開する場合を考えてみましょう:
+
+```dockerfile title="Dockerfile"
+# helloworld コマンドは /run/secrets/ACCESS_TOKEN からシークレットを読み取ることができます
+RUN --mount=type=secret,id=ACCESS_TOKEN helloworld
+```
+
+<Aside type="caution">
+  ビルド環境でシークレットを渡す際は注意が必要です。これは
+  プライベートリポジトリやフィードから依存関係を取得するためのトークンを使用する場合によく行われます。
+  注入されたシークレットが最終イメージや中間イメージにコピーされないよう
+  にすることが重要です。
+</Aside>

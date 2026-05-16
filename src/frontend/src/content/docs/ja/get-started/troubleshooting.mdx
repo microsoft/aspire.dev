@@ -1,0 +1,210 @@
+---
+title: Aspire トラブルシューティング ガイド
+description: Docker の問題、ポート競合、サービス検出エラー、TypeScript AppHost の問題など、Aspire の導入時によくあるトラブルへの対処法をまとめています。
+---
+
+import { Aside, Code, Steps } from '@astrojs/starlight/components';
+import { Kbd } from 'starlight-kbd/components';
+import LearnMore from '@components/LearnMore.astro';
+import OsAwareTabs from '@components/OsAwareTabs.astro';
+
+Aspire の導入で問題が発生していますか? このページでは、開発者がよく遭遇する代表的な問題の解決策を紹介します。
+
+## Docker Desktop が起動していない
+
+**症状**: `aspire run` が停止したままになる、または「container runtime を待機中」のメッセージが表示されます。
+
+**解決策**: `aspire run` を実行する前に Docker Desktop (または Podman) を起動してください。システムトレイで Docker が緑色のステータス表示で動作していることを確認します。
+
+<Aside type="caution">
+  Aspire はデータベース、キャッシュ、その他のリソースでコンテナーを使用します。
+  container runtime がない場合、これらのリソースは起動できません。
+</Aside>
+
+## ポートが既に使用中
+
+**症状**: 「Address already in use」や「Port 5000 is already bound.」のようなエラー メッセージが表示されます。
+
+**解決策**:
+
+- 同じポートを使用しているほかのアプリケーションを停止する
+- 別の Aspire アプリが動作中の場合は、まず <Kbd windows="Ctrl+C" mac="⌃+C" /> で停止する
+
+### ポートを使用しているプロセスを特定する方法
+
+<OsAwareTabs syncKey="terminal">
+    <div slot="windows">
+    
+    ```powershell
+    netstat -ano | findstr :5000
+    # 最後の列で PID を確認してから:
+    taskkill /PID <pid> /F
+    ```
+
+    </div>
+    <div slot="unix">
+
+    ```bash
+    lsof -i :5000
+    # 次にプロセスを終了:
+    kill -9 <pid>
+    ```
+    </div>
+
+</OsAwareTabs>
+
+## ダッシュボードでサービスが "Unhealthy" と表示される
+
+**症状**: Aspire ダッシュボードでサービスが赤い状態、または「Unhealthy」と表示されます。
+
+**解決策**:
+
+<Steps>
+
+1. ダッシュボードでサービス名をクリックし、ログを確認する
+2. 起動時エラーや例外を探す
+3. 正常性 チェック エンドポイントが存在することを確認する (例: `/health` が 200 OK を返す)
+4. すべての依存関係が正常に起動したことを確認する
+
+</Steps>
+
+## "Connection refused" エラー
+
+**症状**: フロントエンドが API に接続できず、connection refused エラーが表示されます。
+
+**解決策**: AppHost で `WaitFor()` を使用していることを確認してください:
+
+```csharp title="AppHost.cs"
+builder.AddProject<Projects.WebFrontend>("frontend")
+    .WithReference(apiService)
+    .WaitFor(apiService);  // この行を追加!
+```
+
+## 環境変数が利用できない
+
+**症状**: サービスで、注入されるはずの接続文字列や構成を見つけられません。
+
+**解決策**: リソース接続に `WithReference()` を使用していることを確認してください。
+
+### 例: サービスにデータベースを接続する
+
+AppHost 側:
+
+```csharp title="AppHost.cs"
+var db = builder.AddPostgres("db");
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(db);  // これにより接続文字列が注入されます
+```
+
+サービス コード側では、構成から接続文字列を取得します:
+
+```csharp title="Program.cs"
+var connectionString = builder.Configuration.GetConnectionString("db");
+```
+
+接続文字列は `ConnectionStrings__db` という名前の環境変数として注入されます。
+
+## コンテナー イメージの pull 失敗
+
+**症状**: コンテナー イメージの pull 失敗、または「image not found」エラーが表示されます。
+
+**解決策**:
+
+- インターネット接続を確認する
+- Docker Hub または使用中のコンテナー レジストリにアクセスできることを確認する
+- 企業ネットワークを使用している場合は、Docker Desktop のプロキシ設定を確認する
+
+### イメージを手動で pull して確認する方法
+
+```bash
+# まずイメージを手動で pull して確認
+docker pull redis:latest
+
+# プロキシ環境の場合は Docker Desktop を設定:
+# 設定 > リソース > プロキシ > 手動プロキシ構成
+```
+
+## ダッシュボードが読み込まれない
+
+**症状**: Aspire ダッシュボードの URL に応答がない、または空白ページが表示されます。
+
+**解決策**:
+
+<Steps>
+
+1. コンソール出力で正しいダッシュボード URL を確認する (別ポートが使われる場合があります)
+2. ブラウザー拡張機能がページをブロックしていないことを確認する
+3. 別のブラウザーまたはシークレット モードで試す
+4. ウイルス対策ソフトやファイアウォールが接続をブロックしていないか確認する
+
+</Steps>
+
+## サービス検出が機能しない
+
+**症状**: サービス同士が名前で見つけられません (例: `http://apiservice` が解決されない)。
+
+**解決策**: AppHost で定義したサービス名を、完全に同じ文字列で使用していることを確認してください。
+
+### 例: 正しいサービス検出の設定
+
+```csharp title="AppHost.cs"
+// AppHost 側
+var api = builder.AddProject<Projects.Api>("apiservice");  // 名前は "apiservice"
+```
+
+```csharp title="Program.cs"
+// 利用側サービスではこの名前を正確に使用
+var client = new HttpClient { BaseAddress = new Uri("http://apiservice") };
+```
+
+次の点も確認してください:
+
+- 両方のサービスで `AddServiceDefaults()` が呼び出されている
+- 利用側サービスに AppHost で `.WithReference(api)` が設定されている
+
+<LearnMore>
+  Aspire のサービス検出の仕組みをより深く理解するには、
+  [サービス検出](/ja/fundamentals/service-discovery/)を参照してください。
+</LearnMore>
+
+## TypeScript AppHost の問題
+
+### "Command not found" エラー
+
+Node.js がインストールされ、`PATH` で利用可能であることを確認してください:
+
+```bash title="Node.js のインストールを確認"
+node --version
+npm --version
+```
+
+### SDK コンパイル エラー
+
+生成された `.modules/` SDK でコンパイル エラーが発生する場合:
+
+1. Aspire CLI の最新バージョンがインストールされていることを確認します。
+2. `.modules` ディレクトリを削除し、`aspire run` を再実行して SDK を再生成します。
+3. 既知の問題は [Aspire GitHub issues](https://github.com/microsoft/aspire/issues) を確認します。
+
+### デバッグ モード
+
+問題を診断するには、デバッグ出力で実行します:
+
+```bash title="デバッグ出力で実行"
+aspire run --log-level Debug
+```
+
+### CLI ログ
+
+Aspire CLI のログは次に保存されます:
+
+<OsAwareTabs syncKey="terminal">
+  <Code slot="unix" lang="bash" code="$HOME/.aspire/cli/logs/" />
+  <Code slot="windows" lang="powershell" code="$HOME\.aspire\cli\logs\" />
+</OsAwareTabs>
+
+## 関連情報
+
+- [最初の Aspire アプリを作成する](/ja/get-started/first-app/)
+- [正常性 チェック](/ja/fundamentals/health-checks/)
+- [サービス検出](/ja/fundamentals/service-discovery/)

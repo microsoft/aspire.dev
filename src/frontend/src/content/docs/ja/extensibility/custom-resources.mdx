@@ -1,0 +1,292 @@
+---
+title: Aspire カスタム リソース
+description: アプリケーション固有のインフラストラクチャ コンポーネントをモデル化するために、Aspire AppHost 向けのカスタム リソース型を作成する方法を学びます。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+カスタム リソースを作成すると、組み込み統合でカバーされていないコンポーネントをモデル化できるように Aspire を拡張できます。このガイドでは、独自のリソース型を構築するためのパターンと API について説明します。
+
+## リソースの基本
+
+すべての Aspire リソースは `IResource` インターフェイスを実装し、`Name` プロパティが必要です。基本の `Resource` クラスには、継承できるシンプルな実装が用意されています。
+
+### 基本的なリソース定義
+
+最もシンプルなカスタム リソースは、`Resource` を継承するクラスです:
+
+```csharp title="MailDevResource.cs"
+public sealed class MailDevResource(string name) : Resource(name);
+```
+
+これでアプリ モデルに追加できるリソースは作成できますが、特別な動作はまだありません。通常は、機能を追加するために追加のインターフェイスを実装します。
+
+## よく使うリソース インターフェイス
+
+Aspire には、リソースに特定の機能を付与するいくつかのインターフェイスがあります:
+
+| インターフェイス | 目的 |
+|-----------|---------|
+| `IResourceWithConnectionString` | リソースがコンシューマー向けに接続文字列を公開する |
+| `IResourceWithEndpoints` | リソースがネットワーク エンドポイントを持つ |
+| `IResourceWithEnvironment` | リソースが環境変数を構成できる |
+| `IResourceWithArgs` | リソースがコマンド ライン引数を受け取る |
+| `IResourceWithWaitSupport` | リソースが `WaitFor` オーケストレーションをサポートする |
+| `IResourceWithParent` | リソースが親リソースを持つ（ライフサイクル バインド） |
+
+### IResourceWithConnectionString の実装
+
+クライアント アプリケーション向けに接続文字列を公開するリソースは、`IResourceWithConnectionString` を実装する必要があります:
+
+```csharp title="MailDevResource.cs"
+public sealed class MailDevResource(string name, EndpointReference smtpEndpoint) 
+    : Resource(name), IResourceWithConnectionString
+{
+    public ReferenceExpression ConnectionStringExpression =>
+        ReferenceExpression.Create(
+            $"smtp://{smtpEndpoint.Property(EndpointProperty.Host)}:{smtpEndpoint.Property(EndpointProperty.Port)}");
+}
+```
+
+認証があるリソースでは、接続文字列に資格情報を含めます:
+
+```csharp title="InfluxDbResource.cs"
+public sealed class InfluxDbResource : Resource, IResourceWithConnectionString
+{
+    private readonly EndpointReference _endpoint;
+    private readonly ParameterResource _token;
+
+    public InfluxDbResource(
+        string name,
+        EndpointReference endpoint,
+        ParameterResource token) : base(name)
+    {
+        _endpoint = endpoint;
+        _token = token;
+    }
+
+    public ReferenceExpression ConnectionStringExpression =>
+        ReferenceExpression.Create(
+            $"Endpoint={_endpoint.Property(EndpointProperty.UriString)};" +
+            $"Token={_token}");
+}
+```
+
+## 拡張メソッドの作成
+
+慣例として、リソースは `IDistributedApplicationBuilder` の拡張メソッドを通じてアプリ モデルに追加します:
+
+```csharp title="MailDevExtensions.cs"
+public static class MailDevExtensions
+{
+    public static IResourceBuilder<MailDevResource> AddMailDev(
+        this IDistributedApplicationBuilder builder,
+        [ResourceName] string name,
+        int? smtpPort = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(name);
+
+        var resource = new MailDevResource(name);
+        
+        return builder.AddResource(resource)
+            .WithImage("maildev/maildev", "2.1.0")
+            .WithHttpEndpoint(targetPort: 1080, name: "http")
+            .WithEndpoint(targetPort: 1025, port: smtpPort, name: "smtp");
+    }
+}
+```
+
+`[ResourceName]` 属性により、リソース名に対する IDE ツール機能と検証が有効になります。
+
+## リソースの動作追加
+
+既定では、リソースはデータ コンテナーです。ランタイム動作を追加するには、次のいずれかの方法を使用します:
+
+### イベント サブスクライバーを使う
+
+ライフサイクル動作を追加する推奨方法は、`IDistributedApplicationEventingSubscriber` を実装することです:
+
+```csharp title="MailDevEventingSubscriber.cs"
+public sealed class MailDevEventingSubscriber(
+    ResourceNotificationService notification,
+    ResourceLoggerService loggerService) 
+    : IDistributedApplicationEventingSubscriber
+{
+    public Task SubscribeAsync(
+        IDistributedApplicationEventing eventing,
+        DistributedApplicationExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        eventing.Subscribe<AfterResourcesCreatedEvent>(async (@event, ct) =>
+        {
+            foreach (var resource in context.Model.Resources.OfType<MailDevResource>())
+            {
+                var logger = loggerService.GetLogger(resource);
+                logger.LogInformation("MailDev server ready at {Name}", resource.Name);
+
+                await notification.PublishUpdateAsync(resource, s => s with
+                {
+                    State = KnownResourceStates.Running,
+                    StartTimeStamp = DateTime.UtcNow
+                });
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+}
+```
+
+<LearnMore>
+利用可能なイベントの完全な一覧と高度なパターンについては、[AppHost eventing](/ja/app-host/eventing/) を参照してください。
+</LearnMore>
+
+拡張メソッドでサブスクライバーを登録します:
+
+```csharp title="MailDevExtensions.cs"
+public static IResourceBuilder<MailDevResource> AddMailDev(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name,
+    int? smtpPort = null)
+{
+    builder.Services.TryAddEventingSubscriber<MailDevEventingSubscriber>();
+    
+    var resource = new MailDevResource(name);
+    return builder.AddResource(resource);
+}
+```
+
+### インライン イベント購読を使う
+
+よりシンプルなケースでは、リソース ビルダーで直接イベントを購読できます:
+
+```csharp title="AppHost.cs"
+public static IResourceBuilder<MailDevResource> AddMailDev(
+    this IDistributedApplicationBuilder builder,
+    [ResourceName] string name)
+{
+    var resource = new MailDevResource(name);
+    
+    builder.Eventing.Subscribe<AfterResourcesCreatedEvent>(resource, async (@event, ct) =>
+    {
+        // メール サーバーを初期化し、テスト用メールボックスを作成するなど。
+    });
+    
+    return builder.AddResource(resource);
+}
+```
+
+## リソース状態管理
+
+ダッシュボードに表示される状態更新を公開するには、`ResourceNotificationService` を使用します:
+
+```csharp title="状態更新の公開"
+await notification.PublishUpdateAsync(resource, state => state with
+{
+    State = KnownResourceStates.Running,
+    StartTimeStamp = DateTime.UtcNow
+});
+```
+
+### 既知の状態
+
+Aspire は `KnownResourceStates` にいくつかの既知の状態を提供します:
+
+- `NotStarted` - リソースはまだ開始されていない
+- `Starting` - リソースを初期化中
+- `Running` - リソースは稼働中
+- `Stopping` - リソースを停止中
+- `Exited` - リソースは停止済み
+- `FailedToStart` - 起動時にリソースが失敗した
+- `Waiting` - リソースは依存関係を待機中
+- `Hidden` - リソースはダッシュボードから非表示
+
+### カスタム状態
+
+`ResourceStateSnapshot` を使用してカスタム状態を作成できます:
+
+```csharp title="カスタム状態の例"
+await notification.PublishUpdateAsync(resource, state => state with
+{
+    State = new ResourceStateSnapshot("Indexing", KnownResourceStateStyles.Info)
+});
+```
+
+## 初期状態の構成
+
+`WithInitialState` を使ってダッシュボードでの初期表示を設定します:
+
+```csharp title="初期状態の設定"
+return builder.AddResource(resource)
+    .WithInitialState(new CustomResourceSnapshot
+    {
+        ResourceType = "MailDev",
+        CreationTimeStamp = DateTime.UtcNow,
+        State = KnownResourceStates.NotStarted,
+        Properties = [
+            new(CustomResourceKnownProperties.Source, "MailDev SMTP Server")
+        ]
+    });
+```
+
+## マニフェストから除外
+
+リソースがローカル開発専用である場合は、デプロイ マニフェストから除外します:
+
+```csharp title="デプロイから除外"
+return builder.AddResource(resource)
+    .ExcludeFromManifest();
+```
+
+## リソース関係
+
+関係を使って、ダッシュボードでのリソース表示を整理します:
+
+### WithRelationship
+
+視覚的な整理のために、リソース間でカスタム関係を作成します:
+
+```csharp title="AppHost.cs"
+var api = builder.AddProject<Projects.Api>("api");
+var worker = builder.AddProject<Projects.Worker>("worker")
+    .WithRelationship(api.Resource, "publishes-to");
+```
+
+### WithChildRelationship
+
+ダッシュボードで、関連するリソースを親の下にグループ化します:
+
+```csharp title="AppHost.cs"
+var postgres = builder.AddPostgres("postgres");
+var catalogDb = postgres.AddDatabase("catalog");
+
+// カスタム リソースでも親子関係を確立できます:
+var mailDev = builder.AddMailDev("mail")
+    .WithChildRelationship(catalogDb);
+```
+
+<LearnMore>
+Aspire Dashboard でのリソース表示の詳細は、[Dashboard overview](/ja/dashboard/overview/) を参照してください。
+</LearnMore>
+
+## カスタム アイコン
+
+`WithIconName` を使うと、ダッシュボードでリソースにカスタム アイコンを表示できます。任意の [Fluent UI system icon](https://github.com/microsoft/fluentui-system-icons/blob/main/icons_filled.md) を使用できます:
+
+```csharp title="カスタム ダッシュボード アイコンの設定"
+return builder.AddResource(resource)
+    .WithIconName("mail");  // "mail" の Fluent UI アイコンを使用
+
+// またはバリアントを指定（既定は Filled、Regular はアウトラインのみ）
+return builder.AddResource(resource)
+    .WithIconName("mail", IconVariant.Regular);
+```
+
+## 関連情報
+
+- [AppHost eventing](/ja/app-host/eventing/) - ライフサイクル イベントとサブスクライバー
+- [Resource annotations](/ja/fundamentals/annotations-overview/) - 注釈の作成と利用
+- [Resource examples](/ja/architecture/resource-examples/) - 実運用のカスタム リソース例
+- [Custom resource commands](/ja/fundamentals/custom-resource-commands/) - ダッシュボード コマンドの追加

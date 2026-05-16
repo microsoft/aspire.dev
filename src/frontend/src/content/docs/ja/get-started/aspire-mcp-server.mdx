@@ -1,0 +1,317 @@
+---
+title: Aspire MCP サーバー
+description: AI コーディングエージェント向けの Aspire MCP サーバーのツール、セキュリティモデル、トラブルシューティングについて説明します。
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+:::note
+Aspire ダッシュボードに組み込まれていた MCP サーバーは削除されました。[`aspire agent mcp`](/ja/reference/cli/commands/aspire-agent-mcp/) CLI コマンドが Aspire MCP サーバーを起動する方法になりました。
+:::
+
+Aspire <abbr title="Model Context Protocol" data-tooltip-placement="top">MCP</abbr> サーバーは、AI コーディングエージェントに実行中の Aspire アプリケーションへの直接ランタイムアクセスを提供します。Model Context Protocol (MCP) を通じて、エージェントはリソースの状態を照会し、ログを読み取り、分散トレースを検査し、コマンドを実行できます — ターミナル出力をコピー＆ペーストする必要はありません。
+
+`aspire agent init` を実行して **Install Aspire MCP server** を選択すると、MCP サーバーは自動的に設定されます。
+
+<LearnMore>
+  AI コーディングエージェント向けにプロジェクトをセットアップするには、[AI コーディングエージェントを活用する](/ja/get-started/ai-coding-agents/)を参照してください。
+</LearnMore>
+
+## 設定
+
+`aspire agent init` コマンドは、検出された AI 環境向けの MCP サーバー設定ファイルを作成します:
+
+<Tabs syncKey='ai-ide'>
+  <TabItem label="VS Code" id="vscode">
+    `.vscode/mcp.json` を作成または更新します:
+
+    ```json title=".vscode/mcp.json"
+    {
+      "servers": {
+        "aspire": {
+          "type": "stdio",
+          "command": "aspire",
+          "args": [
+            "agent",
+            "mcp"
+          ]
+        }
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Claude Code" id="claude">
+    `.mcp.json` を作成または更新します:
+
+    ```json title=".mcp.json"
+    {
+      "mcpServers": {
+        "aspire": {
+          "command": "aspire",
+          "args": [
+            "agent",
+            "mcp"
+          ]
+        }
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Copilot CLI" id="copilot-cli">
+    `~/.copilot/mcp-config.json` を作成または更新します:
+
+    ```json title="~/.copilot/mcp-config.json"
+    {
+      "mcpServers": {
+        "aspire": {
+          "type": "local",
+          "command": "aspire",
+          "args": [
+            "agent",
+            "mcp"
+          ]
+        }
+      }
+    }
+    ```
+  </TabItem>
+  <TabItem label="OpenCode" id="opencode">
+    `opencode.jsonc` を作成または更新します:
+
+    ```jsonc title="opencode.jsonc"
+    {
+      "mcp": {
+        "aspire": {
+          "type": "local",
+          "command": [
+            "aspire",
+            "agent",
+            "mcp"
+          ],
+          "enabled": true
+        }
+      }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## ツール
+
+Aspire MCP サーバーは、AI エージェントに次のツールを提供します:
+
+| ツール | 説明 |
+|------|-------------|
+| `list_resources` | 状態、ヘルス状態、ソース、エンドポイント、コマンドを含むすべてのリソースを一覧表示します |
+| `list_console_logs` | リソースのコンソールログを一覧表示します |
+| `list_structured_logs` | 構造化ログを一覧表示します。リソース名でフィルタリングできます |
+| `list_traces` | 分散トレースを一覧表示します。リソース名でフィルタリングできます |
+| `list_trace_structured_logs` | 特定のトレースの構造化ログを一覧表示します |
+| `execute_resource_command` | リソースコマンド (start、stop、restart) を実行します |
+| `list_apphosts` | 検出された AppHost の接続とそのスコープを一覧表示します |
+| `select_apphost` | 複数の AppHost が実行中の場合に使用する AppHost を選択します |
+| `list_integrations` | 利用可能な Aspire ホスティング統合パッケージを一覧表示します |
+| `get_integration_docs` | 特定の統合パッケージのドキュメントを取得します |
+| `list_docs` | aspire.dev で利用可能なすべてのドキュメントページを一覧表示します |
+| `search_docs` | キーワード検索を使用して aspire.dev のドキュメントを検索します |
+| `get_doc` | スラッグでドキュメントページの全内容を取得します |
+| `doctor` | Aspire 環境の問題を診断し、セットアップを確認します |
+| `refresh_tools` | サーバーにツールリストを再送信するよう要求し、クライアントが再取得できるようにします |
+
+### MCP からリソースを除外する
+
+デフォルトでは、すべてのリソース、コンソールログ、テレメトリが MCP サーバーを通じてアクセス可能です。`ExcludeFromMcp()` でアノテーションを付けることで、特定のリソースとそれに関連するテレメトリを除外できます:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var apiservice = builder.AddProject<Projects.AspireApp_ApiService>("apiservice")
+    .ExcludeFromMcp();
+
+builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(apiservice);
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const apiservice = await builder
+  .addProject("apiservice", "./api/ApiService.csproj")
+  .excludeFromMcp();
+
+await builder
+  .addProject("webfrontend", "./web/Web.csproj")
+  .withExternalHttpEndpoints()
+  .withReference(apiservice);
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## セキュリティ
+
+Aspire MCP サーバーは、ローカル使用向けに設計された開発時ツールです。
+
+### 仕組み
+
+MCP サーバーは `aspire agent mcp` で起動すると **STDIO トランスポートプロトコル** を使用します:
+
+- MCP サーバーは AI アシスタントによって起動された **ローカル子プロセス** として実行されます。
+- 通信は **標準入出力 (STDIO) パイプ** を介して行われます。
+- **オープンなネットワークポートはありません** — サーバーはネットワークインターフェースをリッスンしません。
+- **親プロセス (AI アシスタント) のみ** が MCP サーバーと通信できます。
+
+<Aside type="tip">
+STDIO トランスポートはネットワークソケットではなくパイプを使用するため、ネットワーク攻撃面がありません。MCP サーバーは、それを起動した AI アシスタントプロセスのみがアクセスできます。
+</Aside>
+
+### アクセス可能なデータ
+
+MCP サーバーは次のデータへのアクセスを提供します:
+
+- **リソースメタデータ** — 名前、種類、状態、ヘルス状態、エンドポイント、コマンド
+- **コンソールログ** — 標準出力とエラーストリーム
+- **構造化ログ** — OpenTelemetry 経由のログエントリ
+- **分散トレース** — リソース間のリクエストフロー
+- **統合カタログ** — 利用可能なホスティング統合パッケージ
+- **製品ドキュメント** — LLMS.txt ベースの公式 `aspire.dev` コンテンツ 
+
+MCP サーバーが公開**しない**情報:
+
+- ソースコードまたはファイルシステムのコンテンツ
+- 環境変数の値やシークレット
+- ネットワークトラフィックや生のリクエスト/レスポンスペイロード
+- Aspire AppHost プロセスを超えたホストマシンへのアクセス
+
+### 認証
+
+STDIO トランスポート (デフォルト) では、追加の認証は不要です — 通信はローカルプロセスパイプに制限されます。
+
+### エンタープライズ向けの考慮事項
+
+Aspire MCP サーバーを評価するチーム向けの情報:
+
+- **開発時のみ** — 公開またはデプロイされたアプリケーションには含まれません
+- **外部ネットワークアクセスなし** — STDIO トランスポート使用時はネットワークリスナーなし
+- **データのローカル保持** — テレメトリは開発者のマシン上に残ります。AI アシスタントと共有されるデータはアシスタント独自のデータポリシーに準拠します
+- **きめ細かいアクセス制御** — `ExcludeFromMcp()` を使用してセンシティブなリソースを制限
+- **永続ストレージなし** — すべてのデータはセッション期間中メモリ内に存在します
+- **オープン仕様** — [Model Context Protocol specification](https://modelcontextprotocol.io/) を実装
+
+## デプロイに関する考慮事項
+
+MCP サーバーは Aspire CLI ツールの一部であり、AppHost とは別に実行されます — デプロイからの明示的な除外は不要です。
+
+AppHost に開発専用のリソースが含まれる場合は、`ExecutionContext.IsRunMode` を使用して本番環境から除外してください:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var api = builder.AddProject<Projects.Api>("api");
+
+if (builder.ExecutionContext.IsRunMode)
+{
+    // ローカル開発時のみ使用可能
+    builder.AddContainer("dev-tool", "some-dev-image");
+}
+
+builder.Build().Run();
+```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const api = await builder
+  .addProject("api", "./api/Api.csproj");
+
+if (await builder.executionContext.isRunMode()) {
+    // ローカル開発時のみ使用可能
+    await builder.addContainer("dev-tool", { image: "some-dev-image", tag: "latest" });
+}
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
+
+## 制限事項
+
+AI モデルは処理できるデータ量に制限があります。Aspire MCP サーバーはツールから返されるデータを制限する場合があります:
+
+- 大きなデータフィールド (例: 長いスタックトレース) は切り捨てられる場合があります
+- 大量のテレメトリコレクションは古いアイテムを省略して短縮される場合があります
+
+## トラブルシューティング
+
+問題が発生した場合は、[GitHub のオープンな MCP Issues](https://github.com/microsoft/aspire/issues?q=is%3Aissue+is%3Aopen+label%3Aarea-mcp) を確認してください。
+
+### AppHost の検出
+
+MCP サーバーは作業ディレクトリのスコープ内で実行中の AppHost を自動的に検出します:
+
+- AppHost の変更を継続的に監視します — 再起動は不要です
+- `list_apphosts` を使用して検出された AppHost を確認できます
+- `select_apphost` を使用して複数の実行中 AppHost を切り替えられます
+
+<Aside type="note">
+AI アシスタントが AppHost を検出しない場合は、`aspire start` で実行中であることを確認し、アシスタントが同じワークスペースディレクトリから起動されたことを確認してください。
+</Aside>
+
+### エージェントが接続できない場合
+
+<Steps>
+
+1. Aspire CLI がインストールされていることを確認します:
+
+   ```bash title="Aspire CLI"
+   aspire --version
+   ```
+
+1. AppHost が実行中であることを確認します:
+
+   ```bash title="Aspire CLI"
+   aspire start
+   ```
+
+1. MCP サーバーを直接テストします:
+
+   ```bash title="Aspire CLI"
+   aspire agent mcp
+   ```
+
+   エラーなしで起動した場合、問題は AI アシスタントの設定にあります。
+
+1. 設定を再生成します:
+
+   ```bash title="Aspire CLI"
+   aspire agent init
+   ```
+
+</Steps>
+
+### Claude Code の問題
+
+- プロジェクトルートに `.mcp.json` が存在することを確認してください — `aspire agent init` を実行して再生成できます
+- Windows では、`npx` などのコマンドには `cmd.exe /c` プレフィックスが必要です
+- 古くなった MCP 接続を再確立するには Claude Code を再起動してください
+
+## 関連情報
+
+- [AI コーディングエージェントを活用する](/ja/get-started/ai-coding-agents/) — プロジェクトを AI エージェント向けにセットアップします
+- [aspire agent mcp コマンド](/ja/reference/cli/commands/aspire-agent-mcp/)
+- [ダッシュボードのセキュリティに関する考慮事項](/ja/dashboard/security-considerations/)
