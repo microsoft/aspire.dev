@@ -1,6 +1,6 @@
 ---
 title: aspire ps command
-description: Learn about the aspire ps command which lists all running Aspire AppHost processes with their process IDs and dashboard URLs.
+description: Learn about the aspire ps command which lists all running Aspire AppHost processes with their process IDs, log file paths, and dashboard URLs.
 ---
 
 import AsciinemaPlayer from '@components/AsciinemaPlayer.astro';
@@ -27,12 +27,14 @@ The command scans for running AppHosts by checking the backchannel connections i
 
 The default output is a human-readable table with the following columns:
 
-| Column      | Description                                        |
-| ----------- | -------------------------------------------------- |
-| `PATH`      | The file path to the AppHost project               |
-| `PID`       | The process ID of the running AppHost              |
-| `CLI_PID`   | The process ID of the CLI that started the AppHost |
-| `DASHBOARD` | The dashboard URL with login token                 |
+| Column      | Description                                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `PATH`      | The file path to the AppHost project                                                                               |
+| `SDK`       | The .NET SDK version used by the AppHost                                                                           |
+| `PID`       | The process ID of the running AppHost                                                                              |
+| `CLI_PID`   | The process ID of the CLI that started the AppHost                                                                 |
+| `LOGS`      | A clickable link to the CLI log file for the AppHost (only shown when at least one AppHost has a log path)         |
+| `DASHBOARD` | The dashboard URL with login token                                                                                 |
 
 In-scope AppHosts (those within the current directory) are displayed first, followed by out-of-scope AppHosts.
 
@@ -42,7 +44,7 @@ The following options are available:
 
 - **`--format <Json|Table>`**
 
-  Output result format. Use `Json` for machine-readable output suitable for scripting and automation. The JSON output includes an array of AppHost objects with `appHostPath`, `appHostPid`, `cliPid`, and `dashboardUrl` properties. Defaults to `Table`.
+  Output result format. Use `Json` for machine-readable output suitable for scripting and automation. The JSON output includes an array of AppHost objects with `appHostPath`, `appHostPid`, `cliPid`, `logFilePath`, and `dashboardUrl` properties. The `logFilePath` field is `null` when no log path is available. Defaults to `Table`.
 
 - <Include relativePath="reference/cli/includes/option-help.md" />
 
@@ -64,13 +66,17 @@ The following options are available:
   aspire ps
   ```
 
-  Example output:
+  Example output (including the `LOGS` column when a log path is available):
 
   ```text title="Output"
-  PATH                                                PID    CLI_PID  DASHBOARD
-  ./src/MyApp.AppHost/MyApp.AppHost.csproj            12345  12340    https://localhost:17244/login?t=abc123
-  /home/user/other/OtherApp.AppHost.csproj            67890  67885    https://localhost:17250/login?t=def456
+  ┌──────────────────────────────────────┬─────────┬───────┬─────────┬──────────────────────────────────┬───────────────────────────────────────────┐
+  │ Path                                 │ SDK     │ PID   │ CLI PID │ Logs                             │ Dashboard                                 │
+  ├──────────────────────────────────────┼─────────┼───────┼─────────┼──────────────────────────────────┼───────────────────────────────────────────┤
+  │ ./src/MyApp.AppHost/MyApp.AppHost... │ 10.0.0  │ 12345 │ 12340   │ cli_20260516T123456_abc12345.log │ https://localhost:17244/login?t=abc123...  │
+  └──────────────────────────────────────┴─────────┴───────┴─────────┴──────────────────────────────────┴───────────────────────────────────────────┘
   ```
+
+  The `LOGS` column is only displayed when at least one running AppHost has a log path. Log file names are rendered as clickable file links; the full path is stored in `~/.aspire/logs/`.
 
 - Output running AppHosts as JSON for scripting:
 
@@ -86,10 +92,13 @@ The following options are available:
       "appHostPath": "./src/MyApp.AppHost/MyApp.AppHost.csproj",
       "appHostPid": 12345,
       "cliPid": 12340,
+      "logFilePath": "~/.aspire/logs/cli_20260516T123456_abc12345.log",
       "dashboardUrl": "https://localhost:17244/login?t=abc123"
     }
   ]
   ```
+
+  The `logFilePath` property is `null` when no log path is available for the AppHost.
 
 ## See also
 
