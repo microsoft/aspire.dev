@@ -131,15 +131,14 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
           {hasTopicsList && (
             <ul
               class="starlight-sidebar-topics topics-sidebar-list"
-              data-tour-target="topics-dropdown"
-              data-tour-step="topics-dropdown"
+              data-tour-target="topics-list"
+              data-tour-step="topics-list"
             >
               {effectiveTopics.map((topic) => (
                 <li>
                   <a
                     href={topic.link}
                     title={topic.label}
-                    aria-label={topic.label}
                     aria-current={topic.isCurrent ? 'page' : undefined}
                     class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
                   >
@@ -243,15 +242,14 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         <div class="topic-sidebar-sticky not-content">
           <ul
             class="starlight-sidebar-topics topics-sidebar-list"
-            data-tour-target="topics-dropdown"
-            data-tour-step="topics-dropdown"
+            data-tour-target="topics-list"
+            data-tour-step="topics-list"
           >
             {effectiveTopics.map((topic) => (
               <li>
                 <a
                   href={topic.link}
                   title={topic.label}
-                  aria-label={topic.label}
                   aria-current={topic.isCurrent ? 'page' : undefined}
                   class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
                 >
@@ -402,8 +400,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
-        aria-expanded="false"
-        aria-controls="starlight__sidebar"
+        aria-hidden="true"
       >
         <svg
           viewBox="0 0 24 24"
@@ -459,8 +456,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
-        aria-expanded="false"
-        aria-controls="starlight__sidebar"
+        aria-hidden="true"
       >
         <svg
           viewBox="0 0 24 24"
@@ -1649,14 +1645,29 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
-  function syncAriaExpanded(
+  /**
+   * Keep the disclosure-button pair semantically correct: only one button
+   * in each pair is visually present (the other is `visibility: hidden`),
+   * so only the visible one should advertise `aria-controls` /
+   * `aria-expanded`. The hidden one gets `aria-hidden="true"` and drops
+   * those attrs entirely, so assistive tech sees a single live control
+   * for the sidebar disclosure at any time.
+   */
+  function syncToggleA11y(
     collapseBtn: HTMLElement,
     expandBtn: HTMLElement,
     isCollapsed: boolean
   ): void {
-    const value = isCollapsed ? 'false' : 'true';
-    collapseBtn.setAttribute('aria-expanded', value);
-    expandBtn.setAttribute('aria-expanded', value);
+    const active = isCollapsed ? expandBtn : collapseBtn;
+    const inactive = isCollapsed ? collapseBtn : expandBtn;
+
+    active.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    active.setAttribute('aria-controls', 'starlight__sidebar');
+    active.removeAttribute('aria-hidden');
+
+    inactive.setAttribute('aria-hidden', 'true');
+    inactive.removeAttribute('aria-expanded');
+    inactive.removeAttribute('aria-controls');
   }
 
   function initSidebarCollapse() {
@@ -1679,7 +1690,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
     // Sync aria-expanded with the data-sidebar-collapsed attribute that
     // Head.astro set from localStorage before this script ran.
-    syncAriaExpanded(
+    syncToggleA11y(
       collapseBtn,
       expandBtn,
       document.documentElement.hasAttribute('data-sidebar-collapsed')
@@ -1721,7 +1732,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       return;
     }
 
-    syncAriaExpanded(
+    syncToggleA11y(
       collapseBtn,
       expandBtn,
       document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
@@ -1758,8 +1769,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       window.clearTimeout(topicSidebarExpandTimer);
       root.removeAttribute('data-topic-sidebar-expanding');
       root.setAttribute('data-topic-sidebar-collapsed', '');
-      collapseBtn.setAttribute('aria-expanded', 'false');
-      expandBtn.setAttribute('aria-expanded', 'false');
+      syncToggleA11y(collapseBtn, expandBtn, true);
       // Focus the now-visible button so keyboard users stay anchored.
       try {
         expandBtn.focus({ preventScroll: true });
@@ -1777,8 +1787,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         }, SIDEBAR_EXPAND_ANIMATION_MS);
       }
       root.removeAttribute('data-topic-sidebar-collapsed');
-      collapseBtn.setAttribute('aria-expanded', 'true');
-      expandBtn.setAttribute('aria-expanded', 'true');
+      syncToggleA11y(collapseBtn, expandBtn, false);
       if (wasCollapsed) {
         try {
           collapseBtn.focus({ preventScroll: true });
@@ -1806,8 +1815,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       window.clearTimeout(sidebarExpandTimer);
       root.removeAttribute('data-sidebar-expanding');
       root.setAttribute('data-sidebar-collapsed', '');
-      collapseBtn.setAttribute('aria-expanded', 'false');
-      expandBtn.setAttribute('aria-expanded', 'false');
+      syncToggleA11y(collapseBtn, expandBtn, true);
       try {
         expandBtn.focus({ preventScroll: true });
       } catch {
@@ -1822,8 +1830,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         }, SIDEBAR_EXPAND_ANIMATION_MS);
       }
       root.removeAttribute('data-sidebar-collapsed');
-      collapseBtn.setAttribute('aria-expanded', 'true');
-      expandBtn.setAttribute('aria-expanded', 'true');
+      syncToggleA11y(collapseBtn, expandBtn, false);
       if (wasCollapsed) {
         try {
           collapseBtn.focus({ preventScroll: true });
@@ -1846,6 +1853,11 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     document.addEventListener('astro:after-swap', initTopicSidebarUi);
     document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
     document.addEventListener('astro:after-swap', initBannerHeightTracking);
+    // Remove teleported toggle buttons from <body> *before* the swap so
+    // they can't conflict with the fresh buttons rendered into the next
+    // page's sidebar (and so any stale handlers bound to them are dropped
+    // along with the nodes themselves).
+    document.addEventListener('astro:before-swap', cleanupTeleportedToggles);
     document.addEventListener('DOMContentLoaded', teleportSidebarToggles);
     document.addEventListener('astro:after-swap', teleportSidebarToggles);
   }
@@ -1857,6 +1869,34 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   if (document.readyState !== 'loading') teleportSidebarToggles();
 
   /* ── Sidebar toggle teleport ──────────────────────────────────── */
+
+  /**
+   * Remove any toggle buttons that were previously teleported to
+   * `<body>`. Called as an `astro:before-swap` listener so stale
+   * buttons (and the click handlers bound to them) are discarded
+   * before the next page's HTML morph runs. After the swap, the
+   * new page's freshly-rendered buttons get found, bound, and
+   * re-teleported by `initSidebarCollapse` / `teleportSidebarToggles`.
+   */
+  function cleanupTeleportedToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    for (const id of ids) {
+      // querySelectorAll guards against the (invalid but possible) case
+      // where a stale teleported button and a fresh in-sidebar button
+      // briefly share the same id during a swap.
+      const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
+      matches.forEach((btn) => {
+        if (btn.parentElement === document.body) {
+          btn.remove();
+        }
+      });
+    }
+  }
 
   /**
    * Move the floating sidebar collapse/expand toggle buttons to
@@ -1875,6 +1915,19 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       'topic-sidebar-collapse-btn',
       'topic-sidebar-expand-btn',
     ];
+    // Defensive sweep: if any stale teleported buttons survived the
+    // last swap (e.g. an aborted view transition), drop them so they
+    // can't shadow the fresh in-sidebar buttons via getElementById.
+    for (const id of ids) {
+      const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
+      if (matches.length <= 1) continue;
+      matches.forEach((btn) => {
+        if (btn.parentElement === document.body) {
+          btn.remove();
+        }
+      });
+    }
+
     for (const id of ids) {
       const btn = document.getElementById(id);
       if (btn && btn.parentElement !== document.body) {

@@ -6,7 +6,7 @@ declare global {
 
 export type SiteTourStepId =
   | 'sidebar-toggle'
-  | 'topics-dropdown'
+  | 'topics-list'
   | 'search'
   | 'install-cli'
   | 'cookie-preferences'
@@ -53,7 +53,7 @@ export interface SiteTourStrings {
   };
   steps: {
     sidebarToggle: SiteTourCopy;
-    topicsDropdown: SiteTourCopy;
+    topicsList: SiteTourCopy;
     search: SiteTourCopy;
     installCli: SiteTourCopy;
     cookiePreferences: SiteTourCopy;
@@ -124,7 +124,7 @@ export const SITE_TOUR_STORAGE_KEY = 'aspire-site-tour-v1';
 export const SITE_TOUR_MOBILE_MEDIA_QUERY = '(max-width: 49.999rem)';
 export const SITE_TOUR_STEP_ORDER = [
   'sidebar-toggle',
-  'topics-dropdown',
+  'topics-list',
   'search',
   'install-cli',
   'cookie-preferences',
@@ -176,14 +176,12 @@ export function createSiteTourStepDefinitions(strings: SiteTourStrings): SiteTou
       selectors: ['[data-tour-step="sidebar-toggle"]', '[data-tour-target="sidebar-toggle"]'],
     },
     {
-      id: 'topics-dropdown',
-      title: strings.steps.topicsDropdown.title,
-      body: strings.steps.topicsDropdown.body,
+      id: 'topics-list',
+      title: strings.steps.topicsList.title,
+      body: strings.steps.topicsList.body,
       selectors: [
-        '[data-tour-step="topics-dropdown"] [data-dropdown-trigger]',
-        '[data-tour-target="topics-dropdown"] [data-dropdown-trigger]',
-        '[data-tour-step="topics-dropdown"]',
-        '[data-tour-target="topics-dropdown"]',
+        '[data-tour-step="topics-list"]',
+        '[data-tour-target="topics-list"]',
       ],
     },
     {
@@ -1008,70 +1006,8 @@ class AspireSiteTour {
     return null;
   }
 
-  private getTopicsDropdown(): Element | null {
-    return document.querySelector('[data-tour-target="topics-dropdown"]');
-  }
-
-  private isTopicsDropdownOpen(): boolean {
-    const dropdown = this.getTopicsDropdown();
-    if (!(dropdown instanceof HTMLElement)) {
-      return false;
-    }
-
-    return (
-      dropdown.dataset.open === 'true' ||
-      dropdown.querySelector('[data-dropdown-trigger]')?.getAttribute('aria-expanded') === 'true'
-    );
-  }
-
-  private getHighlightRect(step: SiteTourStepDefinition, target: HTMLElement): HighlightRect {
+  private getHighlightRect(target: HTMLElement): HighlightRect {
     const rect = target.getBoundingClientRect();
-
-    if (step.id === 'topics-dropdown') {
-      const dropdown = this.getTopicsDropdown();
-      const trigger =
-        target.matches('[data-dropdown-trigger]')
-          ? target
-          : dropdown?.querySelector('[data-dropdown-trigger]');
-      const triggerRect = trigger instanceof HTMLElement ? trigger.getBoundingClientRect() : rect;
-
-      if (!this.isTopicsDropdownOpen()) {
-        return {
-          top: triggerRect.top,
-          left: triggerRect.left,
-          right: triggerRect.right,
-          bottom: triggerRect.bottom,
-          width: triggerRect.width,
-          height: triggerRect.height,
-        };
-      }
-
-      const panel = dropdown?.querySelector('[data-dropdown-panel]:not([hidden])');
-      if (panel instanceof HTMLElement) {
-        const panelRect = panel.getBoundingClientRect();
-        return {
-          top: Math.min(triggerRect.top, panelRect.top),
-          left: Math.min(triggerRect.left, panelRect.left),
-          right: Math.max(triggerRect.right, panelRect.right),
-          bottom: Math.max(triggerRect.bottom, panelRect.bottom),
-          width:
-            Math.max(triggerRect.right, panelRect.right) -
-            Math.min(triggerRect.left, panelRect.left),
-          height:
-            Math.max(triggerRect.bottom, panelRect.bottom) -
-            Math.min(triggerRect.top, panelRect.top),
-        };
-      }
-
-      return {
-        top: triggerRect.top,
-        left: triggerRect.left,
-        right: triggerRect.right,
-        bottom: triggerRect.bottom,
-        width: triggerRect.width,
-        height: triggerRect.height,
-      };
-    }
 
     return {
       top: rect.top,
@@ -1339,7 +1275,7 @@ class AspireSiteTour {
       this.hint.textContent = '';
     }
 
-    const rawRect = this.getHighlightRect(step, target);
+    const rawRect = this.getHighlightRect(target);
     const padding = getStepHighlightPadding(step.id);
     const hole = {
       top: clamp(rawRect.top - padding, 0, window.innerHeight),
