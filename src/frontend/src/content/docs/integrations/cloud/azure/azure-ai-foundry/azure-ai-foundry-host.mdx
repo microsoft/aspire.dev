@@ -38,7 +38,8 @@ aspire add azure-ai-foundry
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -67,7 +68,8 @@ aspire add azure-ai-foundry
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure AI Foundry hosting integration package:
@@ -126,7 +128,11 @@ await builder.build().run();
 The preceding code adds an Azure AI Foundry resource named `foundry` to the AppHost project. The `WithReference` method passes the connection information to the `ExampleProject` project.
 
 <Aside type="caution">
-  When you call `AddFoundry`, it implicitly calls `AddAzureProvisioning`—which adds support for generating Azure resources dynamically during app startup. The app must configure the appropriate subscription and location. For more information, see [Local provisioning: Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
+  When you call `AddFoundry`, it implicitly calls `AddAzureProvisioning`—which
+  adds support for generating Azure resources dynamically during app startup.
+  The app must configure the appropriate subscription and location. For more
+  information, see [Local provisioning:
+  Configuration](/integrations/cloud/azure/local-provisioning/#configuration).
 </Aside>
 
 ## Add a Foundry deployment resource
@@ -417,6 +423,9 @@ builder.WebHost.UseUrls($"http://+:{port}");
 
 If your hosted agent listens on a different port, declare the endpoint before calling `PublishAsHostedAgent(...)`:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp
 var dotnetWeatherAgent = builder.AddProject<Projects.WeatherAgent_Dotnet>("weather-agent-dotnet")
     .WithHttpEndpoint(targetPort: 9000)
@@ -425,6 +434,27 @@ var dotnetWeatherAgent = builder.AddProject<Projects.WeatherAgent_Dotnet>("weath
 
 dotnetWeatherAgent.PublishAsHostedAgent(project);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript
+const dotnetWeatherAgent = await builder
+  .addProject(
+    'weather-agent-dotnet',
+    '../WeatherAgent.Dotnet/WeatherAgent.Dotnet.csproj'
+  )
+  .withHttpEndpoint({ targetPort: 9000 })
+  .withReference(project)
+  .waitFor(project)
+  .withReference(chat)
+  .waitFor(chat);
+
+await dotnetWeatherAgent.publishAsHostedAgent({ project });
+```
+
+</TabItem>
+</Tabs>
 
 In run mode, Aspire also adds dashboard URLs for `/responses`, `/liveness`, and `/readiness`, configures `/liveness` as an HTTP health check, adds a dashboard command for sending a message to `/responses`, and enables OpenTelemetry environment variables for agent instrumentation.
 
@@ -463,16 +493,15 @@ builder.Build().Run();
 </TabItem>
 <TabItem id='typescript' label='TypeScript'>
 
-```typescript title="TypeScript — apphost.ts"
+```typescript title="TypeScript — apphost.ts" twoslash
 import { createBuilder } from './.modules/aspire.js';
 
 const builder = await createBuilder();
 
 const foundry = await builder.addFoundry('foundry');
 const project = await foundry.addProject('my-project');
-const chat = await project.addModelDeploymentFromModel('chat', {
-  name: 'gpt-5-mini',
-  version: '2025-06-01',
+const chat = await project.addModelDeployment('chat', 'gpt-5-mini', {
+  modelVersion: '2025-06-01',
   format: 'OpenAI',
 });
 
@@ -572,7 +601,15 @@ await builder.build().run();
 </Tabs>
 
 <Aside type="caution">
-  When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` methods to work with resources that are already present in your Azure subscription, you must add certain configuration values to your AppHost to ensure that Aspire can locate them. The necessary configuration values include **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and **Location**. If you don't set them, "Missing configuration" errors appear in the Aspire dashboard. For more information about how to set them, see [Use existing Azure resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
+  When you call `RunAsExisting`, `PublishAsExisting`, or `AsExisting` methods to
+  work with resources that are already present in your Azure subscription, you
+  must add certain configuration values to your AppHost to ensure that Aspire
+  can locate them. The necessary configuration values include
+  **SubscriptionId**, **AllowResourceGroupCreation**, **ResourceGroup**, and
+  **Location**. If you don't set them, "Missing configuration" errors appear in
+  the Aspire dashboard. For more information about how to set them, see [Use
+  existing Azure
+  resources](/integrations/cloud/azure/overview/#use-existing-azure-resources).
 </Aside>
 
 ## Use Foundry Local for development
@@ -785,6 +822,11 @@ builder.AddFoundry("foundry")
       account.Tags.Add("ExampleKey", "Example value");
   });
 ```
+
+<Aside type="note">
+  TypeScript AppHost support for strongly-typed Azure provisioning customization
+  APIs is not yet available.
+</Aside>
 
 The preceding code:
 

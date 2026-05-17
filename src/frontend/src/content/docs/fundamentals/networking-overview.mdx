@@ -3,7 +3,7 @@ title: Inner-loop networking overview
 description: Learn how Aspire handles networking and endpoints, and how you can use them in your app code.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import LearnMore from '@components/LearnMore.astro';
 import { Image } from 'astro:assets';
 import networkingProxies from '@assets/fundamentals/networking/networking-proxies-1x.png';
@@ -24,11 +24,11 @@ Think of Aspire's networking like a hotel front desk:
 
 This design solves several problems:
 
-| Problem | How the proxy helps |
-|---------|---------------------|
-| **Port conflicts** | Two services can't both use port 5000—but the proxy can allocate different ports for each |
-| **Replicas** | Multiple instances of a service need load balancing—the proxy handles this automatically |
-| **Service restarts** | When a service restarts on a new port, the proxy's address stays the same |
+| Problem              | How the proxy helps                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| **Port conflicts**   | Two services can't both use port 5000—but the proxy can allocate different ports for each |
+| **Replicas**         | Multiple instances of a service need load balancing—the proxy handles this automatically  |
+| **Service restarts** | When a service restarts on a new port, the proxy's address stays the same                 |
 
 ```mermaid
 flowchart LR
@@ -36,14 +36,15 @@ flowchart LR
     Proxy["Proxy :5000"]
     App1["Service :52847"]
     App2["Service :52848"]
-    
+
     Client --> Proxy
     Proxy --> App1
     Proxy --> App2
 ```
 
 <Aside type="tip" title="Key insight">
-You never need to know the actual port your service runs on. Just use the proxy address, and Aspire handles the rest.
+  You never need to know the actual port your service runs on. Just use the
+  proxy address, and Aspire handles the rest.
 </Aside>
 
 ## Networking in the inner loop
@@ -102,21 +103,42 @@ By default, containers are accessible on the container network using their **res
 
 Sometimes you need additional aliases—for example, when a third-party tool expects a specific hostname, or when migrating from an existing Docker Compose setup. Use `WithContainerNetworkAlias` to add custom DNS names:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var redis = builder.AddRedis("cache")
     .WithContainerNetworkAlias("redis-primary")
     .WithContainerNetworkAlias("session-store");
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const redis = await builder.addRedis('cache');
+await redis.withContainerNetworkAlias('redis-primary');
+await redis.withContainerNetworkAlias('session-store');
+```
+
+</TabItem>
+</Tabs>
+
 Now other containers can connect to Redis using any of these names:
+
 - `cache:6379` (default resource name)
 - `redis-primary:6379` (custom alias)
 - `session-store:6379` (custom alias)
 
 <Aside type="tip" title="When to use network aliases">
-- **Third-party integrations**: Some tools hardcode hostnames like `redis` or `postgres`
-- **Migration from Docker Compose**: Match existing service names your apps expect
-- **Multi-purpose containers**: One Redis instance serving as both cache and session store
+  - **Third-party integrations**: Some tools hardcode hostnames like `redis` or
+  `postgres` - **Migration from Docker Compose**: Match existing service names
+  your apps expect - **Multi-purpose containers**: One Redis instance serving as
+  both cache and session store
 </Aside>
 
 When containers need to reach host-based services, Aspire uses the **container tunnel** to provide reliable connectivity. For more information, see [Container networking](/fundamentals/container-networking/).
@@ -124,7 +146,9 @@ When containers need to reach host-based services, Aspire uses the **container t
 Some endpoint behavior depends on the resource type. Keep those details with the docs for that resource type instead of duplicating them in this overview.
 
 <LearnMore>
-For .NET-specific endpoint behavior, see [C# launch profiles](/integrations/dotnet/launch-profiles/) and [Project resources](/integrations/dotnet/project-resources/).
+  For .NET-specific endpoint behavior, see [C# launch
+  profiles](/integrations/dotnet/launch-profiles/) and [Project
+  resources](/integrations/dotnet/project-resources/).
 </LearnMore>
 
 ## Ports and proxies
@@ -150,10 +174,28 @@ The preceding diagram depicts the following:
 
 For a JavaScript app that reads its listener port from an environment variable, expose a stable host port like this:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 builder.AddJavaScriptApp("frontend", "./frontend")
        .WithHttpEndpoint(port: 5066, env: "PORT");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addJavaScriptApp('frontend', './frontend');
+await frontend.withHttpEndpoint({ port: 5066, env: 'PORT' });
+```
+
+</TabItem>
+</Tabs>
 
 There are two ports defined:
 
@@ -184,10 +226,28 @@ The underlying service still listens on its own port, and Aspire makes that allo
 
 When you omit the host port, Aspire generates a random port for both host and service port. This is useful when you want to avoid port conflicts and don't care about the host or service port. Consider the following code:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 builder.AddJavaScriptApp("frontend", "./frontend")
        .WithHttpEndpoint(env: "PORT");
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addJavaScriptApp('frontend', './frontend');
+await frontend.withHttpEndpoint({ env: 'PORT' });
+```
+
+</TabItem>
+</Tabs>
 
 In this scenario, both the host and service ports are random, as shown in the following diagram:
 
@@ -207,10 +267,31 @@ The preceding diagram depicts the following:
 
 When you add a container resource, Aspire automatically assigns a random port to the container. To specify a container port, configure the container resource with the desired port:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 builder.AddContainer("frontend", "mcr.microsoft.com/dotnet/samples", "aspnetapp")
            .WithHttpEndpoint(port: 8000, targetPort: 8080);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const frontend = await builder.addContainer('frontend', {
+  image: 'mcr.microsoft.com/dotnet/samples',
+  tag: 'aspnetapp',
+});
+await frontend.withHttpEndpoint({ port: 8000, targetPort: 8080 });
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code:
 
@@ -230,17 +311,44 @@ Any resource that implements the `IResourceWithEndpoints` interface can use the 
 
 There's also an overload that allows you to specify a delegate to configure the endpoint. This is useful when you need to configure the endpoint based on the environment or other factors. Consider the following code:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 builder.AddContainer("apiService", "nginx")
-       .WithEndpoint(
-             endpointName: "admin",
-             callback: static endpoint =>
+    .WithEndpoint(
+        endpointName: "admin",
+        callback: static endpoint =>
         {
             endpoint.Port = 17003;
-           endpoint.UriScheme = "http";
-           endpoint.Transport = "http";
-       });
+            endpoint.UriScheme = "http";
+            endpoint.Transport = "http";
+        });
 ```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const apiService = await builder.addContainer('apiService', {
+  image: 'nginx',
+  tag: 'latest',
+});
+await apiService.withEndpointCallback(
+  'admin',
+  async (endpoint) => {
+    endpoint.setPort(17003).setUriScheme('http').setTransport('http');
+  },
+  { createIfNotExists: true }
+);
+```
+
+</TabItem>
+</Tabs>
 
 The preceding code provides a callback delegate to configure the endpoint. The endpoint is named `admin` and configured to use the `http` scheme and transport, as well as the 17003 host port. Consumers can reference this endpoint by name with a URI such as `http://_admin.apiservice`. The `_` sentinel indicates that the `admin` segment is the endpoint name belonging to the `apiservice` service. For more information, see [Service discovery](/fundamentals/service-discovery/).
 
@@ -269,13 +377,40 @@ For project-resource-specific endpoint filtering, see [Project resources](/integ
 
 By default, every endpoint on a resource is included when another resource references it via `WithReference(resource)`. Some resources expose auxiliary endpoints—such as admin dashboards or health-check ports—that consumer services should not discover automatically. Use the `ExcludeReferenceEndpoint` property on `EndpointAnnotation` to opt an endpoint out of the default reference set:
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
 ```csharp title="AppHost.cs"
 builder.AddContainer("myservice", "myimage")
     .WithHttpEndpoint(name: "management", port: 8080)
     .WithEndpoint("management", ep => ep.ExcludeReferenceEndpoint = true);
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const myService = await builder.addContainer('myservice', {
+  image: 'myimage',
+  tag: 'latest',
+});
+await myService.withHttpEndpoint({ name: 'management', port: 8080 });
+await myService.withEndpointCallback('management', async (endpoint) => {
+  endpoint.setExcludeReferenceEndpoint(true);
+});
+```
+
+</TabItem>
+</Tabs>
+
 When `ExcludeReferenceEndpoint` is `true`, the endpoint is **not** injected into dependent services by a plain `WithReference(resource)` call. It can still be referenced explicitly by name:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="AppHost.cs"
 var myService = builder.AddContainer("myservice", "myimage")
@@ -292,13 +427,41 @@ var adminApp = builder.AddProject<Projects.Admin>("admin")
     .WithReference(myService.GetEndpoint("management"));
 ```
 
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const myService = await builder.addContainer('myservice', {
+  image: 'myimage',
+  tag: 'latest',
+});
+await myService.withHttpEndpoint({ name: 'api', port: 5000 });
+await myService.withHttpEndpoint({ name: 'management', port: 8080 });
+await myService.withEndpointCallback('management', async (endpoint) => {
+  endpoint.setExcludeReferenceEndpoint(true);
+});
+
+const api = await builder.addProject('api', '../Api/Api.csproj');
+await api.withReference(myService);
+
+const adminApp = await builder.addProject('admin', '../Admin/Admin.csproj');
+await adminApp.withReference(myService.getEndpoint('management'));
+```
+
+</TabItem>
+</Tabs>
+
 The following built-in Aspire integrations already apply this pattern to their auxiliary endpoints:
 
-| Resource | Excluded endpoint |
-|---|---|
-| Keycloak | Management dashboard (`management`) |
-| Azure Cosmos DB Emulator | Health-check endpoint (`emulatorHealth`) |
-| Azure Event Hubs Emulator | Health-check endpoint (`emulatorHealth`) |
+| Resource                   | Excluded endpoint                        |
+| -------------------------- | ---------------------------------------- |
+| Keycloak                   | Management dashboard (`management`)      |
+| Azure Cosmos DB Emulator   | Health-check endpoint (`emulatorHealth`) |
+| Azure Event Hubs Emulator  | Health-check endpoint (`emulatorHealth`) |
 | Azure Service Bus Emulator | Health-check endpoint (`emulatorHealth`) |
 
 :::note
@@ -312,11 +475,13 @@ The following built-in Aspire integrations already apply this pattern to their a
 **Symptom**: Error message like `Address already in use` or `Failed to bind to port`
 
 **Common causes**:
+
 - Another instance of your app is still running
 - A previous Aspire session didn't shut down cleanly
 - Another application is using the same port
 
 **Solutions**:
+
 1. Stop any running Aspire sessions with `Ctrl+C` or close the dashboard
 2. Check for processes using the port: `netstat -ano | findstr :5000` (Windows) or `lsof -i :5000` (macOS/Linux)
 3. Let Aspire assign random ports by removing explicit port numbers from `WithEndpoint`
@@ -326,14 +491,19 @@ The following built-in Aspire integrations already apply this pattern to their a
 **Symptom**: Timeouts or connection refused when connecting to a container resource
 
 **Common causes**:
+
 - The container hasn't finished starting
 - Missing `WaitFor()` dependency
 - Container is on the container network but you're connecting from the host
 
 **Solutions**:
+
 1. Add `.WaitFor(container)` to ensure the container is ready before dependent services start
 2. Add `.WithHttpHealthCheck()` or `.WithHealthCheck()` to the container resource
 3. Ensure host services use the **exposed port** (not the container's internal port):
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp
 // Container exposes port 5432 to host
@@ -342,14 +512,31 @@ var db = builder.AddPostgres("db");
 // Host service connects via exposed port (handled by WithReference)
 var api = builder.AddJavaScriptApp("api", "./api")
     .WithHttpEndpoint(env: "PORT")
-    .WithReference(db); // ✅ Correct - uses exposed port
+    .WithReference(db); // Correct - uses exposed port
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript
+// Container exposes port 5432 to host
+const db = await builder.addPostgres('db');
+
+// Host service connects via exposed port (handled by withReference)
+const api = await builder.addJavaScriptApp('api', './api');
+await api.withHttpEndpoint({ env: 'PORT' });
+await api.withReference(db); // Correct - uses exposed port
+```
+
+</TabItem>
+</Tabs>
 
 ### Service not discoverable
 
 **Symptom**: Service discovery fails with "service not found" or DNS resolution errors
 
 **Solutions**:
+
 1. Verify `WithReference()` is set up between producer and consumer
 2. Check the endpoint name in the URI matches exactly (case-sensitive)
 3. Review [service discovery troubleshooting](/fundamentals/service-discovery/#troubleshooting)

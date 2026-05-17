@@ -33,10 +33,10 @@ The Azure Virtual Network hosting integration models network resources as the fo
 - `AzureNetworkSecurityPerimeterResource`: Represents an Azure Network Security Perimeter for PaaS service isolation.
 
 <Aside type="note">
-  The Azure Virtual Network integration is a **hosting** and **publish-only** integration. It
-  provisions Azure networking infrastructure (virtual networks, subnets, NSGs,
-  etc.) and has no corresponding client integration. During local development,
-  these resources are not provisioned in your Azure subscription.
+  The Azure Virtual Network integration is a **hosting** and **publish-only**
+  integration. It provisions Azure networking infrastructure (virtual networks,
+  subnets, NSGs, etc.) and has no corresponding client integration. During local
+  development, these resources are not provisioned in your Azure subscription.
 </Aside>
 
 ## Installation
@@ -51,7 +51,8 @@ aspire add azure-network
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 Or, choose a manual installation approach:
@@ -72,7 +73,8 @@ aspire add azure-network
 ```
 
 <LearnMore>
-  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the command reference.
+  Learn more about [`aspire add`](/reference/cli/commands/aspire-add/) in the
+  command reference.
 </LearnMore>
 
 This updates your `aspire.config.json` with the Azure Network hosting integration package:
@@ -109,7 +111,8 @@ var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -121,7 +124,8 @@ const vnet = await builder.addAzureVirtualNetwork("vnet");
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -129,14 +133,18 @@ By default, the virtual network uses the address prefix `10.0.0.0/16`. You can s
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var vnet = builder.AddAzureVirtualNetwork("vnet", "10.1.0.0/16");
 ```
+
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
 ```typescript title="TypeScript — apphost.ts"
-const vnet = await builder.addAzureVirtualNetwork("vnet", "10.1.0.0/16");
+const vnet = await builder.addAzureVirtualNetwork('vnet', '10.1.0.0/16');
 ```
+
 </TabItem>
 </Tabs>
 
@@ -150,14 +158,16 @@ Call `AddSubnet` (or `addSubnet`) on the virtual network builder to add a subnet
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 var subnet = vnet.AddSubnet("my-subnet", "10.0.1.0/24");
-```
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 
 const subnet = vnet.addSubnet("my-subnet", "10.0.1.0/24");
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -174,8 +184,9 @@ var natGateway = builder.AddNatGateway("nat");
 
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 var subnet = vnet.AddSubnet("aca-subnet", "10.0.0.0/23")
-    .WithNatGateway(natGateway);
-```
+.WithNatGateway(natGateway);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -184,7 +195,8 @@ const natGateway = await builder.addNatGateway("nat");
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 const subnet = vnet.addSubnet("aca-subnet", "10.0.0.0/23")
     .withNatGateway(natGateway);
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -192,18 +204,21 @@ By default, a public IP address is automatically created for the NAT gateway. To
 
 <Tabs syncKey="aspire-lang">
 <TabItem id="csharp" label="C#">
+
 ```csharp title="C# — AppHost.cs"
 var pip = builder.AddPublicIPAddress("nat-pip");
 var natGateway = builder.AddNatGateway("nat")
     .WithPublicIPAddress(pip);
 ```
+
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
+
 ```typescript title="TypeScript — apphost.ts"
-const pip = await builder.addPublicIPAddress("nat-pip");
-const natGateway = await builder.addNatGateway("nat")
-    .withPublicIPAddress(pip);
+const pip = await builder.addPublicIPAddress('nat-pip');
+const natGateway = await builder.addNatGateway('nat').withPublicIPAddress(pip);
 ```
+
 </TabItem>
 </Tabs>
 
@@ -223,21 +238,23 @@ The shorthand API uses fluent methods on subnet builders that automatically crea
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 var subnet = vnet.AddSubnet("web", "10.0.1.0/24")
-    .AllowInbound(
-        port: "443",
-        from: AzureServiceTags.AzureLoadBalancer,
-        protocol: SecurityRuleProtocol.Tcp)
-    .DenyInbound(from: AzureServiceTags.Internet);
-```
+.AllowInbound(
+port: "443",
+from: AzureServiceTags.AzureLoadBalancer,
+protocol: SecurityRuleProtocol.Tcp)
+.DenyInbound(from: AzureServiceTags.Internet);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
 const vnet = await builder.addAzureVirtualNetwork("vnet");
 
 const subnet = vnet.addSubnet("web", "10.0.1.0/24")
-    .allowInbound({ port: "443", from: "AzureLoadBalancer", protocol: "Tcp" })
-    .denyInbound({ from: "Internet" });
-```
+    .allowInbound("443", "AzureLoadBalancer", undefined, "Tcp")
+    .denyInbound(undefined, "Internet");
+````
+
 </TabItem>
 </Tabs>
 
@@ -251,10 +268,10 @@ The available shorthand methods are:
 Priority auto-increments by 100 (100, 200, 300...) and rule names are auto-generated from the access, direction, port, and source (for example, `allow-inbound-443-AzureLoadBalancer`).
 
 <Aside type="note">
-  The `SecurityRuleProtocol`, `SecurityRuleDirection`, and
-  `SecurityRuleAccess` types require a `using` directive for the
-  `Azure.Provisioning.Network` namespace. The `AzureServiceTags` class is in
-  the `Aspire.Hosting.Azure` namespace.
+  The `SecurityRuleProtocol`, `SecurityRuleDirection`, and `SecurityRuleAccess`
+  types require a `using` directive for the `Azure.Provisioning.Network`
+  namespace. The `AzureServiceTags` class is in the `Aspire.Hosting.Azure`
+  namespace.
 </Aside>
 
 #### Explicit API
@@ -269,19 +286,20 @@ var builder = DistributedApplication.CreateBuilder(args);
 var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 var nsg = builder.AddNetworkSecurityGroup("web-nsg")
-    .WithSecurityRule(new AzureSecurityRule
-    {
-        Name = "allow-https",
-        Priority = 100,
-        Direction = SecurityRuleDirection.Inbound,
-        Access = SecurityRuleAccess.Allow,
-        Protocol = SecurityRuleProtocol.Tcp,
-        DestinationPortRange = "443"
-    });
+.WithSecurityRule(new AzureSecurityRule
+{
+Name = "allow-https",
+Priority = 100,
+Direction = SecurityRuleDirection.Inbound,
+Access = SecurityRuleAccess.Allow,
+Protocol = SecurityRuleProtocol.Tcp,
+DestinationPortRange = "443"
+});
 
 var subnet = vnet.AddSubnet("web-subnet", "10.0.1.0/24")
-    .WithNetworkSecurityGroup(nsg);
-```
+.WithNetworkSecurityGroup(nsg);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -303,7 +321,8 @@ const nsg = builder.addNetworkSecurityGroup("web-nsg")
 
 const subnet = vnet.addSubnet("web-subnet", "10.0.1.0/24")
     .withNetworkSecurityGroup(nsg);
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -331,7 +350,8 @@ var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
 
 peSubnet.AddPrivateEndpoint(blobs);
-```
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -342,7 +362,8 @@ const storage = await builder.addAzureStorage("storage");
 const blobs = storage.addBlobs("blobs");
 
 peSubnet.addPrivateEndpoint(blobs);
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -358,8 +379,9 @@ The private DNS zone ensures that services within the virtual network automatica
 <Aside type="caution">
   Adding a private endpoint automatically disables public network access on the
   target resource. This means any clients outside the virtual network won't be
-  able to reach the resource. See [Override public network access](#override-public-network-access)
-  if you need to keep public access enabled.
+  able to reach the resource. See [Override public network
+  access](#override-public-network-access) if you need to keep public access
+  enabled.
 </Aside>
 
 #### Override public network access
@@ -376,6 +398,11 @@ storage.ConfigureInfrastructure(infra =>
 });
 ```
 
+<Aside type="note">
+  TypeScript AppHost support for strongly-typed Azure provisioning customization
+  APIs is not yet available.
+</Aside>
+
 #### Service-specific requirements
 
 ##### Azure Service Bus
@@ -391,11 +418,14 @@ storage.ConfigureInfrastructure(infra =>
 [Azure Container Registry](/integrations/cloud/azure/azure-container-registry/azure-container-registry-host/) requires the **Premium** SKU to support private endpoints. When you add a private endpoint for an Azure Container Registry resource, Aspire automatically upgrades the SKU to Premium.
 
 <Aside type="caution">
-  When public network access is disabled on the registry (the default when a private endpoint is added),
-  [`aspire deploy`](/reference/cli/commands/aspire-deploy/) cannot push container images to the registry unless it runs from a machine that
-  has network access through the private endpoint (for example, an Azure DevOps or GitHub Actions
-  self-hosted runner inside the virtual network). Consider using self-hosted runners in the same
-  VNet, or re-enable public access on the registry for deployment scenarios.
+  When public network access is disabled on the registry (the default when a
+  private endpoint is added), [`aspire
+  deploy`](/reference/cli/commands/aspire-deploy/) cannot push container images
+  to the registry unless it runs from a machine that has network access through
+  the private endpoint (for example, an Azure DevOps or GitHub Actions
+  self-hosted runner inside the virtual network). Consider using self-hosted
+  runners in the same VNet, or re-enable public access on the registry for
+  deployment scenarios.
 </Aside>
 
 ### Add a network security perimeter
@@ -423,7 +453,8 @@ var nsp = builder.AddNetworkSecurityPerimeter("my-nsp");
 
 // After adding all resources, run the app...
 builder.Build().Run();
-```
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -435,7 +466,8 @@ const nsp = await builder.addNetworkSecurityPerimeter("my-nsp");
 
 // After adding all resources, run the app...
 await builder.build().run();
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -480,11 +512,11 @@ const nsp = await builder.addNetworkSecurityPerimeter("my-nsp")
 
 The following properties are available on `AzureNspAccessRule`:
 
-| Property | Direction | Description |
-|---|---|---|
-| `AddressPrefixes` | Inbound | CIDR ranges allowed to reach the perimeter. |
-| `Subscriptions` | Inbound | Subscription resource IDs (format: `/subscriptions/{id}`) allowed access. |
-| `FullyQualifiedDomainNames` | Outbound | FQDNs that resources inside the perimeter can communicate with. |
+| Property                    | Direction | Description                                                               |
+| --------------------------- | --------- | ------------------------------------------------------------------------- |
+| `AddressPrefixes`           | Inbound   | CIDR ranges allowed to reach the perimeter.                               |
+| `Subscriptions`             | Inbound   | Subscription resource IDs (format: `/subscriptions/{id}`) allowed access. |
+| `FullyQualifiedDomainNames` | Outbound  | FQDNs that resources inside the perimeter can communicate with.           |
 
 Each property also has a corresponding `*References` variant (for example, `AddressPrefixReferences`) that accepts `ReferenceExpression` values resolved at deploy time.
 
@@ -504,10 +536,11 @@ Call `WithNetworkSecurityPerimeter` (or `withNetworkSecurityPerimeter`) on a Paa
 var nsp = builder.AddNetworkSecurityPerimeter("my-nsp");
 
 var storage = builder.AddAzureStorage("storage")
-    .WithNetworkSecurityPerimeter(nsp);
+.WithNetworkSecurityPerimeter(nsp);
 var keyVault = builder.AddAzureKeyVault("kv")
-    .WithNetworkSecurityPerimeter(nsp);
-```
+.WithNetworkSecurityPerimeter(nsp);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -517,7 +550,8 @@ const storage = await builder.addAzureStorage("storage")
     .withNetworkSecurityPerimeter(nsp);
 const keyVault = await builder.addAzureKeyVault("kv")
     .withNetworkSecurityPerimeter(nsp);
-```
+````
+
 </TabItem>
 </Tabs>
 
@@ -548,8 +582,9 @@ storage.WithNetworkSecurityPerimeter(nsp);
 
 // Learning mode — logs violations without blocking
 keyVault.WithNetworkSecurityPerimeter(
-    nsp, NetworkSecurityPerimeterAssociationAccessMode.Learning);
-```
+nsp, NetworkSecurityPerimeterAssociationAccessMode.Learning);
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -558,14 +593,15 @@ storage.withNetworkSecurityPerimeter(nsp);
 
 // Learning mode — logs violations without blocking
 keyVault.withNetworkSecurityPerimeter(nsp, "Learning");
-```
+````
+
 </TabItem>
 </Tabs>
 
 <Aside type="tip">
   Start with **Learning** mode when you first add an NSP to an existing
-  application. Review the logged violations to determine which access rules
-  you need, then switch to **Enforced** mode once the rules are in place.
+  application. Review the logged violations to determine which access rules you
+  need, then switch to **Enforced** mode once the rules are in place.
 </Aside>
 
 ## Complete example
@@ -574,8 +610,8 @@ The following example demonstrates a complete network topology with a virtual ne
 
 <Aside type="note">
   The `AZPROVISION001` warning suppressed below is required because the
-  Azure.Provisioning.Network APIs are in preview. When the APIs are marked stable,
-  the warning can be removed.
+  Azure.Provisioning.Network APIs are in preview. When the APIs are marked
+  stable, the warning can be removed.
 </Aside>
 
 <Tabs syncKey="aspire-lang">
@@ -593,30 +629,30 @@ var vnet = builder.AddAzureVirtualNetwork("vnet");
 
 // Container Apps subnet with NSG rules and NAT gateway
 var containerAppsSubnet = vnet.AddSubnet("container-apps", "10.0.0.0/23")
-    .AllowInbound(
-        port: "443",
-        from: AzureServiceTags.AzureLoadBalancer,
-        protocol: SecurityRuleProtocol.Tcp)
-    .DenyInbound(from: AzureServiceTags.VirtualNetwork)
-    .DenyInbound(from: AzureServiceTags.Internet);
+.AllowInbound(
+port: "443",
+from: AzureServiceTags.AzureLoadBalancer,
+protocol: SecurityRuleProtocol.Tcp)
+.DenyInbound(from: AzureServiceTags.VirtualNetwork)
+.DenyInbound(from: AzureServiceTags.Internet);
 
 var natGateway = builder.AddNatGateway("nat");
 containerAppsSubnet.WithNatGateway(natGateway);
 
 // Private endpoints subnet
 var peSubnet = vnet.AddSubnet("private-endpoints", "10.0.2.0/27")
-    .AllowInbound(
-        port: "443",
-        from: AzureServiceTags.VirtualNetwork,
-        protocol: SecurityRuleProtocol.Tcp)
-    .DenyInbound(from: AzureServiceTags.Internet);
+.AllowInbound(
+port: "443",
+from: AzureServiceTags.VirtualNetwork,
+protocol: SecurityRuleProtocol.Tcp)
+.DenyInbound(from: AzureServiceTags.Internet);
 
 // Configure the Container App Environment to use the VNet.
 // WithDelegatedSubnet assigns the subnet to the ACA environment,
 // enabling subnet delegation so ACA can inject its infrastructure.
 // For more information, see: https://learn.microsoft.com/azure/container-apps/custom-virtual-networks
 builder.AddAzureContainerAppEnvironment("env")
-    .WithDelegatedSubnet(containerAppsSubnet);
+.WithDelegatedSubnet(containerAppsSubnet);
 
 // Add storage with private endpoints
 var storage = builder.AddAzureStorage("storage");
@@ -627,12 +663,13 @@ peSubnet.AddPrivateEndpoint(blobs);
 peSubnet.AddPrivateEndpoint(queues);
 
 builder.AddProject<Projects.Api>("api")
-    .WithExternalHttpEndpoints()
-    .WithReference(blobs)
-    .WithReference(queues);
+.WithExternalHttpEndpoints()
+.WithReference(blobs)
+.WithReference(queues);
 
 builder.Build().Run();
-```
+
+````
 </TabItem>
 <TabItem id="typescript" label="TypeScript">
 ```typescript title="TypeScript — apphost.ts"
@@ -675,7 +712,8 @@ await builder.addProject("api", "../Api/Api.csproj")
     .withReference(queues);
 
 await builder.build().run();
-```
+````
+
 </TabItem>
 </Tabs>
 

@@ -3,7 +3,7 @@ title: Health checks
 description: Explore Aspire health checks
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import healthChecksDashboardStatus from '@assets/fundamentals/health-checks-dashboard-status.png';
 
@@ -13,14 +13,15 @@ Health checks provide availability and state information about an app. Health ch
 
 Aspire uses health checks in two distinct contexts. Understanding the difference is crucial:
 
-| Health check type | Where it runs | What it checks | Used for |
-|-------------------|---------------|----------------|----------|
-| **AppHost resource checks** | AppHost project | "Is my dependency ready?" | Startup orchestration, `WaitFor()` |
-| **Service endpoint checks** | Your application | "Am I healthy?" | Load balancers, Kubernetes probes |
+| Health check type           | Where it runs    | What it checks            | Used for                           |
+| --------------------------- | ---------------- | ------------------------- | ---------------------------------- |
+| **AppHost resource checks** | AppHost project  | "Is my dependency ready?" | Startup orchestration, `WaitFor()` |
+| **Service endpoint checks** | Your application | "Am I healthy?"           | Load balancers, Kubernetes probes  |
 
 <Aside type="tip" title="Key insight">
-AppHost health checks answer: "Should I start services that depend on this resource?"  
-Service endpoint health checks answer: "Should traffic be sent to this instance?"
+  AppHost health checks answer: "Should I start services that depend on this
+  resource?" Service endpoint health checks answer: "Should traffic be sent to
+  this instance?"
 </Aside>
 
 ## Readiness vs. Liveness
@@ -181,7 +182,10 @@ When a resource has health checks configured, the AppHost uses them to determine
 
 For resources that expose HTTP endpoints, you can add health checks that poll specific paths:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalogApi = builder.AddContainer("catalog-api", "catalog-api")
@@ -193,9 +197,35 @@ builder.AddProject<Projects.WebApp>("webapp")
        .WaitFor(catalogApi); // Waits for /health to return HTTP 200
 ```
 
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const catalogApi = await builder.addContainer('catalog-api', {
+  image: 'catalog-api',
+  tag: 'latest',
+});
+await catalogApi.withHttpEndpoint({ targetPort: 8080 });
+await catalogApi.withHttpHealthCheck('/health');
+
+const webapp = await builder.addNodeApp('webapp', './webapp', 'index.js');
+await webapp.withReference(catalogApi);
+await webapp.waitFor(catalogApi); // Waits for /health to return HTTP 200
+```
+
+</TabItem>
+</Tabs>
+
 The `WithHttpHealthCheck` method can also be applied to project resources:
 
-```csharp title="C# — AppHost.cs"
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs"
 var backend = builder.AddProject<Projects.Backend>("backend")
                      .WithHttpHealthCheck("/health");
 
@@ -203,6 +233,25 @@ builder.AddProject<Projects.Frontend>("frontend")
        .WithReference(backend)
        .WaitFor(backend);
 ```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const backend = await builder.addNodeApp('backend', './backend', 'index.js');
+await backend.withHttpHealthCheck('/health');
+
+const frontend = await builder.addNodeApp('frontend', './frontend', 'index.js');
+await frontend.withReference(backend);
+await frontend.waitFor(backend);
+```
+
+</TabItem>
+</Tabs>
 
 ### Custom resource health checks
 
@@ -228,6 +277,11 @@ builder.AddProject<Projects.MyApp>("myapp")
     .WaitFor(pg); // Waits for both the Postgres container to be running
                   // AND the custom "mycheck" health check to be healthy
 ```
+
+<Aside type="note">
+  TypeScript AppHost support for registering custom health checks with
+  `builder.Services.AddHealthChecks()` is not yet available.
+</Aside>
 
 The `AddCheck` method registers the health check, and `WithHealthCheck` associates it with specific resources. For more details about creating and registering custom health checks, see [Create health checks](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks#create-health-checks).
 
