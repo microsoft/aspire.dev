@@ -515,16 +515,24 @@ test('sidebar collapse toggle does not overlap the mobile "On this page" control
   page,
 }) => {
   // Regression for the "toggle covers the mobile TOC dropdown" bug. At
-  // viewports in [72rem, 100rem) with `[data-has-toc]` set by Starlight,
-  // the mobile TOC bar (`#starlight__on-this-page--mobile`) is forced
-  // visible by aspire.dev's CSS, and the floating sidebar collapse/expand
-  // toggle (`#topic-sidebar-collapse-btn`) is also visible. Before the
-  // inline-with-TOC fix, the toggle was parked a row below the bar where
-  // it overlaid the "On this page > <current heading>" dropdown trigger.
+  // viewports in [50rem, 100rem) on topic-nav pages, the persistent
+  // sidebar and Starlight's mobile TOC bar
+  // (`#starlight__on-this-page--mobile`) are both visible, and so is
+  // the floating sidebar collapse/expand toggle
+  // (`#topic-sidebar-collapse-btn`). Before the inline-with-TOC fix,
+  // the toggle was parked a row below the bar where it overlaid the
+  // "On this page > <current heading>" dropdown trigger.
+  //
+  // The bug range covers both:
+  //   - tablet (≥ 50rem, < 72rem): topic-nav sidebar visible at
+  //     Starlight's default sub-desktop sizing, mobile TOC visible at
+  //     Starlight's default `--sl-mobile-toc-height: 3rem`.
+  //   - desktop (≥ 72rem, < 100rem): mobile TOC forced visible by
+  //     aspire.dev's `--sl-mobile-toc-height: 3rem` override.
   const viewport = page.viewportSize();
   test.skip(
-    !viewport || viewport.width < 1152 || viewport.width >= 1600,
-    'Bug only reproduces at the breakpoint where the mobile TOC and the desktop sidebar toggle are simultaneously visible (≥ 72rem and < 100rem).'
+    !viewport || viewport.width < 800 || viewport.width >= 1600,
+    'Bug only reproduces where the topic-nav sidebar and the mobile TOC are simultaneously visible (≥ 50rem and < 100rem).'
   );
 
   await page.goto('/app-host/certificate-configuration/');
@@ -536,7 +544,7 @@ test('sidebar collapse toggle does not overlap the mobile "On this page" control
 
   // Sanity check: both controls must be visible together for the
   // overlap to be a real concern. If the breakpoint stops rendering the
-  // mobile TOC at desktop widths in the future, this guard makes the
+  // mobile TOC at this width in the future, this guard makes the
   // failure mode obvious.
   await expect(collapseButton).toBeVisible();
   await expect(mobileTocSummary).toBeVisible();
@@ -570,4 +578,29 @@ test('sidebar collapse toggle does not overlap the mobile "On this page" control
     return numeric;
   });
   expect(collapseBox.y).toBeLessThan(navHeightPx + 4);
+});
+
+test('sidebar collapse toggle disappears below the topic-nav sidebar breakpoint', async ({
+  page,
+}) => {
+  // The topic-nav sidebar is moved into Starlight's mobile menu below
+  // 50rem (~800px). When the sidebar isn't persistently visible, the
+  // floating collapse/expand toggle has nothing to control — verify it
+  // hides together with the sidebar at narrow viewports.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width >= 800,
+    'Sidebar visibility breakpoint only relevant at viewports narrower than 50rem (~800px).'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+
+  // The persistent collapse/expand toggle should NOT be visible below
+  // 50rem on topic-nav pages — Starlight serves the sidebar through
+  // the mobile menu (hamburger) in that range.
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const expandButton = page.locator('#topic-sidebar-expand-btn');
+  await expect(collapseButton).toBeHidden();
+  await expect(expandButton).toBeHidden();
 });
