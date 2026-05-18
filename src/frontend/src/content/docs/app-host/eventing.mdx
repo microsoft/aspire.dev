@@ -89,6 +89,15 @@ await builder.subscribeAfterResourcesCreated(async (event) => {
 
 await builder.build().run();
 ```
+
+The following builder-level methods are available for AppHost events in TypeScript:
+
+| Method | Event |
+|--------|-------|
+| `subscribeBeforeStart` | `BeforeStartEvent` — raised before the AppHost starts |
+| `subscribeAfterResourcesCreated` | `AfterResourcesCreatedEvent` — raised after the AppHost created resources |
+| `subscribeBeforePublish` | `BeforePublishEvent` — raised before manifest publishing begins |
+| `subscribeAfterPublish` | `AfterPublishEvent` — raised after manifest publishing completes |
 </TabItem>
 </Tabs>
 
@@ -390,6 +399,8 @@ When publishing your application (generating deployment manifests), these events
 | `BeforePublishEvent` | Before publishing begins | Validate or modify resources before manifest generation |
 | `AfterPublishEvent` | After publishing completes | Perform cleanup or post-publish actions |
 
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 ```csharp title="AppHost.cs"
 builder.OnBeforePublish((@event, ct) =>
 {
@@ -403,6 +414,27 @@ builder.OnAfterPublish((@event, ct) =>
     return Task.CompletedTask;
 });
 ```
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder.subscribeBeforePublish(async (event) => {
+    // Validate resources before publishing
+    console.log("BeforePublishEvent");
+});
+
+await builder.subscribeAfterPublish(async (event) => {
+    // Post-publish actions
+    console.log("AfterPublishEvent");
+});
+
+await builder.build().run();
+```
+</TabItem>
+</Tabs>
 
 <LearnMore>
 For details on what happens during publishing, see [Publishing and deployment overview](/deployment/deploy-with-aspire/).
