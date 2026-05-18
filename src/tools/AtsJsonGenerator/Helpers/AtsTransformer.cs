@@ -117,6 +117,8 @@ internal static class AtsTransformer
             IsInterface = h.IsInterface,
             ExposeProperties = h.ExposeProperties,
             ExposeMethods = h.ExposeMethods,
+            Description = NormalizeDoc(h.Documentation?.Summary),
+            Remarks = NormalizeDoc(h.Documentation?.Remarks),
             ImplementedInterfaces = h.ImplementedInterfaces
                 .Select(i => StripAssemblyPrefix(i.TypeId))
                 .OrderBy(i => i)
@@ -131,6 +133,14 @@ internal static class AtsTransformer
             .Where(p => p.Name != cap.TargetParameterName)
             .ToList();
 
+        // Build a name → description lookup from the new Documentation block,
+        // covering only the parameters that will be rendered in the docs.
+        var paramDocLookup = cap.Documentation?.Parameters
+            .Where(d => !string.IsNullOrWhiteSpace(d.Description))
+            .GroupBy(d => d.Name, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Description, StringComparer.Ordinal)
+            ?? new Dictionary<string, string?>(StringComparer.Ordinal);
+
         var paramModels = visibleParams.Select(p => new TsParameterModel
         {
             Name = p.Name,
@@ -140,6 +150,7 @@ internal static class AtsTransformer
             DefaultValue = p.DefaultValue,
             IsCallback = p.IsCallback,
             CallbackSignature = p.IsCallback ? FormatCallbackSignature(p) : null,
+            Description = paramDocLookup.TryGetValue(p.Name, out var pd) ? NormalizeDoc(pd) : null,
         }).ToList();
 
         // Build a TypeScript-style signature
@@ -155,12 +166,18 @@ internal static class AtsTransformer
         var returnTypeStr = FormatTypeRef(cap.ReturnType);
         var sig = $"{cap.MethodName}({string.Join(", ", paramParts)}): {returnTypeStr}";
 
+        // Prefer the richer Documentation.Summary; fall back to the legacy
+        // Description field for older dumps that don't ship Documentation.
+        var description = NormalizeDoc(cap.Documentation?.Summary) ?? NormalizeDoc(cap.Description);
+
         return new TsFunctionModel
         {
             Name = cap.MethodName,
             CapabilityId = cap.CapabilityId,
             QualifiedName = cap.QualifiedMethodName,
-            Description = cap.Description,
+            Description = description,
+            Remarks = NormalizeDoc(cap.Documentation?.Remarks),
+            Returns = NormalizeDoc(cap.Documentation?.Returns),
             Kind = cap.CapabilityKind,
             Signature = sig,
             Parameters = paramModels,
@@ -180,11 +197,14 @@ internal static class AtsTransformer
         {
             Name = dto.Name,
             FullName = fullName,
+            Description = NormalizeDoc(dto.Documentation?.Summary) ?? NormalizeDoc(dto.Description),
+            Remarks = NormalizeDoc(dto.Documentation?.Remarks),
             Fields = dto.Properties.Select(p => new TsDtoFieldModel
             {
                 Name = p.Name,
                 Type = FormatTypeRef(p.Type),
                 IsOptional = p.IsOptional,
+                Description = NormalizeDoc(p.Documentation?.Summary) ?? NormalizeDoc(p.Description),
             }).ToList(),
         };
     }
@@ -196,13 +216,41 @@ internal static class AtsTransformer
             ? e.TypeId["enum:".Length..]
             : e.TypeId;
 
+        // Build per-member docs from ValueInfos, preserving original order.
+        // Only emitted if at least one member carries non-empty documentation.
+        List<TsEnumMemberDocModel>? memberDocs = null;
+        if (e.ValueInfos.Count > 0)
+        {
+            var docs = e.ValueInfos.Select(v => new TsEnumMemberDocModel
+            {
+                Name = v.Name,
+                Description = NormalizeDoc(v.Documentation?.Summary),
+                Remarks = NormalizeDoc(v.Documentation?.Remarks),
+            }).ToList();
+
+            if (docs.Any(d => d.Description is not null || d.Remarks is not null))
+            {
+                memberDocs = docs;
+            }
+        }
+
         return new TsEnumTypeModel
         {
             Name = e.Name,
             FullName = fullName,
+            Description = NormalizeDoc(e.Documentation?.Summary),
+            Remarks = NormalizeDoc(e.Documentation?.Remarks),
             Members = e.Values,
+            MemberDocs = memberDocs,
         };
     }
+
+    /// <summary>
+    /// Treat whitespace-only XML doc strings as missing so they're omitted from
+    /// the output JSON rather than serialized as empty strings.
+    /// </summary>
+    private static string? NormalizeDoc(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
     /// Format a callback parameter into a TypeScript-style function type signature.

@@ -10,13 +10,16 @@
       "name": "addAzureAppConfiguration",
       "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/addAzureAppConfiguration",
       "qualifiedName": "addAzureAppConfiguration",
-      "description": "Adds an Azure App Configuration resource",
+      "description": "Adds an Azure App Configuration resource to the application model.",
+      "remarks": "By default references to the Azure App Configuration resource will be assigned the following roles:\n- `AppConfigurationDataOwner`\nThese can be replaced by calling `WithRoleAssignments``1`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addAzureAppConfiguration(name: string): AzureAppConfigurationResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         }
       ],
       "returnType": "AzureAppConfigurationResource",
@@ -30,16 +33,19 @@
       "name": "runAsEmulator",
       "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/runAsEmulator",
       "qualifiedName": "runAsEmulator",
-      "description": "Configures Azure App Configuration to run with the local emulator",
+      "description": "Configures an Azure App Configuration resource to be emulated. This resource requires an `AzureAppConfigurationResource` to be added to the application model.",
+      "remarks": "This version of the package defaults to the tag of the / container image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "runAsEmulator(configureEmulator?: (obj: AzureAppConfigurationEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureAppConfigurationResource",
+      "signature": "runAsEmulator(configureEmulator?: (obj: AzureAppConfigurationEmulatorResource) => Promise<void>): AzureAppConfigurationResource",
       "parameters": [
         {
           "name": "configureEmulator",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: AzureAppConfigurationEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: AzureAppConfigurationEmulatorResource) => Promise<void>",
+          "description": "Callback that exposes underlying container used for emulation to allow for customization."
         }
       ],
       "returnType": "AzureAppConfigurationResource",
@@ -53,14 +59,16 @@
       "name": "withDataBindMount",
       "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withDataBindMount",
       "qualifiedName": "withDataBindMount",
-      "description": "Adds a data bind mount for the App Configuration emulator",
+      "description": "Adds a bind mount for the storage of an Azure App Configuration emulator resource.",
+      "returns": "A builder for the `AzureAppConfigurationEmulatorResource`.",
       "kind": "Method",
       "signature": "withDataBindMount(path?: string): AzureAppConfigurationEmulatorResource",
       "parameters": [
         {
           "name": "path",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "Relative path to the AppHost where emulator storage is persisted between runs. Defaults to the path '.aace'"
         }
       ],
       "returnType": "AzureAppConfigurationEmulatorResource",
@@ -74,14 +82,16 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a data volume for the App Configuration emulator",
+      "description": "Adds a named volume for the data folder to an Azure App Configuration emulator resource.",
+      "returns": "A builder for the `AzureAppConfigurationEmulatorResource`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string): AzureAppConfigurationEmulatorResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
         }
       ],
       "returnType": "AzureAppConfigurationEmulatorResource",
@@ -95,14 +105,16 @@
       "name": "withHostPort",
       "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withHostPort",
       "qualifiedName": "withHostPort",
-      "description": "Sets the host port for the App Configuration emulator",
+      "description": "Configures the host port for the Azure App Configuration emulator is exposed on instead of using randomly assigned port.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withHostPort(port: number): AzureAppConfigurationEmulatorResource",
       "parameters": [
         {
           "name": "port",
           "type": "number",
-          "isNullable": true
+          "isNullable": true,
+          "description": "The port to bind on the host. If `null` is used, a random port will be assigned."
         }
       ],
       "returnType": "AzureAppConfigurationEmulatorResource",
@@ -116,17 +128,20 @@
       "name": "withRoleAssignments",
       "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withAppConfigurationRoleAssignments",
       "qualifiedName": "withRoleAssignments",
-      "description": "Assigns App Configuration roles to a resource",
+      "description": "Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure App Configuration resource. This replaces the default role assignments for the resource.",
+      "returns": "The updated `IResourceBuilder`1` with the applied role assignments.",
       "kind": "Method",
       "signature": "withRoleAssignments(target: AzureAppConfigurationResource, roles: AzureAppConfigurationRole[]): IResource",
       "parameters": [
         {
           "name": "target",
-          "type": "AzureAppConfigurationResource"
+          "type": "AzureAppConfigurationResource",
+          "description": "The target Azure App Configuration resource."
         },
         {
           "name": "roles",
-          "type": "AzureAppConfigurationRole[]"
+          "type": "AzureAppConfigurationRole[]",
+          "description": "The App Configuration roles to be assigned."
         }
       ],
       "returnType": "IResource",
@@ -169,14 +184,16 @@
           "name": "withDataBindMount",
           "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withDataBindMount",
           "qualifiedName": "withDataBindMount",
-          "description": "Adds a data bind mount for the App Configuration emulator",
+          "description": "Adds a bind mount for the storage of an Azure App Configuration emulator resource.",
+          "returns": "A builder for the `AzureAppConfigurationEmulatorResource`.",
           "kind": "Method",
           "signature": "withDataBindMount(path?: string): AzureAppConfigurationEmulatorResource",
           "parameters": [
             {
               "name": "path",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "Relative path to the AppHost where emulator storage is persisted between runs. Defaults to the path '.aace'"
             }
           ],
           "returnType": "AzureAppConfigurationEmulatorResource",
@@ -190,14 +207,16 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a data volume for the App Configuration emulator",
+          "description": "Adds a named volume for the data folder to an Azure App Configuration emulator resource.",
+          "returns": "A builder for the `AzureAppConfigurationEmulatorResource`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string): AzureAppConfigurationEmulatorResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
             }
           ],
           "returnType": "AzureAppConfigurationEmulatorResource",
@@ -211,14 +230,16 @@
           "name": "withHostPort",
           "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/withHostPort",
           "qualifiedName": "withHostPort",
-          "description": "Sets the host port for the App Configuration emulator",
+          "description": "Configures the host port for the Azure App Configuration emulator is exposed on instead of using randomly assigned port.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withHostPort(port: number): AzureAppConfigurationEmulatorResource",
           "parameters": [
             {
               "name": "port",
               "type": "number",
-              "isNullable": true
+              "isNullable": true,
+              "description": "The port to bind on the host. If `null` is used, a random port will be assigned."
             }
           ],
           "returnType": "AzureAppConfigurationEmulatorResource",
@@ -251,16 +272,19 @@
           "name": "runAsEmulator",
           "capabilityId": "Aspire.Hosting.Azure.AppConfiguration/runAsEmulator",
           "qualifiedName": "runAsEmulator",
-          "description": "Configures Azure App Configuration to run with the local emulator",
+          "description": "Configures an Azure App Configuration resource to be emulated. This resource requires an `AzureAppConfigurationResource` to be added to the application model.",
+          "remarks": "This version of the package defaults to the tag of the / container image.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "runAsEmulator(configureEmulator?: (obj: AzureAppConfigurationEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureAppConfigurationResource",
+          "signature": "runAsEmulator(configureEmulator?: (obj: AzureAppConfigurationEmulatorResource) => Promise<void>): AzureAppConfigurationResource",
           "parameters": [
             {
               "name": "configureEmulator",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: AzureAppConfigurationEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: AzureAppConfigurationEmulatorResource) => Promise<void>",
+              "description": "Callback that exposes underlying container used for emulation to allow for customization."
             }
           ],
           "returnType": "AzureAppConfigurationResource",
@@ -279,6 +303,7 @@
       "name": "AzureAppConfigurationRole",
       "fullName": "Aspire.Hosting.AzureAppConfigurationRole",
       "kind": "enum",
+      "description": "Represents Azure App Configuration roles that are compatible with the Aspire Type System (ATS).",
       "members": [
         "AppConfigurationDataOwner",
         "AppConfigurationDataReader"

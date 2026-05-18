@@ -10,13 +10,16 @@
       "name": "addAzureKustoCluster",
       "capabilityId": "Aspire.Hosting.Azure.Kusto/addAzureKustoCluster",
       "qualifiedName": "addAzureKustoCluster",
-      "description": "Adds an Azure Data Explorer (Kusto) cluster resource",
+      "description": "Adds an Azure Data Explorer (Kusto) cluster resource to the application model.",
+      "remarks": "When adding an `AzureKustoClusterResource` to your application model the resource can then\nbe referenced by other resources using the resource name. When the dependent resource is using\nthe extension method `WaitFor``1`\nthen the dependent resource will wait until the Kusto database is available.\nBy default references to the Azure Data Explorer database resources will be assigned the following roles:\n- `User`",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addAzureKustoCluster(name: string): AzureKustoClusterResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         }
       ],
       "returnType": "AzureKustoClusterResource",
@@ -30,18 +33,21 @@
       "name": "addReadWriteDatabase",
       "capabilityId": "Aspire.Hosting.Azure.Kusto/addReadWriteDatabase",
       "qualifiedName": "addReadWriteDatabase",
-      "description": "Adds a Kusto read-write database resource",
+      "description": "Adds a Kusto read-write database to the application model.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addReadWriteDatabase(name: string, databaseName?: string): AzureKustoReadWriteDatabaseResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         },
         {
           "name": "databaseName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the database. If not provided, this defaults to the same value as `name`."
         }
       ],
       "returnType": "AzureKustoReadWriteDatabaseResource",
@@ -55,7 +61,7 @@
       "name": "clusterUri",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.clusterUri",
       "qualifiedName": "AzureKustoClusterResource.clusterUri",
-      "description": "Gets the ClusterUri property",
+      "description": "Gets the cluster URI output reference for the Azure Kusto cluster.",
       "kind": "PropertyGetter",
       "signature": "clusterUri(): BicepOutputReference",
       "parameters": [],
@@ -83,7 +89,7 @@
       "name": "isEmulator",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.isEmulator",
       "qualifiedName": "AzureKustoClusterResource.isEmulator",
-      "description": "Gets the IsEmulator property",
+      "description": "Gets whether the resource is running the local emulator.",
       "kind": "PropertyGetter",
       "signature": "isEmulator(): boolean",
       "parameters": [],
@@ -97,7 +103,7 @@
       "name": "nameOutputReference",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.nameOutputReference",
       "qualifiedName": "AzureKustoClusterResource.nameOutputReference",
-      "description": "Gets the NameOutputReference property",
+      "description": "Gets the \"name\" output reference for the resource.",
       "kind": "PropertyGetter",
       "signature": "nameOutputReference(): BicepOutputReference",
       "parameters": [],
@@ -111,7 +117,8 @@
       "name": "uriExpression",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.uriExpression",
       "qualifiedName": "AzureKustoClusterResource.uriExpression",
-      "description": "Gets the UriExpression property",
+      "description": "Gets the connection URI expression for the Kusto cluster.",
+      "remarks": "In emulator mode, resolves to the container's HTTP endpoint.\nIn Azure mode, resolves to the Azure Kusto cluster URI.",
       "kind": "PropertyGetter",
       "signature": "uriExpression(): ReferenceExpression",
       "parameters": [],
@@ -125,7 +132,7 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoReadWriteDatabaseResource.connectionStringExpression",
       "qualifiedName": "AzureKustoReadWriteDatabaseResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the Kusto database.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -139,7 +146,7 @@
       "name": "databaseName",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoReadWriteDatabaseResource.databaseName",
       "qualifiedName": "AzureKustoReadWriteDatabaseResource.databaseName",
-      "description": "Gets the DatabaseName property",
+      "description": "Gets the database name.",
       "kind": "PropertyGetter",
       "signature": "databaseName(): string",
       "parameters": [],
@@ -153,7 +160,7 @@
       "name": "parent",
       "capabilityId": "Aspire.Hosting.Azure/AzureKustoReadWriteDatabaseResource.parent",
       "qualifiedName": "AzureKustoReadWriteDatabaseResource.parent",
-      "description": "Gets the Parent property",
+      "description": "Gets the parent Kusto resource.",
       "kind": "PropertyGetter",
       "signature": "parent(): AzureKustoClusterResource",
       "parameters": [],
@@ -167,7 +174,8 @@
       "name": "getDatabaseCreationScript",
       "capabilityId": "Aspire.Hosting.Azure.Kusto/getDatabaseCreationScript",
       "qualifiedName": "getDatabaseCreationScript",
-      "description": "Gets the KQL script used to create the database.",
+      "description": "Gets the database creation script from the resource annotation if it exists. If not, creates the default database creation script.",
+      "remarks": "The default script is\n```\n.create database DATABASE_NAME persist (PERSISTENCE_PATH/DATABASE_NAME/md, PERSISTENCE_PATH/DATABASE_NAME/data) ifnotexists\n```\nwhere\nDATABASE_NAME is the database name and PERSISTENCE_PATH is .",
       "kind": "Method",
       "signature": "getDatabaseCreationScript(): string",
       "parameters": [],
@@ -181,16 +189,19 @@
       "name": "runAsEmulator",
       "capabilityId": "Aspire.Hosting.Azure.Kusto/runAsEmulator",
       "qualifiedName": "runAsEmulator",
-      "description": "Configures the Kusto cluster to run using the local emulator",
+      "description": "Configures the Kusto resource to run as an emulator using the Kustainer container.",
+      "remarks": "This version of the package defaults to the tag of the / container image.",
+      "returns": "The resource builder.",
       "kind": "Method",
-      "signature": "runAsEmulator(configureContainer?: (obj: AzureKustoEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureKustoClusterResource",
+      "signature": "runAsEmulator(configureContainer?: (obj: AzureKustoEmulatorResource) => Promise<void>): AzureKustoClusterResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: AzureKustoEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: AzureKustoEmulatorResource) => Promise<void>",
+          "description": "Optional action to configure the Kusto emulator container."
         }
       ],
       "returnType": "AzureKustoClusterResource",
@@ -204,13 +215,16 @@
       "name": "withCreationScript",
       "capabilityId": "Aspire.Hosting.Azure.Kusto/withCreationScript",
       "qualifiedName": "withCreationScript",
-      "description": "Defines the KQL script used to create the database",
+      "description": "Defines the script used to create the database.",
+      "remarks": "This script will only be executed when the Kusto resource is running in emulator mode. In production scenarios, the database creation should be handled as part of the provisioning process.",
+      "returns": "The resource builder.",
       "kind": "Method",
       "signature": "withCreationScript(script: string): AzureKustoReadWriteDatabaseResource",
       "parameters": [
         {
           "name": "script",
-          "type": "string"
+          "type": "string",
+          "description": "KQL script to create databases, tables, or data."
         }
       ],
       "returnType": "AzureKustoReadWriteDatabaseResource",
@@ -224,13 +238,15 @@
       "name": "withHostPort",
       "capabilityId": "Aspire.Hosting.Azure.Kusto/withHostPort",
       "qualifiedName": "withHostPort",
-      "description": "Sets the host port for the Kusto emulator endpoint",
+      "description": "Configures the host port that the Kusto emulator listens on for HTTP query requests.",
+      "returns": "An `IResourceBuilder`1` for the `AzureKustoEmulatorResource`.",
       "kind": "Method",
       "signature": "withHostPort(port: number): AzureKustoEmulatorResource",
       "parameters": [
         {
           "name": "port",
-          "type": "number"
+          "type": "number",
+          "description": "Host port to use."
         }
       ],
       "returnType": "AzureKustoEmulatorResource",
@@ -247,6 +263,7 @@
       "fullName": "Aspire.Hosting.Azure.AzureKustoClusterResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a Kusto cluster.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IAzureResource",
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
@@ -263,18 +280,21 @@
           "name": "addReadWriteDatabase",
           "capabilityId": "Aspire.Hosting.Azure.Kusto/addReadWriteDatabase",
           "qualifiedName": "addReadWriteDatabase",
-          "description": "Adds a Kusto read-write database resource",
+          "description": "Adds a Kusto read-write database to the application model.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "addReadWriteDatabase(name: string, databaseName?: string): AzureKustoReadWriteDatabaseResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
             },
             {
               "name": "databaseName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the database. If not provided, this defaults to the same value as `name`."
             }
           ],
           "returnType": "AzureKustoReadWriteDatabaseResource",
@@ -288,7 +308,7 @@
           "name": "clusterUri",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.clusterUri",
           "qualifiedName": "AzureKustoClusterResource.clusterUri",
-          "description": "Gets the ClusterUri property",
+          "description": "Gets the cluster URI output reference for the Azure Kusto cluster.",
           "kind": "PropertyGetter",
           "signature": "clusterUri(): BicepOutputReference",
           "parameters": [],
@@ -316,7 +336,7 @@
           "name": "isEmulator",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.isEmulator",
           "qualifiedName": "AzureKustoClusterResource.isEmulator",
-          "description": "Gets the IsEmulator property",
+          "description": "Gets whether the resource is running the local emulator.",
           "kind": "PropertyGetter",
           "signature": "isEmulator(): boolean",
           "parameters": [],
@@ -330,7 +350,7 @@
           "name": "nameOutputReference",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.nameOutputReference",
           "qualifiedName": "AzureKustoClusterResource.nameOutputReference",
-          "description": "Gets the NameOutputReference property",
+          "description": "Gets the \"name\" output reference for the resource.",
           "kind": "PropertyGetter",
           "signature": "nameOutputReference(): BicepOutputReference",
           "parameters": [],
@@ -344,7 +364,8 @@
           "name": "uriExpression",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoClusterResource.uriExpression",
           "qualifiedName": "AzureKustoClusterResource.uriExpression",
-          "description": "Gets the UriExpression property",
+          "description": "Gets the connection URI expression for the Kusto cluster.",
+          "remarks": "In emulator mode, resolves to the container's HTTP endpoint.\nIn Azure mode, resolves to the Azure Kusto cluster URI.",
           "kind": "PropertyGetter",
           "signature": "uriExpression(): ReferenceExpression",
           "parameters": [],
@@ -358,16 +379,19 @@
           "name": "runAsEmulator",
           "capabilityId": "Aspire.Hosting.Azure.Kusto/runAsEmulator",
           "qualifiedName": "runAsEmulator",
-          "description": "Configures the Kusto cluster to run using the local emulator",
+          "description": "Configures the Kusto resource to run as an emulator using the Kustainer container.",
+          "remarks": "This version of the package defaults to the tag of the / container image.",
+          "returns": "The resource builder.",
           "kind": "Method",
-          "signature": "runAsEmulator(configureContainer?: (obj: AzureKustoEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureKustoClusterResource",
+          "signature": "runAsEmulator(configureContainer?: (obj: AzureKustoEmulatorResource) => Promise<void>): AzureKustoClusterResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: AzureKustoEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: AzureKustoEmulatorResource) => Promise<void>",
+              "description": "Optional action to configure the Kusto emulator container."
             }
           ],
           "returnType": "AzureKustoClusterResource",
@@ -397,13 +421,15 @@
           "name": "withHostPort",
           "capabilityId": "Aspire.Hosting.Azure.Kusto/withHostPort",
           "qualifiedName": "withHostPort",
-          "description": "Sets the host port for the Kusto emulator endpoint",
+          "description": "Configures the host port that the Kusto emulator listens on for HTTP query requests.",
+          "returns": "An `IResourceBuilder`1` for the `AzureKustoEmulatorResource`.",
           "kind": "Method",
           "signature": "withHostPort(port: number): AzureKustoEmulatorResource",
           "parameters": [
             {
               "name": "port",
-              "type": "number"
+              "type": "number",
+              "description": "Host port to use."
             }
           ],
           "returnType": "AzureKustoEmulatorResource",
@@ -420,13 +446,14 @@
       "fullName": "Aspire.Hosting.Azure.AzureKustoReadWriteDatabaseResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "Represents an Azure Kusto read-write database resource, which is a child resource of a `AzureKustoClusterResource`.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
         "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Azure.AzureKustoClusterResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Azure.AzureKustoClusterResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences"
       ],
@@ -435,7 +462,7 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoReadWriteDatabaseResource.connectionStringExpression",
           "qualifiedName": "AzureKustoReadWriteDatabaseResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the Kusto database.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -449,7 +476,7 @@
           "name": "databaseName",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoReadWriteDatabaseResource.databaseName",
           "qualifiedName": "AzureKustoReadWriteDatabaseResource.databaseName",
-          "description": "Gets the DatabaseName property",
+          "description": "Gets the database name.",
           "kind": "PropertyGetter",
           "signature": "databaseName(): string",
           "parameters": [],
@@ -463,7 +490,7 @@
           "name": "parent",
           "capabilityId": "Aspire.Hosting.Azure/AzureKustoReadWriteDatabaseResource.parent",
           "qualifiedName": "AzureKustoReadWriteDatabaseResource.parent",
-          "description": "Gets the Parent property",
+          "description": "Gets the parent Kusto resource.",
           "kind": "PropertyGetter",
           "signature": "parent(): AzureKustoClusterResource",
           "parameters": [],
@@ -477,7 +504,8 @@
           "name": "getDatabaseCreationScript",
           "capabilityId": "Aspire.Hosting.Azure.Kusto/getDatabaseCreationScript",
           "qualifiedName": "getDatabaseCreationScript",
-          "description": "Gets the KQL script used to create the database.",
+          "description": "Gets the database creation script from the resource annotation if it exists. If not, creates the default database creation script.",
+          "remarks": "The default script is\n```\n.create database DATABASE_NAME persist (PERSISTENCE_PATH/DATABASE_NAME/md, PERSISTENCE_PATH/DATABASE_NAME/data) ifnotexists\n```\nwhere\nDATABASE_NAME is the database name and PERSISTENCE_PATH is .",
           "kind": "Method",
           "signature": "getDatabaseCreationScript(): string",
           "parameters": [],
@@ -491,13 +519,16 @@
           "name": "withCreationScript",
           "capabilityId": "Aspire.Hosting.Azure.Kusto/withCreationScript",
           "qualifiedName": "withCreationScript",
-          "description": "Defines the KQL script used to create the database",
+          "description": "Defines the script used to create the database.",
+          "remarks": "This script will only be executed when the Kusto resource is running in emulator mode. In production scenarios, the database creation should be handled as part of the provisioning process.",
+          "returns": "The resource builder.",
           "kind": "Method",
           "signature": "withCreationScript(script: string): AzureKustoReadWriteDatabaseResource",
           "parameters": [
             {
               "name": "script",
-              "type": "string"
+              "type": "string",
+              "description": "KQL script to create databases, tables, or data."
             }
           ],
           "returnType": "AzureKustoReadWriteDatabaseResource",
