@@ -1266,6 +1266,76 @@ li a.external-link::after {
   }
 }
 
+/* Topic-nav rail mode at 50rem–71.999rem.
+   The persistent sidebar (and therefore the collapse/expand toggle) is
+   visible on `[data-topic-nav]` pages from 50rem upward, so clicking
+   the toggle needs to drive the same rail-mode visuals here that the
+   `@media (min-width: 72rem)` block applies higher up. Each rule is
+   the topic-nav half of a comma-separated selector in that block; the
+   `--sl-sidebar-width: 5rem` shrinker is scoped to topic-nav only so
+   it can't bleed onto API-ref pages (which stay in mobile-overlay
+   mode below 72rem and would otherwise get a 5rem-wide overlay). */
+@media (min-width: 50rem) and (max-width: 71.999rem) {
+  :root:has(.topics-sidebar[data-topic-nav])[data-topic-sidebar-collapsed] {
+    --sl-sidebar-width: 5rem;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav]) #starlight__sidebar {
+    background: var(--sl-color-bg-nav);
+    border-inline-end: 1px solid var(--sl-color-gray-5);
+    scrollbar-gutter: auto;
+    overflow-y: hidden;
+  }
+
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed]
+    .topics-sidebar[data-topic-nav]
+    .topic-sidebar-sticky
+    > *:not(.starlight-sidebar-topics) {
+    display: none !important;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a {
+    justify-content: center;
+    gap: 0;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .starlight-sidebar-topics
+    a
+    > div:not(.starlight-sidebar-topics-icon),
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button
+    > span {
+    display: none;
+  }
+
+  :root[data-topic-sidebar-collapsed]:has(.topics-sidebar[data-topic-nav])
+    .sidebar-bottom
+    .sl-link-button {
+    justify-content: center;
+    gap: 0;
+  }
+
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    .sidebar-filter,
+  :root[data-topic-sidebar-expanding]:has(.topics-sidebar[data-topic-nav])
+    .topics-sidebar[data-topic-nav]
+    > *:not(.topic-sidebar-sticky):not(.divider):not(.sidebar-bottom) {
+    animation: aspire-sidebar-blur-in 0.28s ease-out both;
+    will-change: filter, opacity;
+  }
+}
+
 /* API reference: keep mobile sidebar until 72rem (40rem sidebar is too wide for 50rem breakpoint) */
 @media (min-width: 50rem) and (max-width: 71.999rem) {
   /* Reset content offset — no fixed sidebar in this range for API ref */
