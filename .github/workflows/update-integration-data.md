@@ -31,6 +31,9 @@ network:
     - dotnet
     - github
 safe-outputs:
+  # Raise the default 100-file patch cap: the API-reference regen branch can
+  # write hundreds of files under pkgs/ and ts-modules/ on a single run.
+  max-patch-files: 500
   github-app:
     client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
     private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
