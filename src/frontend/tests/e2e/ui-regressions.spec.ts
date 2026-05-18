@@ -541,6 +541,14 @@ test('sidebar collapse toggle does not overlap the mobile "On this page" control
 
   const collapseButton = page.locator('#topic-sidebar-collapse-btn');
   const mobileTocSummary = page.locator('#starlight__on-this-page--mobile');
+  // The visible "On this page" pill that the padding shift actually
+  // moves. The summary element itself spans the full bar width and
+  // anchors its left edge to the sidebar's right edge — same as the
+  // toggle — so comparing against the summary's bounding box would
+  // measure the bar itself, not the trigger label. Target the inner
+  // `.toggle` span (the styled pill) instead so the assertion sees
+  // the effect of the `padding-inline-start` rule.
+  const mobileTocTrigger = mobileTocSummary.locator('.toggle');
 
   // Sanity check: both controls must be visible together for the
   // overlap to be a real concern. If the breakpoint stops rendering the
@@ -548,36 +556,29 @@ test('sidebar collapse toggle does not overlap the mobile "On this page" control
   // failure mode obvious.
   await expect(collapseButton).toBeVisible();
   await expect(mobileTocSummary).toBeVisible();
+  await expect(mobileTocTrigger).toBeVisible();
 
   const collapseBox = await collapseButton.boundingBox();
   const summaryBox = await mobileTocSummary.boundingBox();
+  const triggerBox = await mobileTocTrigger.boundingBox();
   expect(collapseBox).not.toBeNull();
   expect(summaryBox).not.toBeNull();
-  if (!collapseBox || !summaryBox) return;
+  expect(triggerBox).not.toBeNull();
+  if (!collapseBox || !summaryBox || !triggerBox) return;
 
-  // The toggle must sit to the left of the mobile TOC summary trigger.
-  // `boundingBox.x` is the element's left edge in CSS pixels — when the
-  // toggle is inline with the TOC bar, its right edge is at or before
-  // the summary trigger's left edge.
-  expect(collapseBox.x + collapseBox.width).toBeLessThanOrEqual(summaryBox.x + 1);
+  // Horizontal: the toggle's right edge must sit at or before the
+  // visible trigger pill's left edge so the two controls don't visually
+  // overlap. The 1-pixel tolerance accommodates sub-pixel rounding.
+  expect(collapseBox.x + collapseBox.width).toBeLessThanOrEqual(triggerBox.x + 1);
 
-  // The toggle must align vertically with the mobile TOC bar (not be
-  // stacked below it). The TOC bar starts at roughly `--sl-nav-height`,
-  // so the toggle's `top` should land within the bar's vertical range.
-  const navHeightPx = await page.evaluate(() => {
-    const navHeight = getComputedStyle(document.documentElement)
-      .getPropertyValue('--sl-nav-height')
-      .trim();
-    const numeric = Number.parseFloat(navHeight);
-    if (Number.isNaN(numeric)) return 0;
-    if (navHeight.endsWith('rem')) {
-      const rootFontSize =
-        Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      return numeric * rootFontSize;
-    }
-    return numeric;
-  });
-  expect(collapseBox.y).toBeLessThan(navHeightPx + 4);
+  // Vertical: the toggle must overlap the TOC bar's y-range, not be
+  // stacked above OR below it. Asserting bounding-box overlap is the
+  // geometric definition of "in the same row" and catches regressions
+  // where the toggle jumps off the bar in either direction.
+  const collapseBottom = collapseBox.y + collapseBox.height;
+  const summaryBottom = summaryBox.y + summaryBox.height;
+  expect(collapseBox.y).toBeLessThan(summaryBottom);
+  expect(collapseBottom).toBeGreaterThan(summaryBox.y);
 });
 
 test('sidebar collapse toggle disappears below the topic-nav sidebar breakpoint', async ({
