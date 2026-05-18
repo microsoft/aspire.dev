@@ -1066,7 +1066,13 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
      opacity crossfade keyed off `[data-sidebar-collapsed]` /
      `[data-topic-sidebar-collapsed]` on <html>, with `pointer-events`
      ensuring only the active button receives clicks. This keeps the
-     swap synchronised with the sidebar's width transition. */
+     swap synchronised with the sidebar's width transition.
+
+     At 72rem–99.999rem widths the Starlight mobile TOC bar
+     (`#starlight__on-this-page--mobile`) is forced visible via
+     `[data-has-toc]`, and the toggle is repositioned into the same
+     row as that bar (see the `(min-width: 72rem) and (max-width:
+     99.999rem)` override below) so the two controls don't collide. */
   .sidebar-collapse-btn,
   .sidebar-expand-btn {
     position: fixed;
@@ -1176,6 +1182,40 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     .sidebar-collapse-btn,
     .sidebar-expand-btn {
       display: none !important;
+    }
+  }
+
+  /* Inline the toggle with the mobile "On this page" TOC bar at desktop
+     widths that still show it (≥ 72rem and < 100rem with [data-has-toc]).
+     Without this override the base calc parks the toggle a row below the
+     TOC bar where it covers the first line of content and crowds the
+     `#starlight__on-this-page--mobile` dropdown trigger. Sliding the
+     toggle up into the TOC bar's row keeps both controls visible while
+     letting the dropdown content shift right (see site.css for the
+     companion `padding-inline-start` on the summary). */
+  @media (min-width: 72rem) and (max-width: 99.999rem) {
+    :global(html[data-has-toc]) .sidebar-collapse-btn,
+    :global(html[data-has-toc]) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: var(--sl-mobile-toc-height, 3rem);
+      /* Drop the floating-tab treatment — the toggle is part of the
+         TOC bar's row now, not a tab projecting from the sidebar. */
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+      /* Promote above the mobile TOC's nav bar so the toggle paints on
+         top of the bar's background rather than slipping behind it. */
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html[data-has-toc]) .sidebar-collapse-btn:hover,
+    :global(html[data-has-toc]) .sidebar-expand-btn:hover {
+      /* Cancel the elevated hover shadow inherited from the base rule —
+         a shadow looks out of place inside the flat TOC bar. */
+      box-shadow: none;
+      background: var(--sl-color-bg);
     }
   }
 

@@ -510,3 +510,64 @@ test('persisted collapsed sidebar preference does not squish labels at sub-72rem
   expect(topicSidebarWidth).not.toBeNull();
   expect(topicSidebarWidth ?? 0).toBeGreaterThan(120);
 });
+
+test('sidebar collapse toggle does not overlap the mobile "On this page" control', async ({
+  page,
+}) => {
+  // Regression for the "toggle covers the mobile TOC dropdown" bug. At
+  // viewports in [72rem, 100rem) with `[data-has-toc]` set by Starlight,
+  // the mobile TOC bar (`#starlight__on-this-page--mobile`) is forced
+  // visible by aspire.dev's CSS, and the floating sidebar collapse/expand
+  // toggle (`#topic-sidebar-collapse-btn`) is also visible. Before the
+  // inline-with-TOC fix, the toggle was parked a row below the bar where
+  // it overlaid the "On this page > <current heading>" dropdown trigger.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 1152 || viewport.width >= 1600,
+    'Bug only reproduces at the breakpoint where the mobile TOC and the desktop sidebar toggle are simultaneously visible (≥ 72rem and < 100rem).'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const mobileTocSummary = page.locator('#starlight__on-this-page--mobile');
+
+  // Sanity check: both controls must be visible together for the
+  // overlap to be a real concern. If the breakpoint stops rendering the
+  // mobile TOC at desktop widths in the future, this guard makes the
+  // failure mode obvious.
+  await expect(collapseButton).toBeVisible();
+  await expect(mobileTocSummary).toBeVisible();
+
+  const collapseBox = await collapseButton.boundingBox();
+  const summaryBox = await mobileTocSummary.boundingBox();
+  expect(collapseBox).not.toBeNull();
+  expect(summaryBox).not.toBeNull();
+  if (!collapseBox || !summaryBox) return;
+
+  // The toggle must sit to the left of the mobile TOC summary trigger.
+  // `boundingBox.x` is the element's left edge in CSS pixels — when the
+  // toggle is inline with the TOC bar, its right edge is at or before
+  // the summary trigger's left edge.
+  expect(collapseBox.x + collapseBox.width).toBeLessThanOrEqual(summaryBox.x + 1);
+
+  // The toggle must align vertically with the mobile TOC bar (not be
+  // stacked below it). The TOC bar starts at roughly `--sl-nav-height`,
+  // so the toggle's `top` should land within the bar's vertical range.
+  const navHeightPx = await page.evaluate(() => {
+    const navHeight = getComputedStyle(document.documentElement)
+      .getPropertyValue('--sl-nav-height')
+      .trim();
+    const numeric = Number.parseFloat(navHeight);
+    if (Number.isNaN(numeric)) return 0;
+    if (navHeight.endsWith('rem')) {
+      const rootFontSize =
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      return numeric * rootFontSize;
+    }
+    return numeric;
+  });
+  expect(collapseBox.y).toBeLessThan(navHeightPx + 4);
+});
