@@ -467,14 +467,25 @@ test('persisted collapsed sidebar preference does not squish labels at sub-72rem
   // documentElement before first paint — exactly the user-reported scenario
   // of collapsing on a wide screen and then resizing/zooming down.
   await page.addInitScript(() => {
-    try {
-      localStorage.setItem('topic-sidebar-collapsed', '1');
-      localStorage.setItem('api-sidebar-collapsed', '1');
-    } catch {}
+    localStorage.setItem('topic-sidebar-collapsed', '1');
+    localStorage.setItem('api-sidebar-collapsed', '1');
   });
 
   await page.goto('/app-host/certificate-configuration/');
   await dismissCookieConsentIfVisible(page);
+
+  // Wait for the page and the topic sidebar element itself to render before
+  // we read computed styles or measure widths. At tablet widths we can't use
+  // `waitForTopicSidebarReady` — that helper asserts collapse/expand button
+  // visibility, but those controls live in rail mode (>= 72rem) which is
+  // exactly the breakpoint this bug sits outside of.
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeAttached();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-topic-sidebar-ready'))
+    )
+    .toBe(true);
 
   // Confirm the persisted preference round-tripped (so we know we're
   // exercising the buggy code path, not a no-op).
