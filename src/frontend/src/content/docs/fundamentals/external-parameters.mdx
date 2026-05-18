@@ -205,6 +205,9 @@ You can also control how the dashboard displays these parameters, by using these
 
 This code shows how to set a description and use the callback:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -226,9 +229,33 @@ var externalService = builder.AddExternalService("external-service", externalSer
 builder.Build().Run();
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for `withCustomInput` is not yet available.
-</Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { InputType, createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const externalServiceUrl = await builder.addParameter('external-service-url');
+await externalServiceUrl
+  .withDescription(
+    'The URL of the external service. See [example.com](https://example.com) for details.',
+    { enableMarkdown: true }
+  )
+  .withCustomInput({
+    inputType: InputType.Text,
+    label: 'External service URL',
+    placeholder: 'Enter value for external-service-url',
+  });
+
+await builder.addExternalService('external-service', externalServiceUrl);
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
 
 The code renders this control in the dashboard:
 
@@ -461,7 +488,7 @@ const api = await builder.addProject(
   'api',
   '../WebApplication/WebApplication.csproj'
 );
-await api.withReference(redis);
+await api.withReference(redis).waitFor(redis);
 
 await builder.build().run();
 ```
@@ -471,12 +498,9 @@ await builder.build().run();
 
 <Aside type="note">
   Using `WaitFor` with a connection string will implicitly wait for the resource
-  that the connection string connects to.
-</Aside>
-
-<Aside type="note">
-  TypeScript AppHost support for `waitFor` with connection string resources
-  isn't yet available.
+  that the connection string connects to. For connection strings backed only by
+  configuration, the dependency is still modeled but there isn't an
+  Aspire-managed resource to wait for.
 </Aside>
 
 Now consider the following AppHost configuration file _appsettings.json_:
@@ -495,6 +519,9 @@ If you want to construct a connection string from parameters and ensure that it'
 
 For example, if you have a secret parameter that stores a small part of a connection string, use this code to insert it:
 
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
 ```csharp title="AppHost.cs"
 var secretKey = builder.AddParameter("secretkey", secret: true);
 
@@ -507,12 +534,37 @@ builder.AddProject<Projects.AspireReferenceExpressions_CatalogAPI>("catalogapi")
        .WaitFor(connectionString);
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for constructing connection strings with
-  `ReferenceExpression.Create(...)` is not yet available.
-</Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder, refExpr } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const secretKey = await builder.addParameter('secretkey', { secret: true });
+
+const connectionString = await builder.addConnectionString(
+  'composedconnectionstring',
+  {
+    environmentVariableNameOrExpression: refExpr`Endpoint=https://api.contoso.com/v1;Key=${secretKey}`,
+  }
+);
+
+const catalogApi = await builder.addProject(
+  'catalogapi',
+  '../CatalogApi/CatalogApi.csproj'
+);
+await catalogApi.withReference(connectionString).waitFor(connectionString);
+```
+
+</TabItem>
+</Tabs>
 
 You can also use reference expressions to append text to connection strings created by Aspire resources. For example, when you add a PostgreSQL resource to your Aspire solution, the database server runs in a container and a connection string is formulated for it. In the following code, the extra property `Include Error Details` is appended to that connection string before it's passed to consuming projects:
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
 
 ```csharp title="AppHost.cs"
 var postgres = builder.AddPostgres("postgres");
@@ -527,10 +579,30 @@ builder.AddProject<Projects.AspireReferenceExpressions_CustomerAPI>("customerapi
        .WaitFor(pgConnectionString);
 ```
 
-<Aside type="note">
-  TypeScript AppHost support for appending to generated connection strings with
-  `ReferenceExpression.Create(...)` is not yet available.
-</Aside>
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder, refExpr } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const database = await postgres.addDatabase('db');
+
+const pgConnectionString = await builder.addConnectionString('pgdatabase', {
+  environmentVariableNameOrExpression: refExpr`${database};Include Error Details=true`,
+});
+
+const customerApi = await builder.addProject(
+  'customerapi',
+  '../CustomerApi/CustomerApi.csproj'
+);
+await customerApi.withReference(pgConnectionString).waitFor(pgConnectionString);
+```
+
+</TabItem>
+</Tabs>
 
 ## Parameter example
 

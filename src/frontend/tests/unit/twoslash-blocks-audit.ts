@@ -142,56 +142,6 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
       "'AzureContainerRegistryResource' is not assignable to parameter of type 'IResource'",
     label: 'IResource identity (withContainerRegistry + ACR)',
   },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 1,
-    code: 2345,
-    messageContains:
-      "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 2,
-    code: 2345,
-    messageContains:
-      "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    expectedOccurrences: 2,
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 3,
-    code: 2345,
-    messageContains:
-      "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
-    blockIndex: 5,
-    code: 2345,
-    messageContains:
-      "'AzureOpenAIDeploymentResource' is not assignable to parameter of type 'IResource'",
-    label: 'IResource identity (withReference + AOAI deployment)',
-  },
-  {
-    page: 'whats-new/aspire-13-2.mdx',
-    blockIndex: 6,
-    code: 2345,
-    messageContains: "is not assignable to parameter of type 'IResource'",
-    expectedOccurrences: 2,
-    label: 'IResource identity (waitFor + ADLS)',
-  },
-  {
-    page: 'ja/whats-new/aspire-13-2.mdx',
-    blockIndex: 6,
-    code: 2345,
-    messageContains: "is not assignable to parameter of type 'IResource'",
-    expectedOccurrences: 2,
-    label: 'IResource identity (waitFor + ADLS)',
-  },
-
   // 2. AzureResourceInfrastructure.getProvisionableResources() missing
   {
     page: 'integrations/cloud/azure/azure-openai/azure-openai-host.mdx',
@@ -228,16 +178,6 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
     messageContains:
       "'\"openai/gpt-4o-mini\"' is not assignable to parameter of type 'GitHubModelName'",
     label: 'GitHubModelName literal union outdated',
-  },
-
-  // 5. Foundry role-assignment helper missing from generated TypeScript declarations
-  {
-    page: 'integrations/cloud/azure/azure-ai-foundry/azure-ai-foundry-host.mdx',
-    blockIndex: 10,
-    code: 2551,
-    messageContains:
-      "Property 'withFoundryRoleAssignments' does not exist on type 'ProjectResource'",
-    label: 'withFoundryRoleAssignments missing',
   },
 ];
 
