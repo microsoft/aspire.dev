@@ -138,14 +138,17 @@ await builder.build().run();
 
 ## Package managers
 
-The Aspire CLI automatically detects which package manager your TypeScript AppHost uses by inspecting lock files and the `packageManager` field in `package.json`. The following package managers are supported:
+The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.ts` and `aspire.config.json`. The CLI selects between them by inspecting the `packageManager` field in `package.json` and any lock files in the AppHost root.
 
-| Package manager | Lock file detected | Notes |
+| Package manager | Lock file | Support |
 |---|---|---|
-| npm | `package-lock.json` | Default; no extra setup required |
-| pnpm | `pnpm-lock.yaml` | |
-| Yarn (v4+) | `yarn.lock` | Must be Yarn 4 or later (Berry) |
-| Bun | `bun.lock` / `bun.lockb` | |
+| npm | `package-lock.json` | **Supported (default)** — no extra setup required |
+| pnpm | `pnpm-lock.yaml` | **Supported** |
+| Yarn 4+ (Berry) | `yarn.lock` (with Yarn 4 metadata) | **Supported** |
+| Bun | `bun.lock` / `bun.lockb` | **Supported** |
+| Yarn Classic (v1) | `yarn.lock` with `# yarn lockfile v1` | **Not supported** |
+
+This policy governs the **AppHost root only**. Apps the AppHost orchestrates — for example, a Node.js service added with `addNodeApp`, a Bun guest app, or a workspace package — can use any package manager their own tooling requires; they are independent of the AppHost-root toolchain.
 
 <Aside type="caution">
 **Yarn Classic (v1) is not supported.** If the Aspire CLI detects a Yarn Classic lock file (`# yarn lockfile v1`) or a `packageManager` field such as `"yarn@1.x"` in `package.json`, it throws an error and stops. Upgrade to Yarn 4 or later, or switch to npm, pnpm, or Bun.
@@ -180,13 +183,37 @@ The scaffolded `package.json` includes convenience scripts and the required Node
 
 The `dev` script means you can also start your AppHost with `npm run dev` (or the equivalent for your toolchain, for example `bun run dev` or `pnpm run dev`).
 
+### Supported Node.js engine
+
+Aspire 13.4 TypeScript AppHosts target the Node.js engine range that `aspire init` writes into the scaffolded `package.json`:
+
+```json title="package.json — supported engines.node"
+{
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+The supported ranges are:
+
+- **Node.js 20.19+** (LTS) — supported.
+- **Node.js 22.13+** (LTS) — supported.
+- **Node.js 24+** — supported; this is the range the scaffolded `engines.node` constraint allows out of the box.
+
+Older Node.js versions are not supported. npm, pnpm, Yarn 4, and Bun all enforce `engines.node` on install, so an unsupported runtime fails before the AppHost starts.
+
+<Aside type="note">
+If you widen `engines.node` beyond the scaffolded constraint, you take on responsibility for compatibility. Aspire CLI behavior, TypeScript SDK generation, and the `tsc --noEmit` startup validation are tested against the ranges listed above.
+</Aside>
+
 ## Package manager toolchain
 
 The Aspire CLI automatically detects which Node-compatible package manager your project uses and adjusts install and run commands accordingly. The following toolchains are supported: **npm** (default), **Bun**, **Yarn**, and **pnpm**.
 
 ### Toolchain detection
 
-The CLI resolves the toolchain by inspecting the AppHost directory and its parent directories (up to eight levels). It checks, in order:
+Detection follows the [supported AppHost-root package managers](#package-managers) policy. The CLI resolves the toolchain by inspecting the AppHost directory and its parent directories (up to eight levels). It checks, in order:
 
 <Steps>
 
