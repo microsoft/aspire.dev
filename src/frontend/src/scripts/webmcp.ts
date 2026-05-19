@@ -1,13 +1,13 @@
 /**
  * WebMCP integration: exposes a single `search-aspire-docs` tool to in-page
  * agents via `navigator.modelContext.registerTool()`. The execute callback
- * delegates to a swappable {@link SearchProvider} so the tool surface is
- * stable across search-engine migrations (Pagefind today, Typesense later).
+ * delegates to {@link searchAspireDocs}, which is backed by Starlight's
+ * Pagefind index.
  *
  * Spec: https://webmachinelearning.github.io/webmcp/
  */
 
-import { getSearchProvider, type SearchResponse } from './search';
+import { searchAspireDocs, type SearchResponse } from './search';
 
 interface ToolExecuteContext {
   signal?: AbortSignal;
@@ -91,9 +91,8 @@ async function executeSearch(input: unknown): Promise<unknown> {
     });
   }
 
-  const provider = getSearchProvider();
   try {
-    const response = await provider.search(query, limit);
+    const response = await searchAspireDocs(query, limit);
     return asMcpResult(response);
   } catch (error) {
     return asMcpResult({
