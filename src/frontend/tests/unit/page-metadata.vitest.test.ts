@@ -29,6 +29,7 @@ interface RouteOverrides {
   template?: string;
   ogImage?: string;
   og?: boolean;
+  seoTitle?: string;
 }
 
 function createRoute(overrides: RouteOverrides = {}): Route {
@@ -42,6 +43,7 @@ function createRoute(overrides: RouteOverrides = {}): Route {
     template,
     ogImage,
     og,
+    seoTitle,
   } = overrides;
 
   const description =
@@ -62,6 +64,7 @@ function createRoute(overrides: RouteOverrides = {}): Route {
         template,
         ogImage,
         og,
+        seoTitle,
       },
     },
     entryMeta: { lang, dir: 'ltr', locale },
@@ -165,6 +168,35 @@ describe('resolveOgTitle', () => {
   it('does not duplicate the site name', () => {
     const route = createRoute({ title: 'Aspire' });
     expect(resolveOgTitle(route, 'whatever')).toBe('Aspire');
+  });
+
+  it('uses seoTitle verbatim when set, without the · Aspire suffix', () => {
+    const route = createRoute({
+      title: 'Browser telemetry',
+      seoTitle: 'Enable browser telemetry in the Aspire dashboard',
+    });
+    expect(resolveOgTitle(route, 'dashboard/enable-browser-telemetry')).toBe(
+      'Enable browser telemetry in the Aspire dashboard'
+    );
+  });
+
+  it('uses seoTitle verbatim on splash pages too', () => {
+    const route = createRoute({
+      entryId: 'community/index.mdx',
+      title: 'Aspire Community',
+      template: 'splash',
+      seoTitle: 'Join the Aspire open-source community',
+    });
+    expect(resolveOgTitle(route, 'community/index')).toBe('Join the Aspire open-source community');
+  });
+
+  it('trims whitespace from seoTitle before emitting', () => {
+    const route = createRoute({
+      seoTitle: '  Aspire dashboard browser telemetry guide  ',
+    });
+    expect(resolveOgTitle(route, 'dashboard/enable-browser-telemetry')).toBe(
+      'Aspire dashboard browser telemetry guide'
+    );
   });
 });
 
@@ -413,5 +445,21 @@ describe('getOgMetadata', () => {
     expect(meta.type).toBe('website');
     expect(meta.ogTitle).toBe('Aspire');
     expect(meta.image).toBe('https://aspire.dev/og-image.png');
+  });
+
+  it('uses seoTitle for both og:title and twitter:title when set', () => {
+    const route = createRoute({
+      title: 'Browser telemetry',
+      seoTitle: 'Enable browser telemetry in the Aspire dashboard',
+    });
+    const meta = getOgMetadata(
+      route,
+      new URL('https://aspire.dev/dashboard/enable-browser-telemetry/'),
+      site
+    );
+
+    expect(meta.title).toBe('Browser telemetry');
+    expect(meta.ogTitle).toBe('Enable browser telemetry in the Aspire dashboard');
+    expect(meta.imageAlt).toBe('Browser telemetry');
   });
 });

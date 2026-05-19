@@ -13,6 +13,12 @@ interface PageExpectation {
   url: string;
   /** Title we expect Starlight to emit in `<meta property="og:title">`. */
   ogTitle: string;
+  /**
+   * Title we expect in `<meta name="twitter:title">`. Pages that set
+   * `seoTitle` reuse that verbatim (no `· Aspire` suffix); pages that
+   * rely on the resolver fallback get `${title} · Aspire`.
+   */
+  twitterTitle: string;
   /** Description we expect Starlight to emit in `<meta property="og:description">`. */
   ogDescription: string;
   /** Path of the per-page OG image (excluding origin). */
@@ -22,8 +28,10 @@ interface PageExpectation {
 const PAGES: PageExpectation[] = [
   {
     url: '/dashboard/enable-browser-telemetry/',
-    ogTitle: 'Enable browser telemetry',
-    ogDescription: 'Learn how to enable browser telemetry in the Aspire dashboard.',
+    ogTitle: 'Enable browser telemetry in the Aspire dashboard today',
+    twitterTitle: 'Enable browser telemetry in the Aspire dashboard today',
+    ogDescription:
+      'Enable browser telemetry in the Aspire dashboard to capture client-side OpenTelemetry logs, traces, and metrics from front-end JavaScript apps.',
     ogImagePath: '/og/dashboard/enable-browser-telemetry.png',
   },
 ];
@@ -76,7 +84,7 @@ for (const page of PAGES) {
     );
     expect(html).toMatch(metaTagPattern('property', 'og:image:width', '1200'));
     expect(html).toMatch(metaTagPattern('property', 'og:image:height', '630'));
-    expect(html).toMatch(metaTagPattern('name', 'twitter:title', `${page.ogTitle} · Aspire`));
+    expect(html).toMatch(metaTagPattern('name', 'twitter:title', page.twitterTitle));
     expect(html).toMatch(
       new RegExp(
         `<meta\\b[^>]*name="twitter:image"[^>]*content="[^"]*${escape(page.ogImagePath)}"`,

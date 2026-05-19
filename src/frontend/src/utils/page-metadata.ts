@@ -77,6 +77,7 @@ type RouteEntryData = {
   topic?: string;
   ogImage?: string;
   og?: boolean;
+  seoTitle?: string;
   template?: string;
 };
 
@@ -202,22 +203,33 @@ export function resolveOgDescription(route: MinimalRoute): string {
 }
 
 /**
- * Resolve the page title shown in social cards. The home page keeps its
- * brand tagline title; every other page is suffixed with `· Aspire` so the
- * site identity is always visible in previews.
+ * Resolve the page title shown in social cards.
+ *
+ * - When `seoTitle` is set in frontmatter it is used **verbatim** (no
+ *   `· Aspire` suffix). Authors write the complete SEO string and tune it
+ *   into the 50–60 character optimal range themselves.
+ * - Otherwise the visible `title` is used and suffixed with `· Aspire` so
+ *   the brand is always visible in social previews. The home page and
+ *   topic-landing splash pages keep the unsuffixed title.
  */
 export function resolveOgTitle(route: MinimalRoute, contentBasePath: string): string {
-  const title = ((route.entry.data as RouteEntryData).title || SITE_NAME).trim();
+  const data = route.entry.data as RouteEntryData;
+  const seoTitle = data.seoTitle?.trim();
+  const fallbackTitle = (data.title || SITE_NAME).trim();
 
-  if (isHomePagePath(contentBasePath) || (route.entry.data as RouteEntryData).template === 'splash') {
-    return title;
+  if (isHomePagePath(contentBasePath) || data.template === 'splash') {
+    return seoTitle || fallbackTitle;
   }
 
-  if (title === SITE_NAME) {
-    return title;
+  if (seoTitle) {
+    return seoTitle;
   }
 
-  return `${title} · ${SITE_NAME}`;
+  if (fallbackTitle === SITE_NAME) {
+    return fallbackTitle;
+  }
+
+  return `${fallbackTitle} · ${SITE_NAME}`;
 }
 
 /**
