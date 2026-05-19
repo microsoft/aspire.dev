@@ -41,7 +41,7 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.connectionStringExpression",
       "qualifiedName": "GarnetResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the Garnet server.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -55,7 +55,7 @@
       "name": "host",
       "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.host",
       "qualifiedName": "GarnetResource.host",
-      "description": "Gets the Host property",
+      "description": "Gets the host endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "host(): EndpointReferenceExpression",
       "parameters": [],
@@ -69,7 +69,7 @@
       "name": "passwordParameter",
       "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.passwordParameter",
       "qualifiedName": "GarnetResource.passwordParameter",
-      "description": "Gets the PasswordParameter property",
+      "description": "Gets the parameter that contains the Garnet server password.",
       "kind": "PropertyGetter",
       "signature": "passwordParameter(): ParameterResource",
       "parameters": [],
@@ -83,7 +83,7 @@
       "name": "port",
       "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.port",
       "qualifiedName": "GarnetResource.port",
-      "description": "Gets the Port property",
+      "description": "Gets the port endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "port(): EndpointReferenceExpression",
       "parameters": [],
@@ -97,7 +97,7 @@
       "name": "primaryEndpoint",
       "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.primaryEndpoint",
       "qualifiedName": "GarnetResource.primaryEndpoint",
-      "description": "Gets the PrimaryEndpoint property",
+      "description": "Gets the primary endpoint for the Garnet server.",
       "kind": "PropertyGetter",
       "signature": "primaryEndpoint(): EndpointReference",
       "parameters": [],
@@ -111,7 +111,8 @@
       "name": "uriExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.uriExpression",
       "qualifiedName": "GarnetResource.uriExpression",
-      "description": "Gets the UriExpression property",
+      "description": "Gets the connection URI expression for the Garnet server.",
+      "remarks": "Format: `redis://[:{password}@]{host}:{port}`. The password segment is omitted when no password is configured.",
       "kind": "PropertyGetter",
       "signature": "uriExpression(): ReferenceExpression",
       "parameters": [],
@@ -125,19 +126,23 @@
       "name": "withDataBindMount",
       "capabilityId": "Aspire.Hosting.Garnet/withDataBindMount",
       "qualifiedName": "withDataBindMount",
-      "description": "Mounts a host directory as the Garnet data directory.",
+      "description": "Adds a bind mount for the data folder to a Garnet container resource and enables Garnet persistence.",
+      "remarks": "Use `WithPersistence` to adjust Garnet persistence configuration, e.g.:\n```\nvar garnet = builder.AddGarnet(\"garnet\")\n.WithDataBindMount(\"mydata\")\n.WithPersistence(TimeSpan.FromSeconds(10));\n```",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataBindMount(source: string, isReadOnly?: boolean): GarnetResource",
       "parameters": [
         {
           "name": "source",
-          "type": "string"
+          "type": "string",
+          "description": "The source directory on the host to mount into the container."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only mount. Setting this to `true` will disable Garnet persistence. Defaults to `false`."
         }
       ],
       "returnType": "GarnetResource",
@@ -151,20 +156,24 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.Garnet/withDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a persistent data volume to the Garnet resource.",
+      "description": "Adds a named volume for the data folder to a Garnet container resource and enables Garnet persistence.",
+      "remarks": "Use `WithPersistence` to adjust Garnet persistence configuration, e.g.:\n```\nvar cache = builder.AddGarnet(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10));\n```",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string, isReadOnly?: boolean): GarnetResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only volume. Setting this to `true` will disable Garnet persistence. Defaults to `false`."
         }
       ],
       "returnType": "GarnetResource",
@@ -178,7 +187,9 @@
       "name": "withPersistence",
       "capabilityId": "Aspire.Hosting.Garnet/withPersistence",
       "qualifiedName": "withPersistence",
-      "description": "Configures snapshot persistence for the Garnet resource.",
+      "description": "Configures a Garnet container resource for persistence.",
+      "remarks": "Use with `WithDataBindMount`\nor `WithDataVolume` to persist Garnet data across sessions with custom persistence configuration, e.g.:\n```\nvar cache = builder.AddGarnet(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10));\n```",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withPersistence(interval?: timespan): GarnetResource",
       "parameters": [
@@ -186,7 +197,8 @@
           "name": "interval",
           "type": "timespan",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The interval between snapshot exports. Defaults to 60 seconds."
         }
       ],
       "returnType": "GarnetResource",
@@ -203,6 +215,7 @@
       "fullName": "Aspire.Hosting.ApplicationModel.GarnetResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a Garnet resource independent of the hosting model.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
@@ -222,7 +235,7 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.connectionStringExpression",
           "qualifiedName": "GarnetResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the Garnet server.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -236,7 +249,7 @@
           "name": "host",
           "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.host",
           "qualifiedName": "GarnetResource.host",
-          "description": "Gets the Host property",
+          "description": "Gets the host endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "host(): EndpointReferenceExpression",
           "parameters": [],
@@ -250,7 +263,7 @@
           "name": "passwordParameter",
           "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.passwordParameter",
           "qualifiedName": "GarnetResource.passwordParameter",
-          "description": "Gets the PasswordParameter property",
+          "description": "Gets the parameter that contains the Garnet server password.",
           "kind": "PropertyGetter",
           "signature": "passwordParameter(): ParameterResource",
           "parameters": [],
@@ -264,7 +277,7 @@
           "name": "port",
           "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.port",
           "qualifiedName": "GarnetResource.port",
-          "description": "Gets the Port property",
+          "description": "Gets the port endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "port(): EndpointReferenceExpression",
           "parameters": [],
@@ -278,7 +291,7 @@
           "name": "primaryEndpoint",
           "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.primaryEndpoint",
           "qualifiedName": "GarnetResource.primaryEndpoint",
-          "description": "Gets the PrimaryEndpoint property",
+          "description": "Gets the primary endpoint for the Garnet server.",
           "kind": "PropertyGetter",
           "signature": "primaryEndpoint(): EndpointReference",
           "parameters": [],
@@ -292,7 +305,8 @@
           "name": "uriExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/GarnetResource.uriExpression",
           "qualifiedName": "GarnetResource.uriExpression",
-          "description": "Gets the UriExpression property",
+          "description": "Gets the connection URI expression for the Garnet server.",
+          "remarks": "Format: `redis://[:{password}@]{host}:{port}`. The password segment is omitted when no password is configured.",
           "kind": "PropertyGetter",
           "signature": "uriExpression(): ReferenceExpression",
           "parameters": [],
@@ -306,19 +320,23 @@
           "name": "withDataBindMount",
           "capabilityId": "Aspire.Hosting.Garnet/withDataBindMount",
           "qualifiedName": "withDataBindMount",
-          "description": "Mounts a host directory as the Garnet data directory.",
+          "description": "Adds a bind mount for the data folder to a Garnet container resource and enables Garnet persistence.",
+          "remarks": "Use `WithPersistence` to adjust Garnet persistence configuration, e.g.:\n```\nvar garnet = builder.AddGarnet(\"garnet\")\n.WithDataBindMount(\"mydata\")\n.WithPersistence(TimeSpan.FromSeconds(10));\n```",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataBindMount(source: string, isReadOnly?: boolean): GarnetResource",
           "parameters": [
             {
               "name": "source",
-              "type": "string"
+              "type": "string",
+              "description": "The source directory on the host to mount into the container."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only mount. Setting this to `true` will disable Garnet persistence. Defaults to `false`."
             }
           ],
           "returnType": "GarnetResource",
@@ -332,20 +350,24 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.Garnet/withDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a persistent data volume to the Garnet resource.",
+          "description": "Adds a named volume for the data folder to a Garnet container resource and enables Garnet persistence.",
+          "remarks": "Use `WithPersistence` to adjust Garnet persistence configuration, e.g.:\n```\nvar cache = builder.AddGarnet(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10));\n```",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string, isReadOnly?: boolean): GarnetResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only volume. Setting this to `true` will disable Garnet persistence. Defaults to `false`."
             }
           ],
           "returnType": "GarnetResource",
@@ -359,7 +381,9 @@
           "name": "withPersistence",
           "capabilityId": "Aspire.Hosting.Garnet/withPersistence",
           "qualifiedName": "withPersistence",
-          "description": "Configures snapshot persistence for the Garnet resource.",
+          "description": "Configures a Garnet container resource for persistence.",
+          "remarks": "Use with `WithDataBindMount`\nor `WithDataVolume` to persist Garnet data across sessions with custom persistence configuration, e.g.:\n```\nvar cache = builder.AddGarnet(\"cache\")\n.WithDataVolume()\n.WithPersistence(TimeSpan.FromSeconds(10));\n```",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withPersistence(interval?: timespan): GarnetResource",
           "parameters": [
@@ -367,7 +391,8 @@
               "name": "interval",
               "type": "timespan",
               "isOptional": true,
-              "isNullable": true
+              "isNullable": true,
+              "description": "The interval between snapshot exports. Defaults to 60 seconds."
             }
           ],
           "returnType": "GarnetResource",

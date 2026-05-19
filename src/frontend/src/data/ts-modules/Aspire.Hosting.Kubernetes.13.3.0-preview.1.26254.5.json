@@ -10,13 +10,15 @@
       "name": "addGateway",
       "capabilityId": "Aspire.Hosting.Kubernetes/addGateway",
       "qualifiedName": "addGateway",
-      "description": "Adds a Kubernetes Gateway API Gateway resource",
+      "description": "Adds a Kubernetes Gateway API Gateway resource to the application model as a child of the specified Kubernetes environment. The gateway generates a `gateway.networking.k8s.io/v1 Gateway` resource and one or more `HTTPRoute` resources in the Helm chart output at publish time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "addGateway(name: string): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the gateway resource."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -30,13 +32,16 @@
       "name": "addIngress",
       "capabilityId": "Aspire.Hosting.Kubernetes/addIngress",
       "qualifiedName": "addIngress",
-      "description": "Adds a Kubernetes Ingress resource for HTTP routing",
+      "description": "Adds a Kubernetes Ingress resource to the application model as a child of the specified Kubernetes environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.",
+      "remarks": "After creating the ingress, configure routes using\n`WithRoute`\nand optionally set an ingress class with `WithIngressClass`.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "addIngress(name: string): KubernetesIngressResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the ingress resource. This is used as the Kubernetes resource name."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -50,13 +55,15 @@
       "name": "addKubernetesEnvironment",
       "capabilityId": "Aspire.Hosting.Kubernetes/addKubernetesEnvironment",
       "qualifiedName": "addKubernetesEnvironment",
-      "description": "Adds a Kubernetes publishing environment",
+      "description": "Adds a Kubernetes environment to the application model.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addKubernetesEnvironment(name: string): KubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the Kubernetes environment resource."
         }
       ],
       "returnType": "KubernetesEnvironmentResource",
@@ -70,13 +77,16 @@
       "name": "addNodePool",
       "capabilityId": "Aspire.Hosting.Kubernetes/addNodePool",
       "qualifiedName": "addNodePool",
-      "description": "Adds a named node pool to a Kubernetes environment",
+      "description": "Adds a named node pool to the Kubernetes environment.",
+      "remarks": "For vanilla Kubernetes, this creates a named reference to an existing node pool.\nFor managed Kubernetes services (e.g., AKS), the cloud-specific `AddNodePool` overload\nprovisions the pool with additional configuration such as VM size and autoscaling.\nUse `WithNodePool``1` to schedule workloads on the returned node pool.",
+      "returns": "A reference to the `IResourceBuilder`1` for the new node pool.",
       "kind": "Method",
       "signature": "addNodePool(name: string): KubernetesNodePoolResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the node pool. This value is used as the `nodeSelector` value."
         }
       ],
       "returnType": "KubernetesNodePoolResource",
@@ -90,15 +100,18 @@
       "name": "configureDashboard",
       "capabilityId": "Aspire.Hosting.Kubernetes/configureDashboard",
       "qualifiedName": "configureDashboard",
-      "description": "Configures the Aspire dashboard resource for the Kubernetes environment",
+      "description": "Configures the dashboard properties for this Kubernetes environment.",
+      "remarks": "Use this overload to customize the dashboard container, for example to set a specific host port\nor enable forwarded headers for ingress access.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "configureDashboard(configure: (obj: KubernetesAspireDashboardResource) =\u003E Promise\u003Cvoid\u003E): KubernetesEnvironmentResource",
+      "signature": "configureDashboard(configure: (obj: KubernetesAspireDashboardResource) => Promise<void>): KubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "configure",
           "type": "callback",
           "isCallback": true,
-          "callbackSignature": "(obj: KubernetesAspireDashboardResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: KubernetesAspireDashboardResource) => Promise<void>",
+          "description": "A method that can be used for customizing the dashboard resource."
         }
       ],
       "returnType": "KubernetesEnvironmentResource",
@@ -106,6 +119,44 @@
       "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
       "expandedTargetTypes": [
         "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
+      ]
+    },
+    {
+      "name": "withChartDescription",
+      "capabilityId": "Aspire.Hosting.Kubernetes/HelmChartOptions.withChartDescription",
+      "qualifiedName": "HelmChartOptions.withChartDescription",
+      "description": "Sets the Helm chart description written to the generated Chart.yaml.",
+      "kind": "InstanceMethod",
+      "signature": "withChartDescription(description: ParameterResource): HelmChartOptions",
+      "parameters": [
+        {
+          "name": "description",
+          "type": "ParameterResource"
+        }
+      ],
+      "returnType": "HelmChartOptions",
+      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.HelmChartOptions",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Kubernetes.HelmChartOptions"
+      ]
+    },
+    {
+      "name": "withChartName",
+      "capabilityId": "Aspire.Hosting.Kubernetes/HelmChartOptions.withChartName",
+      "qualifiedName": "HelmChartOptions.withChartName",
+      "description": "Sets the Helm chart name written to the generated Chart.yaml.",
+      "kind": "InstanceMethod",
+      "signature": "withChartName(name: ParameterResource): HelmChartOptions",
+      "parameters": [
+        {
+          "name": "name",
+          "type": "ParameterResource"
+        }
+      ],
+      "returnType": "HelmChartOptions",
+      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.HelmChartOptions",
+      "expandedTargetTypes": [
+        "Aspire.Hosting.Kubernetes.HelmChartOptions"
       ]
     },
     {
@@ -169,7 +220,7 @@
       "name": "otlpGrpcEndpoint",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesAspireDashboardResource.otlpGrpcEndpoint",
       "qualifiedName": "KubernetesAspireDashboardResource.otlpGrpcEndpoint",
-      "description": "Gets the OtlpGrpcEndpoint property",
+      "description": "Gets the OTLP gRPC endpoint for receiving telemetry data.",
       "kind": "PropertyGetter",
       "signature": "otlpGrpcEndpoint(): EndpointReference",
       "parameters": [],
@@ -183,7 +234,7 @@
       "name": "primaryEndpoint",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesAspireDashboardResource.primaryEndpoint",
       "qualifiedName": "KubernetesAspireDashboardResource.primaryEndpoint",
-      "description": "Gets the PrimaryEndpoint property",
+      "description": "Gets the primary HTTP endpoint of the Aspire Dashboard UI.",
       "kind": "PropertyGetter",
       "signature": "primaryEndpoint(): EndpointReference",
       "parameters": [],
@@ -197,7 +248,7 @@
       "name": "dashboardEnabled",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.dashboardEnabled",
       "qualifiedName": "KubernetesEnvironmentResource.dashboardEnabled",
-      "description": "Gets the DashboardEnabled property",
+      "description": "Determines whether to include an Aspire dashboard for telemetry visualization in this environment.",
       "kind": "PropertyGetter",
       "signature": "dashboardEnabled(): boolean",
       "parameters": [],
@@ -211,7 +262,7 @@
       "name": "defaultImagePullPolicy",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultImagePullPolicy",
       "qualifiedName": "KubernetesEnvironmentResource.defaultImagePullPolicy",
-      "description": "Gets the DefaultImagePullPolicy property",
+      "description": "Gets or sets the default policy that determines how Docker images are pulled during deployment. Possible values are: \"Always\" - Always attempt to pull the image from the registry. \"IfNotPresent\" - Pull the image only if it is not already present locally. \"Never\" - Never pull the image, use only the local image. The default value is \"IfNotPresent\".",
       "kind": "PropertyGetter",
       "signature": "defaultImagePullPolicy(): string",
       "parameters": [],
@@ -225,7 +276,8 @@
       "name": "defaultServiceType",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultServiceType",
       "qualifiedName": "KubernetesEnvironmentResource.defaultServiceType",
-      "description": "Gets the DefaultServiceType property",
+      "description": "Gets or sets the default Kubernetes service type to be used when generating artifacts.",
+      "remarks": "The default value is \"ClusterIP\". This property determines the type of service\n(e.g., ClusterIP, NodePort, LoadBalancer) created in Kubernetes for the application.",
       "kind": "PropertyGetter",
       "signature": "defaultServiceType(): string",
       "parameters": [],
@@ -239,7 +291,7 @@
       "name": "defaultStorageClassName",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageClassName",
       "qualifiedName": "KubernetesEnvironmentResource.defaultStorageClassName",
-      "description": "Gets the DefaultStorageClassName property",
+      "description": "Specifies the default name of the storage class to be used for persistent volume claims in Kubernetes. This property allows customization of the storage class for specifying storage requirements such as performance, retention policies, and provisioning parameters. If set to null, the default storage class for the cluster will be used.",
       "kind": "PropertyGetter",
       "signature": "defaultStorageClassName(): string",
       "parameters": [],
@@ -253,7 +305,7 @@
       "name": "defaultStorageReadWritePolicy",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageReadWritePolicy",
       "qualifiedName": "KubernetesEnvironmentResource.defaultStorageReadWritePolicy",
-      "description": "Gets the DefaultStorageReadWritePolicy property",
+      "description": "Gets or sets the default access policy for reading and writing to the storage.",
       "kind": "PropertyGetter",
       "signature": "defaultStorageReadWritePolicy(): string",
       "parameters": [],
@@ -267,7 +319,7 @@
       "name": "defaultStorageSize",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageSize",
       "qualifiedName": "KubernetesEnvironmentResource.defaultStorageSize",
-      "description": "Gets the DefaultStorageSize property",
+      "description": "Gets or sets the default storage size for persistent volumes.",
       "kind": "PropertyGetter",
       "signature": "defaultStorageSize(): string",
       "parameters": [],
@@ -281,51 +333,10 @@
       "name": "defaultStorageType",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageType",
       "qualifiedName": "KubernetesEnvironmentResource.defaultStorageType",
-      "description": "Gets the DefaultStorageType property",
+      "description": "Specifies the default type of storage used for Kubernetes deployments.",
+      "remarks": "This property determines the storage medium used for the application.\nPossible values include \"emptyDir\", \"hostPath\", \"pvc\"",
       "kind": "PropertyGetter",
       "signature": "defaultStorageType(): string",
-      "parameters": [],
-      "returnType": "string",
-      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-      "expandedTargetTypes": [
-        "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-      ]
-    },
-    {
-      "name": "helmChartDescription",
-      "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.helmChartDescription",
-      "qualifiedName": "KubernetesEnvironmentResource.helmChartDescription",
-      "description": "Gets the HelmChartDescription property",
-      "kind": "PropertyGetter",
-      "signature": "helmChartDescription(): string",
-      "parameters": [],
-      "returnType": "string",
-      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-      "expandedTargetTypes": [
-        "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-      ]
-    },
-    {
-      "name": "helmChartName",
-      "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.helmChartName",
-      "qualifiedName": "KubernetesEnvironmentResource.helmChartName",
-      "description": "Gets the HelmChartName property",
-      "kind": "PropertyGetter",
-      "signature": "helmChartName(): string",
-      "parameters": [],
-      "returnType": "string",
-      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-      "expandedTargetTypes": [
-        "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-      ]
-    },
-    {
-      "name": "helmChartVersion",
-      "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.helmChartVersion",
-      "qualifiedName": "KubernetesEnvironmentResource.helmChartVersion",
-      "description": "Gets the HelmChartVersion property",
-      "kind": "PropertyGetter",
-      "signature": "helmChartVersion(): string",
       "parameters": [],
       "returnType": "string",
       "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
@@ -337,7 +348,8 @@
       "name": "kubeConfigPath",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.kubeConfigPath",
       "qualifiedName": "KubernetesEnvironmentResource.kubeConfigPath",
-      "description": "Gets the KubeConfigPath property",
+      "description": "Gets or sets the path to an explicit kubeconfig file for Helm and kubectl commands. When set, all Helm and kubectl commands will use `--kubeconfig` to target this file instead of the default `~/.kube/config`.",
+      "remarks": "This is used by Azure Kubernetes Service (AKS) integration to isolate credentials\nfetched via `az aks get-credentials` from the user's default kubectl context.",
       "kind": "PropertyGetter",
       "signature": "kubeConfigPath(): string",
       "parameters": [],
@@ -351,7 +363,7 @@
       "name": "setDashboardEnabled",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDashboardEnabled",
       "qualifiedName": "KubernetesEnvironmentResource.setDashboardEnabled",
-      "description": "Sets the DashboardEnabled property",
+      "description": "Determines whether to include an Aspire dashboard for telemetry visualization in this environment.",
       "kind": "PropertySetter",
       "signature": "setDashboardEnabled(value: boolean): KubernetesEnvironmentResource",
       "parameters": [
@@ -370,7 +382,7 @@
       "name": "setDefaultImagePullPolicy",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultImagePullPolicy",
       "qualifiedName": "KubernetesEnvironmentResource.setDefaultImagePullPolicy",
-      "description": "Sets the DefaultImagePullPolicy property",
+      "description": "Gets or sets the default policy that determines how Docker images are pulled during deployment. Possible values are: \"Always\" - Always attempt to pull the image from the registry. \"IfNotPresent\" - Pull the image only if it is not already present locally. \"Never\" - Never pull the image, use only the local image. The default value is \"IfNotPresent\".",
       "kind": "PropertySetter",
       "signature": "setDefaultImagePullPolicy(value: string): KubernetesEnvironmentResource",
       "parameters": [
@@ -389,7 +401,8 @@
       "name": "setDefaultServiceType",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultServiceType",
       "qualifiedName": "KubernetesEnvironmentResource.setDefaultServiceType",
-      "description": "Sets the DefaultServiceType property",
+      "description": "Gets or sets the default Kubernetes service type to be used when generating artifacts.",
+      "remarks": "The default value is \"ClusterIP\". This property determines the type of service\n(e.g., ClusterIP, NodePort, LoadBalancer) created in Kubernetes for the application.",
       "kind": "PropertySetter",
       "signature": "setDefaultServiceType(value: string): KubernetesEnvironmentResource",
       "parameters": [
@@ -408,7 +421,7 @@
       "name": "setDefaultStorageClassName",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageClassName",
       "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageClassName",
-      "description": "Sets the DefaultStorageClassName property",
+      "description": "Specifies the default name of the storage class to be used for persistent volume claims in Kubernetes. This property allows customization of the storage class for specifying storage requirements such as performance, retention policies, and provisioning parameters. If set to null, the default storage class for the cluster will be used.",
       "kind": "PropertySetter",
       "signature": "setDefaultStorageClassName(value: string): KubernetesEnvironmentResource",
       "parameters": [
@@ -427,7 +440,7 @@
       "name": "setDefaultStorageReadWritePolicy",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageReadWritePolicy",
       "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageReadWritePolicy",
-      "description": "Sets the DefaultStorageReadWritePolicy property",
+      "description": "Gets or sets the default access policy for reading and writing to the storage.",
       "kind": "PropertySetter",
       "signature": "setDefaultStorageReadWritePolicy(value: string): KubernetesEnvironmentResource",
       "parameters": [
@@ -446,7 +459,7 @@
       "name": "setDefaultStorageSize",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageSize",
       "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageSize",
-      "description": "Sets the DefaultStorageSize property",
+      "description": "Gets or sets the default storage size for persistent volumes.",
       "kind": "PropertySetter",
       "signature": "setDefaultStorageSize(value: string): KubernetesEnvironmentResource",
       "parameters": [
@@ -465,66 +478,10 @@
       "name": "setDefaultStorageType",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageType",
       "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageType",
-      "description": "Sets the DefaultStorageType property",
+      "description": "Specifies the default type of storage used for Kubernetes deployments.",
+      "remarks": "This property determines the storage medium used for the application.\nPossible values include \"emptyDir\", \"hostPath\", \"pvc\"",
       "kind": "PropertySetter",
       "signature": "setDefaultStorageType(value: string): KubernetesEnvironmentResource",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "string"
-        }
-      ],
-      "returnType": "KubernetesEnvironmentResource",
-      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-      "expandedTargetTypes": [
-        "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-      ]
-    },
-    {
-      "name": "setHelmChartDescription",
-      "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setHelmChartDescription",
-      "qualifiedName": "KubernetesEnvironmentResource.setHelmChartDescription",
-      "description": "Sets the HelmChartDescription property",
-      "kind": "PropertySetter",
-      "signature": "setHelmChartDescription(value: string): KubernetesEnvironmentResource",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "string"
-        }
-      ],
-      "returnType": "KubernetesEnvironmentResource",
-      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-      "expandedTargetTypes": [
-        "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-      ]
-    },
-    {
-      "name": "setHelmChartName",
-      "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setHelmChartName",
-      "qualifiedName": "KubernetesEnvironmentResource.setHelmChartName",
-      "description": "Sets the HelmChartName property",
-      "kind": "PropertySetter",
-      "signature": "setHelmChartName(value: string): KubernetesEnvironmentResource",
-      "parameters": [
-        {
-          "name": "value",
-          "type": "string"
-        }
-      ],
-      "returnType": "KubernetesEnvironmentResource",
-      "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-      "expandedTargetTypes": [
-        "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-      ]
-    },
-    {
-      "name": "setHelmChartVersion",
-      "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setHelmChartVersion",
-      "qualifiedName": "KubernetesEnvironmentResource.setHelmChartVersion",
-      "description": "Sets the HelmChartVersion property",
-      "kind": "PropertySetter",
-      "signature": "setHelmChartVersion(value: string): KubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "value",
@@ -541,7 +498,8 @@
       "name": "setKubeConfigPath",
       "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setKubeConfigPath",
       "qualifiedName": "KubernetesEnvironmentResource.setKubeConfigPath",
-      "description": "Sets the KubeConfigPath property",
+      "description": "Gets or sets the path to an explicit kubeconfig file for Helm and kubectl commands. When set, all Helm and kubectl commands will use `--kubeconfig` to target this file instead of the default `~/.kube/config`.",
+      "remarks": "This is used by Azure Kubernetes Service (AKS) integration to isolate credentials\nfetched via `az aks get-credentials` from the user's default kubectl context.",
       "kind": "PropertySetter",
       "signature": "setKubeConfigPath(value: string): KubernetesEnvironmentResource",
       "parameters": [
@@ -574,15 +532,18 @@
       "name": "publishAsKubernetesService",
       "capabilityId": "Aspire.Hosting.Kubernetes/publishAsKubernetesService",
       "qualifiedName": "publishAsKubernetesService",
-      "description": "Publishes the resource as a Kubernetes service",
+      "description": "Publishes the specified resource as a Kubernetes service.",
+      "remarks": "This method checks if the application is in publish mode. If it is, it adds a customization annotation\nthat will be applied by the infrastructure when generating the Kubernetes service.\n```\nbuilder.AddContainer(\"redis\", \"redis:alpine\").PublishAsKubernetesService((service) =>\n{\nservice.Name = \"redis\";\n});\n```",
+      "returns": "The updated resource builder.",
       "kind": "Method",
-      "signature": "publishAsKubernetesService(configure: (obj: KubernetesResource) =\u003E Promise\u003Cvoid\u003E): IComputeResource",
+      "signature": "publishAsKubernetesService(configure: (obj: KubernetesResource) => Promise<void>): IComputeResource",
       "parameters": [
         {
           "name": "configure",
           "type": "callback",
           "isCallback": true,
-          "callbackSignature": "(obj: KubernetesResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: KubernetesResource) => Promise<void>",
+          "description": "The configuration action for the Kubernetes service."
         }
       ],
       "returnType": "IComputeResource",
@@ -601,7 +562,9 @@
       "name": "withDashboard",
       "capabilityId": "Aspire.Hosting.Kubernetes/withDashboard",
       "qualifiedName": "withDashboard",
-      "description": "Enables or disables the Aspire dashboard for the Kubernetes environment",
+      "description": "Enables the Aspire dashboard for telemetry visualization in this Kubernetes environment.",
+      "remarks": "When enabled, an Aspire Dashboard container is deployed alongside the application resources\nin the Kubernetes cluster. All resources with OTLP telemetry support are automatically\nconfigured to send telemetry data to the dashboard.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDashboard(enabled?: boolean): KubernetesEnvironmentResource",
       "parameters": [
@@ -609,7 +572,8 @@
           "name": "enabled",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "Whether to enable the dashboard. Default is true."
         }
       ],
       "returnType": "KubernetesEnvironmentResource",
@@ -623,13 +587,15 @@
       "name": "withDefaultBackend",
       "capabilityId": "Aspire.Hosting.Kubernetes/withDefaultBackend",
       "qualifiedName": "withDefaultBackend",
-      "description": "Sets the default backend for a Kubernetes Ingress",
+      "description": "Sets the default backend for the ingress. The default backend handles requests that do not match any of the defined routing rules.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withDefaultBackend(endpoint: EndpointReference): KubernetesIngressResource",
       "parameters": [
         {
           "name": "endpoint",
-          "type": "EndpointReference"
+          "type": "EndpointReference",
+          "description": "The endpoint reference identifying the default backend service and port."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -643,7 +609,9 @@
       "name": "withForwardedHeaders",
       "capabilityId": "Aspire.Hosting.Kubernetes/withForwardedHeaders",
       "qualifiedName": "withForwardedHeaders",
-      "description": "Enables or disables forwarded headers support for the Aspire dashboard",
+      "description": "Configures whether forwarded headers processing is enabled for the Aspire dashboard container.",
+      "remarks": "This sets the `ASPIRE_DASHBOARD_FORWARDEDHEADERS_ENABLED` environment variable inside the dashboard\ncontainer. When enabled, the dashboard will process `X-Forwarded-Host` and `X-Forwarded-Proto`\nheaders which is required when the dashboard is accessed through a reverse proxy or ingress controller.",
+      "returns": "The same `IResourceBuilder`1` to allow chaining.",
       "kind": "Method",
       "signature": "withForwardedHeaders(enabled?: boolean): KubernetesAspireDashboardResource",
       "parameters": [
@@ -651,7 +619,8 @@
           "name": "enabled",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "True to enable forwarded headers, false to disable."
         }
       ],
       "returnType": "KubernetesAspireDashboardResource",
@@ -665,17 +634,21 @@
       "name": "withGatewayAnnotation",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayAnnotation",
       "qualifiedName": "withGatewayAnnotation",
-      "description": "Adds a Kubernetes metadata annotation to a Gateway",
+      "description": "Adds a Kubernetes metadata annotation to the generated Gateway resource.",
+      "remarks": "This sets Kubernetes `metadata.annotations` on the generated K8S Gateway resource,\nnot Aspire `IResourceAnnotation` instances. These are key-value\nstring pairs used by ingress controllers for provider-specific configuration.\nFor Azure Application Gateway for Containers (AGC), you typically need:\n`alb.networking.azure.io/alb-name` and `alb.networking.azure.io/alb-namespace`.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayAnnotation(key: string, value: string): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "key",
-          "type": "string"
+          "type": "string",
+          "description": "The annotation key."
         },
         {
           "name": "value",
-          "type": "string"
+          "type": "string",
+          "description": "The annotation value."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -689,17 +662,20 @@
       "name": "withGatewayAnnotationParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayAnnotationParam",
       "qualifiedName": "withGatewayAnnotationParam",
-      "description": "Adds a parameterized Kubernetes metadata annotation to a Gateway",
+      "description": "Adds a Kubernetes metadata annotation with a parameter value that will be resolved at deploy time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayAnnotationParam(key: string, value: ParameterResource): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "key",
-          "type": "string"
+          "type": "string",
+          "description": "The annotation key."
         },
         {
           "name": "value",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the annotation value."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -713,13 +689,15 @@
       "name": "withGatewayClass",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayClass",
       "qualifiedName": "withGatewayClass",
-      "description": "Sets the GatewayClass for a Kubernetes Gateway",
+      "description": "Sets the GatewayClass name that selects which controller implementation handles this gateway.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayClass(className: string): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "className",
-          "type": "string"
+          "type": "string",
+          "description": "The GatewayClass name (e.g., `\"azure-alb-external\"`, `\"istio\"`)."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -733,13 +711,15 @@
       "name": "withGatewayClassParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayClassParam",
       "qualifiedName": "withGatewayClassParam",
-      "description": "Sets a parameterized GatewayClass for a Kubernetes Gateway",
+      "description": "Sets the GatewayClass name using a parameter that will be resolved at deploy time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayClassParam(className: ParameterResource): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "className",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the GatewayClass name."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -753,13 +733,15 @@
       "name": "withGatewayHostnameParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayHostnameParam",
       "qualifiedName": "withGatewayHostnameParam",
-      "description": "Adds a parameterized hostname to a Kubernetes Gateway",
+      "description": "Adds a hostname using a parameter that will be resolved at deploy time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayHostnameParam(hostname: ParameterResource): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "hostname",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the hostname value."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -773,27 +755,32 @@
       "name": "withGatewayHostRoute",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayHostRoute",
       "qualifiedName": "withGatewayHostRoute",
-      "description": "Adds a host-and-path route to a Kubernetes Gateway",
+      "description": "Adds a host-and-path-based routing rule to the gateway. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource with a `hostnames` filter.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "host",
-          "type": "string"
+          "type": "string",
+          "description": "The hostname to match (e.g., `\"api.example.com\"`)."
         },
         {
           "name": "path",
-          "type": "string"
+          "type": "string",
+          "description": "The URL path to match. Must start with `/`."
         },
         {
           "name": "endpoint",
-          "type": "EndpointReference"
+          "type": "EndpointReference",
+          "description": "The endpoint reference identifying the target service and port."
         },
         {
           "name": "pathType",
           "type": "IngressPathType",
           "isOptional": true,
-          "defaultValue": "Prefix"
+          "defaultValue": "Prefix",
+          "description": "The path matching strategy. Defaults to `Prefix`."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -807,23 +794,27 @@
       "name": "withGatewayPathRoute",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayPathRoute",
       "qualifiedName": "withGatewayPathRoute",
-      "description": "Adds a path-based route to a Kubernetes Gateway",
+      "description": "Adds a path-based routing rule to the gateway. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayPathRoute(path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "path",
-          "type": "string"
+          "type": "string",
+          "description": "The URL path to match (e.g., `\"/\"` or `\"/api\"`). Must start with `/`."
         },
         {
           "name": "endpoint",
-          "type": "EndpointReference"
+          "type": "EndpointReference",
+          "description": "The endpoint reference identifying the target service and port."
         },
         {
           "name": "pathType",
           "type": "IngressPathType",
           "isOptional": true,
-          "defaultValue": "Prefix"
+          "defaultValue": "Prefix",
+          "description": "The path matching strategy. Defaults to `Prefix`."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -837,7 +828,8 @@
       "name": "withGatewayTlsAuto",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayTlsAuto",
       "qualifiedName": "withGatewayTlsAuto",
-      "description": "Configures TLS on a Kubernetes Gateway with an auto-generated secret",
+      "description": "Configures TLS termination with an auto-generated secret name derived from the gateway name.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayTlsAuto(): KubernetesGatewayResource",
       "parameters": [],
@@ -852,13 +844,15 @@
       "name": "withGatewayTlsParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayTlsParam",
       "qualifiedName": "withGatewayTlsParam",
-      "description": "Configures TLS on a Kubernetes Gateway with a parameterized secret",
+      "description": "Configures TLS termination using a parameter for the secret name.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withGatewayTlsParam(secretName: ParameterResource): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "secretName",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the secret name."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -872,16 +866,19 @@
       "name": "withHelm",
       "capabilityId": "Aspire.Hosting.Kubernetes/withHelm",
       "qualifiedName": "withHelm",
-      "description": "Configures Helm chart deployment settings",
+      "description": "Configures the Kubernetes environment to deploy using Helm charts.",
+      "remarks": "Helm is the default deployment engine. Call this method to customize Helm-specific settings.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "withHelm(configure?: (obj: HelmChartOptions) =\u003E Promise\u003Cvoid\u003E): KubernetesEnvironmentResource",
+      "signature": "withHelm(configure?: (obj: HelmChartOptions) => Promise<void>): KubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "configure",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: HelmChartOptions) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: HelmChartOptions) => Promise<void>",
+          "description": "An optional callback to configure Helm chart settings such as namespace, release name, and chart version."
         }
       ],
       "returnType": "KubernetesEnvironmentResource",
@@ -895,13 +892,15 @@
       "name": "withHostname",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayHostname",
       "qualifiedName": "withHostname",
-      "description": "Adds a hostname to a Kubernetes Gateway",
+      "description": "Adds a hostname that this gateway's routes match. Multiple hostnames can be added by calling this method repeatedly. Hostnames are used as `hostnames` in generated `HTTPRoute` resources and as HTTPS listener hostnames when TLS is configured.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withHostname(hostname: string): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "hostname",
-          "type": "string"
+          "type": "string",
+          "description": "The hostname to match (e.g., `\"api.example.com\"`)."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -915,13 +914,15 @@
       "name": "withHostname",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressHostname",
       "qualifiedName": "withHostname",
-      "description": "Adds a hostname to a Kubernetes Ingress",
+      "description": "Adds a hostname that this ingress matches. Multiple hostnames can be added by calling this method repeatedly. If no hostnames are configured, the ingress matches all hosts.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withHostname(hostname: string): KubernetesIngressResource",
       "parameters": [
         {
           "name": "hostname",
-          "type": "string"
+          "type": "string",
+          "description": "The hostname to match (e.g., `\"api.example.com\"`)."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -935,17 +936,21 @@
       "name": "withIngressAnnotation",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressAnnotation",
       "qualifiedName": "withIngressAnnotation",
-      "description": "Adds a Kubernetes metadata annotation to a Kubernetes Ingress",
+      "description": "Adds a Kubernetes metadata annotation to the generated Ingress resource. These are key-value pairs in the `metadata.annotations` field of the K8S Ingress, commonly used to configure ingress controller-specific behavior.",
+      "remarks": "This method sets Kubernetes metadata annotations, not Aspire `IResourceAnnotation`\ninstances. Use these for controller-specific features like path rewriting, rate limiting,\nCORS configuration, or SSL redirect behavior.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressAnnotation(key: string, value: string): KubernetesIngressResource",
       "parameters": [
         {
           "name": "key",
-          "type": "string"
+          "type": "string",
+          "description": "The annotation key (e.g., `\"nginx.ingress.kubernetes.io/rewrite-target\"`)."
         },
         {
           "name": "value",
-          "type": "string"
+          "type": "string",
+          "description": "The annotation value."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -959,17 +964,20 @@
       "name": "withIngressAnnotationParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressAnnotationParam",
       "qualifiedName": "withIngressAnnotationParam",
-      "description": "Adds a parameterized Kubernetes metadata annotation to an Ingress",
+      "description": "Adds a Kubernetes metadata annotation with a parameter value that will be resolved at deploy time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressAnnotationParam(key: string, value: ParameterResource): KubernetesIngressResource",
       "parameters": [
         {
           "name": "key",
-          "type": "string"
+          "type": "string",
+          "description": "The annotation key."
         },
         {
           "name": "value",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the annotation value."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -983,13 +991,15 @@
       "name": "withIngressClass",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressClass",
       "qualifiedName": "withIngressClass",
-      "description": "Sets the ingress class for a Kubernetes Ingress",
+      "description": "Sets the Kubernetes ingress class name that selects which ingress controller handles this ingress resource.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressClass(className: string): KubernetesIngressResource",
       "parameters": [
         {
           "name": "className",
-          "type": "string"
+          "type": "string",
+          "description": "The ingress class name (e.g., `\"nginx\"`, `\"traefik\"`, `\"azure-alb-external\"`)."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1003,13 +1013,15 @@
       "name": "withIngressClassParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressClassParam",
       "qualifiedName": "withIngressClassParam",
-      "description": "Sets a parameterized ingress class for a Kubernetes Ingress",
+      "description": "Sets the Kubernetes ingress class name using a parameter that will be resolved at deploy time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressClassParam(className: ParameterResource): KubernetesIngressResource",
       "parameters": [
         {
           "name": "className",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the ingress class name."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1023,13 +1035,15 @@
       "name": "withIngressHostnameParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressHostnameParam",
       "qualifiedName": "withIngressHostnameParam",
-      "description": "Adds a parameterized hostname to a Kubernetes Ingress",
+      "description": "Adds a hostname using a parameter that will be resolved at deploy time.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressHostnameParam(hostname: ParameterResource): KubernetesIngressResource",
       "parameters": [
         {
           "name": "hostname",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the hostname value."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1043,27 +1057,32 @@
       "name": "withIngressHostRoute",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressHostRoute",
       "qualifiedName": "withIngressHostRoute",
-      "description": "Adds a host-and-path route to a Kubernetes Ingress",
+      "description": "Adds a host-and-path-based routing rule to the ingress. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesIngressResource",
       "parameters": [
         {
           "name": "host",
-          "type": "string"
+          "type": "string",
+          "description": "The hostname to match (e.g., `\"api.example.com\"`)."
         },
         {
           "name": "path",
-          "type": "string"
+          "type": "string",
+          "description": "The URL path to match (e.g., `\"/\"` or `\"/api\"`). Must start with `/`."
         },
         {
           "name": "endpoint",
-          "type": "EndpointReference"
+          "type": "EndpointReference",
+          "description": "The endpoint reference identifying the target service and port."
         },
         {
           "name": "pathType",
           "type": "IngressPathType",
           "isOptional": true,
-          "defaultValue": "Prefix"
+          "defaultValue": "Prefix",
+          "description": "The path matching strategy. Defaults to `Prefix`."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1077,23 +1096,27 @@
       "name": "withIngressPathRoute",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressPathRoute",
       "qualifiedName": "withIngressPathRoute",
-      "description": "Adds a path-based route to a Kubernetes Ingress",
+      "description": "Adds a path-based routing rule to the ingress. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressPathRoute(path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesIngressResource",
       "parameters": [
         {
           "name": "path",
-          "type": "string"
+          "type": "string",
+          "description": "The URL path to match (e.g., `\"/\"` or `\"/api\"`). Must start with `/`."
         },
         {
           "name": "endpoint",
-          "type": "EndpointReference"
+          "type": "EndpointReference",
+          "description": "The endpoint reference identifying the target service and port."
         },
         {
           "name": "pathType",
           "type": "IngressPathType",
           "isOptional": true,
-          "defaultValue": "Prefix"
+          "defaultValue": "Prefix",
+          "description": "The path matching strategy. Defaults to `Prefix`."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1107,7 +1130,8 @@
       "name": "withIngressTlsAuto",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressTlsAuto",
       "qualifiedName": "withIngressTlsAuto",
-      "description": "Configures TLS for a Kubernetes Ingress with an auto-generated secret",
+      "description": "Configures TLS termination with an auto-generated secret name derived from the ingress name.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressTlsAuto(): KubernetesIngressResource",
       "parameters": [],
@@ -1122,13 +1146,15 @@
       "name": "withIngressTlsParam",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressTlsParam",
       "qualifiedName": "withIngressTlsParam",
-      "description": "Configures TLS for a Kubernetes Ingress with a parameterized secret",
+      "description": "Configures TLS termination using a parameter for the secret name.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withIngressTlsParam(secretName: ParameterResource): KubernetesIngressResource",
       "parameters": [
         {
           "name": "secretName",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "A parameter resource builder for the secret name."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1142,13 +1168,15 @@
       "name": "withNodePool",
       "capabilityId": "Aspire.Hosting.Kubernetes/withKubernetesNodePool",
       "qualifiedName": "withNodePool",
-      "description": "Schedules a workload on a specific Kubernetes node pool",
+      "description": "Schedules a compute resource's workload on the specified Kubernetes node pool. This translates to a Kubernetes `nodeSelector` in the pod specification targeting the named node pool.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withNodePool(nodePool: KubernetesNodePoolResource): IResource",
       "parameters": [
         {
           "name": "nodePool",
-          "type": "KubernetesNodePoolResource"
+          "type": "KubernetesNodePoolResource",
+          "description": "The node pool to schedule the workload on."
         }
       ],
       "returnType": "IResource",
@@ -1175,7 +1203,9 @@
       "name": "withOtlpServicePort",
       "capabilityId": "Aspire.Hosting.Kubernetes/withOtlpServicePort",
       "qualifiedName": "withOtlpServicePort",
-      "description": "Sets the Kubernetes Service ports for the OTLP endpoints",
+      "description": "Sets the Kubernetes Service ports for the Aspire Dashboard OTLP endpoints.",
+      "remarks": "This sets the `port` field on the generated Kubernetes Service for the OTLP endpoints\nwhile keeping the `targetPort` as the original container port. Application resources\nin the cluster send telemetry to these Service ports. Use standard OTLP ports (4317 for gRPC,\n4318 for HTTP) if your services are configured with those defaults.",
+      "returns": "The `IResourceBuilder`1` instance for chaining.",
       "kind": "Method",
       "signature": "withOtlpServicePort(grpcPort?: number, httpPort?: number): KubernetesAspireDashboardResource",
       "parameters": [
@@ -1183,13 +1213,15 @@
           "name": "grpcPort",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The Service port for the OTLP gRPC endpoint. If `null`, the Service port defaults to the container port (18889)."
         },
         {
           "name": "httpPort",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The Service port for the OTLP HTTP endpoint. If `null`, the Service port defaults to the container port (18890)."
         }
       ],
       "returnType": "KubernetesAspireDashboardResource",
@@ -1203,15 +1235,17 @@
       "name": "withProperties",
       "capabilityId": "Aspire.Hosting.Kubernetes/withProperties",
       "qualifiedName": "withProperties",
-      "description": "Configures properties of a Kubernetes environment",
+      "description": "Allows setting the properties of a Kubernetes environment resource.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "withProperties(configure: (obj: KubernetesEnvironmentResource) =\u003E Promise\u003Cvoid\u003E): KubernetesEnvironmentResource",
+      "signature": "withProperties(configure: (obj: KubernetesEnvironmentResource) => Promise<void>): KubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "configure",
           "type": "callback",
           "isCallback": true,
-          "callbackSignature": "(obj: KubernetesEnvironmentResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: KubernetesEnvironmentResource) => Promise<void>",
+          "description": "A method that can be used for customizing the `KubernetesEnvironmentResource`."
         }
       ],
       "returnType": "KubernetesEnvironmentResource",
@@ -1225,7 +1259,9 @@
       "name": "withServicePort",
       "capabilityId": "Aspire.Hosting.Kubernetes/withServicePort",
       "qualifiedName": "withServicePort",
-      "description": "Sets the Kubernetes Service port for the Aspire dashboard",
+      "description": "Sets the Kubernetes Service port for the Aspire Dashboard HTTP endpoint.",
+      "remarks": "This sets the `port` field on the generated Kubernetes Service while keeping the\n`targetPort` as the original container port. This is useful when placing the dashboard\nbehind an ingress controller that expects a specific Service port (for example, port 80).\nTo access the dashboard from outside the cluster, use `kubectl port-forward` or\nconfigure the environment's `DefaultServiceType`\nto `NodePort` or `LoadBalancer`.",
+      "returns": "The `IResourceBuilder`1` instance for chaining.",
       "kind": "Method",
       "signature": "withServicePort(port?: number): KubernetesAspireDashboardResource",
       "parameters": [
@@ -1233,7 +1269,8 @@
           "name": "port",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The Service port number. Cluster-internal clients will connect to this port, which routes to the dashboard's container port (18888). If `null`, the Service port defaults to the container port."
         }
       ],
       "returnType": "KubernetesAspireDashboardResource",
@@ -1247,13 +1284,15 @@
       "name": "withTls",
       "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayTls",
       "qualifiedName": "withTls",
-      "description": "Configures TLS on a Kubernetes Gateway listener",
+      "description": "Configures TLS termination on the gateway by adding an HTTPS listener that references a Kubernetes TLS secret. The Gateway terminates TLS and forwards plain HTTP to backends. This does not create a separate route — existing HTTPRoutes serve both HTTP and HTTPS. The TLS configuration applies to all hostnames configured via `WithHostname`.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withTls(secretName: string): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "secretName",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the Kubernetes `kubernetes.io/tls` Secret."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -1267,13 +1306,15 @@
       "name": "withTls",
       "capabilityId": "Aspire.Hosting.Kubernetes/withIngressTls",
       "qualifiedName": "withTls",
-      "description": "Configures TLS for a Kubernetes Ingress using a K8S secret",
+      "description": "Configures TLS termination for the ingress by referencing a Kubernetes TLS secret. The TLS configuration applies to all hostnames configured via `WithHostname`.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withTls(secretName: string): KubernetesIngressResource",
       "parameters": [
         {
           "name": "secretName",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the Kubernetes `kubernetes.io/tls` Secret."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -1290,8 +1331,48 @@
       "fullName": "Aspire.Hosting.Kubernetes.HelmChartOptions",
       "kind": "handle",
       "exposeMethods": true,
+      "description": "Provides options for configuring Helm chart deployment settings on a `KubernetesEnvironmentResource`.",
+      "remarks": "This class is used as the configuration callback parameter for\n`WithHelm`.\nEach method adds a corresponding annotation to the environment resource.",
       "implementedInterfaces": [],
       "capabilities": [
+        {
+          "name": "withChartDescription",
+          "capabilityId": "Aspire.Hosting.Kubernetes/HelmChartOptions.withChartDescription",
+          "qualifiedName": "HelmChartOptions.withChartDescription",
+          "description": "Sets the Helm chart description written to the generated Chart.yaml.",
+          "kind": "InstanceMethod",
+          "signature": "withChartDescription(description: ParameterResource): HelmChartOptions",
+          "parameters": [
+            {
+              "name": "description",
+              "type": "ParameterResource"
+            }
+          ],
+          "returnType": "HelmChartOptions",
+          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.HelmChartOptions",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Kubernetes.HelmChartOptions"
+          ]
+        },
+        {
+          "name": "withChartName",
+          "capabilityId": "Aspire.Hosting.Kubernetes/HelmChartOptions.withChartName",
+          "qualifiedName": "HelmChartOptions.withChartName",
+          "description": "Sets the Helm chart name written to the generated Chart.yaml.",
+          "kind": "InstanceMethod",
+          "signature": "withChartName(name: ParameterResource): HelmChartOptions",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "ParameterResource"
+            }
+          ],
+          "returnType": "HelmChartOptions",
+          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.HelmChartOptions",
+          "expandedTargetTypes": [
+            "Aspire.Hosting.Kubernetes.HelmChartOptions"
+          ]
+        },
         {
           "name": "withChartVersion",
           "capabilityId": "Aspire.Hosting.Kubernetes/HelmChartOptions.withChartVersion",
@@ -1356,6 +1437,7 @@
       "fullName": "Aspire.Hosting.Kubernetes.KubernetesAspireDashboardResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "Represents a resource for the Aspire Dashboard deployed into a Kubernetes environment. This resource is used to visualize telemetry data from resources running in the cluster.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IResource",
@@ -1370,7 +1452,7 @@
           "name": "otlpGrpcEndpoint",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesAspireDashboardResource.otlpGrpcEndpoint",
           "qualifiedName": "KubernetesAspireDashboardResource.otlpGrpcEndpoint",
-          "description": "Gets the OtlpGrpcEndpoint property",
+          "description": "Gets the OTLP gRPC endpoint for receiving telemetry data.",
           "kind": "PropertyGetter",
           "signature": "otlpGrpcEndpoint(): EndpointReference",
           "parameters": [],
@@ -1384,7 +1466,7 @@
           "name": "primaryEndpoint",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesAspireDashboardResource.primaryEndpoint",
           "qualifiedName": "KubernetesAspireDashboardResource.primaryEndpoint",
-          "description": "Gets the PrimaryEndpoint property",
+          "description": "Gets the primary HTTP endpoint of the Aspire Dashboard UI.",
           "kind": "PropertyGetter",
           "signature": "primaryEndpoint(): EndpointReference",
           "parameters": [],
@@ -1398,7 +1480,9 @@
           "name": "withForwardedHeaders",
           "capabilityId": "Aspire.Hosting.Kubernetes/withForwardedHeaders",
           "qualifiedName": "withForwardedHeaders",
-          "description": "Enables or disables forwarded headers support for the Aspire dashboard",
+          "description": "Configures whether forwarded headers processing is enabled for the Aspire dashboard container.",
+          "remarks": "This sets the `ASPIRE_DASHBOARD_FORWARDEDHEADERS_ENABLED` environment variable inside the dashboard\ncontainer. When enabled, the dashboard will process `X-Forwarded-Host` and `X-Forwarded-Proto`\nheaders which is required when the dashboard is accessed through a reverse proxy or ingress controller.",
+          "returns": "The same `IResourceBuilder`1` to allow chaining.",
           "kind": "Method",
           "signature": "withForwardedHeaders(enabled?: boolean): KubernetesAspireDashboardResource",
           "parameters": [
@@ -1406,7 +1490,8 @@
               "name": "enabled",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "True to enable forwarded headers, false to disable."
             }
           ],
           "returnType": "KubernetesAspireDashboardResource",
@@ -1420,7 +1505,9 @@
           "name": "withOtlpServicePort",
           "capabilityId": "Aspire.Hosting.Kubernetes/withOtlpServicePort",
           "qualifiedName": "withOtlpServicePort",
-          "description": "Sets the Kubernetes Service ports for the OTLP endpoints",
+          "description": "Sets the Kubernetes Service ports for the Aspire Dashboard OTLP endpoints.",
+          "remarks": "This sets the `port` field on the generated Kubernetes Service for the OTLP endpoints\nwhile keeping the `targetPort` as the original container port. Application resources\nin the cluster send telemetry to these Service ports. Use standard OTLP ports (4317 for gRPC,\n4318 for HTTP) if your services are configured with those defaults.",
+          "returns": "The `IResourceBuilder`1` instance for chaining.",
           "kind": "Method",
           "signature": "withOtlpServicePort(grpcPort?: number, httpPort?: number): KubernetesAspireDashboardResource",
           "parameters": [
@@ -1428,13 +1515,15 @@
               "name": "grpcPort",
               "type": "number",
               "isOptional": true,
-              "isNullable": true
+              "isNullable": true,
+              "description": "The Service port for the OTLP gRPC endpoint. If `null`, the Service port defaults to the container port (18889)."
             },
             {
               "name": "httpPort",
               "type": "number",
               "isOptional": true,
-              "isNullable": true
+              "isNullable": true,
+              "description": "The Service port for the OTLP HTTP endpoint. If `null`, the Service port defaults to the container port (18890)."
             }
           ],
           "returnType": "KubernetesAspireDashboardResource",
@@ -1448,7 +1537,9 @@
           "name": "withServicePort",
           "capabilityId": "Aspire.Hosting.Kubernetes/withServicePort",
           "qualifiedName": "withServicePort",
-          "description": "Sets the Kubernetes Service port for the Aspire dashboard",
+          "description": "Sets the Kubernetes Service port for the Aspire Dashboard HTTP endpoint.",
+          "remarks": "This sets the `port` field on the generated Kubernetes Service while keeping the\n`targetPort` as the original container port. This is useful when placing the dashboard\nbehind an ingress controller that expects a specific Service port (for example, port 80).\nTo access the dashboard from outside the cluster, use `kubectl port-forward` or\nconfigure the environment's `DefaultServiceType`\nto `NodePort` or `LoadBalancer`.",
+          "returns": "The `IResourceBuilder`1` instance for chaining.",
           "kind": "Method",
           "signature": "withServicePort(port?: number): KubernetesAspireDashboardResource",
           "parameters": [
@@ -1456,7 +1547,8 @@
               "name": "port",
               "type": "number",
               "isOptional": true,
-              "isNullable": true
+              "isNullable": true,
+              "description": "The Service port number. Cluster-internal clients will connect to this port, which routes to the dashboard's container port (18888). If `null`, the Service port defaults to the container port."
             }
           ],
           "returnType": "KubernetesAspireDashboardResource",
@@ -1473,6 +1565,8 @@
       "fullName": "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "Represents a Kubernetes environment resource that can host application resources.",
+      "remarks": "This resource models the Kubernetes publishing environment used by Aspire when generating\nHelm charts and other Kubernetes manifests for application resources that will run on a\nKubernetes cluster.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeEnvironmentResource",
         "Aspire.Hosting.ApplicationModel.IResource"
@@ -1482,13 +1576,15 @@
           "name": "addGateway",
           "capabilityId": "Aspire.Hosting.Kubernetes/addGateway",
           "qualifiedName": "addGateway",
-          "description": "Adds a Kubernetes Gateway API Gateway resource",
+          "description": "Adds a Kubernetes Gateway API Gateway resource to the application model as a child of the specified Kubernetes environment. The gateway generates a `gateway.networking.k8s.io/v1 Gateway` resource and one or more `HTTPRoute` resources in the Helm chart output at publish time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "addGateway(name: string): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the gateway resource."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -1502,13 +1598,16 @@
           "name": "addIngress",
           "capabilityId": "Aspire.Hosting.Kubernetes/addIngress",
           "qualifiedName": "addIngress",
-          "description": "Adds a Kubernetes Ingress resource for HTTP routing",
+          "description": "Adds a Kubernetes Ingress resource to the application model as a child of the specified Kubernetes environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.",
+          "remarks": "After creating the ingress, configure routes using\n`WithRoute`\nand optionally set an ingress class with `WithIngressClass`.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "addIngress(name: string): KubernetesIngressResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the ingress resource. This is used as the Kubernetes resource name."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -1522,13 +1621,16 @@
           "name": "addNodePool",
           "capabilityId": "Aspire.Hosting.Kubernetes/addNodePool",
           "qualifiedName": "addNodePool",
-          "description": "Adds a named node pool to a Kubernetes environment",
+          "description": "Adds a named node pool to the Kubernetes environment.",
+          "remarks": "For vanilla Kubernetes, this creates a named reference to an existing node pool.\nFor managed Kubernetes services (e.g., AKS), the cloud-specific `AddNodePool` overload\nprovisions the pool with additional configuration such as VM size and autoscaling.\nUse `WithNodePool``1` to schedule workloads on the returned node pool.",
+          "returns": "A reference to the `IResourceBuilder`1` for the new node pool.",
           "kind": "Method",
           "signature": "addNodePool(name: string): KubernetesNodePoolResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the node pool. This value is used as the `nodeSelector` value."
             }
           ],
           "returnType": "KubernetesNodePoolResource",
@@ -1542,15 +1644,18 @@
           "name": "configureDashboard",
           "capabilityId": "Aspire.Hosting.Kubernetes/configureDashboard",
           "qualifiedName": "configureDashboard",
-          "description": "Configures the Aspire dashboard resource for the Kubernetes environment",
+          "description": "Configures the dashboard properties for this Kubernetes environment.",
+          "remarks": "Use this overload to customize the dashboard container, for example to set a specific host port\nor enable forwarded headers for ingress access.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "configureDashboard(configure: (obj: KubernetesAspireDashboardResource) =\u003E Promise\u003Cvoid\u003E): KubernetesEnvironmentResource",
+          "signature": "configureDashboard(configure: (obj: KubernetesAspireDashboardResource) => Promise<void>): KubernetesEnvironmentResource",
           "parameters": [
             {
               "name": "configure",
               "type": "callback",
               "isCallback": true,
-              "callbackSignature": "(obj: KubernetesAspireDashboardResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: KubernetesAspireDashboardResource) => Promise<void>",
+              "description": "A method that can be used for customizing the dashboard resource."
             }
           ],
           "returnType": "KubernetesEnvironmentResource",
@@ -1564,7 +1669,7 @@
           "name": "dashboardEnabled",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.dashboardEnabled",
           "qualifiedName": "KubernetesEnvironmentResource.dashboardEnabled",
-          "description": "Gets the DashboardEnabled property",
+          "description": "Determines whether to include an Aspire dashboard for telemetry visualization in this environment.",
           "kind": "PropertyGetter",
           "signature": "dashboardEnabled(): boolean",
           "parameters": [],
@@ -1578,7 +1683,7 @@
           "name": "defaultImagePullPolicy",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultImagePullPolicy",
           "qualifiedName": "KubernetesEnvironmentResource.defaultImagePullPolicy",
-          "description": "Gets the DefaultImagePullPolicy property",
+          "description": "Gets or sets the default policy that determines how Docker images are pulled during deployment. Possible values are: \"Always\" - Always attempt to pull the image from the registry. \"IfNotPresent\" - Pull the image only if it is not already present locally. \"Never\" - Never pull the image, use only the local image. The default value is \"IfNotPresent\".",
           "kind": "PropertyGetter",
           "signature": "defaultImagePullPolicy(): string",
           "parameters": [],
@@ -1592,7 +1697,8 @@
           "name": "defaultServiceType",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultServiceType",
           "qualifiedName": "KubernetesEnvironmentResource.defaultServiceType",
-          "description": "Gets the DefaultServiceType property",
+          "description": "Gets or sets the default Kubernetes service type to be used when generating artifacts.",
+          "remarks": "The default value is \"ClusterIP\". This property determines the type of service\n(e.g., ClusterIP, NodePort, LoadBalancer) created in Kubernetes for the application.",
           "kind": "PropertyGetter",
           "signature": "defaultServiceType(): string",
           "parameters": [],
@@ -1606,7 +1712,7 @@
           "name": "defaultStorageClassName",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageClassName",
           "qualifiedName": "KubernetesEnvironmentResource.defaultStorageClassName",
-          "description": "Gets the DefaultStorageClassName property",
+          "description": "Specifies the default name of the storage class to be used for persistent volume claims in Kubernetes. This property allows customization of the storage class for specifying storage requirements such as performance, retention policies, and provisioning parameters. If set to null, the default storage class for the cluster will be used.",
           "kind": "PropertyGetter",
           "signature": "defaultStorageClassName(): string",
           "parameters": [],
@@ -1620,7 +1726,7 @@
           "name": "defaultStorageReadWritePolicy",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageReadWritePolicy",
           "qualifiedName": "KubernetesEnvironmentResource.defaultStorageReadWritePolicy",
-          "description": "Gets the DefaultStorageReadWritePolicy property",
+          "description": "Gets or sets the default access policy for reading and writing to the storage.",
           "kind": "PropertyGetter",
           "signature": "defaultStorageReadWritePolicy(): string",
           "parameters": [],
@@ -1634,7 +1740,7 @@
           "name": "defaultStorageSize",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageSize",
           "qualifiedName": "KubernetesEnvironmentResource.defaultStorageSize",
-          "description": "Gets the DefaultStorageSize property",
+          "description": "Gets or sets the default storage size for persistent volumes.",
           "kind": "PropertyGetter",
           "signature": "defaultStorageSize(): string",
           "parameters": [],
@@ -1648,51 +1754,10 @@
           "name": "defaultStorageType",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.defaultStorageType",
           "qualifiedName": "KubernetesEnvironmentResource.defaultStorageType",
-          "description": "Gets the DefaultStorageType property",
+          "description": "Specifies the default type of storage used for Kubernetes deployments.",
+          "remarks": "This property determines the storage medium used for the application.\nPossible values include \"emptyDir\", \"hostPath\", \"pvc\"",
           "kind": "PropertyGetter",
           "signature": "defaultStorageType(): string",
-          "parameters": [],
-          "returnType": "string",
-          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-          "expandedTargetTypes": [
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-          ]
-        },
-        {
-          "name": "helmChartDescription",
-          "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.helmChartDescription",
-          "qualifiedName": "KubernetesEnvironmentResource.helmChartDescription",
-          "description": "Gets the HelmChartDescription property",
-          "kind": "PropertyGetter",
-          "signature": "helmChartDescription(): string",
-          "parameters": [],
-          "returnType": "string",
-          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-          "expandedTargetTypes": [
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-          ]
-        },
-        {
-          "name": "helmChartName",
-          "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.helmChartName",
-          "qualifiedName": "KubernetesEnvironmentResource.helmChartName",
-          "description": "Gets the HelmChartName property",
-          "kind": "PropertyGetter",
-          "signature": "helmChartName(): string",
-          "parameters": [],
-          "returnType": "string",
-          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-          "expandedTargetTypes": [
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-          ]
-        },
-        {
-          "name": "helmChartVersion",
-          "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.helmChartVersion",
-          "qualifiedName": "KubernetesEnvironmentResource.helmChartVersion",
-          "description": "Gets the HelmChartVersion property",
-          "kind": "PropertyGetter",
-          "signature": "helmChartVersion(): string",
           "parameters": [],
           "returnType": "string",
           "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
@@ -1704,7 +1769,8 @@
           "name": "kubeConfigPath",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.kubeConfigPath",
           "qualifiedName": "KubernetesEnvironmentResource.kubeConfigPath",
-          "description": "Gets the KubeConfigPath property",
+          "description": "Gets or sets the path to an explicit kubeconfig file for Helm and kubectl commands. When set, all Helm and kubectl commands will use `--kubeconfig` to target this file instead of the default `~/.kube/config`.",
+          "remarks": "This is used by Azure Kubernetes Service (AKS) integration to isolate credentials\nfetched via `az aks get-credentials` from the user's default kubectl context.",
           "kind": "PropertyGetter",
           "signature": "kubeConfigPath(): string",
           "parameters": [],
@@ -1718,7 +1784,7 @@
           "name": "setDashboardEnabled",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDashboardEnabled",
           "qualifiedName": "KubernetesEnvironmentResource.setDashboardEnabled",
-          "description": "Sets the DashboardEnabled property",
+          "description": "Determines whether to include an Aspire dashboard for telemetry visualization in this environment.",
           "kind": "PropertySetter",
           "signature": "setDashboardEnabled(value: boolean): KubernetesEnvironmentResource",
           "parameters": [
@@ -1737,7 +1803,7 @@
           "name": "setDefaultImagePullPolicy",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultImagePullPolicy",
           "qualifiedName": "KubernetesEnvironmentResource.setDefaultImagePullPolicy",
-          "description": "Sets the DefaultImagePullPolicy property",
+          "description": "Gets or sets the default policy that determines how Docker images are pulled during deployment. Possible values are: \"Always\" - Always attempt to pull the image from the registry. \"IfNotPresent\" - Pull the image only if it is not already present locally. \"Never\" - Never pull the image, use only the local image. The default value is \"IfNotPresent\".",
           "kind": "PropertySetter",
           "signature": "setDefaultImagePullPolicy(value: string): KubernetesEnvironmentResource",
           "parameters": [
@@ -1756,7 +1822,8 @@
           "name": "setDefaultServiceType",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultServiceType",
           "qualifiedName": "KubernetesEnvironmentResource.setDefaultServiceType",
-          "description": "Sets the DefaultServiceType property",
+          "description": "Gets or sets the default Kubernetes service type to be used when generating artifacts.",
+          "remarks": "The default value is \"ClusterIP\". This property determines the type of service\n(e.g., ClusterIP, NodePort, LoadBalancer) created in Kubernetes for the application.",
           "kind": "PropertySetter",
           "signature": "setDefaultServiceType(value: string): KubernetesEnvironmentResource",
           "parameters": [
@@ -1775,7 +1842,7 @@
           "name": "setDefaultStorageClassName",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageClassName",
           "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageClassName",
-          "description": "Sets the DefaultStorageClassName property",
+          "description": "Specifies the default name of the storage class to be used for persistent volume claims in Kubernetes. This property allows customization of the storage class for specifying storage requirements such as performance, retention policies, and provisioning parameters. If set to null, the default storage class for the cluster will be used.",
           "kind": "PropertySetter",
           "signature": "setDefaultStorageClassName(value: string): KubernetesEnvironmentResource",
           "parameters": [
@@ -1794,7 +1861,7 @@
           "name": "setDefaultStorageReadWritePolicy",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageReadWritePolicy",
           "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageReadWritePolicy",
-          "description": "Sets the DefaultStorageReadWritePolicy property",
+          "description": "Gets or sets the default access policy for reading and writing to the storage.",
           "kind": "PropertySetter",
           "signature": "setDefaultStorageReadWritePolicy(value: string): KubernetesEnvironmentResource",
           "parameters": [
@@ -1813,7 +1880,7 @@
           "name": "setDefaultStorageSize",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageSize",
           "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageSize",
-          "description": "Sets the DefaultStorageSize property",
+          "description": "Gets or sets the default storage size for persistent volumes.",
           "kind": "PropertySetter",
           "signature": "setDefaultStorageSize(value: string): KubernetesEnvironmentResource",
           "parameters": [
@@ -1832,66 +1899,10 @@
           "name": "setDefaultStorageType",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setDefaultStorageType",
           "qualifiedName": "KubernetesEnvironmentResource.setDefaultStorageType",
-          "description": "Sets the DefaultStorageType property",
+          "description": "Specifies the default type of storage used for Kubernetes deployments.",
+          "remarks": "This property determines the storage medium used for the application.\nPossible values include \"emptyDir\", \"hostPath\", \"pvc\"",
           "kind": "PropertySetter",
           "signature": "setDefaultStorageType(value: string): KubernetesEnvironmentResource",
-          "parameters": [
-            {
-              "name": "value",
-              "type": "string"
-            }
-          ],
-          "returnType": "KubernetesEnvironmentResource",
-          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-          "expandedTargetTypes": [
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-          ]
-        },
-        {
-          "name": "setHelmChartDescription",
-          "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setHelmChartDescription",
-          "qualifiedName": "KubernetesEnvironmentResource.setHelmChartDescription",
-          "description": "Sets the HelmChartDescription property",
-          "kind": "PropertySetter",
-          "signature": "setHelmChartDescription(value: string): KubernetesEnvironmentResource",
-          "parameters": [
-            {
-              "name": "value",
-              "type": "string"
-            }
-          ],
-          "returnType": "KubernetesEnvironmentResource",
-          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-          "expandedTargetTypes": [
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-          ]
-        },
-        {
-          "name": "setHelmChartName",
-          "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setHelmChartName",
-          "qualifiedName": "KubernetesEnvironmentResource.setHelmChartName",
-          "description": "Sets the HelmChartName property",
-          "kind": "PropertySetter",
-          "signature": "setHelmChartName(value: string): KubernetesEnvironmentResource",
-          "parameters": [
-            {
-              "name": "value",
-              "type": "string"
-            }
-          ],
-          "returnType": "KubernetesEnvironmentResource",
-          "targetTypeId": "Aspire.Hosting.Kubernetes/Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource",
-          "expandedTargetTypes": [
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource"
-          ]
-        },
-        {
-          "name": "setHelmChartVersion",
-          "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setHelmChartVersion",
-          "qualifiedName": "KubernetesEnvironmentResource.setHelmChartVersion",
-          "description": "Sets the HelmChartVersion property",
-          "kind": "PropertySetter",
-          "signature": "setHelmChartVersion(value: string): KubernetesEnvironmentResource",
           "parameters": [
             {
               "name": "value",
@@ -1908,7 +1919,8 @@
           "name": "setKubeConfigPath",
           "capabilityId": "Aspire.Hosting.Kubernetes/KubernetesEnvironmentResource.setKubeConfigPath",
           "qualifiedName": "KubernetesEnvironmentResource.setKubeConfigPath",
-          "description": "Sets the KubeConfigPath property",
+          "description": "Gets or sets the path to an explicit kubeconfig file for Helm and kubectl commands. When set, all Helm and kubectl commands will use `--kubeconfig` to target this file instead of the default `~/.kube/config`.",
+          "remarks": "This is used by Azure Kubernetes Service (AKS) integration to isolate credentials\nfetched via `az aks get-credentials` from the user's default kubectl context.",
           "kind": "PropertySetter",
           "signature": "setKubeConfigPath(value: string): KubernetesEnvironmentResource",
           "parameters": [
@@ -1927,7 +1939,9 @@
           "name": "withDashboard",
           "capabilityId": "Aspire.Hosting.Kubernetes/withDashboard",
           "qualifiedName": "withDashboard",
-          "description": "Enables or disables the Aspire dashboard for the Kubernetes environment",
+          "description": "Enables the Aspire dashboard for telemetry visualization in this Kubernetes environment.",
+          "remarks": "When enabled, an Aspire Dashboard container is deployed alongside the application resources\nin the Kubernetes cluster. All resources with OTLP telemetry support are automatically\nconfigured to send telemetry data to the dashboard.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDashboard(enabled?: boolean): KubernetesEnvironmentResource",
           "parameters": [
@@ -1935,7 +1949,8 @@
               "name": "enabled",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "Whether to enable the dashboard. Default is true."
             }
           ],
           "returnType": "KubernetesEnvironmentResource",
@@ -1949,16 +1964,19 @@
           "name": "withHelm",
           "capabilityId": "Aspire.Hosting.Kubernetes/withHelm",
           "qualifiedName": "withHelm",
-          "description": "Configures Helm chart deployment settings",
+          "description": "Configures the Kubernetes environment to deploy using Helm charts.",
+          "remarks": "Helm is the default deployment engine. Call this method to customize Helm-specific settings.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "withHelm(configure?: (obj: HelmChartOptions) =\u003E Promise\u003Cvoid\u003E): KubernetesEnvironmentResource",
+          "signature": "withHelm(configure?: (obj: HelmChartOptions) => Promise<void>): KubernetesEnvironmentResource",
           "parameters": [
             {
               "name": "configure",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: HelmChartOptions) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: HelmChartOptions) => Promise<void>",
+              "description": "An optional callback to configure Helm chart settings such as namespace, release name, and chart version."
             }
           ],
           "returnType": "KubernetesEnvironmentResource",
@@ -1972,15 +1990,17 @@
           "name": "withProperties",
           "capabilityId": "Aspire.Hosting.Kubernetes/withProperties",
           "qualifiedName": "withProperties",
-          "description": "Configures properties of a Kubernetes environment",
+          "description": "Allows setting the properties of a Kubernetes environment resource.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "withProperties(configure: (obj: KubernetesEnvironmentResource) =\u003E Promise\u003Cvoid\u003E): KubernetesEnvironmentResource",
+          "signature": "withProperties(configure: (obj: KubernetesEnvironmentResource) => Promise<void>): KubernetesEnvironmentResource",
           "parameters": [
             {
               "name": "configure",
               "type": "callback",
               "isCallback": true,
-              "callbackSignature": "(obj: KubernetesEnvironmentResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: KubernetesEnvironmentResource) => Promise<void>",
+              "description": "A method that can be used for customizing the `KubernetesEnvironmentResource`."
             }
           ],
           "returnType": "KubernetesEnvironmentResource",
@@ -1996,27 +2016,33 @@
       "name": "KubernetesGatewayResource",
       "fullName": "Aspire.Hosting.Kubernetes.KubernetesGatewayResource",
       "kind": "handle",
+      "description": "Represents a Kubernetes Gateway API Gateway as a first-class resource in the Aspire application model. A Gateway defines listeners (ports, protocols, TLS) and HTTPRoutes attach to it for routing.",
+      "remarks": "Create a gateway using `AddGateway` and configure\nroutes using `WithRoute`.\nAt publish time, the gateway generates a `gateway.networking.k8s.io/v1 Gateway` resource\nwith auto-inferred listeners and one or more `HTTPRoute` resources in the Helm chart output.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
       ],
       "capabilities": [
         {
           "name": "withGatewayAnnotation",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayAnnotation",
           "qualifiedName": "withGatewayAnnotation",
-          "description": "Adds a Kubernetes metadata annotation to a Gateway",
+          "description": "Adds a Kubernetes metadata annotation to the generated Gateway resource.",
+          "remarks": "This sets Kubernetes `metadata.annotations` on the generated K8S Gateway resource,\nnot Aspire `IResourceAnnotation` instances. These are key-value\nstring pairs used by ingress controllers for provider-specific configuration.\nFor Azure Application Gateway for Containers (AGC), you typically need:\n`alb.networking.azure.io/alb-name` and `alb.networking.azure.io/alb-namespace`.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayAnnotation(key: string, value: string): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "key",
-              "type": "string"
+              "type": "string",
+              "description": "The annotation key."
             },
             {
               "name": "value",
-              "type": "string"
+              "type": "string",
+              "description": "The annotation value."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2030,17 +2056,20 @@
           "name": "withGatewayAnnotationParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayAnnotationParam",
           "qualifiedName": "withGatewayAnnotationParam",
-          "description": "Adds a parameterized Kubernetes metadata annotation to a Gateway",
+          "description": "Adds a Kubernetes metadata annotation with a parameter value that will be resolved at deploy time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayAnnotationParam(key: string, value: ParameterResource): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "key",
-              "type": "string"
+              "type": "string",
+              "description": "The annotation key."
             },
             {
               "name": "value",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the annotation value."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2054,13 +2083,15 @@
           "name": "withGatewayClass",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayClass",
           "qualifiedName": "withGatewayClass",
-          "description": "Sets the GatewayClass for a Kubernetes Gateway",
+          "description": "Sets the GatewayClass name that selects which controller implementation handles this gateway.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayClass(className: string): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "className",
-              "type": "string"
+              "type": "string",
+              "description": "The GatewayClass name (e.g., `\"azure-alb-external\"`, `\"istio\"`)."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2074,13 +2105,15 @@
           "name": "withGatewayClassParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayClassParam",
           "qualifiedName": "withGatewayClassParam",
-          "description": "Sets a parameterized GatewayClass for a Kubernetes Gateway",
+          "description": "Sets the GatewayClass name using a parameter that will be resolved at deploy time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayClassParam(className: ParameterResource): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "className",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the GatewayClass name."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2094,13 +2127,15 @@
           "name": "withGatewayHostnameParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayHostnameParam",
           "qualifiedName": "withGatewayHostnameParam",
-          "description": "Adds a parameterized hostname to a Kubernetes Gateway",
+          "description": "Adds a hostname using a parameter that will be resolved at deploy time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayHostnameParam(hostname: ParameterResource): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "hostname",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the hostname value."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2114,27 +2149,32 @@
           "name": "withGatewayHostRoute",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayHostRoute",
           "qualifiedName": "withGatewayHostRoute",
-          "description": "Adds a host-and-path route to a Kubernetes Gateway",
+          "description": "Adds a host-and-path-based routing rule to the gateway. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource with a `hostnames` filter.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "host",
-              "type": "string"
+              "type": "string",
+              "description": "The hostname to match (e.g., `\"api.example.com\"`)."
             },
             {
               "name": "path",
-              "type": "string"
+              "type": "string",
+              "description": "The URL path to match. Must start with `/`."
             },
             {
               "name": "endpoint",
-              "type": "EndpointReference"
+              "type": "EndpointReference",
+              "description": "The endpoint reference identifying the target service and port."
             },
             {
               "name": "pathType",
               "type": "IngressPathType",
               "isOptional": true,
-              "defaultValue": "Prefix"
+              "defaultValue": "Prefix",
+              "description": "The path matching strategy. Defaults to `Prefix`."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2148,23 +2188,27 @@
           "name": "withGatewayPathRoute",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayPathRoute",
           "qualifiedName": "withGatewayPathRoute",
-          "description": "Adds a path-based route to a Kubernetes Gateway",
+          "description": "Adds a path-based routing rule to the gateway. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service. This generates an `HTTPRoute` resource attached to the Gateway.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayPathRoute(path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "path",
-              "type": "string"
+              "type": "string",
+              "description": "The URL path to match (e.g., `\"/\"` or `\"/api\"`). Must start with `/`."
             },
             {
               "name": "endpoint",
-              "type": "EndpointReference"
+              "type": "EndpointReference",
+              "description": "The endpoint reference identifying the target service and port."
             },
             {
               "name": "pathType",
               "type": "IngressPathType",
               "isOptional": true,
-              "defaultValue": "Prefix"
+              "defaultValue": "Prefix",
+              "description": "The path matching strategy. Defaults to `Prefix`."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2178,7 +2222,8 @@
           "name": "withGatewayTlsAuto",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayTlsAuto",
           "qualifiedName": "withGatewayTlsAuto",
-          "description": "Configures TLS on a Kubernetes Gateway with an auto-generated secret",
+          "description": "Configures TLS termination with an auto-generated secret name derived from the gateway name.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayTlsAuto(): KubernetesGatewayResource",
           "parameters": [],
@@ -2193,13 +2238,15 @@
           "name": "withGatewayTlsParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayTlsParam",
           "qualifiedName": "withGatewayTlsParam",
-          "description": "Configures TLS on a Kubernetes Gateway with a parameterized secret",
+          "description": "Configures TLS termination using a parameter for the secret name.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withGatewayTlsParam(secretName: ParameterResource): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "secretName",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the secret name."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2213,13 +2260,15 @@
           "name": "withHostname",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayHostname",
           "qualifiedName": "withHostname",
-          "description": "Adds a hostname to a Kubernetes Gateway",
+          "description": "Adds a hostname that this gateway's routes match. Multiple hostnames can be added by calling this method repeatedly. Hostnames are used as `hostnames` in generated `HTTPRoute` resources and as HTTPS listener hostnames when TLS is configured.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withHostname(hostname: string): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "hostname",
-              "type": "string"
+              "type": "string",
+              "description": "The hostname to match (e.g., `\"api.example.com\"`)."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2233,13 +2282,15 @@
           "name": "withTls",
           "capabilityId": "Aspire.Hosting.Kubernetes/withGatewayTls",
           "qualifiedName": "withTls",
-          "description": "Configures TLS on a Kubernetes Gateway listener",
+          "description": "Configures TLS termination on the gateway by adding an HTTPS listener that references a Kubernetes TLS secret. The Gateway terminates TLS and forwards plain HTTP to backends. This does not create a separate route — existing HTTPRoutes serve both HTTP and HTTPS. The TLS configuration applies to all hostnames configured via `WithHostname`.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withTls(secretName: string): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "secretName",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the Kubernetes `kubernetes.io/tls` Secret."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -2255,23 +2306,27 @@
       "name": "KubernetesIngressResource",
       "fullName": "Aspire.Hosting.Kubernetes.KubernetesIngressResource",
       "kind": "handle",
+      "description": "Represents a Kubernetes Ingress as a first-class resource in the Aspire application model. An Ingress defines HTTP routing rules that direct external traffic to services in the cluster.",
+      "remarks": "Create an ingress using `AddIngress` and configure\nroutes using `WithRoute`.\nAt publish time, the ingress generates a Kubernetes `networking.k8s.io/v1 Ingress` resource\nin the Helm chart output with rules derived from the configured routes.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
       ],
       "capabilities": [
         {
           "name": "withDefaultBackend",
           "capabilityId": "Aspire.Hosting.Kubernetes/withDefaultBackend",
           "qualifiedName": "withDefaultBackend",
-          "description": "Sets the default backend for a Kubernetes Ingress",
+          "description": "Sets the default backend for the ingress. The default backend handles requests that do not match any of the defined routing rules.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withDefaultBackend(endpoint: EndpointReference): KubernetesIngressResource",
           "parameters": [
             {
               "name": "endpoint",
-              "type": "EndpointReference"
+              "type": "EndpointReference",
+              "description": "The endpoint reference identifying the default backend service and port."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2285,13 +2340,15 @@
           "name": "withHostname",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressHostname",
           "qualifiedName": "withHostname",
-          "description": "Adds a hostname to a Kubernetes Ingress",
+          "description": "Adds a hostname that this ingress matches. Multiple hostnames can be added by calling this method repeatedly. If no hostnames are configured, the ingress matches all hosts.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withHostname(hostname: string): KubernetesIngressResource",
           "parameters": [
             {
               "name": "hostname",
-              "type": "string"
+              "type": "string",
+              "description": "The hostname to match (e.g., `\"api.example.com\"`)."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2305,17 +2362,21 @@
           "name": "withIngressAnnotation",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressAnnotation",
           "qualifiedName": "withIngressAnnotation",
-          "description": "Adds a Kubernetes metadata annotation to a Kubernetes Ingress",
+          "description": "Adds a Kubernetes metadata annotation to the generated Ingress resource. These are key-value pairs in the `metadata.annotations` field of the K8S Ingress, commonly used to configure ingress controller-specific behavior.",
+          "remarks": "This method sets Kubernetes metadata annotations, not Aspire `IResourceAnnotation`\ninstances. Use these for controller-specific features like path rewriting, rate limiting,\nCORS configuration, or SSL redirect behavior.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressAnnotation(key: string, value: string): KubernetesIngressResource",
           "parameters": [
             {
               "name": "key",
-              "type": "string"
+              "type": "string",
+              "description": "The annotation key (e.g., `\"nginx.ingress.kubernetes.io/rewrite-target\"`)."
             },
             {
               "name": "value",
-              "type": "string"
+              "type": "string",
+              "description": "The annotation value."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2329,17 +2390,20 @@
           "name": "withIngressAnnotationParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressAnnotationParam",
           "qualifiedName": "withIngressAnnotationParam",
-          "description": "Adds a parameterized Kubernetes metadata annotation to an Ingress",
+          "description": "Adds a Kubernetes metadata annotation with a parameter value that will be resolved at deploy time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressAnnotationParam(key: string, value: ParameterResource): KubernetesIngressResource",
           "parameters": [
             {
               "name": "key",
-              "type": "string"
+              "type": "string",
+              "description": "The annotation key."
             },
             {
               "name": "value",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the annotation value."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2353,13 +2417,15 @@
           "name": "withIngressClass",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressClass",
           "qualifiedName": "withIngressClass",
-          "description": "Sets the ingress class for a Kubernetes Ingress",
+          "description": "Sets the Kubernetes ingress class name that selects which ingress controller handles this ingress resource.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressClass(className: string): KubernetesIngressResource",
           "parameters": [
             {
               "name": "className",
-              "type": "string"
+              "type": "string",
+              "description": "The ingress class name (e.g., `\"nginx\"`, `\"traefik\"`, `\"azure-alb-external\"`)."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2373,13 +2439,15 @@
           "name": "withIngressClassParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressClassParam",
           "qualifiedName": "withIngressClassParam",
-          "description": "Sets a parameterized ingress class for a Kubernetes Ingress",
+          "description": "Sets the Kubernetes ingress class name using a parameter that will be resolved at deploy time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressClassParam(className: ParameterResource): KubernetesIngressResource",
           "parameters": [
             {
               "name": "className",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the ingress class name."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2393,13 +2461,15 @@
           "name": "withIngressHostnameParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressHostnameParam",
           "qualifiedName": "withIngressHostnameParam",
-          "description": "Adds a parameterized hostname to a Kubernetes Ingress",
+          "description": "Adds a hostname using a parameter that will be resolved at deploy time.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressHostnameParam(hostname: ParameterResource): KubernetesIngressResource",
           "parameters": [
             {
               "name": "hostname",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the hostname value."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2413,27 +2483,32 @@
           "name": "withIngressHostRoute",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressHostRoute",
           "qualifiedName": "withIngressHostRoute",
-          "description": "Adds a host-and-path route to a Kubernetes Ingress",
+          "description": "Adds a host-and-path-based routing rule to the ingress. The rule matches traffic for the specified host and path, routing it to the given endpoint's backing Kubernetes service.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressHostRoute(host: string, path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesIngressResource",
           "parameters": [
             {
               "name": "host",
-              "type": "string"
+              "type": "string",
+              "description": "The hostname to match (e.g., `\"api.example.com\"`)."
             },
             {
               "name": "path",
-              "type": "string"
+              "type": "string",
+              "description": "The URL path to match (e.g., `\"/\"` or `\"/api\"`). Must start with `/`."
             },
             {
               "name": "endpoint",
-              "type": "EndpointReference"
+              "type": "EndpointReference",
+              "description": "The endpoint reference identifying the target service and port."
             },
             {
               "name": "pathType",
               "type": "IngressPathType",
               "isOptional": true,
-              "defaultValue": "Prefix"
+              "defaultValue": "Prefix",
+              "description": "The path matching strategy. Defaults to `Prefix`."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2447,23 +2522,27 @@
           "name": "withIngressPathRoute",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressPathRoute",
           "qualifiedName": "withIngressPathRoute",
-          "description": "Adds a path-based route to a Kubernetes Ingress",
+          "description": "Adds a path-based routing rule to the ingress. The rule matches all hosts and routes traffic matching the specified path to the given endpoint's backing Kubernetes service.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressPathRoute(path: string, endpoint: EndpointReference, pathType?: IngressPathType): KubernetesIngressResource",
           "parameters": [
             {
               "name": "path",
-              "type": "string"
+              "type": "string",
+              "description": "The URL path to match (e.g., `\"/\"` or `\"/api\"`). Must start with `/`."
             },
             {
               "name": "endpoint",
-              "type": "EndpointReference"
+              "type": "EndpointReference",
+              "description": "The endpoint reference identifying the target service and port."
             },
             {
               "name": "pathType",
               "type": "IngressPathType",
               "isOptional": true,
-              "defaultValue": "Prefix"
+              "defaultValue": "Prefix",
+              "description": "The path matching strategy. Defaults to `Prefix`."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2477,7 +2556,8 @@
           "name": "withIngressTlsAuto",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressTlsAuto",
           "qualifiedName": "withIngressTlsAuto",
-          "description": "Configures TLS for a Kubernetes Ingress with an auto-generated secret",
+          "description": "Configures TLS termination with an auto-generated secret name derived from the ingress name.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressTlsAuto(): KubernetesIngressResource",
           "parameters": [],
@@ -2492,13 +2572,15 @@
           "name": "withIngressTlsParam",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressTlsParam",
           "qualifiedName": "withIngressTlsParam",
-          "description": "Configures TLS for a Kubernetes Ingress with a parameterized secret",
+          "description": "Configures TLS termination using a parameter for the secret name.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withIngressTlsParam(secretName: ParameterResource): KubernetesIngressResource",
           "parameters": [
             {
               "name": "secretName",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "A parameter resource builder for the secret name."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2512,13 +2594,15 @@
           "name": "withTls",
           "capabilityId": "Aspire.Hosting.Kubernetes/withIngressTls",
           "qualifiedName": "withTls",
-          "description": "Configures TLS for a Kubernetes Ingress using a K8S secret",
+          "description": "Configures TLS termination for the ingress by referencing a Kubernetes TLS secret. The TLS configuration applies to all hostnames configured via `WithHostname`.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withTls(secretName: string): KubernetesIngressResource",
           "parameters": [
             {
               "name": "secretName",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the Kubernetes `kubernetes.io/tls` Secret."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -2534,10 +2618,11 @@
       "name": "KubernetesNodePoolResource",
       "fullName": "Aspire.Hosting.Kubernetes.KubernetesNodePoolResource",
       "kind": "handle",
+      "description": "Represents a Kubernetes node pool as a child resource of a `KubernetesEnvironmentResource`. Node pools can be referenced by compute resources to schedule workloads on specific node pools using `WithNodePool``1`.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
       ],
       "capabilities": []
     },
@@ -2546,10 +2631,11 @@
       "fullName": "Aspire.Hosting.Kubernetes.KubernetesResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "Represents a compute resource for Kubernetes.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
       ],
       "capabilities": [
         {
@@ -2575,10 +2661,25 @@
       "name": "IngressPathType",
       "fullName": "Aspire.Hosting.Kubernetes.IngressPathType",
       "kind": "enum",
+      "description": "Specifies the type of path matching used in a Kubernetes Ingress rule.",
       "members": [
         "Prefix",
         "Exact",
         "ImplementationSpecific"
+      ],
+      "memberDocs": [
+        {
+          "name": "Prefix",
+          "description": "Matches based on a URL path prefix split by `/`. Matching is case-sensitive and done element-by-element. For example, `/api` matches `/api`, `/api/`, and `/api/v1` but not `/apiv1`."
+        },
+        {
+          "name": "Exact",
+          "description": "Matches the URL path exactly and with case sensitivity."
+        },
+        {
+          "name": "ImplementationSpecific",
+          "description": "Matching is delegated to the ingress controller. Check the controller's documentation for the supported matching semantics."
+        }
       ]
     }
   ]

@@ -10,23 +10,28 @@
       "name": "addJavaScriptApp",
       "capabilityId": "Aspire.Hosting.JavaScript/addJavaScriptApp",
       "qualifiedName": "addJavaScriptApp",
-      "description": "Adds a JavaScript application resource",
+      "description": "Adds a JavaScript application resource to the distributed application using the specified app directory and run script.",
+      "remarks": "If a Dockerfile does not exist in the application's directory, one will be generated\nautomatically when publishing. The method configures the resource with Node.js defaults and sets up npm\nintegration.",
+      "returns": "A resource builder for the newly added JavaScript application resource.",
       "kind": "Method",
       "signature": "addJavaScriptApp(name: string, appDirectory: string, runScriptName?: string): JavaScriptAppResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The unique name of the JavaScript application resource. Cannot be null or empty."
         },
         {
           "name": "appDirectory",
-          "type": "string"
+          "type": "string",
+          "description": "The path to the directory containing the JavaScript application."
         },
         {
           "name": "runScriptName",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "dev"
+          "defaultValue": "dev",
+          "description": "The name of the npm script to run when starting the application. Defaults to \"dev\". Cannot be null or empty."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -40,23 +45,28 @@
       "name": "addNextJsApp",
       "capabilityId": "Aspire.Hosting.JavaScript/addNextJsApp",
       "qualifiedName": "addNextJsApp",
-      "description": "Adds a Next.js application resource",
+      "description": "Adds a Next.js app to the distributed application builder.",
+      "remarks": "This method configures the Next.js application for both local development and publishing.\nIn run mode, it starts the Next.js dev server with the correct port binding.\nIn publish mode, it generates a multi-stage Dockerfile using Next.js standalone output mode,\nwhich copies `public/`, `.next/standalone/`, and `.next/static/` into a\nNode.js runtime container.\nThe Next.js application must have `output: \"standalone\"` configured in `next.config.ts`\nand a `public/` directory (even if empty) for the published container to build correctly.\nThe following example creates a Next.js app.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nbuilder.AddNextJsApp(\"frontend\", \"./frontend\");\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addNextJsApp(name: string, appDirectory: string, runScriptName?: string): NextJsAppResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the Next.js app."
         },
         {
           "name": "appDirectory",
-          "type": "string"
+          "type": "string",
+          "description": "The path to the directory containing the Next.js app."
         },
         {
           "name": "runScriptName",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "dev"
+          "defaultValue": "dev",
+          "description": "The name of the script that runs the Next.js dev server. Defaults to \"dev\"."
         }
       ],
       "returnType": "NextJsAppResource",
@@ -70,21 +80,26 @@
       "name": "addNodeApp",
       "capabilityId": "Aspire.Hosting.JavaScript/addNodeApp",
       "qualifiedName": "addNodeApp",
-      "description": "Adds a Node.js application resource",
+      "description": "Adds a node application to the application model. Node should be available on the PATH.",
+      "remarks": "This method executes a Node script directly using `node script.js`. If you want to use a package manager\nyou can add one and configure the install and run scripts using the provided extension methods.\nIf the application directory contains a `package.json` file, npm will be added as the default package manager.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addNodeApp(name: string, appDirectory: string, scriptPath: string): NodeAppResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource."
         },
         {
           "name": "appDirectory",
-          "type": "string"
+          "type": "string",
+          "description": "The path to the directory containing the node application."
         },
         {
           "name": "scriptPath",
-          "type": "string"
+          "type": "string",
+          "description": "The path to the script relative to the app directory to run."
         }
       ],
       "returnType": "NodeAppResource",
@@ -98,23 +113,28 @@
       "name": "addViteApp",
       "capabilityId": "Aspire.Hosting.JavaScript/addViteApp",
       "qualifiedName": "addViteApp",
-      "description": "Adds a Vite application resource",
+      "description": "Adds a Vite app to the distributed application builder.",
+      "remarks": "The following example creates a Vite app using npm as the package manager.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nbuilder.AddViteApp(\"frontend\", \"./frontend\");\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addViteApp(name: string, appDirectory: string, runScriptName?: string): ViteAppResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the Vite app."
         },
         {
           "name": "appDirectory",
-          "type": "string"
+          "type": "string",
+          "description": "The path to the directory containing the Vite app."
         },
         {
           "name": "runScriptName",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "dev"
+          "defaultValue": "dev",
+          "description": "The name of the script that runs the Vite app. Defaults to \"dev\"."
         }
       ],
       "returnType": "ViteAppResource",
@@ -129,6 +149,8 @@
       "capabilityId": "Aspire.Hosting.JavaScript/disableBuildValidation",
       "qualifiedName": "disableBuildValidation",
       "description": "Disables deploy-time build validation checks for the Next.js application.",
+      "remarks": "By default, `AddNextJsApp` adds publish prerequisite steps that verify\nthe Next.js configuration (e.g. that `output: \"standalone\"` is set). Use this method\nto suppress those checks when the configuration is set dynamically or via an external\nmechanism that cannot be detected by static file inspection.",
+      "returns": "The resource builder for chaining.",
       "kind": "Method",
       "signature": "disableBuildValidation(): NextJsAppResource",
       "parameters": [],
@@ -143,19 +165,23 @@
       "name": "publishAsNodeServer",
       "capabilityId": "Aspire.Hosting.JavaScript/publishAsNodeServer",
       "qualifiedName": "publishAsNodeServer",
-      "description": "Publishes the JavaScript application as a standalone Node.js server that runs a built artifact directly.",
+      "description": "Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.",
+      "remarks": "Use this method for frameworks that produce a Node.js server artifact during the build and recommend\nrunning that artifact directly in production rather than invoking a package manager script at runtime.\nThe application source is still built using the configured package manager and build script; this method\nonly changes the publish-time runtime container shape.\nThe container files source path is automatically set to `outputPath` so that only\nthe built output directory is copied into the runtime container, not the full application source.",
+      "returns": "The updated resource builder.",
       "kind": "Method",
       "signature": "publishAsNodeServer(entryPoint: string, outputPath?: string): JavaScriptAppResource",
       "parameters": [
         {
           "name": "entryPoint",
-          "type": "string"
+          "type": "string",
+          "description": "The relative path to the Node.js entry point to execute in the published container after the build completes, such as `.output/server/index.mjs` or `build/index.js`."
         },
         {
           "name": "outputPath",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "."
+          "defaultValue": ".",
+          "description": "The relative path containing the built runtime files to copy into the published container. Defaults to the application root."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -172,7 +198,9 @@
       "name": "publishAsNpmScript",
       "capabilityId": "Aspire.Hosting.JavaScript/publishAsNpmScript",
       "qualifiedName": "publishAsNpmScript",
-      "description": "Publishes the JavaScript application as a Node.js server that uses a package manager script at runtime.",
+      "description": "Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.",
+      "remarks": "Use this method for frameworks where the production server depends on packages in `node_modules` at runtime.\nThe resulting container includes the full application with production dependencies installed.\nThis method is appropriate for frameworks like Nuxt (where `useAsyncData`/`useFetch` requires the\nfull Nitro environment), Remix (where `react-router-serve` is an npm dependency), and Astro SSR\n(where the built entry point imports unbundled `@astrojs/*` packages).\nFor frameworks that produce a self-contained server artifact that does not require `node_modules`,\nuse `PublishAsNodeServer``1` instead for a smaller runtime image.",
+      "returns": "The updated resource builder.",
       "kind": "Method",
       "signature": "publishAsNpmScript(startScriptName?: string, runScriptArguments?: string): JavaScriptAppResource",
       "parameters": [
@@ -180,12 +208,14 @@
           "name": "startScriptName",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "start"
+          "defaultValue": "start",
+          "description": "The name of the package manager script to run in the published container. For example, `start` runs `npm run start`."
         },
         {
           "name": "runScriptArguments",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "Optional arguments appended after the script name at runtime, such as `-- --port \"$PORT\"`."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -202,7 +232,7 @@
       "name": "publishAsStaticWebsite",
       "capabilityId": "Aspire.Hosting.JavaScript/publishAsStaticWebsite",
       "qualifiedName": "publishAsStaticWebsite",
-      "description": "Publishes the JavaScript application as a standalone static website using YARP.",
+      "description": "Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.",
       "kind": "Method",
       "signature": "publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): JavaScriptAppResource",
       "parameters": [
@@ -248,7 +278,9 @@
       "name": "withBrowserDebugger",
       "capabilityId": "Aspire.Hosting.JavaScript/withBrowserDebugger",
       "qualifiedName": "withBrowserDebugger",
-      "description": "Configures a browser debugger for the JavaScript application",
+      "description": "Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.",
+      "remarks": "This method creates a child `BrowserDebuggerResource` that waits for the parent JavaScript\napplication to start, then launches a browser debug session targeting the parent's HTTP or HTTPS endpoint.\nThe parent resource must have at least one HTTP or HTTPS endpoint configured.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining additional configuration.",
       "kind": "Method",
       "signature": "withBrowserDebugger(browser?: string): JavaScriptAppResource",
       "parameters": [
@@ -256,7 +288,8 @@
           "name": "browser",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "msedge"
+          "defaultValue": "msedge",
+          "description": "The browser to use for debugging. Defaults to `\"msedge\"`. Supported values include `\"msedge\"` and `\"chrome\"`."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -273,18 +306,22 @@
       "name": "withBuildScript",
       "capabilityId": "Aspire.Hosting.JavaScript/withBuildScript",
       "qualifiedName": "withBuildScript",
-      "description": "Specifies an npm script to run before starting the application",
+      "description": "Adds a build script annotation to the resource builder using the specified command-line arguments.",
+      "remarks": "Use this method to specify custom build scripts for JavaScript application resources during\ndeployment.",
+      "returns": "The same resource builder instance with the build script annotation applied.",
       "kind": "Method",
       "signature": "withBuildScript(scriptName: string, args?: string[]): JavaScriptAppResource",
       "parameters": [
         {
           "name": "scriptName",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the script to be executed when the resource is built."
         },
         {
           "name": "args",
           "type": "string[]",
-          "isOptional": true
+          "isOptional": true,
+          "description": "An array of command-line arguments to use for the build script."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -301,7 +338,9 @@
       "name": "withBun",
       "capabilityId": "Aspire.Hosting.JavaScript/withBun",
       "qualifiedName": "withBun",
-      "description": "Configures Bun as the package manager",
+      "description": "Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.",
+      "remarks": "Bun forwards script arguments without requiring the `--` command separator, so this method configures the resource to omit it.\nWhen publishing and a bun lockfile (`bun.lock` or `bun.lockb`) is present, `--frozen-lockfile` is used by default.\nPublishing to a container requires Bun to be present in the build image. This method configures a Bun build image when one is not already specified.\nTo use a specific Bun version, configure a custom build image (for example, `oven/bun:<tag>`) using `WithDockerfileBaseImage``1`.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withBun(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
       "parameters": [
@@ -309,12 +348,14 @@
           "name": "install",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
         },
         {
           "name": "installArgs",
           "type": "string[]",
-          "isOptional": true
+          "isOptional": true,
+          "description": "Additional command-line arguments passed to \"bun install\". When null, defaults are applied based on publish mode and lockfile presence."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -331,7 +372,8 @@
       "name": "withNpm",
       "capabilityId": "Aspire.Hosting.JavaScript/withNpm",
       "qualifiedName": "withNpm",
-      "description": "Configures npm as the package manager",
+      "description": "Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withNpm(install?: boolean, installCommand?: string, installArgs?: string[]): JavaScriptAppResource",
       "parameters": [
@@ -339,17 +381,20 @@
           "name": "install",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
         },
         {
           "name": "installCommand",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The install command itself passed to npm to install dependencies."
         },
         {
           "name": "installArgs",
           "type": "string[]",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The command-line arguments passed to npm to install dependencies."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -366,7 +411,8 @@
       "name": "withPnpm",
       "capabilityId": "Aspire.Hosting.JavaScript/withPnpm",
       "qualifiedName": "withPnpm",
-      "description": "Configures pnpm as the package manager",
+      "description": "Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withPnpm(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
       "parameters": [
@@ -374,12 +420,14 @@
           "name": "install",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
         },
         {
           "name": "installArgs",
           "type": "string[]",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The command-line arguments passed to \"pnpm install\"."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -396,18 +444,22 @@
       "name": "withRunScript",
       "capabilityId": "Aspire.Hosting.JavaScript/withRunScript",
       "qualifiedName": "withRunScript",
-      "description": "Specifies an npm script to run during development",
+      "description": "Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.",
+      "remarks": "Use this method to specify a custom script and its arguments that should be executed when the resource is executed\nin RunMode.",
+      "returns": "The same resource builder instance with the run script annotation applied, enabling further configuration.",
       "kind": "Method",
       "signature": "withRunScript(scriptName: string, args?: string[]): JavaScriptAppResource",
       "parameters": [
         {
           "name": "scriptName",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the script to be executed when the resource is run."
         },
         {
           "name": "args",
           "type": "string[]",
-          "isOptional": true
+          "isOptional": true,
+          "description": "An array of arguments to pass to the script."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -424,13 +476,16 @@
       "name": "withViteConfig",
       "capabilityId": "Aspire.Hosting.JavaScript/withViteConfig",
       "qualifiedName": "withViteConfig",
-      "description": "Configures a custom Vite configuration file",
+      "description": "Configures the Vite app to use the specified Vite configuration file instead of the default resolution behavior.",
+      "remarks": "Use this method to specify a specific Vite configuration file if you need to override the default Vite configuration resolution behavior.",
+      "returns": "The resource builder.",
       "kind": "Method",
       "signature": "withViteConfig(configPath: string): ViteAppResource",
       "parameters": [
         {
           "name": "configPath",
-          "type": "string"
+          "type": "string",
+          "description": "The path to the Vite configuration file. Relative to the Vite service project root."
         }
       ],
       "returnType": "ViteAppResource",
@@ -444,7 +499,8 @@
       "name": "withYarn",
       "capabilityId": "Aspire.Hosting.JavaScript/withYarn",
       "qualifiedName": "withYarn",
-      "description": "Configures yarn as the package manager",
+      "description": "Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withYarn(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
       "parameters": [
@@ -452,12 +508,14 @@
           "name": "install",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
         },
         {
           "name": "installArgs",
           "type": "string[]",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The command-line arguments passed to \"yarn install\"."
         }
       ],
       "returnType": "JavaScriptAppResource",
@@ -477,6 +535,7 @@
       "fullName": "Aspire.Hosting.JavaScript.JavaScriptAppResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a JavaScript application.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IResource",
@@ -493,19 +552,23 @@
           "name": "publishAsNodeServer",
           "capabilityId": "Aspire.Hosting.JavaScript/publishAsNodeServer",
           "qualifiedName": "publishAsNodeServer",
-          "description": "Publishes the JavaScript application as a standalone Node.js server that runs a built artifact directly.",
+          "description": "Configures the JavaScript application to publish as a standalone Node.js server that runs a built artifact directly.",
+          "remarks": "Use this method for frameworks that produce a Node.js server artifact during the build and recommend\nrunning that artifact directly in production rather than invoking a package manager script at runtime.\nThe application source is still built using the configured package manager and build script; this method\nonly changes the publish-time runtime container shape.\nThe container files source path is automatically set to `outputPath` so that only\nthe built output directory is copied into the runtime container, not the full application source.",
+          "returns": "The updated resource builder.",
           "kind": "Method",
           "signature": "publishAsNodeServer(entryPoint: string, outputPath?: string): JavaScriptAppResource",
           "parameters": [
             {
               "name": "entryPoint",
-              "type": "string"
+              "type": "string",
+              "description": "The relative path to the Node.js entry point to execute in the published container after the build completes, such as `.output/server/index.mjs` or `build/index.js`."
             },
             {
               "name": "outputPath",
               "type": "string",
               "isOptional": true,
-              "defaultValue": "."
+              "defaultValue": ".",
+              "description": "The relative path containing the built runtime files to copy into the published container. Defaults to the application root."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -522,7 +585,9 @@
           "name": "publishAsNpmScript",
           "capabilityId": "Aspire.Hosting.JavaScript/publishAsNpmScript",
           "qualifiedName": "publishAsNpmScript",
-          "description": "Publishes the JavaScript application as a Node.js server that uses a package manager script at runtime.",
+          "description": "Configures the JavaScript application to publish as a Node.js server that uses a package manager script at runtime.",
+          "remarks": "Use this method for frameworks where the production server depends on packages in `node_modules` at runtime.\nThe resulting container includes the full application with production dependencies installed.\nThis method is appropriate for frameworks like Nuxt (where `useAsyncData`/`useFetch` requires the\nfull Nitro environment), Remix (where `react-router-serve` is an npm dependency), and Astro SSR\n(where the built entry point imports unbundled `@astrojs/*` packages).\nFor frameworks that produce a self-contained server artifact that does not require `node_modules`,\nuse `PublishAsNodeServer``1` instead for a smaller runtime image.",
+          "returns": "The updated resource builder.",
           "kind": "Method",
           "signature": "publishAsNpmScript(startScriptName?: string, runScriptArguments?: string): JavaScriptAppResource",
           "parameters": [
@@ -530,12 +595,14 @@
               "name": "startScriptName",
               "type": "string",
               "isOptional": true,
-              "defaultValue": "start"
+              "defaultValue": "start",
+              "description": "The name of the package manager script to run in the published container. For example, `start` runs `npm run start`."
             },
             {
               "name": "runScriptArguments",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "Optional arguments appended after the script name at runtime, such as `-- --port \"$PORT\"`."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -552,7 +619,7 @@
           "name": "publishAsStaticWebsite",
           "capabilityId": "Aspire.Hosting.JavaScript/publishAsStaticWebsite",
           "qualifiedName": "publishAsStaticWebsite",
-          "description": "Publishes the JavaScript application as a standalone static website using YARP.",
+          "description": "Polyglot-compatible overload. All parameters are optional so the TS codegen wraps them in a single options object rather than positional args.",
           "kind": "Method",
           "signature": "publishAsStaticWebsite(apiPath?: string, apiTarget?: IResourceWithServiceDiscovery, outputPath?: string, stripPrefix?: boolean, targetEndpointName?: string): JavaScriptAppResource",
           "parameters": [
@@ -598,7 +665,9 @@
           "name": "withBrowserDebugger",
           "capabilityId": "Aspire.Hosting.JavaScript/withBrowserDebugger",
           "qualifiedName": "withBrowserDebugger",
-          "description": "Configures a browser debugger for the JavaScript application",
+          "description": "Configures a browser debugger for the JavaScript application resource, enabling browser-based debugging through a child resource that launches when the parent application is ready.",
+          "remarks": "This method creates a child `BrowserDebuggerResource` that waits for the parent JavaScript\napplication to start, then launches a browser debug session targeting the parent's HTTP or HTTPS endpoint.\nThe parent resource must have at least one HTTP or HTTPS endpoint configured.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining additional configuration.",
           "kind": "Method",
           "signature": "withBrowserDebugger(browser?: string): JavaScriptAppResource",
           "parameters": [
@@ -606,7 +675,8 @@
               "name": "browser",
               "type": "string",
               "isOptional": true,
-              "defaultValue": "msedge"
+              "defaultValue": "msedge",
+              "description": "The browser to use for debugging. Defaults to `\"msedge\"`. Supported values include `\"msedge\"` and `\"chrome\"`."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -623,18 +693,22 @@
           "name": "withBuildScript",
           "capabilityId": "Aspire.Hosting.JavaScript/withBuildScript",
           "qualifiedName": "withBuildScript",
-          "description": "Specifies an npm script to run before starting the application",
+          "description": "Adds a build script annotation to the resource builder using the specified command-line arguments.",
+          "remarks": "Use this method to specify custom build scripts for JavaScript application resources during\ndeployment.",
+          "returns": "The same resource builder instance with the build script annotation applied.",
           "kind": "Method",
           "signature": "withBuildScript(scriptName: string, args?: string[]): JavaScriptAppResource",
           "parameters": [
             {
               "name": "scriptName",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the script to be executed when the resource is built."
             },
             {
               "name": "args",
               "type": "string[]",
-              "isOptional": true
+              "isOptional": true,
+              "description": "An array of command-line arguments to use for the build script."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -651,7 +725,9 @@
           "name": "withBun",
           "capabilityId": "Aspire.Hosting.JavaScript/withBun",
           "qualifiedName": "withBun",
-          "description": "Configures Bun as the package manager",
+          "description": "Configures the JavaScript resource to use Bun as the package manager and optionally installs packages before the application starts.",
+          "remarks": "Bun forwards script arguments without requiring the `--` command separator, so this method configures the resource to omit it.\nWhen publishing and a bun lockfile (`bun.lock` or `bun.lockb`) is present, `--frozen-lockfile` is used by default.\nPublishing to a container requires Bun to be present in the build image. This method configures a Bun build image when one is not already specified.\nTo use a specific Bun version, configure a custom build image (for example, `oven/bun:<tag>`) using `WithDockerfileBaseImage``1`.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withBun(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
           "parameters": [
@@ -659,12 +735,14 @@
               "name": "install",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
             },
             {
               "name": "installArgs",
               "type": "string[]",
-              "isOptional": true
+              "isOptional": true,
+              "description": "Additional command-line arguments passed to \"bun install\". When null, defaults are applied based on publish mode and lockfile presence."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -681,7 +759,8 @@
           "name": "withNpm",
           "capabilityId": "Aspire.Hosting.JavaScript/withNpm",
           "qualifiedName": "withNpm",
-          "description": "Configures npm as the package manager",
+          "description": "Configures the Node.js resource to use npm as the package manager and optionally installs packages before the application starts.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withNpm(install?: boolean, installCommand?: string, installArgs?: string[]): JavaScriptAppResource",
           "parameters": [
@@ -689,17 +768,20 @@
               "name": "install",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
             },
             {
               "name": "installCommand",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The install command itself passed to npm to install dependencies."
             },
             {
               "name": "installArgs",
               "type": "string[]",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The command-line arguments passed to npm to install dependencies."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -716,7 +798,8 @@
           "name": "withPnpm",
           "capabilityId": "Aspire.Hosting.JavaScript/withPnpm",
           "qualifiedName": "withPnpm",
-          "description": "Configures pnpm as the package manager",
+          "description": "Configures the Node.js resource to use pnpm as the package manager and optionally installs packages before the application starts.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withPnpm(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
           "parameters": [
@@ -724,12 +807,14 @@
               "name": "install",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
             },
             {
               "name": "installArgs",
               "type": "string[]",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The command-line arguments passed to \"pnpm install\"."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -746,18 +831,22 @@
           "name": "withRunScript",
           "capabilityId": "Aspire.Hosting.JavaScript/withRunScript",
           "qualifiedName": "withRunScript",
-          "description": "Specifies an npm script to run during development",
+          "description": "Adds a run script annotation to the specified JavaScript application resource builder, specifying the script to execute and its arguments during run mode.",
+          "remarks": "Use this method to specify a custom script and its arguments that should be executed when the resource is executed\nin RunMode.",
+          "returns": "The same resource builder instance with the run script annotation applied, enabling further configuration.",
           "kind": "Method",
           "signature": "withRunScript(scriptName: string, args?: string[]): JavaScriptAppResource",
           "parameters": [
             {
               "name": "scriptName",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the script to be executed when the resource is run."
             },
             {
               "name": "args",
               "type": "string[]",
-              "isOptional": true
+              "isOptional": true,
+              "description": "An array of arguments to pass to the script."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -774,7 +863,8 @@
           "name": "withYarn",
           "capabilityId": "Aspire.Hosting.JavaScript/withYarn",
           "qualifiedName": "withYarn",
-          "description": "Configures yarn as the package manager",
+          "description": "Configures the Node.js resource to use yarn as the package manager and optionally installs packages before the application starts.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withYarn(install?: boolean, installArgs?: string[]): JavaScriptAppResource",
           "parameters": [
@@ -782,12 +872,14 @@
               "name": "install",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "When true (default), automatically installs packages before the application starts. When false, only sets the package manager annotation without creating an installer resource."
             },
             {
               "name": "installArgs",
               "type": "string[]",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The command-line arguments passed to \"yarn install\"."
             }
           ],
           "returnType": "JavaScriptAppResource",
@@ -807,6 +899,7 @@
       "fullName": "Aspire.Hosting.JavaScript.NextJsAppResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "Represents a Next.js application resource.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IResource",
@@ -824,6 +917,8 @@
           "capabilityId": "Aspire.Hosting.JavaScript/disableBuildValidation",
           "qualifiedName": "disableBuildValidation",
           "description": "Disables deploy-time build validation checks for the Next.js application.",
+          "remarks": "By default, `AddNextJsApp` adds publish prerequisite steps that verify\nthe Next.js configuration (e.g. that `output: \"standalone\"` is set). Use this method\nto suppress those checks when the configuration is set dynamically or via an external\nmechanism that cannot be detected by static file inspection.",
+          "returns": "The resource builder for chaining.",
           "kind": "Method",
           "signature": "disableBuildValidation(): NextJsAppResource",
           "parameters": [],
@@ -841,6 +936,7 @@
       "fullName": "Aspire.Hosting.JavaScript.NodeAppResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a node application.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IContainerFilesDestinationResource",
@@ -860,6 +956,7 @@
       "fullName": "Aspire.Hosting.JavaScript.ViteAppResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "Represents a Vite application resource that can be managed and executed within a Node.js environment.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IResource",
@@ -876,13 +973,16 @@
           "name": "withViteConfig",
           "capabilityId": "Aspire.Hosting.JavaScript/withViteConfig",
           "qualifiedName": "withViteConfig",
-          "description": "Configures a custom Vite configuration file",
+          "description": "Configures the Vite app to use the specified Vite configuration file instead of the default resolution behavior.",
+          "remarks": "Use this method to specify a specific Vite configuration file if you need to override the default Vite configuration resolution behavior.",
+          "returns": "The resource builder.",
           "kind": "Method",
           "signature": "withViteConfig(configPath: string): ViteAppResource",
           "parameters": [
             {
               "name": "configPath",
-              "type": "string"
+              "type": "string",
+              "description": "The path to the Vite configuration file. Relative to the Vite service project root."
             }
           ],
           "returnType": "ViteAppResource",

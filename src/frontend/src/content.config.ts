@@ -18,6 +18,38 @@ export const collections = {
             .enum(['conceptual', 'quickstart', 'tutorial', 'blog', 'reference', 'sample'])
             .optional(),
           pageActions: z.boolean().optional().default(true),
+          /**
+           * Override the per-page Open Graph / Twitter card image. Accepts an
+           * absolute URL or a path starting with `/` (resolved against the
+           * configured `site`). When set, this image is used instead of the
+           * build-time generated `/og/<slug>.png`.
+           */
+          ogImage: z.string().optional(),
+          /**
+           * Opt out of dynamic Open Graph image generation for this page. When
+           * `false`, the build skips generating a per-page OG image and the
+           * site-wide `og-image.png` is used in social cards instead.
+           */
+          og: z.boolean().optional(),
+          /**
+           * SEO-only title override. Used **verbatim** as the page's
+           * `og:title` and `twitter:title` (no `· Aspire` suffix is
+           * appended) so authors can tune the social-card title to the
+           * 50–60 character optimal range without bloating the visible
+           * `<h1>` or sidebar label. Falls back to `title` when unset.
+           *
+           * Prefer rewriting the visible `title` when the natural H1 can
+           * accommodate the longer string. Use `seoTitle` only when the
+           * sidebar/H1 must stay short (commands, terse labels, etc.).
+           */
+          seoTitle: z.string().optional(),
+          /**
+           * The date the release was published to NuGet. Used on What's New
+           * pages to display the release date near the top of the page.
+           * Accepts values that can be coerced to a JavaScript Date; use
+           * `YYYY-MM-DD` in frontmatter (e.g. `2026-05-07`).
+           */
+          publishDate: z.coerce.date().optional(),
         }),
     }),
   }),

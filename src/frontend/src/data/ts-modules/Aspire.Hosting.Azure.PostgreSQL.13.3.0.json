@@ -10,13 +10,16 @@
       "name": "addAzurePostgresFlexibleServer",
       "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/addAzurePostgresFlexibleServer",
       "qualifiedName": "addAzurePostgresFlexibleServer",
-      "description": "Adds an Azure PostgreSQL Flexible Server resource",
+      "description": "Adds an Azure PostgreSQL Flexible Server resource to the application model.",
+      "remarks": "By default, the Azure PostgreSQL Flexible Server resource is configured to use Microsoft Entra ID (Azure Active Directory) for authentication.\nThis requires changes to the application code to use an azure credential to authenticate with the resource. See\nhttps://learn.microsoft.com/azure/postgresql/flexible-server/how-to-connect-with-managed-identity#connect-using-managed-identity-in-c for more information.\nYou can use the `WithPasswordAuthentication` method to configure the resource to use password authentication.\nThe following example creates an Azure PostgreSQL Flexible Server resource and referencing that resource in a .NET project.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar data = builder.AddAzurePostgresFlexibleServer(\"data\");\nbuilder.AddProject<Projects.ProductService>()\n.WithReference(data);\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1` builder.",
       "kind": "Method",
       "signature": "addAzurePostgresFlexibleServer(name: string): AzurePostgresFlexibleServerResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource."
         }
       ],
       "returnType": "AzurePostgresFlexibleServerResource",
@@ -30,18 +33,21 @@
       "name": "addDatabase",
       "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/addDatabase",
       "qualifiedName": "addDatabase",
-      "description": "Adds an Azure PostgreSQL database",
+      "description": "Adds an Azure PostgreSQL database to the application model.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addDatabase(name: string, databaseName?: string): AzurePostgresFlexibleServerDatabaseResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         },
         {
           "name": "databaseName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the database. If not provided, this defaults to the same value as `name`."
         }
       ],
       "returnType": "AzurePostgresFlexibleServerDatabaseResource",
@@ -55,16 +61,19 @@
       "name": "runAsContainer",
       "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/runAsContainer",
       "qualifiedName": "runAsContainer",
-      "description": "Configures the Azure PostgreSQL Flexible Server resource to run locally in a container",
+      "description": "Configures an Azure PostgreSQL Flexible Server resource to run locally in a container.",
+      "remarks": "The following example creates an Azure PostgreSQL Flexible Server resource that runs locally in a\nPostgreSQL container and referencing that resource in a .NET project.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar data = builder.AddAzurePostgresFlexibleServer(\"data\")\n.RunAsContainer();\nbuilder.AddProject<Projects.ProductService>()\n.WithReference(data);\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1` builder.",
       "kind": "Method",
-      "signature": "runAsContainer(configureContainer?: (obj: PostgresServerResource) =\u003E Promise\u003Cvoid\u003E): AzurePostgresFlexibleServerResource",
+      "signature": "runAsContainer(configureContainer?: (obj: PostgresServerResource) => Promise<void>): AzurePostgresFlexibleServerResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: PostgresServerResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: PostgresServerResource) => Promise<void>",
+          "description": "Callback that exposes underlying container to allow for customization."
         }
       ],
       "returnType": "AzurePostgresFlexibleServerResource",
@@ -109,21 +118,25 @@
       "name": "withPostgresMcp",
       "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/withPostgresMcp",
       "qualifiedName": "withPostgresMcp",
-      "description": "Adds a Postgres MCP server container",
+      "description": "Adds a Postgres MCP server container and configures it to connect to the database represented by `builder`.",
+      "remarks": "The Postgres MCP server is configured to use SSE transport and will expose an HTTP endpoint.\nThis extension method only applies when the Azure PostgreSQL resource is running as a container (i.e., `IsContainer` is `true`).\nIf the resource is not running as a container, this method has no effect.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "withPostgresMcp(configureContainer?: (obj: PostgresMcpContainerResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): AzurePostgresFlexibleServerDatabaseResource",
+      "signature": "withPostgresMcp(configureContainer?: (obj: PostgresMcpContainerResource) => Promise<void>, containerName?: string): AzurePostgresFlexibleServerDatabaseResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: PostgresMcpContainerResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: PostgresMcpContainerResource) => Promise<void>",
+          "description": "Configuration callback for the Postgres MCP container resource."
         },
         {
           "name": "containerName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the container (optional)."
         }
       ],
       "returnType": "AzurePostgresFlexibleServerDatabaseResource",
@@ -145,7 +158,7 @@
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Azure.AzurePostgresFlexibleServerResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences"
       ],
@@ -154,21 +167,25 @@
           "name": "withPostgresMcp",
           "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/withPostgresMcp",
           "qualifiedName": "withPostgresMcp",
-          "description": "Adds a Postgres MCP server container",
+          "description": "Adds a Postgres MCP server container and configures it to connect to the database represented by `builder`.",
+          "remarks": "The Postgres MCP server is configured to use SSE transport and will expose an HTTP endpoint.\nThis extension method only applies when the Azure PostgreSQL resource is running as a container (i.e., `IsContainer` is `true`).\nIf the resource is not running as a container, this method has no effect.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "withPostgresMcp(configureContainer?: (obj: PostgresMcpContainerResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): AzurePostgresFlexibleServerDatabaseResource",
+          "signature": "withPostgresMcp(configureContainer?: (obj: PostgresMcpContainerResource) => Promise<void>, containerName?: string): AzurePostgresFlexibleServerDatabaseResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: PostgresMcpContainerResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: PostgresMcpContainerResource) => Promise<void>",
+              "description": "Configuration callback for the Postgres MCP container resource."
             },
             {
               "name": "containerName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the container (optional)."
             }
           ],
           "returnType": "AzurePostgresFlexibleServerDatabaseResource",
@@ -201,18 +218,21 @@
           "name": "addDatabase",
           "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/addDatabase",
           "qualifiedName": "addDatabase",
-          "description": "Adds an Azure PostgreSQL database",
+          "description": "Adds an Azure PostgreSQL database to the application model.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "addDatabase(name: string, databaseName?: string): AzurePostgresFlexibleServerDatabaseResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
             },
             {
               "name": "databaseName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the database. If not provided, this defaults to the same value as `name`."
             }
           ],
           "returnType": "AzurePostgresFlexibleServerDatabaseResource",
@@ -226,16 +246,19 @@
           "name": "runAsContainer",
           "capabilityId": "Aspire.Hosting.Azure.PostgreSQL/runAsContainer",
           "qualifiedName": "runAsContainer",
-          "description": "Configures the Azure PostgreSQL Flexible Server resource to run locally in a container",
+          "description": "Configures an Azure PostgreSQL Flexible Server resource to run locally in a container.",
+          "remarks": "The following example creates an Azure PostgreSQL Flexible Server resource that runs locally in a\nPostgreSQL container and referencing that resource in a .NET project.\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar data = builder.AddAzurePostgresFlexibleServer(\"data\")\n.RunAsContainer();\nbuilder.AddProject<Projects.ProductService>()\n.WithReference(data);\nbuilder.Build().Run();\n```",
+          "returns": "A reference to the `IResourceBuilder`1` builder.",
           "kind": "Method",
-          "signature": "runAsContainer(configureContainer?: (obj: PostgresServerResource) =\u003E Promise\u003Cvoid\u003E): AzurePostgresFlexibleServerResource",
+          "signature": "runAsContainer(configureContainer?: (obj: PostgresServerResource) => Promise<void>): AzurePostgresFlexibleServerResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: PostgresServerResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: PostgresServerResource) => Promise<void>",
+              "description": "Callback that exposes underlying container to allow for customization."
             }
           ],
           "returnType": "AzurePostgresFlexibleServerResource",

@@ -7,6 +7,8 @@ description: Update integration documentation links and API reference data by sy
 
 This skill synchronizes the integration package catalog with documentation URL mappings and generates per-package API reference schemas. It ensures every NuGet package listed in the integrations data file has a corresponding documentation link and an up-to-date API reference JSON file.
 
+> **Automation note:** The scheduled `update-integration-data` agentic workflow (`.github/workflows/update-integration-data.md`) now runs the C# and TypeScript API regeneration automatically whenever it detects a `"version":` change in `src/frontend/src/data/aspire-integrations.json`. Use this skill for **manual or one-off runs** — for example: adding a new integration, validating release-branch feed resolution, troubleshooting a regen failure flagged by the workflow's PR, or regenerating data outside the scheduled cadence.
+
 ## Overview
 
 The aspire.dev site maintains three key data locations:

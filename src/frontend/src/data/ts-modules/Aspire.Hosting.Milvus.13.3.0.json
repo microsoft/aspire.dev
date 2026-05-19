@@ -10,18 +10,22 @@
       "name": "addDatabase",
       "capabilityId": "Aspire.Hosting.Milvus/addDatabase",
       "qualifiedName": "addDatabase",
-      "description": "Adds a Milvus database resource to a Milvus server resource.",
+      "description": "Adds a Milvus database to the application model.",
+      "remarks": "This method does not actually create the database in Milvus, rather helps complete a connection string that is used by the client component.\nUse in application host\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar booksdb = builder.AddMilvus(\"milvus\");\n.AddDatabase(\"booksdb\");\nvar api = builder.AddProject<Projects.Api>(\"api\")\n.WithReference(booksdb);\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addDatabase(name: string, databaseName?: string): MilvusDatabaseResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         },
         {
           "name": "databaseName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the database. If not provided, this defaults to the same value as `name`."
         }
       ],
       "returnType": "MilvusDatabaseResource",
@@ -35,24 +39,29 @@
       "name": "addMilvus",
       "capabilityId": "Aspire.Hosting.Milvus/addMilvus",
       "qualifiedName": "addMilvus",
-      "description": "Adds a Milvus server resource to the distributed application model.",
+      "description": "Adds a Milvus container resource to the application model.",
+      "remarks": "The .NET client library uses the gRPC port by default to communicate and this resource exposes that endpoint.\nA web-based administration tool for Milvus can also be added using `WithAttu``1`.\nThis version of the package defaults to the tag of the container image.\nUse in application host\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar milvus = builder.AddMilvus(\"milvus\");\nvar api = builder.AddProject<Projects.Api>(\"api\")\n.WithReference(milvus);\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addMilvus(name: string, apiKey?: ParameterResource, grpcPort?: number): MilvusServerResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency"
         },
         {
           "name": "apiKey",
           "type": "ParameterResource",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The parameter used to provide the auth key/token user for the Milvus resource."
         },
         {
           "name": "grpcPort",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The host port of gRPC endpoint of Milvus database."
         }
       ],
       "returnType": "MilvusServerResource",
@@ -66,7 +75,8 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/MilvusDatabaseResource.connectionStringExpression",
       "qualifiedName": "MilvusDatabaseResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the Milvus database.",
+      "remarks": "Format: `Endpoint={uri};Key={token};Database={DatabaseName}`.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -80,7 +90,7 @@
       "name": "databaseName",
       "capabilityId": "Aspire.Hosting.ApplicationModel/MilvusDatabaseResource.databaseName",
       "qualifiedName": "MilvusDatabaseResource.databaseName",
-      "description": "Gets the DatabaseName property",
+      "description": "Gets the database name.",
       "kind": "PropertyGetter",
       "signature": "databaseName(): string",
       "parameters": [],
@@ -94,7 +104,7 @@
       "name": "parent",
       "capabilityId": "Aspire.Hosting.ApplicationModel/MilvusDatabaseResource.parent",
       "qualifiedName": "MilvusDatabaseResource.parent",
-      "description": "Gets the Parent property",
+      "description": "Gets the parent Milvus container resource.",
       "kind": "PropertyGetter",
       "signature": "parent(): MilvusServerResource",
       "parameters": [],
@@ -108,7 +118,7 @@
       "name": "apiKeyParameter",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.apiKeyParameter",
       "qualifiedName": "MilvusServerResource.apiKeyParameter",
-      "description": "Gets the ApiKeyParameter property",
+      "description": "Gets the parameter that contains the Milvus API key.",
       "kind": "PropertyGetter",
       "signature": "apiKeyParameter(): ParameterResource",
       "parameters": [],
@@ -122,7 +132,8 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.connectionStringExpression",
       "qualifiedName": "MilvusServerResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the Milvus gRPC endpoint.",
+      "remarks": "Format: `Endpoint={uri};Key={token}`.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -136,11 +147,11 @@
       "name": "databases",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.databases",
       "qualifiedName": "MilvusServerResource.databases",
-      "description": "Gets the Databases property",
+      "description": "A dictionary where the key is the resource name and the value is the database name.",
       "kind": "PropertyGetter",
-      "signature": "databases(): Dict\u003Cstring,string\u003E",
+      "signature": "databases(): Dict<string,string>",
       "parameters": [],
-      "returnType": "Dict\u003Cstring,string\u003E",
+      "returnType": "Dict<string,string>",
       "targetTypeId": "Aspire.Hosting.Milvus/Aspire.Hosting.Milvus.MilvusServerResource",
       "expandedTargetTypes": [
         "Aspire.Hosting.Milvus.MilvusServerResource"
@@ -150,7 +161,7 @@
       "name": "host",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.host",
       "qualifiedName": "MilvusServerResource.host",
-      "description": "Gets the Host property",
+      "description": "Gets the host endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "host(): EndpointReferenceExpression",
       "parameters": [],
@@ -164,7 +175,7 @@
       "name": "port",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.port",
       "qualifiedName": "MilvusServerResource.port",
-      "description": "Gets the Port property",
+      "description": "Gets the port endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "port(): EndpointReferenceExpression",
       "parameters": [],
@@ -178,7 +189,7 @@
       "name": "primaryEndpoint",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.primaryEndpoint",
       "qualifiedName": "MilvusServerResource.primaryEndpoint",
-      "description": "Gets the PrimaryEndpoint property",
+      "description": "Gets the gRPC endpoint for the Milvus database.",
       "kind": "PropertyGetter",
       "signature": "primaryEndpoint(): EndpointReference",
       "parameters": [],
@@ -192,7 +203,7 @@
       "name": "token",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.token",
       "qualifiedName": "MilvusServerResource.token",
-      "description": "Gets the Token property",
+      "description": "Gets a valid access token to access the Milvus instance.",
       "kind": "PropertyGetter",
       "signature": "token(): ReferenceExpression",
       "parameters": [],
@@ -206,7 +217,8 @@
       "name": "uriExpression",
       "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.uriExpression",
       "qualifiedName": "MilvusServerResource.uriExpression",
-      "description": "Gets the UriExpression property",
+      "description": "Gets URI expression for the Milvus instance.",
+      "remarks": "Format: `http://{host}:{port}`.",
       "kind": "PropertyGetter",
       "signature": "uriExpression(): ReferenceExpression",
       "parameters": [],
@@ -220,21 +232,25 @@
       "name": "withAttu",
       "capabilityId": "Aspire.Hosting.Milvus/withAttu",
       "qualifiedName": "withAttu",
-      "description": "Adds the Attu administration tool for Milvus.",
+      "description": "Adds an administration and development platform for Milvus to the application model using Attu.",
+      "remarks": "This version of the package defaults to the tag of the container image.\nUse in application host with a Milvus resource\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar milvus = builder.AddMilvus(\"milvus\")\n.WithAttu();\nvar api = builder.AddProject<Projects.Api>(\"api\")\n.WithReference(milvus);\nbuilder.Build().Run();\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "withAttu(configureContainer?: (obj: AttuResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): MilvusServerResource",
+      "signature": "withAttu(configureContainer?: (obj: AttuResource) => Promise<void>, containerName?: string): MilvusServerResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: AttuResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: AttuResource) => Promise<void>",
+          "description": "Configuration callback for Attu container resource."
         },
         {
           "name": "containerName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the container (Optional)."
         }
       ],
       "returnType": "MilvusServerResource",
@@ -248,13 +264,15 @@
       "name": "withConfigurationFile",
       "capabilityId": "Aspire.Hosting.Milvus/withConfigurationFile",
       "qualifiedName": "withConfigurationFile",
-      "description": "Copies a Milvus configuration file into the container.",
+      "description": "Copies a configuration file into a Milvus container resource.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withConfigurationFile(configurationFilePath: string): MilvusServerResource",
       "parameters": [
         {
           "name": "configurationFilePath",
-          "type": "string"
+          "type": "string",
+          "description": "The configuration file on the host to copy into the container."
         }
       ],
       "returnType": "MilvusServerResource",
@@ -268,19 +286,22 @@
       "name": "withDataBindMount",
       "capabilityId": "Aspire.Hosting.Milvus/withDataBindMount",
       "qualifiedName": "withDataBindMount",
-      "description": "Mounts a host directory as the Milvus data directory.",
+      "description": "Adds a bind mount for the data folder to a Milvus container resource.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataBindMount(source: string, isReadOnly?: boolean): MilvusServerResource",
       "parameters": [
         {
           "name": "source",
-          "type": "string"
+          "type": "string",
+          "description": "The source directory on the host to mount into the container."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only mount."
         }
       ],
       "returnType": "MilvusServerResource",
@@ -294,20 +315,23 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.Milvus/withDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a persistent data volume to the Milvus server resource.",
+      "description": "Adds a named volume for the data folder to a Milvus container resource.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string, isReadOnly?: boolean): MilvusServerResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the resource name."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only volume."
         }
       ],
       "returnType": "MilvusServerResource",
@@ -324,13 +348,14 @@
       "fullName": "Aspire.Hosting.ApplicationModel.MilvusDatabaseResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a Milvus database. This is a child resource of a `MilvusServerResource`.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
         "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Milvus.MilvusServerResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Milvus.MilvusServerResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences"
       ],
@@ -339,7 +364,8 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/MilvusDatabaseResource.connectionStringExpression",
           "qualifiedName": "MilvusDatabaseResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the Milvus database.",
+          "remarks": "Format: `Endpoint={uri};Key={token};Database={DatabaseName}`.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -353,7 +379,7 @@
           "name": "databaseName",
           "capabilityId": "Aspire.Hosting.ApplicationModel/MilvusDatabaseResource.databaseName",
           "qualifiedName": "MilvusDatabaseResource.databaseName",
-          "description": "Gets the DatabaseName property",
+          "description": "Gets the database name.",
           "kind": "PropertyGetter",
           "signature": "databaseName(): string",
           "parameters": [],
@@ -367,7 +393,7 @@
           "name": "parent",
           "capabilityId": "Aspire.Hosting.ApplicationModel/MilvusDatabaseResource.parent",
           "qualifiedName": "MilvusDatabaseResource.parent",
-          "description": "Gets the Parent property",
+          "description": "Gets the parent Milvus container resource.",
           "kind": "PropertyGetter",
           "signature": "parent(): MilvusServerResource",
           "parameters": [],
@@ -399,6 +425,7 @@
       "fullName": "Aspire.Hosting.Milvus.MilvusServerResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a Milvus database.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
@@ -418,18 +445,22 @@
           "name": "addDatabase",
           "capabilityId": "Aspire.Hosting.Milvus/addDatabase",
           "qualifiedName": "addDatabase",
-          "description": "Adds a Milvus database resource to a Milvus server resource.",
+          "description": "Adds a Milvus database to the application model.",
+          "remarks": "This method does not actually create the database in Milvus, rather helps complete a connection string that is used by the client component.\nUse in application host\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar booksdb = builder.AddMilvus(\"milvus\");\n.AddDatabase(\"booksdb\");\nvar api = builder.AddProject<Projects.Api>(\"api\")\n.WithReference(booksdb);\nbuilder.Build().Run();\n```",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "addDatabase(name: string, databaseName?: string): MilvusDatabaseResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
             },
             {
               "name": "databaseName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the database. If not provided, this defaults to the same value as `name`."
             }
           ],
           "returnType": "MilvusDatabaseResource",
@@ -443,7 +474,7 @@
           "name": "apiKeyParameter",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.apiKeyParameter",
           "qualifiedName": "MilvusServerResource.apiKeyParameter",
-          "description": "Gets the ApiKeyParameter property",
+          "description": "Gets the parameter that contains the Milvus API key.",
           "kind": "PropertyGetter",
           "signature": "apiKeyParameter(): ParameterResource",
           "parameters": [],
@@ -457,7 +488,8 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.connectionStringExpression",
           "qualifiedName": "MilvusServerResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the Milvus gRPC endpoint.",
+          "remarks": "Format: `Endpoint={uri};Key={token}`.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -471,11 +503,11 @@
           "name": "databases",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.databases",
           "qualifiedName": "MilvusServerResource.databases",
-          "description": "Gets the Databases property",
+          "description": "A dictionary where the key is the resource name and the value is the database name.",
           "kind": "PropertyGetter",
-          "signature": "databases(): Dict\u003Cstring,string\u003E",
+          "signature": "databases(): Dict<string,string>",
           "parameters": [],
-          "returnType": "Dict\u003Cstring,string\u003E",
+          "returnType": "Dict<string,string>",
           "targetTypeId": "Aspire.Hosting.Milvus/Aspire.Hosting.Milvus.MilvusServerResource",
           "expandedTargetTypes": [
             "Aspire.Hosting.Milvus.MilvusServerResource"
@@ -485,7 +517,7 @@
           "name": "host",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.host",
           "qualifiedName": "MilvusServerResource.host",
-          "description": "Gets the Host property",
+          "description": "Gets the host endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "host(): EndpointReferenceExpression",
           "parameters": [],
@@ -499,7 +531,7 @@
           "name": "port",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.port",
           "qualifiedName": "MilvusServerResource.port",
-          "description": "Gets the Port property",
+          "description": "Gets the port endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "port(): EndpointReferenceExpression",
           "parameters": [],
@@ -513,7 +545,7 @@
           "name": "primaryEndpoint",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.primaryEndpoint",
           "qualifiedName": "MilvusServerResource.primaryEndpoint",
-          "description": "Gets the PrimaryEndpoint property",
+          "description": "Gets the gRPC endpoint for the Milvus database.",
           "kind": "PropertyGetter",
           "signature": "primaryEndpoint(): EndpointReference",
           "parameters": [],
@@ -527,7 +559,7 @@
           "name": "token",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.token",
           "qualifiedName": "MilvusServerResource.token",
-          "description": "Gets the Token property",
+          "description": "Gets a valid access token to access the Milvus instance.",
           "kind": "PropertyGetter",
           "signature": "token(): ReferenceExpression",
           "parameters": [],
@@ -541,7 +573,8 @@
           "name": "uriExpression",
           "capabilityId": "Aspire.Hosting.Milvus/MilvusServerResource.uriExpression",
           "qualifiedName": "MilvusServerResource.uriExpression",
-          "description": "Gets the UriExpression property",
+          "description": "Gets URI expression for the Milvus instance.",
+          "remarks": "Format: `http://{host}:{port}`.",
           "kind": "PropertyGetter",
           "signature": "uriExpression(): ReferenceExpression",
           "parameters": [],
@@ -555,21 +588,25 @@
           "name": "withAttu",
           "capabilityId": "Aspire.Hosting.Milvus/withAttu",
           "qualifiedName": "withAttu",
-          "description": "Adds the Attu administration tool for Milvus.",
+          "description": "Adds an administration and development platform for Milvus to the application model using Attu.",
+          "remarks": "This version of the package defaults to the tag of the container image.\nUse in application host with a Milvus resource\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar milvus = builder.AddMilvus(\"milvus\")\n.WithAttu();\nvar api = builder.AddProject<Projects.Api>(\"api\")\n.WithReference(milvus);\nbuilder.Build().Run();\n```",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "withAttu(configureContainer?: (obj: AttuResource) =\u003E Promise\u003Cvoid\u003E, containerName?: string): MilvusServerResource",
+          "signature": "withAttu(configureContainer?: (obj: AttuResource) => Promise<void>, containerName?: string): MilvusServerResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: AttuResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: AttuResource) => Promise<void>",
+              "description": "Configuration callback for Attu container resource."
             },
             {
               "name": "containerName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the container (Optional)."
             }
           ],
           "returnType": "MilvusServerResource",
@@ -583,13 +620,15 @@
           "name": "withConfigurationFile",
           "capabilityId": "Aspire.Hosting.Milvus/withConfigurationFile",
           "qualifiedName": "withConfigurationFile",
-          "description": "Copies a Milvus configuration file into the container.",
+          "description": "Copies a configuration file into a Milvus container resource.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withConfigurationFile(configurationFilePath: string): MilvusServerResource",
           "parameters": [
             {
               "name": "configurationFilePath",
-              "type": "string"
+              "type": "string",
+              "description": "The configuration file on the host to copy into the container."
             }
           ],
           "returnType": "MilvusServerResource",
@@ -603,19 +642,22 @@
           "name": "withDataBindMount",
           "capabilityId": "Aspire.Hosting.Milvus/withDataBindMount",
           "qualifiedName": "withDataBindMount",
-          "description": "Mounts a host directory as the Milvus data directory.",
+          "description": "Adds a bind mount for the data folder to a Milvus container resource.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataBindMount(source: string, isReadOnly?: boolean): MilvusServerResource",
           "parameters": [
             {
               "name": "source",
-              "type": "string"
+              "type": "string",
+              "description": "The source directory on the host to mount into the container."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only mount."
             }
           ],
           "returnType": "MilvusServerResource",
@@ -629,20 +671,23 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.Milvus/withDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a persistent data volume to the Milvus server resource.",
+          "description": "Adds a named volume for the data folder to a Milvus container resource.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string, isReadOnly?: boolean): MilvusServerResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the resource name."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only volume."
             }
           ],
           "returnType": "MilvusServerResource",
