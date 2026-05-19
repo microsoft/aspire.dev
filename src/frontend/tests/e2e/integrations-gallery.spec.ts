@@ -57,28 +57,117 @@ test.describe('integrations gallery', () => {
     expect(csharpHref?.split('?')[0]).toBe('/integrations/databases/postgres/postgres-host/');
   });
 
-  test('clicking the copy button copies the `aspire add` command and shows a copied state', async ({
+  test('clicking the Expressive Code copy button copies the `aspire add` command', async ({
     page,
     context,
+    browserName,
   }) => {
+    // Permissions are Chromium-only — skip on Firefox/WebKit where the
+    // grant call throws.
+    test.skip(browserName !== 'chromium', 'Clipboard permissions are Chromium-only');
+
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     await page.goto('/integrations/gallery/');
     await dismissCookieConsentIfVisible(page);
 
     const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
-    const copyButton = postgresCard.locator('.install-command .copy-button');
-    await expect(copyButton).toBeVisible();
+    const copyButton = postgresCard.locator('.install-command figure.frame .copy button');
+    await expect(copyButton).toBeAttached();
+    await copyButton.scrollIntoViewIfNeeded();
 
-    await copyButton.click();
-
-    await expect(copyButton).toHaveAttribute('data-copied', 'true');
+    // Force the click — the Expressive Code copy button is intentionally
+    // low-opacity until the figure is hovered, but it remains clickable.
+    await copyButton.click({ force: true });
 
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toBe('aspire add postgresql');
+  });
 
-    // The data-copied state must reset after the short timeout.
-    await expect.poll(() => copyButton.getAttribute('data-copied')).toBeNull();
+  test('totals load with non-zero values on initial render', async ({ page }) => {
+    // Totals are only displayed at ≥768px viewport widths (see
+    // `.integration-stats` CSS). Force the viewport and disable animations so
+    // the assertions don't have to poll through count-up frames.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    await page.goto('/integrations/gallery/');
+    await dismissCookieConsentIfVisible(page);
+
+    const stats = page.locator('.integration-stats');
+    await expect(stats).toBeVisible();
+
+    // Each .total-number has a `data-target` that reflects the real count.
+    // Once the load-time animation completes, its textContent must match the
+    // data-target. With reduced motion, this is set synchronously.
+    const totals = stats.locator('.total-number');
+    await expect(totals).not.toHaveCount(0);
+
+    const count = await totals.count();
+    for (let i = 0; i < count; i++) {
+      const total = totals.nth(i);
+      const target = await total.getAttribute('data-target');
+      expect(target).toMatch(/^\d+$/);
+      expect(Number(target)).toBeGreaterThan(0);
+
+      // textContent must reach the target value (no "0" stuck state).
+      await expect.poll(async () => (await total.textContent())?.replace(/[,\s]/g, '')).toBe(target);
+    }
+  });
+
+  test('totals update when a filter is applied', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    await page.goto('/integrations/gallery/');
+    await dismissCookieConsentIfVisible(page);
+
+    const totals = page.locator('.integration-stats .total-number');
+    await expect(totals.first()).toBeVisible();
+
+    // Wait for initial load-time animation to settle.
+    await expect
+      .poll(async () => {
+        const text = await totals.first().textContent();
+        const target = await totals.first().getAttribute('data-target');
+        return text?.replace(/[,\s]/g, '') === target;
+      })
+      .toBe(true);
+
+    const initialTargets = await totals.evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-target') ?? '0'),
+    );
+
+    // Toggle community off — official-only filter must shrink at least one
+    // counter (the "Community" or "Total" counter, depending on layout).
+    const communityToggle = page.locator('.type-toggle[data-type="community"]');
+    await expect(communityToggle).toBeVisible();
+    if ((await communityToggle.getAttribute('aria-pressed')) === 'true') {
+      await communityToggle.click();
+    }
+
+    await expect
+      .poll(async () => {
+        const targets = await totals.evaluateAll((els) =>
+          els.map((el) => el.getAttribute('data-target') ?? '0'),
+        );
+        return targets.some((t, i) => Number(t) < Number(initialTargets[i]));
+      })
+      .toBe(true);
+
+    // textContent must also catch up to the new data-target — proving the
+    // counter actually re-animates on filter change.
+    const count = await totals.count();
+    for (let i = 0; i < count; i++) {
+      const total = totals.nth(i);
+      await expect
+        .poll(async () => {
+          const text = (await total.textContent())?.replace(/[,\s]/g, '');
+          const target = await total.getAttribute('data-target');
+          return text === target;
+        })
+        .toBe(true);
+    }
   });
 
   test('clicking the C# button lands on the docs page with the C# tab selected', async ({

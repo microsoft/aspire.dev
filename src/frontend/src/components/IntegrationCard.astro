@@ -1,5 +1,6 @@
 ---
 import { Icon, Badge } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import csharpIcon from '@assets/icons/csharp.svg';
 import typescriptIcon from '@assets/icons/typescript.svg';
@@ -34,10 +35,6 @@ const { pkg } = Astro.props as Props;
 // see src/frontend/src/utils/helpers.ts which references the CLI source.
 const shortName = generateFriendlyName(pkg.title);
 const addCommand = `aspire add ${shortName}`;
-const copyCommandLabel = Astro.locals.t('integrations.copyCommand', {
-  command: addCommand,
-});
-const copyCommandCopiedLabel = Astro.locals.t('integrations.copyCommandCopied');
 
 // integration-docs.json points each title at its `*-get-started/` landing page,
 // but `Tabs syncKey="aspire-lang"` lives on the `*-host/` sibling. Swap the
@@ -139,26 +136,8 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
     {
       shortName && (
         <div class="install-block" aria-label={Astro.locals.t('integrations.addCommand', { title: pkg.title })}>
-          <div class="install-command">
-            <pre><code>{addCommand}</code></pre>
-            <button
-              class="copy-button"
-              type="button"
-              data-command={addCommand}
-              data-copy-label={copyCommandLabel}
-              data-copied-label={copyCommandCopiedLabel}
-              aria-label={copyCommandLabel}
-              title={copyCommandLabel}
-              data-tooltip-placement="top"
-            >
-              <svg class="copy-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-              </svg>
-              <svg class="check-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m5 12.75 5 5 9-13.5" />
-              </svg>
-              <span class="sr-only" data-copy-status>{copyCommandLabel}</span>
-            </button>
+          <div class="install-command not-content">
+            <Code lang="bash" code={addCommand} frame="none" />
           </div>
           {supportsLangTabs && (
             <div class="lang-buttons" role="group" aria-label={Astro.locals.t('integrations.viewLanguageDocs', { title: pkg.title })}>
@@ -332,100 +311,43 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
       margin: 0;
     }
 
+    /* Tighten the Expressive Code "frame=none" rendering inside cards: shrink
+       the default outer margins and make the snippet visually attach to the
+       language buttons below it.  EC ships its own copy button inside the
+       frame, which is what we want here. */
     .card .install-command {
-      display: flex;
-      align-items: stretch;
+      display: block;
       margin: 0;
-      background: var(--sl-color-black);
-      color: var(--sl-color-text);
-      border: 1px solid var(--sl-color-gray-5);
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .card .install-command :global(.expressive-code) {
+      margin: 0 !important;
+    }
+
+    .card .install-command :global(.expressive-code .frame) {
       border-radius: 0.375rem;
-      overflow: hidden;
-      font-family: var(--__sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+      box-shadow: none;
+    }
+
+    .card .install-command :global(.expressive-code pre) {
       font-size: 0.85rem;
       line-height: 1.4;
-      max-width: 100%;
-      box-sizing: border-box;
+      padding-block: 0.5rem;
     }
 
-    .card .install-command pre {
-      flex: 1 1 auto;
-      min-width: 0;
-      margin: 0;
-      padding: 0.5rem 0.75rem;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      color: inherit;
-      font-family: inherit;
-      font-size: inherit;
-      line-height: inherit;
-      white-space: nowrap;
-      overflow-x: auto;
-      overflow-y: hidden;
-    }
-
-    .card .install-command pre code {
-      background: transparent;
-      padding: 0;
-      border: none;
-      color: inherit;
-      font-size: inherit;
-      font-family: inherit;
-    }
-
-    .card .install-command .copy-button {
-      flex: 0 0 auto;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 0.625rem;
-      margin: 0;
-      background: transparent;
-      border: none;
-      border-left: 1px solid var(--sl-color-gray-5);
-      color: var(--sl-color-gray-3);
-      cursor: pointer;
-      transition: color 0.15s ease, background-color 0.15s ease;
-    }
-
-    .card .install-command .copy-button:hover {
-      color: var(--sl-color-white);
-      background: var(--sl-color-gray-6);
-    }
-
-    .card .install-command .copy-button:focus-visible {
-      outline: 2px solid var(--sl-color-accent);
-      outline-offset: -2px;
-      color: var(--sl-color-white);
-    }
-
-    .card .install-command .copy-button svg {
-      width: 1rem;
-      height: 1rem;
-      pointer-events: none;
-    }
-
-    .card .install-command .copy-button .check-icon {
-      display: none;
-    }
-
-    .card .install-command .copy-button[data-copied='true'] {
-      color: var(--sl-color-green, #4ade80);
-    }
-
-    .card .install-command .copy-button[data-copied='true'] .copy-icon {
-      display: none;
-    }
-
-    .card .install-command .copy-button[data-copied='true'] .check-icon {
-      display: block;
-    }
-
-    .card .install-block:has(.lang-buttons) .install-command {
+    /* When language buttons render below the snippet, drop the bottom corner
+       radii so the frame visually fuses with the button row. */
+    .card .install-block:has(.lang-buttons) .install-command :global(.expressive-code .frame) {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
-      border-bottom: none;
+    }
+
+    .card .install-block:has(.lang-buttons) .install-command :global(.expressive-code pre) {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom: 0;
     }
 
     .card .lang-buttons {
@@ -484,81 +406,3 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
   </style>
 </article>
 
-<script>
-  // Copy `aspire add ...` snippet on click. Single delegated listener handles
-  // every card on the gallery page. Astro hoists & dedupes this script across
-  // all IntegrationCard instances.
-  function setCopiedState(button: HTMLButtonElement, copied: boolean) {
-    if (copied) {
-      button.dataset.copied = 'true';
-      const copiedLabel = button.dataset.copiedLabel ?? 'Copied';
-      button.setAttribute('aria-label', copiedLabel);
-      button.setAttribute('title', copiedLabel);
-      const status = button.querySelector<HTMLSpanElement>('[data-copy-status]');
-      if (status) status.textContent = copiedLabel;
-    } else {
-      delete button.dataset.copied;
-      const copyLabel = button.dataset.copyLabel ?? 'Copy command';
-      button.setAttribute('aria-label', copyLabel);
-      button.setAttribute('title', copyLabel);
-      const status = button.querySelector<HTMLSpanElement>('[data-copy-status]');
-      if (status) status.textContent = copyLabel;
-    }
-  }
-
-  function fallbackCopy(text: string): boolean {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'absolute';
-    textarea.style.left = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.select();
-    let ok = false;
-    try {
-      ok = document.execCommand('copy');
-    } catch {
-      ok = false;
-    }
-    document.body.removeChild(textarea);
-    return ok;
-  }
-
-  const resetTimers = new WeakMap<HTMLButtonElement, number>();
-
-  async function handleCopyClick(event: Event) {
-    const target = event.target as HTMLElement | null;
-    const button = target?.closest<HTMLButtonElement>('.install-command .copy-button');
-    if (!button) return;
-
-    event.preventDefault();
-    const command = button.dataset.command ?? '';
-    if (!command) return;
-
-    let copied = false;
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(command);
-        copied = true;
-      } catch {
-        copied = fallbackCopy(command);
-      }
-    } else {
-      copied = fallbackCopy(command);
-    }
-
-    if (!copied) return;
-
-    setCopiedState(button, true);
-
-    const previous = resetTimers.get(button);
-    if (previous) clearTimeout(previous);
-    const timer = window.setTimeout(() => {
-      setCopiedState(button, false);
-      resetTimers.delete(button);
-    }, 1500);
-    resetTimers.set(button, timer);
-  }
-
-  document.addEventListener('click', handleCopyClick);
-</script>

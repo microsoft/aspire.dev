@@ -202,7 +202,12 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   /* Force equal columns in the card grid */
   .equal-columns :global(.card-grid) {
     display: grid;
-    grid-template-columns: 1fr; /* Default to single column for mobile */
+    /* Cards have a hard min-width so they never squish below a usable size.
+       `auto-fit` collapses to a single column on narrow screens and grows
+       to two columns once there is enough horizontal room. `min(20rem, 100%)`
+       allows the single-column case on viewports narrower than the min itself
+       (preventing horizontal overflow on very small phones). */
+    grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
     width: 100%;
     gap: 1rem; /* Ensure consistent spacing */
   }
@@ -215,14 +220,12 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     max-width: 100%;
   }
 
-  /* Switch to two columns on larger screens and show stats */
+  /* Stats are still gated to wider viewports where they actually fit. The
+     card grid no longer needs a breakpoint switch because `auto-fit` handles
+     the responsive case naturally. */
   @media (min-width: 768px) {
-    .equal-columns :global(.card-grid) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .integration-stats {
-      display: block; /* Show stats on larger screens */
+      display: block;
     }
   }
 

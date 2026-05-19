@@ -249,4 +249,19 @@ const totalDownloads = integrations.reduce((total, integration) => {
 
   // Expose function globally so it can be called from Integrations.astro
   window.animateIntegrationTotals = animateCountUp;
+
+  // Kick off the animation on initial load. Astro hoists this script and the
+  // one in Integrations.astro independently, and there is no guaranteed order
+  // between them. Integrations.astro's `filterCards()` (called on load) will
+  // invoke `window.animateIntegrationTotals` if it's defined — but if its
+  // script runs first the function isn't registered yet and the totals stay
+  // at "0" until the user toggles a filter. Calling animateCountUp() here
+  // guarantees totals animate on first render regardless of script order;
+  // subsequent calls after filter changes are idempotent (the animation is
+  // a no-op when the current value already matches `data-target`).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => animateCountUp(), { once: true });
+  } else {
+    animateCountUp();
+  }
 </script>
