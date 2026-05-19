@@ -16,6 +16,11 @@ import type { TopicMetadata } from './topic-resolver.ts';
  * via the supplied Outfit fonts) and the SVG is then rasterized to PNG with
  * `sharp`, which is already a project dependency.
  *
+ * Every dynamic card also renders a `Read on aspire.dev →` call-to-action
+ * chip in the lower-right corner so previews give readers an explicit
+ * reason to click. The chip uses the same brand purple as the topic pill
+ * to keep the social cards visually consistent across the site.
+ *
  * Buffers (fonts + background image) are loaded once and cached because
  * every static path renders through the same module instance.
  *
@@ -31,9 +36,13 @@ const BG_IMAGE_PATH = path.join('public', 'og-image.png');
 const CARD_BG = 'rgba(15, 14, 30, 0.82)';
 const DESCRIPTION_BG = 'rgba(15, 14, 30, 0.68)';
 const TOPIC_PILL_BG = 'rgba(116, 85, 221, 0.96)';
+const CTA_CHIP_BG = 'rgba(116, 85, 221, 0.96)';
 const TITLE_COLOR = '#ffffff';
 const DESCRIPTION_COLOR = 'rgb(220, 213, 246)';
 const TOPIC_TEXT_COLOR = '#ffffff';
+const CTA_TEXT_COLOR = '#ffffff';
+
+const CTA_LABEL = 'Read on aspire.dev →';
 
 let regularFontPromise: Promise<Buffer> | undefined;
 let boldFontPromise: Promise<Buffer> | undefined;
@@ -229,6 +238,7 @@ function buildTree({ title, description, topic, backgroundDataUri }: TreeInput) 
             ].filter(Boolean),
           },
         },
+        ctaChip(),
       ],
     },
   };
@@ -262,6 +272,36 @@ function topicPill(topic: TopicMetadata) {
         },
         topic.label,
       ],
+    },
+  };
+}
+
+/**
+ * Render a small "Read on aspire.dev →" call-to-action chip in the
+ * upper-right corner of the card. SEO audit tools flag dynamic OG images
+ * with no visible CTA, so every dynamic card gets one — the chip uses the
+ * same brand purple as the topic pill to stay visually consistent.
+ */
+function ctaChip() {
+  return {
+    type: 'div',
+    props: {
+      style: {
+        position: 'absolute',
+        top: 48,
+        right: 56,
+        display: 'flex',
+        alignItems: 'center',
+        backgroundColor: CTA_CHIP_BG,
+        color: CTA_TEXT_COLOR,
+        borderRadius: 999,
+        padding: '10px 24px',
+        fontSize: 24,
+        fontWeight: 600,
+        letterSpacing: 0.2,
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.32)',
+      },
+      children: CTA_LABEL,
     },
   };
 }
