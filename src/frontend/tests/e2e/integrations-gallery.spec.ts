@@ -3,6 +3,82 @@ import { dismissCookieConsentIfVisible } from '@tests/e2e/helpers';
 
 const SHOW_CLIENT = process.env.PUBLIC_SHOW_CLIENT_INTEGRATIONS === 'true';
 
+// On tablet viewports, the gallery's two-column EC code blocks can stack
+// above the fixed-position cookie banner once Playwright scrolls the
+// "Reject all" button into view — clicks then time out because a `<code>`
+// element from a card intercepts pointer events.  Sidestep the whole
+// banner by pre-seeding a "Reject all"-equivalent `cc_cookie` before the
+// first navigation; vanilla-cookieconsent reads this on init and never
+// renders the modal.
+test.beforeEach(async ({ context, baseURL }) => {
+  // Pre-seed a "Reject all"-equivalent cc_cookie so vanilla-cookieconsent
+  // skips the modal on first paint. The cookie banner is fixed-position at
+  // the bottom of the viewport, and on tablet our EC code blocks stack
+  // above it once Playwright scrolls the reject button into view — the
+  // resulting pointer-event interception makes the standard
+  // dismissCookieConsentIfVisible helper time out. Suppressing the banner
+  // up front avoids the overlap entirely.
+  //
+  // Shape mirrors vanilla-cookieconsent v3's persisted cookie after a real
+  // "Reject all" — categories: ['necessary'] is the minimal accepted set
+  // (matches the readOnly: true necessary category in
+  // src/frontend/config/cookie.config.ts).
+  const ccCookieValue = encodeURIComponent(
+    JSON.stringify({
+      categories: ['necessary'],
+      revision: 0,
+      data: null,
+      consentTimestamp: new Date().toISOString(),
+      consentId: '00000000-0000-0000-0000-000000000000',
+      services: { necessary: [] },
+      lastConsentTimestamp: new Date().toISOString(),
+      expirationTime: Date.now() + 365 * 24 * 60 * 60 * 1000,
+    }),
+  );
+
+  // Set on both the explicit base URL host (so the lib sees it on first
+  // request) and via init script (defensive — runs before any inline page
+  // script). The CSS fallback hides the banner if a future lib upgrade
+  // rejects our pre-seeded shape.
+  if (baseURL) {
+    const url = new URL(baseURL);
+    await context.addCookies([
+      {
+        name: 'cc_cookie',
+        value: ccCookieValue,
+        domain: url.hostname,
+        path: '/',
+        expires: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
+        sameSite: 'Lax',
+      },
+    ]);
+  }
+
+  await context.addInitScript((value) => {
+    try {
+      document.cookie = `cc_cookie=${value}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+      // best-effort
+    }
+
+    // Belt-and-suspenders: hide the banner via CSS in case the pre-seed
+    // shape is rejected by a future lib upgrade. The CSS rule is appended
+    // as soon as <head> exists, so it applies before paint.
+    const installHide = () => {
+      if (document.querySelector('style[data-test-cc-suppress]')) return;
+      const style = document.createElement('style');
+      style.setAttribute('data-test-cc-suppress', '');
+      style.textContent = '#cc-main, #cm, .cm--box { display: none !important; }';
+      (document.head ?? document.documentElement).appendChild(style);
+    };
+    if (document.head) {
+      installHide();
+    } else {
+      document.addEventListener('DOMContentLoaded', installHide, { once: true });
+    }
+  }, ccCookieValue);
+});
+
 test.describe('integrations gallery', () => {
   test('hides client cards and the hosting/client toggle group by default', async ({ page }) => {
     test.skip(SHOW_CLIENT, 'Client integrations are enabled via PUBLIC_SHOW_CLIENT_INTEGRATIONS');
