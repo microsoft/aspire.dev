@@ -199,19 +199,26 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     display: none; /* Hidden by default on mobile */
   }
 
+  /* The card grid's column count is driven by a container query against the
+     `.equal-columns` wrapper below — viewport media queries can't see the
+     Starlight sidebar carving ~17rem out of the available width, so they
+     flipped the grid to 2 columns when the actual gallery container still
+     only had room for one comfortably-wide card. Container queries
+     resolve against the nearest ancestor with `container-type`, which is
+     why the declaration must live on the wrapper, not the grid itself. */
+  .equal-columns {
+    container-type: inline-size;
+    container-name: integration-card-grid;
+  }
+
   /* Force equal columns in the card grid */
   .equal-columns :global(.card-grid) {
     display: grid;
     /* Default to a single column so cards keep a usable width and the EC
-       snippet doesn't overflow. The 2-column breakpoint is driven by a
-       container query below — the gallery container's own width, not the
-       viewport, is what matters because the Starlight sidebar consumes a
-       big chunk of viewport at desktop. */
+       snippet doesn't overflow. */
     grid-template-columns: 1fr;
     width: 100%;
     gap: 1rem;
-    container-type: inline-size;
-    container-name: integration-card-grid;
   }
 
   /* Ensure each card takes full space in its column */
@@ -224,10 +231,24 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
 
   /* Cap at two columns at all wider widths — never three. The breakpoint is
      2 × ~22rem (a comfortable card width that keeps the title readable and
-     the `aspire add` snippet from horizontally scrolling) plus the 1rem gap. */
+     the `aspire add` snippet from horizontally scrolling) plus the 1rem gap.
+     Below this threshold a single full-width card is more readable than two
+     squished ones. */
   @container integration-card-grid (min-width: 45rem) {
     .equal-columns :global(.card-grid) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Defensive fallback for the (vanishingly small) set of older browsers
+     that don't yet support container queries: use a viewport media query
+     tuned for desktop where the Starlight sidebar is visible. Modern
+     browsers ignore this because @container above wins on cascade. */
+  @supports not (container-type: inline-size) {
+    @media (min-width: 80rem) {
+      .equal-columns :global(.card-grid) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   }
 
