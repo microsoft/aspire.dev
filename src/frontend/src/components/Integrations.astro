@@ -202,11 +202,16 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   /* Force equal columns in the card grid */
   .equal-columns :global(.card-grid) {
     display: grid;
-    /* Default to a single column on narrow viewports so cards keep a usable
-       width and the EC snippet doesn't overflow. */
+    /* Default to a single column so cards keep a usable width and the EC
+       snippet doesn't overflow. The 2-column breakpoint is driven by a
+       container query below — the gallery container's own width, not the
+       viewport, is what matters because the Starlight sidebar consumes a
+       big chunk of viewport at desktop. */
     grid-template-columns: 1fr;
     width: 100%;
     gap: 1rem;
+    container-type: inline-size;
+    container-name: integration-card-grid;
   }
 
   /* Ensure each card takes full space in its column */
@@ -217,8 +222,10 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     max-width: 100%;
   }
 
-  /* Cap at two columns at all wider widths — never three. */
-  @media (min-width: 40rem) {
+  /* Cap at two columns at all wider widths — never three. The breakpoint is
+     2 × ~22rem (a comfortable card width that keeps the title readable and
+     the `aspire add` snippet from horizontally scrolling) plus the 1rem gap. */
+  @container integration-card-grid (min-width: 45rem) {
     .equal-columns :global(.card-grid) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }

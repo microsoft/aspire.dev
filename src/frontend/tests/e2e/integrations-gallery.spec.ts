@@ -112,6 +112,24 @@ test.describe('integrations gallery', () => {
     await expect(postgresCard.locator('.install-command')).toContainText('aspire add postgresql');
   });
 
+  test('card title links to the integration get-started page', async ({ page }) => {
+    await page.goto('/integrations/gallery/');
+    await dismissCookieConsentIfVisible(page);
+
+    const postgresCard = page.locator('.card[data-title="aspire.hosting.postgresql"]');
+    const titleLink = postgresCard.locator('.title-link');
+
+    await expect(titleLink).toBeVisible();
+    // Get-started URL straight from the docs map — not the `-host/` page the
+    // language buttons swap to.
+    await expect(titleLink).toHaveAttribute(
+      'href',
+      '/integrations/databases/postgres/postgres-get-started/',
+    );
+    // Internal docs links must stay in the same tab.
+    await expect(titleLink).not.toHaveAttribute('target', '_blank');
+  });
+
   test('language buttons link to docs with the aspire-lang query param', async ({ page }) => {
     await page.goto('/integrations/gallery/');
     await dismissCookieConsentIfVisible(page);
