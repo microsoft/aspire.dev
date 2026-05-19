@@ -46,4 +46,42 @@ public sealed class AcceptHeaderParserTests
     {
         Assert.Equal(expected, AcceptHeaderParser.AcceptsHtml(accept));
     }
+
+    [Fact]
+    public void Negotiate_returns_default_for_null_or_empty()
+    {
+        Assert.Equal(AcceptHeaderParser.NegotiationResult.Default, AcceptHeaderParser.Negotiate(null));
+        Assert.Equal(AcceptHeaderParser.NegotiationResult.Default, AcceptHeaderParser.Negotiate(""));
+        Assert.Equal(AcceptHeaderParser.NegotiationResult.Default, AcceptHeaderParser.Negotiate("   "));
+    }
+
+    [Theory]
+    // Quoted profile parameter must not throw off q-value detection.
+    [InlineData("text/markdown;profile=\"cmark\";q=0.9, text/html;q=0.5", true, true)]
+    // Q-value tokenization is case-insensitive per RFC 9110.
+    [InlineData("text/markdown;Q=0.9, text/html;q=0.5", true, true)]
+    // Comma-only headers degrade to "no entries" rather than crashing.
+    [InlineData(",,,", false, true)]
+    // Garbage entries are skipped; the lone valid entry still applies.
+    [InlineData("not-a-media-type, text/markdown", true, false)]
+    public void Negotiate_handles_realistic_edge_cases(string accept, bool prefersMarkdown, bool acceptsHtml)
+    {
+        var result = AcceptHeaderParser.Negotiate(accept);
+        Assert.Equal(prefersMarkdown, result.PrefersMarkdown);
+        Assert.Equal(acceptsHtml, result.AcceptsHtml);
+    }
+
+    [Fact]
+    public void Negotiate_returns_consistent_result_across_repeat_calls()
+    {
+        // Exercises the memoization path: cold lookup, then cache hit must
+        // return the same value (and never throw).
+        AcceptHeaderParser.ClearCacheForTests();
+        const string header = "text/markdown;q=0.9, text/html;q=0.5";
+        var first = AcceptHeaderParser.Negotiate(header);
+        var second = AcceptHeaderParser.Negotiate(header);
+        Assert.Equal(first, second);
+        Assert.True(first.PrefersMarkdown);
+        Assert.True(first.AcceptsHtml);
+    }
 }

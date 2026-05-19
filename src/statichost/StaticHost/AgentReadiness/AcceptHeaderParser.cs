@@ -1,50 +1,128 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+
 namespace StaticHost.AgentReadiness;
 
 /// <summary>
-/// Parses HTTP <c>Accept</c> header values into ranked media types and answers
-/// targeted questions like "does the client prefer markdown over HTML?".
+/// Parses HTTP <c>Accept</c> header values into negotiation decisions between
+/// <c>text/html</c> and <c>text/markdown</c> (the only two representations
+/// this site negotiates between).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Implements a small subset of RFC 9110 §12.5.1 sufficient for content
 /// negotiation between <c>text/html</c> and <c>text/markdown</c>. We intentionally
 /// avoid pulling in <c>Microsoft.Net.Http.Headers</c>'s full parser because we
 /// need a deterministic, testable predicate that knows about q-values, the
 /// <c>*/*</c> wildcard, and parameter-laden values like
 /// <c>text/markdown;profile=&quot;cmark&quot;;q=0.9</c>.
+/// </para>
+/// <para>
+/// This runs in middleware on every request, so the implementation is
+/// non-allocating (span-based; no <c>string.Split</c>, no intermediate lists)
+/// and memoizes outcomes in a bounded process-wide cache. Real-world Accept
+/// headers are dominated by a small set of distinct values (a handful of
+/// browsers plus a few agents), so cache hits are the common case.
+/// </para>
 /// </remarks>
 internal static class AcceptHeaderParser
 {
-    private const double DefaultQuality = 1.0;
+    // Caps chosen to bound worst-case memory in pathological/adversarial cases
+    // (~256 * 256 chars ≈ 128KB of string keys) while comfortably covering the
+    // long tail of real-world Accept headers.
+    private const int MaxCacheEntries = 256;
+    private const int MaxCacheKeyLength = 256;
 
-    internal readonly record struct MediaTypeWithQ(string Type, string Subtype, double Quality)
+    private static readonly ConcurrentDictionary<string, NegotiationResult> s_cache =
+        new(concurrencyLevel: Environment.ProcessorCount, capacity: 64, comparer: StringComparer.Ordinal);
+
+    /// <summary>
+    /// The negotiation outcome for an Accept header.
+    /// </summary>
+    internal readonly record struct NegotiationResult(bool PrefersMarkdown, bool AcceptsHtml)
     {
-        public bool Matches(string type, string subtype) =>
-            (Type == "*" || string.Equals(Type, type, StringComparison.OrdinalIgnoreCase)) &&
-            (Subtype == "*" || string.Equals(Subtype, subtype, StringComparison.OrdinalIgnoreCase));
+        // No (or whitespace-only) Accept header means "send me anything sensible":
+        // HTML is acceptable, markdown is not preferred.
+        public static NegotiationResult Default { get; } = new(PrefersMarkdown: false, AcceptsHtml: true);
     }
 
     /// <summary>
-    /// Parses the supplied Accept header value into a list of media types with
-    /// q-values. Returns an empty list when the header is null/empty.
+    /// Computes the <see cref="NegotiationResult"/> for an Accept header,
+    /// returning a memoized result for repeat headers.
     /// </summary>
-    public static IReadOnlyList<MediaTypeWithQ> Parse(string? acceptHeader)
+    public static NegotiationResult Negotiate(string? acceptHeader)
     {
         if (string.IsNullOrWhiteSpace(acceptHeader))
         {
-            return Array.Empty<MediaTypeWithQ>();
+            return NegotiationResult.Default;
         }
 
-        var results = new List<MediaTypeWithQ>();
-        foreach (var rawSegment in acceptHeader.Split(','))
+        if (s_cache.TryGetValue(acceptHeader, out var cached))
         {
-            var segment = rawSegment.Trim();
-            if (segment.Length == 0)
+            return cached;
+        }
+
+        var result = NegotiateCore(acceptHeader.AsSpan());
+
+        // Only memoize sane-sized headers, and only while the cache budget
+        // hasn't been exhausted. Concurrent overshoot by a few entries is fine
+        // (TryAdd no-ops for duplicates).
+        if (acceptHeader.Length <= MaxCacheKeyLength && s_cache.Count < MaxCacheEntries)
+        {
+            s_cache.TryAdd(acceptHeader, result);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// True when the client prefers <c>text/markdown</c> strictly over both
+    /// <c>text/html</c> and <c>*/*</c>. A plain <c>*/*</c> (a generic Accept)
+    /// is NOT a markdown preference.
+    /// </summary>
+    public static bool PrefersMarkdown(string? acceptHeader) => Negotiate(acceptHeader).PrefersMarkdown;
+
+    /// <summary>
+    /// True when an HTML response would still be acceptable to the client
+    /// (via an explicit <c>text/html</c> entry, a <c>text/*</c> wildcard, or
+    /// <c>*/*</c>). Used when we can't satisfy a markdown preference and want
+    /// to know whether falling back to HTML is OK or whether 406 is the right
+    /// answer.
+    /// </summary>
+    public static bool AcceptsHtml(string? acceptHeader) => Negotiate(acceptHeader).AcceptsHtml;
+
+    private static NegotiationResult NegotiateCore(ReadOnlySpan<char> acceptHeader)
+    {
+        // Best q-value seen for explicit text/markdown.
+        var markdownQ = 0.0;
+        // Best q-value seen for any media range that admits text/html
+        // (explicit text/html, text/*, or */*).
+        var htmlQ = 0.0;
+        var sawAnyEntry = false;
+
+        foreach (var commaRange in acceptHeader.Split(','))
+        {
+            var entry = acceptHeader[commaRange].Trim();
+            if (entry.IsEmpty)
             {
                 continue;
             }
 
-            var parts = segment.Split(';');
-            var mediaType = parts[0].Trim();
+            // Split media type from parameters at the first ';'.
+            ReadOnlySpan<char> mediaType;
+            ReadOnlySpan<char> paramsSpan;
+            var semicolon = entry.IndexOf(';');
+            if (semicolon < 0)
+            {
+                mediaType = entry;
+                paramsSpan = default;
+            }
+            else
+            {
+                mediaType = entry[..semicolon].TrimEnd();
+                paramsSpan = entry[(semicolon + 1)..];
+            }
+
             var slash = mediaType.IndexOf('/');
             if (slash <= 0 || slash == mediaType.Length - 1)
             {
@@ -53,108 +131,86 @@ internal static class AcceptHeaderParser
 
             var type = mediaType[..slash];
             var subtype = mediaType[(slash + 1)..];
-            var q = DefaultQuality;
-            for (var i = 1; i < parts.Length; i++)
+
+            var q = ParseQuality(paramsSpan);
+
+            sawAnyEntry = true;
+
+            // text/markdown: explicit match only (no wildcards), per the
+            // class contract — */* alone is not a markdown preference.
+            if (q > markdownQ &&
+                type.Equals("text", StringComparison.OrdinalIgnoreCase) &&
+                subtype.Equals("markdown", StringComparison.OrdinalIgnoreCase))
             {
-                var param = parts[i].Trim();
-                if (param.StartsWith("q=", StringComparison.OrdinalIgnoreCase) &&
-                    double.TryParse(
-                        param.AsSpan(2),
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out var parsed))
-                {
-                    q = Math.Clamp(parsed, 0.0, 1.0);
-                    break;
-                }
+                markdownQ = q;
             }
 
-            results.Add(new MediaTypeWithQ(type, subtype, q));
+            // text/html: explicit, text/*, or */* all qualify as "HTML is OK".
+            if (q > htmlQ && MatchesHtml(type, subtype))
+            {
+                htmlQ = q;
+            }
         }
 
-        return results;
-    }
-
-    /// <summary>
-    /// Returns the highest q-value across entries that match the given
-    /// <paramref name="type"/>/<paramref name="subtype"/>, including wildcards.
-    /// Returns 0.0 when no entry matches (i.e. the type is not acceptable).
-    /// </summary>
-    public static double QualityFor(IReadOnlyList<MediaTypeWithQ> ranked, string type, string subtype)
-    {
-        var best = 0.0;
-        foreach (var entry in ranked)
+        if (!sawAnyEntry)
         {
-            if (entry.Matches(type, subtype) && entry.Quality > best)
-            {
-                best = entry.Quality;
-            }
+            // Header parsed to nothing usable (e.g. ", , ,").
+            return NegotiationResult.Default;
         }
-        return best;
+
+        var prefersMarkdown = markdownQ > 0.0 && (htmlQ <= 0.0 || markdownQ > htmlQ);
+        var acceptsHtml = htmlQ > 0.0;
+        return new NegotiationResult(prefersMarkdown, acceptsHtml);
     }
 
-    /// <summary>
-    /// True when the client prefers <c>text/markdown</c> strictly over both
-    /// <c>text/html</c> and <c>* / *</c>. <c>* / *</c> alone (a generic Accept)
-    /// is NOT a markdown preference.
-    /// </summary>
-    public static bool PrefersMarkdown(string? acceptHeader)
+    private static double ParseQuality(ReadOnlySpan<char> paramsSpan)
     {
-        var ranked = Parse(acceptHeader);
-        if (ranked.Count == 0)
+        if (paramsSpan.IsEmpty)
+        {
+            return 1.0;
+        }
+
+        foreach (var paramRange in paramsSpan.Split(';'))
+        {
+            var p = paramsSpan[paramRange].Trim();
+            if (p.Length < 2 || p[1] != '=' || (p[0] != 'q' && p[0] != 'Q'))
+            {
+                continue;
+            }
+
+            if (double.TryParse(
+                    p[2..],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var parsed))
+            {
+                return Math.Clamp(parsed, 0.0, 1.0);
+            }
+
+            // First "q=" wins (RFC 9110 §12.4.2); a malformed value falls back
+            // to the default rather than searching further into other params.
+            break;
+        }
+
+        return 1.0;
+    }
+
+    private static bool MatchesHtml(ReadOnlySpan<char> type, ReadOnlySpan<char> subtype)
+    {
+        var typeOk = (type.Length == 1 && type[0] == '*') ||
+                     type.Equals("text", StringComparison.OrdinalIgnoreCase);
+        if (!typeOk)
         {
             return false;
         }
 
-        // Wildcards cannot express markdown preference (a request with only "*/*"
-        // should get HTML), so we look only at explicit text/markdown entries.
-        var markdownQ = HighestExplicitQuality(ranked, "text", "markdown");
-        if (markdownQ <= 0.0)
-        {
-            return false;
-        }
-
-        // For HTML we count any acceptable representation, including wildcards
-        // like "*/*" or "text/*", because those make HTML a viable response.
-        var anyHtmlQ = QualityFor(ranked, "text", "html");
-
-        // Strictly prefer markdown when it beats any acceptable HTML representation,
-        // OR when HTML is not acceptable at all (markdownQ > 0 and htmlQ == 0).
-        return anyHtmlQ <= 0.0 || markdownQ > anyHtmlQ;
+        return (subtype.Length == 1 && subtype[0] == '*') ||
+               subtype.Equals("html", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// Highest q-value across entries that match <paramref name="type"/>/<paramref name="subtype"/>
-    /// exactly (no wildcards). Returns 0.0 when no explicit entry matches.
+    /// Test-only hook to reset the memoization cache so cache-aware tests can
+    /// observe the parse path on a clean slate.
     /// </summary>
-    private static double HighestExplicitQuality(IReadOnlyList<MediaTypeWithQ> ranked, string type, string subtype)
-    {
-        var best = 0.0;
-        foreach (var entry in ranked)
-        {
-            if (string.Equals(entry.Type, type, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(entry.Subtype, subtype, StringComparison.OrdinalIgnoreCase) &&
-                entry.Quality > best)
-            {
-                best = entry.Quality;
-            }
-        }
-        return best;
-    }
-
-    /// <summary>
-    /// True when an HTML response would still be acceptable to the client
-    /// (either via an explicit text/html entry, text/* wildcard, or */*).
-    /// Used when we can't satisfy a markdown preference and want to know
-    /// whether falling back to HTML is OK or whether 406 is the right answer.
-    /// </summary>
-    public static bool AcceptsHtml(string? acceptHeader)
-    {
-        var ranked = Parse(acceptHeader);
-        if (ranked.Count == 0)
-        {
-            return true;
-        }
-        return QualityFor(ranked, "text", "html") > 0.0;
-    }
+    internal static void ClearCacheForTests() => s_cache.Clear();
 }

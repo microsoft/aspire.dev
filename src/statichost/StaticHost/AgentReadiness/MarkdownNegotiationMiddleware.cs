@@ -67,7 +67,8 @@ internal sealed class MarkdownNegotiationMiddleware
         }
 
         var acceptHeader = context.Request.Headers.Accept.ToString();
-        if (!AcceptHeaderParser.PrefersMarkdown(acceptHeader))
+        var negotiation = AcceptHeaderParser.Negotiate(acceptHeader);
+        if (!negotiation.PrefersMarkdown)
         {
             await _next(context);
             return;
@@ -80,7 +81,7 @@ internal sealed class MarkdownNegotiationMiddleware
         {
             // Markdown was preferred but no companion exists.
             // Fall back to HTML when it's acceptable; otherwise 406.
-            if (AcceptHeaderParser.AcceptsHtml(acceptHeader))
+            if (negotiation.AcceptsHtml)
             {
                 await _next(context);
             }
