@@ -202,14 +202,11 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
   /* Force equal columns in the card grid */
   .equal-columns :global(.card-grid) {
     display: grid;
-    /* Cards have a hard min-width so they never squish below a usable size.
-       `auto-fit` collapses to a single column on narrow screens and grows
-       to two columns once there is enough horizontal room. `min(20rem, 100%)`
-       allows the single-column case on viewports narrower than the min itself
-       (preventing horizontal overflow on very small phones). */
-    grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+    /* Default to a single column on narrow viewports so cards keep a usable
+       width and the EC snippet doesn't overflow. */
+    grid-template-columns: 1fr;
     width: 100%;
-    gap: 1rem; /* Ensure consistent spacing */
+    gap: 1rem;
   }
 
   /* Ensure each card takes full space in its column */
@@ -220,9 +217,14 @@ const sortedIntegrations = visibleIntegrations.sort((a, b) => {
     max-width: 100%;
   }
 
-  /* Stats are still gated to wider viewports where they actually fit. The
-     card grid no longer needs a breakpoint switch because `auto-fit` handles
-     the responsive case naturally. */
+  /* Cap at two columns at all wider widths — never three. */
+  @media (min-width: 40rem) {
+    .equal-columns :global(.card-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* Stats are still gated to wider viewports where they actually fit. */
   @media (min-width: 768px) {
     .integration-stats {
       display: block;
