@@ -21,11 +21,23 @@ tools:
     min-integrity: approved
     toolsets:
       - issues
+checkout:
+  github-app:
+    client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+    private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
 steps:
+  - name: Mint Aspire bot token
+    id: app-token
+    uses: actions/create-github-app-token@v3
+    with:
+      client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+      private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+      permission-contents: read
+      permission-issues: read
   - name: Fetch issues
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+      GH_TOKEN: ${{ steps.app-token.outputs.token }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/issues-data

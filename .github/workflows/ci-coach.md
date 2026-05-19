@@ -2,7 +2,8 @@
 description: Daily CI optimization coach that analyzes the aspire.dev CI workflow runs for efficiency improvements and cost reduction opportunities, validates any proposed changes locally, and opens a pull request when concrete savings are found.
 on:
   schedule:
-    - cron: "daily around 13:00 on weekdays"
+    # Weekdays at 13:14 UTC (deterministically scattered for microsoft/aspire.dev)
+    - cron: "14 13 * * 1-5"
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,12 +16,27 @@ runtimes:
     version: "24"
 tools:
   bash: true
+  # `edit:` is enabled (no specific configuration). The agent needs it
+  # so it can propose CI workflow tweaks; safe-outputs.create-pull-request
+  # restricts which files those edits can actually land on.
   edit:
   cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues, pull_requests]
+checkout:
+  github-app:
+    client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+    private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
 steps:
+  - name: Mint Aspire bot token
+    id: app-token
+    uses: actions/create-github-app-token@v3
+    with:
+      client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+      private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+      permission-contents: read
+      permission-actions: read
   - name: Setup .NET SDK
     uses: actions/setup-dotnet@v5
     with:
@@ -33,7 +49,7 @@ steps:
     working-directory: src/frontend
   - name: Pre-download CI run data
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ steps.app-token.outputs.token }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/ci-data

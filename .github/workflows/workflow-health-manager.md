@@ -9,22 +9,35 @@ permissions:
 engine: copilot
 tools:
   bash: true
-  edit:
+  # No `edit:` tool — this workflow is intentionally read-only on the
+  # codebase. All observations are surfaced through safe-outputs.
   cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default, actions, issues]
+checkout:
+  github-app:
+    client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+    private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
 steps:
+  - name: Mint Aspire bot token
+    id: app-token
+    uses: actions/create-github-app-token@v3
+    with:
+      client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
+      private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
+      permission-contents: read
+      permission-actions: read
   - name: Install gh aw
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ steps.app-token.outputs.token }}
     run: |
       set -euo pipefail
       gh extension install github/gh-aw || gh extension upgrade github/gh-aw
       gh aw --version
   - name: Build inventory and validate compilation
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ steps.app-token.outputs.token }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
@@ -43,22 +56,35 @@ steps:
         | sort > /tmp/gh-aw/agent/actions-workflow-list.txt || true
   - name: Collect recent workflow runs
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ steps.app-token.outputs.token }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
       # Discover every workflow registered with the repo (both
       # .lock.yml agentic workflows and plain Actions .yml).
+      # Use --paginate so repos with >100 workflows are covered, --slurp
+      # so all pages merge into a single JSON value, and a single jq
+      # expression so the output shape is always an array (even on
+      # error, the fallback below writes `[]` — never a JSONL stream
+      # and never an object literal).
       gh api "repos/${GITHUB_REPOSITORY}/actions/workflows?per_page=100" \
-        --jq '.workflows[] | {id, name, path, state}' \
+        --paginate \
+        --slurp \
+        --jq '[.[].workflows[]? | {id, name, path, state}]' \
         > /tmp/gh-aw/agent/workflows.json 2>/dev/null \
         || echo "[]" > /tmp/gh-aw/agent/workflows.json
       # Pull recent runs for each workflow (last 50 runs, ~7-day window).
+      # Iterate the array via `.[]?` so the loop body is skipped cleanly
+      # when the file contains `[]`. Guard against a malformed or missing
+      # id so a single bad record can't trigger a `/workflows/null/runs`
+      # request.
       : > /tmp/gh-aw/agent/recent-runs.jsonl
-      jq -c '.' /tmp/gh-aw/agent/workflows.json 2>/dev/null \
-        | while read -r wf; do
-            id=$(printf '%s' "$wf" | jq -r '.id')
-            path=$(printf '%s' "$wf" | jq -r '.path')
+      jq -c '.[]?' /tmp/gh-aw/agent/workflows.json \
+        | while IFS= read -r wf; do
+            [ -z "$wf" ] && continue
+            id=$(printf '%s' "$wf" | jq -r '.id // empty')
+            [ -z "$id" ] && continue
+            path=$(printf '%s' "$wf" | jq -r '.path // ""')
             gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${id}/runs?per_page=50" \
               --jq '{
                 workflow_path: "'"$path"'",
@@ -236,10 +262,16 @@ gh issue list \
 
 ### Phase 5 — Health Dashboard (5 minutes)
 
-Maintain a single pinned dashboard issue titled
-`Workflow Health Dashboard` (labelled `workflow-health`). Look for it
-first; if it exists, **update it** via `update-issue`. If it does not
-exist, **create it** via `create-issue`.
+Maintain a single dashboard issue titled `Workflow Health Dashboard`
+(labelled `workflow-health`). Look for it first; if it exists, **update
+it** via `update-issue`. If it does not exist, **create it** via
+`create-issue`.
+
+> This workflow has no `pin-issue` safe-output and therefore cannot pin
+> or unpin issues. The expectation is that a maintainer pins the
+> dashboard manually once, and from then on the workflow only needs to
+> update its body. Do not attempt to pin or unpin via any tool — those
+> operations are not available.
 
 Use this body:
 
