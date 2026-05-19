@@ -341,6 +341,77 @@ public sealed class AddMyDatabaseOptions
 DTOs should only contain properties that can be serialized to and from JSON. Avoid using complex .NET types—such as `IConfiguration`, `ILogger`, or delegate types like `Action` and `Func<T>`—as they are not serializable and are not suitable for DTOs.
 </Aside>
 
+### Collection properties in DTOs
+
+DTO collection properties (such as `List<T>`, `IList<T>`, `IEnumerable<T>`, arrays, or `Dictionary<string, T>`) are generated as **value-shaped JSON types** in all guest SDKs. This means guest code can supply plain collection literals directly rather than constructing handle-backed wrapper objects.
+
+For example, a DTO that accepts a list of address prefixes:
+
+```csharp title="C# — AzureNspAccessRule.cs"
+[AspireDto]
+public sealed class AzureNspAccessRule
+{
+    public List<string>? AddressPrefixes { get; set; }
+    public List<string>? FullyQualifiedDomainNames { get; set; }
+}
+```
+
+Generates value-shaped types in each language:
+
+<Tabs>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+addMyResource({
+    accessRules: [
+        {
+            addressPrefixes: ["203.0.113.0/24", "198.51.100.0/24"],
+            fullyQualifiedDomainNames: ["example.com"],
+        }
+    ]
+});
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — apphost.py"
+add_my_resource(
+    access_rules=[
+        AzureNspAccessRule(
+            address_prefixes=["203.0.113.0/24", "198.51.100.0/24"],
+            fully_qualified_domain_names=["example.com"],
+        )
+    ]
+)
+```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — apphost.go"
+AddMyResource(AspireNspAccessRule{
+    AddressPrefixes:           []string{"203.0.113.0/24", "198.51.100.0/24"},
+    FullyQualifiedDomainNames: []string{"example.com"},
+})
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java title="Java — AppHost.java"
+addMyResource(new AzureNspAccessRule()
+    .setAddressPrefixes(List.of("203.0.113.0/24", "198.51.100.0/24"))
+    .setFullyQualifiedDomainNames(List.of("example.com")));
+```
+
+</TabItem>
+</Tabs>
+
+:::note
+This behavior applies to DTOs only. Mutable collection properties on **exported resource types** (classes annotated with `[AspireExport]`) continue to use handle-backed wrappers such as `AspireList<T>` so that guest code can add or remove values imperatively. DTOs use value-shaped types because they are consumed as JSON input objects, not as live handles.
+:::
+
 ## Export value catalogs
 
 Use `[AspireValue]` to export immutable predefined values from your integration into guest SDKs as typed catalog objects. This is useful when your integration ships well-known constants or configuration presets—such as a list of supported model names or region identifiers—that polyglot AppHost authors should be able to reference without reconstructing them manually.
