@@ -34,6 +34,11 @@ safe-outputs:
   # Raise the default 100-file patch cap: the API-reference regen branch can
   # write hundreds of files under pkgs/ and ts-modules/ on a single run.
   max-patch-files: 500
+  # Raise the patch-size cap to the schema maximum (10,240 KB ≈ 10 MB). The
+  # regenerated C#/TS API JSON plus the twoslash bundle routinely produces a
+  # ~1,777 KB patch today (≈ 1.8 MB), and this gives plenty of headroom for
+  # the integration set to grow.
+  max-patch-size: 10240
   github-app:
     client-id: ${{ secrets.ASPIRE_BOT_APP_ID }}
     private-key: ${{ secrets.ASPIRE_BOT_PRIVATE_KEY }}
