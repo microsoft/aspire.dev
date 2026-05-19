@@ -139,7 +139,7 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
           <div class="install-command not-content">
             <Code lang="bash" code={addCommand} frame="none" />
           </div>
-          {supportsLangTabs && (
+          {supportsLangTabs ? (
             <div class="lang-buttons" role="group" aria-label={Astro.locals.t('integrations.viewLanguageDocs', { title: pkg.title })}>
               <a
                 class="lang-button"
@@ -160,6 +160,21 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
                 <Image src={typescriptIcon} alt="" width={22} height={22} aria-hidden="true" />
               </a>
             </div>
+          ) : (
+            pkg.docs && (
+              <div class="lang-buttons docs-fallback">
+                <a
+                  class="lang-button docs-link"
+                  href={pkg.docs}
+                  aria-label={Astro.locals.t('integrations.viewDocs', { title: pkg.title })}
+                  data-tooltip-placement="top"
+                  title={Astro.locals.t('integrations.viewDocs', { title: pkg.title })}
+                >
+                  <Icon name="open-book" size="1.25rem" />
+                  <span>{Astro.locals.t('integrations.viewDocsLabel')}</span>
+                </a>
+              </div>
+            )
           )}
         </div>
       )
@@ -402,6 +417,17 @@ const supportsLangTabs = !!pkg.docs && pkg.docs.startsWith('/');
       height: 1.25rem;
       margin: 0;
       pointer-events: none;
+    }
+
+    /* External-docs fallback: a single full-width button replaces the lang
+       pair. Round both bottom corners and add a gap between icon and label. */
+    .card .lang-buttons.docs-fallback .docs-link {
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-bottom-left-radius: 0.375rem;
+      border-bottom-right-radius: 0.375rem;
+      border-right-width: 1px;
     }
   </style>
 </article>

@@ -125,7 +125,7 @@ test.describe('integrations gallery', () => {
     const totals = page.locator('.integration-stats .total-number');
     await expect(totals.first()).toBeVisible();
 
-    // Wait for initial load-time animation to settle.
+    // Wait for the initial load-time animation to settle.
     await expect
       .poll(async () => {
         const text = await totals.first().textContent();
@@ -138,21 +138,22 @@ test.describe('integrations gallery', () => {
       els.map((el) => el.getAttribute('data-target') ?? '0'),
     );
 
-    // Toggle community off — official-only filter must shrink at least one
-    // counter (the "Community" or "Total" counter, depending on layout).
-    const communityToggle = page.locator('.type-toggle[data-type="community"]');
-    await expect(communityToggle).toBeVisible();
-    if ((await communityToggle.getAttribute('aria-pressed')) === 'true') {
-      await communityToggle.click();
-    }
+    // A search query that matches few cards is the most deterministic filter
+    // — toggles depend on default-active state and on data shape, but a
+    // narrow query is guaranteed to reduce every counter.
+    const searchBox = page.locator('.search-box').first();
+    await searchBox.fill('postgresql');
 
     await expect
-      .poll(async () => {
-        const targets = await totals.evaluateAll((els) =>
-          els.map((el) => el.getAttribute('data-target') ?? '0'),
-        );
-        return targets.some((t, i) => Number(t) < Number(initialTargets[i]));
-      })
+      .poll(
+        async () => {
+          const targets = await totals.evaluateAll((els) =>
+            els.map((el) => el.getAttribute('data-target') ?? '0'),
+          );
+          return targets.every((t, i) => Number(t) < Number(initialTargets[i]));
+        },
+        { timeout: 10_000 },
+      )
       .toBe(true);
 
     // textContent must also catch up to the new data-target — proving the
