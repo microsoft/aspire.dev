@@ -1,0 +1,848 @@
+---
+title: カスタム リソース コマンド
+description: Aspire でカスタム リソース コマンドを作成する方法を学びます。
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import customClearCacheCommand from '@assets/fundamentals/custom-clear-cache-command.png';
+import customClearCacheCommandSucceeded from '@assets/fundamentals/custom-clear-cache-command-succeeded.png';
+
+Aspire アプリ モデル内の各リソースは `IResource` として表現され、分散アプリケーション ビルダーに追加されると、`IResourceBuilder<T>` インターフェイスのジェネリック型パラメーターになります。_resource builder_ API を使って呼び出しを連鎖し、基になるリソースを構成できます。状況によっては、そのリソースにカスタム コマンドを追加したいことがあります。カスタム コマンドを作成する一般的なシナリオには、データベース移行の実行やデータベースのシード/リセットなどがあります。この記事では、キャッシュをクリアする Redis リソースにカスタム コマンドを追加する方法を学びます。
+
+<Aside type="caution">
+  これらの [Aspire ダッシュボード](/ja/dashboard/overview/) コマンドは、
+  ダッシュボードをローカル実行している場合にのみ利用できます。Azure Container Apps で
+  ダッシュボードを実行している場合は利用できません。
+</Aside>
+
+## リソースにカスタム コマンドを追加する
+
+Aspire AppHost プロジェクトから開始します。以下のウォークスルーでは、Redis リソースに `clear-cache` コマンドを登録します。C# 版は登録をラップする拡張メソッドを使用し、TypeScript 版は管理エンドポイントを公開する Node サービスに対してコマンドをインライン登録します。どちらのフローでも、同じダッシュボード/CLI 体験を得られます。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+AppHost プロジェクトに _RedisResourceBuilderExtensions.cs_ という新しいクラスを追加し、内容を次のコードに置き換えます。
+
+```csharp title="RedisResourceBuilderExtensions.cs"
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+
+namespace Aspire.Hosting;
+
+internal static class RedisResourceBuilderExtensions
+{
+    public static IResourceBuilder<RedisResource> WithClearCommand(
+        this IResourceBuilder<RedisResource> builder)
+    {
+        var commandOptions = new CommandOptions
+        {
+            UpdateState = OnUpdateResourceState,
+            IconName = "AnimalRabbitOff",
+            IconVariant = IconVariant.Filled
+        };
+
+        builder.WithCommand(
+            name: "clear-cache",
+            displayName: "Clear Cache",
+            executeCommand: context => OnRunClearCacheCommandAsync(builder, context),
+            commandOptions: commandOptions);
+
+        return builder;
+    }
+
+    private static async Task<ExecuteCommandResult> OnRunClearCacheCommandAsync(
+        IResourceBuilder<RedisResource> builder,
+        ExecuteCommandContext context)
+    {
+        var connectionString = await builder.Resource.GetConnectionStringAsync() ??
+            throw new InvalidOperationException(
+                $"Unable to get the '{context.ResourceName}' connection string.");
+
+        await using var connection = ConnectionMultiplexer.Connect(connectionString);
+        var database = connection.GetDatabase();
+        await database.ExecuteAsync("FLUSHALL");
+
+        return CommandResults.Success();
+    }
+
+    private static ResourceCommandState OnUpdateResourceState(
+        UpdateCommandStateContext context)
+    {
+        var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Updating resource state: {ResourceSnapshot}",
+                context.ResourceSnapshot);
+        }
+
+        return context.ResourceSnapshot.HealthStatus is HealthStatus.Healthy
+            ? ResourceCommandState.Enabled
+            : ResourceCommandState.Disabled;
+    }
+}
+```
+
+前述のコード:
+
+- AppHost から拡張が見えるように、`Aspire.Hosting` 名前空間を共有します。
+- `IResourceBuilder<RedisResource>` に対する拡張メソッドを含む `static class` です。
+- `WithClearCommand` という単一の拡張メソッドを定義し、Redis リソースに `clear-cache` コマンドを登録します。さらに、ダッシュボードがコマンド実行と有効化判定に使う `executeCommand` と `updateState` コールバックを定義します。
+- 呼び出し側でチェーン可能にするため、`IResourceBuilder<RedisResource>` を返します。
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript AppHost では、リソース ビルダー上でコマンドをインライン登録します。TypeScript には拡張メソッドがないため、クロージャーでコマンドに必要な状態をキャプチャします。
+
+```typescript title="apphost.ts"
+import {
+    createBuilder,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder
+    .addNodeApp("cache", "./cache-service", "src/server.ts")
+    .withHttpEndpoint();
+
+await cache.withCommand(
+    "clear-cache",
+    "Clear Cache",
+    async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+        const endpoint = await cache.getEndpoint("http");
+        const url = await endpoint.url.get();
+        const res = await fetch(`${url}/admin/cache/clear`, { method: "POST" });
+
+        if (!res.ok) {
+            return {
+                success: false,
+                message: `Cache service returned ${res.status} ${res.statusText}.`,
+            };
+        }
+
+        return { success: true, message: "Cache cleared." };
+    },
+    {
+        commandOptions: {
+            description: "Drops all entries in the cache service.",
+            confirmationMessage: "Clear all cached entries?",
+            iconName: "AnimalRabbitOff",
+        },
+    });
+
+await builder.build().run();
+```
+
+前述のコード:
+
+- `cache` という名前の Node アプリを追加し、その上に `clear-cache` コマンドを登録します。
+- `executeCommand` コールバックを async アロー関数として実装し、リソースの HTTP エンドポイントを呼び出して実際のキャッシュ無効化を実行します。このパターンは、HTTP 経由で管理操作を公開する任意のリソースで機能します。代わりにクライアントを直接使いたいリソース（データベース、メッセージ ブローカー、&hellip;）では、同じコールバック内からそのクライアントを呼び出してください。
+- 4 番目の引数として `{ commandOptions: { ... } }` を渡し、ダッシュボードの説明、確認プロンプト、アイコンを設定します。
+
+</TabItem>
+</Tabs>
+
+`WithCommand` API は、リソースに適切な注釈を追加し、それらは [Aspire ダッシュボード](/ja/dashboard/overview/) で利用されます。ダッシュボードはこれらの注釈を使って UI にコマンドを描画します。詳細へ進む前に、まず `WithCommand` メソッドのパラメーターを理解しておきましょう。
+
+- `name`: 呼び出すコマンド名。
+- `displayName`: ダッシュボードに表示するコマンド名。
+- `executeCommand`: コマンド呼び出し時に実行されるコールバック。C# では型が `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>`、TypeScript では `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>` です。
+- `updateState`: ダッシュボード上でコマンドを有効化する状態を判定するコールバック。C# では `Func<UpdateCommandStateContext, ResourceCommandState>` で、`CommandOptions.UpdateState` 経由で指定します。TypeScript では `CommandOptions` 上の `updateState` フィールドです（現在は `any` 型）。
+- `iconName`: ダッシュボードに表示するアイコン名。アイコンは省略可能ですが、指定する場合は有効な [Fluent UI Blazor アイコン名](https://www.fluentui-blazor.net/Icon#explorer) である必要があります。
+- `iconVariant`: ダッシュボードに表示するアイコンのバリアント。有効な値は `Regular`（既定）または `Filled` です。
+
+## コマンド実行ロジック
+
+`executeCommand` コールバックは、コマンド ロジックを実装する場所です。受け取る `ExecuteCommandContext` から、サービス プロバイダー、操作対象リソース、キャンセル トークンにアクセスできます。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+C# ではパラメーター型は `Func<ExecuteCommandContext, Task<ExecuteCommandResult>>` です。`ExecuteCommandContext` が公開する内容:
+
+- `ServiceProvider` _(`IServiceProvider`)_ — ロガーや `ResourceCommandService` などのサービス解決に使用します。
+- `ResourceName` _(`string`)_ — コマンド実行対象となるリソース インスタンス名です。
+- `CancellationToken` _(`CancellationToken`)_ — コマンド実行のキャンセルに使用します。
+- `Logger` _(`ILogger`)_ — ログをリソースのログへ直接書き込むために使用します。これらのログは [Aspire ダッシュボード](/ja/dashboard/explore/#console-logs-page) または `aspire logs <resource>` コマンドで確認できます。
+
+前述の例は、`OnRunClearCacheCommandAsync` という名前の private static メソッドに処理を委譲してキャッシュをクリアします。
+
+```csharp title="RedisResourceBuilderExtensions.cs"
+private static async Task<ExecuteCommandResult> OnRunClearCacheCommandAsync(
+    IResourceBuilder<RedisResource> builder,
+    ExecuteCommandContext context)
+{
+    var connectionString = await builder.Resource.GetConnectionStringAsync() ??
+        throw new InvalidOperationException(
+            $"Unable to get the '{context.ResourceName}' connection string.");
+
+    await using var connection = ConnectionMultiplexer.Connect(connectionString);
+
+    var database = connection.GetDatabase();
+
+    await database.ExecuteAsync("FLUSHALL");
+
+    return CommandResults.Success();
+}
+```
+
+前述のコード:
+
+- Redis リソースから接続文字列を取得します。
+- Redis インスタンスへ接続します。
+- データベース インスタンスを取得します。
+- `FLUSHALL` コマンドを実行してキャッシュをクリアします。
+- コマンド成功を示す `CommandResults.Success()` インスタンスを返します。
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript でのコールバック シグネチャは `(context: ExecuteCommandContext) => Promise<ExecuteCommandResult>` です。`ExecuteCommandContext` は camelCase の同等サーフェスを公開し、加えてショートカットとして `logger` アクセサーを提供します。
+
+- `serviceProvider` — 依存性注入コンテナーの async アクセサー。
+- `resourceName` — リソース インスタンス名の async アクセサー。
+- `cancellationToken` — `CancellationToken` を返す async アクセサー。`await` して `AbortSignal` を受け取る API に転送できます。
+- `logger` — リソース ロガーの async アクセサー。`serviceProvider` からロガーを解決するのと同等です。
+
+TypeScript コールバックは通常、async アロー関数としてインライン定義します。次の例は、リソースの HTTP エンドポイントを取得し、キャンセル トークンを `fetch` に転送します。
+
+```typescript title="apphost.ts"
+async (context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+    const endpoint = await cache.getEndpoint("http");
+    const url = await endpoint.url.get();
+    const cancellation = await context.cancellationToken.get();
+
+    const res = await fetch(`${url}/admin/cache/clear`, {
+        method: "POST",
+        signal: cancellation as unknown as AbortSignal,
+    });
+
+    if (!res.ok) {
+        return {
+            success: false,
+            message: `Cache service returned ${res.status} ${res.statusText}.`,
+        };
+    }
+
+    return { success: true, message: "Cache cleared." };
+}
+```
+
+前述のコード:
+
+- リソースの HTTP エンドポイント URL を読み取ります。
+- リソースの管理エンドポイントを呼び出し、キャンセル トークンを abort signal として転送することで、ダッシュボードまたは CLI がコマンドをキャンセルしたときに要求を停止します。
+- HTTP 呼び出しが失敗した場合は `{ success: false, message: ... }` を返し、成功した場合は `{ success: true, message: "Cache cleared." }` を返します。
+
+</TabItem>
+</Tabs>
+
+## コマンド状態更新ロジック
+
+`updateState` コールバックは、ダッシュボード上でコマンドを有効化するかどうかを判定します。ダッシュボードはリソース状態が変化するたびにこれを呼び出します。典型的なユース ケースは、破壊的なコマンドを正常なリソースに対してのみ有効化すること、または起動プローブ成功後にのみコマンドを有効化することです。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+C# ではパラメーター型は `Func<UpdateCommandStateContext, ResourceCommandState>` です。`UpdateCommandStateContext` が公開する内容:
+
+- `ServiceProvider` _(`IServiceProvider`)_ — サービス解決に使用します。
+- `ResourceSnapshot` _(`CustomResourceSnapshot`)_ — 正常性ステータス、ライフサイクル状態、プロパティ、URL を含む、リソース インスタンスの不変スナップショットです。
+
+前述の例では、Redis リソースが正常なときだけ `clear-cache` コマンドを有効化します。
+
+```csharp title="RedisResourceBuilderExtensions.cs"
+private static ResourceCommandState OnUpdateResourceState(
+    UpdateCommandStateContext context)
+{
+    var logger = context.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    if (logger.IsEnabled(LogLevel.Information))
+    {
+        logger.LogInformation(
+            "Updating resource state: {ResourceSnapshot}",
+            context.ResourceSnapshot);
+    }
+
+    return context.ResourceSnapshot.HealthStatus is HealthStatus.Healthy
+        ? ResourceCommandState.Enabled
+        : ResourceCommandState.Disabled;
+}
+```
+
+前述のコード:
+
+- サービス プロバイダーからロガー インスタンスを取得します。
+- リソース スナップショットの詳細をログ出力します。
+- リソースが正常なら `ResourceCommandState.Enabled`、それ以外は `ResourceCommandState.Disabled` を返します。
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+<Aside type="caution">
+TypeScript の `UpdateCommandStateContext` は現在 `serviceProvider` のみを公開し、`resourceSnapshot` プロパティは **公開していません**。そのため、`ResourceSnapshot.HealthStatus` でコマンドをゲートする C# パターンに、現時点で直接対応する TypeScript 等価表現はありません。TypeScript コールバックでもプロバイダーからサービス解決はできますが、ライブのリソース スナップショットは検査できません。
+</Aside>
+
+TypeScript では `CommandOptions` の `updateState` フィールドが緩い型（`any`）であり、SDK はまだ `ResourceCommandState` 列挙体をエクスポートしていません。現時点の TypeScript AppHost で最も単純な方法は、`updateState` を完全に省略することです。コマンドは既定で有効になり、リソース到達後にのみコマンド登録します。
+
+```typescript title="apphost.ts"
+await cache.withCommand(
+    "clear-cache",
+    "Clear Cache",
+    executeClearCache,
+    {
+        commandOptions: {
+            iconName: "AnimalRabbitOff",
+        },
+    });
+```
+
+TypeScript AppHost でライフサイクル対応のゲーティングが必要な場合は、コールバック内ではなく外側で制御します。たとえば、接続文字列またはエンドポイント イベントを購読した後に、コマンドが依存するデータがリソースから公開されてからコマンドを登録してください。
+
+</TabItem>
+</Tabs>
+
+## カスタム コマンドをテストする
+
+カスタム コマンドをテストするには、AppHost を更新してリソースとコマンドを配線します。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="AppHost.cs" {4}
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache")
+                   .WithClearCommand();
+
+var apiService = builder.AddProject<Projects.AspireApp_ApiService>("apiservice");
+
+builder.AddProject<Projects.AspireApp_Web>("webfrontend")
+    .WithExternalHttpEndpoints()
+    .WithReference(cache)
+    .WaitFor(cache)
+    .WithReference(apiService)
+    .WaitFor(apiService);
+
+builder.Build().Run();
+```
+
+前述のコードは `WithClearCommand` 拡張メソッドを呼び出し、Redis リソースにカスタム コマンドを追加します。
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="apphost.ts" {5-15}
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addNodeApp("cache", "../cache/server.js");
+await cache.withHttpEndpoint();
+await cache.withCommand(
+    "clear-cache",
+    "Clear Cache",
+    async (context) => {
+        const endpoint = await cache.getEndpoint("http");
+        const url = await endpoint.url.get();
+        const cancellation = await context.cancellationToken.get();
+
+        const res = await fetch(`${url}/admin/cache/clear`, {
+            method: "POST",
+            signal: cancellation as unknown as AbortSignal,
+        });
+
+        if (!res.ok) {
+            return {
+                success: false,
+                message: `Cache service returned ${res.status} ${res.statusText}.`,
+            };
+        }
+
+        return { success: true, message: "Cache cleared." };
+    },
+    {
+        commandOptions: {
+            iconName: "AnimalRabbitOff",
+            description: "Clears the application cache.",
+            confirmationMessage: "Are you sure you want to clear the cache?",
+        },
+    });
+
+const apiService = await builder.addProject("apiservice", "../ApiService/ApiService.csproj");
+
+const web = await builder.addProject("webfrontend", "../Web/Web.csproj");
+await web.withExternalHttpEndpoints();
+await web.withReference(cache);
+await web.waitFor(cache);
+await web.withReference(apiService);
+await web.waitFor(apiService);
+
+await builder.build().run();
+```
+
+前述のコードは、キャッシュ サービスを HTTP エンドポイント付き Node アプリとして登録し、`clear-cache` コマンドを直接アタッチします。
+
+</TabItem>
+</Tabs>
+
+アプリを実行して Aspire ダッシュボードへ移動します。キャッシュ リソース配下にカスタム コマンドが表示されるはずです。ダッシュボードの **Resources** ページで、**Actions** 列の下にある省略記号ボタンを選択します。
+
+<Image
+  src={customClearCacheCommand}
+  alt="Aspire ダッシュボード: カスタム コマンドが表示された Redis キャッシュ リソース。"
+/>
+
+前述の画像には、Redis リソースへ追加した **Clear cache** コマンドが表示されています。アイコンは、依存リソースの速度がクリアされることを示すため、取り消し線付きのウサギとして表示されます。
+
+**Clear cache** コマンドを選択して、Redis リソースのキャッシュをクリアします。コマンドは正常に実行され、キャッシュはクリアされるはずです。コマンドの結果は [通知センター](/ja/dashboard/explore/#notification-center) で確認できます。
+
+<Image
+  src={customClearCacheCommandSucceeded}
+  alt="Aspire ダッシュボード: カスタム コマンドが実行された Redis キャッシュ リソース。"
+/>
+
+## コマンドをプログラムで実行する
+
+<Aside type="note">
+`ResourceCommandService` を使ったプログラムによるコマンド実行は、現在 **C# AppHost 機能** です。TypeScript SDK ではカスタム コマンドを登録できますが、他のコマンド内からコマンドを呼び出すサービスはまだ公開されていません。したがって、次の 3 つのサブセクション（_カスタム コマンドからコマンドを実行する_、_リソース ID でコマンドを実行する_、_レプリカを持つリソースでコマンドを実行する_）は C# 専用です。この後に続く [_コマンド実行結果を処理する_](#コマンド実行結果を処理する) サブセクションは、どちらの言語で書いたコマンドにも当てはまります。
+</Aside>
+
+[Aspire ダッシュボード](/ja/dashboard/overview/) を介してコマンドを実行するだけでなく、`ResourceCommandService` を使ってプログラムからコマンドを実行することもできます。このサービスは、次のような場合に有用です。
+
+- アプリケーション コード内からコマンドを実行する
+- ワークフローの一部としてコマンド実行を自動化する
+- リソース制御が必要なカスタム ツールを構築する
+
+最も一般的なシナリオは、他のカスタム コマンド実装からコマンドを呼び出すことです。`ExecuteCommandContext` は `IServiceProvider` へのアクセスを提供し、これを使って `ResourceCommandService` を取得できます。
+
+### カスタム コマンドからコマンドを実行する
+
+次の例は、他のコマンドを実行するカスタム コマンドの作成方法を示しています。このケースでは、"reset-all" コマンドがキャッシュをクリアし、データベースを再起動します。
+
+```csharp title="AppHost.cs"
+using Aspire.Hosting.ApplicationModel;
+using Microsoft.Extensions.DependencyInjection;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache")
+    .WithClearCommand(); // 前述のとおり "clear-cache" コマンドを定義
+
+var database = builder.AddPostgres("postgres")
+    .WithCommand("restart", "Restart Database", async (context, ct) =>
+    {
+        // データベース再起動の実装
+        return CommandResults.Success();
+    });
+
+var api = builder.AddProject<Projects.Api>("api")
+    .WithReference(cache)
+    .WithReference(database)
+    .WithCommand("reset-all", "Reset Everything", async (context, ct) =>
+    {
+        var commandService = context.ServiceProvider.GetRequiredService<ResourceCommandService>();
+        
+        context.Logger.LogInformation("Starting full system reset...");
+        
+        var clearResult = await commandService.ExecuteCommandAsync(
+            resource: cache.Resource,
+            commandName: "clear-cache",
+            cancellationToken: ct);
+            
+        var restartResult = await commandService.ExecuteCommandAsync(
+            resource: database.Resource,
+            commandName: "restart",
+            cancellationToken: ct);
+        
+        if (!clearResult.Success || !restartResult.Success)
+        {
+            return CommandResults.Failure("System reset failed");
+        }
+        
+        context.Logger.LogInformation("System reset completed successfully");
+        return CommandResults.Success();
+    });
+
+builder.Build().Run();
+```
+
+この例では:
+
+- `context` パラメーターで `ServiceProvider` と `Logger` にアクセスします。
+- `context.Logger` は Aspire ダッシュボード内のリソース ログ ストリームへ直接ログを書き込みます。サービス プロバイダーからロガーを解決する必要はありません。
+- `ResourceCommandService` はサービス プロバイダーから取得します。
+- コマンドは `cache.Resource` と `database.Resource` を使ってリソース インスタンスに対して実行します。
+- 各コマンド結果の成功を確認してから次へ進みます。
+
+### リソース ID でコマンドを実行する
+
+リソース ID またはリソース名を使ってコマンドを実行することもできます。リソース ID はリソース インスタンスの一意識別子で、リソース名は表示名です（この方法を使うには一意である必要があります）。
+
+```csharp
+var result = await commandService.ExecuteCommandAsync(
+    resourceId: "cache", 
+    commandName: "clear-cache",
+    cancellationToken: cancellationToken);
+
+if (result.Success)
+{
+    logger.LogInformation("Command executed successfully");
+}
+else if (result.Canceled)
+{
+    logger.LogWarning("Command was canceled");
+}
+else
+{
+    logger.LogError("Command failed: {Message}", result.Message);
+}
+```
+
+`resourceId` パラメーターには、次のいずれかを指定できます:
+- リソースの一意 ID（例: レプリカを持つリソースの `cache-abcdwxyz`）
+- 重複名がない場合の表示名（例: `cache`）
+
+### レプリカを持つリソースでコマンドを実行する
+
+複数レプリカを持つリソースに対して `IResource` オーバーロードでコマンドを実行すると、すべてのインスタンスで並列実行されます。
+
+```csharp
+// レプリカを持つリソースでは、すべてのインスタンスでコマンドが実行される
+var result = await commandService.ExecuteCommandAsync(
+    resource: cache.Resource,
+    commandName: "clear-cache",
+    cancellationToken: cancellationToken);
+```
+
+複数レプリカ上で実行した場合の動作:
+- コマンドはすべてのインスタンスで並列実行されます。
+- すべてのコマンドが成功した場合、結果は成功を示します。
+- いずれかのコマンドが失敗した場合、結果には失敗の詳細が含まれます。
+- 非成功のすべてがキャンセルだった場合、結果はキャンセルを示します。
+
+### コマンド実行結果を処理する
+
+`ExecuteCommandResult` 型はコマンドの結果を保持します。両言語で同じ概念フィールドを公開します。
+
+- **`Success` / `success`** _(boolean)_ — コマンドが正常完了したかどうか。
+- **`Canceled` / `canceled`** _(boolean)_ — ユーザー操作でコマンドがキャンセルされたかどうか。
+- **`Message` / `message`** _(string?)_ — [通知センター](/ja/dashboard/explore/#notification-center) と CLI 出力に表示される人間向けメッセージ。成功メッセージとエラー メッセージの両方に使われます。
+- **`Data` / `data`** _(`CommandResultData?`)_ — 省略可能な構造化出力（プレーン テキスト、JSON、Markdown）。[コマンドから構造化出力を返す](#コマンドから構造化出力を返す) を参照してください。
+
+<Aside type="note">
+後方互換のために `ErrorMessage` プロパティも存在しますが、非推奨です。新しいコードでは `Message`（TypeScript では `message`）を設定してください。これは成功/失敗の両方の結果を表現できます。
+</Aside>
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+`CommandResults` ヘルパー クラスは、一般的な形状のファクトリー メソッドを提供します。
+
+```csharp
+// ペイロードなしで成功
+return CommandResults.Success();
+
+// ステータス メッセージ付きで失敗
+return CommandResults.Failure("Error occurred during execution");
+
+// キャンセル（通常は確認プロンプトでユーザーが戻った場合）
+return CommandResults.Canceled();
+
+// 例外由来の失敗（Exception.Message を使用）
+return CommandResults.Failure(ex);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript にはヘルパー クラスがないため、`ExecuteCommandResult` に準拠するプレーン オブジェクトを返します。
+
+```typescript
+// ペイロードなしで成功
+return { success: true };
+
+// ステータス メッセージ付きで失敗
+return { success: false, message: "Error occurred during execution" };
+
+// キャンセル（通常は確認プロンプトでユーザーが戻った場合）
+return { canceled: true };
+
+// 捕捉した例外由来の失敗
+return { success: false, message: err instanceof Error ? err.message : String(err) };
+```
+
+</TabItem>
+</Tabs>
+
+## コマンドから構造化出力を返す
+
+リソース コマンドは、成功/失敗シグナルに加えて、プレーン テキスト、JSON、Markdown の構造化ペイロードを返せます。このペイロードは Aspire パイプライン全体を自動で流れます。
+
+- **Dashboard**: 成功通知に **View response** アクションが追加され、ペイロードを表示するテキスト ビジュアライザー ダイアログが開きます。`Json` 結果は JSON シンタックス ハイライトに固定され、`Markdown` 結果は Markdown レンダリングに固定されます。`DisplayImmediately` を設定すると、コマンド完了直後にダイアログが開きます（クリック不要）。
+- **CLI**: ステータス メッセージは `stderr` に、ペイロードは `stdout` に出力されるため、`jq` のようなツールへ安全にパイプできます。
+
+  ```bash title="Terminal"
+  aspire resource cache issue-access-token | jq -r .token
+  ```
+
+- **MCP tools**: ステータス メッセージの後に続く 2 番目の `TextContentBlock` として、ペイロードがツール応答に追加されます。
+
+### テキストまたは JSON を返す
+
+一般的なシナリオは、カスタム コマンドから **アクセス トークン** を発行することです。開発者はそれをダッシュボードから直接コピーしたり、CLI から `Bearer` ヘッダーにパイプしたりできます。`Text` モードでは結果はトークン文字列のみ、`Json` モードでは有効期限とスコープを含む結果になります。
+
+成功結果へペイロードを添付するには、`CommandResults.Success(message, result, resultFormat)` オーバーロードを使います。`message` は通知センター/CLI のステータス、`result` はペイロード文字列、`resultFormat` はダッシュボード ビジュアライザーの解釈方法を制御します。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
+        {
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: token,
+                resultFormat: CommandResultFormat.Text));
+        });
+
+builder.Build().Run();
+```
+
+有効期限とスコープ付き JSON を返すには、形式を `CommandResultFormat.Json` に切り替えます。
+
+```csharp title="C# — AppHost.cs"
+using System.Security.Cryptography;
+using System.Text.Json;
+using Aspire.Hosting.ApplicationModel;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.MyService>("myservice")
+    .WithCommand(
+        name: "issue-access-token",
+        displayName: "Issue Access Token",
+        executeCommand: context =>
+        {
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var json = JsonSerializer.Serialize(new
+            {
+                token,
+                expiresAt = DateTimeOffset.UtcNow.AddHours(1),
+                scopes = new[] { "read", "write" },
+            });
+
+            return Task.FromResult(CommandResults.Success(
+                message: "Access token issued.",
+                result: json,
+                resultFormat: CommandResultFormat.Json));
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+TypeScript では、`CommandResultData` 型の `data` プロパティを持つ `ExecuteCommandResult` オブジェクト リテラルを返します。
+
+```typescript title="TypeScript — apphost.ts"
+import {
+    createBuilder,
+    CommandResultFormat,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand("issue-access-token", "Issue Access Token",
+        async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const token = crypto.randomUUID().replace(/-/g, "");
+
+            return {
+                success: true,
+                message: "Access token issued.",
+                data: {
+                    value: token,
+                    format: CommandResultFormat.Text,
+                },
+            };
+        });
+
+await builder.build().run();
+```
+
+有効期限とスコープ付き JSON を返すには、形式を `CommandResultFormat.Json` に切り替えます。
+
+```typescript title="TypeScript — apphost.ts"
+import {
+    createBuilder,
+    CommandResultFormat,
+    type ExecuteCommandContext,
+    type ExecuteCommandResult,
+} from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+    .addNodeApp("myservice", "./myservice", "src/server.ts")
+    .withCommand("issue-access-token", "Issue Access Token",
+        async (_context: ExecuteCommandContext): Promise<ExecuteCommandResult> => {
+            const token = crypto.randomUUID().replace(/-/g, "");
+            const json = JSON.stringify({
+                token,
+                expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+                scopes: ["read", "write"],
+            });
+
+            return {
+                success: true,
+                message: "Access token issued.",
+                data: {
+                    value: json,
+                    format: CommandResultFormat.Json,
+                },
+            };
+        });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### 結果形式を選択する
+
+`CommandResultFormat` には 3 つの値があります。
+
+| 値 | ダッシュボードでの動作 |
+|------------|--------------------|
+| `Text`     | プレーン テキスト。固定形式なしでテキスト ビジュアライザー ダイアログに開き、ユーザーは別の構文へ切り替えて確認できます。 |
+| `Json`     | JSON。ビジュアライザーは JSON モードに固定され、シンタックス ハイライトと整形表示を行います。 |
+| `Markdown` | Markdown。ビジュアライザーは Markdown レンダリングに固定されます。 |
+
+コマンドに表示すべきペイロードがない場合は、`Data` を省略してください（`CommandResults.Success()` または `{ success: true }` を返します）。
+
+### 失敗時にデータを返す
+
+対応する `CommandResults.Failure(errorMessage, result, resultFormat)` オーバーロードを使うと、失敗結果にも同じペイロード形状を添付できます。これは、ユーザー（または下流ツール）が確認できる診断詳細を表面化するのに便利です。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+return CommandResults.Failure(
+    errorMessage: "Migration failed.",
+    result: errorJson,
+    resultFormat: CommandResultFormat.Json);
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+return {
+    success: false,
+    message: "Migration failed.",
+    data: {
+        value: errorJson,
+        format: CommandResultFormat.Json,
+    },
+};
+```
+
+</TabItem>
+</Tabs>
+
+### ダッシュボードで結果ダイアログを自動表示する
+
+既定では、ダッシュボードは [通知センター](/ja/dashboard/explore/#notification-center) の通知に **View response** アクションとしてペイロードを表示します。`CommandResultData` の `DisplayImmediately` を設定すると、コマンド完了時にビジュアライザーを即座に開けます。短いコマンドで応答自体が目的の場合に便利です。
+
+<Tabs syncKey="aspire-lang">
+<TabItem id="csharp" label="C#">
+
+```csharp title="C# — AppHost.cs"
+return CommandResults.Success(
+    message: "Access token issued.",
+    value: new CommandResultData
+    {
+        Value = json,
+        Format = CommandResultFormat.Json,
+        DisplayImmediately = true,
+    });
+```
+
+</TabItem>
+<TabItem id="typescript" label="TypeScript">
+
+```typescript title="TypeScript — apphost.ts"
+return {
+    success: true,
+    message: "Access token issued.",
+    data: {
+        value: json,
+        format: CommandResultFormat.Json,
+        displayImmediately: true,
+    },
+};
+```
+
+</TabItem>
+</Tabs>
+
+### レプリカ集約
+
+リソースが複数レプリカを持つ場合、コマンドはすべてのインスタンスで並列実行されます。複数レプリカからペイロードが返された場合、最初に成功したペイロードのみが呼び出し側へ伝搬し、他は破棄されます。
+
+### CLI からコマンドを呼び出す
+
+`WithCommand` で登録した任意のコマンドは、組み込みの `start`、`stop`、`restart` コマンドを含め、`aspire resource` コマンドを使ってターミナルから呼び出せます。
+
+```bash title="ターミナル"
+aspire resource <resource-name> <command-name> [--apphost <path>]
+```
+
+CLI はステータス出力とペイロード出力を分離するため、結果はスクリプト処理しやすい形式になります。
+
+- `Message` と進捗テキストは **stderr** に書き込まれます。
+- `Data.Value`（存在する場合）は **stdout** にそのまま書き込まれます。`Json` と `Text` ペイロードはそのまま出力され、`Markdown` は見出し、リスト、コード ブロックを端末向けに装飾してレンダリングされます。
+- 終了コードは、成功時が `0`、失敗またはキャンセル時が非 0 です。
+
+これにより、構造化ペイロードを `jq` に直接パイプしたり、ファイルへリダイレクトしたり、終了コードで分岐したりできます。
+
+```bash title="ターミナル — JSON ペイロードを jq にパイプ"
+$ aspire resource cache issue-access-token | jq -r .token
+ey7WqGxk2vL...
+```
+
+ステータス メッセージ `Access token issued.` は stderr に書き込まれるため、stdout はパイプ用にクリーンなまま保たれます。
+
+```bash title="ターミナル — スクリプトで終了コードを使用"
+if aspire resource db migrate > migrations.json; then
+    echo "Applied $(jq length migrations.json) migrations."
+else
+    echo "Migration failed — see error above."
+    exit 1
+fi
+```

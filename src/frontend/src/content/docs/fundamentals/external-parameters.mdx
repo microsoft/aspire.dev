@@ -366,6 +366,10 @@ The manifest representation is as follows:
 
 In some scenarios, you might want to read parameter values directly from a specific configuration key rather than following the standard `Parameters:*` pattern. The `AddParameterFromConfiguration` method allows you to specify a custom configuration key for a parameter.
 
+<Aside type="note">
+The `addParameterFromConfiguration` API is not yet available in the TypeScript AppHost SDK.
+</Aside>
+
 ### API signature
 
 ```csharp
@@ -687,6 +691,9 @@ The value for the `insertionRows` parameter is read from the `Parameters` sectio
 
 The `Parameters_ApiService` project consumes the `insertionRows` parameter. Consider the _Program.cs_ example file:
 
+<Tabs syncKey="consuming-lang">
+<TabItem label="C#">
+
 ```csharp title="Program.cs"
 using Microsoft.EntityFrameworkCore;
 
@@ -725,3 +732,92 @@ app.MapGet("/", async (MyDbContext context) =>
 
 app.Run();
 ```
+
+</TabItem>
+<TabItem label="Go">
+
+```go title="Go — main.go"
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "net/http"
+    "os"
+    "strconv"
+)
+
+func main() {
+    insertionRows, _ := strconv.Atoi(os.Getenv("InsertionRows"))
+    if insertionRows == 0 {
+        insertionRows = 1
+    }
+
+    connStr := os.Getenv("ConnectionStrings__db")
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        db, _ := sql.Open("sqlserver", connStr)
+        defer db.Close()
+
+        for i := 0; i < insertionRows; i++ {
+            db.Exec("INSERT INTO Entries DEFAULT VALUES")
+        }
+
+        rows, _ := db.Query("SELECT COUNT(*) FROM Entries")
+        var count int
+        rows.Next()
+        rows.Scan(&count)
+
+        fmt.Fprintf(w, `{"totalEntries": %d}`, count)
+    })
+
+    http.ListenAndServe(":8080", nil)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python title="Python — app.py"
+import os
+from fastapi import FastAPI
+
+app = FastAPI()
+
+insertion_rows = int(os.getenv("InsertionRows", "1"))
+conn_str = os.getenv("ConnectionStrings__db")
+
+@app.get("/")
+async def root():
+    # Connect to the database using conn_str
+    # Insert insertion_rows entries
+    # Return the total count
+    return {
+        "totalEntries": insertion_rows,
+    }
+```
+
+</TabItem>
+<TabItem label="TypeScript">
+
+```typescript title="TypeScript — index.ts"
+import express from 'express';
+
+const app = express();
+const insertionRows = parseInt(process.env.InsertionRows ?? '1', 10);
+const connStr = process.env.ConnectionStrings__db;
+
+app.get('/', async (req, res) => {
+    // Connect to the database using connStr
+    // Insert insertionRows entries
+    // Return the total count
+    res.json({
+        totalEntries: insertionRows,
+    });
+});
+
+app.listen(8080);
+```
+
+</TabItem>
+</Tabs>
