@@ -487,6 +487,35 @@ await builder.build().run();
 
 The generated container sets `HOST=0.0.0.0` and `HOSTNAME=0.0.0.0` so the server binds to all interfaces inside the container network.
 
+### pnpm and Bun with PublishAsNpmScript
+
+`PublishAsNpmScript` works with pnpm and Bun in addition to npm and Yarn. The generated runtime Dockerfile stage is tailored to the package manager:
+
+- **pnpm**: The runtime stage runs `corepack enable pnpm && pnpm --version` before the entrypoint, so pnpm is available when the start script executes. Without this step, the container fails at startup with exit code 127 because pnpm is not included in the base `node:alpine` image.
+- **Bun**: The runtime stage reuses the Bun build image rather than switching to a Node.js image, because `bun run <script>` requires the Bun runtime at startup.
+
+```csharp title="AppHost.cs — pnpm npm-script publish"
+#pragma warning disable ASPIREJAVASCRIPT001
+
+var builder = DistributedApplication.CreateBuilder(args);
+builder.AddDockerComposeEnvironment("compose");
+
+var frontend = builder
+    .AddJavaScriptApp("frontend", "../NodeFrontend")
+    .WithPnpm()
+    .PublishAsNpmScript("start")
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();
+```
+
+The generated Dockerfile for the pnpm case includes:
+
+```dockerfile
+RUN corepack enable pnpm && pnpm --version
+ENTRYPOINT ["sh", "-c", "exec pnpm run start"]
+```
+
 ## Next.js standalone apps
 
 Use `AddNextJsApp` for Next.js apps that use [standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output). It is more specific than `AddJavaScriptApp` because it configures the Next.js development server port argument and publish-time standalone container shape, and it validates that the Next.js configuration enables `output: "standalone"`.
