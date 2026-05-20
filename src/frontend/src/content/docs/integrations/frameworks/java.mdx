@@ -1,9 +1,9 @@
 ---
 title: Java integration
-description: Learn how to use the Aspire Java hosting integration from the Community Toolkit to run Spring Boot and other Java applications alongside your Aspire projects.
+description: Learn how to use the Aspire Java hosting integration from the Community Toolkit to run Java applications from Maven, Gradle, executable JARs, or containers in your AppHost.
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import { Badge, TabItem, Tabs } from '@astrojs/starlight/components';
 import InstallPackage from '@components/InstallPackage.astro';
 import { Image } from 'astro:assets';
 import javaIcon from '@assets/icons/java-icon.png';
@@ -19,123 +19,404 @@ import javaIcon from '@assets/icons/java-icon.png';
   data-zoom-off
 />
 
-This article is the reference for the Aspire Java hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). It enumerates the AppHost APIs you use to model Java applications — including Spring Boot apps — in your [`AppHost`](/get-started/app-host/) project.
-
-:::note
-TypeScript AppHost support for this integration is not yet available. All AppHost examples on this page are in C#.
-:::
+This article is the reference for the Aspire Java hosting integration from the [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire). Use it to model Java applications in your [`AppHost`](/get-started/app-host/) project whether you run them from Maven, Gradle, an executable JAR, or a container image.
 
 ## Hosting integration
 
 <InstallPackage packageName="CommunityToolkit.Aspire.Hosting.Java" shortName="java --source CommunityToolkit" />
 
-:::note
-This integration requires the OpenTelemetry Java agent for observability support. Download the agent JAR and place it in the `./agents` directory relative to your AppHost project. Download from: [OpenTelemetry Java Agent releases](https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases).
-:::
+Use the Java integration to run a Java application with Maven or Gradle, from an executable JAR, or from a container image.
 
-### Add Spring Boot app
+### Run with Maven
 
-To add a Spring Boot application to your AppHost, use the `AddSpringApp` extension method:
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
-```csharp title="C# — AppHost.cs"
+```csharp title="C# — AppHost.cs" "WithMavenGoal"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var javaApp = builder.AddSpringApp(
-    name: "spring-api",
-    workingDirectory: "../spring-app",
-    otelAgentPath: "../agents/opentelemetry-javaagent.jar")
-    .WithHttpEndpoint(port: 8080);
-
-builder.AddProject<Projects.ExampleProject>("apiservice")
-    .WithReference(javaApp);
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app")
+    .WithMavenGoal("spring-boot:run")
+    .WithHttpEndpoint(env: "SERVER_PORT");
 
 builder.Build().Run();
 ```
 
-The `AddSpringApp` method accepts:
-- **name**: The resource name shown in the Aspire dashboard.
-- **workingDirectory**: The path to the directory containing your Spring Boot application.
-- **otelAgentPath**: The path to the OpenTelemetry Java agent JAR file.
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-### Container hosting
+```typescript title="apphost.ts" "withMavenGoal"
+import { createBuilder } from './.modules/aspire.js';
 
-For production scenarios, host Java applications in containers using `JavaAppContainerResourceOptions`:
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaApp('spring-api', '../spring-app');
+await javaApp.withMavenGoal('spring-boot:run', []);
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Run with Gradle
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs" "WithGradleTask"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app")
+    .WithGradleTask("bootRun")
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" "withGradleTask"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaApp('spring-api', '../spring-app');
+await javaApp.withGradleTask('bootRun', []);
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Run an executable JAR
+
+To run a pre-built JAR, pass the JAR path as the third argument to `AddJavaApp` / `addJavaAppWithJar`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var javaApp = builder.AddSpringApp(
-    name: "spring-api",
-    new JavaAppContainerResourceOptions
-    {
-        OtelAgentPath = "../agents/opentelemetry-javaagent.jar",
-        ContainerImageName = "my-spring-app:latest",
-        ContainerRegistry = "myregistry.azurecr.io"
-    })
-    .WithHttpEndpoint(port: 8080);
+var javaApp = builder.AddJavaApp(
+    "java-api",
+    "../java-app",
+    "target/app.jar")
+    .WithHttpEndpoint(env: "SERVER_PORT");
 
-// After adding all resources, run the app...
 builder.Build().Run();
 ```
 
-### Executable hosting
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-For local development, run Java applications as executables using `JavaAppExecutableResourceOptions`:
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaAppWithJar(
+  'java-api',
+  '../java-app',
+  'target/app.jar'
+);
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Build with Maven
+
+Use `WithMavenBuild` to compile an executable JAR before Aspire starts the application.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs" "WithMavenBuild"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app", "target/app.jar")
+    .WithMavenBuild()
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" "withMavenBuild"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaAppWithJar(
+  'spring-api',
+  '../spring-app',
+  'target/app.jar'
+);
+await javaApp.withMavenBuild();
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Build with Gradle
+
+Use `WithGradleBuild` to compile an executable JAR before Aspire starts the application.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs" "WithGradleBuild"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app", "build/libs/app.jar")
+    .WithGradleBuild()
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" "withGradleBuild"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaAppWithJar(
+  'spring-api',
+  '../spring-app',
+  'build/libs/app.jar'
+);
+await javaApp.withGradleBuild();
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Run a container image
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var javaApp = builder.AddSpringApp(
-    name: "spring-api",
-    new JavaAppExecutableResourceOptions
-    {
-        ApplicationName = "spring-app",
-        OtelAgentPath = "../agents/opentelemetry-javaagent.jar",
-        WorkingDirectory = "../spring-app"
-    })
-    .WithHttpEndpoint(port: 8080);
+var javaApp = builder.AddJavaContainerApp(
+    name: "java-api",
+    image: "docker.io/example/spring-api",
+    imageTag: "latest")
+    .WithHttpEndpoint(env: "SERVER_PORT");
 
-// After adding all resources, run the app...
 builder.Build().Run();
 ```
 
-### Configure endpoints
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-Spring Boot applications use the `server.port` property to configure the port. Use `WithHttpEndpoint` to expose the endpoint to other resources in the AppHost:
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaContainerApp(
+  'java-api',
+  'docker.io/example/spring-api',
+  { imageTag: 'latest' }
+);
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Pass environment variables
+
+Use `WithEnvironment` to pass configuration to your Java application. Aspire resources expose typed expressions you can inject directly — for example, `JdbcConnectionString` on a PostgreSQL database resource produces a `jdbc:postgresql://` URL ready for Spring Boot's `SPRING_DATASOURCE_URL`:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs" "WithEnvironment" "JdbcConnectionString"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var postgres = builder.AddPostgres("postgres");
+var db = postgres.AddDatabase("mydb");
+
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app")
+    .WithMavenGoal("spring-boot:run")
+    .WithEnvironment("SPRING_DATASOURCE_URL", db.Resource.JdbcConnectionString)
+    .WithEnvironment("SPRING_DATASOURCE_USERNAME", postgres.Resource.UserNameReference)
+    .WithEnvironment(ctx => ctx.EnvironmentVariables["SPRING_DATASOURCE_PASSWORD"] = postgres.Resource.PasswordParameter)
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" "withEnvironment" "jdbcConnectionString"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const postgres = await builder.addPostgres('postgres');
+const db = await postgres.addDatabase('mydb');
+
+const javaApp = await builder.addJavaApp('spring-api', '../spring-app');
+await javaApp.withMavenGoal('spring-boot:run', []);
+await javaApp.withEnvironment('SPRING_DATASOURCE_URL', await db.jdbcConnectionString());
+await javaApp.withEnvironment('SPRING_DATASOURCE_USERNAME', await postgres.userNameReference());
+await javaApp.withEnvironment('SPRING_DATASOURCE_PASSWORD', await postgres.passwordParameter());
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Health checks
+
+Declare an HTTP health-check path so Aspire knows when the application is ready:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs" "WithHttpHealthCheck"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app")
+    .WithMavenGoal("spring-boot:run")
+    .WithHttpEndpoint(env: "SERVER_PORT")
+    .WithHttpHealthCheck("/actuator/health");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" "withHttpHealthCheck"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaApp('spring-api', '../spring-app');
+await javaApp.withMavenGoal('spring-boot:run', []);
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+await javaApp.withHttpHealthCheck('/actuator/health');
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+Spring Boot Actuator exposes `/actuator/health` when `spring-boot-starter-actuator` is on the classpath.
+
+### Configure JVM arguments
+
+Use `WithJvmArgs` / `withJvmArgs` to pass JVM arguments such as heap limits or system properties to the Java process:
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="C# — AppHost.cs" "WithJvmArgs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var javaApp = builder.AddJavaApp("spring-api", "../spring-app")
+    .WithMavenGoal("spring-boot:run")
+    .WithJvmArgs(["-Xmx512m", "-Xms256m"])
+    .WithHttpEndpoint(env: "SERVER_PORT");
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts" "withJvmArgs"
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaApp('spring-api', '../spring-app');
+await javaApp.withMavenGoal('spring-boot:run', []);
+await javaApp.withJvmArgs(['-Xmx512m', '-Xms256m']);
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+### Configure OpenTelemetry
+
+Download the OpenTelemetry Java agent and point the Java resource at the agent JAR.
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
 
 ```csharp title="C# — AppHost.cs"
 var builder = DistributedApplication.CreateBuilder(args);
 
-var javaApp = builder.AddSpringApp(
-    "spring-api",
-    "../spring-app",
-    "../agents/opentelemetry-javaagent.jar")
-    .WithHttpEndpoint(port: 8080);
+var javaApp = builder.AddJavaApp("java-api", "../java-app", "target/app.jar")
+    .WithOtelAgent("../agents/opentelemetry-javaagent.jar")
+    .WithHttpEndpoint(env: "SERVER_PORT");
 
-// After adding all resources, run the app...
 builder.Build().Run();
 ```
 
-### Certificate trust (Linux and macOS)
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
 
-On Linux and macOS, add the following to your Spring Boot application's `application.properties` to trust the Aspire development certificates:
+```typescript title="apphost.ts"
+import { createBuilder } from './.modules/aspire.js';
 
-```properties title="application.properties"
-server.ssl.trust-store=/path/to/aspire/dev/certificate.p12
-server.ssl.trust-store-password=p@ssw0rd1
+const builder = await createBuilder();
+
+const javaApp = await builder.addJavaAppWithJar(
+  'java-api',
+  '../java-app',
+  'target/app.jar'
+);
+await javaApp.withOtelAgent('../agents/opentelemetry-javaagent.jar');
+await javaApp.withHttpEndpoint({ env: 'SERVER_PORT' });
+
+await builder.build().run();
 ```
 
-For more information, see the [Spring Boot SSL documentation](https://docs.spring.io/spring-boot/reference/features/ssl.html).
+</TabItem>
+</Tabs>
 
-## Observability
-
-The Java integration uses the OpenTelemetry Java agent to automatically instrument your application and export telemetry to the Aspire dashboard.
-
-Download the OpenTelemetry Java agent and specify its path when calling `AddSpringApp`. For more information, see [OpenTelemetry Java instrumentation](https://opentelemetry.io/docs/languages/java/).
+For more information on the agent, see [OpenTelemetry Java instrumentation](https://opentelemetry.io/docs/languages/java/). For executable apps, the agent path is typically relative to the AppHost project. For container apps, the agent path must exist inside the image or a mounted volume.
 
 ## See also
 
 - [Aspire Community Toolkit](https://github.com/CommunityToolkit/Aspire)
+- [CommunityToolkit.Aspire.Hosting.Java README](https://github.com/CommunityToolkit/Aspire/tree/main/src/CommunityToolkit.Aspire.Hosting.Java)
 - [Spring Boot documentation](https://spring.io/projects/spring-boot)
-- [OpenTelemetry Java](https://opentelemetry.io/docs/languages/java/)
+- [OpenTelemetry Java instrumentation](https://opentelemetry.io/docs/languages/java/)
 - [Aspire integrations overview](/integrations/overview/)
