@@ -131,15 +131,14 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
           {hasTopicsList && (
             <ul
               class="starlight-sidebar-topics topics-sidebar-list"
-              data-tour-target="topics-dropdown"
-              data-tour-step="topics-dropdown"
+              data-tour-target="topics-list"
+              data-tour-step="topics-list"
             >
               {effectiveTopics.map((topic) => (
                 <li>
                   <a
                     href={topic.link}
                     title={topic.label}
-                    aria-label={topic.label}
                     aria-current={topic.isCurrent ? 'page' : undefined}
                     class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
                   >
@@ -243,15 +242,14 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         <div class="topic-sidebar-sticky not-content">
           <ul
             class="starlight-sidebar-topics topics-sidebar-list"
-            data-tour-target="topics-dropdown"
-            data-tour-step="topics-dropdown"
+            data-tour-target="topics-list"
+            data-tour-step="topics-list"
           >
             {effectiveTopics.map((topic) => (
               <li>
                 <a
                   href={topic.link}
                   title={topic.label}
-                  aria-label={topic.label}
                   aria-current={topic.isCurrent ? 'page' : undefined}
                   class:list={{ 'starlight-sidebar-topics-current': topic.isCurrent }}
                 >
@@ -402,8 +400,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
-        aria-expanded="false"
-        aria-controls="starlight__sidebar"
+        aria-hidden="true"
       >
         <svg
           viewBox="0 0 24 24"
@@ -459,8 +456,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         data-tour-target="sidebar-toggle"
         aria-label="Expand sidebar"
         title="Expand sidebar"
-        aria-expanded="false"
-        aria-controls="starlight__sidebar"
+        aria-hidden="true"
       >
         <svg
           viewBox="0 0 24 24"
@@ -1070,7 +1066,25 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
      opacity crossfade keyed off `[data-sidebar-collapsed]` /
      `[data-topic-sidebar-collapsed]` on <html>, with `pointer-events`
      ensuring only the active button receives clicks. This keeps the
-     swap synchronised with the sidebar's width transition. */
+     swap synchronised with the sidebar's width transition.
+
+     At widths where the Starlight mobile TOC bar
+     (`#starlight__on-this-page--mobile`) is visible (≥ 50rem and
+     < 100rem with `[data-has-toc]`), the toggle is repositioned
+     into the same row as that bar (see the `(min-width: 50rem) and
+     (max-width: 99.999rem)` override below) so the two controls
+     don't collide.
+
+     Visibility of the toggle is tied to whether the sidebar itself
+     is persistently visible at the current viewport, not to a
+     single global breakpoint:
+
+       - API-ref pages (`#sidebar-*`): the sidebar drops into
+         mobile-overlay mode below 72rem (see the `[data-api-ref]`
+         block in site.css), so the toggle is hidden below 72rem.
+       - Topic-nav pages (`#topic-sidebar-*`): the sidebar stays
+         visible down to Starlight's default 50rem breakpoint, so
+         the toggle is visible from 50rem upward and hidden below. */
   .sidebar-collapse-btn,
   .sidebar-expand-btn {
     position: fixed;
@@ -1082,8 +1096,8 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 3rem;
-    height: 3rem;
+    width: var(--aspire-sidebar-toggle-width, 3rem);
+    height: var(--aspire-sidebar-toggle-width, 3rem);
     padding: 0.7rem;
     background: var(--sl-color-bg);
     border: none;
@@ -1175,11 +1189,70 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     height: 100%;
   }
 
-  /* Hide collapse/expand on mobile-style sidebar (< 72rem for API pages) */
+  /* Hide the toggle when the sidebar isn't persistently visible.
+
+     API-ref pages (`#sidebar-*` ids): at < 72rem the sidebar enters
+     mobile-overlay mode (see `[data-api-ref]` block in site.css and
+     Starlight's < 50rem default). The persistent collapsed/expanded
+     state doesn't apply in overlay mode — there's a hamburger button
+     instead — so hide the toggle below 72rem on these pages.
+
+     Topic-nav pages (`#topic-sidebar-*` ids): the topic sidebar stays
+     visible at Starlight's default sub-desktop sizing down to 50rem;
+     below 50rem Starlight moves it into the mobile menu. Hide the
+     toggle below 50rem so it disappears together with the sidebar. */
   @media (max-width: 71.999rem) {
-    .sidebar-collapse-btn,
-    .sidebar-expand-btn {
+    #sidebar-collapse-btn,
+    #sidebar-expand-btn {
       display: none !important;
+    }
+  }
+
+  @media (max-width: 49.999rem) {
+    #topic-sidebar-collapse-btn,
+    #topic-sidebar-expand-btn {
+      display: none !important;
+    }
+  }
+
+  /* Inline the toggle with the mobile "On this page" TOC bar at every
+     width that shows that bar while the sidebar is also persistently
+     visible — i.e. ≥ 50rem and < 100rem with [data-has-toc].
+
+     The API-ref toggle (#sidebar-*) is hidden below 72rem via the rule
+     above, so this scope visually renders for:
+       - topic-nav at 50–71.999rem (tablet), and
+       - both toggles at 72–99.999rem (desktop with mobile-TOC override).
+
+     Without this override the base calc parks the toggle a row below
+     the TOC bar where it covers the first line of content and crowds
+     the `#starlight__on-this-page--mobile` dropdown trigger. Sliding
+     the toggle up into the TOC bar's row keeps both controls visible
+     while letting the dropdown content shift right (see site.css for
+     the companion `padding-inline-start` on the summary). */
+  @media (min-width: 50rem) and (max-width: 99.999rem) {
+    :global(html[data-has-toc]) .sidebar-collapse-btn,
+    :global(html[data-has-toc]) .sidebar-expand-btn {
+      top: calc(var(--sl-nav-height, 4rem) + var(--aspire-banner-height, 0px) - 1px);
+      height: var(--sl-mobile-toc-height, 3rem);
+      /* Drop the floating-tab treatment — the toggle is part of the
+         TOC bar's row now, not a tab projecting from the sidebar. */
+      border-radius: 0;
+      box-shadow: none;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+      border-block-end: 1px solid var(--sl-color-hairline-shade);
+      background: var(--sl-color-bg-nav);
+      /* Promote above the mobile TOC's nav bar so the toggle paints on
+         top of the bar's background rather than slipping behind it. */
+      z-index: calc(var(--sl-z-index-toc, 10) + 1);
+    }
+
+    :global(html[data-has-toc]) .sidebar-collapse-btn:hover,
+    :global(html[data-has-toc]) .sidebar-expand-btn:hover {
+      /* Cancel the elevated hover shadow inherited from the base rule —
+         a shadow looks out of place inside the flat TOC bar. */
+      box-shadow: none;
+      background: var(--sl-color-bg);
     }
   }
 
@@ -1649,14 +1722,29 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     }
   }
 
-  function syncAriaExpanded(
+  /**
+   * Keep the disclosure-button pair semantically correct: only one button
+   * in each pair is visually present (the other is `visibility: hidden`),
+   * so only the visible one should advertise `aria-controls` /
+   * `aria-expanded`. The hidden one gets `aria-hidden="true"` and drops
+   * those attrs entirely, so assistive tech sees a single live control
+   * for the sidebar disclosure at any time.
+   */
+  function syncToggleA11y(
     collapseBtn: HTMLElement,
     expandBtn: HTMLElement,
     isCollapsed: boolean
   ): void {
-    const value = isCollapsed ? 'false' : 'true';
-    collapseBtn.setAttribute('aria-expanded', value);
-    expandBtn.setAttribute('aria-expanded', value);
+    const active = isCollapsed ? expandBtn : collapseBtn;
+    const inactive = isCollapsed ? collapseBtn : expandBtn;
+
+    active.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    active.setAttribute('aria-controls', 'starlight__sidebar');
+    active.removeAttribute('aria-hidden');
+
+    inactive.setAttribute('aria-hidden', 'true');
+    inactive.removeAttribute('aria-expanded');
+    inactive.removeAttribute('aria-controls');
   }
 
   function initSidebarCollapse() {
@@ -1679,7 +1767,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
 
     // Sync aria-expanded with the data-sidebar-collapsed attribute that
     // Head.astro set from localStorage before this script ran.
-    syncAriaExpanded(
+    syncToggleA11y(
       collapseBtn,
       expandBtn,
       document.documentElement.hasAttribute('data-sidebar-collapsed')
@@ -1721,7 +1809,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       return;
     }
 
-    syncAriaExpanded(
+    syncToggleA11y(
       collapseBtn,
       expandBtn,
       document.documentElement.hasAttribute('data-topic-sidebar-collapsed')
@@ -1758,8 +1846,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       window.clearTimeout(topicSidebarExpandTimer);
       root.removeAttribute('data-topic-sidebar-expanding');
       root.setAttribute('data-topic-sidebar-collapsed', '');
-      collapseBtn.setAttribute('aria-expanded', 'false');
-      expandBtn.setAttribute('aria-expanded', 'false');
+      syncToggleA11y(collapseBtn, expandBtn, true);
       // Focus the now-visible button so keyboard users stay anchored.
       try {
         expandBtn.focus({ preventScroll: true });
@@ -1777,8 +1864,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         }, SIDEBAR_EXPAND_ANIMATION_MS);
       }
       root.removeAttribute('data-topic-sidebar-collapsed');
-      collapseBtn.setAttribute('aria-expanded', 'true');
-      expandBtn.setAttribute('aria-expanded', 'true');
+      syncToggleA11y(collapseBtn, expandBtn, false);
       if (wasCollapsed) {
         try {
           collapseBtn.focus({ preventScroll: true });
@@ -1806,8 +1892,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       window.clearTimeout(sidebarExpandTimer);
       root.removeAttribute('data-sidebar-expanding');
       root.setAttribute('data-sidebar-collapsed', '');
-      collapseBtn.setAttribute('aria-expanded', 'false');
-      expandBtn.setAttribute('aria-expanded', 'false');
+      syncToggleA11y(collapseBtn, expandBtn, true);
       try {
         expandBtn.focus({ preventScroll: true });
       } catch {
@@ -1822,8 +1907,7 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
         }, SIDEBAR_EXPAND_ANIMATION_MS);
       }
       root.removeAttribute('data-sidebar-collapsed');
-      collapseBtn.setAttribute('aria-expanded', 'true');
-      expandBtn.setAttribute('aria-expanded', 'true');
+      syncToggleA11y(collapseBtn, expandBtn, false);
       if (wasCollapsed) {
         try {
           collapseBtn.focus({ preventScroll: true });
@@ -1846,6 +1930,11 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
     document.addEventListener('astro:after-swap', initTopicSidebarUi);
     document.addEventListener('DOMContentLoaded', initBannerHeightTracking);
     document.addEventListener('astro:after-swap', initBannerHeightTracking);
+    // Remove teleported toggle buttons from <body> *before* the swap so
+    // they can't conflict with the fresh buttons rendered into the next
+    // page's sidebar (and so any stale handlers bound to them are dropped
+    // along with the nodes themselves).
+    document.addEventListener('astro:before-swap', cleanupTeleportedToggles);
     document.addEventListener('DOMContentLoaded', teleportSidebarToggles);
     document.addEventListener('astro:after-swap', teleportSidebarToggles);
   }
@@ -1857,6 +1946,34 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
   if (document.readyState !== 'loading') teleportSidebarToggles();
 
   /* ── Sidebar toggle teleport ──────────────────────────────────── */
+
+  /**
+   * Remove any toggle buttons that were previously teleported to
+   * `<body>`. Called as an `astro:before-swap` listener so stale
+   * buttons (and the click handlers bound to them) are discarded
+   * before the next page's HTML morph runs. After the swap, the
+   * new page's freshly-rendered buttons get found, bound, and
+   * re-teleported by `initSidebarCollapse` / `teleportSidebarToggles`.
+   */
+  function cleanupTeleportedToggles() {
+    const ids = [
+      'sidebar-collapse-btn',
+      'sidebar-expand-btn',
+      'topic-sidebar-collapse-btn',
+      'topic-sidebar-expand-btn',
+    ];
+    for (const id of ids) {
+      // querySelectorAll guards against the (invalid but possible) case
+      // where a stale teleported button and a fresh in-sidebar button
+      // briefly share the same id during a swap.
+      const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
+      matches.forEach((btn) => {
+        if (btn.parentElement === document.body) {
+          btn.remove();
+        }
+      });
+    }
+  }
 
   /**
    * Move the floating sidebar collapse/expand toggle buttons to
@@ -1875,6 +1992,19 @@ const hasTopicsList = Boolean(currentTopic && effectiveTopics.length > 0);
       'topic-sidebar-collapse-btn',
       'topic-sidebar-expand-btn',
     ];
+    // Defensive sweep: if any stale teleported buttons survived the
+    // last swap (e.g. an aborted view transition), drop them so they
+    // can't shadow the fresh in-sidebar buttons via getElementById.
+    for (const id of ids) {
+      const matches = document.querySelectorAll<HTMLElement>(`#${id}`);
+      if (matches.length <= 1) continue;
+      matches.forEach((btn) => {
+        if (btn.parentElement === document.body) {
+          btn.remove();
+        }
+      });
+    }
+
     for (const id of ids) {
       const btn = document.getElementById(id);
       if (btn && btn.parentElement !== document.body) {
