@@ -10,13 +10,16 @@
       "name": "addAzureKeyVault",
       "capabilityId": "Aspire.Hosting.Azure.KeyVault/addAzureKeyVault",
       "qualifiedName": "addAzureKeyVault",
-      "description": "Adds an Azure Key Vault resource",
+      "description": "Adds an Azure Key Vault resource to the application model.",
+      "remarks": "By default references to the Azure Key Vault resource will be assigned the following roles:\n- `KeyVaultAdministrator`\nThese can be replaced by calling `WithRoleAssignments``1`.\nManaging Secrets:\nUse the `AddSecret` methods to add secrets to the Key Vault:\n```\nvar builder = DistributedApplication.CreateBuilder(args);\nvar vault = builder.AddAzureKeyVault(\"vault\");\n// Add a secret from a parameter\nvar secret = builder.AddParameter(\"secretParam\", secret: true);\nvault.AddSecret(\"my-secret\", secret);\n// Add a secret from a reference expression\nvar connectionString = ReferenceExpression.Create($\"Server={server};Database={db}\");\nvault.AddSecret(\"connection-string\", connectionString);\n// Get a reference to an existing secret\nvar existingSecret = vault.GetSecret(\"existing-secret\");\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addAzureKeyVault(name: string): AzureKeyVaultResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         }
       ],
       "returnType": "AzureKeyVaultResource",
@@ -59,13 +62,15 @@
       "name": "getSecret",
       "capabilityId": "Aspire.Hosting.Azure.KeyVault/getSecret",
       "qualifiedName": "getSecret",
-      "description": "Gets a secret reference from the Azure Key Vault",
+      "description": "Gets a secret reference for the specified secret name from the Azure Key Vault resource.",
+      "returns": "A reference to the secret.",
       "kind": "Method",
       "signature": "getSecret(secretName: string): IAzureKeyVaultSecretReference",
       "parameters": [
         {
           "name": "secretName",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the secret."
         }
       ],
       "returnType": "IAzureKeyVaultSecretReference",
@@ -78,17 +83,20 @@
       "name": "withRoleAssignments",
       "capabilityId": "Aspire.Hosting.Azure.KeyVault/withKeyVaultRoleAssignments",
       "qualifiedName": "withRoleAssignments",
-      "description": "Assigns Key Vault roles to a resource",
+      "description": "Assigns the specified roles to the given resource, granting it the necessary permissions on the target Azure Key Vault resource. This replaces the default role assignments for the resource.",
+      "returns": "The updated `IResourceBuilder`1` with the applied role assignments.",
       "kind": "Method",
       "signature": "withRoleAssignments(target: AzureKeyVaultResource, roles: AzureKeyVaultRole[]): IResource",
       "parameters": [
         {
           "name": "target",
-          "type": "AzureKeyVaultResource"
+          "type": "AzureKeyVaultResource",
+          "description": "The target Azure Key Vault resource."
         },
         {
           "name": "roles",
-          "type": "AzureKeyVaultRole[]"
+          "type": "AzureKeyVaultRole[]",
+          "description": "The Key Vault roles to be assigned."
         }
       ],
       "returnType": "IResource",
@@ -165,13 +173,15 @@
           "name": "getSecret",
           "capabilityId": "Aspire.Hosting.Azure.KeyVault/getSecret",
           "qualifiedName": "getSecret",
-          "description": "Gets a secret reference from the Azure Key Vault",
+          "description": "Gets a secret reference for the specified secret name from the Azure Key Vault resource.",
+          "returns": "A reference to the secret.",
           "kind": "Method",
           "signature": "getSecret(secretName: string): IAzureKeyVaultSecretReference",
           "parameters": [
             {
               "name": "secretName",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the secret."
             }
           ],
           "returnType": "IAzureKeyVaultSecretReference",
@@ -191,7 +201,7 @@
         "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Azure.AzureKeyVaultResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Azure.AzureKeyVaultResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences",
         "Aspire.Hosting.Azure.IAzureKeyVaultSecretReference"
@@ -205,6 +215,7 @@
       "name": "AzureKeyVaultRole",
       "fullName": "Aspire.Hosting.AzureKeyVaultRole",
       "kind": "enum",
+      "description": "Represents ATS-compatible Key Vault roles.",
       "members": [
         "KeyVaultAdministrator",
         "KeyVaultCertificateUser",

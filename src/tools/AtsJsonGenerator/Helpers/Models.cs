@@ -53,6 +53,9 @@ internal sealed class AtsDumpCapability
     [JsonPropertyName("Description")]
     public string? Description { get; init; }
 
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
+
     [JsonPropertyName("CapabilityKind")]
     public required string CapabilityKind { get; init; }
 
@@ -76,6 +79,33 @@ internal sealed class AtsDumpCapability
 
     [JsonPropertyName("ExpandedTargetTypes")]
     public List<AtsDumpTypeRef> ExpandedTargetTypes { get; init; } = [];
+}
+
+/// <summary>
+/// XML-doc payload emitted by the new Aspire CLI (microsoft/aspire#17044).
+/// </summary>
+internal sealed class AtsDumpDocumentation
+{
+    [JsonPropertyName("Summary")]
+    public string? Summary { get; init; }
+
+    [JsonPropertyName("Remarks")]
+    public string? Remarks { get; init; }
+
+    [JsonPropertyName("Returns")]
+    public string? Returns { get; init; }
+
+    [JsonPropertyName("Parameters")]
+    public List<AtsDumpParameterDoc> Parameters { get; init; } = [];
+}
+
+internal sealed class AtsDumpParameterDoc
+{
+    [JsonPropertyName("Name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("Description")]
+    public string? Description { get; init; }
 }
 
 internal sealed class AtsDumpParameter
@@ -146,6 +176,9 @@ internal sealed class AtsDumpHandleType
     [JsonPropertyName("ExposeMethods")]
     public bool ExposeMethods { get; init; }
 
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
+
     [JsonPropertyName("ImplementedInterfaces")]
     public List<AtsDumpTypeRef> ImplementedInterfaces { get; init; } = [];
 
@@ -161,6 +194,12 @@ internal sealed class AtsDumpDtoType
     [JsonPropertyName("Name")]
     public required string Name { get; init; }
 
+    [JsonPropertyName("Description")]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
+
     [JsonPropertyName("Properties")]
     public List<AtsDumpDtoProperty> Properties { get; init; } = [];
 }
@@ -175,6 +214,12 @@ internal sealed class AtsDumpDtoProperty
 
     [JsonPropertyName("IsOptional")]
     public bool IsOptional { get; init; }
+
+    [JsonPropertyName("Description")]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
 }
 
 internal sealed class AtsDumpEnumType
@@ -185,8 +230,23 @@ internal sealed class AtsDumpEnumType
     [JsonPropertyName("Name")]
     public required string Name { get; init; }
 
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
+
     [JsonPropertyName("Values")]
     public List<string> Values { get; init; } = [];
+
+    [JsonPropertyName("ValueInfos")]
+    public List<AtsDumpEnumValueInfo> ValueInfos { get; init; } = [];
+}
+
+internal sealed class AtsDumpEnumValueInfo
+{
+    [JsonPropertyName("Name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("Documentation")]
+    public AtsDumpDocumentation? Documentation { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -244,7 +304,16 @@ internal sealed class TsFunctionModel
     public required string QualifiedName { get; init; }
 
     [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
+
+    [JsonPropertyName("remarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Remarks { get; init; }
+
+    [JsonPropertyName("returns")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Returns { get; init; }
 
     [JsonPropertyName("kind")]
     public required string Kind { get; init; }
@@ -292,6 +361,10 @@ internal sealed class TsParameterModel
     [JsonPropertyName("callbackSignature")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CallbackSignature { get; init; }
+
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 }
 
 internal sealed class TsHandleTypeModel
@@ -314,6 +387,14 @@ internal sealed class TsHandleTypeModel
     [JsonPropertyName("exposeMethods")]
     public bool ExposeMethods { get; init; }
 
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("remarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Remarks { get; init; }
+
     [JsonPropertyName("implementedInterfaces")]
     public List<string> ImplementedInterfaces { get; init; } = [];
 
@@ -335,6 +416,14 @@ internal sealed class TsDtoTypeModel
     [JsonPropertyName("kind")]
     public string Kind => "dto";
 
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("remarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Remarks { get; init; }
+
     [JsonPropertyName("fields")]
     public List<TsDtoFieldModel> Fields { get; init; } = [];
 }
@@ -349,6 +438,10 @@ internal sealed class TsDtoFieldModel
 
     [JsonPropertyName("isOptional")]
     public bool IsOptional { get; init; }
+
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 }
 
 internal sealed class TsEnumTypeModel
@@ -362,6 +455,38 @@ internal sealed class TsEnumTypeModel
     [JsonPropertyName("kind")]
     public string Kind => "enum";
 
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("remarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Remarks { get; init; }
+
     [JsonPropertyName("members")]
     public List<string> Members { get; init; } = [];
+
+    /// <summary>
+    /// Per-member XML documentation. Only emitted when at least one member
+    /// has a non-empty description or remarks. Indexed by name to allow
+    /// consumers to correlate without breaking the legacy <see cref="Members"/>
+    /// string array.
+    /// </summary>
+    [JsonPropertyName("memberDocs")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<TsEnumMemberDocModel>? MemberDocs { get; init; }
+}
+
+internal sealed class TsEnumMemberDocModel
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+
+    [JsonPropertyName("remarks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Remarks { get; init; }
 }

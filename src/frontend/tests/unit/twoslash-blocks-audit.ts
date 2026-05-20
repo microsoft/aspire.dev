@@ -27,6 +27,7 @@ import {
   getTwoslashOptions,
   readAspireTypes,
 } from '../../config/twoslash.config.mjs';
+import { locales } from '../../config/locales.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FRONTEND_ROOT = resolve(__dirname, '..', '..');
@@ -230,16 +231,47 @@ export const KNOWN_TYPE_BUGS: ReadonlyArray<KnownTypeBug> = [
   },
 ];
 
+const NON_ROOT_LOCALE_PREFIXES = Object.keys(locales)
+  .filter((key) => key !== 'root')
+  // Ensure compound locale prefixes like `pt-br/` are checked before `pt/`.
+  .sort((a, b) => b.length - a.length);
+
+function stripLocalePrefix(page: string): string {
+  for (const locale of NON_ROOT_LOCALE_PREFIXES) {
+    const prefix = `${locale}/`;
+    if (page.startsWith(prefix)) {
+      return page.slice(prefix.length);
+    }
+  }
+  return page;
+}
+
+function getApplicableKnownBugs(page: string, blockIndex: number): KnownTypeBug[] {
+  const exact = KNOWN_TYPE_BUGS.filter(
+    (kb) => kb.page === page && kb.blockIndex === blockIndex
+  );
+  if (exact.length > 0) {
+    return exact;
+  }
+
+  const basePage = stripLocalePrefix(page);
+  if (basePage === page) {
+    return [];
+  }
+
+  return KNOWN_TYPE_BUGS.filter(
+    (kb) => kb.page === basePage && kb.blockIndex === blockIndex
+  );
+}
+
 /** Match a diagnostic against the allowlist. */
 export function findKnownBug(
   page: string,
   blockIndex: number,
   diagnostic: BlockDiagnostic
 ): KnownTypeBug | undefined {
-  return KNOWN_TYPE_BUGS.find(
+  return getApplicableKnownBugs(page, blockIndex).find(
     (kb) =>
-      kb.page === page &&
-      kb.blockIndex === blockIndex &&
       kb.code === diagnostic.code &&
       diagnostic.message.includes(kb.messageContains)
   );
@@ -264,13 +296,12 @@ export function filterUnexpectedDiagnostics(report: AuditReport): BlockResult[] 
     }
 
     const budget = new Map<KnownTypeBug, number>();
-    for (const kb of KNOWN_TYPE_BUGS) {
-      if (
-        kb.page === r.location.page &&
-        kb.blockIndex === r.location.blockIndex
-      ) {
-        budget.set(kb, kb.expectedOccurrences ?? 1);
-      }
+    const applicableKnownBugs = getApplicableKnownBugs(
+      r.location.page,
+      r.location.blockIndex
+    );
+    for (const kb of applicableKnownBugs) {
+      budget.set(kb, kb.expectedOccurrences ?? 1);
     }
 
     const unexpected: BlockDiagnostic[] = [];

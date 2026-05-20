@@ -14,12 +14,20 @@ export default defineConfig({
   // during dev mode. 60s gives `page.goto` enough headroom without masking
   // real regressions.
   timeout: 60_000,
+  // CI shards each viewport project across separate runners and stitches
+  // the per-shard `blob-report/` outputs into a single HTML report in a
+  // dedicated `report` job. We keep `github` (workflow annotations) and
+  // `junit` (XML for external tooling) on every shard so we don't lose
+  // them by sharding. The `html` reporter is intentionally omitted from
+  // CI: per-shard HTML reports would have to be discarded anyway, since
+  // `playwright merge-reports` regenerates a unified HTML report from
+  // the blob outputs.
   reporter: isCI
     ? [
+        ['blob'],
         ['github'],
         ['list'],
         ['junit', { outputFile: 'test-results/junit/results.xml' }],
-        ['html', { open: 'never', outputFolder: 'playwright-report' }],
       ]
     : [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   outputDir: 'test-results/artifacts',

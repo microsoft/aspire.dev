@@ -1,0 +1,291 @@
+---
+title: TypeScript AppHost プロジェクト構造
+description: TypeScript AppHost プロジェクトを構成するファイルと設定について学習します。
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import LearnMore from '@components/LearnMore.astro';
+
+`aspire new` または `aspire init --language typescript` で TypeScript AppHost を作成すると、CLI は以下の構造でプロジェクトをスキャフォルドします：
+
+<FileTree>
+
+- my-apphost/
+  - .modules/  生成された TypeScript SDK（編集しないでください）
+    - aspire.ts
+    - base.ts
+    - transport.ts
+  - apphost.ts  AppHost エントリポイント
+  - aspire.config.json  Aspire 設定
+  - package.json
+  - tsconfig.json
+
+</FileTree>
+
+## aspire.config.json
+
+`aspire.config.json` ファイルは AppHost にとって中核となる設定ファイルです。古い `.aspire/settings.json` と `apphost.run.json` ファイルに代わります。
+
+```json title="aspire.config.json"
+{
+  "appHost": {
+    "path": "apphost.ts",
+    "language": "typescript/nodejs"
+  },
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.3.0"
+  },
+  "profiles": {
+    "https": {
+      "applicationUrl": "https://localhost:17127;http://localhost:15118",
+      "environmentVariables": {
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21169",
+        "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22260"
+      }
+    }
+  }
+}
+```
+
+### 主要セクション
+
+| セクション | 説明 |
+|---------|-------------|
+| `appHost.path` | AppHost エントリポイント（`apphost.ts`）へのパス |
+| `appHost.language` | 言語ランタイム（`typescript/nodejs`） |
+| `packages` | ホスティング統合パッケージとそのバージョン。`aspire add` で自動的に追加されます。 |
+| `profiles` | ダッシュボード URL と環境変数を含むローンチプロファイル |
+
+### 統合の追加
+
+`aspire add` を実行すると、CLI はパッケージを `packages` セクションに追加し、TypeScript SDK を再生成します：
+
+```bash title="統合の追加"
+aspire add redis
+```
+
+これにより `aspire.config.json` が更新されます：
+
+```json title="aspire.config.json" ins={4}
+{
+  "packages": {
+    "Aspire.Hosting.JavaScript": "13.3.0",
+    "Aspire.Hosting.Redis": "13.3.0"
+  }
+}
+```
+
+### ローカル開発用のプロジェクト参照
+
+バージョンの代わりに `.csproj` パスを使用することで、ローカルホスティング統合プロジェクトを参照できます：
+
+```json title="aspire.config.json"
+{
+  "packages": {
+    "MyIntegration": "../src/MyIntegration/MyIntegration.csproj"
+  }
+}
+```
+
+<LearnMore>
+  詳細については、[マルチ言語統合](/ja/extensibility/multi-language-integration-authoring/)を参照してください。
+</LearnMore>
+
+## .modules/ ディレクトリ
+
+`.modules/` ディレクトリには、生成された TypeScript SDK が含まれます。Aspire CLI によって自動的に作成および更新されます。**これらのファイルは編集しないでください**。
+
+| ファイル | 目的 |
+|------|---------|
+| `aspire.ts` | インストール済みのすべての統合用に生成された型付け API |
+| `base.ts` | 基本型とハンドルインフラストラクチャ |
+| `transport.ts` | JSON-RPC トランスポート層 |
+
+SDK は以下の場合に再生成されます：
+
+- `aspire add` を実行して統合を追加または更新した場合
+- `aspire run` または `aspire start` を実行し、パッケージリストが変更されている場合
+- `aspire restore` を実行して手動で再生成した場合
+
+`apphost.ts` はこの SDK からインポートします：
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+```
+
+<Aside type="tip">
+`.modules/` を `.gitignore` に追加してください。生成されており、`aspire.config.json` からいつでも再作成できます。
+</Aside>
+
+## apphost.ts
+
+AppHost のエントリポイント。ここでアプリケーションのリソースとそれらの関係を定義します：
+
+```typescript title="apphost.ts" twoslash
+import { createBuilder } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+const cache = await builder.addRedis("cache");
+
+const api = await builder
+    .addNodeApp("api", "./api", "src/index.ts")
+    .withHttpEndpoint({ env: "PORT" })
+    .withReference(cache);
+
+await builder.build().run();
+```
+
+## パッケージマネージャー
+
+Aspire CLI はロックファイルと `package.json` の `packageManager` フィールドを調べることで、TypeScript AppHost が使用するパッケージマネージャーを自動的に検出します。以下のパッケージマネージャーがサポートされています：
+
+| パッケージマネージャー | 検出されるロックファイル | 注 |
+|---|---|---|
+| npm | `package-lock.json` | デフォルト。追加のセットアップは不要です |
+| pnpm | `pnpm-lock.yaml` | |
+| Yarn (v4+) | `yarn.lock` | Yarn 4 以降（Berry）である必要があります |
+| Bun | `bun.lock` / `bun.lockb` | |
+
+<Aside type="caution">
+**Yarn Classic (v1) はサポートされていません。** Aspire CLI が Yarn Classic ロックファイル（`# yarn lockfile v1`）または `package.json` の `"yarn@1.x"` などの `packageManager` フィールドを検出した場合、エラーをスローして停止します。Yarn 4 以降にアップグレードするか、npm、pnpm、または Bun に切り替えてください。
+
+Yarn 4 にアップグレードするには、以下を実行します：
+
+```bash
+corepack enable yarn
+corepack use yarn@stable
+```
+</Aside>
+
+## package.json
+
+スキャフォルドされた `package.json` は便利なスクリプトと必要な Node.js バージョンを含みます：
+
+```json title="package.json"
+{
+  "name": "my-apphost",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "aspire run",
+    "build": "tsc",
+    "lint": "eslint apphost.ts"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  }
+}
+```
+
+`dev` スクリプトは `npm run dev` で AppHost を起動することもできます（または、ツールチェーンと同等のもの、例えば `bun run dev` または `pnpm run dev`）。
+
+## パッケージマネージャー ツールチェーン
+
+Aspire CLI はプロジェクトが使用する Node 互換パッケージマネージャーを自動的に検出し、インストール コマンドと実行コマンドを調整します。以下のツールチェーンがサポートされています：**npm**（デフォルト）、**Bun**、**Yarn**、および **pnpm**。
+
+### ツールチェーン検出
+
+CLI は AppHost ディレクトリと親ディレクトリ（最大 8 レベル）を検査してツールチェーンを解決します。以下の順序で確認します：
+
+<Steps>
+
+1. `package.json` の `packageManager` フィールド（例：`"packageManager": "pnpm@9.0.0"`）。
+2. ロックファイル：`bun.lock` または `bun.lockb` → Bun、`pnpm-lock.yaml` → pnpm、`yarn.lock`、`.yarnrc.yml`、または `.yarn/` ディレクトリ → Yarn。
+3. 何も見つからない場合、npm がデフォルトとして使用されます。
+
+</Steps>
+
+検索は親ディレクトリを走査するため、ワークスペース レベルの `packageManager` 設定またはロックファイルはネストされた AppHost によって自動的に取得されます。
+
+### ツールチェーンの宣言
+
+ツールチェーンをピン留めするための推奨方法は、`package.json` の `packageManager` フィールドです。Aspire がツールチェーン検出に使用します。このフィールドは、Yarn や pnpm などのパッケージマネージャーの [Node.js Corepack](https://nodejs.org/api/corepack.html) でも使用されます：
+
+<Tabs syncKey="toolchain">
+<TabItem label="npm (デフォルト)" icon="npm">
+
+追加の設定は不要です。npm がデフォルトです。
+
+</TabItem>
+<TabItem label="pnpm" icon="pnpm">
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "pnpm@9.0.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
+
+</TabItem>
+<TabItem label="Yarn" icon="seti:yarn">
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "yarn@4.0.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
+
+</TabItem>
+<TabItem label="Bun"  icon="bun">
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "bun@1.1.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
+
+</TabItem>
+</Tabs>
+
+別の方法として、ツールチェーン固有のロックファイル（`pnpm-lock.yaml`、`yarn.lock`、`bun.lock` など）をコミットするだけで、検出に十分です。
+
+### ツールチェーン別のインストールおよび実行コマンド
+
+npm 以外のツールチェーンが検出されると、CLI は一致するコマンドを置き換えます：
+
+| ツールチェーン | インストールコマンド | 実行コマンド | ウォッチコマンド |
+|-----------|----------------|-----------------|---------------|
+| npm | `npm install` | `npx tsx ...` | `npx nodemon ...` |
+| pnpm | `pnpm install` | `pnpm exec tsx ...` | `pnpm exec nodemon ...` |
+| Yarn | `yarn install` | `yarn exec tsx ...` | `yarn exec nodemon ...` |
+| Bun | `bun install` | `bun run {appHostFile}` | `bun --watch run {appHostFile}` |
+
+:::note
+Bun には組み込み TypeScript サポートがあるため、`tsx` なしで `apphost.ts` を直接実行します。
+:::
+
+### aspire doctor チェック
+
+`aspire doctor` コマンドは、必要な JavaScript ツールチェーン実行可能ファイルが利用可能かどうかを確認します。Bun、Yarn、または pnpm が検出されているが、インストールされていない場合、コマンドはインストール ガイダンスでエラーを報告します。
+
+```bash title="Aspire CLI"
+aspire doctor
+```
+
+## スタートアップ前の TypeScript 検証
+
+TypeScript AppHost を開始する前に、Aspire CLI は `tsc --noEmit` を実行して型エラーをチェックし、ダッシュボードとリソースが部分的に壊れた状態で開始されるのを防ぎます。AppHost に TypeScript コンパイル エラーがある場合、`aspire run` と `aspire publish` は AppHost が起動する前に停止し、診断出力を表示します：
+
+```text
+apphost.ts(22,7): error TS2322: Type 'string' is not assignable to type 'number'.
+```
+
+### ウォッチモード動作
+
+ウォッチモードで `aspire run` を使用する場合、TypeScript 検証は nodemon 再起動コマンドに組み込まれます。ウォッチャーは、初期の型エラーがあっても**開始できます**。エラーを修正するファイルを編集して保存すると、自動的に回復します。
+
+## 関連項目
+
+- [最初のアプリをビルドする](/ja/get-started/first-app/?lang=typescript)
+- [AppHost の概要](/ja/get-started/app-host/)
+- [マルチ言語アーキテクチャ](/ja/architecture/multi-language-architecture/)
+- [aspire doctor コマンド](/ja/reference/cli/commands/aspire-doctor/)

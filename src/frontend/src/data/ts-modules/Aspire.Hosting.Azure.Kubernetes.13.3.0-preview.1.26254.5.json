@@ -10,13 +10,16 @@
       "name": "addAzureKubernetesEnvironment",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addAzureKubernetesEnvironment",
       "qualifiedName": "addAzureKubernetesEnvironment",
-      "description": "Adds an Azure Kubernetes Service environment resource",
+      "description": "Adds an Azure Kubernetes Service (AKS) environment to the distributed application. This provisions an AKS cluster and configures it as a Kubernetes compute environment.",
+      "remarks": "This method internally creates a Kubernetes environment for Helm-based deployment\nand provisions an AKS cluster via Azure Bicep. It combines the functionality of\n`AddKubernetesEnvironment` with Azure-specific provisioning.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addAzureKubernetesEnvironment(name: string): AzureKubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the AKS environment resource."
         }
       ],
       "returnType": "AzureKubernetesEnvironmentResource",
@@ -30,13 +33,15 @@
       "name": "addGateway",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addGateway",
       "qualifiedName": "addGateway",
-      "description": "Adds a Kubernetes Gateway API Gateway to an AKS environment",
+      "description": "Adds a Kubernetes Gateway API Gateway resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "addGateway(name: string): KubernetesGatewayResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the gateway resource."
         }
       ],
       "returnType": "KubernetesGatewayResource",
@@ -50,13 +55,16 @@
       "name": "addIngress",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addIngress",
       "qualifiedName": "addIngress",
-      "description": "Adds a Kubernetes Ingress resource to an AKS environment",
+      "description": "Adds a Kubernetes Ingress resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.",
+      "remarks": "This method delegates to the inner `KubernetesEnvironmentResource` of the AKS\nenvironment. To use an AKS-specific ingress controller (e.g., Azure Application Gateway\nfor Containers), call `WithIngressClass` with the\nappropriate class name.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "addIngress(name: string): KubernetesIngressResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the ingress resource."
         }
       ],
       "returnType": "KubernetesIngressResource",
@@ -70,31 +78,37 @@
       "name": "addNodePool",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addNodePool",
       "qualifiedName": "addNodePool",
-      "description": "Adds a node pool to the AKS cluster",
+      "description": "Adds a node pool to the AKS cluster.",
+      "remarks": "The returned node pool resource can be passed to\n`WithNodePool``1` on compute resources to schedule workloads on this pool.",
+      "returns": "A reference to the `IResourceBuilder`1` for the new node pool.",
       "kind": "Method",
       "signature": "addNodePool(name: string, vmSize?: string, minCount?: number, maxCount?: number): AksNodePoolResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the node pool."
         },
         {
           "name": "vmSize",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "Standard_D2s_v5"
+          "defaultValue": "Standard_D2s_v5",
+          "description": "The VM size for nodes. Defaults to `Standard_D2s_v5` if not specified."
         },
         {
           "name": "minCount",
           "type": "number",
           "isOptional": true,
-          "defaultValue": "1"
+          "defaultValue": "1",
+          "description": "The minimum node count for autoscaling. Defaults to 1."
         },
         {
           "name": "maxCount",
           "type": "number",
           "isOptional": true,
-          "defaultValue": "3"
+          "defaultValue": "3",
+          "description": "The maximum node count for autoscaling. Defaults to 3."
         }
       ],
       "returnType": "AksNodePoolResource",
@@ -108,13 +122,16 @@
       "name": "withContainerRegistry",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withContainerRegistry",
       "qualifiedName": "withContainerRegistry",
-      "description": "Configures the AKS environment to use a specific container registry",
+      "description": "Configures the AKS environment to use a specific Azure Container Registry for image storage. When set, this replaces the auto-created default container registry.",
+      "remarks": "If not called, a default Azure Container Registry is automatically created.\nThe registry endpoint is flowed to the inner Kubernetes environment so that\nHelm deployments can push and pull images.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withContainerRegistry(registry: AzureContainerRegistryResource): AzureKubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "registry",
-          "type": "AzureContainerRegistryResource"
+          "type": "AzureContainerRegistryResource",
+          "description": "The Azure Container Registry resource builder."
         }
       ],
       "returnType": "AzureKubernetesEnvironmentResource",
@@ -128,13 +145,15 @@
       "name": "withSubnet",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSubnet",
       "qualifiedName": "withSubnet",
-      "description": "Configures the AKS cluster to use a VNet subnet",
+      "description": "Configures the AKS cluster to use a VNet subnet for node pool networking. Unlike `WithDelegatedSubnet``1`, this does NOT add a service delegation to the subnet — AKS uses plain (non-delegated) subnets.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withSubnet(subnet: AzureSubnetResource): AzureKubernetesEnvironmentResource",
       "parameters": [
         {
           "name": "subnet",
-          "type": "AzureSubnetResource"
+          "type": "AzureSubnetResource",
+          "description": "The subnet to use for AKS node pools."
         }
       ],
       "returnType": "AzureKubernetesEnvironmentResource",
@@ -148,13 +167,15 @@
       "name": "withSubnet",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withNodePoolSubnet",
       "qualifiedName": "withSubnet",
-      "description": "Configures an AKS node pool to use a specific VNet subnet",
+      "description": "Configures a specific AKS node pool to use its own VNet subnet. When applied, this node pool's subnet overrides the environment-level subnet set via `WithSubnet`.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withSubnet(subnet: AzureSubnetResource): AksNodePoolResource",
       "parameters": [
         {
           "name": "subnet",
-          "type": "AzureSubnetResource"
+          "type": "AzureSubnetResource",
+          "description": "The subnet to use for this node pool."
         }
       ],
       "returnType": "AksNodePoolResource",
@@ -168,7 +189,9 @@
       "name": "withSystemNodePool",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSystemNodePool",
       "qualifiedName": "withSystemNodePool",
-      "description": "Replaces the default system node pool with a customized configuration",
+      "description": "Replaces the default system node pool with a customized configuration.",
+      "remarks": "Every AKS cluster requires exactly one system node pool for hosting system pods.\nBy default, the system pool uses `Standard_D2s_v5`. Use this method to change\nthe VM size when the default SKU is not available in your subscription or region.\nCalling this method multiple times replaces the previous system pool configuration.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withSystemNodePool(vmSize?: string, minCount?: number, maxCount?: number): AzureKubernetesEnvironmentResource",
       "parameters": [
@@ -176,19 +199,22 @@
           "name": "vmSize",
           "type": "string",
           "isOptional": true,
-          "defaultValue": "Standard_D2s_v5"
+          "defaultValue": "Standard_D2s_v5",
+          "description": "The VM size for system pool nodes. Defaults to `Standard_D2s_v5` if not specified."
         },
         {
           "name": "minCount",
           "type": "number",
           "isOptional": true,
-          "defaultValue": "1"
+          "defaultValue": "1",
+          "description": "The minimum node count for autoscaling. Defaults to 1."
         },
         {
           "name": "maxCount",
           "type": "number",
           "isOptional": true,
-          "defaultValue": "3"
+          "defaultValue": "3",
+          "description": "The maximum node count for autoscaling. Defaults to 3."
         }
       ],
       "returnType": "AzureKubernetesEnvironmentResource",
@@ -202,7 +228,9 @@
       "name": "withWorkloadIdentity",
       "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withWorkloadIdentity",
       "qualifiedName": "withWorkloadIdentity",
-      "description": "Enables workload identity on the AKS cluster",
+      "description": "Enables or disables workload identity on the AKS environment, allowing pods to authenticate to Azure services using federated credentials.",
+      "remarks": "This ensures the AKS cluster is configured with OIDC issuer and workload identity enabled.\nWorkload identity is automatically wired when compute resources have an `AppIdentityAnnotation`,\nwhich is added by `WithAzureUserAssignedIdentity` or auto-created by `AzureResourcePreparer`.",
+      "returns": "A reference to the `IResourceBuilder`1` for chaining.",
       "kind": "Method",
       "signature": "withWorkloadIdentity(enabled?: boolean): AzureKubernetesEnvironmentResource",
       "parameters": [
@@ -210,7 +238,8 @@
           "name": "enabled",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "True"
+          "defaultValue": "True",
+          "description": "`true` to enable workload identity (the default); `false` to disable it."
         }
       ],
       "returnType": "AzureKubernetesEnvironmentResource",
@@ -229,20 +258,22 @@
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource]]"
       ],
       "capabilities": [
         {
           "name": "withSubnet",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withNodePoolSubnet",
           "qualifiedName": "withSubnet",
-          "description": "Configures an AKS node pool to use a specific VNet subnet",
+          "description": "Configures a specific AKS node pool to use its own VNet subnet. When applied, this node pool's subnet overrides the environment-level subnet set via `WithSubnet`.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withSubnet(subnet: AzureSubnetResource): AksNodePoolResource",
           "parameters": [
             {
               "name": "subnet",
-              "type": "AzureSubnetResource"
+              "type": "AzureSubnetResource",
+              "description": "The subnet to use for this node pool."
             }
           ],
           "returnType": "AksNodePoolResource",
@@ -271,13 +302,15 @@
           "name": "addGateway",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addGateway",
           "qualifiedName": "addGateway",
-          "description": "Adds a Kubernetes Gateway API Gateway to an AKS environment",
+          "description": "Adds a Kubernetes Gateway API Gateway resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "addGateway(name: string): KubernetesGatewayResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the gateway resource."
             }
           ],
           "returnType": "KubernetesGatewayResource",
@@ -291,13 +324,16 @@
           "name": "addIngress",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addIngress",
           "qualifiedName": "addIngress",
-          "description": "Adds a Kubernetes Ingress resource to an AKS environment",
+          "description": "Adds a Kubernetes Ingress resource to the application model, associated with the inner Kubernetes environment of the specified AKS environment. The ingress generates a `networking.k8s.io/v1 Ingress` resource in the Helm chart output at publish time.",
+          "remarks": "This method delegates to the inner `KubernetesEnvironmentResource` of the AKS\nenvironment. To use an AKS-specific ingress controller (e.g., Azure Application Gateway\nfor Containers), call `WithIngressClass` with the\nappropriate class name.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "addIngress(name: string): KubernetesIngressResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the ingress resource."
             }
           ],
           "returnType": "KubernetesIngressResource",
@@ -311,31 +347,37 @@
           "name": "addNodePool",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/addNodePool",
           "qualifiedName": "addNodePool",
-          "description": "Adds a node pool to the AKS cluster",
+          "description": "Adds a node pool to the AKS cluster.",
+          "remarks": "The returned node pool resource can be passed to\n`WithNodePool``1` on compute resources to schedule workloads on this pool.",
+          "returns": "A reference to the `IResourceBuilder`1` for the new node pool.",
           "kind": "Method",
           "signature": "addNodePool(name: string, vmSize?: string, minCount?: number, maxCount?: number): AksNodePoolResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the node pool."
             },
             {
               "name": "vmSize",
               "type": "string",
               "isOptional": true,
-              "defaultValue": "Standard_D2s_v5"
+              "defaultValue": "Standard_D2s_v5",
+              "description": "The VM size for nodes. Defaults to `Standard_D2s_v5` if not specified."
             },
             {
               "name": "minCount",
               "type": "number",
               "isOptional": true,
-              "defaultValue": "1"
+              "defaultValue": "1",
+              "description": "The minimum node count for autoscaling. Defaults to 1."
             },
             {
               "name": "maxCount",
               "type": "number",
               "isOptional": true,
-              "defaultValue": "3"
+              "defaultValue": "3",
+              "description": "The maximum node count for autoscaling. Defaults to 3."
             }
           ],
           "returnType": "AksNodePoolResource",
@@ -349,13 +391,16 @@
           "name": "withContainerRegistry",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withContainerRegistry",
           "qualifiedName": "withContainerRegistry",
-          "description": "Configures the AKS environment to use a specific container registry",
+          "description": "Configures the AKS environment to use a specific Azure Container Registry for image storage. When set, this replaces the auto-created default container registry.",
+          "remarks": "If not called, a default Azure Container Registry is automatically created.\nThe registry endpoint is flowed to the inner Kubernetes environment so that\nHelm deployments can push and pull images.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withContainerRegistry(registry: AzureContainerRegistryResource): AzureKubernetesEnvironmentResource",
           "parameters": [
             {
               "name": "registry",
-              "type": "AzureContainerRegistryResource"
+              "type": "AzureContainerRegistryResource",
+              "description": "The Azure Container Registry resource builder."
             }
           ],
           "returnType": "AzureKubernetesEnvironmentResource",
@@ -369,13 +414,15 @@
           "name": "withSubnet",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSubnet",
           "qualifiedName": "withSubnet",
-          "description": "Configures the AKS cluster to use a VNet subnet",
+          "description": "Configures the AKS cluster to use a VNet subnet for node pool networking. Unlike `WithDelegatedSubnet``1`, this does NOT add a service delegation to the subnet — AKS uses plain (non-delegated) subnets.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withSubnet(subnet: AzureSubnetResource): AzureKubernetesEnvironmentResource",
           "parameters": [
             {
               "name": "subnet",
-              "type": "AzureSubnetResource"
+              "type": "AzureSubnetResource",
+              "description": "The subnet to use for AKS node pools."
             }
           ],
           "returnType": "AzureKubernetesEnvironmentResource",
@@ -389,7 +436,9 @@
           "name": "withSystemNodePool",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withSystemNodePool",
           "qualifiedName": "withSystemNodePool",
-          "description": "Replaces the default system node pool with a customized configuration",
+          "description": "Replaces the default system node pool with a customized configuration.",
+          "remarks": "Every AKS cluster requires exactly one system node pool for hosting system pods.\nBy default, the system pool uses `Standard_D2s_v5`. Use this method to change\nthe VM size when the default SKU is not available in your subscription or region.\nCalling this method multiple times replaces the previous system pool configuration.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withSystemNodePool(vmSize?: string, minCount?: number, maxCount?: number): AzureKubernetesEnvironmentResource",
           "parameters": [
@@ -397,19 +446,22 @@
               "name": "vmSize",
               "type": "string",
               "isOptional": true,
-              "defaultValue": "Standard_D2s_v5"
+              "defaultValue": "Standard_D2s_v5",
+              "description": "The VM size for system pool nodes. Defaults to `Standard_D2s_v5` if not specified."
             },
             {
               "name": "minCount",
               "type": "number",
               "isOptional": true,
-              "defaultValue": "1"
+              "defaultValue": "1",
+              "description": "The minimum node count for autoscaling. Defaults to 1."
             },
             {
               "name": "maxCount",
               "type": "number",
               "isOptional": true,
-              "defaultValue": "3"
+              "defaultValue": "3",
+              "description": "The maximum node count for autoscaling. Defaults to 3."
             }
           ],
           "returnType": "AzureKubernetesEnvironmentResource",
@@ -423,7 +475,9 @@
           "name": "withWorkloadIdentity",
           "capabilityId": "Aspire.Hosting.Azure.Kubernetes/withWorkloadIdentity",
           "qualifiedName": "withWorkloadIdentity",
-          "description": "Enables workload identity on the AKS cluster",
+          "description": "Enables or disables workload identity on the AKS environment, allowing pods to authenticate to Azure services using federated credentials.",
+          "remarks": "This ensures the AKS cluster is configured with OIDC issuer and workload identity enabled.\nWorkload identity is automatically wired when compute resources have an `AppIdentityAnnotation`,\nwhich is added by `WithAzureUserAssignedIdentity` or auto-created by `AzureResourcePreparer`.",
+          "returns": "A reference to the `IResourceBuilder`1` for chaining.",
           "kind": "Method",
           "signature": "withWorkloadIdentity(enabled?: boolean): AzureKubernetesEnvironmentResource",
           "parameters": [
@@ -431,7 +485,8 @@
               "name": "enabled",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "True"
+              "defaultValue": "True",
+              "description": "`true` to enable workload identity (the default); `false` to disable it."
             }
           ],
           "returnType": "AzureKubernetesEnvironmentResource",

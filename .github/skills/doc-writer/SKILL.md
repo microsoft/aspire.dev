@@ -73,7 +73,35 @@ description: A brief summary of the page content (required for SEO)
 Optional frontmatter fields:
 
 - `next: false` - Disable "Next page" link for terminal pages
+- `seoTitle` - Override the page's `og:title` / `twitter:title` only,
+  without touching the visible H1 or sidebar label. Use this **only**
+  when the natural H1 must stay short (commands, terse labels). When
+  set, the value is emitted verbatim — no `· Aspire` suffix is appended.
 - Custom metadata as needed by Starlight theme
+
+#### SEO length targets
+
+The site uses Open Graph metadata to render social cards and feed SEO
+tooling. To keep previews scannable on every social network and to
+avoid the "title too short / description too long" lints that surface
+on Yoast, LinkedIn, and the search-console reports, follow these
+length targets when authoring frontmatter:
+
+| Field         | Composed length target | Hard limit |
+| ------------- | ---------------------: | ---------: |
+| `title`       | 41-51 characters       | 70 characters |
+| `seoTitle`    | 50-60 characters       | 70 characters |
+| `description` | 110-160 characters     | 200 characters (auto-truncated) |
+
+`title` becomes `og:title` composed as `${title} · Aspire`, so the
+target window leaves room for the 9-character suffix. `seoTitle`
+overrides the composition outright — write the full string yourself.
+
+Surface keywords from the article body itself in the description
+(verbs, integration names, API surfaces). The CI guard at
+`tests/unit/seo-lengths.vitest.test.ts` fails when any English page
+strays outside the wider 30-65 / 80-200 character guard ranges, so a
+draft can land slightly off-target and tighten in follow-ups.
 
 ### Required Imports
 

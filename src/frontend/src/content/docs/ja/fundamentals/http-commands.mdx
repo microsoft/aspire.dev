@@ -1,0 +1,255 @@
+---
+title: カスタム HTTP コマンド
+description: Aspire でカスタム HTTP コマンドを作成する方法を学びます。
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import LearnMore from '@components/LearnMore.astro';
+import customHttpCommandHighlighted from '@assets/fundamentals/custom-http-command-highlighted.png';
+import customHttpCommand from '@assets/fundamentals/custom-http-command.png';
+import customHttpCommandStarting from '@assets/fundamentals/custom-http-command-starting.png';
+import customHttpCommandSucceeded from '@assets/fundamentals/custom-http-command-succeeded.png';
+
+Aspire では、`WithHttpCommand` API を使ってリソースにカスタム HTTP コマンドを追加できます。この API は、[リソースのカスタム コマンド](/ja/fundamentals/custom-resource-commands/) を提供する既存機能を拡張するものです。この機能により、指定したエンドポイントとパスへ HTTP 要求を送るコマンドをリソース上に定義できます。これは、データベース移行のトリガー、キャッシュのクリア、HTTP 要求を介したリソースへのカスタム操作などのシナリオで役立ちます。
+
+カスタム HTTP コマンドを実装するには、リソース上のコマンドと、その要求を処理する対応 HTTP エンドポイントを定義します。この記事では、Aspire でカスタム HTTP コマンドを作成して構成する方法の概要を説明します。
+
+## HTTP コマンド API
+
+利用できる API には、HTTP コマンドをカスタマイズするための多くのパラメーターがあり、幅広い機能を提供します。リソースに HTTP コマンドを追加するには、リソース ビルダー上の `WithHttpCommand` 拡張メソッドを使います。利用可能なオーバーロードは 2 つあります。
+
+`WithHttpCommand` API は、Aspire のリソースにカスタム HTTP コマンドを追加するために 2 つのオーバーロードを提供します。これらの API は柔軟性を重視して設計されており、HTTP コマンドを定義する際の異なるユース ケースに対応します。
+
+1. **`endpointName` 付きオーバーロード:**
+
+   このバージョンは、HTTP コマンドの対象にするエンドポイント名があらかじめ決まっている場合に適しています。特定のエンドポイントへコマンドを直接関連付けることで、構成を簡素化できます。これは、開発時点でエンドポイントが固定されていて既知であるシナリオで有用です。
+
+1. **`endpointSelector` 付きオーバーロード:**
+
+   このバージョンは、実行時にエンドポイントを決定するコールバック（`endpointSelector`）を指定できるため、より動的な動作を提供します。エンドポイントがリソースの状態やその他のコンテキスト要因に応じて変わる可能性がある場合に有効です。エンドポイントをハードコードできない高度なシナリオに対して、より高い柔軟性を提供します。
+
+どちらのオーバーロードでも HTTP コマンドを幅広くカスタマイズでき、`CommandOptions` 型のサブクラスである `HttpCommandOptions` を通じて、HTTP メソッドの指定、要求の構成、応答の処理、表示名・説明・アイコンといった UI 関連プロパティの定義が行えます。どちらを選ぶかは、ユース ケースにおいてエンドポイントが静的か動的かで決まります。
+
+これらの API は Aspire エコシステムへシームレスに統合されるよう設計されており、動作と表示を制御しながら最小限の労力でリソース機能を拡張できます。
+
+## HTTP コマンドを登録する際の考慮事項
+
+HTTP コマンドは HTTP エンドポイント経由で公開されるため、潜在的なセキュリティ リスクを考慮してください。可能であれば、これらのエンドポイントは開発環境またはステージング環境に限定します。受信要求が信頼できる送信元から来ていることを必ず検証してください。詳細は、[ASP.NET Core セキュリティ](https://learn.microsoft.com/ja-jp/aspnet/core/security) を参照してください。
+
+`HttpCommandOptions.PrepareRequest` コールバックを使うと、認証ヘッダーの追加などによってセキュリティを強化できます。一般的なアプローチは、AppHost とリソースだけが知っている共有シークレット、[外部パラメーター](/ja/fundamentals/external-parameters/)、またはトークンを使うことです。この共有値を使えば、要求を検証して未承認アクセスを防止できます。
+
+## カスタム HTTP コマンドを追加する
+
+_AppHost.cs_ ファイルでは、`T` が `IResourceWithEndpoints` である `IResourceBuilder<T>` に対して `WithHttpCommand` API を使い、カスタム HTTP コマンドを追加します。方法の例を次に示します。
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+var cache = builder.AddRedis("cache");
+
+var apiCacheInvalidationKey = builder.AddParameter("ApiCacheInvalidationKey", secret: true);
+
+var api = builder.AddProject<Projects.AspireApp_Api>("api")
+    .WithReference(cache)
+    .WaitFor(cache)
+    .WithEnvironment("ApiCacheInvalidationKey", apiCacheInvalidationKey)
+    .WithHttpCommand(
+        path: "/cache/invalidate",
+        displayName: "Invalidate cache",
+        commandOptions: new HttpCommandOptions()
+        {
+            Description = """
+                Invalidates the API cache. All cached values are cleared!
+                """,
+            PrepareRequest = (context) =>
+            {
+                var key = apiCacheInvalidationKey.Resource.GetValueAsync(context.CancellationToken);
+                context.Request.Headers.Add("X-CacheInvalidation-Key", $"Key: {key}");
+                return Task.CompletedTask;
+            },
+            IconName = "DocumentLightning",
+            IsHighlighted = true
+        });
+
+builder.Build().Run();
+```
+
+前述のコード:
+
+- 新しい分散アプリケーション ビルダーを作成します。
+- `cache` という名前の Redis キャッシュをアプリケーションに追加します。
+- `ApiCacheInvalidationKey` という名前のパラメーターをアプリケーションに追加します。このパラメーターはシークレットとしてマークされるため、その値は安全に扱われます。
+- `AspireApp_Api` という名前のプロジェクトをアプリケーションに追加します。
+- Redis キャッシュへの参照を追加し、準備完了まで待機してから処理を進めます。
+- 次の内容で、プロジェクト向け HTTP コマンドを構成します:
+  - `path`: HTTP コマンドの URL パス（`/cache/invalidate`）を指定します。
+  - `displayName`: UI に表示されるコマンド名（`Invalidate cache`）を設定します。
+  - `commandOptions`: UI 上でのコマンド動作と外観を構成する `HttpCommandOptions` の省略可能インスタンスです:
+    - `Description`: UI に表示されるコマンド説明を提供します。
+    - `PrepareRequest`: 送信前に HTTP 要求を構成するコールバック関数です。この場合は、`ApiCacheInvalidationKey` パラメーターの値を使ってカスタム ヘッダー（`X-CacheInvalidation-Key`）を追加します。
+    - `ResultMode`: 応答本文をコマンド結果データとして返すかどうかを指定します。詳細は、[HTTP 応答本文を返す](#http-応答本文を返す) を参照してください。
+    - `IconName`: UI のコマンドに使用するアイコン（`DocumentLightning`）を指定します。
+    - `IsHighlighted`: UI でコマンドを強調表示するかどうかを示します。
+- 最後に、アプリケーションをビルドして実行します。
+
+<LearnMore>
+  独自アイコンを探すには、[Fluent UI: Icons
+  catalog](https://storybooks.fluentui.dev/react/?path=/docs/icons-catalog--docs) を参照してください。
+</LearnMore>
+
+HTTP エンドポイントは、キャッシュの無効化を担当します。コマンドが実行されると、構成済みパラメーターと共に指定パス（`/cache/invalidate`）へ HTTP 要求が送信されます。追加のセキュリティ対策があるため、要求には `ApiCacheInvalidationKey` パラメーターの値を持つ `X-CacheInvalidation-Key` ヘッダーが含まれます。これにより、承認された要求のみがキャッシュ無効化処理をトリガーできます。
+
+### HTTP エンドポイントの例
+
+前述の AppHost コード スニペットでは、`/cache/invalidate` エンドポイントに要求を送信するカスタム HTTP コマンドを定義しました。ASP.NET Core 最小 API プロジェクトは、キャッシュ無効化要求を処理する HTTP エンドポイントを定義します。プロジェクトの _Program.cs_ ファイルから次のコード スニペットを確認してください。
+
+```csharp title="Program.cs"
+app.MapPost("/cache/invalidate", static async (
+    [FromHeader(Name = "X-CacheInvalidation-Key")] string? header,
+    ICacheService registry,
+    IConfiguration config) =>
+{
+    var hasValidHeader = config.GetValue<string>("ApiCacheInvalidationKey") is { } key
+        && header == $"Key: {key}";
+
+    if (hasValidHeader is false)
+    {
+        return Results.Unauthorized();
+    }
+
+    await registry.ClearAllAsync();
+
+    return Results.Ok();
+});
+```
+
+前述のコード:
+
+- `app` 変数が `IApplicationBuilder` のインスタンスであり、HTTP 要求を処理するよう構成済みであることを前提にしています。
+- パス `/cache/invalidate` に HTTP POST エンドポイントをマップします。
+- このエンドポイントは、要求に `X-CacheInvalidation-Key` という名前のヘッダーが含まれることを想定します。
+- 構成から `ApiCacheInvalidationKey` パラメーターの値を取得します。
+- ヘッダー値が期待されるキーと一致しない場合は、未承認応答を返します。
+- ヘッダーが有効な場合は、`ICacheService` の `ClearAllAsync` メソッドを呼び出して、すべてのキャッシュ項目をクリアします。
+- 最後に、HTTP OK 応答を返します。
+
+## HTTP 応答本文を返す
+
+既定では、HTTP コマンドは HTTP ステータス コードを使って成功可否を判定し、応答本文をコマンド結果データとして返しません。`HttpCommandOptions.ResultMode` を設定すると、エンドポイントから空でない応答本文を返す動作にオプトインできます。本文は、[カスタム リソース コマンドからの構造化出力](/ja/fundamentals/custom-resource-commands/#コマンドから構造化出力を返す) と同様に、コマンドの構造化出力として表示されます。
+
+次の例では、JSON 応答本文を返す HTTP コマンドを構成します。
+
+<Tabs syncKey='aspire-lang'>
+<TabItem id='csharp' label='C#'>
+
+```csharp title="AppHost.cs"
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder.AddProject<Projects.Api>("api")
+    .WithHttpCommand(
+        path: "/admin/sync",
+        displayName: "Sync now",
+        commandOptions: new HttpCommandOptions
+        {
+            Method = HttpMethod.Post,
+            ResultMode = HttpCommandResultMode.Auto
+        });
+
+builder.Build().Run();
+```
+
+</TabItem>
+<TabItem id='typescript' label='TypeScript'>
+
+```typescript title="apphost.ts"
+import { createBuilder, HttpCommandResultMode } from './.modules/aspire.js';
+
+const builder = await createBuilder();
+
+await builder
+  .addNodeApp('api', './api', 'src/index.ts')
+  .withHttpCommand('/admin/sync', 'Sync now', {
+    methodName: 'POST',
+    resultMode: HttpCommandResultMode.Auto,
+  });
+
+await builder.build().run();
+```
+
+</TabItem>
+</Tabs>
+
+エンドポイントは、コマンド呼び出し元に表示すべきペイロードを返せます。たとえば、C# 最小 API エンドポイントでは `MapPost` を使えます。
+
+```csharp title="Program.cs"
+app.MapPost("/admin/sync", () =>
+{
+    return Results.Json(new
+    {
+        status = "Completed",
+        itemsProcessed = 42
+    });
+});
+```
+
+TypeScript AppHost サンプルで登録した Node.js アプリも、Express エンドポイントから同じペイロードを返せます。
+
+```typescript title="src/index.ts"
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.post('/admin/sync', (_req, res) => {
+  res.json({
+    status: 'Completed',
+    itemsProcessed: 42,
+  });
+});
+
+app.listen(port, () => {
+  console.log(`API listening on port ${port}`);
+});
+```
+
+`HttpCommandResultMode` は、既定の HTTP コマンド結果ハンドラーが応答本文をどのように解釈するかを制御します。
+
+| 結果モード | 動作                                                                                                                                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `None`      | 既定値です。応答本文はコマンド結果データとして取り込まれません。                                                                                                                                                                                                                                         |
+| `Auto`      | 応答の `Content-Type` から結果形式を推論します。`application/json` や `application/*+json` などの JSON コンテンツ タイプは JSON として返されます。`text/*`、XML、`application/x-www-form-urlencoded` などのテキスト系コンテンツ タイプはテキストとして返されます。その他のコンテンツ タイプは取り込まれません。 |
+| `Json`      | 応答の `Content-Type` に関係なく、応答本文を JSON コマンド結果データとして返します。                                                                                                                                                                                                             |
+| `Text`      | 応答の `Content-Type` に関係なく、応答本文をプレーン テキストのコマンド結果データとして返します。                                                                                                                                                                                                       |
+
+エンドポイントが非成功ステータス コードを返した場合、コマンドは失敗します。`ResultMode` が応答本文を取り込む設定の場合、その本文は失敗結果に添付されるため、呼び出し側はエラー詳細を確認できます。`ResultMode` は `HttpCommandOptions.GetCommandResult` が設定されていない場合にのみ使われます。`GetCommandResult` を指定すると、そのコールバックがコマンドの成功可否、メッセージ、結果データを制御します。
+
+### ダッシュボードでの表示例
+
+サンプル AppHost と対応する ASP.NET Core 最小 API プロジェクトは、HTTP コマンド実装の両側面を示しています。AppHost を実行すると、ダッシュボードの **Resources** ページにカスタム HTTP コマンドがボタンとして表示されます。コマンドを強調表示（`isHighlighted: true`）するよう指定した場合、このボタンは **Resources** ページの **Actions** 列に表示されます。これにより、次のスクリーンショットのように、ユーザーはダッシュボードから簡単にコマンドを実行できます。
+
+<Image
+  src={customHttpCommandHighlighted}
+  alt="Aspire ダッシュボード: 強調表示されたカスタム HTTP コマンドが表示された Resources ページ。"
+/>
+
+`isHighlighted` パラメーターを省略するか `false` に設定すると、コマンドは **Resources** ページの **Actions** 列にある横並び省略記号メニュー（三点メニュー）の下にネストされて表示されます。これにより、UI にボタンが多くなり過ぎることなくコマンドへアクセスできます。次のスクリーンショットは、同じコマンドが省略記号メニューに表示される様子を示しています。
+
+<Image
+  src={customHttpCommand}
+  alt="Aspire ダッシュボード: 省略記号メニュー内にカスタム HTTP コマンドが表示された Resources ページ。"
+/>
+
+ユーザーがボタンを選択すると、コマンドが実行され、HTTP 要求が指定エンドポイントへ送信されます。ダッシュボードはコマンド実行状態のフィードバックを提供し、ユーザーが結果を監視できるようにします。開始時には、トースト通知が表示されます。
+
+<Image
+  src={customHttpCommandStarting}
+  alt="Aspire ダッシュボード: カスタム HTTP コマンドの開始を示すトースト通知。"
+/>
+
+コマンドが完了すると、ダッシュボードは状態を更新し、成功したか失敗したかのフィードバックを提供します。次のスクリーンショットは、コマンドの成功実行を示しています。
+
+<Image
+  src={customHttpCommandSucceeded}
+  alt="Aspire ダッシュボード: カスタム HTTP コマンドが成功したことを示すトースト通知。"
+/>

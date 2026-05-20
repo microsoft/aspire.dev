@@ -10,18 +10,22 @@
       "name": "addDatabase",
       "capabilityId": "Aspire.Hosting.SqlServer/addDatabase",
       "qualifiedName": "addDatabase",
-      "description": "Adds a SQL Server database resource",
+      "description": "Adds a SQL Server database to the application model. This is a child resource of a `SqlServerServerResource`.",
+      "remarks": "When adding a `SqlServerDatabaseResource` to your application model the resource can then\nbe referenced by other resources using the resource name. When the dependent resource is using\nthe extension method `WaitFor``1`\nthen the dependent resource will wait until the SQL Server database is available.\nNote that calling `AddDatabase`\nwill result in the database being created on the SQL Server when the server becomes ready.\nThe database creation happens automatically as part of the resource lifecycle.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addDatabase(name: string, databaseName?: string): SqlServerDatabaseResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         },
         {
           "name": "databaseName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the database. If not provided, this defaults to the same value as `name`."
         }
       ],
       "returnType": "SqlServerDatabaseResource",
@@ -35,24 +39,29 @@
       "name": "addSqlServer",
       "capabilityId": "Aspire.Hosting.SqlServer/addSqlServer",
       "qualifiedName": "addSqlServer",
-      "description": "Adds a SQL Server container resource",
+      "description": "Adds a SQL Server resource to the application model. A container is used for local development.",
+      "remarks": "This version of the package defaults to the tag of the / container image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addSqlServer(name: string, password?: ParameterResource, port?: number): SqlServerServerResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         },
         {
           "name": "password",
           "type": "ParameterResource",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The parameter used to provide the administrator password for the SQL Server resource. If `null` a random password will be generated."
         },
         {
           "name": "port",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "The host port for the SQL Server."
         }
       ],
       "returnType": "SqlServerServerResource",
@@ -66,7 +75,7 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.connectionStringExpression",
       "qualifiedName": "SqlServerDatabaseResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the SQL Server database.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -80,7 +89,7 @@
       "name": "databaseName",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.databaseName",
       "qualifiedName": "SqlServerDatabaseResource.databaseName",
-      "description": "Gets the DatabaseName property",
+      "description": "Gets the database name.",
       "kind": "PropertyGetter",
       "signature": "databaseName(): string",
       "parameters": [],
@@ -94,7 +103,8 @@
       "name": "jdbcConnectionString",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.jdbcConnectionString",
       "qualifiedName": "SqlServerDatabaseResource.jdbcConnectionString",
-      "description": "Gets the JdbcConnectionString property",
+      "description": "Gets the JDBC connection string for the SQL Server database.",
+      "remarks": "Format: `jdbc:sqlserver://{host}:{port};trustServerCertificate=true;databaseName={database}`.\nUser and password credentials are not included in the JDBC connection string. Use the `Username` and `Password` connection properties to access credentials.",
       "kind": "PropertyGetter",
       "signature": "jdbcConnectionString(): ReferenceExpression",
       "parameters": [],
@@ -108,7 +118,7 @@
       "name": "parent",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.parent",
       "qualifiedName": "SqlServerDatabaseResource.parent",
-      "description": "Gets the Parent property",
+      "description": "Gets the parent SQL Server container resource.",
       "kind": "PropertyGetter",
       "signature": "parent(): SqlServerServerResource",
       "parameters": [],
@@ -122,7 +132,8 @@
       "name": "uriExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.uriExpression",
       "qualifiedName": "SqlServerDatabaseResource.uriExpression",
-      "description": "Gets the UriExpression property",
+      "description": "Gets the connection URI expression for the SQL Server database.",
+      "remarks": "Format: `mssql://{Username}:{Password}@{Host}:{Port}`.",
       "kind": "PropertyGetter",
       "signature": "uriExpression(): ReferenceExpression",
       "parameters": [],
@@ -136,7 +147,7 @@
       "name": "connectionStringExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.connectionStringExpression",
       "qualifiedName": "SqlServerServerResource.connectionStringExpression",
-      "description": "Gets the ConnectionStringExpression property",
+      "description": "Gets the connection string expression for the SQL Server.",
       "kind": "PropertyGetter",
       "signature": "connectionStringExpression(): ReferenceExpression",
       "parameters": [],
@@ -150,11 +161,11 @@
       "name": "databases",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.databases",
       "qualifiedName": "SqlServerServerResource.databases",
-      "description": "Gets the Databases property",
+      "description": "A dictionary where the key is the resource name and the value is the database name.",
       "kind": "PropertyGetter",
-      "signature": "databases(): Dict\u003Cstring,string\u003E",
+      "signature": "databases(): Dict<string,string>",
       "parameters": [],
-      "returnType": "Dict\u003Cstring,string\u003E",
+      "returnType": "Dict<string,string>",
       "targetTypeId": "Aspire.Hosting.SqlServer/Aspire.Hosting.ApplicationModel.SqlServerServerResource",
       "expandedTargetTypes": [
         "Aspire.Hosting.ApplicationModel.SqlServerServerResource"
@@ -164,7 +175,7 @@
       "name": "host",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.host",
       "qualifiedName": "SqlServerServerResource.host",
-      "description": "Gets the Host property",
+      "description": "Gets the host endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "host(): EndpointReferenceExpression",
       "parameters": [],
@@ -178,7 +189,8 @@
       "name": "jdbcConnectionString",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.jdbcConnectionString",
       "qualifiedName": "SqlServerServerResource.jdbcConnectionString",
-      "description": "Gets the JdbcConnectionString property",
+      "description": "Gets the JDBC connection string for the SQL Server.",
+      "remarks": "Format: `jdbc:sqlserver://{host}:{port};trustServerCertificate=true`.\nUser and password credentials are not included in the JDBC connection string. Use the `Username` and `Password` connection properties to access credentials.",
       "kind": "PropertyGetter",
       "signature": "jdbcConnectionString(): ReferenceExpression",
       "parameters": [],
@@ -192,7 +204,7 @@
       "name": "passwordParameter",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.passwordParameter",
       "qualifiedName": "SqlServerServerResource.passwordParameter",
-      "description": "Gets the PasswordParameter property",
+      "description": "Gets the parameter that contains the SQL Server password.",
       "kind": "PropertyGetter",
       "signature": "passwordParameter(): ParameterResource",
       "parameters": [],
@@ -206,7 +218,7 @@
       "name": "port",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.port",
       "qualifiedName": "SqlServerServerResource.port",
-      "description": "Gets the Port property",
+      "description": "Gets the port endpoint reference for this resource.",
       "kind": "PropertyGetter",
       "signature": "port(): EndpointReferenceExpression",
       "parameters": [],
@@ -220,7 +232,7 @@
       "name": "primaryEndpoint",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.primaryEndpoint",
       "qualifiedName": "SqlServerServerResource.primaryEndpoint",
-      "description": "Gets the PrimaryEndpoint property",
+      "description": "Gets the primary endpoint for the SQL Server.",
       "kind": "PropertyGetter",
       "signature": "primaryEndpoint(): EndpointReference",
       "parameters": [],
@@ -234,7 +246,7 @@
       "name": "setPasswordParameter",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.setPasswordParameter",
       "qualifiedName": "SqlServerServerResource.setPasswordParameter",
-      "description": "Sets the PasswordParameter property",
+      "description": "Gets the parameter that contains the SQL Server password.",
       "kind": "PropertySetter",
       "signature": "setPasswordParameter(value: ParameterResource): SqlServerServerResource",
       "parameters": [
@@ -253,7 +265,8 @@
       "name": "uriExpression",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.uriExpression",
       "qualifiedName": "SqlServerServerResource.uriExpression",
-      "description": "Gets the UriExpression property",
+      "description": "Gets the connection URI expression for the SQL Server.",
+      "remarks": "Format: `mssql://{Username}:{Password}@{Host}:{Port}`.",
       "kind": "PropertyGetter",
       "signature": "uriExpression(): ReferenceExpression",
       "parameters": [],
@@ -267,7 +280,8 @@
       "name": "userNameReference",
       "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.userNameReference",
       "qualifiedName": "SqlServerServerResource.userNameReference",
-      "description": "Gets the UserNameReference property",
+      "description": "Gets a reference to the user name for the SQL Server.",
+      "remarks": "Returns the user name parameter if specified, otherwise returns the default user name \"sa\".",
       "kind": "PropertyGetter",
       "signature": "userNameReference(): ReferenceExpression",
       "parameters": [],
@@ -281,13 +295,16 @@
       "name": "withCreationScript",
       "capabilityId": "Aspire.Hosting.SqlServer/withCreationScript",
       "qualifiedName": "withCreationScript",
-      "description": "Defines the SQL script used to create the database",
+      "description": "Defines the SQL script used to create the database.",
+      "remarks": "Default script is\n```\nIF ( NOT EXISTS ( SELECT 1 FROM sys.databases WHERE name = @DatabaseName ) ) CREATE DATABASE [<QUOTED_DATABASE_NAME%gt;];\n```",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withCreationScript(script: string): SqlServerDatabaseResource",
       "parameters": [
         {
           "name": "script",
-          "type": "string"
+          "type": "string",
+          "description": "The SQL script used to create the database."
         }
       ],
       "returnType": "SqlServerDatabaseResource",
@@ -301,19 +318,23 @@
       "name": "withDataBindMount",
       "capabilityId": "Aspire.Hosting.SqlServer/withDataBindMount",
       "qualifiedName": "withDataBindMount",
-      "description": "Adds a bind mount for the SQL Server data folder",
+      "description": "Adds a bind mount for the data folder to a SQL Server resource.",
+      "remarks": "The container starts up as non-root and the `source` directory must be readable by the user that the container runs as.\nhttps://learn.microsoft.com/sql/linux/sql-server-linux-docker-container-configure?view=sql-server-ver16&pivots=cs1-bash#mount-a-host-directory-as-data-volume",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataBindMount(source: string, isReadOnly?: boolean): SqlServerServerResource",
       "parameters": [
         {
           "name": "source",
-          "type": "string"
+          "type": "string",
+          "description": "The source directory on the host to mount into the container."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only mount."
         }
       ],
       "returnType": "SqlServerServerResource",
@@ -327,20 +348,23 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.SqlServer/withDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a named volume for the SQL Server data folder",
+      "description": "Adds a named volume for the data folder to a SQL Server resource.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string, isReadOnly?: boolean): SqlServerServerResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
         },
         {
           "name": "isReadOnly",
           "type": "boolean",
           "isOptional": true,
-          "defaultValue": "False"
+          "defaultValue": "False",
+          "description": "A flag that indicates if this is a read-only volume."
         }
       ],
       "returnType": "SqlServerServerResource",
@@ -354,14 +378,16 @@
       "name": "withHostPort",
       "capabilityId": "Aspire.Hosting.SqlServer/withHostPort",
       "qualifiedName": "withHostPort",
-      "description": "Sets the host port for the SQL Server resource",
+      "description": "Configures the host port that the SqlServer resource is exposed on instead of using randomly assigned port.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withHostPort(port: number): SqlServerServerResource",
       "parameters": [
         {
           "name": "port",
           "type": "number",
-          "isNullable": true
+          "isNullable": true,
+          "description": "The port to bind on the host. If `null` is used random port will be assigned."
         }
       ],
       "returnType": "SqlServerServerResource",
@@ -375,13 +401,15 @@
       "name": "withPassword",
       "capabilityId": "Aspire.Hosting.SqlServer/withPassword",
       "qualifiedName": "withPassword",
-      "description": "Configures the password for the SQL Server resource",
+      "description": "Configures the password that the SqlServer resource is used.",
+      "returns": "The `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withPassword(password: ParameterResource): SqlServerServerResource",
       "parameters": [
         {
           "name": "password",
-          "type": "ParameterResource"
+          "type": "ParameterResource",
+          "description": "The parameter used to provide the password for the SqlServer resource."
         }
       ],
       "returnType": "SqlServerServerResource",
@@ -398,13 +426,14 @@
       "fullName": "Aspire.Hosting.ApplicationModel.SqlServerDatabaseResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a SQL Server database that is a child of a SQL Server container resource.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
         "Aspire.Hosting.ApplicationModel.IManifestExpressionProvider",
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.ApplicationModel.SqlServerServerResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.ApplicationModel.SqlServerServerResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences"
       ],
@@ -413,7 +442,7 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.connectionStringExpression",
           "qualifiedName": "SqlServerDatabaseResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the SQL Server database.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -427,7 +456,7 @@
           "name": "databaseName",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.databaseName",
           "qualifiedName": "SqlServerDatabaseResource.databaseName",
-          "description": "Gets the DatabaseName property",
+          "description": "Gets the database name.",
           "kind": "PropertyGetter",
           "signature": "databaseName(): string",
           "parameters": [],
@@ -441,7 +470,8 @@
           "name": "jdbcConnectionString",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.jdbcConnectionString",
           "qualifiedName": "SqlServerDatabaseResource.jdbcConnectionString",
-          "description": "Gets the JdbcConnectionString property",
+          "description": "Gets the JDBC connection string for the SQL Server database.",
+          "remarks": "Format: `jdbc:sqlserver://{host}:{port};trustServerCertificate=true;databaseName={database}`.\nUser and password credentials are not included in the JDBC connection string. Use the `Username` and `Password` connection properties to access credentials.",
           "kind": "PropertyGetter",
           "signature": "jdbcConnectionString(): ReferenceExpression",
           "parameters": [],
@@ -455,7 +485,7 @@
           "name": "parent",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.parent",
           "qualifiedName": "SqlServerDatabaseResource.parent",
-          "description": "Gets the Parent property",
+          "description": "Gets the parent SQL Server container resource.",
           "kind": "PropertyGetter",
           "signature": "parent(): SqlServerServerResource",
           "parameters": [],
@@ -469,7 +499,8 @@
           "name": "uriExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerDatabaseResource.uriExpression",
           "qualifiedName": "SqlServerDatabaseResource.uriExpression",
-          "description": "Gets the UriExpression property",
+          "description": "Gets the connection URI expression for the SQL Server database.",
+          "remarks": "Format: `mssql://{Username}:{Password}@{Host}:{Port}`.",
           "kind": "PropertyGetter",
           "signature": "uriExpression(): ReferenceExpression",
           "parameters": [],
@@ -483,13 +514,16 @@
           "name": "withCreationScript",
           "capabilityId": "Aspire.Hosting.SqlServer/withCreationScript",
           "qualifiedName": "withCreationScript",
-          "description": "Defines the SQL script used to create the database",
+          "description": "Defines the SQL script used to create the database.",
+          "remarks": "Default script is\n```\nIF ( NOT EXISTS ( SELECT 1 FROM sys.databases WHERE name = @DatabaseName ) ) CREATE DATABASE [<QUOTED_DATABASE_NAME%gt;];\n```",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withCreationScript(script: string): SqlServerDatabaseResource",
           "parameters": [
             {
               "name": "script",
-              "type": "string"
+              "type": "string",
+              "description": "The SQL script used to create the database."
             }
           ],
           "returnType": "SqlServerDatabaseResource",
@@ -506,6 +540,7 @@
       "fullName": "Aspire.Hosting.ApplicationModel.SqlServerServerResource",
       "kind": "handle",
       "exposeProperties": true,
+      "description": "A resource that represents a SQL Server container.",
       "implementedInterfaces": [
         "Aspire.Hosting.ApplicationModel.IComputeResource",
         "Aspire.Hosting.ApplicationModel.IExpressionValue",
@@ -525,18 +560,22 @@
           "name": "addDatabase",
           "capabilityId": "Aspire.Hosting.SqlServer/addDatabase",
           "qualifiedName": "addDatabase",
-          "description": "Adds a SQL Server database resource",
+          "description": "Adds a SQL Server database to the application model. This is a child resource of a `SqlServerServerResource`.",
+          "remarks": "When adding a `SqlServerDatabaseResource` to your application model the resource can then\nbe referenced by other resources using the resource name. When the dependent resource is using\nthe extension method `WaitFor``1`\nthen the dependent resource will wait until the SQL Server database is available.\nNote that calling `AddDatabase`\nwill result in the database being created on the SQL Server when the server becomes ready.\nThe database creation happens automatically as part of the resource lifecycle.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "addDatabase(name: string, databaseName?: string): SqlServerDatabaseResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
             },
             {
               "name": "databaseName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the database. If not provided, this defaults to the same value as `name`."
             }
           ],
           "returnType": "SqlServerDatabaseResource",
@@ -550,7 +589,7 @@
           "name": "connectionStringExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.connectionStringExpression",
           "qualifiedName": "SqlServerServerResource.connectionStringExpression",
-          "description": "Gets the ConnectionStringExpression property",
+          "description": "Gets the connection string expression for the SQL Server.",
           "kind": "PropertyGetter",
           "signature": "connectionStringExpression(): ReferenceExpression",
           "parameters": [],
@@ -564,11 +603,11 @@
           "name": "databases",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.databases",
           "qualifiedName": "SqlServerServerResource.databases",
-          "description": "Gets the Databases property",
+          "description": "A dictionary where the key is the resource name and the value is the database name.",
           "kind": "PropertyGetter",
-          "signature": "databases(): Dict\u003Cstring,string\u003E",
+          "signature": "databases(): Dict<string,string>",
           "parameters": [],
-          "returnType": "Dict\u003Cstring,string\u003E",
+          "returnType": "Dict<string,string>",
           "targetTypeId": "Aspire.Hosting.SqlServer/Aspire.Hosting.ApplicationModel.SqlServerServerResource",
           "expandedTargetTypes": [
             "Aspire.Hosting.ApplicationModel.SqlServerServerResource"
@@ -578,7 +617,7 @@
           "name": "host",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.host",
           "qualifiedName": "SqlServerServerResource.host",
-          "description": "Gets the Host property",
+          "description": "Gets the host endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "host(): EndpointReferenceExpression",
           "parameters": [],
@@ -592,7 +631,8 @@
           "name": "jdbcConnectionString",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.jdbcConnectionString",
           "qualifiedName": "SqlServerServerResource.jdbcConnectionString",
-          "description": "Gets the JdbcConnectionString property",
+          "description": "Gets the JDBC connection string for the SQL Server.",
+          "remarks": "Format: `jdbc:sqlserver://{host}:{port};trustServerCertificate=true`.\nUser and password credentials are not included in the JDBC connection string. Use the `Username` and `Password` connection properties to access credentials.",
           "kind": "PropertyGetter",
           "signature": "jdbcConnectionString(): ReferenceExpression",
           "parameters": [],
@@ -606,7 +646,7 @@
           "name": "passwordParameter",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.passwordParameter",
           "qualifiedName": "SqlServerServerResource.passwordParameter",
-          "description": "Gets the PasswordParameter property",
+          "description": "Gets the parameter that contains the SQL Server password.",
           "kind": "PropertyGetter",
           "signature": "passwordParameter(): ParameterResource",
           "parameters": [],
@@ -620,7 +660,7 @@
           "name": "port",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.port",
           "qualifiedName": "SqlServerServerResource.port",
-          "description": "Gets the Port property",
+          "description": "Gets the port endpoint reference for this resource.",
           "kind": "PropertyGetter",
           "signature": "port(): EndpointReferenceExpression",
           "parameters": [],
@@ -634,7 +674,7 @@
           "name": "primaryEndpoint",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.primaryEndpoint",
           "qualifiedName": "SqlServerServerResource.primaryEndpoint",
-          "description": "Gets the PrimaryEndpoint property",
+          "description": "Gets the primary endpoint for the SQL Server.",
           "kind": "PropertyGetter",
           "signature": "primaryEndpoint(): EndpointReference",
           "parameters": [],
@@ -648,7 +688,7 @@
           "name": "setPasswordParameter",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.setPasswordParameter",
           "qualifiedName": "SqlServerServerResource.setPasswordParameter",
-          "description": "Sets the PasswordParameter property",
+          "description": "Gets the parameter that contains the SQL Server password.",
           "kind": "PropertySetter",
           "signature": "setPasswordParameter(value: ParameterResource): SqlServerServerResource",
           "parameters": [
@@ -667,7 +707,8 @@
           "name": "uriExpression",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.uriExpression",
           "qualifiedName": "SqlServerServerResource.uriExpression",
-          "description": "Gets the UriExpression property",
+          "description": "Gets the connection URI expression for the SQL Server.",
+          "remarks": "Format: `mssql://{Username}:{Password}@{Host}:{Port}`.",
           "kind": "PropertyGetter",
           "signature": "uriExpression(): ReferenceExpression",
           "parameters": [],
@@ -681,7 +722,8 @@
           "name": "userNameReference",
           "capabilityId": "Aspire.Hosting.ApplicationModel/SqlServerServerResource.userNameReference",
           "qualifiedName": "SqlServerServerResource.userNameReference",
-          "description": "Gets the UserNameReference property",
+          "description": "Gets a reference to the user name for the SQL Server.",
+          "remarks": "Returns the user name parameter if specified, otherwise returns the default user name \"sa\".",
           "kind": "PropertyGetter",
           "signature": "userNameReference(): ReferenceExpression",
           "parameters": [],
@@ -695,19 +737,23 @@
           "name": "withDataBindMount",
           "capabilityId": "Aspire.Hosting.SqlServer/withDataBindMount",
           "qualifiedName": "withDataBindMount",
-          "description": "Adds a bind mount for the SQL Server data folder",
+          "description": "Adds a bind mount for the data folder to a SQL Server resource.",
+          "remarks": "The container starts up as non-root and the `source` directory must be readable by the user that the container runs as.\nhttps://learn.microsoft.com/sql/linux/sql-server-linux-docker-container-configure?view=sql-server-ver16&pivots=cs1-bash#mount-a-host-directory-as-data-volume",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataBindMount(source: string, isReadOnly?: boolean): SqlServerServerResource",
           "parameters": [
             {
               "name": "source",
-              "type": "string"
+              "type": "string",
+              "description": "The source directory on the host to mount into the container."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only mount."
             }
           ],
           "returnType": "SqlServerServerResource",
@@ -721,20 +767,23 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.SqlServer/withDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a named volume for the SQL Server data folder",
+          "description": "Adds a named volume for the data folder to a SQL Server resource.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string, isReadOnly?: boolean): SqlServerServerResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
             },
             {
               "name": "isReadOnly",
               "type": "boolean",
               "isOptional": true,
-              "defaultValue": "False"
+              "defaultValue": "False",
+              "description": "A flag that indicates if this is a read-only volume."
             }
           ],
           "returnType": "SqlServerServerResource",
@@ -748,14 +797,16 @@
           "name": "withHostPort",
           "capabilityId": "Aspire.Hosting.SqlServer/withHostPort",
           "qualifiedName": "withHostPort",
-          "description": "Sets the host port for the SQL Server resource",
+          "description": "Configures the host port that the SqlServer resource is exposed on instead of using randomly assigned port.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withHostPort(port: number): SqlServerServerResource",
           "parameters": [
             {
               "name": "port",
               "type": "number",
-              "isNullable": true
+              "isNullable": true,
+              "description": "The port to bind on the host. If `null` is used random port will be assigned."
             }
           ],
           "returnType": "SqlServerServerResource",
@@ -769,13 +820,15 @@
           "name": "withPassword",
           "capabilityId": "Aspire.Hosting.SqlServer/withPassword",
           "qualifiedName": "withPassword",
-          "description": "Configures the password for the SQL Server resource",
+          "description": "Configures the password that the SqlServer resource is used.",
+          "returns": "The `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withPassword(password: ParameterResource): SqlServerServerResource",
           "parameters": [
             {
               "name": "password",
-              "type": "ParameterResource"
+              "type": "ParameterResource",
+              "description": "The parameter used to provide the password for the SqlServer resource."
             }
           ],
           "returnType": "SqlServerServerResource",

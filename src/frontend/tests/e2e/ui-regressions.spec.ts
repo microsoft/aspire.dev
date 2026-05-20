@@ -168,7 +168,9 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
                 }
               }
 
-              return element.getAttribute('aria-label')?.trim() || element.textContent?.trim() || '';
+              return (
+                element.getAttribute('aria-label')?.trim() || element.textContent?.trim() || ''
+              );
             })
         )
       )
@@ -191,9 +193,11 @@ test('homepage header actions stay reachable at zoomed and reflow widths', async
       banner.getByRole('button', { name: /open cookie preferences dialog/i }).first()
     ).toBeVisible();
 
-    const installButton = banner.getByRole('button', {
-      name: /open install aspire cli dialog/i,
-    }).first();
+    const installButton = banner
+      .getByRole('button', {
+        name: /open install aspire cli dialog/i,
+      })
+      .first();
     await expect(installButton).toBeVisible();
     await installButton.click();
 
@@ -215,7 +219,10 @@ test('cookie consent reject-all keeps analytics disabled', async ({ page }) => {
   await page.goto('/get-started/prerequisites/');
   await openCookiePreferences(page);
 
-  await page.getByRole('button', { name: /reject all/i }).last().click();
+  await page
+    .getByRole('button', { name: /reject all/i })
+    .last()
+    .click();
   await waitForConsentRecorded(page);
   await waitForAnalyticsConsent(page, false);
   await waitForConsentCategories(page, ['necessary']);
@@ -341,7 +348,7 @@ test('API sidebar collapse state persists across reloads', async ({ page }) => {
   await expect.poll(() => readSidebarCollapsedPreference(page)).toBe('0');
 });
 
-test('API sidebar filter empty state and topic dropdown controls respond correctly', async ({
+test('API sidebar filter empty state and topics list controls respond correctly', async ({
   page,
 }) => {
   test.slow();
@@ -361,16 +368,17 @@ test('API sidebar filter empty state and topic dropdown controls respond correct
   const emptyState = page.locator('#sidebar-filter-empty');
   const emptyCopy = page.locator('#sidebar-filter-empty-copy');
   const emptyAction = page.locator('#sidebar-filter-empty-action');
-  const topicTrigger = page.locator('#topic-sidebar-trigger');
-  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+  const topicsList = page
+    .locator('.topics-sidebar[data-api-ref] .starlight-sidebar-topics')
+    .first();
 
-  await topicTrigger.click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(topicPanel).toBeVisible();
-
-  await page.keyboard.press('Escape');
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(topicPanel).toBeHidden();
+  // Topics are now always visible as a list at the top of the sidebar
+  // (the previous dropdown trigger/panel were removed in the layout
+  // restructure). At least one topic link should be present, the current
+  // topic must be marked with `aria-current="page"`, and the filter still
+  // owns the no-match empty state.
+  await expect(topicsList.locator('a')).not.toHaveCount(0);
+  await expect(topicsList.locator('a[aria-current="page"]')).toHaveCount(1);
 
   await filterInput.fill('zzzz-sidebar-no-match');
 
@@ -403,16 +411,17 @@ test('topic sidebar custom controls persist collapse state and filter reset on r
   const emptyState = page.locator('#sidebar-filter-empty');
   const collapseButton = page.locator('#topic-sidebar-collapse-btn');
   const expandButton = page.locator('#topic-sidebar-expand-btn');
-  const topicTrigger = page.locator('#topic-sidebar-trigger');
-  const topicPanel = page.locator('.topic-selector-dropdown [data-dropdown-panel]');
+  const topicsList = page
+    .locator('.topics-sidebar[data-topic-nav] .starlight-sidebar-topics')
+    .first();
 
-  await topicTrigger.click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(topicPanel).toBeVisible();
-
-  await page.locator('main').click();
-  await expect(topicTrigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(topicPanel).toBeHidden();
+  // Topics are now always visible as a list at the top of the sidebar
+  // (the previous dropdown trigger/panel were removed in the layout
+  // restructure). At least one topic link, exactly one current-topic
+  // indicator, and the filter empty state are the same invariants the
+  // old dropdown test checked — just without the dropdown wrapper.
+  await expect(topicsList.locator('a')).not.toHaveCount(0);
+  await expect(topicsList.locator('a[aria-current="page"]')).toHaveCount(1);
 
   await filterInput.fill('zzzz-topic-no-match');
   await expect(clearButton).toBeVisible();
@@ -437,4 +446,236 @@ test('topic sidebar custom controls persist collapse state and filter reset on r
 
   await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(false);
   await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('0');
+});
+
+test('persisted collapsed sidebar preference rails the topic sidebar cleanly at sub-72rem viewports', async ({
+  page,
+}) => {
+  // The sidebar collapse/expand toggle is functional on topic-nav pages
+  // from 50rem upward (the breakpoint where the sidebar becomes
+  // persistent). At sub-72rem viewports a persisted collapsed
+  // preference must therefore drive the full rail-mode treatment —
+  // 5rem icon rail with labels hidden — exactly the same way it does
+  // at desktop. Without the topic-nav-scoped rail rules at this
+  // breakpoint, the sidebar visibly stays at full width when the
+  // toggle is clicked, making the toggle appear broken.
+  //
+  // This test also covers the regression that an earlier iteration of
+  // this code hit: applying `--sl-sidebar-width: 5rem` without the
+  // companion label-hiding rules, which left the sidebar at 5rem with
+  // full-width labels wrapping one letter per line.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 800 || viewport.width >= 1152,
+    'Bug only reproduces between the Starlight mobile breakpoint (50rem) and the desktop collapse breakpoint (72rem).'
+  );
+
+  // Pre-seed the persisted preferences so Head.astro's inline restore script
+  // applies `data-topic-sidebar-collapsed` / `data-sidebar-collapsed` to the
+  // documentElement before first paint — exactly the user-reported scenario
+  // of collapsing on a wide screen and then resizing/zooming down.
+  await page.addInitScript(() => {
+    localStorage.setItem('topic-sidebar-collapsed', '1');
+    localStorage.setItem('api-sidebar-collapsed', '1');
+  });
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+
+  // Wait for the page and the topic sidebar element itself to render before
+  // we read computed styles or measure widths.
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await expect(page.locator('.topics-sidebar[data-topic-nav]')).toBeAttached();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.hasAttribute('data-topic-sidebar-ready'))
+    )
+    .toBe(true);
+
+  // Confirm the persisted preference round-tripped (so we know we're
+  // exercising the rail-mode code path, not a no-op).
+  await expect.poll(() => readTopicSidebarCollapsedPreference(page)).toBe('1');
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
+
+  // Rail mode is active: `--sl-sidebar-width` shrinks to 5rem.
+  const sidebarWidthVar = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--sl-sidebar-width').trim()
+  );
+  expect(sidebarWidthVar).toBe('5rem');
+
+  // The rendered sidebar element follows suit. `.topics-sidebar` sits
+  // inside `#starlight__sidebar` with Starlight's `--sl-sidebar-pad-x`
+  // on both sides, so it renders narrower than the 5rem container —
+  // assert "railed, not full width" rather than an exact pixel width
+  // to keep the test resilient to padding tweaks.
+  const topicSidebarWidth = await page.evaluate(() => {
+    const el = document.querySelector('.topics-sidebar');
+    if (!el) return null;
+    return el.getBoundingClientRect().width;
+  });
+  expect(topicSidebarWidth).not.toBeNull();
+  expect(topicSidebarWidth ?? 0).toBeGreaterThan(0);
+  expect(topicSidebarWidth ?? 0).toBeLessThan(100);
+
+  // The label-hiding rule is the half of the rail-mode treatment that
+  // actually prevents the "one letter per line" squish. Verify the
+  // text labels inside each topic link are display: none so the icon
+  // rail renders icons only.
+  const topicLinkLabel = page
+    .locator('.starlight-sidebar-topics a > div:not(.starlight-sidebar-topics-icon)')
+    .first();
+  await expect(topicLinkLabel).toBeHidden();
+});
+
+test('clicking the topic sidebar toggle at sub-72rem viewports rails the sidebar', async ({
+  page,
+}) => {
+  // Clicking the visible collapse/expand toggle at 50rem–71.999rem
+  // must actually drive the rail-mode visuals end-to-end, not just
+  // flip the data attribute on <html>. This is the click-side
+  // counterpart of the persisted-preference test above, exercising
+  // the same code path through the user-facing toggle.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 800 || viewport.width >= 1152,
+    'Toggle interaction at the topic-nav sub-72rem breakpoint only reproduces between 50rem and 72rem (~800–1152px).'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const expandButton = page.locator('#topic-sidebar-expand-btn');
+  const topicSidebar = page.locator('.topics-sidebar[data-topic-nav]');
+
+  // Baseline: sidebar starts expanded with the collapse toggle visible.
+  await expect(collapseButton).toBeVisible();
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(false);
+
+  const expandedWidth = (await topicSidebar.boundingBox())?.width ?? 0;
+  expect(expandedWidth).toBeGreaterThan(120);
+
+  // Collapse via the toggle. The data attribute must flip, the
+  // sidebar must shrink to the 5rem rail, and the expand button
+  // must replace the collapse button.
+  await collapseButton.click();
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(true);
+  await expect(expandButton).toBeVisible();
+
+  await expect
+    .poll(async () => {
+      const box = await topicSidebar.boundingBox();
+      return box ? box.width : null;
+    })
+    .toBeLessThan(100);
+
+  // Expand again and verify the rail unwinds back to the original width.
+  await expandButton.click();
+
+  await expect.poll(() => hasTopicSidebarCollapsed(page)).toBe(false);
+  await expect(collapseButton).toBeVisible();
+
+  await expect
+    .poll(async () => {
+      const box = await topicSidebar.boundingBox();
+      return box ? box.width : null;
+    })
+    .toBeGreaterThan(120);
+});
+
+test('sidebar collapse toggle does not overlap the mobile "On this page" control', async ({
+  page,
+}) => {
+  // Regression for the "toggle covers the mobile TOC dropdown" bug. At
+  // viewports in [50rem, 100rem) on topic-nav pages, the persistent
+  // sidebar and Starlight's mobile TOC bar
+  // (`#starlight__on-this-page--mobile`) are both visible, and so is
+  // the floating sidebar collapse/expand toggle
+  // (`#topic-sidebar-collapse-btn`). Before the inline-with-TOC fix,
+  // the toggle was parked a row below the bar where it overlaid the
+  // "On this page > <current heading>" dropdown trigger.
+  //
+  // The bug range covers both:
+  //   - tablet (≥ 50rem, < 72rem): topic-nav sidebar visible at
+  //     Starlight's default sub-desktop sizing, mobile TOC visible at
+  //     Starlight's default `--sl-mobile-toc-height: 3rem`.
+  //   - desktop (≥ 72rem, < 100rem): mobile TOC forced visible by
+  //     aspire.dev's `--sl-mobile-toc-height: 3rem` override.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width < 800 || viewport.width >= 1600,
+    'Bug only reproduces where the topic-nav sidebar and the mobile TOC are simultaneously visible (≥ 50rem and < 100rem).'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+  await waitForTopicSidebarReady(page);
+
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const mobileTocSummary = page.locator('#starlight__on-this-page--mobile');
+  // The visible "On this page" pill that the padding shift actually
+  // moves. The summary element itself spans the full bar width and
+  // anchors its left edge to the sidebar's right edge — same as the
+  // toggle — so comparing against the summary's bounding box would
+  // measure the bar itself, not the trigger label. Target the inner
+  // `.toggle` span (the styled pill) instead so the assertion sees
+  // the effect of the `padding-inline-start` rule.
+  const mobileTocTrigger = mobileTocSummary.locator('.toggle');
+
+  // Sanity check: both controls must be visible together for the
+  // overlap to be a real concern. If the breakpoint stops rendering the
+  // mobile TOC at this width in the future, this guard makes the
+  // failure mode obvious.
+  await expect(collapseButton).toBeVisible();
+  await expect(mobileTocSummary).toBeVisible();
+  await expect(mobileTocTrigger).toBeVisible();
+
+  const collapseBox = await collapseButton.boundingBox();
+  const summaryBox = await mobileTocSummary.boundingBox();
+  const triggerBox = await mobileTocTrigger.boundingBox();
+  expect(collapseBox).not.toBeNull();
+  expect(summaryBox).not.toBeNull();
+  expect(triggerBox).not.toBeNull();
+  if (!collapseBox || !summaryBox || !triggerBox) return;
+
+  // Horizontal: the toggle's right edge must sit at or before the
+  // visible trigger pill's left edge so the two controls don't visually
+  // overlap. The 1-pixel tolerance accommodates sub-pixel rounding.
+  expect(collapseBox.x + collapseBox.width).toBeLessThanOrEqual(triggerBox.x + 1);
+
+  // Vertical: the toggle must overlap the TOC bar's y-range, not be
+  // stacked above OR below it. Asserting bounding-box overlap is the
+  // geometric definition of "in the same row" and catches regressions
+  // where the toggle jumps off the bar in either direction.
+  const collapseBottom = collapseBox.y + collapseBox.height;
+  const summaryBottom = summaryBox.y + summaryBox.height;
+  expect(collapseBox.y).toBeLessThan(summaryBottom);
+  expect(collapseBottom).toBeGreaterThan(summaryBox.y);
+});
+
+test('sidebar collapse toggle disappears below the topic-nav sidebar breakpoint', async ({
+  page,
+}) => {
+  // The topic-nav sidebar is moved into Starlight's mobile menu below
+  // 50rem (~800px). When the sidebar isn't persistently visible, the
+  // floating collapse/expand toggle has nothing to control — verify it
+  // hides together with the sidebar at narrow viewports.
+  const viewport = page.viewportSize();
+  test.skip(
+    !viewport || viewport.width >= 800,
+    'Sidebar visibility breakpoint only relevant at viewports narrower than 50rem (~800px).'
+  );
+
+  await page.goto('/app-host/certificate-configuration/');
+  await dismissCookieConsentIfVisible(page);
+
+  // The persistent collapse/expand toggle should NOT be visible below
+  // 50rem on topic-nav pages — Starlight serves the sidebar through
+  // the mobile menu (hamburger) in that range.
+  const collapseButton = page.locator('#topic-sidebar-collapse-btn');
+  const expandButton = page.locator('#topic-sidebar-expand-btn');
+  await expect(collapseButton).toBeHidden();
+  await expect(expandButton).toBeHidden();
 });

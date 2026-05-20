@@ -10,13 +10,15 @@
       "name": "addAzureCosmosDB",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/addAzureCosmosDB",
       "qualifiedName": "addAzureCosmosDB",
-      "description": "Adds an Azure Cosmos DB resource",
+      "description": "Adds an Azure Cosmos DB connection to the application model.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addAzureCosmosDB(name: string): AzureCosmosDBResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the resource. This name will be used as the connection string name when referenced in a dependency."
         }
       ],
       "returnType": "AzureCosmosDBResource",
@@ -59,18 +61,21 @@
       "name": "addCosmosDatabase",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/addCosmosDatabase",
       "qualifiedName": "addCosmosDatabase",
-      "description": "Adds an Azure Cosmos DB database resource",
+      "description": "Adds a database to the associated Cosmos DB account resource.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "addCosmosDatabase(name: string, databaseName?: string): AzureCosmosDBDatabaseResource",
       "parameters": [
         {
           "name": "name",
-          "type": "string"
+          "type": "string",
+          "description": "The name of the database resource."
         },
         {
           "name": "databaseName",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the database. If not provided, this defaults to the same value as `name`."
         }
       ],
       "returnType": "AzureCosmosDBDatabaseResource",
@@ -84,16 +89,19 @@
       "name": "runAsEmulator",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/runAsEmulator",
       "qualifiedName": "runAsEmulator",
-      "description": "Configures the Azure Cosmos DB resource to run using the local emulator",
+      "description": "Configures an Azure Cosmos DB resource to be emulated using the Azure Cosmos DB emulator with the NoSQL API. This resource requires an `AzureCosmosDBResource` to be added to the application model. For more information on the Azure Cosmos DB emulator, see .",
+      "remarks": "When using the Azure Cosmos DB emulator, the container requires a TLS/SSL certificate.\nFor more information, see .\nThis version of the package defaults to the tag of the / container image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureCosmosDBResource",
+      "signature": "runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) => Promise<void>",
+          "description": "Callback that exposes underlying container used for emulation to allow for customization."
         }
       ],
       "returnType": "AzureCosmosDBResource",
@@ -107,16 +115,19 @@
       "name": "runAsPreviewEmulator",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/runAsPreviewEmulator",
       "qualifiedName": "runAsPreviewEmulator",
-      "description": "Configures the Azure Cosmos DB resource to run using the preview emulator",
+      "description": "Configures an Azure Cosmos DB resource to be emulated using the Azure Cosmos DB Linux-based emulator (preview) with the NoSQL API. This resource requires an `AzureCosmosDBResource` to be added to the application model. For more information on the Azure Cosmos DB emulator, see .",
+      "remarks": "This version of the package defaults to the tag of the / container image.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
-      "signature": "runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureCosmosDBResource",
+      "signature": "runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource",
       "parameters": [
         {
           "name": "configureContainer",
           "type": "callback",
           "isOptional": true,
           "isCallback": true,
-          "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+          "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) => Promise<void>",
+          "description": "Callback that exposes underlying container used for emulation to allow for customization."
         }
       ],
       "returnType": "AzureCosmosDBResource",
@@ -151,7 +162,9 @@
       "name": "withDataExplorer",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withDataExplorer",
       "qualifiedName": "withDataExplorer",
-      "description": "Exposes the Data Explorer endpoint for the preview emulator",
+      "description": "Configures the Azure Cosmos DB preview emulator to expose the Data Explorer endpoint.",
+      "remarks": "The Data Explorer is only available with `RunAsPreviewEmulator`.",
+      "returns": "Cosmos emulator resource builder.",
       "kind": "Method",
       "signature": "withDataExplorer(port?: number): AzureCosmosDBEmulatorResource",
       "parameters": [
@@ -159,7 +172,8 @@
           "name": "port",
           "type": "number",
           "isOptional": true,
-          "isNullable": true
+          "isNullable": true,
+          "description": "Optional host port to bind the Data Explorer to."
         }
       ],
       "returnType": "AzureCosmosDBEmulatorResource",
@@ -173,14 +187,16 @@
       "name": "withDataVolume",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withDataVolume",
       "qualifiedName": "withDataVolume",
-      "description": "Adds a named volume for the data folder to an Azure Cosmos DB emulator resource",
+      "description": "Adds a named volume for the data folder to an Azure Cosmos DB emulator resource.",
+      "returns": "A builder for the `AzureCosmosDBEmulatorResource`.",
       "kind": "Method",
       "signature": "withDataVolume(name?: string): AzureCosmosDBEmulatorResource",
       "parameters": [
         {
           "name": "name",
           "type": "string",
-          "isOptional": true
+          "isOptional": true,
+          "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
         }
       ],
       "returnType": "AzureCosmosDBEmulatorResource",
@@ -194,7 +210,8 @@
       "name": "withDefaultAzureSku",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withDefaultAzureSku",
       "qualifiedName": "withDefaultAzureSku",
-      "description": "Configures Azure Cosmos DB to use the default Azure SKU",
+      "description": "Configures the Azure Cosmos DB resource to be deployed use the default SKU provided by Azure.",
+      "returns": "A reference to the `IResourceBuilder`1`.",
       "kind": "Method",
       "signature": "withDefaultAzureSku(): AzureCosmosDBResource",
       "parameters": [],
@@ -209,14 +226,16 @@
       "name": "withGatewayPort",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withGatewayPort",
       "qualifiedName": "withGatewayPort",
-      "description": "Sets the host port for the Cosmos DB emulator gateway endpoint",
+      "description": "Configures the gateway port for the Azure Cosmos DB emulator.",
+      "returns": "Cosmos emulator resource builder.",
       "kind": "Method",
       "signature": "withGatewayPort(port: number): AzureCosmosDBEmulatorResource",
       "parameters": [
         {
           "name": "port",
           "type": "number",
-          "isNullable": true
+          "isNullable": true,
+          "description": "Host port to bind to the emulator gateway port."
         }
       ],
       "returnType": "AzureCosmosDBEmulatorResource",
@@ -230,13 +249,16 @@
       "name": "withPartitionCount",
       "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withPartitionCount",
       "qualifiedName": "withPartitionCount",
-      "description": "Sets the partition count for the Azure Cosmos DB emulator",
+      "description": "Configures the partition count for the Azure Cosmos DB emulator.",
+      "remarks": "Not calling this method will result in the default of 10 partitions. The actual started partitions is always one more than specified.\nSee this documentation about setting the partition count.",
+      "returns": "Cosmos emulator resource builder.",
       "kind": "Method",
       "signature": "withPartitionCount(count: number): AzureCosmosDBEmulatorResource",
       "parameters": [
         {
           "name": "count",
-          "type": "number"
+          "type": "number",
+          "description": "Desired partition count."
         }
       ],
       "returnType": "AzureCosmosDBEmulatorResource",
@@ -258,7 +280,7 @@
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.Azure.AzureCosmosDBDatabaseResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.Azure.AzureCosmosDBDatabaseResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences",
         "Aspire.Hosting.Azure.IResourceWithAzureFunctionsConfig"
@@ -275,7 +297,7 @@
         "Aspire.Hosting.ApplicationModel.IResource",
         "Aspire.Hosting.ApplicationModel.IResourceWithConnectionString",
         "Aspire.Hosting.ApplicationModel.IResourceWithParent",
-        "Aspire.Hosting.ApplicationModel.IResourceWithParent\u00601[[Aspire.Hosting.AzureCosmosDBResource]]",
+        "Aspire.Hosting.ApplicationModel.IResourceWithParent`1[[Aspire.Hosting.AzureCosmosDBResource]]",
         "Aspire.Hosting.ApplicationModel.IValueProvider",
         "Aspire.Hosting.ApplicationModel.IValueWithReferences",
         "Aspire.Hosting.Azure.IResourceWithAzureFunctionsConfig"
@@ -330,7 +352,9 @@
           "name": "withDataExplorer",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withDataExplorer",
           "qualifiedName": "withDataExplorer",
-          "description": "Exposes the Data Explorer endpoint for the preview emulator",
+          "description": "Configures the Azure Cosmos DB preview emulator to expose the Data Explorer endpoint.",
+          "remarks": "The Data Explorer is only available with `RunAsPreviewEmulator`.",
+          "returns": "Cosmos emulator resource builder.",
           "kind": "Method",
           "signature": "withDataExplorer(port?: number): AzureCosmosDBEmulatorResource",
           "parameters": [
@@ -338,7 +362,8 @@
               "name": "port",
               "type": "number",
               "isOptional": true,
-              "isNullable": true
+              "isNullable": true,
+              "description": "Optional host port to bind the Data Explorer to."
             }
           ],
           "returnType": "AzureCosmosDBEmulatorResource",
@@ -352,14 +377,16 @@
           "name": "withDataVolume",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withDataVolume",
           "qualifiedName": "withDataVolume",
-          "description": "Adds a named volume for the data folder to an Azure Cosmos DB emulator resource",
+          "description": "Adds a named volume for the data folder to an Azure Cosmos DB emulator resource.",
+          "returns": "A builder for the `AzureCosmosDBEmulatorResource`.",
           "kind": "Method",
           "signature": "withDataVolume(name?: string): AzureCosmosDBEmulatorResource",
           "parameters": [
             {
               "name": "name",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the volume. Defaults to an auto-generated name based on the application and resource names."
             }
           ],
           "returnType": "AzureCosmosDBEmulatorResource",
@@ -373,14 +400,16 @@
           "name": "withGatewayPort",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withGatewayPort",
           "qualifiedName": "withGatewayPort",
-          "description": "Sets the host port for the Cosmos DB emulator gateway endpoint",
+          "description": "Configures the gateway port for the Azure Cosmos DB emulator.",
+          "returns": "Cosmos emulator resource builder.",
           "kind": "Method",
           "signature": "withGatewayPort(port: number): AzureCosmosDBEmulatorResource",
           "parameters": [
             {
               "name": "port",
               "type": "number",
-              "isNullable": true
+              "isNullable": true,
+              "description": "Host port to bind to the emulator gateway port."
             }
           ],
           "returnType": "AzureCosmosDBEmulatorResource",
@@ -394,13 +423,16 @@
           "name": "withPartitionCount",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withPartitionCount",
           "qualifiedName": "withPartitionCount",
-          "description": "Sets the partition count for the Azure Cosmos DB emulator",
+          "description": "Configures the partition count for the Azure Cosmos DB emulator.",
+          "remarks": "Not calling this method will result in the default of 10 partitions. The actual started partitions is always one more than specified.\nSee this documentation about setting the partition count.",
+          "returns": "Cosmos emulator resource builder.",
           "kind": "Method",
           "signature": "withPartitionCount(count: number): AzureCosmosDBEmulatorResource",
           "parameters": [
             {
               "name": "count",
-              "type": "number"
+              "type": "number",
+              "description": "Desired partition count."
             }
           ],
           "returnType": "AzureCosmosDBEmulatorResource",
@@ -435,18 +467,21 @@
           "name": "addCosmosDatabase",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/addCosmosDatabase",
           "qualifiedName": "addCosmosDatabase",
-          "description": "Adds an Azure Cosmos DB database resource",
+          "description": "Adds a database to the associated Cosmos DB account resource.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "addCosmosDatabase(name: string, databaseName?: string): AzureCosmosDBDatabaseResource",
           "parameters": [
             {
               "name": "name",
-              "type": "string"
+              "type": "string",
+              "description": "The name of the database resource."
             },
             {
               "name": "databaseName",
               "type": "string",
-              "isOptional": true
+              "isOptional": true,
+              "description": "The name of the database. If not provided, this defaults to the same value as `name`."
             }
           ],
           "returnType": "AzureCosmosDBDatabaseResource",
@@ -460,16 +495,19 @@
           "name": "runAsEmulator",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/runAsEmulator",
           "qualifiedName": "runAsEmulator",
-          "description": "Configures the Azure Cosmos DB resource to run using the local emulator",
+          "description": "Configures an Azure Cosmos DB resource to be emulated using the Azure Cosmos DB emulator with the NoSQL API. This resource requires an `AzureCosmosDBResource` to be added to the application model. For more information on the Azure Cosmos DB emulator, see .",
+          "remarks": "When using the Azure Cosmos DB emulator, the container requires a TLS/SSL certificate.\nFor more information, see .\nThis version of the package defaults to the tag of the / container image.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureCosmosDBResource",
+          "signature": "runAsEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) => Promise<void>",
+              "description": "Callback that exposes underlying container used for emulation to allow for customization."
             }
           ],
           "returnType": "AzureCosmosDBResource",
@@ -483,16 +521,19 @@
           "name": "runAsPreviewEmulator",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/runAsPreviewEmulator",
           "qualifiedName": "runAsPreviewEmulator",
-          "description": "Configures the Azure Cosmos DB resource to run using the preview emulator",
+          "description": "Configures an Azure Cosmos DB resource to be emulated using the Azure Cosmos DB Linux-based emulator (preview) with the NoSQL API. This resource requires an `AzureCosmosDBResource` to be added to the application model. For more information on the Azure Cosmos DB emulator, see .",
+          "remarks": "This version of the package defaults to the tag of the / container image.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
-          "signature": "runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E): AzureCosmosDBResource",
+          "signature": "runAsPreviewEmulator(configureContainer?: (obj: AzureCosmosDBEmulatorResource) => Promise<void>): AzureCosmosDBResource",
           "parameters": [
             {
               "name": "configureContainer",
               "type": "callback",
               "isOptional": true,
               "isCallback": true,
-              "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) =\u003E Promise\u003Cvoid\u003E"
+              "callbackSignature": "(obj: AzureCosmosDBEmulatorResource) => Promise<void>",
+              "description": "Callback that exposes underlying container used for emulation to allow for customization."
             }
           ],
           "returnType": "AzureCosmosDBResource",
@@ -527,7 +568,8 @@
           "name": "withDefaultAzureSku",
           "capabilityId": "Aspire.Hosting.Azure.CosmosDB/withDefaultAzureSku",
           "qualifiedName": "withDefaultAzureSku",
-          "description": "Configures Azure Cosmos DB to use the default Azure SKU",
+          "description": "Configures the Azure Cosmos DB resource to be deployed use the default SKU provided by Azure.",
+          "returns": "A reference to the `IResourceBuilder`1`.",
           "kind": "Method",
           "signature": "withDefaultAzureSku(): AzureCosmosDBResource",
           "parameters": [],

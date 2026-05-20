@@ -48,6 +48,11 @@ export async function waitForApiSidebarReady(page: Page): Promise<void> {
     .toBe(true);
   await expect(page.locator('#sidebar-collapse-btn')).toBeAttached();
   await expect(page.locator('#sidebar-expand-btn')).toBeAttached();
+  // Topics list (always-visible after the layout restructure) must
+  // render with at least one link before downstream tests interact.
+  await expect(
+    page.locator('.topics-sidebar[data-api-ref] .starlight-sidebar-topics').first()
+  ).toBeVisible();
   await expect
     .poll(async () => {
       const isCollapsed = await page.evaluate(() =>
@@ -70,8 +75,12 @@ export async function waitForTopicSidebarReady(page: Page): Promise<void> {
     .toBe(true);
   await expect(page.locator('#topic-sidebar-collapse-btn')).toBeAttached();
   await expect(page.locator('#topic-sidebar-expand-btn')).toBeAttached();
-  await expect(page.locator('#topic-sidebar-trigger')).toBeAttached();
   await expect(page.locator('#sidebar-filter-input')).toBeAttached();
+  // Topics list (always-visible after the layout restructure) must
+  // render with at least one link before downstream tests interact.
+  await expect(
+    page.locator('.topics-sidebar[data-topic-nav] .starlight-sidebar-topics').first()
+  ).toBeVisible();
   await expect
     .poll(async () => {
       const isCollapsed = await page.evaluate(() =>
