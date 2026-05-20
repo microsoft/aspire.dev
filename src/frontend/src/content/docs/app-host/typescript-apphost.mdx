@@ -139,24 +139,26 @@ await builder.build().run();
 
 ## Package managers
 
-The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.ts` and `aspire.config.json`. The CLI selects between them by inspecting the `packageManager` field in `package.json` and any lock files in the AppHost root.
+The Aspire CLI supports the following package managers at the **AppHost root** — the directory that contains your `apphost.ts` and `aspire.config.json`. The CLI selects between them by inspecting package manager signals, including the `packageManager` field in `package.json`, lock files, and package manager configuration in the AppHost root.
 
-| Package manager | Lock file | Support |
+| Package manager | Detection signals | Version expectation |
 |---|---|---|
-| npm | `package-lock.json` | **Supported (default)** — no extra setup required |
-| pnpm | `pnpm-lock.yaml` | **Supported** |
-| Yarn 4+ (Berry) | `yarn.lock` (with Yarn 4 metadata) | **Supported** |
-| Bun | `bun.lock` / `bun.lockb` | **Supported** |
-| Yarn Classic (v1) | `yarn.lock` with `# yarn lockfile v1` | **Not supported** |
+| npm | `packageManager`, `package-lock.json`, or no other signal | npm 10 or later; npm is the default |
+| pnpm | `packageManager` or `pnpm-lock.yaml` | pnpm 10 or later |
+| Yarn | `packageManager`, `yarn.lock`, `.yarnrc.yml`, or `.yarn/` | Yarn 4 or later (Berry) |
+| Bun | `packageManager`, `bun.lock`, or `bun.lockb` | Bun 1.2 or later |
+| Yarn Classic (v1) | `yarn.lock` with `# yarn lockfile v1` or `packageManager` with `yarn@1.x` | Not supported |
 
 This policy governs the **AppHost root only**. Apps the AppHost orchestrates — for example, a Node.js service added with `addNodeApp`, a Bun guest app, or a workspace package — can use any package manager their own tooling requires; they are independent of the AppHost-root toolchain.
+
+Aspire end-to-end tests cover TypeScript AppHosts with representative `packageManager` pins such as `npm@10.0.0`, `pnpm@10.0.0`, `yarn@4.14.1`, and `bun@1.2.0`. These tested versions are representative points within the supported ranges, not the only versions you can use.
 
 <Aside type="caution">
 **Yarn Classic (v1) is not supported.** If the Aspire CLI detects a Yarn Classic lock file (`# yarn lockfile v1`) or a `packageManager` field such as `"yarn@1.x"` in `package.json`, it throws an error and stops. Upgrade to Yarn 4 or later, or switch to npm, pnpm, or Bun.
 
 To upgrade to Yarn 4, run:
 
-```bash
+```bash title="Upgrade to Yarn 4"
 corepack enable yarn
 corepack use yarn@stable
 ```
@@ -218,7 +220,7 @@ Detection follows the [supported AppHost-root package managers](#package-manager
 
 <Steps>
 
-1. The `packageManager` field in `package.json` — for example, `"packageManager": "pnpm@9.0.0"`.
+1. The `packageManager` field in `package.json` — for example, `"packageManager": "pnpm@10.0.0"`.
 2. Lockfiles: `bun.lock` or `bun.lockb` → Bun; `pnpm-lock.yaml` → pnpm; `yarn.lock`, `.yarnrc.yml`, or a `.yarn/` directory → Yarn.
 3. If nothing is found, npm is used as the default.
 
@@ -233,14 +235,23 @@ The recommended way to pin the toolchain is with the `packageManager` field in `
 <Tabs syncKey="toolchain">
 <TabItem label="npm (default)" icon="npm">
 
-No extra configuration is required — npm is the default.
+No extra configuration is required — npm is the default. If you want to pin npm explicitly, set the `packageManager` field:
+
+```json title="package.json" ins={2}
+{
+  "packageManager": "npm@10.0.0",
+  "name": "my-apphost",
+  "private": true,
+  "type": "module"
+}
+```
 
 </TabItem>
 <TabItem label="pnpm" icon="pnpm">
 
 ```json title="package.json" ins={2}
 {
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.0.0",
   "name": "my-apphost",
   "private": true,
   "type": "module"
@@ -252,7 +263,7 @@ No extra configuration is required — npm is the default.
 
 ```json title="package.json" ins={2}
 {
-  "packageManager": "yarn@4.0.0",
+  "packageManager": "yarn@4.14.1",
   "name": "my-apphost",
   "private": true,
   "type": "module"
@@ -264,7 +275,7 @@ No extra configuration is required — npm is the default.
 
 ```json title="package.json" ins={2}
 {
-  "packageManager": "bun@1.1.0",
+  "packageManager": "bun@1.2.0",
   "name": "my-apphost",
   "private": true,
   "type": "module"
