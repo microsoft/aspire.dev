@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Globalization;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace StaticHost.AgentReadiness;
 
@@ -20,21 +20,27 @@ namespace StaticHost.AgentReadiness;
 /// <para>
 /// This runs in middleware on every request, so the implementation is
 /// non-allocating (span-based; no <c>string.Split</c>, no intermediate lists)
-/// and memoizes outcomes in a bounded process-wide cache. Real-world Accept
-/// headers are dominated by a small set of distinct values (a handful of
-/// browsers plus a few agents), so cache hits are the common case.
+/// and memoizes outcomes in a bounded <see cref="MemoryCache"/>. Real-world
+/// Accept headers are dominated by a small set of distinct values (a handful
+/// of browsers plus a few agents), so cache hits are the common case;
+/// <c>SizeLimit</c> bounds memory in pathological/adversarial cases.
 /// </para>
 /// </remarks>
 internal static class AcceptHeaderParser
 {
-    // Caps chosen to bound worst-case memory in pathological/adversarial cases
-    // (~256 * 256 chars ≈ 128KB of string keys) while comfortably covering the
-    // long tail of real-world Accept headers.
+    // Each cache entry is registered with Size = 1, so SizeLimit caps the
+    // number of distinct Accept headers we'll memoize. 256 comfortably covers
+    // the long tail of real-world headers (browsers + agents + a few outliers).
     private const int MaxCacheEntries = 256;
+
+    // Headers larger than this are not memoized at all — bounds worst-case key
+    // memory and avoids ever caching obviously-pathological inputs.
     private const int MaxCacheKeyLength = 256;
 
-    private static readonly ConcurrentDictionary<string, NegotiationResult> s_cache =
-        new(concurrencyLevel: Environment.ProcessorCount, capacity: 64, comparer: StringComparer.Ordinal);
+    private static readonly MemoryCache s_cache = new(new MemoryCacheOptions
+    {
+        SizeLimit = MaxCacheEntries,
+    });
 
     /// <summary>
     /// The negotiation outcome for an Accept header.
@@ -57,19 +63,20 @@ internal static class AcceptHeaderParser
             return NegotiationResult.Default;
         }
 
-        if (s_cache.TryGetValue(acceptHeader, out var cached))
+        if (s_cache.TryGetValue(acceptHeader, out NegotiationResult cached))
         {
             return cached;
         }
 
         var result = NegotiateCore(acceptHeader.AsSpan());
 
-        // Only memoize sane-sized headers, and only while the cache budget
-        // hasn't been exhausted. Concurrent overshoot by a few entries is fine
-        // (TryAdd no-ops for duplicates).
-        if (acceptHeader.Length <= MaxCacheKeyLength && s_cache.Count < MaxCacheEntries)
+        if (acceptHeader.Length <= MaxCacheKeyLength)
         {
-            s_cache.TryAdd(acceptHeader, result);
+            // Size = 1 per entry; MemoryCache enforces SizeLimit by compacting
+            // (evicting older/lower-priority entries) when the sum is exceeded.
+            using var entry = s_cache.CreateEntry(acceptHeader);
+            entry.Value = result;
+            entry.Size = 1;
         }
 
         return result;
