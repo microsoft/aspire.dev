@@ -15,8 +15,12 @@ steps:
       global-json-file: global.json
   - name: Install Aspire CLI
     run: |
-      dotnet tool install -g Aspire.Cli
-      echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      set -euo pipefail
+      aspire_bin="${RUNNER_TEMP}/gh-aw/aspire/bin"
+      curl -sSL https://aspire.dev/install.sh | bash -s -- --install-path "$aspire_bin" --skip-path
+      echo "$aspire_bin" >> "$GITHUB_PATH"
+      export PATH="$aspire_bin:$PATH"
+      aspire --version --banner
   - name: Setup pnpm
     run: corepack enable && corepack install
     working-directory: src/frontend
@@ -29,6 +33,8 @@ network:
     - containers
     - node
     - dotnet
+    - aka.ms
+    - aspire.dev
     - github
 safe-outputs:
   # Raise the default 100-file patch cap: the API-reference regen branch can
@@ -112,6 +118,12 @@ This branch only runs when version-change detection found at least one changed `
    pnpm --filter ./src/frontend run update:ts-api
    ```
 
+   Before running this phase, verify the Aspire CLI is available in the agent environment:
+
+   ```bash
+   aspire --version --banner
+   ```
+
    `scripts/update-ts-api.ts` reads the freshly written `pkgs/*.json`, selects the `Aspire.Hosting` and `Aspire.Hosting.*` packages, runs `aspire sdk dump` for each via `src/tools/AtsJsonGenerator/generate-ts-api-json.ps1`, and writes `src/frontend/src/data/ts-modules/{Package}.{Version}.json` files. Capture any per-package failures for the PR body. Once the TS API JSON is written, the same script automatically continues into phase 3 — do not invoke it a second time.
 
 3. **Regenerate the twoslash `.d.ts` bundle.** Depends on the TS API JSON from phase 2. This phase is **chained automatically** by `pnpm update:ts-api`; it runs `scripts/generate-twoslash-types.ts` against the freshly written `ts-modules/*.json` and rewrites `src/frontend/src/data/twoslash/aspire.d.ts`. If `pnpm update:ts-api` fails partway through the chain, distinguish in the PR body between a phase-2 failure (TS API generation) and a phase-3 failure (twoslash bundle) using the script's `❌ Generation failed:` vs `❌ Twoslash type generation failed:` log markers.
@@ -125,6 +137,8 @@ This branch only runs when version-change detection found at least one changed `
    plus the metadata files already produced by `pnpm update:all`. If the diff includes anything outside these paths, stop and report a `missing_tool` or `missing_data` safe output explaining the unexpected file.
 
 5. **File-count summary for the PR body.** Use `git diff --name-status` to count added (`A`), modified (`M`), and removed (`D`) files under `src/frontend/src/data/pkgs/`, `src/frontend/src/data/ts-modules/`, and whether `src/frontend/src/data/twoslash/aspire.d.ts` changed.
+
+If version changes triggered this branch, all three regeneration phases are required. Do **not** create a partial PR that includes only C# `pkgs/` updates. If the Aspire CLI check fails, `pnpm update:ts-api` fails, or the twoslash bundle is not regenerated, call the `noop` safe output with the failure details instead of `create-pull-request` so the workflow does not open a CI-failing data PR.
 
 ## Existing PR Handling
 

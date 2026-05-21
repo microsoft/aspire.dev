@@ -15,9 +15,27 @@ import type { TsApiDocument, TsHandleType } from '@utils/ts-modules';
 
 vi.mock('astro:content', async (importOriginal) => {
   const actual = await importOriginal<typeof import('astro:content')>();
+  const csharpPackageModules = import.meta.glob<{ default: any }>('../../src/data/pkgs/Aspire.Hosting.*.json');
+  const typeScriptModuleModules = import.meta.glob<{ default: any }>('../../src/data/ts-modules/Aspire.Hosting.*.json');
+  const rootHostingPackagePattern = /\/(Aspire\.Hosting\.\d[^/]*\.json)$/;
+  const getRootHostingIds = (modules: Record<string, () => Promise<{ default: any }>>) =>
+    Object.keys(modules)
+      .map((path) => path.match(rootHostingPackagePattern)?.[1])
+      .filter((id): id is string => Boolean(id));
+  const csharpPackageIds = getRootHostingIds(csharpPackageModules);
+  const typeScriptModuleIds = new Set(getRootHostingIds(typeScriptModuleModules));
+  const commonPackageIds = csharpPackageIds
+    .filter((id) => typeScriptModuleIds.has(id))
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  const fixtureId = commonPackageIds[commonPackageIds.length - 1];
+
+  if (!fixtureId) {
+    throw new Error('Expected matching Aspire.Hosting package and TypeScript module fixtures.');
+  }
+
   const [{ default: csharpPackageFixture }, { default: typeScriptModuleFixture }] = await Promise.all([
-    import('../../src/data/pkgs/Aspire.Hosting.13.3.0.json'),
-    import('../../src/data/ts-modules/Aspire.Hosting.13.3.0.json'),
+    csharpPackageModules[`../../src/data/pkgs/${fixtureId}`](),
+    typeScriptModuleModules[`../../src/data/ts-modules/${fixtureId}`](),
   ]);
 
   return {
@@ -26,14 +44,14 @@ vi.mock('astro:content', async (importOriginal) => {
     // content layer comes up empty in CI.
     getCollection: async (collectionName: string) => {
       if (collectionName === 'packages') {
-        return [{ id: 'Aspire.Hosting.13.3.0.json', data: csharpPackageFixture }];
+        return [{ id: fixtureId, data: csharpPackageFixture }];
       }
 
       if (collectionName === 'tsModules') {
-        return [{ id: 'Aspire.Hosting.13.3.0.json', data: typeScriptModuleFixture }];
+        return [{ id: fixtureId, data: typeScriptModuleFixture }];
       }
 
-      return actual.getCollection(collectionName as never);
+      return await actual.getCollection(collectionName);
     },
   };
 });
