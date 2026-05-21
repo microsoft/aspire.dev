@@ -133,6 +133,7 @@ safe-outputs:
     labels: [workflow-health]
   add-comment:
     max: 15
+    discussions: false
   update-issue:
     max: 5
   noop:
